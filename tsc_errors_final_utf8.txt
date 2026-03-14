@@ -1,0 +1,4 @@
+﻿App.tsx(36,32): error TS2307: Cannot find module './views/Settings/Orders/Priorities/PrioritiesList' or its corresponding type declarations.
+App.tsx(37,30): error TS2307: Cannot find module './views/Settings/Orders/Priorities/PriorityForm' or its corresponding type declarations.
+App.tsx(924,27): error TS2367: This comparison appears to be unintentional because the types '"settings"' and '"dashboard"' have no overlap.
+App.tsx(924,60): error TS2367: This comparison appears to be unintentional because the types '"settings"' and '"companies"' have no overlap.

@@ -1,0 +1,1 @@
+INSERT INTO "public"."cfg_orders_priorities" ("id", "code", "description", "is_avavailable", "color") VALUES ('1', 'AT', 'ALTA', 'true', null), ('2', 'MD', 'MEDIA', 'true', null), ('3', 'BX', 'BAIXA', 'true', null);

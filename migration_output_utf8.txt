@@ -1,0 +1,2 @@
+﻿[dotenv@17.3.1] injecting env (12) from .env.local -- tip: ­ƒøá´©Å  run anywhere with `dotenvx run -- yourcommand`
+­ƒÜÇ INICIANDO MIGRA├ç├âO COM AJUSTE DE NOMES (FLATTENED)

@@ -1,0 +1,1 @@
+INSERT INTO "public"."cfg_assets_priorities" ("id", "code", "description", "is_available") VALUES ('1', 'AT', 'ALTA', 'true'), ('2', 'MD', 'MEDIA', 'true'), ('3', 'BX', 'BAIXA', 'true');

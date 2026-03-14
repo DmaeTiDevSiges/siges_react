@@ -1,0 +1,1 @@
+INSERT INTO "public"."cfg_users_statuses" ("id", "code", "description") VALUES ('1', 'ANA', 'Análise'), ('2', 'ATI', 'Ativo'), ('3', 'INA', 'Inativo');

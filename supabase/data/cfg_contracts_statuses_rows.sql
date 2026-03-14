@@ -1,0 +1,1 @@
+INSERT INTO "public"."cfg_contracts_statuses" ("id", "code", "description") VALUES ('1', 'AT', 'Ativo'), ('2', 'IN', 'Inativo');

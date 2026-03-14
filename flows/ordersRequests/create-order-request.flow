@@ -1,0 +1,211 @@
+---
+name: Order Request Create
+category: ordersRequests
+version: 1.0.0
+description: Fluxo para criação de uma nova Ordem de Serviço no sistema
+author: Flow System
+date: 2026-01-11
+tags:
+  - transactional
+  - orders requests
+  - create
+  - web
+  - mobile
+---
+
+# Flow: Order Request Create
+
+## Contexto
+Este fluxo é executado quando um usuário autenticado cria uma nova Ordem de Serviço, seja ela uma nova demanda (Raiz) ou derivada de uma Solicitação de Serviço existente (Filha).
+O sistema coleta dados da sessão do usuário, dos dados enviados pelo formulário e de tabelas
+de configuração relacionadas, e então insere um novo registro na tabela `orders`
+seguindo regras de negócio previamente definidas.
+
+---
+
+## 🔐 Controle Transacional
+- As etapas de geração de contador e inserção da ordem são executadas dentro de **uma única transação**
+- Em caso de falha em qualquer etapa:
+  - Executar rollback completo
+  - Não inserir ordens
+  - Não atualizar contadores
+  - O registro do contador anual deve ser bloqueado durante leitura e incremento
+
+---
+
+## Etapas do Fluxo
+
+### 1. Acessar Tela de Nova OS
+**Quando:**  
+- O usuário está autenticado  
+- O usuário acessa a tela de criação de Ordem de Serviço  
+
+**Ação:**  
+- Exibir o formulário de criação de Ordem de Serviço  
+- Disponibilizar os dados da sessão do usuário para o fluxo  
+
+**Resultado Esperado:**  
+- O formulário é exibido e está pronto para preenchimento  
+
+---
+
+### 2. Preencher Formulário de Nova OS
+**Quando:**  
+- O usuário interage com o formulário  
+
+**Ação:**  
+- O usuário preenche os campos obrigatórios  
+- Os dados do formulário são armazenados temporariamente como `formData` 
+- Os campos tipo timestamp devem respeitar o fuso horário do Brasil (America/Sao_Paulo)  
+
+
+**Campos obrigatórios**
+ - requestedServices = SS.requested_services
+ - orderTypeId = SS.type_id
+ - orderTypeSubId = SS.type_sub_id
+ - objectId = SS.object_id
+ - contractId = SS.contract_id
+
+ **Opções dos campos**
+ - orderTypeId: listar cfg_order_types.description ASC 
+    - Condições: cfg_order_types.company_id = users.cfg_teams.company_id e is_available = true
+ - orderTypeSubId: listar cfg_order_type_subs.description ASC 
+    - Condições: cfg_order_type_subs.company_id = users.cfg_teams.company_id e is_available = true e is_deleted = false
+ - objectId: listar cfg_objects.description ASC 
+    - Condições: cfg_objects.company_id = users.cfg_teams.company_id e is_available = true e is_deleted = false
+ - contractId: listar `{contracts.description} ({contracts.code} 
+    - Condições: contracts.client_department_id = users.cfg_teams.department_id e is_available = true e is_deleted = false
+
+ **Valores padrão (herdados da SS)**
+ - formData.orderTypeId = SS.type_id (valor padrão, editável)
+ - formData.priorityId = SS.priority_id (valor padrão, editável)
+ - formData.contractId = SS.contract_id (se disponível)
+
+ **Resultado Esperado:**  
+- Os dados do formulário estão prontos para o proxima etapa  
+
+---
+
+### 3. Enviar Ordem de Serviço
+**Quando:**  
+- O usuário envia o formulário  
+
+**Ação:**  
+- Validar os dados do formulário  
+- Resolver dados relacionados ao usuário logado  
+- Resolver dados de tabelas de configuração  
+- Preparar os dados para inserção na tabela `orders` 
+- Os campos tipo timestamp devem respeitar o fuso horário do Brasil (America/Sao_Paulo) 
+
+
+**Resultado Esperado:**  
+- Todos os dados necessários estão disponíveis e validados  
+
+---
+
+
+### 5. Inserir Registro de Ordem de Serviço
+**Quando:**  
+- Todos os dados forem resolvidos  
+
+**Ação:**  
+Inserir um novo registro na tabela `orders` seguindo as regras abaixo:
+- orders.parent_id = SS.id
+- orders.counter_parent = SS.counter_parent
+- orders.counter_child = SS.counter_child + 1
+- orders.order_mask = `{SS.counter_parent}.{counter_child}.{SS.year}`
+- **Herança de Dados:**
+    - orders.unit_id = SS.unit_id
+    - orders.client_id = SS.client_id
+    - orders.unit_asset_tag_id = SS.unit_asset_tag_id
+    - orders.system_id = SS.system_id
+    - orders.year = SS.year
+    
+
+**Caso 2: Criando Nova OS**
+*Quando `parentId` não é fornecido*
+- Abortar a operação  
+- Não inserir nenhum registro  
+- Exibir mensagem de erro "Não é possível criar uma nova OS sem uma SS"
+
+**Campos Comuns (Fixos/Derivados)**
+- orders.status_id = 2 (Em Avaliação)
+- orders.company_id = cfg_teams.company_id  (usuario logado)
+- orders.department_id = cfg_teams.department_id  (usuario logado)
+- orders.requester_name = users.name_short  (usuario logado)
+- orders.requester_team_id = users.team_id  (usuario logado)
+- orders.requester_phone = users.mobile_mask || users.mobile || null  (usuario logado - priorizar máscara, fallback para mobile sem máscara)
+- orders.created_user_id = users.id  (usuario logado)
+- orders.unit_asset_tag_has_order = false
+- orders.provider_company_id = formData.contractId.provider_company_id
+- orders.provider_department_id = formData.contractId.provider_department_id
+
+**Campos do Formulário**
+- orders.plan_id = formData.planId
+- orders.object_id = formData.objectId
+- orders.contract_id = formData.contractId
+- orders.type_id = formData.orderTypeId 
+- orders.type_sub_id = formData.orderTypeSubId  
+- orders.priority_id = formData.priorityId 
+- orders.requested_services = formData.requestedServices  
+- orders.img_files_names = formData.images (Existentes + Novos)
+
+**Campos de data e hora**
+- orders.status_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo)
+- orders.requested_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo)
+- orders.created_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo)
+
+**Nota Técnica:**
+- A função `getBrazilTimestamp()` retorna um timestamp formatado no fuso horário de São Paulo (America/Sao_Paulo)
+- Isso garante que todas as datas sejam armazenadas consistentemente no horário local do Brasil
+- Formato: ISO 8601 com offset do fuso horário brasileiro (ex: "2026-01-28T10:52:00-03:00") 
+
+
+**Resultado Esperado:**  
+- Um novo registro de ordem de serviço é criado com sucesso na tabela `orders`
+- Atualizar os campos (após a inserção, caso haja imagens a serem enviadas):
+    - orders.img_file_path = companies/{company_id}/orders/{order_id}/images (caso existam imagens)
+    - orders.img_files_names = formData.images (os nomes dos arquivos a serem enviados ao storage devem ser diferentes dos originais)
+- Redirecionar para a tela de detalhes da ordem de serviço
+- Não atualizar situação da SS caso exista alguma OS com situação "Em Andamento", caso contrario, executar a função updateServiceRequestStatus com o status "Em Andamento"
+
+---
+
+## Validações Necessárias
+
+### Validação de Dados
+- O usuário deve estar autenticado 
+- Os dados obrigatórios do usuário e das tabelas de configuração devem existir 
+- Deve existir um registro de contador para o ano atual 
+- São permitidos no máximo 4 arquivos do tipo imagem
+
+---
+
+## Regras de Negócio
+- Nenhum campo adicional pode ser inserido além dos definidos neste fluxo  
+- Todos os dados auxiliares devem ser resolvidos antes da inserção  
+- Inserções parciais não são permitidas  
+
+---
+
+## Casos de Erro
+
+### Dados Obrigatórios Ausentes
+**Se:**  
+- Algum dado obrigatório do usuário, do formulário ou de configuração não puder ser resolvido  
+
+**Então:**  
+- Abortar a operação  
+- Não inserir nenhum registro  
+- Exibir mensagem de erro  
+
+---
+
+## Resultado Final
+- Um registro OS consistente é inserido na tabela `orders`  
+- Um registro SS é atualizado na tabela `orders`  
+- A `order_mask` é gerada conforme as regras definidas  
+- A operação é concluída sem estados parciais  
+- Redirecionar para a tela de detalhes da ordem de serviço
+
+

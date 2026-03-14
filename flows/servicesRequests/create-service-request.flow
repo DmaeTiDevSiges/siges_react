@@ -1,0 +1,237 @@
+---
+name: Service Request Create
+category: servicesRequests
+version: 1.0.0
+description: Fluxo para criação de uma nova Solicitação de Serviço no sistema
+author: Flow System
+date: 2026-01-11
+tags:
+  - transactional
+  - services requests
+  - create
+  - web
+  - mobile
+---
+
+# Flow: Service Request Create
+
+## Contexto
+Este fluxo é executado quando um usuário autenticado cria uma nova Solicitação de Serviço.
+O sistema coleta dados da sessão do usuário, dos dados enviados pelo formulário e de tabelas
+de configuração relacionadas, e então insere um novo registro na tabela `orders`
+seguindo regras de negócio previamente definidas.
+
+---
+
+## 🔐 Controle Transacional
+- As etapas de geração de contador e inserção da ordem são executadas dentro de **uma única transação**
+- Em caso de falha em qualquer etapa:
+  - Executar rollback completo
+  - Não inserir ordens
+  - Não atualizar contadores
+- O registro do contador anual deve ser bloqueado durante leitura e incremento
+
+---
+
+## Etapas do Fluxo
+
+### 1. Acessar Tela de Solicitação de Serviço
+**Quando:**  
+- O usuário está autenticado  
+- O usuário acessa a tela de criação de Solicitação de Serviço  
+
+**Ação:**  
+- Exibir o formulário de criação de Solicitação de Serviço  
+- Disponibilizar os dados da sessão do usuário para o fluxo  
+
+**Resultado Esperado:**  
+- O formulário é exibido e está pronto para preenchimento  
+
+---
+
+### 2. Preencher Formulário de Solicitação de Serviço
+**Quando:**  
+- O usuário interage com o formulário  
+
+**Ação:**  
+- O usuário preenche os campos obrigatórios  
+- Os dados do formulário são armazenados temporariamente como `formData`  
+
+**Campos obrigatórios**
+ - clientId
+ - unitId
+ - unitAssetTagId
+ - orderTypeId
+ - priorityId
+ - requestedServices
+ 
+ **Resultado Esperado:**  
+- Os dados do formulário estão prontos para envio  
+
+---
+
+### 3. Enviar Solicitação de Serviço
+**Quando:**  
+- O usuário envia o formulário  
+
+**Ação:**  
+- Validar os dados do formulário  
+- Resolver dados relacionados ao usuário logado  
+- Resolver dados de tabelas de configuração  
+- Preparar os dados para inserção na tabela `orders`  
+- Os campos tipo timestamp devem respeitar o fuso horário do Brasil (America/Sao_Paulo) 
+
+**Resultado Esperado:**  
+- Todos os dados necessários estão disponíveis e validados  
+
+---
+
+### 4. Gerar Contador da Ordem
+**Quando:**  
+- Antes de realizar a inserção do registro  
+
+**Ação:**  
+- Obter o contador do ano atual na tabela `cfg_orders_counter` com lock 
+- Incrementar o campo `cfg_orders_counter.counter` em +1  
+- Persistir o novo valor do contador  
+- Caso não exista um contador para o ano atual, criar um novo registro na tabela `cfg_orders_counter` com o ano atual e o contador em 1
+
+**Resultado Esperado:**  
+- O contador é atualizado com sucesso  
+
+---
+
+### 5. Inserir Registro de Ordem
+**Quando:**  
+- Todos os dados e contador foram resolvidos  
+
+**Ação:**  
+Inserir um novo registro na tabela `orders` seguindo as regras abaixo:
+
+**Campos Fixos ou Nulos**
+- orders.plan_id = null  
+- orders.object_id = null  
+- orders.parent_id = null  
+- orders.type_sub_id = null  
+- orders.team_leader_id = null  
+- orders.status_id = 1  
+- orders.counter_child = 0  
+- orders.team_id = null  
+- orders.contract_id = null  
+- orders.provider_company_id = null 
+- orders.counter_parent = cfg_orders_counter.counter 
+- orders.order_mask = cfg_orders_counter.counter + '.0.' + ano atual
+- orders.year = ano atual
+- orders.unit_asset_tag_has_order = true
+
+**Campos Derivados do Usuário Logado**
+- orders.company_id = cfg_teams.company_id  (usuário logado)
+- orders.department_id = cfg_teams.department_id  (usuário logado)
+- orders.requester_name = users.name_short (usuário logado)
+- orders.requester_team_id = users.team_id (usuário logado)
+- orders.requester_phone = users.mobile_mask (usuário logado)  
+- orders.created_user_id = users.id (usuário logado)  
+
+**Campos Derivados do Formulário**
+- orders.client_id = formData.clientId  
+- orders.unit_id = formData.unitId 
+- orders.unit_asset_tag_id = formData.unitAssetTagId 
+- orders.type_id = formData.orderTypeId 
+- orders.priority_id = formData.priorityId 
+- orders.requested_services = formData.requestedServices  
+- orders.img_files_names = formData.images
+
+**Campos derivados do campo formData.unitId (tabela units)**
+- orders.system_parent_id = units.system_parent_id (formData.unitId = units.id) 
+- orders.system_id = units.system_id (formData.unitId = units.id) 
+- orders.unit_type_parent_id = units.unit_type_parent_id (formData.unitId = units.id) 
+- orders.unit_type_id = units.unit_type_id (formData.unitId = units.id) 
+- orders.unit_latitude = units.latitude (formData.unitId = units.id) 
+- orders.unit_longitude = units.longitude (formData.unitId = units.id) 
+
+**Campos derivados do campo formData.unitAssetTagId (tabela cfg_units_assets_tags)**
+1. Realizar lookup na tabela `cfg_units_assets_tags` usando `formData.unitAssetTagId`
+2. Mapear:
+   - `orders.unit_asset_tag_id` = `formData.unitAssetTagId` (id da tabela `cfg_units_assets_tags`)
+   - `orders.asset_tag_id` = `cfg_units_assets_tags.asset_tag_id` (tag pai)
+   - `orders.asset_tag_sub_id` = `cfg_units_assets_tags.asset_tag_sub_id` (subtag/posição)
+
+**Campos de data e hora**
+- orders.status_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo)
+- orders.requested_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo)
+- orders.created_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo)
+
+**Nota Técnica:**
+- A função `getBrazilTimestamp()` retorna um timestamp formatado no fuso horário de São Paulo (America/Sao_Paulo)
+- Isso garante que todas as datas sejam armazenadas consistentemente no horário local do Brasil
+- Formato: ISO 8601 com offset do fuso horário brasileiro (ex: "2026-01-28T10:52:00-03:00") 
+
+### 6. Persistência de Imagens
+**Caminho**
+companies/<company_id>/orders/<order_id>/images
+
+**Regras**
+- Upload após criação da ordem
+- Em caso de falha, permitir retry
+
+**Resultado Esperado:**  
+- Um novo registro de ordem é criado com sucesso na tabela `orders`
+- Atualizar os campos (após a inserção):
+    - orders.img_file_path = companies/<orders.company_id>/orders/<order_id>/images
+    - orders.img_files_names = formData.images
+- Redirecionar para a tela de detalhes da ordem
+
+---
+
+## Validações Necessárias
+
+### Validação de Dados
+- O usuário deve estar autenticado  
+
+- Os dados obrigatórios do usuário e das tabelas de configuração devem existir  
+- Deve existir um registro de contador para o ano atual  
+- São permitidos no máximo 4 arquivos do tipo imagem
+
+
+---
+
+## Regras de Negócio
+- Nenhum campo adicional pode ser inserido além dos definidos neste fluxo  
+- Todos os dados auxiliares devem ser resolvidos antes da inserção  
+- Inserções parciais não são permitidas  
+
+---
+
+## Casos de Erro
+
+### Dados Obrigatórios Ausentes
+**Se:**  
+- Algum dado obrigatório do usuário, do formulário ou de configuração não puder ser resolvido  
+
+**Então:**  
+- Abortar a operação  
+- Não inserir nenhum registro  
+- Não atualizar contadores
+- Exibir mensagem de erro  
+
+---
+
+### Falha na Atualização do Contador
+**Se:**  
+- O contador não puder ser obtido ou atualizado  
+
+**Então:**  
+- Abortar a operação  
+- Não inserir o registro na tabela `orders` 
+- Exibir mensagem de erro 
+
+---
+
+## Resultado Final
+
+- Um registro consistente é inserido na tabela `orders`  
+- O contador é atualizado corretamente  
+- A `order_mask` é gerada conforme as regras definidas  
+- A operação é concluída sem estados parciais  
+
+

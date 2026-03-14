@@ -1,0 +1,17 @@
+{
+    "mcpServers": {
+      "supabase": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@anthropic/mcp-server-supabase"
+        ],
+        "env": {
+          "SUPABASE_URL": "https://vps.supabase.siges-app.com.br/",
+          "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.vlOy4XAytmdKQZGBvbSbAHsDLVn5au_sRty10rBJweo",
+          "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}",
+          "SUPABASE_DB_URL": "postgresql://postgres:5894a7d4c078ba0d1bf086bc9f5995a8@supabase_db:5432/postgres"
+        }
+      }
+    }
+  }

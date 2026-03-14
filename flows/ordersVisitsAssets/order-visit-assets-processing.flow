@@ -1,0 +1,49 @@
+---
+name: Order Visit Assets Processing
+category: ordersVisitsAssets 
+version: 1.1.0
+description: Sincronização de contadores de ativos na Visita para gestão de workflow e status de processamento.
+author: Flow System
+date: 2026-02-08
+tags:
+  - transactional
+  - counters
+  - sync
+---
+
+# Flow: Order Visit Assets Processing
+
+## 🎯 Objetivo
+Manter a integridade dos contadores de situação na tabela `orders_visits` refletindo em tempo real o estado dos ativos vinculados em `orders_visits_assets`. Esses contadores são fundamentais para habilitar ações como "Reportar Visita" ou "Arquivar Ativos".
+
+## � Contexto de Execução
+Este fluxo deve ser disparado automaticamente (via Trigger ou Hook) sempre que:
+1. **Insert/Delete**: Um ativo é vinculado ou desvinculado de uma visita.
+2. **Update**: O campo `processing_id` de um ativo é alterado.
+3. **Update**: O campo `is_filed` de um ativo é alterado.
+4. **Filtro de Bloqueio**: A operação só deve ocorrer se a visita pai (`orders_visits`) não estiver arquivada (`is_filed = false`).
+
+## 📊 Regras de Mapeamento (Contadores)
+
+| Campo em `orders_visits` | Regra de Contagem (Base: `orders_visits_assets`) |
+| :--- | :--- |
+| `ov_assets_amount` | `COUNT(*)` onde `ov_id = visit_id` |
+| `ov_assets_draft_amount` | `COUNT(*)` onde `processing_id = 1` |
+| `ov_assets_reported_amount` | `COUNT(*)` onde `processing_id = 2` |
+| `ov_assets_revised_amount` | `COUNT(*)` onde `processing_id = 3` |
+| `ov_assets_disapproved_amount` | `COUNT(*)` onde `processing_id = 4` |
+| `ov_assets_approved_no_filed_amount` | `COUNT(*)` onde `processing_id = 5` AND `is_filed = false` |
+| `ov_assets_approved_filed_amount` | `COUNT(*)` onde `processing_id = 5` AND `is_filed = true` |
+
+## 🔐 Regras de Negócio e Integridade
+- **Atomicidade**: A atualização de todos os contadores da visita deve ocorrer em uma única instrução SQL ou transação para evitar estados inconsistentes.
+- **Não-Recursividade**: Garantir que o update na visita não dispare gatilhos colaterais que voltem a alterar os ativos.
+- **Persistência**: Se a visita já estiver arquivada (`is_filed = true`), os contadores tornam-se "somente leitura" e não devem ser alterados por este fluxo.
+
+## ⚠️ Casos de Exceção
+1. **Órfãos**: Se um ativo for movido de uma `Visita A` para uma `Visita B`, o fluxo deve ser processado para ambas as visitas.
+2. **Visita Inexistente**: Se o `ov_id` do ativo não encontrar correspondência em `orders_visits`, a operação deve ser abortada e logada como erro de integridade referencial.
+
+## ✅ Resultado Esperado
+- Sincronização exata entre a soma dos ativos e os campos de resumo na visita.
+- Atualização imediata da UI através de eventos de realtime (Supabase) após o término deste fluxo.

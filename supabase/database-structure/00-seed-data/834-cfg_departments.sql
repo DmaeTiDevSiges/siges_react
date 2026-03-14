@@ -1,0 +1,63 @@
+-- =============================================================================
+-- Seed Data: cfg_departments
+-- Exported: 2026-03-05T17:29:24.602Z
+-- Records: 53
+-- =============================================================================
+
+INSERT INTO public.cfg_departments (id, code, description, parent_id, company_id, is_available, created_user_id, created_at, updated_user_id, updated_at, deleted_user_id, deleted_at, is_deleted, version)
+VALUES
+    (1, 'DG', 'Dir Geral', NULL, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (2, 'D-', 'Gestao Desenvolvimento', 1, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (3, 'PLA', 'Planejamento', 2, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (4, 'OB', 'Obras', 2, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (5, 'PR', 'Projetos', 2, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (6, 'TAE', 'Trat Agua Esgoto', 1, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (7, 'TA', 'Trat Agua', 1, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (8, 'TE', 'Trat Esgoto', 6, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (9, 'MAN', 'Manutencao', 6, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (10, 'OP', 'Operacoes', 1, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (11, 'DC', 'Dist Centro', 10, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (12, 'DS', 'Dist Sul', 10, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (13, 'DL', 'Dist Leste', 10, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (14, 'DN', 'Dist Norte', 10, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (15, 'GLOG', 'Lojistica', 10, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (16, 'RC', 'Rel Cliente', 1, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (17, 'AC', 'Atendimento Cliente', 16, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (18, 'ARREC', 'Arrecadacao', 16, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (19, 'CO', 'Consumo', 16, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (20, 'ADM', 'Administrativo', 1, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (21, 'Finan', 'Financeiro', 20, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (22, 'SC', 'Servicos Compartilhados', 20, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (23, 'LC', 'Licitacoes Contratos', 20, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (24, 'SUP', 'Suprimento', 20, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (25, 'GP', 'Gestao Pessoas', 20, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (26, 'GC', 'Distr e Conducao', 6, 1, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (27, 'DG', 'Dir.Geral', NULL, 5, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (28, 'MAN', 'Manutencao', 27, 5, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (29, 'DG', 'Dir.Geral', NULL, 6, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (30, 'MAN', 'Manutencao', 29, 6, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (31, 'DG', 'Dir.Geral', NULL, 7, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (32, 'MAN', 'Manutencao', 31, 7, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (33, 'DG', 'Dir.Geral', NULL, 7, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (34, 'MAN', 'Manutenção', 33, 7, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (35, 'DIR', 'Direção', NULL, 2, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (36, 'MAN', 'Manutencao', 35, 2, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (37, 'DIR', 'Direcao', NULL, 4, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (38, 'MAN', 'Manutencao', 37, 4, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (39, 'DIR', 'Direcao', NULL, 8, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (40, 'MAN', 'Manutencao', 39, 8, true, NULL, '2024-07-20T02:39:03.196826', NULL, NULL, NULL, NULL, false, 'live'),
+    (41, 'DIR', 'Direção', NULL, 9, true, 124, '2024-12-20T18:41:08', NULL, NULL, NULL, NULL, false, 'live'),
+    (42, 'MAN', 'Manutenção', 41, 9, true, 124, '2024-12-20T18:42:10', NULL, NULL, NULL, NULL, false, 'live'),
+    (43, 'DIR', 'Direção', NULL, 10, true, 124, '2024-12-21T16:44:23.68478', NULL, NULL, NULL, NULL, false, 'live'),
+    (44, 'MAN', 'Manutenção', NULL, 10, true, 124, '2024-12-21T13:45:11', NULL, NULL, NULL, NULL, false, 'live'),
+    (45, 'MAN', 'Manutenção', NULL, 11, true, 124, '2024-12-21T14:18:00', NULL, NULL, NULL, NULL, false, 'live'),
+    (46, 'MAN', 'Manutenção', NULL, 12, true, 124, '2024-12-21T14:32:40', NULL, NULL, NULL, NULL, false, 'live'),
+    (47, 'MAN', 'Manutenção', NULL, 13, true, 124, '2024-12-21T14:41:31', NULL, NULL, NULL, NULL, false, 'live'),
+    (48, 'MAN', 'Manutenção', NULL, 14, true, 124, '2024-12-21T15:43:29', NULL, NULL, NULL, NULL, false, 'live'),
+    (49, 'MAN', 'Manutenção', NULL, 15, true, 124, '2024-12-21T15:59:15', NULL, NULL, NULL, NULL, false, 'live'),
+    (50, 'ADM', 'Administrativo', NULL, 16, true, 124, '2025-07-07T14:32:53', NULL, NULL, NULL, NULL, false, 'live'),
+    (51, 'SERV', 'Serviços', NULL, 19, true, NULL, '2025-08-22T14:16:25.051329', NULL, NULL, NULL, NULL, false, 'live'),
+    (52, 'Distribuicao', 'Distribuicao', 51, 19, true, 124, '2025-08-22T11:16:58', NULL, NULL, NULL, NULL, false, 'live'),
+    (53, 'ADM', 'ADMINISTRATIVO', NULL, 17, true, 124, '2025-10-05T12:01:25', NULL, NULL, NULL, NULL, false, 'live')
+ON CONFLICT (id) DO NOTHING;
+

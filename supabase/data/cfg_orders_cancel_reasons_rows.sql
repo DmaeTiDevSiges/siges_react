@@ -1,0 +1,1 @@
+INSERT INTO "public"."cfg_orders_cancel_reasons" ("id", "department_id", "description", "is_available", "is_deleted") VALUES ('1', '9', 'Não compete a CMIP.', 'true', 'false'), ('2', '9', 'Em duplicidade.', 'true', 'false'), ('3', '9', 'Já reparado.', 'true', 'false'), ('4', '9', 'Testes de cadastro.', 'true', 'false'), ('5', '9', 'Reparado pelo operador.', 'true', 'false');

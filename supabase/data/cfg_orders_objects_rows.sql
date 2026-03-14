@@ -1,0 +1,1 @@
+INSERT INTO "public"."cfg_orders_objects" ("id", "code", "description") VALUES ('1', 'SRV', 'SERVICO'), ('2', 'ORC', 'ORCAMENTO');

@@ -1,0 +1,131 @@
+---
+name: Notify Super Admin on Profile Photo Change
+category: notifications
+version: 1.0.0
+description: When a user changes their profile photo, the super admin user must be notified
+author: Flow System
+date: 2025-12-27
+---
+
+# Flow: Profile Photo Change Notification
+
+## Context
+When a regular user updates their profile photo in the system, the super administrator needs to be notified for auditing and monitoring purposes.
+
+## Flow Steps
+
+### 1. [User Selects New Photo]
+**When:** The user accesses their profile and clicks to change the photo
+**Action:** 
+- User selects a new image from the device
+- System validates image format (jpg, png, webp)
+- System validates maximum size (5MB)
+**Expected Result:** 
+- Valid image is loaded in the interface
+- Save button becomes enabled
+
+### 2. [System Uploads Photo]
+**When:** User confirms the photo change
+**Action:**
+- System uploads the image to Supabase Storage
+- System updates the `avatar_url` field in the `users` table
+- System stores the old photo URL for history
+**Expected Result:**
+- Photo is successfully saved in storage
+- User record is updated
+- New photo URL is available
+
+### 3. [System Identifies Super Admin]
+**When:** Photo upload is completed successfully
+**Action:**
+- System searches the `users` table for all users where `is_admin_super = true`
+- System obtains the IDs of these administrators
+**Expected Result:**
+- List of super admin IDs is obtained
+- If there is no super admin, the flow ends without error
+
+### 4. [Database Creates Notification via Trigger]
+**When:** `avatar_url` field of the `users` table is updated
+**Action:**
+- `on_profile_photo_change` trigger is fired
+- System identifies super admins
+- System creates a record in the `users_notifications` table for each super admin with:
+  - `user_id`: Super admin ID
+  - `title`: "Profile photo updated"
+  - `message`: "User [Name] updated their profile photo"
+  - `type`: "profile_photo_change"
+  - `related_user_id`: ID of the user who changed the photo
+  - `is_read`: false
+  - `created_at`: getBrazilTimestamp() (timezone America/Sao_Paulo)
+**Expected Result:**
+- Notification is automatically created by the database
+- Notification appears for the super admin
+
+### 5. [Super Admin Views Notification]
+**When:** Super admin accesses the application
+**Action:**
+- System displays badge with the number of unread notifications
+- Super admin clicks on the notification
+- System marks notification as read (`is_read = true`)
+- System navigates to the profile of the user who changed the photo
+**Expected Result:**
+- Super admin views user information
+- Notification is marked as read
+- Notification badge is updated
+
+## Necessary Validations
+
+### Image Validation
+- Format: only jpg, png, webp
+- Maximum size: 5MB
+- Minimum dimensions: 100x100 pixels
+
+### Permissions Validation
+- User must be authenticated
+- User can only change their own photo
+- Super admin can change any user's photo
+
+## Error Cases
+
+### Upload Error
+**If:** Image upload fails
+**Then:** 
+- Display error message to the user
+- Do not create notification
+- Keep previous photo
+
+### Notification Creation Error
+**If:** Notification creation fails
+**Then:**
+- Photo is saved normally
+- Error log is recorded
+- Does not prevent photo change
+
+## Data Required
+
+### `users` Table
+- `id` (UUID)
+- `name_full` (string)
+- `avatar_url` (string)
+- `is_admin_super` (boolean)
+
+### `users_notifications` Table
+- `id` (BigInt, primary key)
+- `user_id` (BigInt, foreign key to users)
+- `title` (string)
+- `message` (string)
+- `type` (string)
+- `related_user_id` (UUID, nullable)
+- `is_read` (boolean, default false)
+- `created_at` (timestamp)
+- `read_at` (timestamp, nullable)
+
+## Technical Remarks
+
+- Use Supabase Storage to store images
+- Use Supabase Realtime for real-time notifications (optional)
+- Consider creating a database trigger to automate notification creation
+- Implement debounce to avoid multiple notifications in case of quick uploads
+- The `getBrazilTimestamp()` function returns a timestamp formatted in the São Paulo timezone (America/Sao_Paulo)
+- Ensure all dates are stored consistently in Brazil local time
+- Format: ISO 8601 with Brazilian timezone offset (e.g. "2026-01-28T10:52:00-03:00")

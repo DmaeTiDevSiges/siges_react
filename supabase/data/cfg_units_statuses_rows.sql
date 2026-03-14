@@ -1,0 +1,1 @@
+INSERT INTO "public"."cfg_units_statuses" ("id", "code", "description", "color") VALUES ('1', 'PROJ', 'Projeto', null), ('2', 'OBRA', 'Obra', null), ('3', 'ATIVO', 'Ativo', null), ('4', 'DESAT', 'Desativada', null);

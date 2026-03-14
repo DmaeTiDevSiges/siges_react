@@ -1,0 +1,183 @@
+---
+name: Order Visit Create
+category: ordersVisits 
+version: 1.0.0
+description: Fluxo para criação de uma nova Visita na Ordem de Serviço
+author: Flow System
+date: 2026-01-18
+tags:
+  - transactional
+  - orders visits
+  - create 
+  - web
+  - mobile
+---
+
+# Flow: Order Visit Create
+
+## Contexto
+Este fluxo é executado quando um usuário autenticado cria uma nova Visita na Ordem de Serviço.
+O sistema coleta dados da sessão do usuário, dos dados enviados pelo formulário e de tabelas
+de configuração relacionadas, e então insere um novo registro na tabela `orders_visits`
+seguindo regras de negócio previamente definidas.
+
+---
+
+## 🔐 Controle Transacional
+- As etapas de geração de contador e inserção da ordem são executadas dentro de **uma única transação**
+- Em caso de falha em qualquer etapa:
+  - Executar rollback completo
+  - Não inserir visitas
+
+
+---
+
+## Etapas do Fluxo
+
+### 1. Acessar Tela Detalhes da OS
+**Quando:**  
+- O usuário está autenticado  
+- O usuário acessa a tela de detalhes de uma Ordem de Serviço
+- O acesso a localizacao do usuario deve estar habilitado
+- O usuário clicar no botao Iniciar Visita  
+
+**Ação:**  
+- Clicar no botao Iniciar Visita  
+
+**Resultado Esperado:**  
+- Sugir um modal de confirmacao para o usuaario confirmar o inicio da visita  
+
+---
+
+### 2. Responder ao Modal de Confirmacao
+**Quando:**  
+- O usuário interage com o modal de confirmacao  
+
+**Ação:**  
+- O usuário nao confirma o inicio da visita  
+- O fluxo é cancelado  
+
+**Resultado Esperado:**  
+- O usuario retorna para a tela de detalhes da OS  
+
+---
+
+### 3. Iniciar Visita
+**Quando:**  
+- O usuário confirma o inicio da visita  
+
+**Ação:**  
+- Tabela orders (Atualizar o registro da SS referente ao parent_id da OS)
+   - status_id = 5 (Em Andamento)
+   - status_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo)
+   - ov_counter = ov_counter + 1
+
+- Tabela orders (Atualizar o registro da OS)
+   - status_id = 5 (Em Andamento)
+   - status_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo) 
+
+- Tabela orders_visits (Inserir um novo registro)
+   - o_id = orders.id (Detalhes da OS)
+   - ov_status_id = 1 (Em Andamento)
+   - ov_processing_id = 1 (Rascunho)
+   - ov_started_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo)
+   - ov_team_leader_id = users.id (Usuario logado)
+   - ov_created_user_id = users.id (Usuario logado) 
+   - ov_created_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo)
+   - ov_mask = orders.order_mask + '.' + orders.ov_counter (formato 2 digitos, exemplos: 01, 03, 05 e etc)
+
+- Tabela orders_visits_vehicles (Inserir um novo registro)
+   - Se o users.vehicle_id for nulo, não inserir registro.
+   - Se o users.vehicle_id for > 0, inserir:
+       - ov_id = orders_visits.id
+       - vehicle_id = users.vehicle_id
+       - created_user_id = users.id
+       - created_at = getBrazilTimestamp() (fuso horário America/Sao_Paulo) 
+
+- Tabela orders_visits_teams (Inserir um novo registro do usuario logado)
+   - ov_id = orders_visits.id
+   - user_id = users.id (usuario logado)
+   - is_leader = true
+   - order_id = 0
+
+- Tabela orders_visits_teams (Inserir registros da equipe do usuario logado)
+   - Fazer um loop em users ordenando por users.name_short ASC 
+   - Se o users.team_id = users.team_id do usuario logado e users.is_available = true, inserir (descosiderando o id do usuario logado):
+      - ov_id = orders_visits.id
+      - user_id = users.id (usuario do loop)
+      - is_leader = false
+      - order_id = order_id +1
+
+- Tabela users (Atualizar os registros de users de orders_visits_teams)
+   - ov_id_in_progress = orders_visits.id
+   - is_available = false
+   - is_ov_in_progress = true
+   - o_id_in_progress = orders.id (OS em andamento)
+   - op_id_in_progress = orders.parent_id (SS em andamento)
+   - ov_id_in_progress_mask = orders_visits.ov_mask
+
+
+**Nota Técnica:**
+- A função `getBrazilTimestamp()` retorna um timestamp formatado no fuso horário de São Paulo (America/Sao_Paulo)
+- Isso garante que todas as datas sejam armazenadas consistentemente no horário local do Brasil
+- Formato: ISO 8601 com offset do fuso horário brasileiro (ex: "2026-01-28T10:52:00-03:00") 
+
+---
+
+### 3. Enviar Notificação para os seguidores da OS
+**Quando:**  
+- Apos a Etapa 3 estiver concluida com sucesso.  
+
+**Ação:**  
+- Realizar um loop em orders_followers onde orders_followers.o_id = orders.parent_id da OS
+   - Inserir um registro na tabela users_notifications para cada orders_followers.user_id do loop
+      - user_id_to = orders_followers.user_id
+      - user_id_from = user.id do usuario logado
+      - title = "OS em atendimento."
+      - body = "{users.name_short} iniciou a visita:
+         OS {v_orders.order_mask}: {orders_statuses.description}
+         Cliente: {v_orders.client_name_short}
+         Unidade: {v_orders.unit_description}
+         Setor/Posição: {v_orders.asset_tag_description} + '/' + {v_orders.asset_tag_sub_description} 
+         Servicos a realizar: {v_orders.requested_services}"
+      - type = "OS em atendimento"
+      - user_to_whatsapp = users.mobile_whatsapp
+
+**Resultado Esperado:**  
+- Todos os registors inseridos na tabela users_notifications  
+
+---
+
+## Regras de Negócio
+- Nenhum campo adicional pode ser inserido além dos definidos neste fluxo  
+- Todos os dados auxiliares devem ser resolvidos antes da inserção  
+- Inserções parciais não são permitidas  
+- Os campos tipo timestamp devem respeitar o fuso horário do Brasil (America/Sao_Paulo) 
+
+
+---
+
+## Casos de Erro
+
+### Dados Obrigatórios Ausentes
+**Se:**  
+- Algum dado obrigatório do usuário não puder ser resolvido  
+
+**Então:**  
+- Abortar a operação  
+- Não inserir ou alterar nenhum registro  
+- Exibir mensagem de erro  
+
+---
+
+## Resultado Final
+
+- Um registro e atualizado na tabela orders  
+- Um registro e inserido na tabela orders_visits  
+- Um ou mais registros são inseridos na tabela orders_visits_teams  
+- Um registro e inserido na tabela orders_visits_vehicles  
+- Um ou mais registros são atualizados na tabela users  
+- Um ou mais registros são inseridos na tabela users_notifications
+- A operação é concluída sem estados parciais  
+
+

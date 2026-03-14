@@ -1,0 +1,1 @@
+INSERT INTO "public"."cfg_assets_available_processing" ("id", "code", "description") VALUES ('1', 'RAS', 'Rascunho'), ('2', 'REP', 'Reportado');

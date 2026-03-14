@@ -1,0 +1,18 @@
+﻿views/Assets/AssetsSearch.tsx(244,33): error TS2322: Type '{ key: string; asset: Asset; isFavorite: boolean; onToggleFavorite: () => Promise<void>; onClick: () => void; }' is not assignable to type 'IntrinsicAttributes & AssetCardProps'.
+  Property 'isFavorite' does not exist on type 'IntrinsicAttributes & AssetCardProps'.
+views/OrderVisit/OrderVisitAsset/OrderVisitAssetReport.tsx(1101,17): error TS2322: Type '{ isOpen: boolean; onClose: () => void; onConfirm: () => Promise<void>; title: string; message: string; type: "error"; confirmLabel: string; cancelLabel: string; loading: boolean; }' is not assignable to type 'IntrinsicAttributes & ModalProps'.
+  Property 'loading' does not exist on type 'IntrinsicAttributes & ModalProps'.
+views/OrderVisit/OrderVisitAsset/OrderVisitAssetReport.tsx(1131,17): error TS2322: Type '{ isOpen: boolean; onClose: () => void; onConfirm: () => Promise<void>; title: string; message: string; type: "warning"; confirmLabel: string; loading: boolean; }' is not assignable to type 'IntrinsicAttributes & ModalProps'.
+  Property 'loading' does not exist on type 'IntrinsicAttributes & ModalProps'.
+views/OrderVisit/OrderVisitAsset/OrderVisitAssetReport.tsx(1167,17): error TS2322: Type '{ children: Element; isOpen: boolean; onClose: () => void; title: string; confirmLabel: string; cancelLabel: string; onConfirm: () => Promise<void>; loading: boolean; }' is not assignable to type 'IntrinsicAttributes & ModalProps'.
+  Property 'loading' does not exist on type 'IntrinsicAttributes & ModalProps'.
+views/OrderVisit/OrderVisitAsset/OrderVisitAssetReport.tsx(1239,157): error TS2551: Property 'unitDescription' does not exist on type 'Asset'. Did you mean 'unitDescriptionFull'?
+views/OrderVisit/OrderVisitAsset/OrderVisitAssetReport.tsx(1331,21): error TS2322: Type '{ url: string; onClose: () => void; }' is not assignable to type 'IntrinsicAttributes & PhotoViewerProps'.
+  Property 'url' does not exist on type 'IntrinsicAttributes & PhotoViewerProps'.
+vite.config.ts(5,29): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '({ mode }: ConfigEnv) => { server: { port: number; host: string; }; preview: { port: number; host: string; allowedHosts: string; }; plugins: Plugin<any>[][]; define: { 'process.env.API_KEY': string; 'process.env.GEMINI_API_KEY': string; }; resolve: { ...; }; }' is not assignable to parameter of type 'UserConfigExport'.
+      Type '({ mode }: ConfigEnv) => { server: { port: number; host: string; }; preview: { port: number; host: string; allowedHosts: string; }; plugins: Plugin<any>[][]; define: { 'process.env.API_KEY': string; 'process.env.GEMINI_API_KEY': string; }; resolve: { ...; }; }' is not assignable to type 'UserConfigFnObject'.
+        Call signature return types '{ server: { port: number; host: string; }; preview: { port: number; host: string; allowedHosts: string; }; plugins: Plugin<any>[][]; define: { 'process.env.API_KEY': string; 'process.env.GEMINI_API_KEY': string; }; resolve: { ...; }; }' and 'UserConfig' are incompatible.
+          The types of 'preview.allowedHosts' are incompatible between these types.
+            Type 'string' is not assignable to type 'true | string[]'.

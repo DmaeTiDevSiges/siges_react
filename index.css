@@ -1,0 +1,276 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+@config "./tailwind.config.js";
+
+@theme {
+    --color-primary: #137fec;
+    --color-primary-dark: #0e5eb0;
+    --color-background-light: #f6f7f8;
+    --color-background-dark: #101922;
+    --color-surface-dark: #1C252E;
+    --color-surface-light: #FFFFFF;
+    --color-card-dark: #1b2531;
+
+    --font-sans: "Inter", "sans-serif";
+
+    --radius-lg: 12px;
+    --radius-xl: 12px;
+
+    --animate-loading-bar: loading-bar 1.5s infinite linear;
+
+    @keyframes loading-bar {
+        0% {
+            transform: translateX(-100%);
+            width: 30%;
+        }
+
+        50% {
+            width: 60%;
+        }
+
+        100% {
+            transform: translateX(400%);
+            width: 30%;
+        }
+    }
+}
+
+@layer base {
+    * {
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+@layer utilities {
+    .safe-area-top {
+        padding-top: constant(safe-area-inset-top);
+        padding-top: env(safe-area-inset-top);
+    }
+
+    .safe-area-bottom {
+        padding-bottom: constant(safe-area-inset-bottom);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .safe-area-left {
+        padding-left: constant(safe-area-inset-left);
+        padding-left: env(safe-area-inset-left);
+    }
+
+    .safe-area-right {
+        padding-right: constant(safe-area-inset-right);
+        padding-right: env(safe-area-inset-right);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+}
+
+@keyframes loading-bar {
+    0% {
+        transform: translateX(-100%);
+        width: 30%;
+    }
+
+    50% {
+        width: 60%;
+    }
+
+    100% {
+        transform: translateX(400%);
+        width: 30%;
+    }
+}
+
+@keyframes star-pop {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.4) rotate(15deg);
+    }
+
+    100% {
+        transform: scale(1.1) rotate(0deg);
+    }
+}
+
+.animate-star-pop {
+    animation: star-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Modal Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes zoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes slideInFromBottom {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInFromBottom2 {
+    from {
+        transform: translateY(8px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes zoomIn95 {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-in {
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-fill-mode: forwards;
+}
+
+.fade-in {
+    animation-name: fadeIn;
+}
+
+.zoom-in {
+    animation-name: zoomIn;
+}
+
+.zoom-in-95 {
+    animation-name: zoomIn95;
+}
+
+.slide-in-from-bottom {
+    animation-name: slideInFromBottom;
+}
+
+.slide-in-from-bottom-2 {
+    animation-name: slideInFromBottom2;
+}
+
+
+.duration-200 {
+    animation-duration: 200ms;
+}
+
+.duration-300 {
+    animation-duration: 300ms;
+}
+
+.duration-400 {
+    animation-duration: 400ms;
+}
+
+/* html5-qrcode modern styling */
+#reader {
+    border: none !important;
+}
+
+#reader img {
+    display: none !important;
+}
+
+#reader__dashboard_section_csr button {
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 10px 0;
+}
+
+#reader__dashboard_section_csr button:hover {
+    background-color: var(--color-primary-dark);
+    transform: scale(0.98);
+}
+
+#reader__scan_region video {
+    border-radius: 16px !important;
+    object-fit: cover !important;
+}
+
+#reader__dashboard_section_swaplink {
+    display: none !important;
+}
+
+#reader__status_span {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    color: #64748b !important;
+}

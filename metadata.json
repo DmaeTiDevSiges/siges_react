@@ -1,0 +1,7 @@
+{
+  "name": "Nexus Contract Manager",
+  "description": "A high-performance contract and partner management system with AI-driven insights, featuring a sleek dark-mode interface and real-time status tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

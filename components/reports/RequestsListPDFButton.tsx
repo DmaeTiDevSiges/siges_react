@@ -1,0 +1,87 @@
+import React, { useState } from 'react';
+import { pdf } from '@react-pdf/renderer';
+import { RequestsListDocument } from './RequestsListDocument';
+import { FaFilePdf } from 'react-icons/fa';
+import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
+import { dataService } from '../../services/dataService';
+import { OrderFilters } from '../../types';
+import { toast } from 'sonner';
+import { FileUtils } from '../../utils/FileUtils';
+import { getLogoBase64 } from '../../utils/PdfImageUtils';
+
+interface RequestsListPDFButtonProps {
+    filters: OrderFilters;
+    searchQuery?: string;
+    filename?: string;
+    className?: string;
+    totalCount?: number;
+}
+
+/**
+ * Botão que busca TODAS as SS's baseadas nos filtros atuais antes de gerar o PDF
+ */
+export const RequestsListPDFButton = ({
+    filters,
+    searchQuery = '',
+    filename = 'relatorio-ss',
+    className = "",
+    totalCount
+}: RequestsListPDFButtonProps) => {
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const handleDownload = async () => {
+        try {
+            setIsGenerating(true);
+            const toastId = toast.loading('Buscando dados das solicitações...');
+
+            // Buscar todos os registros usando o método especializado para SS
+            const data = await dataService.getUnscheduledSS({
+                ...filters,
+                search: searchQuery,
+            });
+
+            if (!data || data.length === 0) {
+                toast.error('Nenhuma solicitação encontrada para os filtros atuais.', { id: toastId });
+                setIsGenerating(false);
+                return;
+            }
+
+            toast.loading(`Gerando PDF com ${data.length} solicitações...`, { id: toastId });
+
+            // Gerar o PDF
+            const logoBase64 = await getLogoBase64();
+            const doc = <RequestsListDocument requests={data} logoBase64={logoBase64} />;
+            const blob = await pdf(doc).toBlob();
+
+            // Salvar o arquivo
+            await FileUtils.downloadFile(blob, `${filename}.pdf`);
+
+            toast.success('PDF de solicitações gerado com sucesso!', { id: toastId });
+        } catch (error) {
+            console.error('Erro ao gerar PDF de SS:', error);
+            toast.error('Ocorreu um erro ao gerar o PDF das solicitações.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    return (
+        <button
+            onClick={handleDownload}
+            disabled={isGenerating}
+            className={`flex items-center gap-2 px-4 py-1.5 bg-slate-800/40 border border-slate-700 text-slate-300 rounded-full hover:bg-slate-700 disabled:opacity-50 transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm ${className}`}
+        >
+            {isGenerating ? (
+                <>
+                    <HiOutlineDotsCircleHorizontal className="animate-spin" />
+                    <span>Processando...</span>
+                </>
+            ) : (
+                <>
+                    <FaFilePdf size={12} className="text-red-500" />
+                    <span>PDF {totalCount ? `(${totalCount})` : ''}</span>
+                </>
+            )}
+        </button>
+    );
+};

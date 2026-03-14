@@ -1,0 +1,41 @@
+// Patch for getActivities in dataService.ts
+// Replace lines 485-544 with this code:
+
+async getActivities(): Promise<Activity[]> {
+    // First, get all activities
+    const { data: activitiesData, error: activitiesError } = await supabase
+        .from('cfg_activities')
+        .select('*')
+        .order('description');
+
+    if (activitiesError) {
+        console.error('Error fetching activities:', activitiesError);
+        throw activitiesError;
+    }
+
+    if (!activitiesData) {
+        return [];
+    }
+
+    // Then, get linked order type IDs for each activity
+    const activitiesWithOrderTypes = await Promise.all(
+        activitiesData.map(async (item: any) => {
+            const { data: links } = await supabase
+                .from('cfg_orders_types_activities')
+                .select('o_type_id')
+                .eq('activity_id', item.id);
+
+            const linkedOrderTypeIds = links?.map(link => link.o_type_id.toString()) || [];
+
+            return {
+                id: item.id.toString(),
+                code: item.code || '',
+                description: item.description,
+                isAvailable: item.is_available ?? true,
+                linkedOrderTypeIds: linkedOrderTypeIds
+            };
+        })
+    );
+
+    return activitiesWithOrderTypes as Activity[];
+},

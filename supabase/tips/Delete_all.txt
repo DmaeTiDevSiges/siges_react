@@ -1,0 +1,17 @@
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+
+-- Reatribui permissões padrão do Supabase
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO anon;
+GRANT ALL ON SCHEMA public TO authenticated;
+GRANT ALL ON SCHEMA public TO service_role;
+
+-- Concede permissão em todas as TABELAS (isso resolve o erro de leitura)
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+
+-- Concede permissão em todas as SEQUÊNCIAS (necessário para IDs auto-incremento)
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+
+-- Concede permissão em todas as FUNÇÕES
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, service_role;

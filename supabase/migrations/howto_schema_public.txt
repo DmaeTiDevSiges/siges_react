@@ -1,0 +1,1 @@
+ssh root@vps2.supabase.siges-app.com.br 'docker exec -i $(docker ps -q --filter name=supabase_db | head -n 1) pg_dump -U postgres --schema=public --schema-only --no-owner --no-privileges postgres' > supabase/migrations/schema_public.sql

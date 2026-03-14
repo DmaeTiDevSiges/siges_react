@@ -1,0 +1,118 @@
+---
+name: Notificar Seguidores na Alteração de Situação de OS
+category: notifications
+version: 1.2.0
+description: Notificar os usuários que seguem uma Ordem de Serviço quando houver alteração em sua situação (status).
+author: Flow System
+date: 2026-03-01
+---
+
+# Flow: Notificação de Alteração de Situação de OS para Seguidores
+
+## Contexto
+Quando a situação de uma Ordem de Serviço (OS) é alterada no sistema, todos os usuários que optaram por "seguir" essa OS específica devem ser notificados imediatamente. Isso garante que os interessados (gestores, supervisores ou solicitantes) acompanhem o ciclo de vida da OS sem precisar consultar o painel constantemente.
+
+## Gatilho (Trigger)
+- **Tabela**: `orders`
+- **Evento**: `UPDATE`
+- **Condição**: A notificação deve ser disparada apenas quando o valor atual de `status_id` for diferente do valor anterior (`OLD.status_id != NEW.status_id`) ou  quando o status_id atual e anterior forem iguais a 4 (Agendada).
+
+## Passos do Flow
+
+### 1. [Identificar Seguidores]
+**Quando:** O trigger de alteração de status é acionado.
+**Ação:** 
+- O sistema consulta a tabela `orders_followers` buscando todos os `user_id` associados ao ID da OS (`o_id`).
+**Resultado Esperado:** 
+- Uma lista de IDs de usuários (seguidores) que devem receber a notificação.
+
+### 2. [Coletar Dados da OS e Usuário]
+**Quando:** Seguidores são identificados.
+**Ação:**
+- Recuperar os detalhes da OS para compor a mensagem (Máscara da OS, Nome do Cliente, Nome da Unidade, Lista de Serviços).
+- Identificar o nome do usuário que realizou a alteração de status (`updated_by` ou usuário logado na sessão).
+- Buscar a descrição textual da nova situação (ex: de "Autorizada" para "Em Execução").
+**Resultado Esperado:**
+- Variáveis preenchidas para a construção do corpo da mensagem.
+
+### 3. [Gerar Notificações no Banco de Dados]
+**Quando:** Dados estão disponíveis.
+**Ação:**
+- Para cada seguidor identificado, inserir um registro na tabela `users_notifications` com os seguintes campos:
+  - `user_id_to`: ID do seguidor.
+  - `user_id_from`: ID do usuário que alterou a situação.
+  - `title`: "Atualização Situação OS [Número da OS]"
+  - `body`: 
+    ```text
+    OS [Número da OS]
+    Cliente: [Nome do Cliente]
+    Unidade: [Nome da Unidade]
+    Serviços a realizar: [Lista de Serviços]
+    Situação: [Nova Situação]
+    Data hora: [Data e Hora da Alteração]
+    ```
+  - `type`: `"order_status_change"`
+  - `user_to_whatsapp`: `users.mobile_whatsapp` do seguidor.
+  - `created_at`: `timezone('America/Sao_Paulo', CURRENT_TIMESTAMP)`
+  - `is_read`: `false`
+**Resultado Esperado:**
+- Notificações criadas com sucesso para todos os seguidores.
+- Se a integração com WhatsApp estiver ativa, o campo `user_to_whatsapp` permitirá o disparo externo.
+
+## Estrutura da Mensagem (Corpo/Body)
+A mensagem deve ser clara e conter as informações essenciais para identificação rápida da mudança:
+
+**Exemplo:**
+> OS 123.4.2026
+> Cliente: Padaria Central
+> Unidade: Matriz
+> Serviços a realizar: Manutenção Preventiva de Ar Condicionado
+> Situação: Concluída
+> Data hora: 01/03/2026 14:30
+> Usuário: João Silva
+
+## Tabelas Envolvidas
+
+### `orders`
+- `id` (PK)
+- `o_mask` (Número formatado)
+- `status_id` (FK para status)
+- `client_id` (Relacional para nome do cliente)
+- `unit_id` (Relacional para nome da unidade)
+- `requested_services` (Texto longo)
+
+### `orders_followers`
+- `o_id` (FK para orders)
+- `user_id` (FK para users)
+
+### `users_notifications`
+- `id` (PK)
+- `user_id_to` (Destinatário)
+- `user_id_from` (Remetente/Autor)
+- `title` (Título curto)
+- `body` (Conteúdo detalhado)
+- `type` (Categoria da notificação)
+- `user_to_whatsapp` (Telefone para envios externos)
+- `created_at` (Data de criação)
+- `is_read` (Status de leitura)
+
+## Regras de Negócio e Validações
+1. **Evitar Duplicidade**: Garantir que o seguidor receba apenas uma notificação por alteração.
+2. **Timestamps**: Utilizar sempre o fuso horário de Brasília (`America/Sao_Paulo`).
+3. **Segurança**: Notificações automáticas via banco de dados devem garantir que o `user_id_to` pertença à mesma organização ou tenha permissão de visualização da OS.
+4. **Resiliência**: Falhas no envio de WhatsApp (se aplicável) não devem impedir a gravação da notificação no banco de dados.
+
+## Observações Técnicas
+- Recomenda-se a implementação via **Trigger (Stored Procedure)** no Supabase/PostgreSQL para garantir que, independente de onde a alteração ocorra (App, Web ou API), a notificação seja gerada.
+- Utilizar a view `v_orders_visits` ou joins específicos para obter os nomes descritivos (Cliente, Unidade, Status) em vez de apenas IDs.
+
+## Artefatos Gerados
+| Arquivo | Tipo | Descrição |
+|---------|------|-----------|
+| `flows/generated/followers-orders-status-changed.ts` | TypeScript | Referência de implementação TypeScript |
+| `flows/generated/followers-orders-status-changed.test.ts` | Testes | Suíte de testes unitários (template) |
+| `flows/generated/followers-orders-status-changed.diagrams.md` | Diagramas | Fluxograma, Sequência e Estados (Mermaid) |
+| `supabase/triggers/trg_followers_orders_status_changed.sql` | SQL | Trigger PostgreSQL para produção |
+
+_Última atualização: 2026-03-01 — v1.2.0_
+

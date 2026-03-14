@@ -1,0 +1,105 @@
+---
+name: Order Visit User Add
+category: ordersVisitsTeams
+version: 1.0.0
+description: Fluxo para criação de uma nova Visita na Ordem de Serviço
+author: Flow System
+date: 2026-01-18
+tags:
+  - transactional
+  - orders visits
+  - create 
+  - web
+  - mobile
+---
+
+# Flow: Order Visit User Add
+
+## Contexto
+Este fluxo é executado quando um usuário é adicionado a uma equipe de uma Visita na Ordem de Serviço.
+O sistema coleta dados do usuario selecionado e então insere um novo registro na tabela `orders_visits_teams`
+seguindo regras de negócio previamente definidas.
+
+---
+
+## 🔐 Controle Transacional
+- As etapas de geração de contador e inserção da ordem são executadas dentro de **uma única transação**
+- Em caso de falha em qualquer etapa:
+  - Executar rollback completo
+  - Não inserir visitas
+
+
+---
+
+## Etapas do Fluxo
+
+### 1. Acessar Tela Detalhes da OS
+**Quando:**  
+- O usuário está autenticado  
+- O usuário acessa a tela de Visita de uma Ordem de Serviço
+- O acesso a localizacao do usuario deve estar habilitado
+- O usuário deve selecionar um usuario para adicionar a equipe clicar no botao adicionar usuario na equipe  
+
+**Ação:**  
+- Clicar no botao adicionar usuario na equipe
+
+- Tabela orders_visits_teams (Inserir registro do usuario selecionado)
+   - ov_id = orders_visits.id
+   - user_id = users.id (usuario selecionado)
+   - is_leader = false
+
+- Tabela orders_visits_teams (Atualizar o campo order_id)
+   - order_id = numero sequencial a contar a partir de 1 dos usuarios da equipe de is_leader = false por ordem alfabética de users.name_short ASC
+
+- Tabela users (Atualizar o registros de users do usuario selecionado se o status_id da visita for 1):
+   - is_available = false
+   - is_ov_in_progress = true
+   - ov_id_in_progress = orders_visits.id
+   - o_id_in_progress = orders.id (OS em andamento)
+   - op_id_in_progress = orders.parent_id (SS em andamento)
+   - ov_id_in_progress_mask = orders_visits.ov_mask
+   - o_contract_id_in_progress = orders.contract_id (OS em andamento)
+   - o_type_id_in_progress = orders.type_id (OS em andamento)
+   - o_type_sub_id_in_progress = orders.type_sub_id (OS em andamento)
+   - ov_in_progress_leader_id = orders.team_leader_id (OS em andamento)
+   - o_plan_id_in_progress = orders.plan_id (OS em andamento)  
+   - o_asset_tag_id_in_progress = orders.asset_tag_id (OS em andamento)
+   - o_asset_tag_sub_id_in_progress = orders.asset_tag_sub_id (OS em andamento)
+   - o_unit_id_in_progress = orders.unit_id (OS em andamento)
+   - o_unit_type_id_in_progress = orders.unit_type_id (OS em andamento)
+   - o_unit_type_parent_id_in_progress = orders.unit_type_sub_id (OS em andamento)
+   - o_system_id_in_progress = orders.system_id (OS em andamento)
+   - o_system_parent_id_in_progress = orders.system_parent_id (OS em andamento)
+   - o_object_id_in_progress = orders.object_id (OS em andamento)
+
+
+
+## Regras de Negócio
+- Nenhum campo adicional pode ser inserido além dos definidos neste fluxo  
+- Todos os dados auxiliares devem ser resolvidos antes da inserção  
+- Inserções parciais não são permitidas
+- Nao permitir duplicidade de usuarios na equipe de uma visita  
+
+---
+
+## Casos de Erro
+
+### Dados Obrigatórios Ausentes
+**Se:**  
+- Algum dado obrigatório do usuário não puder ser resolvido  
+
+**Então:**  
+- Abortar a operação  
+- Não inserir ou alterar nenhum registro  
+- Exibir mensagem de erro  
+
+---
+
+## Resultado Final
+
+- Um registro e inserido na tabela orders_visits_teams 
+- Um ou mais registros são alterados na tabela orders_visits_teams 
+- Um ou mais registros são atualizados na tabela users  
+- A operação é concluída sem estados parciais  
+
+
