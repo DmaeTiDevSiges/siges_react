@@ -1023,15 +1023,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                 Manter como Rascunho
                             </button>
 
-                            {!asset.isFiled && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowRemoveModal(true)}
-                                    className="w-full py-4 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-500 border border-red-100 dark:border-red-500/20 text-xs font-black uppercase tracking-widest hover:bg-red-100 dark:hover:bg-red-500/20 transition-all active:scale-95"
-                                >
-                                    Remover Ativo da Visita
-                                </button>
-                            )}
                         </div>
                     )}
 
@@ -1139,6 +1130,18 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                 className="w-full py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 border border-amber-100 dark:border-amber-500/20 text-xs font-black uppercase tracking-widest hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-all active:scale-95"
                             >
                                 Trocar Ativo (Ativo Errado)
+                            </button>
+                        </div>
+                    )}
+
+                    {(!asset.isFiled || !isMoved) && (
+                        <div className="flex flex-col gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowRemoveModal(true)}
+                                className="w-full py-4 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-500 border border-red-100 dark:border-red-500/20 text-xs font-black uppercase tracking-widest hover:bg-red-100 dark:hover:bg-red-500/20 transition-all active:scale-95"
+                            >
+                                Remover Ativo da Visita
                             </button>
                         </div>
                     )}
@@ -1468,9 +1471,11 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 onClose={() => setShowRemoveModal(false)}
                 onConfirm={handleRemoveAsset}
                 title="Remover Ativo"
-                message="Tem certeza que deseja remover este ativo desta visita técnica? Esta ação não pode ser desfeita."
+                message="Tem certeza que deseja remover este ativo desta visita? Isso excluirá permanentemente todos os dados associados, incluindo materiais, intervenções e imagens. Esta ação não pode ser desfeita."
                 type="error"
                 confirmLabel="Sim, Remover"
+                confirmLoading={isUpdatingStatus}
+                confirmLoadingLabel="REMOVENDO..."
                 cancelLabel="Não, Manter"
             />
 
