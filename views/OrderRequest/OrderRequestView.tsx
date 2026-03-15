@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Order, User, OrderVisit } from '../../types';
+import { Order, User, OrderVisit, ServiceHistoryItem } from '../../types';
 import { dataService } from '../../services/dataService';
 import { IconButton } from '../../components/ui/IconButton';
 import { Avatar } from '../../components/ui/Avatar';
@@ -65,6 +65,8 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     const [isLoadingManus, setIsLoadingManus] = useState(false);
     const [showImageSelectionModal, setShowImageSelectionModal] = useState(false);
     const [selectedVisitForImages, setSelectedVisitForImages] = useState<ManusVisit | null>(null);
+    const [history, setHistory] = useState<ServiceHistoryItem[]>([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
     // Get current user for logic and follow hook
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -144,6 +146,18 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
             }
         }
     }, [activeTab, order.id, order.orderMask]);
+    
+    useEffect(() => {
+        if (activeTab === 'Histórico' && order.id) {
+            setIsLoadingHistory(true);
+            dataService.getServiceOrderHistory(order.id)
+                .then(data => {
+                    setHistory(data);
+                })
+                .catch(err => console.error('Error fetching OS history:', err))
+                .finally(() => setIsLoadingHistory(false));
+        }
+    }, [activeTab, order.id]);
 
     const handleVerifyManus = async (visit: ManusVisit) => {
         if (!currentUser) return;
@@ -516,14 +530,95 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                         )}
 
                         {activeTab === 'Histórico' && (
-                            <div className="py-20 text-center space-y-4 animate-in fade-in duration-500">
-                                <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2">
-                                    <span className="material-symbols-outlined text-slate-300 text-4xl">history</span>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Aguardando Intervenções</p>
-                                    <p className="text-xs text-slate-400 dark:text-slate-500">Nenhum histórico registrado para esta ordem de serviço.</p>
-                                </div>
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-1">
+                                {isLoadingHistory ? (
+                                    <div className="py-20 text-center space-y-4">
+                                        <div className="w-12 h-12 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mx-auto mb-4" />
+                                        <p className="text-slate-500 dark:text-slate-400 font-bold animate-pulse uppercase tracking-widest text-[10px]">CARREGANDO HISTÓRICO...</p>
+                                    </div>
+                                ) : history.length > 0 ? (
+                                    <div className="relative pb-8">
+                                        {/* Vertical Line */}
+                                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-white/5 rounded-full" />
+
+                                        <div className="space-y-8 relative">
+                                            {history.map((item, idx) => {
+                                                const isLast = idx === history.length - 1;
+                                                
+                                                // Event configuration
+                                                let icon = 'history';
+                                                let iconColor = 'bg-slate-500';
+                                                
+                                                if (item.type === 'created') { icon = 'add_task'; iconColor = 'bg-blue-500'; }
+                                                else if (item.type === 'visit_started') { icon = 'play_arrow'; iconColor = 'bg-emerald-500'; }
+                                                else if (item.type === 'visit_ended') { icon = 'stop'; iconColor = 'bg-rose-500'; }
+                                                else if (item.type === 'intervention') { icon = 'engineering'; iconColor = 'bg-orange-500'; }
+                                                else if (item.type === 'material') { icon = 'inventory_2'; iconColor = 'bg-amber-500'; }
+                                                else if (item.type === 'status_change') { icon = 'sync'; iconColor = 'bg-indigo-500'; }
+
+                                                return (
+                                                    <div key={item.id} className="relative pl-12">
+                                                        {/* Dot/Icon */}
+                                                        <div className={`absolute left-0 top-0 w-8 h-8 rounded-xl ${iconColor} flex items-center justify-center text-white shadow-lg z-10`}>
+                                                            <span className="material-symbols-outlined text-[18px]">{icon}</span>
+                                                        </div>
+
+                                                        {/* Content */}
+                                                        <div className="bg-white dark:bg-card-dark rounded-2xl p-4 border border-slate-100 dark:border-white/5 shadow-sm space-y-2">
+                                                            <div className="flex justify-between items-start">
+                                                                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.title}</h4>
+                                                                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 dark:bg-white/5 px-2 py-0.5 rounded-full">
+                                                                    {new Date(item.date).toLocaleDateString()} {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                            </div>
+
+                                                            {item.description && (
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{item.description}</p>
+                                                            )}
+
+                                                            {(item.assetCode || item.userName || item.statusName) && (
+                                                                <div className="flex flex-wrap gap-2 pt-1">
+                                                                    {item.assetCode && (
+                                                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/5">
+                                                                            <span className="material-symbols-outlined text-[14px] text-slate-400">precision_manufacturing</span>
+                                                                            <span className="text-[10px] font-black text-slate-600 dark:text-slate-300">{item.assetCode}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {item.userName && (
+                                                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/5">
+                                                                            <span className="material-symbols-outlined text-[14px] text-slate-400">person</span>
+                                                                            <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase">{item.userName}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {item.statusName && (
+                                                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg border" 
+                                                                             style={{ 
+                                                                                backgroundColor: item.statusColor ? `${item.statusColor}10` : 'transparent',
+                                                                                borderColor: item.statusColor ? `${item.statusColor}30` : 'transparent'
+                                                                             }}>
+                                                                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.statusColor || '#ccc' }} />
+                                                                            <span className="text-[10px] font-black uppercase" style={{ color: item.statusColor || '#888' }}>{item.statusName}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="py-20 text-center space-y-4">
+                                        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
+                                            <span className="material-symbols-outlined text-4xl">history</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Ações não disponíveis</p>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500">Nenhum evento registrado no histórico desta OS.</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 

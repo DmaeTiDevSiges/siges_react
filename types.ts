@@ -98,7 +98,15 @@ export interface ServiceHistoryItem {
   id: string;
   title: string;
   date: string;
-  type: 'completed' | 'created';
+  type: 'created' | 'status_change' | 'visit_started' | 'visit_ended' | 'intervention' | 'material' | 'observation';
+  description?: string;
+  userName?: string;
+  userAvatarUrl?: string;
+  assetCode?: string;
+  assetDescription?: string;
+  visitMask?: string;
+  statusName?: string;
+  statusColor?: string;
 }
 
 export interface Department {

@@ -1,6 +1,6 @@
 // Data Service for SIGES application
 import { supabase } from './supabase';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem } from '../types';
 
 
 
@@ -826,7 +826,7 @@ export const dataService = {
         const { data, error } = await supabase
             .from('v_orders_visits')
             .select('*')
-            .order('ov_started_at', { ascending: false });
+            .order('ov_started_at', { ascending: true });
 
         if (error) {
             console.error('Error fetching visits view:', error);
@@ -4390,7 +4390,7 @@ export const dataService = {
             .select('*', { count: 'exact' })
             .eq('asset_id', assetId)
             .eq('processing_id', 5)
-            .order('ov_ended_at', { ascending: false })
+            .order('ov_ended_at', { ascending: true })
             .range(from, to);
 
         if (error) {
@@ -6873,7 +6873,7 @@ export const dataService = {
             .from('v_orders_visits')
             .select('*')
             .eq('o_team_id', teamId)
-            .order('ov_started_at', { ascending: false });
+            .order('ov_started_at', { ascending: true });
 
         if (error) {
             console.error('Error fetching visits by team:', error);
@@ -7325,7 +7325,7 @@ export const dataService = {
                 .from('v_orders_visits')
                 .select('*')
                 .eq('o_id', Number(orderId))
-                .order('ov_started_at', { ascending: false }),
+                .order('ov_started_at', { ascending: true }),
             getProcessingConfigurations()
         ]);
 
@@ -7387,7 +7387,7 @@ export const dataService = {
                 .from('v_orders_visits')
                 .select('*')
                 .eq('op_id', Number(parentId))
-                .order('ov_started_at', { ascending: false }),
+                .order('ov_started_at', { ascending: true }),
             getProcessingConfigurations()
         ]);
 
@@ -8705,6 +8705,7 @@ export const dataService = {
 
         return (data || []).map((item: any) => ({
             id: item.id.toString(),
+            ovaId: item.ova_id.toString(),
             orderVisitAssetId: item.ova_id.toString(),
             materialId: item.material_id.toString(),
             amount: item.amount,
@@ -9160,6 +9161,169 @@ export const dataService = {
             return [];
         }
         return data || [];
+    },
+
+    /**
+     * Busca o histórico completo de uma Solicitação de Serviço (SS).
+     * Compila criação da OS, visitas e todas as intervenções realizadas.
+     */
+    async getServiceOrderHistory(orderId: string | number): Promise<ServiceHistoryItem[]> {
+        const history: ServiceHistoryItem[] = [];
+        const orderIdInt = typeof orderId === 'number' ? orderId : parseInt(orderId);
+
+        try {
+            // 1. Get Order details (Initial creation)
+            const { data: order, error: orderError } = await supabase
+                .from('orders')
+                .select(`
+                    id, created_at, parent_id,
+                    status:cfg_orders_statuses(description, color),
+                    user:users(name_short, name_full)
+                `)
+                .eq('id', orderIdInt)
+                .single();
+
+            if (order && !orderError) {
+                const typeLabel = order.parent_id ? 'OS' : 'SS';
+                // Handle joined data which might come as arrays from Supabase
+                const statusInfo = Array.isArray(order.status) ? (order.status[0] as any) : (order.status as any);
+                const userInfo = Array.isArray(order.user) ? (order.user[0] as any) : (order.user as any);
+
+                history.push({
+                    id: `creation-${order.id}`,
+                    title: `${typeLabel} Criada`,
+                    date: order.created_at,
+                    type: 'created',
+                    userName: userInfo?.name_short || userInfo?.name_full,
+                    description: `Solicitação registrada com status inicial: ${statusInfo?.description || 'Aberto'}`,
+                    statusName: statusInfo?.description,
+                    statusColor: statusInfo?.color
+                });
+            } else if (orderError) {
+                console.warn('History: Could not fetch order details:', orderError);
+            }
+
+            // 2. Get all visits for this order
+            const { data: visits, error: visitsError } = await supabase
+                .from('v_orders_visits')
+                .select('id, ov_mask, ov_started_at, ov_ended_at, ov_team_leader_name_short, ov_status_description')
+                .eq('o_id', orderIdInt)
+                .order('ov_started_at', { ascending: true });
+
+            if (visitsError) {
+                console.warn('History: Error fetching visits:', visitsError);
+            }
+
+            if (visits && visits.length > 0) {
+                for (const visit of visits) {
+                    // Event: Visit Started
+                    if (visit.ov_started_at) {
+                        history.push({
+                            id: `v-start-${visit.id}`,
+                            title: 'Visita Iniciada',
+                            date: visit.ov_started_at,
+                            type: 'visit_started',
+                            visitMask: visit.ov_mask,
+                            userName: visit.ov_team_leader_name_short,
+                            description: 'A equipe técnica iniciou os trabalhos na unidade.'
+                        });
+                    }
+
+                    // Event: Visit Ended
+                    if (visit.ov_ended_at) {
+                        history.push({
+                            id: `v-end-${visit.id}`,
+                            title: 'Visita Finalizada',
+                            date: visit.ov_ended_at,
+                            type: 'visit_ended',
+                            visitMask: visit.ov_mask,
+                            userName: visit.ov_team_leader_name_short,
+                            description: `Visita encerrada com status final: ${visit.ov_status_description || 'Concluída'}`
+                        });
+                    }
+
+                    // Interventions (Activities)
+                    const { data: activities } = await supabase
+                        .from('orders_visits_assets_activities')
+                        .select(`
+                            id,
+                            created_at,
+                            activity:cfg_activities(description, code),
+                            ova:orders_visits_assets!ova_id!inner(
+                                asset:assets(code, description)
+                            ),
+                            user:users(name_short, name_full)
+                        `)
+                        .eq('ova.ov_id', visit.id)
+                        .eq('is_deleted', false);
+
+                    if (activities && activities.length > 0) {
+                        activities.forEach((act: any) => {
+                            const actUserInfo = Array.isArray(act.user) ? act.user[0] : act.user;
+                            const activityInfo = Array.isArray(act.activity) ? act.activity[0] : act.activity;
+                            const assetInfo = act.ova?.asset;
+
+                            history.push({
+                                id: `act-${act.id}`,
+                                title: 'Intervenção Realizada',
+                                date: act.created_at,
+                                type: 'intervention',
+                                description: activityInfo?.description,
+                                userName: actUserInfo?.name_short || actUserInfo?.name_full,
+                                assetCode: assetInfo?.code,
+                                assetDescription: assetInfo?.description,
+                                visitMask: visit.ov_mask
+                            });
+                        });
+                    }
+
+                    // Materials
+                    const { data: materials } = await supabase
+                        .from('orders_visits_assets_materials')
+                        .select(`
+                            id,
+                            created_at,
+                            amount,
+                            material:materials(description, code, unit),
+                            ova:orders_visits_assets!ova_id!inner(
+                                asset:assets(code, description)
+                            ),
+                            user:users(name_short, name_full)
+                        `)
+                        .eq('ova.ov_id', visit.id)
+                        .eq('is_deleted', false);
+
+                    if (materials && materials.length > 0) {
+                        materials.forEach((mat: any) => {
+                            const matUserInfo = Array.isArray(mat.user) ? mat.user[0] : mat.user;
+                            const materialInfo = Array.isArray(mat.material) ? mat.material[0] : mat.material;
+                            const assetInfo = mat.ova?.asset;
+
+                            history.push({
+                                id: `mat-${mat.id}`,
+                                title: 'Material Utilizado',
+                                date: mat.created_at,
+                                type: 'material',
+                                description: `${mat.amount} ${materialInfo?.unit || 'un'} x ${materialInfo?.description}`,
+                                userName: matUserInfo?.name_short || matUserInfo?.name_full,
+                                assetCode: assetInfo?.code,
+                                assetDescription: assetInfo?.description,
+                                visitMask: visit.ov_mask
+                            });
+                        });
+                    }
+                }
+            }
+
+            // Final sort descendente (mais recentes primeiro)
+            return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        } catch (error) {
+            console.error('Error fetching service order history:', error);
+        }
+
+        // Sort by date descending
+        return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     },
 
     /**

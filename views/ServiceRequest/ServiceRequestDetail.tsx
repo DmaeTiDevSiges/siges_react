@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Order, User, OrderVisit } from '../../types';
+import { Order, User, OrderVisit, ServiceHistoryItem } from '../../types';
 import { IconButton } from '../../components/ui/IconButton';
 import { ServiceRequestCardDetail } from '../../components/serviceRequests/ServiceRequestCardDetail';
 import { OrderMapComponent } from '../../components/orderRequests/OrderRequestMapComponent';
@@ -51,6 +51,8 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
     const [isLoadingOrders, setIsLoadingOrders] = useState(false);
     const [visits, setVisits] = useState<OrderVisit[]>([]);
     const [isLoadingVisits, setIsLoadingVisits] = useState(false);
+    const [history, setHistory] = useState<ServiceHistoryItem[]>([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
     React.useEffect(() => {
         if (order.id) {
@@ -73,6 +75,18 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                 })
                 .catch(err => console.error('Error fetching SS visits:', err))
                 .finally(() => setIsLoadingVisits(false));
+        }
+    }, [activeTab, order.id]);
+
+    React.useEffect(() => {
+        if (activeTab === 'Histórico' && order.id) {
+            setIsLoadingHistory(true);
+            dataService.getServiceOrderHistory(order.id)
+                .then(data => {
+                    setHistory(data);
+                })
+                .catch(err => console.error('Error fetching SS history:', err))
+                .finally(() => setIsLoadingHistory(false));
         }
     }, [activeTab, order.id]);
 
@@ -233,14 +247,86 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                         )}
 
                         {activeTab === 'Histórico' && (
-                            <div className="py-20 text-center space-y-4 animate-in fade-in duration-500">
-                                <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2">
-                                    <span className="material-symbols-outlined text-slate-300 text-4xl">history</span>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Aguardando Intervenções</p>
-                                    <p className="text-xs text-slate-400 dark:text-slate-500">Nenhum histórico registrado para esta solicitação.</p>
-                                </div>
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-1">
+                                {isLoadingHistory ? (
+                                    <div className="py-20 text-center space-y-4">
+                                        <div className="w-12 h-12 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mx-auto mb-4" />
+                                        <p className="text-slate-500 dark:text-slate-400 font-bold animate-pulse">CARREGANDO HISTÓRICO...</p>
+                                    </div>
+                                ) : history.length > 0 ? (
+                                    <div className="space-y-6 pb-12">
+                                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 px-1 mb-6">Timeline de Eventos</h3>
+                                        
+                                        <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-linear-to-b before:from-slate-200 before:via-slate-200 before:to-transparent dark:before:from-slate-800 dark:before:via-slate-800 dark:before:to-transparent">
+                                            {history.map((item, index) => (
+                                                <div key={item.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                                                    {/* Dot */}
+                                                    <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white dark:border-slate-900 bg-white dark:bg-slate-900 shadow absolute left-0 md:left-1/2 md:-ml-5 transition-transform duration-300 group-hover:scale-110 z-10">
+                                                        <span className={`material-symbols-outlined text-lg ${
+                                                            item.type === 'created' ? 'text-blue-500' :
+                                                            item.type === 'visit_started' ? 'text-amber-500' :
+                                                            item.type === 'visit_ended' ? 'text-emerald-500' :
+                                                            item.type === 'intervention' ? 'text-indigo-500' :
+                                                            item.type === 'material' ? 'text-rose-500' :
+                                                            'text-slate-400'
+                                                        }`}>
+                                                            {item.type === 'created' ? 'add_circle' :
+                                                             item.type === 'visit_started' ? 'location_on' :
+                                                             item.type === 'visit_ended' ? 'task_alt' :
+                                                             item.type === 'intervention' ? 'construction' :
+                                                             item.type === 'material' ? 'inventory_2' :
+                                                             'history'}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {/* Card */}
+                                                    <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-white dark:bg-card-dark p-4 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-slate-200 dark:hover:border-white/10 ml-12 md:ml-0">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <time className="text-[10px] font-black uppercase tracking-tighter text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                                                                {new Date(item.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                            </time>
+                                                            {item.visitMask && (
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.visitMask}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <h4 className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide">{item.title}</h4>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                                                                {item.description}
+                                                            </p>
+                                                        </div>
+                                                        {(item.userName || item.assetCode) && (
+                                                            <div className="mt-3 pt-3 border-t border-slate-50 dark:border-white/5 flex flex-wrap gap-3">
+                                                                {item.userName && (
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="material-symbols-outlined text-[14px] text-slate-400">person</span>
+                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{item.userName}</span>
+                                                                    </div>
+                                                                )}
+                                                                {item.assetCode && (
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="material-symbols-outlined text-[14px] text-slate-400">qr_code_2</span>
+                                                                        <span className="text-[10px] font-black text-indigo-500 uppercase tracking-tight">{item.assetCode}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="py-20 text-center space-y-4">
+                                        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2">
+                                            <span className="material-symbols-outlined text-slate-300 text-4xl">history</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Ações não disponíveis</p>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500">Nenhum evento registrado no histórico desta OS.</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
