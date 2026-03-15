@@ -37,3 +37,5 @@ full_lookup.csv
 node_modules/
 .env.local
 builds/
+.env
+.env.*
