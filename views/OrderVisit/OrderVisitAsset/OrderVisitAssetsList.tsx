@@ -44,6 +44,8 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
     const [searching, setSearching] = useState(false);
     const [searchingUnits, setSearchingUnits] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [assetIdAdding, setAssetIdAdding] = useState<string | null>(null);
+    const [assetIdSuccess, setAssetIdSuccess] = useState<string | null>(null);
 
     const handleScanResult = async (result: string) => {
         setSearchCode(result);
@@ -128,18 +130,31 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
         }
 
         try {
+            setAssetIdAdding(asset.id);
             await dataService.addAssetToOrderVisit(visitId, asset.id, userId);
+
+            // Success animation timing
+            setAssetIdAdding(null);
+            setAssetIdSuccess(asset.id);
+
             toast.success('Ativo associado!');
-            setIsAdding(false);
-            setSearchCode('');
-            setSelectedUnit(null);
-            setUnitSearchTerm('');
-            setSearchResults([]);
-            loadVisitAssets();
-            if (onVisitRefresh) onVisitRefresh();
+
+            // Wait a moment to show the success state before closing/resetting
+            setTimeout(() => {
+                setAssetIdSuccess(null);
+                setIsAdding(false);
+                setSearchCode('');
+                setSelectedUnit(null);
+                setUnitSearchTerm('');
+                setSearchResults([]);
+                loadVisitAssets();
+                if (onVisitRefresh) onVisitRefresh();
+            }, 800);
+
         } catch (error) {
             console.error('Error adding asset:', error);
             toast.error('Erro ao associar ativo');
+            setAssetIdAdding(null);
         }
     };
 
@@ -333,7 +348,11 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                                             <span className="material-symbols-outlined text-2xl font-bold">check</span>
                                         </button>
                                     ) : (
-                                        <ButtonNew onClick={() => handleAddAsset(asset, currentUserId)} />
+                                        <ButtonNew
+                                            onClick={() => handleAddAsset(asset, currentUserId)}
+                                            isLoading={assetIdAdding === asset.id}
+                                            isSuccess={assetIdSuccess === asset.id}
+                                        />
                                     )}
                                 </div>
                             ))}

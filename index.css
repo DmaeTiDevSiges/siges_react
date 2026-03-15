@@ -132,6 +132,25 @@
     animation: star-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+@keyframes ping-button {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(1.4); opacity: 0; }
+}
+
+.animate-ping-button {
+    animation: ping-button 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes success-pop {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-success-pop {
+    animation: success-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
 /* Modal Animations */
 @keyframes fadeIn {
     from {
