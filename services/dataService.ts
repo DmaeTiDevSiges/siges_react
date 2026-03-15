@@ -8664,7 +8664,7 @@ export const dataService = {
             .from('orders_visits_assets_activities')
             .select(`
                 *,
-                ova:orders_visits_assets!inner(ov_id),
+                ova:orders_visits_assets!ova_id!inner(ov_id),
                 activity:cfg_activities(id, description, code)
             `)
             .eq('ova.ov_id', parseInt(visitId))
@@ -8692,7 +8692,7 @@ export const dataService = {
             .from('orders_visits_assets_materials')
             .select(`
                 *,
-                ova:orders_visits_assets!inner(ov_id),
+                ova:orders_visits_assets!ova_id!inner(ov_id),
                 material:materials(*)
             `)
             .eq('ova.ov_id', parseInt(visitId))

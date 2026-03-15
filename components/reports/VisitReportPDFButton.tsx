@@ -43,15 +43,14 @@ export const VisitReportPDFButton = ({
         try {
             // 1. Fetch all data in parallel
             // 1. Fetch all data in parallel
-            const [visit, team, vehicles, assets, services, allActivities, allMaterials, checklistValues] = await Promise.all([
+            const [visit, team, vehicles, assets, services, allActivities, allMaterials] = await Promise.all([
                 dataService.getActiveOrderVisit(visitId),
                 dataService.getOrderVisitTeam(visitId),
                 dataService.getOrderVisitVehicles(visitId),
                 dataService.getOrderVisitAssets(visitId),
                 dataService.getOrderVisitServices(visitId),
                 dataService.getOrderVisitAssetsActivitiesByVisit(visitId),
-                dataService.getOrderVisitAssetsMaterialsByVisit(visitId),
-                dataService.getChecklistValuesByVisit(visitId)
+                dataService.getOrderVisitAssetsMaterialsByVisit(visitId)
             ]);
 
             if (!visit) {
@@ -74,19 +73,11 @@ export const VisitReportPDFButton = ({
                 return acc;
             }, {});
 
-            const checklistByAssetId = (checklistValues || []).reduce((acc: any, val) => {
-                const assetId = val.orderVisitAssetId;
-                if (!acc[assetId]) acc[assetId] = [];
-                acc[assetId].push(val);
-                return acc;
-            }, {});
-
             // Join data for report
             const assetsWithDetails = assets.map(a => ({
                 ...a,
                 activities: activitiesByAssetId[a.id] || [],
-                materials: materialsByAssetId[a.id] || [],
-                checklistItems: checklistByAssetId[a.id] || []
+                materials: materialsByAssetId[a.id] || []
             }));
 
             // 3. Build report data object
@@ -172,7 +163,7 @@ export const VisitReportPDFButton = ({
                     activitiesDescription: a.activitiesDescription,
                     initialPhotoUrls: a.initialPhotoUrls ?? [],
                     finalPhotoUrls: a.finalPhotoUrls ?? [],
-                    checklistItems: a.checklistItems ?? [],
+
                     activities: (a.activities ?? []).map((act: any) => ({
                         activityDescription: act.activityDescription,
                         activityCode: act.activityCode,
