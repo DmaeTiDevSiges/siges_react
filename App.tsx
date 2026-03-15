@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { BottomNav } from './components/BottomNav';
 import { Button } from './components/ui/Button';
 import { SplashScreen } from './components/SplashScreen';
+import UpdateNotifier from './components/UpdateNotifier';
 import { CompaniesList } from './views/Settings/Companies/CompaniesList';
 import { CompanyDetails } from './views/Settings/Companies/CompanyDetails';
 import { CompanyForm } from './views/Settings/Companies/CompanyForm';
@@ -2140,6 +2141,7 @@ const App: React.FC = () => {
             )}
 
             <Toaster position="top-right" richColors closeButton style={{ top: '96px', position: 'fixed' }} />
+            <UpdateNotifier />
           </div>
         </PermissionsProvider>
       </AuthProvider>
