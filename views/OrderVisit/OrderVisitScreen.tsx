@@ -311,6 +311,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             hideHeaderActions={true}
                             onReportVisit={(
                                 visit.ovStatusId === 2 &&
+                                [1, 4].includes(Number(visit.ovProcessingId || 1)) &&
                                 (visit.ovAssetsAmount || 0) > 0 &&
                                 String(currentUser?.id) === String(visit.ovTeamLeadId) &&
                                 (
@@ -415,7 +416,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             disabled={isReporting}
                             className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50"
                         >
-                            {isReporting ? 'Reportando...' : 'Confirmar Reporte'}
+                            {isReporting ? 'REPORTANDO...' : 'Confirmar Reporte'}
                         </button>
                     </div>
                 </div>

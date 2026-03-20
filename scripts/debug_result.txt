@@ -1,0 +1,28 @@
+﻿[dotenv@17.3.1] injecting env (18) from .env.local -- tip: ­ƒøá´©Å  run anywhere with `dotenvx run -- yourcommand`
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+URL Origem  : s3://siges/companies/1/logo/test.jpg
+Path        : /rs:fit:800:800:0/q:85/f:webp/czM6Ly9zaWdlcy9jb21wYW5pZXMvMS9sb2dvL3Rlc3QuanBn...
+Sig Correta : 5tkF-oevCvWKJphwq5mvpWscamQL_J_ULGLTtvOOQF8
+Sig CryptoJS: 5tkF-oevCvWKJphwq5mvpWscamQL_J_ULGLTtvOOQF8
+Coincidem?  : Ô£à SIM
+URL Assinada: https://img.siges-app.com.br/5tkF-oevCvWKJphwq5mvpWscamQL_J_ULGLTtvOOQF8/rs:fit:800:800:0/q:85/f:webp/czM6Ly9zaWdlcy9jb21wYW5pZXMvMS9sb2dvL3Rlc3QuanBn
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+URL Origem  : https://raw.githubusercontent.com/imgproxy/imgproxy/master/e
+Path        : /rs:fit:800:800:0/q:85/f:webp/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2ltZ3...
+Sig Correta : IEZgmVRx33jr3fTKIxSiVJS7ToktJOUO9NAvC_lNWUk
+Sig CryptoJS: IEZgmVRx33jr3fTKIxSiVJS7ToktJOUO9NAvC_lNWUk
+Coincidem?  : Ô£à SIM
+URL Assinada: https://img.siges-app.com.br/IEZgmVRx33jr3fTKIxSiVJS7ToktJOUO9NAvC_lNWUk/rs:fit:800:800:0/q:85/f:webp/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2ltZ3Byb3h5L2ltZ3Byb3h5L21hc3Rlci9leGFtcGxlcy9sb2dvLnBuZw
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+Testando URL S3 interna contra o servidor...
+URL: https://img.siges-app.com.br/t7pSVP6V549sYWpU_kw_C7NcEw9wAiRQ8fr5kD5AEYs/rs:thumbnail:150:150:0/g:sm/q:80/f:webp/czM6Ly9zaWdlcy9jb21wYW5pZXMvMS9sb2dvL3Rlc3QuanBn
+Status S3: 404 Not Found
+ÔØî 404 ÔÇö Assinatura inv├ílida OU bucket S3 n├úo acess├¡vel pelo imgproxy.
+
+Testando URL HTTP p├║blica GitHub...
+URL: https://img.siges-app.com.br/VPoEsZVa9PNTRVpXoXl799XYfjdavRPKD51lGt3WS4M/rs:fit:300:300:0/f:webp/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2ltZ3Byb3h5L2ltZ3Byb3h5L21hc3Rlci9leGFtcGxlcy9sb2dvLnBuZw
+Status HTTP: 404 Not Found
+ÔØî 404 em URL HTTP tamb├®m ÔåÆ problema na assinatura ou config de remote sources.

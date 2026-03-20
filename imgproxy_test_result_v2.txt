@@ -1,0 +1,17 @@
+﻿[dotenv@17.3.1] injecting env (18) from .env.local -- tip: ­ƒöÉ prevent committing .env to code: https://dotenvx.com/precommit
+--- TESTE IMGPROXY ---
+Imagem Origem: https://raw.githubusercontent.com/imgproxy/imgproxy/master/examples/logo.png
+Options: rs:fit:300:300:0/f:webp
+Path: /rs:fit:300:300:0/f:webp/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2ltZ3Byb3h5L2ltZ3Byb3h5L21hc3Rlci9leGFtcGxlcy9sb2dvLnBuZw
+Assinatura Gerada: VPoEsZVa9PNTRVpXoXl799XYfjdavRPKD51lGt3WS4M
+URL Final (Assinada): https://img.siges-app.com.br/VPoEsZVa9PNTRVpXoXl799XYfjdavRPKD51lGt3WS4M/rs:fit:300:300:0/f:webp/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2ltZ3Byb3h5L2ltZ3Byb3h5L21hc3Rlci9leGFtcGxlcy9sb2dvLnBuZw
+URL Insegura: https://img.siges-app.com.br/insecure/rs:fit:300:300:0/f:webp/aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2ltZ3Byb3h5L2ltZ3Byb3h5L21hc3Rlci9leGFtcGxlcy9sb2dvLnBuZw
+
+--- TENTANDO ACESSAR URL ASSINADA ---
+Status: 404 Not Found
+ÔØî FALHA: Status 404
+Dica: 404 pode significar assinatura incorreta ou rota n├úo encontrada.
+
+--- TENTANDO ACESSAR URL INSEGURA ---
+Status: 403 Forbidden
+ÔØî FALHA: O servidor rejeitou a URL insegura (comportamento esperado em produ├º├úo).

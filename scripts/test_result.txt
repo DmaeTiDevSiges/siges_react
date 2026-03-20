@@ -1,0 +1,29 @@
+﻿[dotenv@17.3.1] injecting env (18) from .env.local -- tip: ÔÜÖ´©Å  specify custom .env file path with { path: '/custom/path/.env' }
+Usando imagem real do bucket: clients/1/units/1165/1767280384382.jpeg
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+TESTE IMGPROXY ÔÇö URLs S3 (modo real do app)
+Servidor : https://img.siges-app.com.br
+Bucket   : siges
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+[HEALTH CHECK]
+  Status: 200 Ô£à
+
+[Imagem real (s3://)]
+  S3  : s3://siges/clients/1/units/1165/1767280384382.jpeg
+  URL : https://img.siges-app.com.br/nx08SC6RBuOaQPx6nT5vkDsJ2zRCBRLgj6-aP1q8X8g/rs:fit:300:300:0/...
+  Status: 504 Gateway Timeout
+
+[Path dos logs do imgproxy]
+  S3  : s3://siges/settings/images/users/100003/1755816304481762.jpg
+  URL : https://img.siges-app.com.br/eZpwVB_67CQJOF_z489rhby6RzpXDZp1l1PrYMdx5og/rs:fit:300:300:0/...
+  Status: 504 Gateway Timeout
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+LEGENDA:
+  Ô£à 200           ÔåÆ tudo funcionando!
+  ÔØî 404           ÔåÆ assinatura errada
+  ÔÜá´©Å  422           ÔåÆ assinatura ok, mas arquivo n├úo encontrado no S3
+  ÔÅ▒´©Å  503           ÔåÆ conex├úo S3 timeout (container sem acesso ao R2)
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+

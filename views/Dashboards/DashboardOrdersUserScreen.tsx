@@ -65,7 +65,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     };
 
     const fetchOrders = useCallback(async () => {
-        if (!currentUser?.teamId) {
+        if (!currentUser?.id) {
             setIsLoading(false);
             return;
         }
@@ -73,8 +73,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         setIsLoading(true);
         try {
             const [teamOrders, teamVisits] = await Promise.all([
-                dataService.getOrdersByTeam(currentUser.teamId),
-                dataService.getVisitsByTeam(currentUser.teamId)
+                dataService.getOrdersByLeader(currentUser.id.toString()),
+                dataService.getVisitsByLeader(currentUser.id.toString())
             ]);
             setOrders(teamOrders);
             setVisits(teamVisits);
@@ -83,7 +83,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         } finally {
             setIsLoading(false);
         }
-    }, [currentUser?.teamId]);
+    }, [currentUser?.id, currentUser?.teamId]);
 
     useEffect(() => {
         fetchOrders();

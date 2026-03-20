@@ -156,9 +156,18 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
             </div>
 
             {/* Team Section */}
+            <div className="flex justify-between items-center mb-0.5">
+                <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">
+                    {(visit.teamCode || 'EQUIPE').toUpperCase()}
+                </h4>
+                {visit.contractDescription && (
+                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">
+                        {visit.contractDescription.toUpperCase()}
+                    </span>
+                )}
+            </div>
             <div className="">
-                <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Equipe</h4>
-                <div className="flex flex-wrap gap-4 mb-4">
+                <div className="flex flex-wrap gap-2 mb-4">
                     {team.map((member) => (
                         <div key={member.userId} className="flex flex-col items-center gap-1 group">
                             <div className="relative h-14 w-14 flex items-center justify-center">
@@ -237,7 +246,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
             )}
 
             {/* Report Visit Button */}
-            {onReportVisit && !onDisapproveVisit && (
+            {onReportVisit && !onDisapproveVisit && [1, 4].includes(Number(visit.ovProcessingId || 1)) && (
                 <button
                     onClick={onReportVisit}
                     disabled={isReportLoading}

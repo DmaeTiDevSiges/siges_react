@@ -79,14 +79,22 @@ import { Toaster, toast } from 'sonner';
 import { Company, Client, Department, Team, User, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Contract, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, Asset, UserNotification, Order } from './types';
 
 import { UsersTracker } from './views/Users/UsersTracker';
+import { AllUsersList } from './views/Admin/AllUsersList';
+import { UserViewScreen } from './views/Admin/UserViewScreen';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
 import { LocationBlockedScreen } from './views/System/LocationBlockedScreen';
 
 import { ProfilePermissionsScreen } from './views/Admin/ProfilePermissionsScreen';
+import { AIKnowledgeAdmin } from './views/Settings/AIKnowledgeAdmin';
 import { PermissionsProvider } from './contexts/PermissionsContext';
+import { MaintenancePlansScreen } from './views/Settings/MaintenancePlans/MaintenancePlansScreen';
 
-type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-form' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'activities' | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve';
+type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'activities' | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details';
+
+import { ActionIcon } from './components/ui/ActionIcon';
+import { AIAssistantBubble } from './components/ai/AIAssistantBubble';
+import { imgproxyService } from './services/imgproxyService';
 
 const App: React.FC = () => {
   const [minTimePassed, setMinTimePassed] = useState(false);
@@ -104,7 +112,7 @@ const App: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions'>(() => {
     const saved = localStorage.getItem('app_active_tab');
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
@@ -145,6 +153,8 @@ const App: React.FC = () => {
       setCurrentScreen('companies');
     } else if (normalizedTab === 'contracts') {
       setCurrentScreen('contracts');
+    } else if (normalizedTab === 'maintenance-plans') {
+      setCurrentScreen('maintenance-plans');
     }
   };
   const [currentScreen, setCurrentScreen] = useState<Screen>(() => {
@@ -256,6 +266,7 @@ const App: React.FC = () => {
       setOrdersDashboardTab('VISITAS');
     }
     if (path === 'settings' || path === 'companies' || path === 'contracts') tab = path;
+    if (path.startsWith('maintenance-plan')) tab = 'maintenance-plans';
 
     setActiveTab(tab);
 
@@ -397,14 +408,16 @@ const App: React.FC = () => {
 
   // Request native permissions on startup
   useEffect(() => {
-    const initPermissions = async () => {
+    const initApp = async () => {
       try {
         await permissionService.requestAllPermissions();
+        // Check imgproxy health to avoid 503 errors early
+        await imgproxyService.checkServiceHealth();
       } catch (err) {
-        console.error("Failed to request permissions", err);
+        console.error("Failed to initialize app services", err);
       }
     };
-    initPermissions();
+    initApp();
   }, []);
 
   // Load and subscribe to notifications
@@ -632,8 +645,9 @@ const App: React.FC = () => {
       setCurrentScreen('team-details');
     } else if (currentScreen === 'department-edit') {
       setCurrentScreen('department-details');
-    } else if (currentScreen === 'user-form') {
-      setCurrentScreen('company-details');
+    } else if (currentScreen === 'user-form' || currentScreen === 'user-details') {
+      setCurrentScreen('all-users');
+      setSelectedUser(null);
     } else if (currentScreen === 'client-details' || currentScreen === 'client-form') {
       setCurrentScreen('clients');
     } else if (currentScreen === 'client-edit') {
@@ -649,6 +663,10 @@ const App: React.FC = () => {
       setCurrentScreen('settings');
     } else if (currentScreen === 'unit-type-form' || currentScreen === 'unit-type-edit') {
       setCurrentScreen('unit-types');
+    } else if (currentScreen === 'maintenance-plans') {
+      setCurrentScreen('settings');
+    } else if (currentScreen === 'maintenance-plan-form' || currentScreen === 'maintenance-plan-edit') {
+      setCurrentScreen('maintenance-plans');
     } else if (currentScreen === 'asset-tags') {
       setCurrentScreen('settings');
     } else if (currentScreen === 'asset-tag-form' || currentScreen === 'asset-tag-edit') {
@@ -749,6 +767,8 @@ const App: React.FC = () => {
     } else if (currentScreen === 'users-tracker') {
       setSelectedCompanyForTracker(null);
       setCurrentScreen('orders-dashboard');
+    } else if (currentScreen === 'maintenance-plan-details') {
+      setCurrentScreen('maintenance-plans');
     }
   };
 
@@ -1441,22 +1461,46 @@ const App: React.FC = () => {
             onCancel={() => setCurrentScreen('company-details')}
           />
         ) : null;
+      case 'all-users':
+        return <AllUsersList onSelectUser={async (user) => {
+          setSelectedUser(user);
+          localStorage.setItem('last_screen_before_profile', 'all-users');
+          setCurrentScreen('user-details');
+        }} />;
+      case 'user-details':
+        return selectedUser ? (
+          <UserViewScreen
+            user={selectedUser}
+            onBack={() => {
+              setCurrentScreen('all-users');
+              setSelectedUser(null);
+            }}
+            onEdit={(user) => {
+              setSelectedUser(user);
+              setCurrentScreen('profile');
+            }}
+          />
+        ) : null;
       case 'profile':
         return <ProfileScreen
-          user={currentUser as User}
+          user={selectedUser || (currentUser as User)}
           onBack={() => {
             if (selectedUser) {
-              setCurrentScreen('company-details');
+              // Se vier do fluxo de consulta, volta para consulta
+              setCurrentScreen('user-details');
             } else {
               const lastTab = localStorage.getItem('last_main_tab') || 'dashboard';
               handleMainTabChange(lastTab);
             }
-            setSelectedUser(null);
           }}
           onThemeToggle={toggleTheme}
           isDarkMode={theme === 'dark'}
           onUserUpdate={(updatedUser) => {
-            setCurrentUser(updatedUser);
+            if (!selectedUser) {
+              setCurrentUser(updatedUser);
+            } else {
+              setSelectedUser(updatedUser);
+            }
           }}
           onStatusChange={handleUserStatusChange}
         />;
@@ -1467,6 +1511,8 @@ const App: React.FC = () => {
           return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
         }
         return <AppSettings onNavigate={(screen) => setCurrentScreen(screen as any)} />;
+      case 'ai-admin':
+        return <AIKnowledgeAdmin onBack={() => setCurrentScreen('settings')} />;
       case 'systems':
         return <SystemsList onAdd={() => setCurrentScreen('system-form')} onSelect={handleSystemSelect} />;
       case 'system-form':
@@ -1603,6 +1649,11 @@ const App: React.FC = () => {
         return <AssetTagSubForm onSave={handleSaveAssetTagSub} onCancel={handleBack} />;
       case 'asset-tag-sub-edit':
         return selectedAssetTagSub ? <AssetTagSubForm initialTagSub={selectedAssetTagSub} onSave={handleSaveAssetTagSub} onCancel={handleBack} /> : null;
+      case 'maintenance-plans':
+      case 'maintenance-plan-form':
+      case 'maintenance-plan-edit':
+      case 'maintenance-plan-details':
+        return <MaintenancePlansScreen currentScreen={currentScreen} onNavigate={setCurrentScreen} onBack={handleBack} currentUser={currentUser} />;
       case 'contracts':
         return <ContractsList onSelect={handleContractSelect} onAdd={handleAddClick} />;
       case 'contract-form':
@@ -1699,10 +1750,7 @@ const App: React.FC = () => {
         return (
           <OrderRequestPage
             onBack={() => setCurrentScreen('orders-dashboard')}
-            onSubmit={() => {
-              setSelectedOrder(null);
-              setCurrentScreen('orders-dashboard');
-            }}
+            onSubmit={(data) => handleOrderSelect(data)}
             initialData={selectedOrder || undefined}
           />
         );
@@ -1925,6 +1973,8 @@ const App: React.FC = () => {
       case 'team-edit': return 'Editar Equipe';
       case 'department-edit': return 'Editar Departamento';
       case 'user-form': return 'Novo Usuário';
+      case 'all-users': return 'Usuários';
+      case 'user-details': return 'Detalhes do Usuário';
       case 'profile': return 'Perfil';
       case 'settings': return 'Ajustes';
       case 'systems': return 'Sistemas / Sub-sistemas';
@@ -1999,6 +2049,10 @@ const App: React.FC = () => {
       case 'order-visit-asset-materials': return 'Materiais';
       case 'profile-permissions': return 'Gestão Permissões';
       case 'order-visit-approve': return 'Aprovação Visita';
+      case 'maintenance-plans': return 'Planos manutenção';
+      case 'maintenance-plan-form': return 'Novo Plano';
+      case 'maintenance-plan-edit': return 'Editar Plano';
+      case 'maintenance-plan-details': return 'Detalhes do Plano';
       default: return 'Siges';
     }
   };
@@ -2050,7 +2104,8 @@ const App: React.FC = () => {
     currentScreen === 'asset-duplicate' ||
     currentScreen === 'unit-details' ||
     currentScreen === 'client-unit-form' ||
-    currentScreen === 'client-unit-edit';
+    currentScreen === 'client-unit-edit' ||
+    currentScreen === 'maintenance-plan-details';
 
   const hideMainNavigation = isInVisitContext || isFullPageScreen;
 
@@ -2069,10 +2124,10 @@ const App: React.FC = () => {
 
   return (
     <>
+      {currentUser?.isAdminSuper && <AIAssistantBubble />}
       {showSplash && <SplashScreen />}
-      <AuthProvider>
-        <PermissionsProvider currentUser={currentUser}>
-          <div className={`flex min-h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden ${showSplash ? 'hidden' : ''}`}>
+      <PermissionsProvider currentUser={currentUser}>
+        <div className={`flex min-h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden ${showSplash ? 'hidden' : ''}`}>
             {currentScreen === 'profile' ? (
               <div className="flex-1 flex overflow-hidden">
                 <div className="hidden md:block">
@@ -2144,7 +2199,6 @@ const App: React.FC = () => {
             <UpdateNotifier />
           </div>
         </PermissionsProvider>
-      </AuthProvider>
     </>
   );
 };

@@ -1,6 +1,6 @@
 // Data Service for SIGES application
 import { supabase } from './supabase';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity } from '../types';
 
 
 
@@ -98,29 +98,24 @@ export const dataService = {
 
         if (r2PublicUrl) {
             // Use Cloudflare R2 - return direct URL
-            // imgproxy optimization will be applied by OptimizedImage component in frontend
-            let cleanPath = safePath.endsWith('/') ? safePath.slice(0, -1) : safePath;
-            let cleanName = name.startsWith('/') ? name.slice(1) : name;
-            cleanPath = cleanPath.replace(/^\/+/, '');
-            cleanName = cleanName.replace(/^\/+/, '');
+            let cleanPath = safePath.replace(/^\/+|\/+$/g, '');
+            let cleanName = name.replace(/^\/+|\/+$/g, '');
 
             // Remove trailing slash from URL
             const baseUrl = r2PublicUrl.endsWith('/') ? r2PublicUrl.slice(0, -1) : r2PublicUrl;
 
             let pathPart = cleanPath;
 
-            // COMPATIBILIDADE: Remover prefixos legados (stub/siges) para apontar para raiz do R2
-            if (pathPart.startsWith('siges/stub/siges/')) {
-                pathPart = pathPart.replace('siges/stub/siges/', '');
-            } else if (pathPart.startsWith('stub/siges/')) {
-                pathPart = pathPart.replace('stub/siges/', '');
-            } else if (pathPart.startsWith('siges/')) {
-                // Caso venha com bucket name duplicado apenas
-                pathPart = pathPart.replace('siges/', '');
+            // COMPATIBILIDADE: Remover prefixos legados para apontar para raiz do R2
+            const legacyPrefixes = ['siges/stub/siges/', 'stub/siges/', 'siges/'];
+            for (const prefix of legacyPrefixes) {
+                if (pathPart.startsWith(prefix)) {
+                    pathPart = pathPart.substring(prefix.length);
+                    break;
+                }
             }
 
             const finalPath = pathPart ? (`${pathPart}/${cleanName}`) : cleanName;
-
             return `${baseUrl}/${finalPath}`;
         }
 
@@ -565,7 +560,7 @@ export const dataService = {
 
     async getCompanies(): Promise<Company[]> {
         const { data: companies, error } = await supabase
-            .from('cfg_companies')
+            .from('v_companies')
             .select('*');
 
         if (error) {
@@ -575,50 +570,11 @@ export const dataService = {
 
         const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'siges';
 
-        // Batch Sign URLs for companies with logos
-        const validCompanies = (companies || []).filter((c: any) => c.img_file_path && c.img_file_name);
-        const pathsToSign: string[] = [];
-
-        validCompanies.forEach((c: any) => {
-            let cleanPath = c.img_file_path.replace(/^\/+|\/+$/g, '');
-            let cleanName = c.img_file_name.replace(/^\/+|\/+$/g, '');
-            if (cleanPath.startsWith(`${bucket}/`)) {
-                cleanPath = cleanPath.substring(bucket.length + 1);
-            }
-            const fullPath = `${cleanPath}/${cleanName}`;
-            pathsToSign.push(fullPath);
-        });
-
-        let signedUrlsMap: Record<string, string> = {};
-        if (pathsToSign.length > 0) {
-            try {
-                const uniquePaths = [...new Set(pathsToSign)];
-                const { data: signedData, error: signError } = await supabase.storage
-                    .from(bucket)
-                    .createSignedUrls(uniquePaths, 3600);
-
-                if (!signError && signedData) {
-                    signedData.forEach((item) => {
-                        if (item.path && item.signedUrl) {
-                            signedUrlsMap[item.path] = item.signedUrl;
-                        }
-                    });
-                }
-            } catch (e) {
-                console.warn('Batch sign failed for companies', e);
-            }
-        }
-
         return companies.map((item: any) => {
             let logoUrl = undefined;
-            if (item.img_file_path && item.img_file_name) {
-                let cleanPath = item.img_file_path.replace(/^\/+|\/+$/g, '');
-                let cleanName = item.img_file_name.replace(/^\/+|\/+$/g, '');
-                if (cleanPath.startsWith(`${bucket}/`)) {
-                    cleanPath = cleanPath.substring(bucket.length + 1);
-                }
-                const fullPath = `${cleanPath}/${cleanName}`;
-                logoUrl = signedUrlsMap[fullPath] || this.getPublicImageUrl(item.img_file_path, item.img_file_name, { width: 400, height: 400, resize: 'contain' });
+            if (item.img_file_name) {
+                // Aqui usamos nossa função que já trata a correção de domínio da VPS e integra com imgproxy
+                logoUrl = this.getPublicImageUrl(item.img_file_path, item.img_file_name, { width: 200, height: 200, resize: 'contain' });
             }
 
             return {
@@ -643,7 +599,7 @@ export const dataService = {
         if (!id) return null;
 
         const { data, error } = await supabase
-            .from('cfg_companies')
+            .from('v_companies')
             .select('*')
             .eq('id', id)
             .single();
@@ -2328,7 +2284,8 @@ export const dataService = {
             mobile: user.mobile,
             phone: user.phone,
             profile_id: (user.profileId && user.profileId !== '') ? parseInt(user.profileId) : undefined,
-            team_id: (user.teamId && user.teamId !== '') ? parseInt(user.teamId) : undefined
+            team_id: (user.teamId && user.teamId !== '') ? parseInt(user.teamId) : undefined,
+            company_id: (user.companyId && user.companyId !== '') ? parseInt(user.companyId) : undefined
         };
 
         const { error: updateError } = await supabase
@@ -6643,6 +6600,89 @@ export const dataService = {
         });
     },
 
+    async getOrdersByLeader(leaderId: string): Promise<Order[]> {
+        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companyMap = new Map((companies || []).map((c: any) => [c.id?.toString(), c]));
+
+        const { data, error } = await supabase
+            .from('v_orders')
+            .select('*')
+            .eq('team_leader_id', leaderId);
+
+        if (error) {
+            console.error('Error fetching orders by leader:', error);
+            return [];
+        }
+
+        return (data || []).map((row: any) => {
+            const providerCompanyIdStr = row.provider_company_id?.toString();
+            const company = providerCompanyIdStr ? companyMap.get(providerCompanyIdStr) : null;
+
+            const providerLogoUrl = this.getPublicImageUrl(
+                row.provider_company_img_file_path || row.provider_company_img_path || company?.img_file_path,
+                row.provider_company_img_file_name || row.provider_company_img_name || company?.img_file_name,
+                { width: 100, height: 100, resize: 'contain' }
+            );
+
+            return {
+                id: row.id.toString(),
+                uid: row.o_uid,
+                orderMask: row.order_mask,
+                clientId: row.client_id,
+                companyId: row.company_id,
+                unitId: row.unit_id,
+                departmentId: row.department_id,
+                providerDepartmentId: row.provider_department_id,
+                typeId: row.type_id,
+                typeCode: row.type_code,
+                typeSubId: row.type_sub_id,
+                typeSubCode: row.type_sub_code,
+                objectId: row.object_id,
+                objectCode: row.object_code,
+                priorityId: row.priority_id,
+                priorityCode: row.priority_code,
+                teamId: row.team_id,
+                contractId: row.contract_id,
+                planId: row.plan_id,
+                statusId: row.status_id,
+                statusAt: row.status_at,
+                requesterName: row.requester_name,
+                requesterPhone: row.requester_phone,
+                requestedAt: row.requested_at,
+                requestedServices: row.requested_services,
+                totalValue: row.total_value,
+                systemId: row.system_id,
+                unitLatitude: row.unit_latitude,
+                unitLongitude: row.unit_longitude,
+                teamCode: row.team_code,
+                statusName: row.status_name,
+                statusDescription: row.status_description,
+                statusIcon: row.status_icon,
+                iconColor: row.icon_color,
+                statusBackgroundColor: row.status_background_color,
+                progress: row.progress,
+                unitDescription: row.unit_description,
+                unitDescriptionFull: row.unit_description_full,
+                typeDescription: row.type_description,
+                priorityDescription: row.priority_description,
+                priorityColor: row.priority_color,
+                assetTagDescription: row.asset_tag_description || row.unit_asset_tag_description,
+                unitAssetTagDescription: row.asset_tag_description || row.unit_asset_tag_description,
+                assetTagSubDescription: row.asset_tag_sub_description || row.unit_asset_tag_sub_description,
+                unitAssetTagSubDescription: row.asset_tag_sub_description || row.unit_asset_tag_sub_description,
+                providerCompanyName: row.provider_company_description || row.provider_company_name || company?.description,
+                providerLogo: providerLogoUrl,
+                parentId: row.parent_id,
+                teamLeaderId: row.team_leader_id?.toString(),
+                teamLeaderNameShort: row.team_leader_name_short,
+                ovCounter: row.ov_counter,
+                imgFilePath: row.img_file_path,
+                imgFileName: row.img_file_name,
+                imgFilesNames: row.img_files_names
+            } as Order;
+        });
+    },
+
     async hasActiveVisits(orderId: string): Promise<boolean> {
         const { count, error } = await supabase
             .from('orders_visits')
@@ -6902,7 +6942,51 @@ export const dataService = {
 
             unitId: row.o_unit_id?.toString(),
             orderMask: row.o_mask,
-            teamCode: row.o_team_code
+            teamCode: row.o_team_code,
+            contractDescription: row.o_contract_description,
+            planDescription: row.o_plan_description
+        })) as OrderVisit[];
+    },
+
+    async getVisitsByLeader(leaderId: string): Promise<OrderVisit[]> {
+        const { data, error } = await supabase
+            .from('v_orders_visits')
+            .select('*')
+            .eq('ov_team_leader_id', leaderId)
+            .order('ov_started_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching visits by leader:', error);
+            return [];
+        }
+
+        return (data || []).map((row: any) => ({
+            id: row.id.toString(),
+            oId: row.o_id?.toString(),
+            ovMask: row.ov_mask,
+            ovStatusId: row.ov_status_id,
+            ovProcessingId: row.ov_processing_id,
+            ovCreatedAt: row.ov_created_at,
+            ovCreatedUserId: row.ov_created_user_id?.toString(),
+            ovTeamLeadId: row.ov_team_leader_id?.toString(),
+            ovStartedAt: row.ov_started_at,
+            ovEndedAt: row.ov_ended_at,
+
+            // View fields - using correct column names from v_orders_visits
+            unitDescription: row.o_unit_description,
+            systemDescription: row.o_system_description,
+            clientName: row.o_client_name,
+            teamLeaderName: row.ov_team_leader_name_short,
+            statusDescription: row.ov_status_description,
+            processingDescription: row.ov_processing_description,
+
+            unitId: row.o_unit_id?.toString(),
+            orderMask: row.o_mask,
+            teamCode: row.o_team_code,
+            requestedServices: row.o_requested_services,
+            contractDescription: row.o_contract_description,
+            planDescription: row.o_plan_description,
+            progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
         })) as OrderVisit[];
     },
 
@@ -7607,6 +7691,8 @@ export const dataService = {
                 disapprovedNotes: item.disapproved_notes,
                 reportedUserNameShort: item.reported_user_name_short,
                 activitiesDescription: item.activities_description,
+                maintenancePlanId: item.maintenance_plan_id?.toString(),
+                maintenancePlanProgress: item.maintenance_plan_progress,
                 imgUrl: initialPhotoUrls[0], 
                 initialPhotoUrls,
                 finalPhotoUrls
@@ -7713,6 +7799,20 @@ export const dataService = {
             }
         }
 
+        let assetTypeId: string | undefined;
+        try {
+            const { data: assetData } = await supabase
+                .from('assets')
+                .select('type_id')
+                .eq('id', data.asset_id)
+                .single();
+            if (assetData) {
+                assetTypeId = assetData.type_id?.toString();
+            }
+        } catch (e) {
+            console.warn('Could not fetch type_id from assets', e);
+        }
+
         const ensureArray = (val: any): string[] => {
             if (Array.isArray(val)) return val;
             if (typeof val === 'string' && val.trim()) {
@@ -7741,6 +7841,7 @@ export const dataService = {
             brand: data.brand,
             model: data.model,
             serial: data.serial,
+            assetTypeId: assetTypeId,
             location: data.location,
             beforeUnitId: data.before_unit_id?.toString(),
             afterUnitId: data.after_unit_id?.toString(),
@@ -8619,7 +8720,8 @@ export const dataService = {
                 createdUserId: item.created_user_id?.toString(),
                 createdAt: item.created_at,
                 activityDescription: activity?.description,
-                activityCode: activity?.code
+                activityCode: activity?.code,
+                maintenancePlanId: item.maintenance_plan_id?.toString()
             };
         });
     },
@@ -8660,65 +8762,120 @@ export const dataService = {
     },
 
     async getOrderVisitAssetsActivitiesByVisit(visitId: string): Promise<OrderVisitAssetActivity[]> {
-        const { data, error } = await supabase
-            .from('orders_visits_assets_activities')
-            .select(`
-                *,
-                ova:orders_visits_assets!ova_id!inner(ov_id),
-                activity:cfg_activities(id, description, code)
-            `)
-            .eq('ova.ov_id', parseInt(visitId))
-            .eq('is_deleted', false);
+        // 1. Get all asset IDs for this visit
+        const { data: assets, error: assetsError } = await supabase
+            .from('orders_visits_assets')
+            .select('id')
+            .eq('ov_id', parseInt(visitId));
 
-        if (error) {
-            console.error('Error fetching activities for visit assets:', error);
+        if (assetsError || !assets || assets.length === 0) {
+            if (assetsError) console.error('Error fetching assets for activities:', assetsError);
             return [];
         }
 
-        return (data || []).map((item: any) => ({
-            id: item.id.toString(),
-            orderVisitAssetId: item.ova_id.toString(),
-            activityId: item.activity_id.toString(),
-            isDeleted: item.is_deleted,
-            createdUserId: item.created_user_id?.toString(),
-            createdAt: item.created_at,
-            activityDescription: item.activity?.description,
-            activityCode: item.activity?.code
-        }));
+        const ovaIds = assets.map(a => a.id);
+
+        // 2. Fetch all activities results for these ovaIds (WITHOUT JOINS to avoid PGRST200)
+        const { data, error } = await supabase
+            .from('orders_visits_assets_activities')
+            .select('*')
+            .in('ova_id', ovaIds)
+            .eq('is_deleted', false);
+
+        if (error) {
+            console.error('Error fetching activities records:', error);
+            return [];
+        }
+
+        // 3. Fetch all cfg_activities to manual merge (to bypass broken FKs in cache)
+        const activityIds = Array.from(new Set(data.map(item => item.activity_id)));
+        const { data: cfgActivities, error: cfgError } = await supabase
+            .from('cfg_activities')
+            .select('id, description, code')
+            .in('id', activityIds);
+
+        const activitiesMap: Record<string, any> = (cfgActivities || []).reduce((acc, curr) => {
+            acc[curr.id.toString()] = curr;
+            return acc;
+        }, {} as any);
+
+        return (data || []).map((item: any) => {
+            const activityInfo = activitiesMap[item.activity_id.toString()];
+            return {
+                id: item.id.toString(),
+                orderVisitAssetId: item.ova_id.toString(),
+                activityId: item.activity_id.toString(),
+                isDeleted: item.is_deleted,
+                createdUserId: item.created_user_id?.toString(),
+                createdAt: item.created_at,
+                activityDescription: activityInfo?.description,
+                activityCode: activityInfo?.code,
+                isOk: item.is_ok,
+                comments: item.comments,
+                imgFilePath: item.img_file_path,
+                imgFilesNames: Array.isArray(item.img_files_names) ? item.img_files_names : (typeof item.img_files_names === 'string' ? JSON.parse(item.img_files_names) : []),
+                maintenancePlanId: item.maintenance_plan_id?.toString()
+            };
+        });
     },
 
     async getOrderVisitAssetsMaterialsByVisit(visitId: string): Promise<OrderVisitAssetMaterial[]> {
-        const { data, error } = await supabase
-            .from('orders_visits_assets_materials')
-            .select(`
-                *,
-                ova:orders_visits_assets!ova_id!inner(ov_id),
-                material:materials(*)
-            `)
-            .eq('ova.ov_id', parseInt(visitId))
-            .eq('is_deleted', false);
+        // 1. Get all asset IDs for this visit
+        const { data: assets, error: assetsError } = await supabase
+            .from('orders_visits_assets')
+            .select('id')
+            .eq('ov_id', parseInt(visitId));
 
-        if (error) {
-            console.error('Error fetching materials for visit assets:', error);
+        if (assetsError || !assets || assets.length === 0) {
+            if (assetsError) console.error('Error fetching assets for materials:', assetsError);
             return [];
         }
 
-        return (data || []).map((item: any) => ({
-            id: item.id.toString(),
-            ovaId: item.ova_id.toString(),
-            orderVisitAssetId: item.ova_id.toString(),
-            materialId: item.material_id.toString(),
-            amount: item.amount,
-            valueUnit: item.value_unit,
-            discount: item.discount,
-            valueTotal: item.value_total,
-            isDeleted: item.is_deleted,
-            createdUserId: item.created_user_id?.toString(),
-            createdAt: item.created_at,
-            materialDescription: item.material?.description,
-            materialCode: item.material?.code,
-            materialUnit: item.material?.unit
-        }));
+        const ovaIds = assets.map(a => a.id);
+
+        // 2. Fetch materials records (WITHOUT JOINS)
+        const { data, error } = await supabase
+            .from('orders_visits_assets_materials')
+            .select('*')
+            .in('ova_id', ovaIds)
+            .eq('is_deleted', false);
+
+        if (error) {
+            console.error('Error fetching materials records:', error);
+            return [];
+        }
+
+        // 3. Fetch materials catalog info for manual merge
+        const materialIds = Array.from(new Set(data.map(item => item.material_id)));
+        const { data: materialsCatalog, error: matError } = await supabase
+            .from('materials')
+            .select('*')
+            .in('id', materialIds);
+        
+        const materialsMap: Record<string, any> = (materialsCatalog || []).reduce((acc, curr) => {
+            acc[curr.id.toString()] = curr;
+            return acc;
+        }, {} as any);
+
+        return (data || []).map((item: any) => {
+            const matInfo = materialsMap[item.material_id.toString()];
+            return {
+                id: item.id.toString(),
+                ovaId: item.ova_id.toString(),
+                orderVisitAssetId: item.ova_id.toString(),
+                materialId: item.material_id.toString(),
+                amount: item.amount,
+                valueUnit: item.value_unit,
+                discount: item.discount,
+                valueTotal: item.value_total,
+                isDeleted: item.is_deleted,
+                createdUserId: item.created_user_id?.toString(),
+                createdAt: item.created_at,
+                materialDescription: matInfo?.description,
+                materialCode: matInfo?.code,
+                materialUnit: matInfo?.unit
+            };
+        });
     },
 
     // -------------------------------------------------------------------------
@@ -9092,7 +9249,7 @@ export const dataService = {
                 // Fetch details for message construction
                 // We use parallel fetches for efficiency
                 const [clientRes, unitRes, tagRes, tagSubRes, followerUsersRes] = await Promise.all([
-                    supabase.from('cfg_companies').select('name').eq('id', order.client_id).single(),
+                    supabase.from('v_companies').select('name:description').eq('id', order.client_id).single(),
                     supabase.from('units').select('description').eq('id', order.unit_id).single(),
                     order.asset_tag_id ? supabase.from('cfg_assets_tags').select('description').eq('id', order.asset_tag_id).single() : { data: null },
                     order.asset_tag_sub_id ? supabase.from('cfg_assets_tags_subs').select('description').eq('id', order.asset_tag_sub_id).single() : { data: null },
@@ -9501,6 +9658,533 @@ export const dataService = {
         if (error) {
             console.error('Error updating user location:', error);
         }
+    },
+
+    // -------------------------------------------------------------------------
+    // PREVENTIVE MAINTENANCE PLANS
+    // -------------------------------------------------------------------------
+
+    async getMaintenancePlans(assetTypeId?: string): Promise<MaintenancePlan[]> {
+        let query = supabase.from('maintenances_plans').select('*').eq('is_deleted', false);
+        if (assetTypeId) {
+            // Also fetch generic ones (asset_type_id null)?
+            // Fetch exact matches or generic ones 
+            query = query.or(`asset_type_id.eq.${assetTypeId},asset_type_id.is.null`);
+        }
+        const { data, error } = await query.order('description', { ascending: true });
+        if (error) {
+            console.error('Error fetching maintenance plans:', error);
+            return [];
+        }
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            code: item.code,
+            description: item.description,
+            assetTypeId: item.asset_type_id?.toString(),
+            isAvailable: item.is_available,
+            isDeleted: item.is_deleted
+        }));
+    },
+
+    async getMaintenancePlanById(id: string): Promise<MaintenancePlan | null> {
+        const { data, error } = await supabase.from('maintenances_plans').select('*').eq('id', parseInt(id)).single();
+        if (error || !data) return null;
+        return {
+            id: data.id.toString(),
+            code: data.code,
+            description: data.description,
+            assetTypeId: data.asset_type_id?.toString(),
+            isAvailable: data.is_available,
+            isDeleted: data.is_deleted
+        };
+    },
+
+    async createMaintenancePlan(plan: Partial<MaintenancePlan>, userId: string): Promise<MaintenancePlan> {
+        const { data, error } = await supabase
+            .from('maintenances_plans')
+            .insert({
+                code: plan.code,
+                description: plan.description,
+                asset_type_id: plan.assetTypeId ? parseInt(plan.assetTypeId) : null,
+                is_available: plan.isAvailable !== undefined ? plan.isAvailable : true,
+                created_user_id: parseInt(userId)
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return {
+            id: data.id.toString(),
+            code: data.code,
+            description: data.description,
+            assetTypeId: data.asset_type_id?.toString(),
+            isAvailable: data.is_available,
+            isDeleted: data.is_deleted
+        };
+    },
+
+    async updateMaintenancePlan(id: string, plan: Partial<MaintenancePlan>, userId: string): Promise<MaintenancePlan> {
+        const payload: any = {
+            updated_user_id: parseInt(userId),
+            updated_at: getBrazilTimestamp()
+        };
+        if (plan.code !== undefined) payload.code = plan.code;
+        if (plan.description !== undefined) payload.description = plan.description;
+        if (plan.assetTypeId !== undefined) payload.asset_type_id = plan.assetTypeId ? parseInt(plan.assetTypeId) : null;
+        if (plan.isAvailable !== undefined) payload.is_available = plan.isAvailable;
+
+        const { data, error } = await supabase
+            .from('maintenances_plans')
+            .update(payload)
+            .eq('id', parseInt(id))
+            .select()
+            .single();
+
+        if (error) throw error;
+        return {
+            id: data.id.toString(),
+            code: data.code,
+            description: data.description,
+            assetTypeId: data.asset_type_id?.toString(),
+            isAvailable: data.is_available,
+            isDeleted: data.is_deleted
+        };
+    },
+
+    async getMaintenancePlanSections(planId: string): Promise<MaintenancePlanSection[]> {
+        const { data, error } = await supabase
+            .from('maintenances_plans_sections')
+            .select('*')
+            .eq('maintenance_plan_id', parseInt(planId))
+            .eq('is_deleted', false)
+            .order('order_index', { ascending: true });
+        if (error) throw error;
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            maintenancePlanId: item.maintenance_plan_id.toString(),
+            description: item.description,
+            isAvailable: item.is_available,
+            isDeleted: item.is_deleted,
+            orderIndex: item.order_index
+        }));
+    },
+
+    async createMaintenancePlanSection(section: Partial<MaintenancePlanSection>, userId: string): Promise<MaintenancePlanSection> {
+        if (!section.maintenancePlanId) throw new Error("maintenancePlanId is required");
+        
+        const { data, error } = await supabase
+            .from('maintenances_plans_sections')
+            .insert({
+                maintenance_plan_id: parseInt(section.maintenancePlanId),
+                description: section.description,
+                is_available: section.isAvailable !== undefined ? section.isAvailable : true,
+                created_user_id: parseInt(userId),
+                order_index: section.orderIndex || 0
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return {
+            id: data.id.toString(),
+            maintenancePlanId: data.maintenance_plan_id.toString(),
+            description: data.description,
+            isAvailable: data.is_available,
+            isDeleted: data.is_deleted,
+            orderIndex: data.order_index
+        };
+    },
+
+    async updateMaintenancePlanSection(id: string, section: Partial<MaintenancePlanSection>, userId: string): Promise<MaintenancePlanSection> {
+        const payload: any = {
+            updated_user_id: parseInt(userId),
+            updated_at: getBrazilTimestamp()
+        };
+        if (section.description !== undefined) payload.description = section.description;
+        if (section.isAvailable !== undefined) payload.is_available = section.isAvailable;
+        if (section.orderIndex !== undefined) payload.order_index = section.orderIndex;
+        if (section.isDeleted !== undefined) {
+             payload.is_deleted = section.isDeleted;
+             if(section.isDeleted) payload.deleted_user_id = parseInt(userId);
+        }
+
+        const { data, error } = await supabase
+            .from('maintenances_plans_sections')
+            .update(payload)
+            .eq('id', parseInt(id))
+            .select()
+            .single();
+
+        if (error) throw error;
+        return {
+            id: data.id.toString(),
+            maintenancePlanId: data.maintenance_plan_id.toString(),
+            description: data.description,
+            isAvailable: data.is_available,
+            isDeleted: data.is_deleted,
+            orderIndex: data.order_index
+        };
+    },
+
+    async getMaintenancePlanSectionActivities(sectionId: string): Promise<MaintenancePlanSectionActivity[]> {
+        const { data, error } = await supabase
+            .from('maintenances_plans_sections_activities')
+            .select('*, cfg_activities(description, code)')
+            .eq('maintenance_plan_section_id', parseInt(sectionId))
+            .eq('is_deleted', false)
+            .order('order_index', { ascending: true });
+        if (error) return [];
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            maintenancePlanSectionId: item.maintenance_plan_section_id.toString(),
+            activityId: item.activity_id.toString(),
+            isAvailable: item.is_available,
+            isDeleted: item.is_deleted,
+            orderIndex: item.order_index,
+            description: item.description,
+            commentsDefault: item.comments_default,
+            activityDescription: item.cfg_activities?.description,
+            activityCode: item.cfg_activities?.code
+        }));
+    },
+
+    async createMaintenancePlanSectionActivity(sectionId: string, activityId: string, userId: string, orderIndex?: number, description?: string, commentsDefault?: string): Promise<MaintenancePlanSectionActivity> {
+        // We use upsert to avoid duplicate keys issues if deleted and re-added
+        const payload: any = {
+            maintenance_plan_section_id: parseInt(sectionId),
+            activity_id: parseInt(activityId),
+            created_user_id: parseInt(userId),
+            is_deleted: false,
+            is_available: true,
+            order_index: orderIndex || 0,
+            description: description,
+            comments_default: commentsDefault
+        };
+
+        const { data, error } = await supabase
+            .from('maintenances_plans_sections_activities')
+            .upsert(payload, { onConflict: 'maintenance_plan_section_id,activity_id' })
+            .select('*, cfg_activities(description, code)')
+            .single();
+
+        if (error) throw error;
+        return {
+            id: data.id.toString(),
+            maintenancePlanSectionId: data.maintenance_plan_section_id.toString(),
+            activityId: data.activity_id.toString(),
+            isAvailable: data.is_available,
+            isDeleted: data.is_deleted,
+            orderIndex: data.order_index,
+            description: data.description,
+            commentsDefault: data.comments_default,
+            activityDescription: data.cfg_activities?.description,
+            activityCode: data.cfg_activities?.code
+        };
+    },
+
+    async updateMaintenancePlanSectionActivity(id: string, payload: Partial<MaintenancePlanSectionActivity>, userId: string): Promise<void> {
+        const dbPayload: any = {
+            updated_user_id: parseInt(userId),
+            updated_at: getBrazilTimestamp()
+        };
+        if (payload.orderIndex !== undefined) dbPayload.order_index = payload.orderIndex;
+        if (payload.description !== undefined) dbPayload.description = payload.description;
+        if (payload.commentsDefault !== undefined) dbPayload.comments_default = payload.commentsDefault;
+        if (payload.isDeleted !== undefined) {
+             dbPayload.is_deleted = payload.isDeleted;
+             if(payload.isDeleted) dbPayload.deleted_user_id = parseInt(userId);
+        }
+
+        const { error } = await supabase
+            .from('maintenances_plans_sections_activities')
+            .update(dbPayload)
+            .eq('id', parseInt(id));
+
+        if (error) throw error;
+    },
+
+    async removeMaintenancePlanSectionActivity(sectionActivityId: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('maintenances_plans_sections_activities')
+            .update({
+                is_deleted: true,
+                deleted_user_id: parseInt(userId),
+                deleted_at: getBrazilTimestamp()
+            })
+            .eq('id', parseInt(sectionActivityId));
+
+        if (error) throw error;
+    },
+
+    // To load checklist for an asset visit (fetch all activities filled out with maintenance_plan_id)
+    async getMaintenanceChecklistItemsByVisit(ovAssetId: string): Promise<OrderVisitAssetActivity[]> {
+        const { data, error } = await supabase
+            .from('orders_visits_assets_activities')
+            .select('*')
+            .eq('ova_id', parseInt(ovAssetId))
+            .not('maintenance_plan_id', 'is', null)
+            .neq('maintenance_plan_id', 0)
+            .eq('is_deleted', false);
+        
+        if (error) {
+            console.error('Error fetching visit checklist items:', error);
+            return [];
+        }
+
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            orderVisitAssetId: item.ova_id.toString(),
+            activityId: item.activity_id.toString(),
+            isDeleted: item.is_deleted,
+            createdUserId: item.created_user_id?.toString(),
+            createdAt: item.created_at,
+            maintenancePlanId: item.maintenance_plan_id?.toString(),
+            isOk: item.is_ok,
+            imgFilePath: item.img_file_path,
+            imgFilesNames: Array.isArray(item.img_files_names) ? item.img_files_names : (typeof item.img_files_names === 'string' ? JSON.parse(item.img_files_names) : []),
+            comments: item.comments
+        }));
+    },
+
+    async getMaintenanceChecklistItems(ovAssetId: string, planId: string): Promise<OrderVisitAssetActivity[]> {
+        const { data, error } = await supabase
+            .from('orders_visits_assets_activities')
+            .select('*')
+            .eq('ova_id', parseInt(ovAssetId))
+            .eq('maintenance_plan_id', parseInt(planId))
+            .eq('is_deleted', false);
+        
+        if (error) {
+            console.error('Error fetching maintenance checklist items:', error);
+            return [];
+        }
+
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            orderVisitAssetId: item.ova_id.toString(),
+            activityId: item.activity_id.toString(),
+            isDeleted: item.is_deleted,
+            createdUserId: item.created_user_id?.toString(),
+            createdAt: item.created_at,
+            maintenancePlanId: item.maintenance_plan_id?.toString(),
+            isOk: item.is_ok,
+            imgFilePath: item.img_file_path,
+            imgFilesNames: item.img_files_names,
+            comments: item.comments
+        }));
+    },
+
+    // To load checklist history for an asset across all visits
+    async getGlobalMaintenanceChecklistItems(assetId: string, planId: string): Promise<OrderVisitAssetActivity[]> {
+        try {
+            // First, find all OrderVisitAsset records for this specific assetId
+            const { data: ovaRecords, error: ovaError } = await supabase
+                .from('orders_visits_assets')
+                .select('id')
+                .eq('asset_id', parseInt(assetId));
+
+            if (ovaError || !ovaRecords || ovaRecords.length === 0) {
+                return [];
+            }
+
+            const ovaIds = ovaRecords.map(r => r.id);
+
+            // Then fetch all maintenance checklist activities for these ovaIds
+            const { data, error } = await supabase
+                .from('orders_visits_assets_activities')
+                .select('*')
+                .in('ova_id', ovaIds)
+                .eq('maintenance_plan_id', parseInt(planId))
+                .eq('is_deleted', false)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching global maintenance checklist items:', error);
+                return [];
+            }
+
+            return data.map((item: any) => ({
+                id: item.id.toString(),
+                orderVisitAssetId: item.ova_id.toString(),
+                activityId: item.activity_id.toString(),
+                isDeleted: item.is_deleted,
+                createdUserId: item.created_user_id?.toString(),
+                createdAt: item.created_at,
+                maintenancePlanId: item.maintenance_plan_id?.toString(),
+                isOk: item.is_ok,
+                imgFilePath: item.img_file_path,
+                imgFilesNames: Array.isArray(item.img_files_names) ? item.img_files_names : (typeof item.img_files_names === 'string' ? JSON.parse(item.img_files_names) : []),
+                comments: item.comments
+            }));
+        } catch (error) {
+            console.error('Catch in getGlobalMaintenanceChecklistItems:', error);
+            return [];
+        }
+    },
+
+    async updateOrderVisitAssetPlan(ovAssetId: string, planId: string): Promise<void> {
+        const { error } = await supabase
+            .from('orders_visits_assets')
+            .update({ maintenance_plan_id: planId ? parseInt(planId) : null })
+            .eq('id', parseInt(ovAssetId));
+            
+        if (error) {
+            console.error('Error updating order visit asset plan:', error);
+            throw error;
+        }
+    },
+
+    async updateOrderVisitAssetProgress(ovAssetId: string, progress: number): Promise<void> {
+        const { error } = await supabase
+            .from('orders_visits_assets')
+            .update({ maintenance_plan_progress: progress })
+            .eq('id', parseInt(ovAssetId));
+            
+        if (error) {
+            console.error('Error updating order visit asset progress:', error);
+            throw error;
+        }
+    },
+
+    async upsertMaintenanceChecklistItem(
+        ovAssetId: string, 
+        planId: string, 
+        activityId: string, 
+        userId: string, 
+        updates: { 
+            isOk?: boolean | null, 
+            comments?: string, 
+            imgFilePath?: string, 
+            imgFilesNames?: any 
+        }
+    ): Promise<OrderVisitAssetActivity | null> {
+        const dbUpdates: any = {
+            updated_user_id: parseInt(userId),
+            updated_at: getBrazilTimestamp()
+        };
+        if (updates.isOk !== undefined) dbUpdates.is_ok = updates.isOk;
+        if (updates.comments !== undefined) dbUpdates.comments = updates.comments;
+        if (updates.imgFilePath !== undefined) dbUpdates.img_file_path = updates.imgFilePath;
+        if (updates.imgFilesNames !== undefined) dbUpdates.img_files_names = updates.imgFilesNames;
+
+        const { data: existing } = await supabase
+            .from('orders_visits_assets_activities')
+            .select('id')
+            .eq('ova_id', parseInt(ovAssetId))
+            .eq('maintenance_plan_id', parseInt(planId))
+            .eq('activity_id', parseInt(activityId))
+            .maybeSingle();
+
+        let resultData = null;
+
+        if (existing) {
+            const { data, error } = await supabase
+                .from('orders_visits_assets_activities')
+                .update({ ...dbUpdates, is_deleted: false })
+                .eq('id', existing.id)
+                .select()
+                .single();
+            if (error) throw error;
+            resultData = data;
+        } else {
+            const { data, error } = await supabase
+                .from('orders_visits_assets_activities')
+                .insert({
+                    ova_id: parseInt(ovAssetId),
+                    activity_id: parseInt(activityId),
+                    maintenance_plan_id: parseInt(planId),
+                    created_user_id: parseInt(userId),
+                    created_at: getBrazilTimestamp(),
+                    is_deleted: false,
+                    ...dbUpdates
+                })
+                .select()
+                .single();
+            if (error) throw error;
+            resultData = data;
+        }
+
+        if (resultData) {
+             return {
+                id: resultData.id.toString(),
+                orderVisitAssetId: resultData.ova_id.toString(),
+                activityId: resultData.activity_id.toString(),
+                isDeleted: resultData.is_deleted,
+                maintenancePlanId: resultData.maintenance_plan_id?.toString(),
+                isOk: resultData.is_ok,
+                imgFilePath: resultData.img_file_path,
+                imgFilesNames: resultData.img_files_names,
+                comments: resultData.comments
+            };
+        }
+        return null;
+    },
+
+    async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string): Promise<{ path: string; filename: string }> {
+        const { r2Service } = await import('./r2Service');
+        
+        // Ensure file extension is standard
+        let fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpeg';
+        if (fileExt === 'jpg') fileExt = 'jpeg';
+
+        const uniqueSuffix = Math.random().toString(36).substring(7);
+        
+        // Ensure no spaces or special characters in IDs and paths
+        const cleanOvAssetId = String(ovAssetId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
+        const cleanActivityId = String(activityId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
+        const cleanCompanyId = String(companyId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
+        const cleanAssetId = String(assetId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
+
+        const fileName = `checklist_${cleanOvAssetId}_${cleanActivityId}_${Date.now()}_${uniqueSuffix}.${fileExt}`;
+        
+        // Pattern: companies/{companyId}/assets/{assetId}
+        const folderPath = (cleanCompanyId && cleanAssetId && cleanCompanyId !== 'undefined' && cleanAssetId !== 'undefined') 
+            ? `companies/${cleanCompanyId}/assets/${cleanAssetId}` 
+            : `checklist/${cleanOvAssetId}/${cleanActivityId}`;
+            
+        const fullPath = `${folderPath}/${fileName}`.replace(/\s+/g, '_');
+
+        console.log('DEBUG: Final upload path:', fullPath);
+        console.log('DEBUG: file.type (original):', file.type);
+
+        // We use a new File object if we need to force the MIME type, but r2Service just needs the blob and path
+        await r2Service.uploadFile(file, fullPath);
+        return { path: folderPath, filename: fileName };
+    },
+
+    async removeChecklistImage(ovAssetId: string, planId: string, activityId: string, fileName: string, userId: string): Promise<OrderVisitAssetActivity | null> {
+        // 1. Fetch current record
+        const { data: existing, error: fetchError } = await supabase
+            .from('orders_visits_assets_activities')
+            .select('*')
+            .eq('ova_id', parseInt(ovAssetId))
+            .eq('maintenance_plan_id', parseInt(planId))
+            .eq('activity_id', parseInt(activityId))
+            .maybeSingle();
+
+        if (fetchError || !existing) throw fetchError || new Error('Item de checklist não encontrado');
+
+        // 2. Filter out the specific file
+        const currentList: string[] = existing.img_files_names || [];
+        const newList = currentList.filter(f => f !== fileName);
+
+        // 3. Try to delete from R2
+        try {
+            const { r2Service } = await import('./r2Service');
+            // Replicate the path logic from the component/upload to ensure consistency
+            const folderPath = existing.img_file_path || `checklist/${ovAssetId}/${activityId}`;
+            const fullPath = `${folderPath}/${fileName}`.replace(/\/+/g, '/');
+            
+            console.log('DEBUG: Deleting from R2 at path:', fullPath);
+            await r2Service.deleteFile(fullPath);
+        } catch (r2Error) {
+            console.warn('Não foi possível excluir do R2, continuando com atualização do Banco:', r2Error);
+        }
+
+        // 4. Update DB
+        return await this.upsertMaintenanceChecklistItem(ovAssetId, planId, activityId, userId, {
+            imgFilesNames: newList
+        });
     }
 };
 

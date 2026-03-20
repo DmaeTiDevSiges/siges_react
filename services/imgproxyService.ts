@@ -1,6 +1,12 @@
 /**
  * imgproxyService.ts
- * Serviço para geração de URLs otimizadas via imgproxy com assinatura
+ * Serviço para geração de URLs otimizadas via imgproxy com assinatura HMAC-SHA256.
+ *
+ * Arquitetura:
+ *  - URLs do Supabase Storage → convertidas para s3://siges/<path>
+ *  - URLs do Cloudflare R2    → convertidas para s3://siges/<path>
+ *  - URLs blob/data (locais)  → não otimizáveis, retorna original
+ *  O imgproxy na VPS acessa o bucket S3/R2 diretamente via credenciais configuradas.
  */
 
 import CryptoJS from 'crypto-js';
@@ -17,7 +23,6 @@ export interface TransformOptions {
 
 export type ImagePreset = 'thumbnail' | 'medium' | 'large' | 'original';
 
-// Presets pré-configurados para diferentes casos de uso
 const PRESETS: Record<ImagePreset, TransformOptions> = {
     thumbnail: {
         width: 150,
@@ -41,33 +46,27 @@ const PRESETS: Record<ImagePreset, TransformOptions> = {
         format: 'webp',
         quality: 90,
     },
-    original: {
-        // Sem transformações, apenas serve a imagem original
-    },
+    original: {},
 };
 
 /**
- * Gera assinatura HMAC para URL do imgproxy
- * @param path - Caminho processado para assinatura
- * @returns Assinatura em formato URL-safe base64
+ * Gera assinatura HMAC-SHA256 conforme spec do imgproxy:
+ *   HMAC(key=keyBytes, message=saltBytes || pathUTF8)
  */
 const createSignature = (path: string): string => {
-    const key = import.meta.env.VITE_IMGPROXY_KEY;
+    const key  = import.meta.env.VITE_IMGPROXY_KEY;
     const salt = import.meta.env.VITE_IMGPROXY_SALT;
 
-    if (!key || !salt) {
-        console.warn('Chaves do imgproxy não configuradas. URLs não serão assinadas.');
-        return '';
-    }
+    if (!key || !salt) return 'insecure';
 
-    // Converter key e salt de hex para WordArray
-    const keyBin = CryptoJS.enc.Hex.parse(key);
+    const keyBin  = CryptoJS.enc.Hex.parse(key);
     const saltBin = CryptoJS.enc.Hex.parse(salt);
 
-    // Criar HMAC
-    const hmac = CryptoJS.HmacSHA256(saltBin.concat(CryptoJS.enc.Utf8.parse(path)), keyBin);
+    const hmac = CryptoJS.HmacSHA256(
+        saltBin.concat(CryptoJS.enc.Utf8.parse(path)),
+        keyBin
+    );
 
-    // Converter para base64 URL-safe
     return hmac.toString(CryptoJS.enc.Base64)
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
@@ -75,9 +74,7 @@ const createSignature = (path: string): string => {
 };
 
 /**
- * Codifica URL de origem para formato seguro do imgproxy
- * @param url - URL da imagem original
- * @returns URL codificada em base64 URL-safe
+ * Codifica URL de origem em Base64 URL-safe (sem padding).
  */
 const encodeSourceUrl = (url: string): string => {
     const encoded = CryptoJS.enc.Utf8.parse(url).toString(CryptoJS.enc.Base64);
@@ -88,119 +85,180 @@ const encodeSourceUrl = (url: string): string => {
 };
 
 /**
- * Constrói string de opções de processamento para imgproxy
- * @param options - Opções de transformação
- * @returns String formatada de opções
+ * Constrói string de opções de processamento para imgproxy.
  */
 const buildProcessingOptions = (options: TransformOptions): string => {
     const parts: string[] = [];
 
-    // Resize type
     const resizeType = options.resize || 'fit';
-    const width = options.width || 0;
-    const height = options.height || 0;
-    const enlarge = options.enlarge ? 1 : 0;
+    const width      = options.width  || 0;
+    const height     = options.height || 0;
+    const enlarge    = options.enlarge ? 1 : 0;
     parts.push(`rs:${resizeType}:${width}:${height}:${enlarge}`);
 
-    // Gravity (para crops)
-    if (options.gravity) {
-        parts.push(`g:${options.gravity}`);
-    }
-
-    // Quality
-    if (options.quality) {
-        parts.push(`q:${options.quality}`);
-    }
-
-    // Format
-    if (options.format) {
-        parts.push(`f:${options.format}`);
-    }
+    if (options.gravity) parts.push(`g:${options.gravity}`);
+    if (options.quality) parts.push(`q:${options.quality}`);
+    if (options.format)  parts.push(`f:${options.format}`);
 
     return parts.join('/');
 };
 
 /**
- * Gera URL otimizada via imgproxy
- * @param sourceUrl - URL da imagem original (R2)
- * @param options - Opções de transformação
- * @returns URL completa do imgproxy com assinatura
+ * Converte URL pública (Supabase Storage ou R2) para path interno s3://siges/<path>.
+ *
+ * O imgproxy acessa o bucket R2/S3 diretamente — não precisa de URL pública;
+ * a conversão para s3:// é mais eficiente (evita hop HTTP extra) e funciona
+ * desde que as credenciais AWS_S3_* estejam configuradas corretamente no container.
+ */
+const toS3Url = (sourceUrl: string): string => {
+    // Supabase Storage: .../storage/v1/object/public/siges/<path>
+    //                ou .../storage/v1/object/sign/siges/<path>?token=...
+    if (sourceUrl.includes('supabase') && sourceUrl.includes('/siges/')) {
+        const parts = sourceUrl.split('/siges/');
+        if (parts.length > 1) {
+            const path = parts[1].split('?')[0]; // remove query params / token
+            if (path) return `s3://siges/${path}`;
+        }
+    }
+
+    // Cloudflare R2 público: https://pub-xxx.r2.dev/<path>
+    //                     ou https://<accountId>.r2.cloudflarestorage.com/<bucket>/<path>
+    if (sourceUrl.includes('r2.dev') || sourceUrl.includes('r2.cloudflarestorage.com')) {
+        try {
+            const urlObj  = new URL(sourceUrl);
+            let tempPath  = urlObj.pathname.startsWith('/')
+                ? urlObj.pathname.substring(1)
+                : urlObj.pathname;
+
+            // Remove prefixo do bucket se já estiver no path
+            if (tempPath.startsWith('siges/')) tempPath = tempPath.substring(6);
+
+            const path = tempPath.split('?')[0];
+            if (path) return `s3://siges/${path}`;
+        } catch {
+            const match = sourceUrl.match(/(?:r2\.dev|cloudflarestorage\.com)\/(.+)$/);
+            if (match) return `s3://siges/${match[1].split('?')[0]}`;
+        }
+    }
+
+    // Fallback: não foi possível converter → usa URL original
+    return sourceUrl;
+};
+
+/**
+ * Gera URL otimizada via imgproxy.
+ * @param sourceUrl URL pública da imagem (R2 ou Supabase Storage)
+ * @param options   Opções de transformação
  */
 export const generateUrl = (sourceUrl: string, options: TransformOptions = {}): string => {
     const imgproxyUrl = import.meta.env.VITE_IMGPROXY_URL;
 
-    if (!imgproxyUrl) {
-        console.warn('URL do imgproxy não configurada. Retornando URL original.');
-        return sourceUrl;
-    }
+    if (!imgproxyUrl) return sourceUrl;
 
-    // Se não há opções, retorna a imagem original via imgproxy (sem transformações)
-    if (Object.keys(options).length === 0) {
-        options = { format: 'webp' }; // Pelo menos converte para webp
-    }
+    // URLs locais (blob/data) não podem ser acessadas pelo imgproxy (servidor externo)
+    if (sourceUrl.startsWith('blob:') || sourceUrl.startsWith('data:')) return sourceUrl;
 
-    const encodedUrl = encodeSourceUrl(sourceUrl);
-    const processingOptions = buildProcessingOptions(options);
-    const path = `/${processingOptions}/${encodedUrl}`;
-    const signature = createSignature(path);
+    const finalSourceUrl    = toS3Url(sourceUrl);
+    const encodedUrl        = encodeSourceUrl(finalSourceUrl);
+    const processingOptions = buildProcessingOptions(
+        Object.keys(options).length === 0 ? { format: 'webp' } : options
+    );
+    const pathSegment = `/${processingOptions}/${encodedUrl}`;
+    const signature   = createSignature(pathSegment);
 
-    // Remove trailing slash do imgproxyUrl se existir
     const baseUrl = imgproxyUrl.endsWith('/') ? imgproxyUrl.slice(0, -1) : imgproxyUrl;
-
-    return `${baseUrl}/${signature}${path}`;
+    return `${baseUrl}/${signature}${pathSegment}`;
 };
 
 /**
- * Gera URL usando preset pré-configurado
- * @param sourceUrl - URL da imagem original
- * @param preset - Nome do preset
- * @returns URL otimizada
+ * Gera URL usando preset pré-configurado.
  */
 export const getPresetUrl = (sourceUrl: string, preset: ImagePreset = 'medium'): string => {
-    if (preset === 'original') {
-        return sourceUrl; // Retorna URL original sem processamento
-    }
-
-    const options = PRESETS[preset];
-    return generateUrl(sourceUrl, options);
+    if (preset === 'original') return sourceUrl;
+    return generateUrl(sourceUrl, PRESETS[preset]);
 };
 
 /**
- * Gera srcset para imagens responsivas
- * @param sourceUrl - URL da imagem original
- * @returns String srcset com múltiplas resoluções
+ * Gera srcset para imagens responsivas.
  */
 export const generateSrcSet = (sourceUrl: string): string => {
     const sizes = [
-        { width: 400, descriptor: '400w' },
-        { width: 800, descriptor: '800w' },
+        { width: 400,  descriptor: '400w'  },
+        { width: 800,  descriptor: '800w'  },
         { width: 1200, descriptor: '1200w' },
         { width: 1920, descriptor: '1920w' },
     ];
 
     return sizes
         .map(({ width, descriptor }) => {
-            const url = generateUrl(sourceUrl, {
-                width,
-                resize: 'fit',
-                format: 'webp',
-                quality: 85,
-            });
+            const url = generateUrl(sourceUrl, { width, resize: 'fit', format: 'webp', quality: 85 });
             return `${url} ${descriptor}`;
         })
         .join(', ');
 };
 
+// ─── Circuit Breaker ──────────────────────────────────────────────────────────
+// Desativa o imgproxy temporariamente após N falhas consecutivas.
+
+let consecutiveFailures = 0;
+let disabledUntil       = 0;
+const MAX_FAILURES    = 3;
+const RECOVERY_TIME   = 2 * 60 * 1000; // 2 minutos
+
 /**
- * Valida se o imgproxy está configurado
- * @returns true se todas as configurações necessárias estão presentes
+ * Retorna true se o imgproxy está configurado e o circuit breaker está fechado.
  */
 export const isImgproxyConfigured = (): boolean => {
-    return !!(
+    const hasConfig = !!(
         import.meta.env.VITE_IMGPROXY_URL &&
         import.meta.env.VITE_IMGPROXY_KEY &&
         import.meta.env.VITE_IMGPROXY_SALT
     );
+    if (!hasConfig) return false;
+
+    // Recuperação automática após o tempo de espera
+    if (Date.now() > disabledUntil) {
+        if (disabledUntil > 0) {
+            consecutiveFailures = 0;
+            disabledUntil       = 0;
+        }
+        return true;
+    }
+
+    return false; // circuit breaker aberto
+};
+
+/**
+ * Registra falha de carregamento.
+ * Desativa após MAX_FAILURES falhas consecutivas.
+ */
+export const reportServiceFailure = () => {
+    consecutiveFailures++;
+    if (consecutiveFailures >= MAX_FAILURES && disabledUntil === 0) {
+        console.warn(
+            `[imgproxyService] ${MAX_FAILURES} falhas consecutivas. ` +
+            `Desativando por ${RECOVERY_TIME / 1000}s — verifique S3 no container.`
+        );
+        disabledUntil = Date.now() + RECOVERY_TIME;
+    }
+};
+
+/**
+ * Registra sucesso — reseta o contador de falhas.
+ */
+export const reportServiceSuccess = () => {
+    if (consecutiveFailures > 0) consecutiveFailures = 0;
+};
+
+export const checkServiceHealth = async (): Promise<boolean> => {
+    const imgproxyUrl = import.meta.env.VITE_IMGPROXY_URL;
+    if (!imgproxyUrl) return false;
+    try {
+        await fetch(`${imgproxyUrl}/health`, { method: 'GET', mode: 'no-cors' });
+        return true;
+    } catch {
+        return false;
+    }
 };
 
 export const imgproxyService = {
@@ -208,4 +266,7 @@ export const imgproxyService = {
     getPresetUrl,
     generateSrcSet,
     isImgproxyConfigured,
+    checkServiceHealth,
+    reportServiceFailure,
+    reportServiceSuccess,
 };

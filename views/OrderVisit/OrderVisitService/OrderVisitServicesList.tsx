@@ -28,6 +28,8 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [availableServices, setAvailableServices] = useState<ContractService[]>([]);
     const [searching, setSearching] = useState(false);
+    const [addingServiceId, setAddingServiceId] = useState<string | null>(null);
+    const [successServiceId, setSuccessServiceId] = useState<string | null>(null);
 
     useEffect(() => {
         loadVisitServices();
@@ -74,15 +76,28 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
 
     const handleAddService = async (contractService: ContractService, userId: string) => {
         try {
+            setAddingServiceId(contractService.id);
             await dataService.addServiceToOrderVisit(visitId, contractService.id, userId);
+            
+            setAddingServiceId(null);
+            setSuccessServiceId(contractService.id);
             toast.success('Serviço adicionado!');
-            setIsAdding(false);
-            setSearchTerm('');
+            
+            // Revert success state after a while
+            setTimeout(() => {
+                setSuccessServiceId(null);
+            }, 1500);
+
+            // Removed premature close of adding mode to allow adding multiple services
+            // setIsAdding(false); 
+            // setSearchTerm('');
+            
             loadVisitServices();
             if (onVisitRefresh) onVisitRefresh();
         } catch (error) {
             console.error('Error adding service:', error);
             toast.error('Erro ao adicionar serviço');
+            setAddingServiceId(null);
         }
     };
 
@@ -261,6 +276,8 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                                     </div>
                                 </div>
                                 <ButtonNew
+                                    isLoading={addingServiceId === cs.id}
+                                    isSuccess={successServiceId === cs.id}
                                     onClick={() => handleAddService(cs, currentUserId)}
                                 />
                             </div>

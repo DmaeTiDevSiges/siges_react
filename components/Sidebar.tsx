@@ -5,7 +5,7 @@ import { usePermissions } from '../contexts/PermissionsContext';
 interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
-    activeTab: string;
+    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -75,6 +75,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         isActive={activeTab === 'assets'}
                         isCollapsed={isCollapsed}
                         onClick={() => { onNavigate('assets'); }}
+                    />
+                )}
+                {(isAdminSuper || canView('maintenance_plans')) && (
+                    <SidebarItem
+                        icon="checklist"
+                        label="PMP"
+                        isActive={activeTab === 'maintenance-plans'}
+                        isCollapsed={isCollapsed}
+                        onClick={() => { onNavigate('maintenance-plans'); }}
                     />
                 )}
                 {(isAdminSuper || canView('settings')) && (

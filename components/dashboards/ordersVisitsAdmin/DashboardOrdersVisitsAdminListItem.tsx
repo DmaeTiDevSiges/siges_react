@@ -135,11 +135,18 @@ export const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsA
             {/* Bottom Group: Team and Footer pushed to bottom */}
             <div className="flex flex-col gap-6 mt-auto">
                 {/* Team Section */}
-                <div className="flex flex-col gap-4">
-                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
-                        EQUIPE
-                    </span>
-                    <div className="flex flex-wrap gap-5">
+                <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center w-full">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
+                            { (visit.teamCode || 'EQUIPE').toUpperCase() }
+                        </span>
+                        {visit.contractDescription && (
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
+                                {visit.contractDescription.toUpperCase()}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-3">
                         {teamMembers.map((member) => (
                             <div key={member.userId} className="flex flex-col items-center gap-2 group/avatar relative">
                                 <div className="relative">

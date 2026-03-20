@@ -1,4 +1,5 @@
-import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import React from 'react';
+import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -239,6 +240,130 @@ const styles = StyleSheet.create({
         color: C.footerText,
         fontFamily: 'Helvetica',
     },
+
+    // ── Checklist Section ──────────────────────────────────────────────────
+    checklistContainer: {
+        marginTop: 5,
+        borderWidth: 1,
+        borderColor: '#EEEEEE',
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    checklistRowHead: {
+        flexDirection: 'row',
+        backgroundColor: '#F8FAFC',
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEEEEE',
+        paddingVertical: 4,
+        paddingHorizontal: 6,
+    },
+    checklistSectionRow: {
+        backgroundColor: '#F1F5F9',
+        paddingVertical: 3,
+        paddingHorizontal: 6,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+    },
+    checklistSectionText: {
+        fontSize: 7,
+        fontWeight: 'bold',
+        color: '#475569',
+        textTransform: 'uppercase',
+    },
+    checklistRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEEEEE',
+        paddingVertical: 4,
+        paddingHorizontal: 6,
+        alignItems: 'center',
+    },
+    checklistCellDesc: { flex: 1, fontSize: 7, color: '#334155' },
+    checklistCellStatus: { width: 40, textAlign: 'center' },
+    checklistCellComment: { width: 100, fontSize: 6, color: '#64748b', fontStyle: 'italic', marginLeft: 10 },
+    
+    // ── Checklist Layout (Cards) ──────────────────────────────────────────
+    checklistHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        marginTop: 10,
+        marginBottom: 4,
+        paddingHorizontal: 4,
+    },
+    planTitle: { fontSize: 9, fontWeight: 'bold', color: C.primary },
+    planCode: { fontSize: 7, color: '#64748B', marginTop: 1 },
+    planProgress: { fontSize: 8, fontWeight: 'bold', color: C.primary },
+
+    activityCard: {
+        marginBottom: 6,
+        padding: 6,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: '#EEEEEE',
+    },
+    activityHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 4,
+    },
+    activityDesc: { flex: 1, fontSize: 8, fontWeight: 'bold', color: '#1E293B' },
+    activityStatus: { fontSize: 7, fontWeight: 'bold', marginLeft: 10 },
+    
+    activityComment: {
+        fontSize: 7,
+        color: '#475569',
+        backgroundColor: '#F8FAFC',
+        padding: 4,
+        borderRadius: 2,
+        marginTop: 4,
+        borderLeftWidth: 2,
+        borderLeftColor: '#E2E8F0',
+    },
+    activityImages: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginTop: 6,
+        gap: 4,
+    },
+    activityImage: {
+        width: 80,
+        height: 60,
+        borderRadius: 2,
+        objectFit: 'cover',
+    },
+    
+    badgeOk: {
+        fontSize: 6,
+        fontWeight: 'black',
+        color: '#059669',
+        backgroundColor: '#ECFDF5',
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 2,
+        textAlign: 'center',
+    },
+    badgeNotOk: {
+        fontSize: 6,
+        fontWeight: 'black',
+        color: '#DC2626',
+        backgroundColor: '#FEF2F2',
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 2,
+        textAlign: 'center',
+    },
+    badgeNull: {
+        fontSize: 6,
+        fontWeight: 'black',
+        color: '#94A3B8',
+        backgroundColor: '#F1F5F9',
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 2,
+        textAlign: 'center',
+    },
 });
 
 
@@ -347,10 +472,24 @@ export interface VisitReportData {
         isMoved?: boolean;
         movedComments?: string;
         processingId?: number;
+        maintenancePlanId?: string;
+        maintenancePlanName?: string;
+        maintenancePlanCode?: string;
+        maintenancePlanProgress?: number;
         activitiesDescription?: string;
         initialPhotoUrls?: (string | undefined)[];
         finalPhotoUrls?: (string | undefined)[];
-        activities?: Array<{ activityDescription?: string; activityCode?: string }>;
+        activities?: Array<{ 
+            activityDescription?: string; 
+            activityCode?: string;
+            isOk?: boolean | null;
+            comments?: string;
+            imgFilesNames?: string[];
+            photosBase64?: string[];
+            sectionDescription?: string;
+            sectionOrder?: number;
+            activityOrder?: number;
+        }>;
         materials?: Array<{ description?: string; code?: string; amount?: number; unit?: string; valueUnit?: number; discount?: number; valueTotal?: number }>;
     }>;
     // Additional visit-level photos (optional, from order)
@@ -651,6 +790,63 @@ export const VisitReportDocument = ({ data }: { data: VisitReportData }) => {
                                             {activities || 'LIGADO EQUIPAMENTO'}
                                         </Text>
                                     </View>
+
+                                    {/* Maintenance Plan Checklist */}
+                                    {!!asset.maintenancePlanId && 
+                                     asset.maintenancePlanId.trim() !== '' && 
+                                     asset.maintenancePlanId.trim() !== '0' && 
+                                     asset.maintenancePlanId.trim() !== 'null' && 
+                                     asset.activities && asset.activities.length > 0 && (
+                                        <View style={{ marginTop: 10 }}>
+                                            {/* Plan Header */}
+                                            <View style={styles.checklistHeader}>
+                                                <View>
+                                                    <Text style={styles.planTitle}>{asset.maintenancePlanName || 'PLANO DE MANUTENÇÃO'}</Text>
+                                                    {asset.maintenancePlanCode && (
+                                                        <Text style={styles.planCode}>Código: {asset.maintenancePlanCode}</Text>
+                                                    )}
+                                                </View>
+                                                <Text style={styles.planProgress}>Progresso: {asset.maintenancePlanProgress || 0}%</Text>
+                                            </View>
+
+                                            {asset.activities.map((act, actIdx) => {
+                                                const showSection = actIdx === 0 || act.sectionDescription !== asset.activities[actIdx - 1]?.sectionDescription;
+                                                return (
+                                                    <React.Fragment key={actIdx}>
+                                                        {showSection && (
+                                                            <View style={styles.checklistSectionRow}>
+                                                                <Text style={styles.checklistSectionText}>{act.sectionDescription || 'ATIVIDADES'}</Text>
+                                                            </View>
+                                                        )}
+                                                        
+                                                        <View style={styles.activityCard}>
+                                                            <View style={styles.activityHeader}>
+                                                                <Text style={styles.activityDesc}>{actIdx + 1}. {act.activityDescription}</Text>
+                                                                <Text style={[
+                                                                    styles.activityStatus, 
+                                                                    { color: act.isOk === true ? '#10B981' : (act.isOk === false ? '#EF4444' : '#64748B') }
+                                                                ]}>
+                                                                    {act.isOk === true ? '● OK' : (act.isOk === false ? '● NÃO OK' : '● —')}
+                                                                </Text>
+                                                            </View>
+
+                                                            {act.comments && (
+                                                                <Text style={styles.activityComment}>{act.comments}</Text>
+                                                            )}
+
+                                                            {act.photosBase64 && act.photosBase64.length > 0 && (
+                                                                <View style={styles.activityImages}>
+                                                                    {act.photosBase64.map((img, imgIdx) => (
+                                                                        <Image key={imgIdx} src={img} style={styles.activityImage} />
+                                                                    ))}
+                                                                </View>
+                                                            )}
+                                                        </View>
+                                                    </React.Fragment>
+                                                );
+                                            })}
+                                        </View>
+                                    )}
 
                                     {asset.materials && asset.materials.length > 0 ? (
                                         <View style={{ marginTop: 8 }}>

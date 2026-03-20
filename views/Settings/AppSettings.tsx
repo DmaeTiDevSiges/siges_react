@@ -138,6 +138,7 @@ export const AppSettings: React.FC<{ onNavigate?: (screen: string) => void }> = 
                         onClick={() => onNavigate?.('asset-types')}
                     />
                     <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+
                     <SettingItem
                         icon="rule"
                         title="Situações"
@@ -174,10 +175,31 @@ export const AppSettings: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 </h3>
                 <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
                     <SettingItem
+                        icon="group"
+                        title="Usuários"
+                        subtitle="Gerenciar lista de todos os usuários"
+                        onClick={() => onNavigate?.('all-users')}
+                    />
+                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                    <SettingItem
                         icon="verified_user"
                         title="Permissões de Acesso"
                         subtitle="Gerenciar permissões por perfil"
                         onClick={() => onNavigate?.('profile-permissions')}
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-1 mt-6">
+                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                    Inteligência Artificial
+                </h3>
+                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                    <SettingItem
+                        icon="psychology"
+                        title="Governança AI"
+                        subtitle="Alimentar RAG e manuais"
+                        onClick={() => onNavigate?.('ai-admin')}
                     />
                 </div>
             </div>

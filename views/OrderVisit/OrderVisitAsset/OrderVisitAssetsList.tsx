@@ -139,17 +139,17 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
 
             toast.success('Ativo associado!');
 
-            // Wait a moment to show the success state before closing/resetting
+            // Wait a moment to show the success state before resetting
             setTimeout(() => {
                 setAssetIdSuccess(null);
-                setIsAdding(false);
+                // setIsAdding(false); // Mantém aberto para adicionar mais
                 setSearchCode('');
                 setSelectedUnit(null);
                 setUnitSearchTerm('');
                 setSearchResults([]);
                 loadVisitAssets();
                 if (onVisitRefresh) onVisitRefresh();
-            }, 800);
+            }, 1200);
 
         } catch (error) {
             console.error('Error adding asset:', error);

@@ -14,11 +14,12 @@ interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>
     placeholder?: string;
     value?: string | string[];
     onChange?: (e: any) => void;
+    onSearchChange?: (val: string) => void;
     multiple?: boolean;
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-    ({ label, error, className = '', leftIcon, children, options: optionsProp, value, onChange, placeholder, disabled, multiple, id, ...props }, ref) => {
+    ({ label, error, className = '', leftIcon, children, options: optionsProp, value, onChange, onSearchChange, placeholder, disabled, multiple, id, ...props }, ref) => {
         const generatedId = React.useId();
         const selectId = id || generatedId;
         const [isOpen, setIsOpen] = useState(false);
@@ -219,7 +220,10 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                         type="text"
                                         placeholder="Filtrar opções..."
                                         value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
+                                        onChange={(e) => {
+                                            setSearch(e.target.value);
+                                            if (onSearchChange) onSearchChange(e.target.value);
+                                        }}
                                         className="w-full h-10 pl-9 pr-3 bg-white dark:bg-slate-800 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-slate-900 dark:text-white transition-all"
                                         onClick={(e) => e.stopPropagation()}
                                         onKeyDown={(e) => {

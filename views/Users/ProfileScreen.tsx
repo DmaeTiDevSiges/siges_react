@@ -4,10 +4,11 @@ import { Layout } from '../../components/Layout';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { dataService } from '../../services/dataService';
-import { User, Profile, Permission, Vehicle } from '../../types';
+import { User, Profile, Permission, Vehicle, Company, Team } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import { FaceDetectionCamera } from '../../components/ui/FaceDetectionCamera';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
+import { ButtonSave } from '../../components/ui/ButtonSave';
 
 
 
@@ -64,8 +65,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [mobile, setMobile] = useState('');
     const [profileId, setProfileId] = useState('');
     const [teamId, setTeamId] = useState('');
+    const [companyId, setCompanyId] = useState('');
     const [profiles, setProfiles] = useState<Profile[]>([]);
+    const [companies, setCompanies] = useState<import('../../types').Company[]>([]);
     const [teams, setTeams] = useState<import('../../types').Team[]>([]);
+    const [currentUser, setCurrentLoggedUser] = useState<User | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [isOwner, setIsOwner] = useState(false);
     const [teamMembers, setTeamMembers] = useState<User[]>([]);
     const [avatarUrl, setAvatarUrl] = useState<string | undefined>(initialUser?.avatarUrl || user?.avatarUrl);
     const [showCamera, setShowCamera] = useState(false);
@@ -77,7 +83,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [searchingTeam, setSearchingTeam] = useState(false);
 
     // Vehicle Management State
-    const [isVehicleExpanded, setIsVehicleExpanded] = useState(false);
     const [searchVehicleQuery, setSearchVehicleQuery] = useState('');
     const [searchVehicleResults, setSearchVehicleResults] = useState<Vehicle[]>([]);
     const [searchingVehicle, setSearchingVehicle] = useState(false);
@@ -86,6 +91,35 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     useEffect(() => {
+        const loadLoggedUserAndPermissions = async () => {
+            try {
+                const loggedUser = await dataService.getCurrentUser();
+                setCurrentLoggedUser(loggedUser);
+                const isUserAdmin = !!(loggedUser?.isAdminSuper || loggedUser?.isAdmin);
+                setIsAdmin(isUserAdmin);
+                // Profile owner: viewing own profile or no initialUser passed
+                const profileUuid = initialUser?.uuid;
+                const loggedUuid = loggedUser?.uuid;
+                const owner = !profileUuid || profileUuid === loggedUuid;
+                setIsOwner(owner);
+                
+                if (isUserAdmin) {
+                    const allCompanies = await dataService.getCompanies();
+                    setCompanies(allCompanies);
+                } else {
+                    const cid = initialUser?.companyId || loggedUser?.companyId;
+                    if (cid) {
+                        const comp = await dataService.getCompanyById(cid);
+                        if (comp) setCompanies([comp]);
+                    }
+                }
+            } catch (error) {
+                console.error("Error loading logged user permissions", error);
+            }
+        };
+
+        loadLoggedUserAndPermissions();
+
         if (initialUser) {
             setUser(initialUser);
             setName(initialUser.nameFull || '');
@@ -95,6 +129,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             setAvatarUrl(initialUser.avatarUrl);
             setProfileId(initialUser.profileId || '');
             setTeamId(initialUser.teamId || '');
+            setCompanyId(initialUser.companyId || '');
 
             // Load profiles and teams for current user's company
             if (initialUser.companyId) {
@@ -110,45 +145,45 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             }
 
             setLoading(false);
-            return;
+        } else {
+            const loadUserToEdit = async () => {
+                try {
+                    const currentUserToEdit = await dataService.getCurrentUser();
+                    if (currentUserToEdit) {
+                        setUser(currentUserToEdit);
+                        setName(currentUserToEdit.nameFull || '');
+                        setNameShort(currentUserToEdit.nameShort || '');
+                        setEmail(currentUserToEdit.email || '');
+                        setMobile(formatPhone(currentUserToEdit.mobile || ''));
+                        setAvatarUrl(currentUserToEdit.avatarUrl);
+                        setProfileId(currentUserToEdit.profileId || '');
+                        setTeamId(currentUserToEdit.teamId || '');
+
+                        if (currentUserToEdit.companyId) {
+                            setCompanyId(currentUserToEdit.companyId);
+                            const [profilesData, teamsData] = await Promise.all([
+                                dataService.getCompanyProfiles(currentUserToEdit.companyId),
+                                dataService.getTeamsByCompany(currentUserToEdit.companyId)
+                            ]);
+                            setProfiles(profilesData);
+                            setTeams(teamsData);
+                        }
+                        if (currentUserToEdit.teamId) {
+                            const members = await dataService.getTeamMembers(currentUserToEdit.teamId);
+                            setTeamMembers(members.filter(m => m.uuid !== currentUserToEdit.uuid));
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error loading profile to edit", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            loadUserToEdit();
         }
 
-        const loadUser = async () => {
-            try {
-                const currentUser = await dataService.getCurrentUser();
-                if (currentUser) {
-                    setUser(currentUser);
-                    setName(currentUser.nameFull || '');
-                    setNameShort(currentUser.nameShort || '');
-                    setEmail(currentUser.email || '');
-                    setMobile(formatPhone(currentUser.mobile || ''));
-                    setAvatarUrl(currentUser.avatarUrl);
-                    setProfileId(currentUser.profileId || '');
-                    setTeamId(currentUser.teamId || '');
-
-                    if (currentUser.companyId) {
-                        const [profilesData, teamsData] = await Promise.all([
-                            dataService.getCompanyProfiles(currentUser.companyId),
-                            dataService.getTeamsByCompany(currentUser.companyId)
-                        ]);
-                        setProfiles(profilesData);
-                        setTeams(teamsData);
-                    }
-                    if (currentUser.teamId) {
-                        const members = await dataService.getTeamMembers(currentUser.teamId);
-                        // Filter out current user
-                        setTeamMembers(members.filter(m => m.uuid !== currentUser.uuid));
-                    }
-                }
-            } catch (error) {
-                console.error("Error loading profile", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadUser();
-        const subscription = dataService.subscribeToUsers((payload) => {
-            loadUser();
+        const subscription = dataService.subscribeToUsers(() => {
+            // Recarrega os dados se necessário
         });
 
         return () => {
@@ -187,6 +222,27 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
         setMobile(formatPhone(e.target.value));
     };
 
+    const handleCompanyChange = async (newCompanyId: string) => {
+        setCompanyId(newCompanyId);
+        setProfileId('');
+        setTeamId('');
+        if (newCompanyId) {
+            try {
+                const [profilesData, teamsData] = await Promise.all([
+                    dataService.getCompanyProfiles(newCompanyId),
+                    dataService.getTeamsByCompany(newCompanyId)
+                ]);
+                setProfiles(profilesData);
+                setTeams(teamsData);
+            } catch (error) {
+                console.error("Error loading company data", error);
+            }
+        } else {
+            setProfiles([]);
+            setTeams([]);
+        }
+    };
+
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -221,10 +277,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 mobile: mobileClean,
                 avatarUrl: avatarUrl,
                 profileId: profileId || undefined,
-                teamId: teamId || undefined
+                teamId: teamId || undefined,
+                companyId: companyId || undefined
             });
 
             if (onUserUpdate) {
+                const selectedProfile = profiles.find(p => p.id.toString() === profileId);
+                const selectedTeam = teams.find(t => t.id.toString() === teamId);
+                const selectedCompany = companies.find(c => c.id.toString() === companyId);
+
                 onUserUpdate({
                     ...user,
                     nameFull: name,
@@ -233,7 +294,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                     mobile: mobileClean,
                     avatarUrl: avatarUrl,
                     profileId: profileId || undefined,
-                    teamId: teamId || undefined
+                    profileName: selectedProfile?.description || user.profileName,
+                    teamId: teamId || undefined,
+                    teamName: selectedTeam?.name || user.teamName,
+                    companyId: companyId || undefined,
+                    companyName: selectedCompany?.name || user.companyName
                 } as User);
             }
 
@@ -281,11 +346,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
         setSearchResults([]);
     };
 
-    const toggleVehicleExpand = () => {
-        setIsVehicleExpanded(!isVehicleExpanded);
-        setSearchVehicleQuery('');
-        setSearchVehicleResults([]);
-    };
+
 
     // UseEffect for debouncing vehicle search
     useEffect(() => {
@@ -315,7 +376,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 message: 'Veículo atualizado com sucesso!',
                 type: 'success'
             });
-            setIsVehicleExpanded(false);
         } catch (error) {
             setModal({
                 isOpen: true,
@@ -676,7 +736,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400"
+                                    disabled={!isOwner && !isAdmin}
+                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
                                     placeholder="Seu nome completo"
                                 />
                             </div>
@@ -693,7 +754,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                     type="text"
                                     value={nameShort}
                                     onChange={(e) => setNameShort(e.target.value)}
-                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400"
+                                    disabled={!isOwner && !isAdmin}
+                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
                                     placeholder="Como prefere ser chamado"
                                 />
                             </div>
@@ -717,7 +779,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400"
+                                    disabled={!isOwner && !isAdmin}
+                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
                                     placeholder="email@exemplo.com"
                                 />
                             </div>
@@ -735,7 +798,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                     value={mobile}
                                     onChange={handleMobileChange}
                                     maxLength={15}
-                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400"
+                                    disabled={!isOwner && !isAdmin}
+                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
                                     placeholder="(00) 00000-0000"
                                 />
                             </div>
@@ -744,215 +808,226 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
 
                     </div>
 
-                    {/* Settings Section */}
+                    {/* Organization Section (Admin only or always informative) */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">
-                            Configurações
+                            Organização
                         </h3>
 
-                        {/* Team Members Card */}
-                        {/* Team Members Card (Expandable) */}
-                        <div className={`w-full bg-white dark:bg-card-dark rounded-2xl shadow-sm border transition-all ${isTeamExpanded ? 'border-primary ring-1 ring-primary' : 'border-slate-100 dark:border-slate-800'}`}>
-                            <button
-                                onClick={toggleTeamExpand}
-                                className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
-                            >
-                                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
+                        <div className="space-y-3">
+                            {/* Company Card */}
+                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined">business</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Empresa</label>
+                                    <Select
+                                        value={companyId}
+                                        onChange={(e) => handleCompanyChange(e.target.value)}
+                                        disabled={!isAdmin}
+                                        className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                        options={companies.map(c => ({ value: c.id, label: c.name }))}
+                                    />
+                                </div>
+                            </div>
+                            {/* Team Card */}
+                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-500 flex items-center justify-center shrink-0">
                                     <span className="material-symbols-outlined">groups</span>
                                 </div>
-                                <div className="flex-1 min-w-0 text-left">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">MINHA EQUIPE</label>
-                                    <div className="text-slate-900 dark:text-white font-bold text-sm truncate">
-                                        {teamMembers.length > 0
-                                            ? teamMembers.map(m => m.nameShort || m.nameFull?.split(' ')[0]).join(', ')
-                                            : 'Nenhum integrante'}
-                                    </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Equipe</label>
+                                    <Select
+                                        value={teamId}
+                                        onChange={(e) => setTeamId(e.target.value)}
+                                        disabled={!isAdmin}
+                                        className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                        options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                    />
                                 </div>
-                                <span className={`material-symbols-outlined text-slate-300 transition-transform duration-300 ${isTeamExpanded ? 'rotate-180' : ''}`}>expand_more</span>
-                            </button>
+                            </div>
 
-                            {/* Expanded Content */}
-                            {isTeamExpanded && (
-                                <div className="p-4 pt-0 space-y-4 border-t border-slate-100 dark:border-slate-800/50 animation-slide-down">
-
-                                    {/* Search Bar */}
-                                    <div className="relative mt-4">
-                                        <input
-                                            type="text"
-                                            value={searchTeamQuery}
-                                            onChange={(e) => setSearchTeamQuery(e.target.value)}
-                                            placeholder="Buscar usuário para adicionar..."
-                                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                            {/* Current Vehicle Card */}
+                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-slate-500 flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined">directions_car</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Veículo Atual</label>
+                                    {(isOwner || isAdmin) ? (
+                                        <Select
+                                            value={currentVehicle?.id || ''}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === '') {
+                                                    handleRemoveVehicle();
+                                                } else {
+                                                    const v = searchVehicleResults.find(vr => vr.id === val) || (currentVehicle?.id === val ? currentVehicle : null);
+                                                    if (v) handleSelectVehicle(v);
+                                                }
+                                            }}
+                                            onSearchChange={(val) => setSearchVehicleQuery(val)}
+                                            className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                            placeholder="Selecione um veículo..."
+                                            options={[
+                                                { value: '', label: 'Nenhum / Remover veículo' },
+                                                ...(currentVehicle && !searchVehicleResults.find(v => v.id === currentVehicle.id)
+                                                    ? [{ value: currentVehicle.id, label: `${currentVehicle.plates} - ${currentVehicle.description}` }]
+                                                    : []),
+                                                ...searchVehicleResults.map(v => ({ value: v.id, label: `${v.plates} - ${v.description}` }))
+                                            ]}
                                         />
-                                        <span className="material-symbols-outlined absolute left-3 top-3 text-slate-400 text-[20px]">search</span>
-                                        {searchingTeam && (
-                                            <span className="material-symbols-outlined absolute right-3 top-3 text-primary text-[20px] animate-spin">progress_activity</span>
-                                        )}
-                                    </div>
-
-                                    {/* Search Results */}
-                                    {searchResults.length > 0 && (
-                                        <div className="space-y-1">
-                                            <div className="text-xs font-semibold text-slate-400 uppercase px-1">Resultados da Busca</div>
-                                            {searchResults.map(result => (
-                                                <div key={result.uuid} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30">
-                                                    <div className="flex items-center gap-3">
-                                                        <UserAvatar
-                                                            src={result.avatarUrl}
-                                                            name={result.nameFull || ''}
-                                                            size="xs"
-                                                            status={result.isAvailable ? (result.ovIdInProgress ? 'busy' : 'available') : 'unavailable'}
-                                                            className="w-8 h-8 rounded-full"
-                                                        />
-                                                        <div className="text-sm">
-                                                            <div className="font-bold text-slate-900 dark:text-white">{result.nameFull}</div>
-                                                            <div className="text-xs text-slate-500">{result.email}</div>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleAddMember(result)}
-                                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors"
-                                                        title="Adicionar à equipe"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">add</span>
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
+                                    ) : (
+                                        <span className="text-slate-900 dark:text-white font-medium text-sm">
+                                            {currentVehicle ? `${currentVehicle.plates} - ${currentVehicle.description}` : 'Nenhum veículo'}
+                                        </span>
                                     )}
-
-                                    {/* Current Members List (Detailed) */}
-                                    <div className="space-y-1 pt-2">
-                                        <div className="text-xs font-semibold text-slate-400 uppercase px-1 pb-1">Membros Atuais</div>
-                                        {teamMembers.length === 0 ? (
-                                            <div className="text-sm text-slate-500 italic px-2">Sua equipe está vazia.</div>
-                                        ) : (
-                                            teamMembers.map(member => (
-                                                <div key={member.uuid} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group/member">
-                                                    <div className="flex items-center gap-3">
-                                                        <UserAvatar
-                                                            src={member.avatarUrl}
-                                                            name={member.nameFull || member.nameShort || ''}
-                                                            size="xs"
-                                                            status={member.isAvailable ? (member.ovIdInProgress ? 'busy' : 'available') : 'unavailable'}
-                                                            className="w-8 h-8 rounded-full shadow-sm"
-                                                        />
-                                                        <div className="text-sm">
-                                                            <div className="font-medium text-slate-900 dark:text-white">{member.nameShort || member.nameFull}</div>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleRemoveMember(member)}
-                                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500/10 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
-                                                        title="Remover da equipe"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                    </button>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
                                 </div>
-                            )}
-                        </div>
+                            </div>
 
-                        {/* Card Veículo */}
-                        <div className={`w-full bg-white dark:bg-card-dark rounded-2xl shadow-sm border transition-all ${isVehicleExpanded ? 'border-primary ring-1 ring-primary' : 'border-slate-100 dark:border-slate-800'}`}>
-                            <button
-                                onClick={toggleVehicleExpand}
-                                className="w-full p-4 flex items-center justify-between"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0">
-                                        <span className="material-symbols-outlined">directions_car</span>
-                                    </div>
-                                    <div className="text-left">
-                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">VEÍCULO</div>
-                                        <div className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[200px]">
-                                            {currentVehicle ? `${currentVehicle.description}` : 'Nenhum veículo'}
+                            {/* Team Members Card (Expandable) - only for owner or admin */}
+                            {(isOwner || isAdmin) && (
+                                <div className={`w-full bg-white dark:bg-card-dark rounded-2xl shadow-sm border transition-all ${isTeamExpanded ? 'border-primary ring-1 ring-primary' : 'border-slate-100 dark:border-slate-800'}`}>
+                                    <button
+                                        onClick={toggleTeamExpand}
+                                        className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
+                                            <span className="material-symbols-outlined">groups</span>
                                         </div>
-
-                                    </div>
-                                </div>
-                                <span className={`material-symbols-outlined text-slate-400 transition-transform duration-300 ${isVehicleExpanded ? 'rotate-180' : ''}`}>expand_more</span>
-                            </button>
-
-                            {isVehicleExpanded && (
-                                <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-200">
-                                    <div className="h-px w-full bg-slate-100 dark:bg-slate-800 mb-4" />
-
-                                    {/* Search Input */}
-                                    <div className="relative mb-3">
-                                        <input
-                                            type="text"
-                                            value={searchVehicleQuery}
-                                            onChange={(e) => setSearchVehicleQuery(e.target.value)}
-                                            placeholder="Buscar veículo..."
-                                            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-slate-400"
-                                            autoFocus
-                                        />
-                                        <span className="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[20px]">search</span>
-                                        {searchingVehicle && (
-                                            <span className="material-symbols-outlined absolute right-3 top-3 text-primary text-[20px] animate-spin">progress_activity</span>
-                                        )}
-                                    </div>
-
-                                    {/* Search Results */}
-                                    {searchVehicleResults.length > 0 && (
-                                        <div className="space-y-1">
-                                            <div className="text-xs font-semibold text-slate-400 uppercase px-1">Resultados</div>
-                                            {searchVehicleResults.map(vehicle => (
-                                                <div key={vehicle.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500">
-                                                            <span className="material-symbols-outlined text-[18px]">directions_car</span>
-                                                        </div>
-                                                        <div className="text-sm">
-                                                            <div className="font-bold text-slate-900 dark:text-white">{vehicle.description}</div>
-                                                            <div className="text-xs text-slate-500">{vehicle.plates}</div>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleSelectVehicle(vehicle)}
-                                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors"
-                                                        title="Selecionar veículo"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">add</span>
-                                                    </button>
-                                                </div>
-                                            ))}
+                                        <div className="flex-1 min-w-0 text-left">
+                                            <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">MINHA EQUIPE</label>
+                                            <div className="text-slate-900 dark:text-white font-bold text-sm truncate">
+                                                {teamMembers.length > 0
+                                                    ? teamMembers.map(m => m.nameShort || m.nameFull?.split(' ')[0]).join(', ')
+                                                    : 'Nenhum integrante'}
+                                            </div>
                                         </div>
-                                    )}
+                                        <span className={`material-symbols-outlined text-slate-300 transition-transform duration-300 ${isTeamExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                                    </button>
 
-                                    {/* Veículo Atual */}
-                                    {currentVehicle && (
-                                        <div className="space-y-1 pt-2">
-                                            <div className="text-xs font-semibold text-slate-400 uppercase px-1 pb-1">Veículo Atual</div>
-                                            <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group/vehicle">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 shadow-sm ring-1 ring-white dark:ring-slate-600">
-                                                        <span className="material-symbols-outlined text-[18px]">directions_car</span>
-                                                    </div>
-                                                    <div className="text-sm">
-                                                        <div className="font-bold text-slate-900 dark:text-white">{currentVehicle.description}</div>
-                                                        <div className="text-xs text-slate-500">{currentVehicle.plates}</div>
-                                                    </div>
+                                    {/* Expanded Content */}
+                                    {isTeamExpanded && (
+                                        <div className="p-4 pt-0 space-y-4 border-t border-slate-100 dark:border-slate-800/50 animation-slide-down">
+
+                                            {/* Search Bar */}
+                                            <div className="relative mt-4">
+                                                <input
+                                                    type="text"
+                                                    value={searchTeamQuery}
+                                                    onChange={(e) => setSearchTeamQuery(e.target.value)}
+                                                    placeholder="Buscar usuário para adicionar..."
+                                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                                                />
+                                                <span className="material-symbols-outlined absolute left-3 top-3 text-slate-400 text-[20px]">search</span>
+                                                {searchingTeam && (
+                                                    <span className="material-symbols-outlined absolute right-3 top-3 text-primary text-[20px] animate-spin">progress_activity</span>
+                                                )}
+                                            </div>
+
+                                            {/* Search Results */}
+                                            {searchResults.length > 0 && (
+                                                <div className="space-y-1">
+                                                    <div className="text-xs font-semibold text-slate-400 uppercase px-1">Resultados da Busca</div>
+                                                    {searchResults.map(result => (
+                                                        <div key={result.uuid} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30">
+                                                            <div className="flex items-center gap-3">
+                                                                <UserAvatar
+                                                                    src={result.avatarUrl}
+                                                                    name={result.nameFull || ''}
+                                                                    size="xs"
+                                                                    status={result.isAvailable ? (result.ovIdInProgress ? 'busy' : 'available') : 'unavailable'}
+                                                                    className="w-8 h-8 rounded-full"
+                                                                />
+                                                                <div className="text-sm">
+                                                                    <div className="font-bold text-slate-900 dark:text-white">{result.nameFull}</div>
+                                                                    <div className="text-xs text-slate-500">{result.email}</div>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleAddMember(result)}
+                                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors"
+                                                                title="Adicionar à equipe"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">add</span>
+                                                            </button>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                <button
-                                                    onClick={handleRemoveVehicle}
-                                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500/10 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
-                                                    title="Remover veículo"
-                                                >
-                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                </button>
+                                            )}
+
+                                            {/* Current Members List (Detailed) */}
+                                            <div className="space-y-1 pt-2">
+                                                <div className="text-xs font-semibold text-slate-400 uppercase px-1 pb-1">Membros Atuais</div>
+                                                {teamMembers.length === 0 ? (
+                                                    <div className="text-sm text-slate-500 italic px-2">Sua equipe está vazia.</div>
+                                                ) : (
+                                                    teamMembers.map(member => (
+                                                        <div key={member.uuid} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group/member">
+                                                            <div className="flex items-center gap-3">
+                                                                <UserAvatar
+                                                                    src={member.avatarUrl}
+                                                                    name={member.nameFull || member.nameShort || ''}
+                                                                    size="xs"
+                                                                    status={member.isAvailable ? (member.ovIdInProgress ? 'busy' : 'available') : 'unavailable'}
+                                                                    className="w-8 h-8 rounded-full shadow-sm"
+                                                                />
+                                                                <div className="text-sm">
+                                                                    <div className="font-medium text-slate-900 dark:text-white">{member.nameShort || member.nameFull}</div>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleRemoveMember(member)}
+                                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500/10 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+                                                                title="Remover da equipe"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                            </button>
+                                                        </div>
+                                                    ))
+                                                )}
                                             </div>
                                         </div>
                                     )}
                                 </div>
                             )}
                         </div>
+                    </div>
 
+                    {/* Access Section */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">
+                            Acesso
+                        </h3>
 
+                        <div className="space-y-3">
+                            {/* Profile Card */}
+                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-500 flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined">assignment_ind</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Perfil</label>
+                                    <Select
+                                        value={profileId}
+                                        onChange={(e) => setProfileId(e.target.value)}
+                                        disabled={!isAdmin}
+                                        className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                        options={profiles.map(p => ({ value: p.id, label: p.description }))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 pb-12">
+                        <ButtonSave
+                            onSave={handleSave}
+                            onCancel={onBack}
+                            isSaving={saving}
+                            saveLabel="Salvar Perfil"
+                        />
                     </div>
                 </div>
             </div>

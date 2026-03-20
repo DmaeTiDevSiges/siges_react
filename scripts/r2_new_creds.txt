@@ -1,0 +1,24 @@
+﻿
+Bucket  : siges
+ƒöæ Novas credenciais (imgproxy 
+candidato)
+  Bucket    : siges
+  ÔØî ListObjects FALHOU: 
+Unauthorized ÔÇö Unauthorized
+  ÔØî HeadObject FALHOU: Unknown 
+ÔÇö UnknownError
+ƒöæ Frontend .env.local 
+(refer├¬ncia)
+  Bucket    : siges
+  Ô£à ListObjects OK ÔÇö 5 objetos 
+retornados.
+  Ô£à HeadObject OK ÔÇö ".emptyFold
+erPlaceholder/cedf0fd5-e51c-4031-b8
+ef-d4d3eb661627" acess├¡vel.
+RESUMO:
+  Ô£à ListObjects OK    ÔåÆ 
+credencial v├ílida, use no imgproxy
+  ÔØî InvalidAccessKey  ÔåÆ 
+credencial errada ou revogada
+
+

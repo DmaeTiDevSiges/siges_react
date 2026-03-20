@@ -1,0 +1,33 @@
+﻿[dotenv@17.3.1] injecting env (18) from .env.local -- tip: ­ƒøí´©Å auth for agents: https://vestauth.com
+TESTE DE CREDENCIAIS R2/S3
+Endpoint: https://1efd12df72637dc4a14ee1cfc296f681.r2.cloudflarestorage.com
+Bucket  : siges
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+­ƒöæ Novas credenciais (imgproxy candidato)
+  Access Key: 03dce71969179b3d0873d759f2904adb
+  Endpoint  : https://1efd12df72637dc4a14ee1cfc296f681.r2.cloudflarestorage.com
+  Bucket    : siges
+
+  Ô£à ListObjects OK ÔÇö 5 objetos retornados.
+     Primeiro objeto: .emptyFolderPlaceholder/cedf0fd5-e51c-4031-b8ef-d4d3eb661627
+  Ô£à HeadObject OK ÔÇö ".emptyFolderPlaceholder/cedf0fd5-e51c-4031-b8ef-d4d3eb661627" acess├¡vel.
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+­ƒöæ Frontend .env.local (refer├¬ncia)
+  Access Key: 76f191d4fd16a5bdfe80dc2c13eb60a0
+  Endpoint  : https://1efd12df72637dc4a14ee1cfc296f681.r2.cloudflarestorage.com
+  Bucket    : siges
+
+  Ô£à ListObjects OK ÔÇö 5 objetos retornados.
+     Primeiro objeto: .emptyFolderPlaceholder/cedf0fd5-e51c-4031-b8ef-d4d3eb661627
+  Ô£à HeadObject OK ÔÇö ".emptyFolderPlaceholder/cedf0fd5-e51c-4031-b8ef-d4d3eb661627" acess├¡vel.
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+RESUMO:
+  Ô£à ListObjects OK    ÔåÆ credencial v├ílida, use no imgproxy
+  ÔØî InvalidAccessKey  ÔåÆ credencial errada ou revogada
+  ÔØî AccessDenied      ÔåÆ credencial v├ílida mas sem permiss├úo Object:Read
+  ÔØî Timeout/Connect   ÔåÆ problema de rede VPS ÔåÆ Cloudflare
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+

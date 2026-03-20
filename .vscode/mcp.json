@@ -1,0 +1,8 @@
+{
+	"servers": {
+		"mcp-server-siges": {
+			"url": "https://vps.supabase.siges-app.com.br/mcp?read_only=true&features=database",
+			"type": "http"
+		}
+	}
+}

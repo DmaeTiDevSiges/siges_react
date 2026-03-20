@@ -257,10 +257,25 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
             if (image.webPath) {
                 setImagePreview(image.webPath);
 
-                // Convert URI to File object for the existing onSave logic
-                const response = await fetch(image.webPath);
-                const blob = await response.blob();
-                const file = new File([blob], `asset_image_${Date.now()}.${image.format}`, { type: blob.type });
+                let blob: Blob;
+                try {
+                    const response = await fetch(image.webPath);
+                    blob = await response.blob();
+                } catch (fetchError) {
+                    console.warn('Fetch falhou no webPath, tentando ler via Filesystem:', image.webPath);
+                    if (image.path) {
+                        const { Filesystem } = await import('@capacitor/filesystem');
+                        const fileData = await Filesystem.readFile({
+                            path: image.path
+                        });
+                        const responseRaw = await fetch(`data:image/${image.format};base64,${fileData.data}`);
+                        blob = await responseRaw.blob();
+                    } else {
+                        throw new Error('Não foi possível ler o arquivo da foto');
+                    }
+                }
+
+                const file = new File([blob], `asset_image_${Date.now()}.${image.format}`, { type: blob.type || `image/${image.format}` });
                 setImageFile(file);
             }
         } catch (error) {

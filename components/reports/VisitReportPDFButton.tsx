@@ -42,7 +42,6 @@ export const VisitReportPDFButton = ({
 
         try {
             // 1. Fetch all data in parallel
-            // 1. Fetch all data in parallel
             const [visit, team, vehicles, assets, services, allActivities, allMaterials] = await Promise.all([
                 dataService.getActiveOrderVisit(visitId),
                 dataService.getOrderVisitTeam(visitId),
@@ -53,18 +52,123 @@ export const VisitReportPDFButton = ({
                 dataService.getOrderVisitAssetsMaterialsByVisit(visitId)
             ]);
 
+            console.log(`[VisitReportPDFButton] Debug Data for Visit ${visitId}:`, {
+                visitId,
+                foundAssets: assets?.length || 0,
+                foundActivities: allActivities?.length || 0,
+                foundMaterials: allMaterials?.length || 0,
+                visitCode: visit?.ovMask || visit?.id
+            });
+            console.log(`[VisitReportPDFButton] First 3 Activities:`, (allActivities || []).slice(0, 3));
+            console.log(`[VisitReportPDFButton] First 3 Assets Plans:`, (assets || []).slice(0, 3).map(a => a.maintenancePlanId));
+
             if (!visit) {
                 toast.error('Visita não encontrada.', { id: toastId });
                 return;
             }
 
-            // Group activities and materials by asset ID for efficiency
-            const activitiesByAssetId = (allActivities || []).reduce((acc: any, act) => {
-                const assetId = act.orderVisitAssetId;
-                if (!acc[assetId]) acc[assetId] = [];
-                acc[assetId].push(act);
-                return acc;
-            }, {});
+            // 2. Fetch all unique maintenance plans mentioned in assets OR activities
+            const activitiesPlanIds = (allActivities || []).map(a => a.maintenancePlanId).filter(Boolean);
+            const assetPlanIds = (assets || []).map(a => a.maintenancePlanId).filter(Boolean);
+            const uniquePlanIds = Array.from(new Set([...activitiesPlanIds, ...assetPlanIds])) as string[];
+
+            const planMetaMap: Record<string, any> = {};
+            const planNodesMap: Record<string, any> = {};
+            const planFullStructureMap: Record<string, any[]> = {};
+
+            await Promise.all(uniquePlanIds.map(async (planId) => {
+                try {
+                    const [plan, sections] = await Promise.all([
+                        dataService.getMaintenancePlanById(planId),
+                        dataService.getMaintenancePlanSections(planId)
+                    ]);
+                    
+                    if (plan) planMetaMap[planId] = plan;
+
+                    const sectionActivitiesPromises = sections.map(s => dataService.getMaintenancePlanSectionActivities(s.id));
+                    const sectionActivitiesResults = await Promise.all(sectionActivitiesPromises);
+
+                    const allPlanActivities: any[] = [];
+                    sections.forEach((s, idx) => {
+                        const actsInSec = sectionActivitiesResults[idx];
+                        actsInSec.forEach((act: any) => {
+                            const key = `${planId}_${act.activityId}`;
+                            const node = {
+                                sectionDescription: s.description,
+                                sectionOrder: s.orderIndex,
+                                activityOrder: act.orderIndex,
+                                activityId: act.activityId,
+                                activityDescription: act.activityDescription || act.description,
+                                activityCode: act.activityCode,
+                                commentsDefault: act.commentsDefault
+                            };
+                            planNodesMap[key] = node;
+                            allPlanActivities.push(node);
+                        });
+                    });
+                    planFullStructureMap[planId] = allPlanActivities;
+                } catch (e) {
+                    console.error('Error fetching plan structure for PDF:', e);
+                }
+            }));
+
+            // Group activities by asset, ensuring ALL plan activities are listed if a plan is assigned
+            const activitiesByAssetId: Record<string, any[]> = {};
+            
+            assets.forEach(asset => {
+                const assetId = asset.id;
+                const planId = asset.maintenancePlanId;
+                
+                // 1. Get current responses for this asset
+                const currentResponses = (allActivities || []).filter(a => a.orderVisitAssetId === assetId);
+                const responsesMap = new Map(currentResponses.map(r => [r.activityId, r]));
+
+                // 2. Build the final activities array for this asset
+                if (planId && planFullStructureMap[planId]) {
+                    // Start with the full plan structure
+                    const structure = planFullStructureMap[planId];
+                    activitiesByAssetId[assetId] = structure.map(node => {
+                        const response = responsesMap.get(node.activityId);
+                        return {
+                            ...node,
+                            isOk: response ? response.isOk : null,
+                            comments: response ? (response.comments || '') : (node.commentsDefault || ''),
+                            imgFilePath: response?.imgFilePath,
+                            imgFilesNames: response?.imgFilesNames || [],
+                            maintenancePlanId: planId
+                        };
+                    });
+                    
+                    // Add any activities that were manually added but are not in the plan (if any)
+                    const extraActivities = currentResponses.filter(r => !structure.some(s => s.activityId === r.activityId));
+                    if (extraActivities.length > 0) {
+                        activitiesByAssetId[assetId].push(...extraActivities.map(r => ({
+                            ...r,
+                            sectionDescription: 'Atividades Avulsas',
+                            sectionOrder: 9999,
+                            activityOrder: 9999
+                        })));
+                    }
+                } else {
+                    // No plan assigned, just show all manual activities
+                    activitiesByAssetId[assetId] = currentResponses.map(r => {
+                        const key = `${r.maintenancePlanId}_${r.activityId}`;
+                        const node = planNodesMap[key];
+                        return {
+                            ...r,
+                            sectionDescription: node?.sectionDescription || 'Atividades',
+                            sectionOrder: node?.sectionOrder || 999,
+                            activityOrder: node?.activityOrder || 999
+                        };
+                    });
+                }
+
+                // Sort by section and activity order
+                activitiesByAssetId[assetId].sort((a: any, b: any) => {
+                    if (a.sectionOrder !== b.sectionOrder) return a.sectionOrder - b.sectionOrder;
+                    return (a.activityOrder || 0) - (b.activityOrder || 0);
+                });
+            });
 
             const materialsByAssetId = (allMaterials || []).reduce((acc: any, mat) => {
                 const assetId = mat.orderVisitAssetId;
@@ -115,7 +219,6 @@ export const VisitReportPDFButton = ({
                     vehiclesValue: visit.vehiclesValue,
                     totalValue: visit.totalValue,
                     ovAssetsAmount: visit.ovAssetsAmount,
-                    // Approval audit trail
                     reportedAt: visit.reportedAt,
                     reportedUserNameShort: visit.reportedUserNameShort,
                     revisedAt: visit.revisedAt,
@@ -160,13 +263,24 @@ export const VisitReportPDFButton = ({
                     isMoved: a.isMoved,
                     movedComments: a.movedComments,
                     processingId: a.processingId,
+                    maintenancePlanId: (a.maintenancePlanId && a.maintenancePlanId !== '0' && a.maintenancePlanId !== 'null' && a.maintenancePlanId.trim() !== '') ? a.maintenancePlanId : undefined,
+                    maintenancePlanName: planMetaMap[a.maintenancePlanId]?.description,
+                    maintenancePlanCode: planMetaMap[a.maintenancePlanId]?.code,
+                    maintenancePlanProgress: a.maintenancePlanProgress,
                     activitiesDescription: a.activitiesDescription,
                     initialPhotoUrls: a.initialPhotoUrls ?? [],
                     finalPhotoUrls: a.finalPhotoUrls ?? [],
-
                     activities: (a.activities ?? []).map((act: any) => ({
+                        activityId: act.activityId,
                         activityDescription: act.activityDescription,
                         activityCode: act.activityCode,
+                        isOk: act.isOk,
+                        comments: act.comments,
+                        imgFilePath: act.imgFilePath,
+                        imgFilesNames: act.imgFilesNames || [],
+                        sectionDescription: act.sectionDescription,
+                        sectionOrder: act.sectionOrder,
+                        activityOrder: act.activityOrder
                     })),
                     materials: (a.materials ?? []).map((m: any) => ({
                         description: m.materialDescription || m.description,
@@ -180,15 +294,16 @@ export const VisitReportPDFButton = ({
                 })),
             };
 
-
-            // 4. Pre-fetch all images as base64 for APK compatibility
+            // 4. Pre-fetch all images as base64 for PDF compatibility
             toast.loading('Carregando imagens…', { id: toastId });
             const logoBase64 = await getLogoBase64();
 
             const assetsWithBase64 = await Promise.all(
                 reportData.assets.map(async (a) => {
-                    // Use imgproxy with JPEG format — @react-pdf/renderer does NOT support WebP
                     const pdfImageOptions = { width: 800, height: 800, resize: 'fit' as const, format: 'jpeg' as const, quality: 90 };
+                    const thumbOptions = { width: 300, height: 300, resize: 'fit' as const, format: 'jpeg' as const, quality: 80 };
+
+                    // Asset main images
                     const initialProxied = (a.initialPhotoUrls ?? []).filter(Boolean).map(url => 
                         imgproxyService.generateUrl(url as string, pdfImageOptions)
                     );
@@ -196,10 +311,29 @@ export const VisitReportPDFButton = ({
                         imgproxyService.generateUrl(url as string, pdfImageOptions)
                     );
 
+                    // Activity images
+                    const activitiesWithImages = await Promise.all((a.activities || []).map(async (act: any) => {
+                        if (!act.imgFilesNames || act.imgFilesNames.length === 0) return act;
+                        
+                        const folderPath = act.imgFilePath || `checklist/${a.id}/${act.activityId}`;
+                        const photoUrls = act.imgFilesNames.map((fileName: string) => 
+                            imgproxyService.generateUrl(`s3://siges/${folderPath}/${fileName}`, thumbOptions)
+                        );
+                        
+                        try {
+                            const photosBase64 = await urlsToBase64(photoUrls);
+                            return { ...act, photosBase64 };
+                        } catch (e) {
+                            console.warn('Error loading activity photos for PDF:', e);
+                            return { ...act, photosBase64: [] };
+                        }
+                    }));
+
                     return {
                         ...a,
                         initialPhotoUrls: await urlsToBase64(initialProxied),
                         finalPhotoUrls: await urlsToBase64(finalProxied),
+                        activities: activitiesWithImages
                     };
                 })
             );
@@ -230,18 +364,18 @@ export const VisitReportPDFButton = ({
             <button
                 onClick={handleExport}
                 disabled={loading}
-                className={`flex items-center gap-2 px-3 h-8 bg-slate-900 dark:bg-slate-900 border border-slate-800 dark:border-white/10 rounded-full hover:bg-slate-800 dark:hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 ${className}`}
+                className={`flex items-center gap-2 px-3 h-8 bg-[#0f172a] border border-white/5 rounded-full hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 ${className}`}
                 title="Gerar Relatório PDF"
             >
                 {loading ? (
                     <>
                         <HiOutlineDotsCircleHorizontal className="animate-spin text-slate-400" />
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-tighter">Processando...</span>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-tight">Gerando...</span>
                     </>
                 ) : (
                     <>
-                        <FaFilePdf size={12} className="text-red-500" />
-                        <span className="text-[11px] font-black text-slate-200 uppercase tracking-tighter">
+                        <FaFilePdf size={14} className="text-red-500" />
+                        <span className="text-[11px] font-black text-slate-200 uppercase tracking-tight">
                             {label || 'PDF'}
                         </span>
                     </>

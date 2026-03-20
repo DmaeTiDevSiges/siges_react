@@ -68,8 +68,13 @@ export const uploadFile = async (file: File, path: string): Promise<UploadResult
             publicUrl,
         };
     } catch (error) {
-        console.error('Erro ao fazer upload para R2:', error);
-        throw new Error(`Falha no upload: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+        console.error('Erro ao fazer upload para R2:', {
+            bucket: bucketName,
+            key: path,
+            contentType: file.type,
+            error: error instanceof Error ? { message: error.message, name: error.name, stack: error.stack } : error
+        });
+        throw new Error(`Falha no upload para o bucket ${bucketName}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
 };
 

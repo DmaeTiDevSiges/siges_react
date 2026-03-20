@@ -30,6 +30,8 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Vehicle[]>([]);
     const [searching, setSearching] = useState(false);
+    const [addingVehicleId, setAddingVehicleId] = useState<string | null>(null);
+    const [successVehicleId, setSuccessVehicleId] = useState<string | null>(null);
 
     useEffect(() => {
         loadVehicles();
@@ -78,15 +80,27 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
         }
 
         try {
+            setAddingVehicleId(vehicle.id);
             await dataService.addVehicleToOrderVisit(visitId, vehicle.id, userId);
+            
+            setAddingVehicleId(null);
+            setSuccessVehicleId(vehicle.id);
             toast.success('Veículo adicionado!');
-            setIsAdding(false);
-            setSearchTerm('');
+
+            setTimeout(() => {
+                setSuccessVehicleId(null);
+            }, 1500);
+
+            // Removed premature close to allow adding multiple vehicles
+            // setIsAdding(false);
+            // setSearchTerm('');
+            
             loadVehicles();
             if (onVisitRefresh) onVisitRefresh();
         } catch (error) {
             console.error('Error adding vehicle:', error);
             toast.error('Erro ao adicionar veículo');
+            setAddingVehicleId(null);
         }
     };
 
@@ -262,6 +276,8 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                     </div>
                                 </div>
                                 <ButtonNew
+                                    isLoading={addingVehicleId === vehicle.id}
+                                    isSuccess={successVehicleId === vehicle.id}
                                     onClick={() => handleAddVehicle(vehicle, currentUserId)}
                                 />
                             </div>

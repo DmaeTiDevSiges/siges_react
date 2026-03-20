@@ -17,6 +17,7 @@ import { usePermissions } from '../../../contexts/PermissionsContext';
 import { Select } from '../../../components/ui/Select';
 import { Modal } from '../../../components/ui/Modal';
 import { getProcessingStatus } from '../../../components/ordersVisits/OrderVisitProcessingButton';
+import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
 
 const Switch: React.FC<{ checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
     <button
@@ -61,6 +62,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [showReportConfirmModal, setShowReportConfirmModal] = useState(false);
     const [showApproveMovedModal, setShowApproveMovedModal] = useState(false);
     const [visitProcessingId, setVisitProcessingId] = useState<number | null>(null);
+    const [isVisitFiled, setIsVisitFiled] = useState(false);
 
     // Asset swap state
     const [showSwapPage, setShowSwapPage] = useState(false);
@@ -111,7 +113,10 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             if (data?.ovId) {
                 try {
                     const visitData = await dataService.getActiveOrderVisit(data.ovId);
-                    if (visitData) setVisitProcessingId(visitData.ovProcessingId);
+                    if (visitData) {
+                        setVisitProcessingId(visitData.ovProcessingId);
+                        setIsVisitFiled(!!visitData.isFiled);
+                    }
                 } catch (vError) {
                     console.warn('Could not fetch visit data', vError);
                 }
@@ -121,7 +126,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
             if (data) {
                 setAsset(data);
-                setActivities(activitiesData);
+                setActivities(activitiesData.filter(act => !act.maintenancePlanId || act.maintenancePlanId === '0'));
                 setUsedMaterials(materialsData);
                 setInitialCondition(data.beforeComments || '');
                 setFinalCondition(data.afterComments || '');
@@ -440,9 +445,29 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     const newFilenames: string[] = [];
 
                     for (const photo of photosToUpload) {
-                        const response = await fetch(photo.webPath!);
-                        const blob = await response.blob();
-                        const file = new File([blob], `report_${type}_${Date.now()}.${photo.format}`, { type: blob.type });
+                        let blob: Blob;
+                        try {
+                            // No APK, o pickImages retorna um webPath que as vezes falha com fetch direto
+                            // Tentamos ler via fetch, e se falhar (especialmente em caminhos locais), usamos Filesystem
+                            const response = await fetch(photo.webPath!);
+                            blob = await response.blob();
+                        } catch (fetchError) {
+                            console.warn('Fetch falhou no webPath, tentando ler via capacitor-filesystem:', photo.webPath);
+                            // Fallback para ler o arquivo nativo se o webPath falhar no WebView do Android
+                            if (photo.path) {
+                                const { Filesystem } = await import('@capacitor/filesystem');
+                                const fileData = await Filesystem.readFile({
+                                    path: photo.path
+                                });
+                                // Converter b64 para blob
+                                const responseB64 = await fetch(`data:image/${photo.format};base64,${fileData.data}`);
+                                blob = await responseB64.blob();
+                            } else {
+                                throw new Error('Não foi possível ler o arquivo da foto (caminho não encontrado)');
+                            }
+                        }
+
+                        const file = new File([blob], `report_${type}_${Date.now()}_${Math.random().toString(36).substring(7)}.${photo.format}`, { type: blob.type || `image/${photo.format}` });
 
                         const uploadResult = await dataService.uploadOrderVisitAssetPhoto(
                             assetId,
@@ -757,6 +782,18 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     />
                     <ImageGrid images={initialImages} type="initial" />
                 </div>
+
+                {/* Checklist de Manutenção Preventiva */}
+                <MaintenanceChecklistView 
+                    ovAssetId={asset.id} 
+                    assetId={asset.assetId}
+                    assetTypeId={asset.assetTypeId} 
+                    companyId={asset.oCompanyId}
+                    userId={currentUserId}
+                    initialPlanId={asset.maintenancePlanId}
+                    onUpdateProcessing={(val) => handleUpdateField({ processing_id: val })}
+                    disabled={isReadOnly || isVisitFiled}
+                />
 
                 {/* Intervencoes realizadas */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
@@ -1515,6 +1552,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 message="Após reportar, as informações não poderão ser mais atualizadas. Deseja continuar?"
                 type="warning"
                 confirmLabel="Sim, Reportar"
+                confirmLoading={isUpdatingStatus}
+                confirmLoadingLabel="REPORTANDO..."
                 cancelLabel="Cancelar"
             />
         </div>

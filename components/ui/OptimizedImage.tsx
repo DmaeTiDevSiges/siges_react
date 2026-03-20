@@ -1,9 +1,9 @@
 /**
  * OptimizedImage.tsx
- * Componente React para exibição de imagens otimizadas via imgproxy
+ * Exibe imagens otimizadas via imgproxy com fallback automático para a original.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { imgproxyService, ImagePreset } from '../../services/imgproxyService';
 
 export interface OptimizedImageProps {
@@ -28,41 +28,44 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
     const [hasError, setHasError] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Verifica se a URL é do tipo blob ou data, que não podem ser acessadas pelo servidor imgproxy
-    const isLocalUrl = src.startsWith('blob:') || src.startsWith('data:');
+    // URLs locais (blob/data) nunca passam pelo imgproxy
+    const isLocalUrl = src?.startsWith('blob:') || src?.startsWith('data:');
 
-    // Se imgproxy não estiver configurado, houver erro ou for local, usa imagem original
-    const shouldOptimize = imgproxyService.isImgproxyConfigured() && !hasError && !isLocalUrl;
+    const shouldOptimize =
+        !hasError && !isLocalUrl && imgproxyService.isImgproxyConfigured();
 
-    useEffect(() => {
-        if (!shouldOptimize && !hasError) {
-            console.warn(`[OptimizedImage] Usando imagem original para ${src?.substring(0, 50)}... Motivo: ${isLocalUrl ? 'URL local (blob/data)' : 'imgproxy não configurado'}`);
-        }
-    }, [src, shouldOptimize, hasError, isLocalUrl]);
-
-    // Gera URL otimizada
     const optimizedSrc = shouldOptimize
         ? imgproxyService.getPresetUrl(src, preset)
         : src;
 
-    // Gera srcset para imagens responsivas
-    const srcSet = shouldOptimize && useSrcSet && preset !== 'original'
-        ? imgproxyService.generateSrcSet(src)
-        : undefined;
+    const srcSet =
+        shouldOptimize && useSrcSet && preset !== 'original'
+            ? imgproxyService.generateSrcSet(src)
+            : undefined;
 
     const handleError = () => {
-        console.warn(`Erro ao carregar imagem otimizada: ${optimizedSrc}. Usando original.`);
+        if (hasError) {
+            // Já está usando a original — não faz mais nada
+            setIsLoading(false);
+            return;
+        }
+
+        // Primeira falha: reporta ao circuit breaker e usa original
+        imgproxyService.reportServiceFailure();
         setHasError(true);
         setIsLoading(false);
     };
 
     const handleLoad = () => {
+        if (shouldOptimize) {
+            // Sucesso via imgproxy — reseta contador de falhas
+            imgproxyService.reportServiceSuccess();
+        }
         setIsLoading(false);
     };
 
     return (
         <div className={`relative ${className}`}>
-            {/* Placeholder durante carregamento */}
             {isLoading && (
                 <div className="absolute inset-0 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
             )}
@@ -70,7 +73,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
             <img
                 src={hasError ? src : optimizedSrc}
                 srcSet={hasError ? undefined : srcSet}
-                sizes={useSrcSet ? "(max-width: 640px) 400px, (max-width: 1024px) 800px, 1200px" : undefined}
+                sizes={useSrcSet ? '(max-width: 640px) 400px, (max-width: 1024px) 800px, 1200px' : undefined}
                 alt={alt}
                 className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
                 onClick={onClick}

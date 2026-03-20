@@ -326,8 +326,63 @@ export interface OrderVisitAssetActivity {
   isDeleted: boolean;
   createdUserId?: string;
   createdAt?: string;
+  maintenancePlanId?: string;
+  isOk?: boolean | null;
+  imgFilePath?: string;
+  imgFilesNames?: any; // JSONB
+  comments?: string;
 
   // View fields
+  activityDescription?: string;
+  activityCode?: string;
+}
+
+export interface MaintenancePlan {
+  id: string;
+  code: string;
+  description: string;
+  assetTypeId?: string;
+  isAvailable: boolean;
+  isDeleted: boolean;
+  createdUserId?: string;
+  createdAt?: string;
+  updatedUserId?: string;
+  updatedAt?: string;
+  deletedUserId?: string;
+  deletedAt?: string;
+}
+
+export interface MaintenancePlanSection {
+  id: string;
+  maintenancePlanId: string;
+  description: string;
+  isAvailable: boolean;
+  isDeleted: boolean;
+  createdUserId?: string;
+  createdAt?: string;
+  updatedUserId?: string;
+  updatedAt?: string;
+  deletedUserId?: string;
+  deletedAt?: string;
+  orderIndex?: number;
+}
+
+export interface MaintenancePlanSectionActivity {
+  id: string;
+  maintenancePlanSectionId: string;
+  activityId: string;
+  isAvailable: boolean;
+  isDeleted: boolean;
+  createdUserId?: string;
+  createdAt?: string;
+  updatedUserId?: string;
+  updatedAt?: string;
+  deletedUserId?: string;
+  deletedAt?: string;
+  orderIndex?: number;
+  description?: string;
+  commentsDefault?: string;
+  // view fields
   activityDescription?: string;
   activityCode?: string;
 }
@@ -900,6 +955,8 @@ export interface OrderVisitAsset {
   clientId?: string;
   createdUserId?: string;
   createdAt?: string;
+  maintenancePlanId?: string;
+  maintenancePlanProgress?: number;
 }
 
 export interface OrderVisitAssetView extends OrderVisitAsset {
@@ -908,6 +965,7 @@ export interface OrderVisitAssetView extends OrderVisitAsset {
   brand?: string;
   model?: string;
   serial?: string;
+  assetTypeId?: string;
   location?: string;
   unitId?: string; // asset's current unit (from joined asset data)
   beforeUnitDescription?: string;
