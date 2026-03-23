@@ -176,23 +176,9 @@ export const MaintenancePlansList: React.FC<MaintenancePlansListProps> = ({ onSe
                                 <span className="material-symbols-outlined">assignment</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2">
-                                    <h3 className="font-black text-slate-800 dark:text-white truncate uppercase tracking-tight text-sm">
-                                        {item.description}
-                                    </h3>
-                                    <div
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            const newStatus = !item.isAvailable;
-                                            setItems(prev => prev.map(p =>
-                                                p.id === item.id ? { ...p, isAvailable: newStatus } : p
-                                            ));
-                                        }}
-                                        className="cursor-pointer hover:scale-110 transition-transform active:scale-95"
-                                    >
-                                        <StatusBadge status={item.isAvailable ? 'active' : 'inactive'} size="sm" />
-                                    </div>
-                                </div>
+                                <h3 className="font-black text-slate-800 dark:text-white truncate uppercase tracking-tight text-sm">
+                                    {item.description}
+                                </h3>
                                 <div className="flex items-center gap-2 mt-1">
                                     <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
                                         {item.code || 'SEM CÓDIGO'}
@@ -200,12 +186,24 @@ export const MaintenancePlansList: React.FC<MaintenancePlansListProps> = ({ onSe
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
+                            <div
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const newStatus = !item.isAvailable;
+                                    setItems(prev => prev.map(p =>
+                                        p.id === item.id ? { ...p, isAvailable: newStatus } : p
+                                    ));
+                                }}
+                                className="cursor-pointer hover:scale-105 transition-transform active:scale-95"
+                            >
+                                <StatusBadge status={item.isAvailable ? 'active' : 'inactive'} size="sm" />
+                            </div>
                             <MaintenancePlanPDFButton 
                                 planId={item.id} 
-                                compact
+                                variant="action"
                             />
-                            <span className="material-symbols-outlined text-slate-300 dark:text-slate-700 group-hover:text-primary group-hover:translate-x-1 transition-all">
+                            <span className="material-symbols-outlined text-slate-300 dark:text-slate-700 group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0">
                                 chevron_right
                             </span>
                         </div>

@@ -514,8 +514,12 @@ export interface AssetTag {
   code: string;
   description: string;
   isAvailable: boolean;
-  asset_tag_id?: string | number;
-  asset_tag_sub_id?: string | number;
+  unit_id: number;
+  asset_tag_id: number;
+  asset_tag_sub_id?: number | null;
+  unit_description?: string;
+  client_name?: string;
+  asset_tag_tag_sub_description?: string;
 }
 
 export interface AssetTagSub {
@@ -544,6 +548,28 @@ export interface AssetAttributeValue {
   assetId: string;
   fieldKey: string;
   value: string;
+}
+
+export interface AssetAlert {
+  id: string;
+  assetId: string;
+  oTypeId?: string;
+  priorityId?: string;
+  description?: string;
+  isDone: boolean;
+  ovId?: string;
+  createdUserId?: string;
+  createdAt?: string;
+  updatedUserId?: string;
+  updatedAt?: string;
+  isDeleted: boolean;
+  deletedUserId?: string;
+  deletedAt?: string;
+
+  // UI helpers
+  orderTypeName?: string;
+  priorityName?: string;
+  priorityColor?: string;
 }
 
 export interface Asset {

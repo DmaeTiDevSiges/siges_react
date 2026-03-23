@@ -89,7 +89,7 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
             <button
                 onClick={handleExport}
                 disabled={loading}
-                className={`flex items-center gap-2 px-3 h-8 bg-slate-900 dark:bg-slate-900 border border-slate-800 dark:border-white/10 rounded-full hover:bg-slate-800 dark:hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 ${className}`}
+                className={`flex items-center gap-2.5 px-4 h-9 bg-[#0f172a] dark:bg-slate-900 border border-white/20 dark:border-white/10 rounded-full hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-black/20 ${className}`}
                 title="Gerar Relatório PDF"
             >
                 {loading ? (
@@ -99,8 +99,8 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
                     </>
                 ) : (
                     <>
-                        <FaFilePdf size={12} className="text-red-500" />
-                        <span className="text-[11px] font-black text-slate-200 uppercase tracking-tighter">
+                        <FaFilePdf size={15} className="text-red-500" />
+                        <span className="text-[12px] font-black text-slate-200 uppercase tracking-tight">
                             {label || 'PDF'}
                         </span>
                     </>
@@ -121,7 +121,7 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
                 {loading ? (
                     <HiOutlineDotsCircleHorizontal className="animate-spin text-slate-400" />
                 ) : (
-                    <span className="material-symbols-outlined text-[24px]">picture_as_pdf</span>
+                    <FaFilePdf size={20} className="text-red-500" />
                 )}
             </button>
         );

@@ -60,6 +60,8 @@ import { AssetTagForm } from './views/Settings/Assets/AssetTags/AssetTagForm';
 import { AssetTagSubsList } from './views/Settings/Assets/AssetTagSubs/AssetTagSubsList';
 import { AssetTagSubForm } from './views/Settings/Assets/AssetTagSubs/AssetTagSubForm';
 import { UnitsSearch } from './views/Units/UnitsSearch';
+import { UnitAssetTagAvailableForm } from './views/Units/UnitAssetTagAvailableForm';
+import { UnitAssetTagAvailableDetails } from './views/Units/UnitAssetTagAvailableDetails';
 import { AssetsSearch } from './views/Assets/AssetsSearch';
 import { AssetDetails } from './views/Assets/AssetView';
 import { AssetForm } from './views/Assets/AssetForm';
@@ -90,7 +92,8 @@ import { AIKnowledgeAdmin } from './views/Settings/AIKnowledgeAdmin';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import { MaintenancePlansScreen } from './views/Settings/MaintenancePlans/MaintenancePlansScreen';
 
-type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'activities' | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details';
+type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
+ | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { AIAssistantBubble } from './components/ai/AIAssistantBubble';
@@ -202,6 +205,12 @@ const App: React.FC = () => {
   const [lastAssetSource, setLastAssetSource] = useState<Screen>('assets-search');
   const [selectedOrderVisitAssetId, setSelectedOrderVisitAssetId] = useState<string | null>(null);
   const [selectedOrderTypeId, setSelectedOrderTypeId] = useState<string | null>(null);
+  const [selectedUnitAssetTag, setSelectedUnitAssetTag] = useState<any>(null);
+
+  const handleManageAvailability = (item: any) => {
+    setSelectedUnitAssetTag(item);
+    setCurrentScreen('unit-asset-tag-details');
+  };
 
   const handleOrderVisitAssetSelect = (assetId: string) => {
     setSelectedOrderVisitAssetId(assetId);
@@ -684,6 +693,9 @@ const App: React.FC = () => {
         setUnitsListRefreshKey(prev => prev + 1);
         setCurrentScreen('client-units');
       }
+
+    } else if (currentScreen === 'unit-asset-tag-details' || currentScreen === 'unit-asset-tag-available') {
+      setCurrentScreen('unit-details');
     } else if (currentScreen === 'client-unit-form') {
       setCurrentScreen('client-units');
     } else if (currentScreen === 'client-unit-edit') {
@@ -1575,6 +1587,35 @@ const App: React.FC = () => {
             onEdit={() => setCurrentScreen('client-unit-edit')}
             onNewOrder={() => console.log('New Order')}
             onSelectAsset={handleAssetSelect}
+            onManageAvailability={(assetTag) => {
+              setSelectedUnitAssetTag(assetTag);
+              setCurrentScreen('unit-asset-tag-details');
+            }}
+            onInformAvailability={(assetTag) => {
+              setSelectedUnitAssetTag(assetTag);
+              setCurrentScreen('unit-asset-tag-available');
+            }}
+          />
+        ) : null;
+      case 'unit-asset-tag-available':
+        return selectedUnit && selectedUnitAssetTag ? (
+          <UnitAssetTagAvailableForm
+            unitId={selectedUnit.id}
+            assetTagId={selectedUnitAssetTag.id}
+            onBack={() => setCurrentScreen('unit-details')}
+            onSave={() => {
+              setUnitsListRefreshKey(prev => prev + 1);
+              setCurrentScreen('unit-details');
+            }}
+          />
+        ) : null;
+      case 'unit-asset-tag-details':
+        return selectedUnit && selectedUnitAssetTag ? (
+          <UnitAssetTagAvailableDetails
+            unitId={selectedUnit.id}
+            assetTagId={selectedUnitAssetTag.id}
+            onBack={() => setCurrentScreen('unit-details')}
+            onNewEntry={() => setCurrentScreen('unit-asset-tag-available')}
           />
         ) : null;
       case 'activities':
@@ -2053,6 +2094,8 @@ const App: React.FC = () => {
       case 'maintenance-plan-form': return 'Novo Plano';
       case 'maintenance-plan-edit': return 'Editar Plano';
       case 'maintenance-plan-details': return 'Detalhes do Plano';
+      case 'unit-asset-tag-details': return 'Disponibilidade do Setor';
+      case 'unit-asset-tag-available': return 'Disponibilidade';
       default: return 'Siges';
     }
   };
@@ -2105,7 +2148,8 @@ const App: React.FC = () => {
     currentScreen === 'unit-details' ||
     currentScreen === 'client-unit-form' ||
     currentScreen === 'client-unit-edit' ||
-    currentScreen === 'maintenance-plan-details';
+    currentScreen === 'maintenance-plan-details' ||
+    currentScreen === 'unit-asset-tag-available';
 
   const hideMainNavigation = isInVisitContext || isFullPageScreen;
 

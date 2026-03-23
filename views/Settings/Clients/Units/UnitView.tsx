@@ -10,6 +10,8 @@ import { usePermissions } from '../../../../contexts/PermissionsContext';
 import { Modal } from '../../../../components/ui/Modal';
 import { AssetCard } from '../../../../components/assets/AssetCard';
 import { AssetsListPDFButton } from '../../../../components/reports/AssetsListPDFButton';
+import { UnitAssetTagAvailableForm } from '../../../Units/UnitAssetTagAvailableForm';
+import { PhotoViewer } from '../../../../components/ui/PhotoViewer';
 import { toast } from 'sonner';
 
 interface UnitDetailsProps {
@@ -20,6 +22,8 @@ interface UnitDetailsProps {
     onViewUnits?: () => void;
     onNewOrder?: () => void;
     onSelectAsset?: (asset: Asset) => void;
+    onManageAvailability?: (item: any) => void;
+    onInformAvailability?: (item: any) => void;
 }
 
 // Subcomponent for Circular Gauge
@@ -74,10 +78,14 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     onDelete,
     onViewUnits,
     onNewOrder,
-    onSelectAsset
+    onSelectAsset,
+    onManageAvailability,
+    onInformAvailability
 }) => {
-    const { canView, canEdit } = usePermissions();
-    const [selectedSector, setSelectedSector] = useState<string | null>(null);
+    const { canView, canEdit, canCreate } = usePermissions();
+    const [selectedSector, setSelectedSector] = useState<string | null>(() => {
+        return localStorage.getItem(`unit_active_sector_${unit.id}`);
+    });
     const [sectors, setSectors] = useState<any[]>([]);
     const [availabilityItems, setAvailabilityItems] = useState<any[]>([]);
     const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
@@ -96,6 +104,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     const [isLoadingMovedAssets, setIsLoadingMovedAssets] = useState(false);
     const [movedTagName, setMovedTagName] = useState('');
     const [movedTagDetails, setMovedTagDetails] = useState('');
+    const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
     // Persist sector selection
     useEffect(() => {
@@ -103,6 +112,13 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
             localStorage.setItem(`unit_sector_${unit.id}`, selectedSystemTab);
         }
     }, [selectedSystemTab, unit.id]);
+
+    // Persist active sector selection
+    useEffect(() => {
+        if (selectedSector) {
+            localStorage.setItem(`unit_active_sector_${unit.id}`, selectedSector);
+        }
+    }, [selectedSector, unit.id]);
 
     // Restore modal state if returning from asset details
     useEffect(() => {
@@ -201,7 +217,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                 try {
                     const data = await dataService.getUnitAssetTags(unit.id);
                     setSectors(data);
-                    if (data.length > 0) {
+                    if (data.length > 0 && !selectedSector) {
                         setSelectedSector(data[0].id);
                     }
                 } catch (error) {
@@ -212,24 +228,38 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
         loadSectors();
     }, [unit?.id]);
 
+    // Scroll to selected sector on load
     useEffect(() => {
-        const loadAvailability = async () => {
-            if (unit?.id && selectedSector) {
-                setIsLoadingAvailability(true);
-                try {
-                    const data = await dataService.getUnitAssetTagsItems(unit.id, selectedSector);
-                    setAvailabilityItems(data);
-                } catch (error) {
-                    console.error('Failed to load availability items', error);
-                } finally {
-                    setIsLoadingAvailability(false);
+        if (selectedSector && sectors.length > 0) {
+            const timer = setTimeout(() => {
+                const element = document.getElementById(`sector-card-${selectedSector}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                 }
-            } else {
-                setAvailabilityItems([]);
+            }, 300); // Small delay to ensure render is complete
+            return () => clearTimeout(timer);
+        }
+    }, [sectors, selectedSector]);
+
+    const fetchAvailability = React.useCallback(async () => {
+        if (unit?.id && selectedSector) {
+            setIsLoadingAvailability(true);
+            try {
+                const data = await dataService.getUnitAssetTagsItems(unit.id, selectedSector);
+                setAvailabilityItems(data);
+            } catch (error) {
+                console.error('Failed to load availability items', error);
+            } finally {
+                setIsLoadingAvailability(false);
             }
-        };
-        loadAvailability();
+        } else {
+            setAvailabilityItems([]);
+        }
     }, [unit?.id, selectedSector]);
+
+    useEffect(() => {
+        fetchAvailability();
+    }, [fetchAvailability]);
 
     // Mock data for the specific image layout
     const stats = [
@@ -353,10 +383,13 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex overflow-x-auto no-scrollbar gap-4 -mx-5 px-5 pb-2">
-                            {sectors.map((sector) => (
+                        <div className="flex overflow-x-auto no-scrollbar gap-4 -mx-4 px-5 pb-2">
+                             {/* Initial spacer for scroll-snap feel */}
+                             <div className="w-1 shrink-0 px-0.5" />
+                             {sectors.map((sector) => (
                                 <div
                                     key={sector.id}
+                                    id={`sector-card-${sector.id}`}
                                     onClick={() => setSelectedSector(sector.id)}
                                     className={`shrink-0 w-[130px] h-[130px] bg-white dark:bg-card-dark rounded-xl p-3 shadow-sm border-2 transition-all cursor-pointer flex flex-col items-center justify-between hover:border-primary/50 group ${selectedSector === sector.id
                                         ? 'border-primary ring-2 ring-primary/20 shadow-lg shadow-primary/10'
@@ -395,6 +428,9 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                     </div>
                                 </div>
                             ))}
+
+                            {/* Spacer to fix right margin in horizontal scroll */}
+                            <div className="w-5 shrink-0" />
 
                             {/* Add Sector Card */}
                             <div
@@ -439,72 +475,167 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                     Nenhum item de disponibilidade encontrado.
                                 </div>
                             ) : availabilityItems.map((item) => (
-                                <div key={item.id} className="group relative bg-white dark:bg-card-dark border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm transition-all duration-200 hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30 active:scale-[0.98] cursor-pointer overflow-hidden">
-                                    {/* Gradient Accent */}
-                                    <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary-dark to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                                    {/* Header with Title and Icon+Date */}
-                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                <div key={item.id} className="relative overflow-hidden group hover:shadow-2xl hover:shadow-primary/5 dark:hover:shadow-primary/10 transition-all duration-500 rounded-3xl border-2 border-slate-100 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 p-5 backdrop-blur-md mx-1">
+                                    {/* Top Bar: Title (Left) + Actions (Right) */}
+                                    <div className="flex items-start justify-between gap-3 mb-4 -mx-1 -mt-1">
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-wider mb-1">
-                                                {item.name}
+                                            <h4 className="font-bold text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-wider mb-0.5">
+                                                {item.originalData.asset_tag_description}
                                             </h4>
                                             <p className="text-sm font-bold text-slate-700 dark:text-slate-200 leading-tight">
-                                                {item.details}
+                                                {item.originalData.asset_tag_sub_description || item.name}
                                             </p>
-                                            {item.subtitle && (
-                                                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-1">
-                                                    {item.subtitle}
-                                                </p>
+                                            <div className="mt-1.5 flex flex-wrap gap-2">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                                                    {item.details || 'N/A'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onManageAvailability?.(item); }}
+                                                className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-400 hover:text-primary transition-all active:scale-95 shadow-sm"
+                                                title="Configurações"
+                                            >
+                                                <span className="material-symbols-outlined text-[20px]">settings</span>
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); }}
+                                                className="w-10 h-10 flex items-center justify-center bg-green-50 dark:bg-green-500/10 border border-green-100 dark:border-green-500/20 rounded-xl text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 shadow-sm shadow-green-500/10"
+                                                title="WhatsApp"
+                                            >
+                                                <span className="material-symbols-outlined text-[20px] [font-variation-settings:'FILL'_1]">chat</span>
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onManageAvailability?.(item); }}
+                                                className="w-10 h-10 flex items-center justify-center bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-xl text-blue-500 hover:bg-blue-500 hover:text-white transition-all active:scale-95 shadow-sm shadow-blue-500/10"
+                                                title="Histórico"
+                                            >
+                                                <span className="material-symbols-outlined text-[20px]">history</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Status Section */}
+                                    <div className="flex flex-col gap-3 mb-3">
+                                        
+                                        {/* Top Row: Icon (Left) + Text (Middle) + Optional Photo (Right) */}
+                                        <div className="flex items-start gap-3 w-full">
+                                            {/* Left Icon */}
+                                            <div
+                                                onClick={(e) => { e.stopPropagation(); onManageAvailability?.(item); }}
+                                                className={`relative w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 shadow-sm cursor-pointer ${item.status === 'ready'
+                                                ? 'bg-linear-to-br from-teal-500 to-teal-600 shadow-teal-500/40 dark:shadow-teal-500/30'
+                                                : 'bg-linear-to-br from-red-500 to-red-600 shadow-red-500/40 dark:shadow-red-500/30'
+                                                }`}>
+                                                <div className="absolute inset-0 rounded-2xl bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                                <span className="material-symbols-outlined text-white text-[28px] relative z-10 drop-shadow-sm" style={{ fontVariationSettings: '"FILL" 1, "wght" 400' }}>
+                                                    {item.status === 'ready' ? 'thumb_up' : 'thumb_down'}
+                                                </span>
+                                            </div>
+
+                                            {/* Middle Content */}
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center min-h-[48px]">
+                                                {item.status === 'not_ready' && item.unavailableReason && (
+                                                    <span className="text-[12px] font-bold text-red-500 leading-snug">
+                                                        {item.unavailableReason}
+                                                    </span>
+                                                )}
+                                                {item.subtitle && (
+                                                    <p className="text-[11px] italic text-slate-400 dark:text-slate-500 leading-snug">
+                                                        {item.subtitle}
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Right Photo */}
+                                            {item.reportedImage ? (
+                                                <div 
+                                                    className="w-12 h-12 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shrink-0" 
+                                                    title="Foto do Reporte"
+                                                >
+                                                    <img 
+                                                        src={item.reportedImage} 
+                                                        alt="Foto Reporte" 
+                                                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setLightboxImage(item.reportedImageOriginal || item.reportedImage);
+                                                        }}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div 
+                                                    className="w-12 h-12 rounded-2xl border-2 border-slate-200 border-dashed dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center shrink-0 opacity-60 cursor-not-allowed" 
+                                                    title="Sem foto anexada"
+                                                >
+                                                    <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px]">
+                                                        image_not_supported
+                                                    </span>
+                                                </div>
                                             )}
                                         </div>
 
-                                        {/* Icon and Date on the right */}
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                                                    {item.time}
+                                        {/* Bottom Row: Avatar + Date */}
+                                        <div className="flex items-center gap-3 w-full">
+                                            {item.companyAvatar && (
+                                                <div className="w-12 h-12 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center p-0.5 shrink-0" title="Empresa Responsável">
+                                                    <Avatar 
+                                                        src={item.companyAvatar} 
+                                                        alt="Provider" 
+                                                        shape="rounded"
+                                                        className="w-full! h-full! rounded-[14px]! object-contain! border-none! shadow-none!"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col justify-center overflow-hidden">
+                                                <span className="text-[12px] font-bold text-slate-700 dark:text-slate-300 leading-tight mb-0.5 truncate">
+                                                    {item.reportedUserShortName}
                                                 </span>
-                                                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                                                    {item.relativeTime}
-                                                </span>
-                                            </div>
-                                            <div className={`relative w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 ${item.status === 'ready'
-                                                ? 'bg-linear-to-br from-teal-500 to-teal-600 shadow-lg shadow-teal-500/40 dark:shadow-teal-500/30'
-                                                : 'bg-linear-to-br from-slate-400 to-slate-500 shadow-lg shadow-slate-500/40 dark:shadow-slate-500/30'
-                                                }`}>
-                                                {/* Glow effect */}
-                                                <div className="absolute inset-0 rounded-2xl bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-                                                <span className="material-symbols-outlined text-white text-[28px] relative z-10 drop-shadow-sm" style={{ fontVariationSettings: '"FILL" 1, "wght" 400' }}>
-                                                    thumb_down
+                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 leading-tight truncate">
+                                                    {item.time} • {item.relativeTime}
                                                 </span>
                                             </div>
                                         </div>
-
-
                                     </div>
+    
+                                    {/* New Action Row: Inform Availability */}
+                                    {canCreate('assets_available') && (
+                                        <div className="mt-auto pt-2 px-1 flex flex-col items-center group/action-row">
+                                            <button
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    onInformAvailability?.(item);
+                                                }}
+                                                className="w-full h-11 bg-white dark:bg-slate-900/60 hover:bg-emerald-500 hover:border-emerald-500 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-center gap-3 group-hover/action-row:shadow-lg group-hover/action-row:shadow-emerald-500/10 transition-all duration-300 active:scale-[0.98] cursor-pointer group/btn"
+                                            >
+                                                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center group-hover/btn:bg-white/20 transition-colors">
+                                                    <span className="material-symbols-outlined text-[20px] text-emerald-500 dark:text-emerald-400 group-hover/btn:text-white transition-colors [font-variation-settings:'wght'_600]">assignment_turned_in</span>
+                                                </div>
+                                                <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 group-hover/btn:text-white uppercase tracking-widest transition-colors">
+                                                    Informar Disponibilidade
+                                                </span>
+                                            </button>
+                                        </div>
+                                    )}
 
                                     {/* Footer Actions */}
                                     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                                        <button className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 border-2 border-blue-600 rounded-2xl text-blue-600 active:scale-95 transition-transform hover:bg-blue-50 dark:hover:bg-slate-700">
-                                            <span className="material-symbols-outlined text-[24px]">more_vert</span>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleShowMovedAssets(item.id, item.name, item.details); }}
+                                            className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 border-2 border-orange-500/30 rounded-2xl text-orange-500 active:scale-95 transition-transform hover:bg-orange-50 dark:hover:bg-slate-700"
+                                            title="Ativos movidos deste setor"
+                                        >
+                                            <span className="material-symbols-outlined text-[24px]">swap_vert</span>
                                         </button>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleShowMovedAssets(item.id, item.name, item.details); }}
-                                                className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 border-2 border-orange-500/30 rounded-2xl text-orange-500 active:scale-95 transition-transform hover:bg-orange-50 dark:hover:bg-slate-700"
-                                                title="Ativos movidos deste setor"
-                                            >
-                                                <span className="material-symbols-outlined text-[24px]">swap_vert</span>
-                                            </button>
-                                            <button
-                                                onClick={() => handleShowAssets(item.id, item.name, item.details)}
-                                                className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 border-2 border-blue-600/30 rounded-2xl text-blue-600 active:scale-95 transition-transform hover:bg-blue-50 dark:hover:bg-slate-700"
-                                            >
-                                                <span className="material-symbols-outlined text-[24px]">directions_car</span>
-                                            </button>
-                                        </div>
+
+                                        <button
+                                            onClick={() => handleShowAssets(item.id, item.name, item.details)}
+                                            className="w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 border-2 border-blue-600/30 rounded-2xl text-blue-600 active:scale-95 transition-transform hover:bg-blue-50 dark:hover:bg-slate-700"
+                                            title="Visualizar Ativos"
+                                        >
+                                            <span className="material-symbols-outlined text-[24px]">directions_car</span>
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -643,6 +774,14 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                             )}
                         </div>
                     </Modal>
+                    {/* Photo Viewer */}
+                    {lightboxImage && (
+                        <PhotoViewer 
+                            src={lightboxImage} 
+                            alt="Visualização do Reporte"
+                            onClose={() => setLightboxImage(null)} 
+                        />
+                    )}
 
                 </div>
             </div>

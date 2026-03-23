@@ -1,6 +1,6 @@
 // Data Service for SIGES application
 import { supabase } from './supabase';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert } from '../types';
 
 
 
@@ -1504,6 +1504,119 @@ export const dataService = {
     // -------------------------------------------------------------------------
     // ORDER SUB-TYPES (cfg_orders_types_subs)
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // ASSET ALERTS (assets_alerts)
+    // -------------------------------------------------------------------------
+    async getAssetAlerts(assetId: string): Promise<AssetAlert[]> {
+        const { data, error } = await supabase
+            .from('assets_alerts')
+            .select(`
+                *,
+                cfg_orders_types (
+                    description
+                ),
+                cfg_orders_priorities (
+                    description,
+                    color
+                )
+            `)
+            .eq('asset_id', assetId)
+            .eq('is_deleted', false)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching asset alerts:', error);
+            throw error;
+        }
+
+        return (data || []).map((item: any) => ({
+            id: item.id.toString(),
+            assetId: item.asset_id.toString(),
+            oTypeId: item.o_type_id?.toString(),
+            priorityId: item.priority_id?.toString(),
+            description: item.description,
+            isDone: item.is_done,
+            ovId: item.ov_id?.toString(),
+            createdUserId: item.created_user_id?.toString(),
+            createdAt: item.created_at,
+            updatedUserId: item.updated_user_id?.toString(),
+            updatedAt: item.updated_at,
+            isDeleted: item.is_deleted,
+            deletedUserId: item.deleted_user_id?.toString(),
+            deletedAt: item.deleted_at,
+            orderTypeName: item.cfg_orders_types?.description,
+            priorityName: item.cfg_orders_priorities?.description,
+            priorityColor: item.cfg_orders_priorities?.color
+        })) as AssetAlert[];
+    },
+
+    async createAssetAlert(alert: Partial<AssetAlert>): Promise<AssetAlert> {
+        const dbData = {
+            asset_id: alert.assetId ? parseInt(alert.assetId) : null,
+            o_type_id: alert.oTypeId ? parseInt(alert.oTypeId) : null,
+            priority_id: alert.priorityId ? parseInt(alert.priorityId) : null,
+            description: alert.description,
+            is_done: alert.isDone ?? false,
+            ov_id: alert.ovId ? parseInt(alert.ovId) : null,
+            created_user_id: alert.createdUserId ? parseInt(alert.createdUserId) : null,
+            created_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('assets_alerts')
+            .insert(dbData)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return {
+            ...alert,
+            id: data.id.toString(),
+            createdAt: data.created_at
+        } as AssetAlert;
+    },
+
+    async updateAssetAlert(id: string, alert: Partial<AssetAlert>): Promise<AssetAlert> {
+        const dbData: any = {
+            updated_at: new Date().toISOString()
+        };
+        if (alert.oTypeId !== undefined) dbData.o_type_id = alert.oTypeId ? parseInt(alert.oTypeId) : null;
+        if (alert.priorityId !== undefined) dbData.priority_id = alert.priorityId ? parseInt(alert.priorityId) : null;
+        if (alert.description !== undefined) dbData.description = alert.description;
+        if (alert.isDone !== undefined) dbData.is_done = alert.isDone;
+        if (alert.ovId !== undefined) dbData.ov_id = alert.ovId ? parseInt(alert.ovId) : null;
+        if (alert.updatedUserId !== undefined) dbData.updated_user_id = alert.updatedUserId ? parseInt(alert.updatedUserId) : null;
+
+        const { data, error } = await supabase
+            .from('assets_alerts')
+            .update(dbData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return {
+            ...alert,
+            id: data.id.toString(),
+            updatedAt: data.updated_at
+        } as AssetAlert;
+    },
+
+    async deleteAssetAlert(id: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('assets_alerts')
+            .update({
+                is_deleted: true,
+                deleted_user_id: parseInt(userId),
+                deleted_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
     async getOrderSubTypes(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<OrderSubType[]> {
         let query = supabase
             .from('cfg_orders_types_subs')
@@ -4997,17 +5110,39 @@ export const dataService = {
     // UNIT ASSET TAGS (Sectors)
     // -------------------------------------------------------------------------
     async getUnitAssetTagsItems(unitId: string, assetTagId: string): Promise<any[]> {
-        const { data, error } = await supabase
-            .from('cfg_units_assets_tags')
-            .select('*')
-            .eq('unit_id', unitId)
-            .eq('asset_tag_id', assetTagId)
-            .eq('is_deleted', 'false')
-            .order('asset_tag_tag_sub_description', { ascending: true });
+        const [tagsData, companies, reasonsData] = await Promise.all([
+            supabase
+                .from('cfg_units_assets_tags')
+                .select('*')
+                .eq('unit_id', unitId)
+                .eq('asset_tag_id', assetTagId)
+                .eq('is_deleted', 'false')
+                .order('asset_tag_tag_sub_description', { ascending: true }),
+            this.getCompanies(),
+            this.getAssetsUnavailableReasons()
+        ]);
+
+        const { data, error } = tagsData;
 
         if (error) {
             console.error('Error fetching unit asset tags items', error);
             throw error;
+        }
+
+        const companyMap = new Map(companies.map(c => [String(c.id), c]));
+        const reasonsMap = new Map(reasonsData.map(r => [String(r.id), r.description]));
+
+        const userIdsToFetch = [...new Set(data.map((i: any) => i.last_reported_user_id).filter(id => id))];
+        let usersMap = new Map();
+        if (userIdsToFetch.length > 0) {
+            const { data: usersData } = await supabase
+                .from('users')
+                .select('id, name_short')
+                .in('id', userIdsToFetch);
+            
+            if (usersData) {
+                usersMap = new Map(usersData.map((u: any) => [u.id, u]));
+            }
         }
 
         return data.map((item: any) => {
@@ -5019,17 +5154,247 @@ export const dataService = {
                 details += `${item.last_power}${item.power_unit || 'CV'} `;
             }
 
+            const company = item.last_provider_company_id ? companyMap.get(String(item.last_provider_company_id)) : null;
+            const reportedUser = item.last_reported_user_id ? usersMap.get(item.last_reported_user_id) : null;
+            const unavailableReason = item.last_asset_unavailable_reason_id ? reasonsMap.get(String(item.last_asset_unavailable_reason_id)) : null;
+
             return {
                 id: String(item.id),
                 name: item.asset_tag_tag_sub_description || 'Desconhecido',
                 details: details.trim(),
                 subtitle: item.last_comments || '',
+                unavailableReason: unavailableReason || null,
                 status: item.last_is_available ? 'ready' : 'not_ready',
                 time: item.last_reported_at ? formatDateTime(item.last_reported_at) : 'N/A',
                 relativeTime: item.last_reported_at ? formatRelativeTime(item.last_reported_at) : '',
+                companyAvatar: company?.logoUrl || null,
+                reportedUserShortName: reportedUser?.name_short || 'N/D',
+                reportedImage: item.last_file_path && item.last_file_name
+                    ? this.getPublicImageUrl(item.last_file_path, item.last_file_name, { width: 100, height: 100, resize: 'cover', format: 'origin' })
+                    : null,
+                reportedImageOriginal: item.last_file_path && item.last_file_name
+                    ? this.getPublicImageUrl(item.last_file_path, item.last_file_name, { format: 'origin' })
+                    : null,
                 originalData: item
             };
         });
+    },
+
+    async getUnitAssetTagItemById(id: string): Promise<any> {
+        const { data, error } = await supabase
+            .from('cfg_units_assets_tags')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('Error fetching unit asset tag item by id', error);
+            throw error;
+        }
+
+        const itemData = data as any;
+
+        // Busca paralela: view (descrições) + unidade (lat/lon)
+        const [viewResult, unitResult] = await Promise.all([
+            supabase
+                .from('v_units_assets_tags')
+                .select('unit_description, asset_tag_tag_sub_description, client_name')
+                .eq('id', id)
+                .single(),
+            itemData.unit_id
+                ? supabase.from('units').select('latitude, longitude').eq('id', itemData.unit_id).single()
+                : Promise.resolve({ data: null })
+        ]);
+
+        if (viewResult.error) {
+            console.error('View Fetch Error:', viewResult.error);
+        }
+
+        return {
+            ...itemData,
+            unit_description: viewResult.data?.unit_description,
+            asset_tag_tag_sub_description: viewResult.data?.asset_tag_tag_sub_description,
+            client_name: viewResult.data?.client_name,
+            unit_latitude: (unitResult as any).data?.latitude ?? null,
+            unit_longitude: (unitResult as any).data?.longitude ?? null,
+            last_reported_by_name: itemData.users?.name,
+            last_reported_by_company_logo: itemData.users?.cfg_companies 
+                ? this.getPublicImageUrl(itemData.users.cfg_companies.img_file_path, itemData.users.cfg_companies.img_file_name, { width: 100, height: 100, resize: 'contain' })
+                : null,
+            last_reported_image: itemData.last_file_path && itemData.last_file_name
+                ? this.getPublicImageUrl(itemData.last_file_path, itemData.last_file_name, { width: 400, height: 400, resize: 'cover' })
+                : null
+        };
+    },
+
+    async updateUnitAssetTagAvailability(id: string, payload: { 
+        isAvailable: boolean, 
+        reasonId?: string, 
+        comments?: string, 
+        reportedById: string,
+        images?: { path: string, filename: string }[],
+        unitId: number,
+        assetTagId: number,
+        assetTagSubId?: number | null,
+        operationRecord?: number | string,
+        reportedLatitude?: number | null,
+        reportedLongitude?: number | null,
+        unitLatitude?: number | null,
+        unitLongitude?: number | null,
+        unitReportedDistance?: number | null,
+        providerCompanyId?: number,
+        isWeb: boolean
+    }): Promise<number> {
+        // Usa a função padrão do projeto para timestamp
+        const dtStr = getBrazilTimestamp();
+
+        const { data, error: rpcError } = await supabase.rpc('update_unit_asset_tag_availability', {
+            p_unit_asset_tag_id: parseInt(id),
+            p_is_available: payload.isAvailable,
+            p_reason_id: payload.reasonId ? parseInt(payload.reasonId) : null,
+            p_comments: payload.comments || null,
+            p_reported_by_id: parseInt(payload.reportedById),
+            p_file_path: payload.images?.[0]?.path || null,
+            p_file_name: payload.images?.[0]?.filename || null,
+            p_unit_id: payload.unitId,
+            p_asset_tag_id: payload.assetTagId,
+            p_asset_tag_sub_id: payload.assetTagSubId || null,
+            p_operation_record: payload.operationRecord ? Number(payload.operationRecord) : null,
+            p_created_at: dtStr,
+            p_reported_at: dtStr,
+            p_reported_latitude: payload.reportedLatitude ?? null,
+            p_reported_longitude: payload.reportedLongitude ?? null,
+            p_unit_latitude: payload.unitLatitude ?? null,
+            p_unit_longitude: payload.unitLongitude ?? null,
+            p_unit_reported_distance: payload.unitReportedDistance ?? null,
+            p_provider_company_id: payload.providerCompanyId ?? null,
+            p_is_web: payload.isWeb
+        });
+
+        // Se schema cache estiver desatualizado, recarregar e tentar novamente
+        if (rpcError?.code === 'PGRST202') {
+            console.warn('Schema cache desatualizado, recarregando...');
+            try {
+                await fetch(
+                    `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'apikey': import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY,
+                            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY}`,
+                            'Cache-Control': 'no-cache',
+                            'Pragma': 'no-cache'
+                        }
+                    }
+                );
+            } catch (_) { /* silencioso */ }
+
+            // Retry após aguardar o reload
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            const { data: retryData, error: retryError } = await supabase.rpc('update_unit_asset_tag_availability', {
+                p_unit_asset_tag_id: parseInt(id),
+                p_is_available: payload.isAvailable,
+                p_reason_id: payload.reasonId ? parseInt(payload.reasonId) : null,
+                p_comments: payload.comments || null,
+                p_reported_by_id: parseInt(payload.reportedById),
+                p_file_path: payload.images?.[0]?.path || null,
+                p_file_name: payload.images?.[0]?.filename || null,
+                p_unit_id: payload.unitId,
+                p_asset_tag_id: payload.assetTagId,
+                p_asset_tag_sub_id: payload.assetTagSubId || null,
+                p_operation_record: payload.operationRecord ? Number(payload.operationRecord) : null,
+                p_created_at: dtStr,
+                p_reported_at: dtStr,
+                p_reported_latitude: payload.reportedLatitude ?? null,
+                p_reported_longitude: payload.reportedLongitude ?? null,
+                p_unit_latitude: payload.unitLatitude ?? null,
+                p_unit_longitude: payload.unitLongitude ?? null,
+                p_unit_reported_distance: payload.unitReportedDistance ?? null,
+                p_provider_company_id: payload.providerCompanyId ?? null,
+                p_is_web: payload.isWeb
+            });
+            if (retryError) {
+                console.error('Erro após retry do RPC:', retryError);
+                throw retryError;
+            }
+            return retryData as number;
+        }
+
+        if (rpcError) {
+            console.error('Error executing update_unit_asset_tag_availability RPC', rpcError);
+            throw rpcError;
+        }
+
+        return data as number;
+    },
+
+    async updateUnitAssetTagImageRefs(unitAssetTagId: number, assetAvailableId: number, path: string, filename: string): Promise<void> {
+        // Atualiza a tabela de histórico
+        await supabase.from('assets_available')
+            .update({ file_path: path, file_name: filename })
+            .eq('id', assetAvailableId);
+
+        // Atualiza a mestre
+        await supabase.from('cfg_units_assets_tags')
+            .update({ last_file_path: path, last_file_name: filename })
+            .eq('id', unitAssetTagId);
+    },
+
+    async uploadAssetAvailableImageAfterInsert(assetAvailableId: number, unitId: number, file: File): Promise<{ path: string, filename: string }> {
+        const fileExt = file.name.split('.').pop();
+        const filename = `${assetAvailableId}.${fileExt}`;
+        const path = `companies/1/units/${unitId}/assets_available`;
+
+        try {
+            const { r2Service } = await import('./r2Service');
+            // Upload to Cloudflare R2
+            await r2Service.uploadFile(file as any, `${path}/${filename}`);
+            
+            return { path, filename };
+        } catch (error) {
+            console.error('Error uploading generated asset available image to R2', error);
+            throw error;
+        }
+    },
+
+    async getUnitAssetTagAvailabilityHistory(unitAssetTagId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('assets_available')
+            .select(`
+                *,
+                reported_user: users!reported_user_id(name_short, name_full, img_file_path),
+                reason: cfg_assets_unavailable_reasons!asset_unavailable_reason_id(description)
+            `)
+            .eq('unit_asset_tag_id', parseInt(unitAssetTagId))
+            .order('reported_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching unit asset tag availability history', error);
+            return [];
+        }
+
+        return (data || []).map((item: any) => ({
+            ...item,
+            reported_by_name: item.reported_user?.name_short || item.reported_user?.name_full,
+            reason_description: item.reason?.description
+        }));
+    },
+
+    async uploadUnitAssetTagImage(unitAssetTagId: string, file: File): Promise<{ path: string, filename: string }> {
+        const fileExt = file.name.split('.').pop();
+        const filename = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const path = `units_assets_tags/${unitAssetTagId}/${filename}`;
+
+        try {
+            const { r2Service } = await import('./r2Service');
+            // Attempt R2 file upload primarily due to Supabase timeouts
+            await r2Service.uploadFile(file as any, path);
+            
+            return { path, filename };
+        } catch (error) {
+            console.error('Error uploading unit asset tag image to R2', error);
+            throw error;
+        }
     },
 
     async getUnitAssetTags(unitId: string): Promise<any[]> {
@@ -5613,8 +5978,8 @@ export const dataService = {
     async getUnits(filter: 'all' | 'active' | 'inactive' = 'active', search: string = ''): Promise<any[]> {
         let query = supabase.from('units').select('*').order('description_full');
 
-        if (filter === 'active') query = query.eq('status', 'active');
-        if (filter === 'inactive') query = query.eq('status', 'inactive');
+        if (filter === 'active') query = query.eq('is_available', true);
+        if (filter === 'inactive') query = query.eq('is_available', false);
 
         if (search && search.trim().length > 0) {
             const terms = search.trim().split(/\s+/);
@@ -5638,7 +6003,7 @@ export const dataService = {
         unitTypeId?: string | string[];
         search?: string;
     }): Promise<any[]> {
-        let query = supabase.from('units').select('*').order('description_full');
+        let query = supabase.from('units').select('*').eq('is_available', true).order('description_full');
 
         if (filters.systemParentId && (Array.isArray(filters.systemParentId) ? filters.systemParentId.length > 0 : true)) {
             if (Array.isArray(filters.systemParentId)) query = query.in('system_parent_id', filters.systemParentId);
@@ -7528,15 +7893,16 @@ export const dataService = {
 
 
 
-
-    async getSuspendedReasons(): Promise<{ id: number, description: string }[]> {
+    async getAssetsUnavailableReasons(): Promise<{ id: number, description: string }[]> {
         const { data, error } = await supabase
-            .from('cfg_orders_suspended_reasons')
+            .from('cfg_assets_unavailable_reasons')
             .select('id, description')
+            .eq('is_available', true)
+            .eq('is_deleted', false)
             .order('description');
 
         if (error) {
-            console.error('Error fetching suspended reasons:', error);
+            console.error('Error fetching asset unavailable reasons:', error);
             return [];
         }
 

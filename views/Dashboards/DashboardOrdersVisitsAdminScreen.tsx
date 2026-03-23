@@ -734,7 +734,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 dataService.getOrderTypes(),
                 dataService.getPlans(),
                 dataService.getManagedContracts(currentUser.id.toString()),
-                dataService.getTeams()
+                dataService.getTeams(),
+                dataService.getUnits('active')
             ]);
 
             const getVal = (res: any) => (res.status === 'fulfilled' ? res.value : []);
@@ -747,7 +748,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 orderTypes: getVal(results[3]),
                 plans: getVal(results[4]),
                 contracts: getVal(results[5]),
-                teams: getVal(results[6])
+                teams: getVal(results[6]),
+                units: getVal(results[7])
             }));
         } catch (error) {
             console.error('Error loading filter options:', error);
@@ -1021,6 +1023,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             if (!checkFilter('systemId', 'systemId')) return false;
             if (!checkFilter('unitTypeParentId', 'unitTypeParentId')) return false;
             if (!checkFilter('unitTypeId', 'unitTypeId')) return false;
+            if (!checkFilter('unitId', 'unitId')) return false;
             if (!checkFilter('orderObjectId', 'orderObjectId')) return false;
             if (!checkFilter('orderTypeId', 'orderTypeId')) return false;
             if (!checkFilter('orderTypeSubId', 'orderTypeSubId')) return false;
@@ -1263,6 +1266,12 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
                                 onClear={() => setAdvancedFilters(prev => ({ ...prev, unitTypeId: [] }))}
                                 disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)}
+                            />
+                            <FilterSelect
+                                label="UNIDADES"
+                                value={advancedFilters.unitId || []}
+                                onClick={() => openSelectionModal('unitId', 'UNIDADES', filterOptions.units.map(opt => ({ value: String(opt.id), label: opt.description_full || opt.description })))}
+                                onClear={() => setAdvancedFilters(prev => ({ ...prev, unitId: [] }))}
                             />
                             <FilterSelect
                                 label="FINALIDADE"

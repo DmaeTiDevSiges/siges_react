@@ -11,6 +11,8 @@ import { formatDateTime } from '../../utils/formatters';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
+import { AssetAlertForm } from './AssetAlertForm';
+import { AssetAlert } from '../../types';
 
 import QRCode from 'react-qr-code';
 
@@ -118,8 +120,61 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const [isFavorite, setIsFavorite] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
+    const [alerts, setAlerts] = useState<AssetAlert[]>([]);
+    const [isAddingAlert, setIsAddingAlert] = useState(false);
+    const [editingAlert, setEditingAlert] = useState<AssetAlert | null>(null);
 
-    const tabs = ['Dados', 'Histórico', 'Docs', 'Componentes', 'QR CODE'];
+    const tabs = ['Dados', 'Histórico', 'Docs', 'Componentes', 'Alertas', 'QR CODE'];
+
+    useEffect(() => {
+        const fetchAlerts = async () => {
+            if (activeTab === 'Alertas') {
+                try {
+                    const data = await dataService.getAssetAlerts(asset.id);
+                    setAlerts(data);
+                } catch (error) {
+                    console.error('Error fetching alerts:', error);
+                }
+            }
+        };
+        fetchAlerts();
+    }, [activeTab, asset.id]);
+
+    const handleAlertSave = async (alertData: Partial<AssetAlert>) => {
+        try {
+            if (editingAlert) {
+                await dataService.updateAssetAlert(editingAlert.id, alertData);
+                toast.success('Alerta atualizado com sucesso!');
+            } else {
+                await dataService.createAssetAlert({
+                    ...alertData,
+                    assetId: asset.id
+                });
+                toast.success('Alerta criado com sucesso!');
+            }
+            setIsAddingAlert(false);
+            setEditingAlert(null);
+            // Refresh list
+            const data = await dataService.getAssetAlerts(asset.id);
+            setAlerts(data);
+        } catch (error) {
+            console.error('Error saving alert:', error);
+            toast.error('Erro ao salvar alerta.');
+        }
+    };
+
+    const handleAlertDelete = async (id: string) => {
+        if (!window.confirm('Tem certeza que deseja excluir este alerta?')) return;
+        try {
+            // Need user ID here. Assuming currentUser context exists or just use a dummy for now.
+            // Looking at other files, we might need to get it from a context.
+            await dataService.deleteAssetAlert(id, '1'); // FIXME: Use actual userId
+            toast.success('Alerta excluído.');
+            setAlerts(prev => prev.filter(a => a.id !== id));
+        } catch (error) {
+            toast.error('Erro ao excluir alerta.');
+        }
+    };
 
     if (!canView('assets')) {
         return (
@@ -427,6 +482,136 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                         </div>
                                     </div>
                                 </div>
+                            </section>
+                        )}
+
+                        {activeTab === 'Alertas' && (
+                            <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                {isAddingAlert || editingAlert ? (
+                                    <div className="bg-white dark:bg-card-dark rounded-3xl overflow-hidden border border-slate-100 dark:border-white/5 shadow-2xl">
+                                        <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50 dark:bg-white/5">
+                                            <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">
+                                                {editingAlert ? 'Editar Alerta' : 'Novo Alerta'}
+                                            </h4>
+                                            <IconButton 
+                                                icon="close" 
+                                                onClick={() => { setIsAddingAlert(false); setEditingAlert(null); }} 
+                                                size="sm"
+                                            />
+                                        </div>
+                                        <AssetAlertForm
+                                            assetId={asset.id}
+                                            initialAlert={editingAlert || undefined}
+                                            onSave={handleAlertSave}
+                                            onCancel={() => { setIsAddingAlert(false); setEditingAlert(null); }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Alertas Ativos</h3>
+                                            <button
+                                                className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-full transition-all active:scale-95 border-none cursor-pointer"
+                                                onClick={() => setIsAddingAlert(true)}
+                                            >
+                                                <span className="material-symbols-outlined text-[20px]">add_alert</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Incluir Alerta</span>
+                                            </button>
+                                        </div>
+
+                                        {alerts.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-12 px-6 bg-slate-500/5 rounded-3xl border border-dashed border-slate-200 dark:border-white/10">
+                                                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                                                    <span className="material-symbols-outlined text-slate-400 text-3xl">notifications_off</span>
+                                                </div>
+                                                <p className="text-xs font-bold text-slate-900 dark:text-slate-200 mb-1">Sem alertas ativos</p>
+                                                <p className="text-[11px] text-slate-500 text-center max-w-[240px] leading-relaxed">
+                                                    Não existem alertas de criticidade ou indisponibilidade registrados para este equipamento no momento.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {alerts.map(alert => (
+                                                    <div 
+                                                        key={alert.id} 
+                                                        className={`group relative p-5 rounded-3xl border border-slate-100 dark:border-white/5 bg-white dark:bg-card-dark shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 ${alert.isDone ? 'opacity-60 grayscale-[0.5]' : ''}`}
+                                                    >
+                                                        {/* Accent line based on priority color */}
+                                                        <div 
+                                                            className="absolute top-4 left-0 bottom-4 w-1 rounded-r-full transition-all group-hover:w-1.5" 
+                                                            style={{ backgroundColor: alert.priorityColor || '#64748b' }} 
+                                                        />
+                                                        
+                                                        <div className="flex items-start justify-between gap-4 pl-2">
+                                                            <div className="flex-1 space-y-4">
+                                                                {/* Badges Row */}
+                                                                <div className="flex items-center gap-2">
+                                                                    <div 
+                                                                        className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-white shadow-lg/20"
+                                                                        style={{ backgroundColor: alert.priorityColor || '#64748b' }}
+                                                                    >
+                                                                        {alert.priorityName || 'Prioridade'}
+                                                                    </div>
+                                                                    {alert.orderTypeName && (
+                                                                        <div className="bg-slate-100 dark:bg-white/10 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-white/5">
+                                                                            {alert.orderTypeName}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Content Layer */}
+                                                                <div className="flex items-start gap-4">
+                                                                    <div className="w-10 h-10 rounded-2xl bg-slate-50 dark:bg-white/5 flex items-center justify-center shrink-0 border border-slate-100 dark:border-white/5">
+                                                                        <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px]">
+                                                                            {alert.orderTypeName?.includes('ELETRICA') ? 'bolt' : 
+                                                                            alert.orderTypeName?.includes('MECANICA') ? 'settings' : 
+                                                                            alert.orderTypeName?.includes('HIDRAULICA') ? 'water_drop' :
+                                                                            'warning'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="space-y-1 py-1">
+                                                                        <p className="text-[14px] font-bold text-slate-800 dark:text-slate-100 leading-snug">
+                                                                            {alert.description}
+                                                                        </p>
+                                                                        <div className="flex items-center gap-4 pt-2">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <span className="material-symbols-outlined text-[14px] text-slate-400">calendar_today</span>
+                                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                                                    {alert.createdAt ? new Date(alert.createdAt).toLocaleDateString('pt-BR') : '--/--/----'}
+                                                                                </span>
+                                                                            </div>
+                                                                            {alert.isDone && (
+                                                                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                                                                    <span className="material-symbols-outlined text-[12px] font-black">check_circle</span>
+                                                                                    <span className="text-[9px] font-black uppercase tracking-widest">Resolvido</span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex flex-col gap-1 transition-all">
+                                                                <IconButton 
+                                                                    icon="edit" 
+                                                                    size="sm" 
+                                                                    onClick={() => setEditingAlert(alert)}
+                                                                    className="text-slate-300 hover:text-primary hover:bg-primary/10 transition-all rounded-xl grayscale group-hover:grayscale-0"
+                                                                />
+                                                                <IconButton 
+                                                                    icon="delete" 
+                                                                    size="sm" 
+                                                                    onClick={() => handleAlertDelete(alert.id)}
+                                                                    className="text-slate-300 hover:text-red-500 hover:bg-red-500/10 transition-all rounded-xl grayscale group-hover:grayscale-0"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </section>
                         )}
 

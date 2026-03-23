@@ -395,7 +395,7 @@ export const VisitReportPDFButton = ({
                 {loading ? (
                     <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
                 ) : (
-                    <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+                    <FaFilePdf size={14} className="text-red-500" />
                 )}
             </button>
         );
@@ -415,7 +415,7 @@ export const VisitReportPDFButton = ({
                 </>
             ) : (
                 <>
-                    <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+                    <FaFilePdf size={16} className="text-red-500" />
                     <span>Relatório PDF</span>
                 </>
             )}

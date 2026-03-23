@@ -413,7 +413,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     dataService.getOrderTypes(),
                     dataService.getPlans(),
                     currentUser ? dataService.getManagedContracts(currentUser.id.toString()) : dataService.getContracts(),
-                    dataService.getTeams()
+                    dataService.getTeams(),
+                    dataService.getUnits('active')
                 ]);
 
                 const getVal = (res: any, name: string) => {
@@ -432,7 +433,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     orderTypes: getVal(results[3], 'orderTypes'),
                     plans: getVal(results[4], 'plans'),
                     contracts: getVal(results[5], 'contracts'),
-                    teams: getVal(results[6], 'teams')
+                    teams: getVal(results[6], 'teams'),
+                    units: getVal(results[7], 'units')
                 }));
 
                 // Populate dashboard widgets with static data
@@ -689,6 +691,12 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
                                         onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, unitTypeId: [] }))}
                                         disabled={!advancedOrdersFilters.unitTypeParentId || (Array.isArray(advancedOrdersFilters.unitTypeParentId) && advancedOrdersFilters.unitTypeParentId.length === 0)}
+                                    />
+                                    <FilterSelect
+                                        label="UNIDADES"
+                                        value={advancedOrdersFilters.unitId || []}
+                                        onClick={() => openSelectionModal('unitId', 'UNIDADES', filterOptions.units.map(opt => ({ value: String(opt.id), label: opt.description_full || opt.description })))}
+                                        onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, unitId: [] }))}
                                     />
                                     <FilterSelect
                                         label="FINALIDADE"

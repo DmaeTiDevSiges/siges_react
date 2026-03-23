@@ -513,7 +513,7 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
             for (const section of sections) {
                 if (section.isDeleted && !section.isNew && section.id) {
                     await dataService.updateMaintenancePlanSection(section.id, { isDeleted: true }, userId);
-                    continue; // Skip activities if section deleted
+                    continue; 
                 }
 
                 if (!section.isDeleted && section.description.trim()) {
@@ -536,24 +536,26 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
                     
                     sectionOrder++;
 
-                    // 3. Save Activities for this section
-                    let activityOrder = 0;
-                    for (const act of section.activities) {
+                    // 3. Save Activities for this section in parallel
+                    // Using Promise.all here drastically reduces the sequential wait time
+                    const activityPromises = section.activities.map((act, aIdx) => {
                         if (act.isDeleted && !act.isNew && act.id) {
-                            await dataService.removeMaintenancePlanSectionActivity(act.id, userId);
+                            return dataService.removeMaintenancePlanSectionActivity(act.id, userId);
                         } else if (!act.isDeleted) {
                             if (act.isNew) {
-                                await dataService.createMaintenancePlanSectionActivity(savedSectionId, act.activityId, userId, activityOrder, act.description, act.commentsDefault);
+                                return dataService.createMaintenancePlanSectionActivity(savedSectionId, act.activityId, userId, aIdx, act.description, act.commentsDefault);
                             } else if (act.id) {
-                                await dataService.updateMaintenancePlanSectionActivity(act.id, { 
-                                    orderIndex: activityOrder,
+                                return dataService.updateMaintenancePlanSectionActivity(act.id, { 
+                                    orderIndex: aIdx,
                                     description: act.description,
                                     commentsDefault: act.commentsDefault
                                 }, userId);
                             }
-                            activityOrder++;
                         }
-                    }
+                        return Promise.resolve();
+                    });
+
+                    await Promise.all(activityPromises);
                 }
             }
 
@@ -631,14 +633,32 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
                 <div className="max-w-4xl mx-auto w-full px-5 py-6 space-y-10">
                     {/* Seção: Dados Gerais */}
                     <section className="animate-in fade-in slide-in-from-right-4 duration-300">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 shadow-inner">
-                                <span className="material-symbols-outlined">analytics</span>
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 shadow-inner">
+                                    <span className="material-symbols-outlined">analytics</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">Identificação do Plano</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Defina o código e o tipo de ativo</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">Identificação do Plano</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Defina o código e o tipo de ativo</p>
-                            </div>
+
+                            {/* Status Toggle Button (Modelo Premium) */}
+                            <button
+                                type="button"
+                                onClick={() => setIsAvailable(!isAvailable)}
+                                className={`flex items-center gap-2.5 px-4 h-9 rounded-full border transition-all active:scale-95 shadow-lg shadow-black/20 ${
+                                    isAvailable 
+                                    ? 'bg-[#0f172a] border-emerald-500/40 text-emerald-500' 
+                                    : 'bg-[#0f172a] border-slate-700/50 text-slate-500'
+                                }`}
+                            >
+                                <span className={`w-2 h-2 rounded-full animate-pulse-slow ${isAvailable ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-600'}`} />
+                                <span className="text-[12px] font-black uppercase tracking-wider">
+                                    {isAvailable ? 'ATIVO' : 'INATIVO'}
+                                </span>
+                            </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-white dark:bg-slate-900/40 p-6 rounded-[24px] border border-slate-200 dark:border-slate-800/60 shadow-sm">
                              <div className="md:col-span-2">

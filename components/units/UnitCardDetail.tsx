@@ -10,7 +10,7 @@ interface UnitCardDetailProps {
 
 export const UnitCardDetail: React.FC<UnitCardDetailProps> = ({ unit }) => {
     return (
-        <div className="group relative bg-white dark:bg-card-dark rounded-[12px] border border-slate-100 dark:border-slate-800 shadow-xl dark:shadow-2xl/20 mt-[-90px] z-10 mx-1 overflow-hidden">
+        <div className="group relative bg-white dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xl dark:shadow-2xl/20 mt-[-90px] z-10 mx-1 overflow-hidden">
 
             {/* Gradient Accent - Always visible or subtle animation? Let's keep it consistent but static or subtle */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary-dark to-primary opacity-100" />
