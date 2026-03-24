@@ -3800,6 +3800,10 @@ export const dataService = {
             }
         }
 
+        if (data && data.parent_id) {
+            await this.updateServiceRequestStatus(data.parent_id.toString());
+        }
+
         const updatedData = data as any;
         return {
             ...updatedData,
@@ -7447,6 +7451,11 @@ export const dataService = {
         const result = data as { success: boolean; message: string; visit_id?: number };
         if (!result.success) {
             throw new Error(result.message);
+        }
+
+        // Flow Rule: Update Parent SS if this is an OS
+        if (order.parentId) {
+            await this.updateServiceRequestStatus(order.parentId.toString());
         }
     },
 
