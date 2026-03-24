@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { toast } from 'sonner';
 
-const CHECK_INTERVAL = 1000 * 60 * 30; // 30 minutes
+const CHECK_INTERVAL = 1000 * 60 * 5; // 5 minutes
 
 const UpdateNotifier: React.FC = () => {
     useEffect(() => {
