@@ -40,6 +40,101 @@ interface OrderVisitAssetReportProps {
     onManageMaterials?: () => void;
 }
 
+const SectionHeader: React.FC<{ icon: string; title: string; required?: boolean; action?: React.ReactNode }> = ({ icon, title, required, action }) => (
+    <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                <span className="material-symbols-outlined text-lg">{icon}</span>
+            </div>
+            <h2 className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide flex items-center gap-1">
+                {title}
+                {required && <span className="text-red-500 text-lg leading-none">*</span>}
+            </h2>
+        </div>
+        {action}
+    </div>
+);
+
+interface ImageGridProps {
+    images: string[];
+    type: 'initial' | 'final';
+    isReadOnly: boolean;
+    setExpandedImage: (img: string) => void;
+    removeImage: (type: 'initial' | 'final', index: number) => void;
+    setPhotoActionSection: (section: 'initial' | 'final') => void;
+}
+
+const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpandedImage, removeImage, setPhotoActionSection }) => {
+    return (
+        <div className="space-y-2 mt-3">
+            <div className="grid grid-cols-3 gap-3">
+                {[0, 1, 2].map((idx) => {
+                    const img = images[idx];
+                    if (img) {
+                        return (
+                            <div key={idx} className="relative rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer" style={{ height: '96px' }}>
+                                <OptimizedImage
+                                    src={img}
+                                    alt={`Foto ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                    onClick={() => setExpandedImage(img)}
+                                    preset="medium"
+                                />
+                                {images.length > 1 && !isReadOnly && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            removeImage(type, idx);
+                                        }}
+                                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg z-20"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">delete</span>
+                                    </button>
+                                )}
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px] text-center">
+                                    <p className="text-[8px] text-white font-bold uppercase tracking-wider">Foto {idx + 1}</p>
+                                </div>
+                            </div>
+                        );
+                    } else if (!isReadOnly) {
+                        return (
+                            <div
+                                key={idx}
+                                onClick={() => setPhotoActionSection(type)}
+                                className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all group relative overflow-hidden ${images.length === 0 && idx === 0
+                                    ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:border-red-500'
+                                    : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-blue-500/50'
+                                    }`}
+                                style={{ height: '96px' }}
+                            >
+                                <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center mb-1 shadow-sm">
+                                    <span className={`material-symbols-outlined text-xl ${(images.length === 0 && idx === 0) ? 'text-red-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`}>
+                                        add_a_photo
+                                    </span>
+                                </div>
+                                <div className="text-center px-1">
+                                    <p className={`text-[8px] font-bold uppercase ${(images.length === 0 && idx === 0) ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                        {(images.length === 0 && idx === 0) ? 'Obrigatório' : 'Adicionar'}
+                                    </p>
+                                    <p className="text-[7px] text-slate-400 dark:text-slate-600 font-medium italic">Foto {idx + 1}</p>
+                                </div>
+                            </div>
+                        );
+                    } else {
+                        return (
+                            <div key={idx} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/10 dark:bg-slate-900/10 flex flex-col items-center justify-center" style={{ height: '96px' }}>
+                                <span className="material-symbols-outlined text-slate-200 dark:text-slate-800 text-lg mb-1">image_not_supported</span>
+                                <p className="text-[7px] text-slate-300 dark:text-slate-700 font-medium italic">Sem Foto {idx + 1}</p>
+                            </div>
+                        );
+                    }
+                })}
+            </div>
+        </div>
+    );
+};
+
 export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials }) => {
     const [asset, setAsset] = useState<OrderVisitAssetView | null>(null);
     const [loading, setLoading] = useState(true);
@@ -649,92 +744,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         }
     };
 
-    const SectionHeader: React.FC<{ icon: string; title: string; required?: boolean; action?: React.ReactNode }> = ({ icon, title, required, action }) => (
-        <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                    <span className="material-symbols-outlined text-lg">{icon}</span>
-                </div>
-                <h2 className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide flex items-center gap-1">
-                    {title}
-                    {required && <span className="text-red-500 text-lg leading-none">*</span>}
-                </h2>
-            </div>
-            {action}
-        </div>
-    );
 
-    const ImageGrid: React.FC<{ images: string[]; type: 'initial' | 'final' }> = ({ images, type }) => {
-        console.log(`[ImageGrid] type=${type} images=`, images);
-        return (
-            <div className="space-y-2 mt-3">
-                <div className="grid grid-cols-3 gap-3">
-                    {[0, 1, 2].map((idx) => {
-                        const img = images[idx];
-                        if (img) {
-                            return (
-                                <div key={idx} className="relative rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer" style={{ height: '96px' }}>
-                                    <OptimizedImage
-                                        src={img}
-                                        alt={`Foto ${idx + 1}`}
-                                        className="w-full h-full object-cover"
-                                        onClick={() => setExpandedImage(img)}
-                                        preset="medium"
-                                    />
-                                    {images.length > 1 && !isReadOnly && (
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                removeImage(type, idx);
-                                            }}
-                                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg z-20"
-                                        >
-                                            <span className="material-symbols-outlined text-[14px]">delete</span>
-                                        </button>
-                                    )}
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px] text-center">
-                                        <p className="text-[8px] text-white font-bold uppercase tracking-wider">Foto {idx + 1}</p>
-                                    </div>
-                                </div>
-                            );
-                        } else if (!isReadOnly) {
-                            return (
-                                <div
-                                    key={idx}
-                                    onClick={() => setPhotoActionSection(type)}
-                                    className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all group relative overflow-hidden ${images.length === 0 && idx === 0
-                                        ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:border-red-500'
-                                        : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-blue-500/50'
-                                        }`}
-                                    style={{ height: '96px' }}
-                                >
-                                    <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center mb-1 shadow-sm">
-                                        <span className={`material-symbols-outlined text-xl ${(images.length === 0 && idx === 0) ? 'text-red-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`}>
-                                            add_a_photo
-                                        </span>
-                                    </div>
-                                    <div className="text-center px-1">
-                                        <p className={`text-[8px] font-bold uppercase ${(images.length === 0 && idx === 0) ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                                            {(images.length === 0 && idx === 0) ? 'Obrigatório' : 'Adicionar'}
-                                        </p>
-                                        <p className="text-[7px] text-slate-400 dark:text-slate-600 font-medium italic">Foto {idx + 1}</p>
-                                    </div>
-                                </div>
-                            );
-                        } else {
-                            return (
-                                <div key={idx} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/10 dark:bg-slate-900/10 flex flex-col items-center justify-center" style={{ height: '96px' }}>
-                                    <span className="material-symbols-outlined text-slate-200 dark:text-slate-800 text-lg mb-1">image_not_supported</span>
-                                    <p className="text-[7px] text-slate-300 dark:text-slate-700 font-medium italic">Sem Foto {idx + 1}</p>
-                                </div>
-                            );
-                        }
-                    })}
-                </div>
-            </div>
-        );
-    };
 
     if (loading) {
         return (
@@ -780,7 +790,14 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         placeholder={isReadOnly ? "Sem comentários" : "Descreva como foi encontrado o ativo..."}
                         className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[100px] disabled:opacity-70 disabled:cursor-not-allowed"
                     />
-                    <ImageGrid images={initialImages} type="initial" />
+                    <ImageGrid 
+                        images={initialImages} 
+                        type="initial" 
+                        isReadOnly={isReadOnly}
+                        setExpandedImage={setExpandedImage}
+                        removeImage={removeImage}
+                        setPhotoActionSection={setPhotoActionSection}
+                    />
                 </div>
 
                 {/* Checklist de Manutenção Preventiva */}
@@ -1017,7 +1034,14 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         placeholder={isReadOnly ? "Sem comentários" : "Descreva a condição final (depois) do ativo..."}
                         className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[100px] disabled:opacity-70 disabled:cursor-not-allowed"
                     />
-                    <ImageGrid images={finalImages} type="final" />
+                    <ImageGrid 
+                        images={finalImages} 
+                        type="final" 
+                        isReadOnly={isReadOnly}
+                        setExpandedImage={setExpandedImage}
+                        removeImage={removeImage}
+                        setPhotoActionSection={setPhotoActionSection}
+                    />
                 </div>
 
                 {/* Action Buttons */}

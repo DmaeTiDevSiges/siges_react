@@ -72,4 +72,35 @@ Ao inserir o registro em assets_available:
 63: - UnitAssetTagAvailableForm: O preview da foto capturada utiliza PhotoViewer.
 64: - UnitAssetTagAvailableDetails: A evidência fotográfica do reporte é exibida ao lado do logo da empresa e abre o PhotoViewer.
 
+Apos a inclusao e atualizacao da disponibilidade, enviar mensagem via whatsaApp nas seguintes condiçoes:
+
+- Se assets_available.is_available anterior é diferente da recem cadastrada:
+    Se assets_available.is_available recem cadastrada = true:
+      - msg_is_available = "*[NOVA ATUALIZAÇÃO]*\nDISPONÍVEL\n"
+    Se assets_available.is_available recem cadastrada = false:
+      - msg_is_available = "*[NOVA ATUALIZAÇÃO]*\nINDISPONÍVEL\n"
     
+- Se assets_available.is_available anterior é igual da recem cadastrada:
+    Se assets_available.is_available recem cadastrada = false:
+      - msg_is_available = "INDISPONÍVEL\n"
+
+- Texto a ser enviado
+        msg = msg_is_available +
+        {unid_description}\n
+        {tag_tag_sub_description}\n
+        {last_asset_unavailable_reason_description}\n
+        {last_comments}\n\n
+        {last_reported_user_name_short}\n
+        {last_reported_at}h"
+
+- Imagem a ser enviada
+        imgUrl = last_file_path + "/" + last_file_name
+
+- API
+    method: POST
+    endpoint: VITE_API_N8N_WEBHOOK/VITE_API_N8N_WEBHOOK_WHATSAPP_SEND_MSG
+    body:
+    {
+        "msg":"msg",
+        "imgUrl":"imgUrl"
+    }

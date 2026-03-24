@@ -26,6 +26,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
     const [saving, setSaving] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [assetTag, setAssetTag] = useState<AssetTag | null>(null);
+    const [initialAvailable, setInitialAvailable] = useState<boolean | null>(null);
     
     // Form State
     const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
@@ -52,7 +53,11 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
 
                 setCurrentUser(user);
                 setReasons(reasonsData);
-                if (itemData) setAssetTag(itemData);
+                if (itemData) {
+                    setAssetTag(itemData);
+                    setIsAvailable(null);                         // ← Sem pré-seleção: usuário deve escolher
+                    setInitialAvailable(itemData.isAvailable);   // ← Valor anterior para comparação de notificação
+                }
                 if (unitData) setUnit(unitData);
             } catch (error) {
                 console.error('Error loading initial data:', error);
@@ -127,8 +132,8 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
             return;
         }
 
-        if (!currentUser) {
-            toast.error('Usuário não autenticado');
+        if (!currentUser || !assetTag) {
+            toast.error('Dados insuficientes para salvar');
             return;
         }
 
@@ -171,13 +176,56 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                 isWeb: !Capacitor.isNativePlatform()
             });
 
+            let finalImageUrl = '';
+
             // 2. Upload da imagem com os caminhos amarrados ao novo ID gerado
             if (selectedImage && newHistoryId) {
                 const urlData = await dataService.uploadAssetAvailableImageAfterInsert(newHistoryId, assetTag.unit_id, selectedImage);
                 if (urlData?.path) {
                     // 3. Atualiza os registros do banco com os caminhos da imagem
                     await dataService.updateUnitAssetTagImageRefs(parseInt(assetTagId), newHistoryId, urlData.path, urlData.filename);
+                    
+                    // Prepara URL para n8n
+                    finalImageUrl = `${import.meta.env.VITE_R2_PUBLIC_URL}/${urlData.path}/${urlData.filename}`;
                 }
+            }
+
+            // 4. Enviar mensagem via n8n
+            const { apiN8nService } = await import('../../services/apiN8nService');
+            
+            let msgHeader = '';
+            const statusLabel = isAvailable ? 'DISPONÍVEL' : 'INDISPONÍVEL';
+            const statusChanged = initialAvailable !== isAvailable;
+            
+            // Regra: Enviar se mudou OU se continua INDISPONÍVEL
+            const shouldSendMessage = statusChanged || isAvailable === false;
+
+            if (shouldSendMessage) {
+                if (statusChanged) {
+                    msgHeader = `*[NOVA ATUALIZAÇÃO]*\n${statusLabel}\n`;
+                } else {
+                    msgHeader = `${statusLabel}\n`;
+                }
+
+                const reasonDescription = isAvailable === false ? reasons.find(r => String(r.id) === reasonId)?.description : '';
+                
+                // Format reported_at as in the flow: dd/MM/yyyy HH:mmh
+                const now = new Date();
+                const reportedAtFormatted = now.toLocaleDateString('pt-BR') + ' ' + 
+                                            now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + 'h';
+
+                const message = `${msgHeader}` +
+                                `${assetTag.unit_description}\n` +
+                                `${assetTag.asset_tag_tag_sub_description}\n` +
+                                (reasonDescription ? `${reasonDescription}\n` : '') +
+                                `${comments || 'Sem observações'}\n\n` +
+                                `${currentUser.nameShort || currentUser.nameFull || currentUser.email}\n` +
+                                `${reportedAtFormatted}`;
+
+                // Chamada não bloqueante
+                apiN8nService.sendWhatsAppMessage(message, finalImageUrl).catch(err => {
+                    console.error('Falha ao enviar notificação WhatsApp:', err);
+                });
             }
 
             toast.success('Disponibilidade atualizada com sucesso!');

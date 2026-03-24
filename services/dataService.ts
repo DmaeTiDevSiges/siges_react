@@ -3161,15 +3161,37 @@ export const dataService = {
             console.error('Erro ao buscar dados do team:', teamError);
         }
 
-        // Resolver dados da unidade
+        // Resolver dados da unidade (com descrições para fallback)
         const { data: unitData, error: unitError } = await supabase
             .from('units')
-            .select('system_parent_id, system_id, unit_type_parent_id, unit_type_id, latitude, longitude')
+            .select('description, description_full, system_parent_id, system_id, unit_type_parent_id, unit_type_id, latitude, longitude')
             .eq('id', order.unitId)
             .single();
 
         if (unitError) {
             console.error('Erro ao buscar dados da unidade:', unitError);
+        }
+
+        // Resolver dados do tipo de OS (SS) para fallback
+        const { data: orderTypeData, error: typeError } = await supabase
+            .from('cfg_orders_types')
+            .select('description, code')
+            .eq('id', order.typeId)
+            .single();
+
+        if (typeError) {
+            console.error('Erro ao buscar dados do tipo de OS:', typeError);
+        }
+
+        // Resolver dados da prioridade (opcional) para fallback
+        let priorityData: any = null;
+        if (order.priorityId) {
+            const { data, error: pError } = await supabase
+                .from('cfg_orders_priorities')
+                .select('description, code')
+                .eq('id', order.priorityId)
+                .single();
+            if (!pError) priorityData = data;
         }
 
         // Resolver dados do asset tag (se fornecido)
@@ -3322,17 +3344,38 @@ export const dataService = {
             .eq('id', createdId);
 
         // Fetch the COMPLETE order details (includes mapping, joined names, and correctly formatted dates)
-        const fullOrder = await this.getOrderById(createdId);
+        let fullOrder = await this.getOrderById(createdId);
 
         if (!fullOrder) {
-            // Fallback for safety
+            // Try again after 1s if first attempt failed - views might have slight delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            fullOrder = await this.getOrderById(createdId);
+        }
+
+        if (!fullOrder) {
+            // Fallback for safety - Ensure keys are in camelCase as expected by the UI
             return {
                 id: createdId,
                 orderMask: orderMask,
-                ...dbData,
+                clientId: dbData.client_id?.toString(),
+                unitId: dbData.unit_id?.toString(),
+                unitDescription: unitData?.description,
+                unitDescriptionFull: unitData?.description_full,
+                typeId: dbData.type_id?.toString(),
+                typeCode: orderTypeData?.code,
+                typeDescription: orderTypeData?.description,
+                requestedServices: dbData.requested_services,
+                priorityId: dbData.priority_id?.toString(),
+                priorityDescription: priorityData?.description,
+                requesterName: dbData.requester_name,
+                requesterPhone: dbData.requester_phone,
                 requestedAt: dbData.requested_at,
                 createdAt: dbData.created_at,
-                statusAt: dbData.status_at
+                statusId: dbData.status_id,
+                statusAt: dbData.status_at,
+                progress: '0%',
+                images: dbData.img_files_names || [],
+                imgFilePath: folderPath
             } as any;
         }
 
@@ -3628,12 +3671,26 @@ export const dataService = {
             // Non-blocking error, we still have the order
         }
 
-        return {
-            ...insertedOrder,
-            id: insertedOrder.id.toString(),
-            companyId: insertedOrder.company_id?.toString(),
-            imgFilePath: folderPath
-        } as Order;
+        // Fetch the COMPLETE order details (includes mapping, joined names, and correctly formatted dates)
+        let fullOrder = await this.getOrderById(insertedOrder.id);
+
+        if (!fullOrder) {
+            // Try again after 1s if first attempt failed - views might have slight delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            fullOrder = await this.getOrderById(insertedOrder.id);
+        }
+
+        if (!fullOrder) {
+            // Fallback for safety - Ensure keys are in camelCase as expected by the UI
+            return {
+                ...insertedOrder,
+                id: insertedOrder.id.toString(),
+                companyId: insertedOrder.company_id?.toString(),
+                imgFilePath: folderPath
+            } as any;
+        }
+
+        return fullOrder;
     },
 
 
@@ -5212,6 +5269,7 @@ export const dataService = {
 
         return {
             ...itemData,
+            isAvailable: itemData.last_is_available ?? null, // ← mapeamento crítico para a lógica de notificação
             unit_description: viewResult.data?.unit_description,
             asset_tag_tag_sub_description: viewResult.data?.asset_tag_tag_sub_description,
             client_name: viewResult.data?.client_name,
