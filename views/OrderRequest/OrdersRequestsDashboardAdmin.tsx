@@ -318,29 +318,38 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             let statsResult: any = null;
             let unscheduledSSResult: Order[] = [];
 
-            if (loadMore) {
-                // When loading more, we ONLY need the next page of orders
-                ordersResult = await dataService.getOrdersFilters({
-                    search: searchQuery,
-                    ...filtersToUse,
-                    page: pageToFetch,
-                    pageSize: 50
-                });
-            } else {
-                // When filtering/loading initial, we execute ALL requests in parallel for maximum speed
-                const [pOrders, pStats, pUnscheduled] = await Promise.all([
-                    dataService.getOrdersFilters({
-                        search: searchQuery,
-                        ...filtersToUse,
-                        page: 0, // Always page 0 for new filter
-                        pageSize: 50
-                    }),
-                    dataService.getDashboardStats({
-                        search: searchQuery,
-                        ...filtersToUse
-                    }),
-                    dataService.getUnscheduledSS(filtersToUse)
-                ]);
+             const restrictedSSFilters = {
+                 systemParentId: filtersToUse.systemParentId,
+                 systemId: filtersToUse.systemId,
+                 unitTypeParentId: filtersToUse.unitTypeParentId,
+                 unitTypeId: filtersToUse.unitTypeId,
+                 unitId: filtersToUse.unitId,
+                 period: filtersToUse.period
+             };
+ 
+             if (loadMore) {
+                 // When loading more, we ONLY need the next page of orders
+                 ordersResult = await dataService.getOrdersFilters({
+                     search: searchQuery,
+                     ...filtersToUse,
+                     page: pageToFetch,
+                     pageSize: 50
+                 });
+             } else {
+                 // When filtering/loading initial, we execute ALL requests in parallel for maximum speed
+                 const [pOrders, pStats, pUnscheduled] = await Promise.all([
+                     dataService.getOrdersFilters({
+                         search: searchQuery,
+                         ...filtersToUse,
+                         page: 0, // Always page 0 for new filter
+                         pageSize: 50
+                     }),
+                     dataService.getDashboardStats({
+                         search: searchQuery,
+                         ...filtersToUse
+                     }, restrictedSSFilters),
+                     dataService.getUnscheduledSS(restrictedSSFilters)
+                 ]);
 
                 ordersResult = pOrders;
                 statsResult = pStats;

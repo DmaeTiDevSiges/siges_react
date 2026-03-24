@@ -16,18 +16,18 @@ interface UnitAssetTagAvailableFormProps {
     onSave?: () => void;
 }
 
-export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps> = ({ 
-    unitId, 
-    assetTagId, 
+export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps> = ({
+    unitId,
+    assetTagId,
     onBack,
-    onSave 
+    onSave
 }) => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [assetTag, setAssetTag] = useState<AssetTag | null>(null);
     const [initialAvailable, setInitialAvailable] = useState<boolean | null>(null);
-    
+
     // Form State
     const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
     const [reasonId, setReasonId] = useState<string>('');
@@ -104,7 +104,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                 const response = await fetch(image.webPath);
                 const blob = await response.blob();
                 const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-                
+
                 setSelectedImage(file);
                 setImagePreview(image.webPath);
             }
@@ -140,7 +140,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
         try {
             if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Medium });
             setSaving(true);
-            
+
             let dist: number | null = null;
 
             if (!Capacitor.isNativePlatform()) {
@@ -184,7 +184,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                 if (urlData?.path) {
                     // 3. Atualiza os registros do banco com os caminhos da imagem
                     await dataService.updateUnitAssetTagImageRefs(parseInt(assetTagId), newHistoryId, urlData.path, urlData.filename);
-                    
+
                     // Prepara URL para n8n
                     finalImageUrl = `${import.meta.env.VITE_R2_PUBLIC_URL}/${urlData.path}/${urlData.filename}`;
                 }
@@ -192,11 +192,11 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
 
             // 4. Enviar mensagem via n8n
             const { apiN8nService } = await import('../../services/apiN8nService');
-            
+
             let msgHeader = '';
             const statusLabel = isAvailable ? 'DISPONÍVEL' : 'INDISPONÍVEL';
             const statusChanged = initialAvailable !== isAvailable;
-            
+
             // Regra: Enviar se mudou OU se continua INDISPONÍVEL
             const shouldSendMessage = statusChanged || isAvailable === false;
 
@@ -208,19 +208,19 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                 }
 
                 const reasonDescription = isAvailable === false ? reasons.find(r => String(r.id) === reasonId)?.description : '';
-                
+
                 // Format reported_at as in the flow: dd/MM/yyyy HH:mmh
                 const now = new Date();
-                const reportedAtFormatted = now.toLocaleDateString('pt-BR') + ' ' + 
-                                            now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + 'h';
+                const reportedAtFormatted = now.toLocaleDateString('pt-BR') + ' ' +
+                    now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + 'h';
 
                 const message = `${msgHeader}` +
-                                `${assetTag.unit_description}\n` +
-                                `${assetTag.asset_tag_tag_sub_description}\n` +
-                                (reasonDescription ? `${reasonDescription}\n` : '') +
-                                `${comments || 'Sem observações'}\n\n` +
-                                `${currentUser.nameShort || currentUser.nameFull || currentUser.email}\n` +
-                                `${reportedAtFormatted}`;
+                    `${assetTag.unit_description}\n` +
+                    `${assetTag.asset_tag_tag_sub_description}\n` +
+                    (reasonDescription ? `${reasonDescription}\n` : '') +
+                    `${comments || 'Sem observações'}\n\n` +
+                    `${currentUser.nameShort || currentUser.nameFull || currentUser.email}\n` +
+                    `${reportedAtFormatted}`;
 
                 // Chamada não bloqueante
                 apiN8nService.sendWhatsAppMessage(message, finalImageUrl).catch(err => {
@@ -248,133 +248,133 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                 </div>
             ) : (
                 <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-6 pb-24">
-                        {/* Status Selection Card */}
-                        <div className="mb-8 relative group">
-                            
-                            <div className="flex items-center justify-between relative z-10 w-full">
-                                <div className="flex flex-col py-1">
-                                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] leading-none mb-1.5 opacity-80">
-                                        {assetTag?.client_name || 'CLIENTE NÃO INFORMADO'}
-                                    </span>
-                                    <span className="text-[18px] font-black text-slate-900 dark:text-white uppercase leading-tight tracking-tight">
-                                        {assetTag?.unit_description || 'UNIDADE'}
-                                    </span>
-                                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1.5 opacity-80">
-                                        {assetTag?.asset_tag_tag_sub_description || 'SETOR'}
-                                    </span>
-                                </div>
-                                
-                                <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1.5 rounded-2xl gap-1.5 shadow-inner">
-                                    <button 
-                                        onClick={() => {
-                                            setIsAvailable(true);
-                                            if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
-                                        }}
-                                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95 ${isAvailable === true ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-md ring-1 ring-emerald-500/10' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+                    {/* Status Selection Card */}
+                    <div className="mb-8 relative group">
+
+                        <div className="flex items-center justify-between relative z-10 w-full">
+                            <div className="flex flex-col py-1">
+                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] leading-none mb-1.5 opacity-80">
+                                    {assetTag?.client_name || 'CLIENTE NÃO INFORMADO'}
+                                </span>
+                                <span className="text-[18px] font-black text-slate-900 dark:text-white uppercase leading-tight tracking-tight">
+                                    {assetTag?.unit_description || 'UNIDADE'}
+                                </span>
+                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1.5 opacity-80">
+                                    {assetTag?.asset_tag_tag_sub_description || 'SETOR'}
+                                </span>
+                            </div>
+
+                            <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1.5 rounded-2xl gap-1.5 shadow-inner">
+                                <button
+                                    onClick={() => {
+                                        setIsAvailable(true);
+                                        if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
+                                    }}
+                                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95 ${isAvailable === true ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-md ring-1 ring-emerald-500/10' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+                                >
+                                    <span className={`material-symbols-outlined text-[26px] ${isAvailable === true ? '[font-variation-settings:\'FILL\'_1]' : ''}`}>thumb_up</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsAvailable(false);
+                                        if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
+                                    }}
+                                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95 ${isAvailable === false ? 'bg-white dark:bg-slate-700 text-red-500 shadow-md ring-1 ring-red-500/10' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+                                >
+                                    <span className={`material-symbols-outlined text-[26px] ${isAvailable === false ? '[font-variation-settings:\'FILL\'_1]' : ''}`}>thumb_down</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Form Fields */}
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {isAvailable === false && (
+                            <div className="animate-in slide-in-from-top-4 duration-400 ease-out">
+                                <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                    Causa da Indisponibilidade
+                                </h3>
+                                <Select
+                                    value={reasonId}
+                                    onChange={(e) => setReasonId(e.target.value)}
+                                    placeholder="Selecione o motivo..."
+                                    options={reasons.map(r => ({ value: String(r.id), label: r.description }))}
+                                    className="bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 rounded-2xl h-14 shadow-sm"
+                                />
+                            </div>
+                        )}
+
+                        <div>
+                            <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1">
+                                Observações Técnica
+                            </h3>
+                            <textarea
+                                value={comments}
+                                onChange={(e) => setComments(e.target.value)}
+                                placeholder="Descreva detalhes importantes..."
+                                className="w-full h-32 p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all shadow-sm placeholder:text-slate-400 font-medium leading-relaxed active:scale-[0.99]"
+                            />
+                        </div>
+
+                        <div>
+                            <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1">
+                                Evidências Fotográficas
+                            </h3>
+
+                            <div className="flex gap-3">
+                                {imagePreview ? (
+                                    <div className="relative w-32 h-32 rounded-[20px] overflow-hidden group shadow-sm border border-slate-100 dark:border-slate-800">
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
+                                            className="w-full h-full object-cover cursor-zoom-in"
+                                            onClick={() => setIsPreviewOpen(true)}
+                                        />
+                                        <button
+                                            onClick={removeImage}
+                                            className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-75 transition-transform z-10"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">close</span>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div
+                                        onClick={() => setIsImageSourceSheetOpen(true)}
+                                        className="w-32 h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800/80 rounded-[20px] hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer active:scale-95 shadow-sm"
                                     >
-                                        <span className={`material-symbols-outlined text-[26px] ${isAvailable === true ? '[font-variation-settings:\'FILL\'_1]' : ''}`}>thumb_up</span>
-                                    </button>
-                                    <button 
-                                        onClick={() => {
-                                            setIsAvailable(false);
-                                            if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
-                                        }}
-                                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95 ${isAvailable === false ? 'bg-white dark:bg-slate-700 text-red-500 shadow-md ring-1 ring-red-500/10' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
-                                    >
-                                        <span className={`material-symbols-outlined text-[26px] ${isAvailable === false ? '[font-variation-settings:\'FILL\'_1]' : ''}`}>thumb_down</span>
-                                    </button>
-                                </div>
+                                        <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 mb-1 text-[28px] [font-variation-settings:'wght'_300]">add_a_photo</span>
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Adicionar</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        {/* Form Fields */}
-                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            {isAvailable === false && (
-                                <div className="animate-in slide-in-from-top-4 duration-400 ease-out">
-                                    <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1 flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                        Causa da Indisponibilidade
-                                    </h3>
-                                    <Select 
-                                        value={reasonId}
-                                        onChange={(e) => setReasonId(e.target.value)}
-                                        placeholder="Selecione o motivo..."
-                                        options={reasons.map(r => ({ value: String(r.id), label: r.description }))}
-                                        className="bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 rounded-2xl h-14 shadow-sm"
-                                    />
-                                </div>
-                            )}
+                        {/* Image Expansion Modal */}
+                        {isPreviewOpen && imagePreview && (
+                            <PhotoViewer
+                                src={imagePreview}
+                                onClose={() => setIsPreviewOpen(false)}
+                                alt="Evidência Fotográfica"
+                            />
+                        )}
 
-                            <div>
-                                <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1">
-                                    Observações Técnica
-                                </h3>
-                                <textarea 
-                                    value={comments}
-                                    onChange={(e) => setComments(e.target.value)}
-                                    placeholder="Descreva detalhes importantes..."
-                                    className="w-full h-32 p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all shadow-sm placeholder:text-slate-400 font-medium leading-relaxed active:scale-[0.99]"
-                                />
-                            </div>
-
-                            <div>
-                                <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1">
-                                    Evidências Fotográficas
-                                </h3>
-                                
-                                <div className="flex gap-3">
-                                    {imagePreview ? (
-                                        <div className="relative w-32 h-32 rounded-[20px] overflow-hidden group shadow-sm border border-slate-100 dark:border-slate-800">
-                                            <img 
-                                                src={imagePreview} 
-                                                alt="Preview" 
-                                                className="w-full h-full object-cover cursor-zoom-in" 
-                                                onClick={() => setIsPreviewOpen(true)}
-                                            />
-                                            <button 
-                                                onClick={removeImage}
-                                                className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-75 transition-transform z-10"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px]">close</span>
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div 
-                                            onClick={() => setIsImageSourceSheetOpen(true)}
-                                            className="w-32 h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800/80 rounded-[20px] hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer active:scale-95 shadow-sm"
-                                        >
-                                            <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 mb-1 text-[28px] [font-variation-settings:'wght'_300]">add_a_photo</span>
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Adicionar</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Image Expansion Modal */}
-                            {isPreviewOpen && imagePreview && (
-                                <PhotoViewer
-                                    src={imagePreview}
-                                    onClose={() => setIsPreviewOpen(false)}
-                                    alt="Evidência Fotográfica"
-                                />
-                            )}
-
-                            <div className="pt-4">
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saving}
-                                    className={`w-full h-14 rounded-2xl bg-primary text-white font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/25 flex items-center justify-center gap-3 active:scale-[0.98] transition-all hover:brightness-110 ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
-                                >
-                                    {saving ? (
-                                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
-                                    ) : (
-                                        <>
-                                            <span className="material-symbols-outlined text-[20px] [font-variation-settings:'wght'_600]">assignment_turned_in</span>
-                                            <span>Salvar Disponibilidade</span>
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                        <div className="pt-4">
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className={`w-full h-14 rounded-2xl bg-primary text-white font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/25 flex items-center justify-center gap-3 active:scale-[0.98] transition-all hover:brightness-110 ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            >
+                                {saving ? (
+                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
+                                ) : (
+                                    <>
+                                        <span className="material-symbols-outlined text-[20px] [font-variation-settings:'wght'_600]">assignment_turned_in</span>
+                                        <span>Salvar Disponibilidade</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -387,7 +387,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                 height="auto"
             >
                 <div className="px-6 py-8 grid grid-cols-2 gap-4">
-                    <button 
+                    <button
                         onClick={() => handlePhotoSelection(CameraSource.Camera)}
                         className="flex flex-col items-center justify-center gap-3 p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all active:scale-95"
                     >
@@ -397,7 +397,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                         <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">Câmera</span>
                     </button>
 
-                    <button 
+                    <button
                         onClick={() => handlePhotoSelection(CameraSource.Photos)}
                         className="flex flex-col items-center justify-center gap-3 p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all active:scale-95"
                     >
@@ -406,14 +406,14 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                         </div>
                         <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">Galeria</span>
                     </button>
-                    
+
                     {/* Fallback for Web/Test - hidden but useful if needed */}
-                    <input 
-                        type="file" 
-                        id="file-upload-fallback" 
-                        className="hidden" 
-                        accept="image/*" 
-                        onChange={handleImageChange} 
+                    <input
+                        type="file"
+                        id="file-upload-fallback"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageChange}
                     />
                 </div>
             </BottomSheet>

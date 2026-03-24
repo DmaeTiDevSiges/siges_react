@@ -6674,10 +6674,10 @@ export const dataService = {
         }
     },
 
-    async getDashboardStats(filters?: OrderFilters): Promise<{
-        ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number };
-        osCounts: Record<number, number>;
-    }> {
+     async getDashboardStats(filters?: OrderFilters, ssFiltersOverride?: OrderFilters): Promise<{
+         ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number };
+         osCounts: Record<number, number>;
+     }> {
         // Base queries using the general orders view with manual status/hierarchy filters
         let ssUnscheduledQuery = supabase.from('v_orders')
             .select('requested_at')
@@ -6720,10 +6720,10 @@ export const dataService = {
             return query;
         };
 
-        if (filters) {
-            ssUnscheduledQuery = applyFiltersToQuery(ssUnscheduledQuery, filters);
-            osQuery = applyFiltersToQuery(osQuery, filters);
-        }
+         if (filters) {
+             ssUnscheduledQuery = applyFiltersToQuery(ssUnscheduledQuery, ssFiltersOverride || filters);
+             osQuery = applyFiltersToQuery(osQuery, filters);
+         }
 
         const [ssUnscheduledRes, osRes] = await Promise.all([ssUnscheduledQuery, osQuery]);
 
@@ -9642,6 +9642,11 @@ export const dataService = {
             .single();
 
         if (orderUpdateError) throw orderUpdateError;
+
+        // 3.1 Se for uma OS filha, atualiza a situação da SS pai
+        if (order && order.parent_id) {
+            await this.updateServiceRequestStatus(order.parent_id.toString());
+        }
 
         // 4. Release Team
         const { data: team } = await supabase
