@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
+import { SuspendedReason } from '../../types';
 
 interface CloseVisitModalProps {
     isOpen: boolean;
@@ -19,7 +20,7 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
     const [statusType, setStatusType] = useState<'concluded' | 'suspended' | null>(null);
     const [suspendedReasonId, setSuspendedReasonId] = useState<string>('');
     const [progress, setProgress] = useState<number>(50); // Inicia no meio
-    const [reasons, setReasons] = useState<{ id: number; description: string }[]>([]);
+    const [reasons, setReasons] = useState<SuspendedReason[]>([]);
     const [loadingReasons, setLoadingReasons] = useState(false);
 
     useEffect(() => {

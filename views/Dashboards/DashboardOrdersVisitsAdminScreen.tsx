@@ -711,19 +711,23 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         loadData();
         loadFilterOptions();
 
-        // Realtime updates
-        const orderSub = dataService.subscribeToOrders(() => {
-            loadData();
-        });
-        const visitSub = dataService.subscribeToVisits(() => {
-            loadData();
-        });
-
-        return () => {
-            orderSub.unsubscribe();
-            visitSub.unsubscribe();
-        };
-    }, []);
+         const handleRefresh = () => loadData();
+         window.addEventListener('refresh_dashboard', handleRefresh);
+ 
+         // Realtime updates
+         const orderSub = dataService.subscribeToOrders(() => {
+             loadData();
+         });
+         const visitSub = dataService.subscribeToVisits(() => {
+             loadData();
+         });
+ 
+         return () => {
+             window.removeEventListener('refresh_dashboard', handleRefresh);
+             orderSub.unsubscribe();
+             visitSub.unsubscribe();
+         };
+     }, []);
 
     const loadFilterOptions = async () => {
         try {

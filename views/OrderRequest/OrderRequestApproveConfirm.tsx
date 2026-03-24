@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { OrderRequestForm } from './OrderRequestForm';
-import { Order, OrderVisit } from '../../types';
+import { Order, OrderVisit, SuspendedReason } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
@@ -15,7 +15,7 @@ interface OrderRequestApproveConfirmProps {
 
 export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProps> = ({ onBack, onSubmit, initialData, visit }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const [suspendedReasons, setSuspendedReasons] = useState<{ id: number; description: string }[]>([]);
+    const [suspendedReasons, setSuspendedReasons] = useState<SuspendedReason[]>([]);
 
     const [hasReadToBottom, setHasReadToBottom] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement>(null);

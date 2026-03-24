@@ -454,35 +454,46 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     // Track if we have already handled the initial cache check
     const initialCacheSkipDone = React.useRef(false);
 
-    useEffect(() => {
-        // 1. Realtime subscription for orders
-        const subscription = dataService.subscribeToOrders((payload) => {
-            fetchDataRef.current(false, false);
-        });
-
-        // 2. Realtime subscription for users (to update status borders)
-        const userSubscription = dataService.subscribeToUsers(async () => {
-            try {
-                // Limpar cache de líderes para garantir dados atualizados
-                dataService.clearMetadataCache();
-
-                const usersData = await dataService.getUsers();
-                setUsers(usersData);
-            } catch (err) {
-                console.error("Failed to refresh users in realtime", err);
-            }
-        });
-
-        // 3. 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
-        fetchDataRef.current(false, false);
-        setIsLoading(false);
-
-        return () => {
-            if (subscription) subscription.unsubscribe();
-            if (userSubscription) userSubscription.unsubscribe();
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Only on mount
+     useEffect(() => {
+         // 1. Refresh dashboard event
+         const handleRefresh = () => fetchDataRef.current(false, false);
+         window.addEventListener('refresh_dashboard', handleRefresh);
+ 
+         // 2. Realtime subscription for orders
+         const subscription = dataService.subscribeToOrders((payload) => {
+             fetchDataRef.current(false, false);
+         });
+ 
+         // 3. Realtime subscription for visits
+         const visitSubscription = dataService.subscribeToVisits((payload) => {
+             fetchDataRef.current(false, false);
+         });
+ 
+         // 4. Realtime subscription for users (to update status borders)
+         const userSubscription = dataService.subscribeToUsers(async () => {
+             try {
+                 // Limpar cache de líderes para garantir dados atualizados
+                 dataService.clearMetadataCache();
+ 
+                 const usersData = await dataService.getUsers();
+                 setUsers(usersData);
+             } catch (err) {
+                 console.error("Failed to refresh users in realtime", err);
+             }
+         });
+ 
+         // 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
+         fetchDataRef.current(false, false);
+         setIsLoading(false);
+ 
+         return () => {
+             window.removeEventListener('refresh_dashboard', handleRefresh);
+             if (subscription) subscription.unsubscribe();
+             if (visitSubscription) visitSubscription.unsubscribe();
+             if (userSubscription) userSubscription.unsubscribe();
+         };
+         // eslint-disable-next-line react-hooks/exhaustive-deps
+     }, []); // Only on mount
 
     useEffect(() => {
         setCurrentPage(0);

@@ -1,6 +1,6 @@
 // Data Service for SIGES application
 import { supabase } from './supabase';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason } from '../types';
 
 
 
@@ -6136,6 +6136,22 @@ export const dataService = {
         return data || [];
     },
 
+    async getSuspendedReasons(): Promise<SuspendedReason[]> {
+        const { data, error } = await supabase
+            .from('cfg_orders_suspended_reasons')
+            .select('id, description')
+            .eq('is_available', true)
+            .eq('is_deleted', false)
+            .order('description');
+
+        if (error) {
+            console.error('Error fetching suspended reasons:', error);
+            return [];
+        }
+
+        return data || [];
+    },
+
 
     async getTeamLeader(teamId: string): Promise<User | null> {
         const { data, error } = await supabase
@@ -6585,19 +6601,21 @@ export const dataService = {
         }));
     },
 
-    subscribeToOrders: (callback: (payload: any) => void) => {
-        return supabase
-            .channel('public:orders')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => callback(payload))
-            .subscribe();
-    },
+     subscribeToOrders: (callback: (payload: any) => void) => {
+         const channelId = `orders-changes-${Math.random().toString(36).substring(2)}`;
+         return supabase
+             .channel(channelId)
+             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => callback(payload))
+             .subscribe();
+     },
 
-    subscribeToVisits: (callback: (payload: any) => void) => {
-        return supabase
-            .channel('public:orders_visits')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders_visits' }, (payload) => callback(payload))
-            .subscribe();
-    },
+     subscribeToVisits: (callback: (payload: any) => void) => {
+         const channelId = `visits-changes-${Math.random().toString(36).substring(2)}`;
+         return supabase
+             .channel(channelId)
+             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders_visits' }, (payload) => callback(payload))
+             .subscribe();
+     },
 
     async getOrderById(id: string | number): Promise<Order | null> {
         const { data } = await this.getOrdersFilters({ id: [id.toString()], useGeneralView: true });

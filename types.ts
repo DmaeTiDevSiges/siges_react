@@ -144,6 +144,13 @@ export interface UserStatus {
   description: string;
 }
 
+export interface SuspendedReason {
+  id: number;
+  description: string;
+  departmentId?: string;
+  isAvailable?: boolean;
+}
+
 export interface User {
   id: string; // BigInt (Internal ID)
   uuid: string; // UUID (Auth ID)

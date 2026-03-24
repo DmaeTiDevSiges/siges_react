@@ -73,22 +73,26 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         }
     }, [currentUser?.teamId]);
 
-    useEffect(() => {
-        fetchOrders();
-
-        // Realtime updates
-        const orderSub = dataService.subscribeToOrders(() => {
-            fetchOrders();
-        });
-        const visitSub = dataService.subscribeToVisits(() => {
-            fetchOrders();
-        });
-
-        return () => {
-            orderSub.unsubscribe();
-            visitSub.unsubscribe();
-        };
-    }, [fetchOrders]);
+     useEffect(() => {
+         fetchOrders();
+ 
+         const handleRefresh = () => fetchOrders();
+         window.addEventListener('refresh_dashboard', handleRefresh);
+ 
+         // Realtime updates
+         const orderSub = dataService.subscribeToOrders(() => {
+             fetchOrders();
+         });
+         const visitSub = dataService.subscribeToVisits(() => {
+             fetchOrders();
+         });
+ 
+         return () => {
+             window.removeEventListener('refresh_dashboard', handleRefresh);
+             orderSub.unsubscribe();
+             visitSub.unsubscribe();
+         };
+     }, [fetchOrders]);
 
     // Grouping logic based on status IDs 3, 4 and 6
     const stats = useMemo(() => {
