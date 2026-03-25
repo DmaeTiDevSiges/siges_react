@@ -4972,7 +4972,7 @@ export const dataService = {
 
         const { data, error } = await supabase
             .from('cfg_units_assets_tags')
-            .select('id, asset_tag_tag_sub_description, is_active, asset_tag_id, asset_tag_sub_id')
+            .select('id, asset_tag_tag_sub_description, is_active, asset_tag_id, asset_tag_sub_id, unit_id')
             .eq('unit_id', unitId)
             .eq('is_active', 'true')
             .eq('is_deleted', 'false')
@@ -4988,9 +4988,10 @@ export const dataService = {
             code: '',
             description: item.asset_tag_tag_sub_description || '',
             isAvailable: !!item.is_active,
-            asset_tag_id: item.asset_tag_id,
+            unit_id: item.unit_id || 0,
+            asset_tag_id: item.asset_tag_id || 0,
             asset_tag_sub_id: item.asset_tag_sub_id
-        }));
+        })) as AssetTag[];
     },
     async getUniqueSectorsByUnit(unitId: string): Promise<AssetTag[]> {
         if (!unitId) return [];
@@ -5030,8 +5031,10 @@ export const dataService = {
             id: t.id.toString(),
             code: t.code,
             description: t.description,
-            isAvailable: t.is_available
-        }));
+            isAvailable: t.is_available,
+            unit_id: parseInt(unitId) || 0,
+            asset_tag_id: t.id
+        })) as AssetTag[];
     },
 
     async getAssetTags(status: 'all' | 'active' | 'inactive' = 'all', search?: string): Promise<AssetTag[]> {
@@ -5048,8 +5051,10 @@ export const dataService = {
             id: String(item.id ?? ''),
             code: item.code || '',
             description: item.description || '',
-            isAvailable: !!item.is_available
-        }));
+            isAvailable: !!item.is_available,
+            unit_id: 0,
+            asset_tag_id: item.id || 0
+        })) as AssetTag[];
     },
 
     async createAssetTag(tag: Omit<AssetTag, 'id'>): Promise<AssetTag> {
@@ -5190,8 +5195,8 @@ export const dataService = {
             throw error;
         }
 
-        const companyMap = new Map(companies.map(c => [String(c.id), c]));
-        const reasonsMap = new Map(reasonsData.map(r => [String(r.id), r.description]));
+        const companyMap = new Map<string, Company>(companies.map(c => [String(c.id), c]));
+        const reasonsMap = new Map<string, string>(reasonsData.map(r => [String(r.id), r.description]));
 
         const userIdsToFetch = [...new Set(data.map((i: any) => i.last_reported_user_id).filter(id => id))];
         let usersMap = new Map();
@@ -5215,7 +5220,12 @@ export const dataService = {
                 details += `${item.last_power}${item.power_unit || 'CV'} `;
             }
 
-            const company = item.last_provider_company_id ? companyMap.get(String(item.last_provider_company_id)) : null;
+            // O avatar vem da última empresa provedora reportada neste tag.
+            // Se o ID em last_provider_company_id for 1 (DMAE), é o DMAE que aparecerá.
+            // Se quiser outro provedor, deve garantir que o DB salvou o ID do provedor correspondente
+            const companyId = item.last_provider_company_id;
+            const company = companyId ? companyMap.get(String(companyId)) : null;
+
             const reportedUser = item.last_reported_user_id ? usersMap.get(item.last_reported_user_id) : null;
             const unavailableReason = item.last_asset_unavailable_reason_id ? reasonsMap.get(String(item.last_asset_unavailable_reason_id)) : null;
 

@@ -613,12 +613,12 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                         {/* Bottom Row: Avatar + Date */}
                                         <div className="flex items-center gap-3 w-full">
                                             {item.companyAvatar && (
-                                                <div className="w-12 h-12 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center p-0.5 shrink-0" title="Empresa Responsável">
+                                                <div className="shrink-0 transition-transform duration-500 hover:scale-105" title="Empresa Responsável">
                                                     <Avatar 
                                                         src={item.companyAvatar} 
                                                         alt="Provider" 
                                                         shape="rounded"
-                                                        className="w-full! h-full! rounded-[14px]! object-contain! border-none! shadow-none!"
+                                                        className="w-[46px]! h-[46px]!"
                                                     />
                                                 </div>
                                             )}
