@@ -11,63 +11,10 @@ import { Modal } from '../../components/ui/Modal';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { formatRelativeTime, formatDateTime } from '../../utils/formatters';
+import { AvailabilityHistory } from '../../components/ui/AvailabilityHistory';
 import { useDragToScroll } from '../../hooks/useDragToScroll';
+import { AvailabilityExportModal } from './components/AvailabilityExportModal';
 
-const AvailabilityHistory: React.FC<{ history: { date: string; isAvailable: boolean | null }[], loading: boolean }> = ({ history, loading }) => {
-    if (loading) return (
-        <div className="flex flex-col items-center justify-center p-4">
-            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-    );
-
-    if (!history.length) return null;
-
-    const daysOfWeek = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
-
-    const summary = {
-        available: history.filter(h => h.isAvailable === true).length,
-        unavailable: history.filter(h => h.isAvailable === false).length,
-        noData: history.filter(h => h.isAvailable === null).length,
-    };
-
-    return (
-        <div className="mt-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
-            <h4 className="text-[10px] font-black tracking-[0.15em] text-slate-400 dark:text-slate-500 uppercase mb-4 text-center">
-                Histórico (Últimos 7 dias)
-            </h4>
-            
-            <div className="flex justify-between items-end gap-1 mb-5 px-1">
-                {history.map((day, idx) => {
-                    const dateObj = new Date(day.date + 'T12:00:00'); // Force local noon
-                    const dayName = daysOfWeek[dateObj.getDay()];
-                    const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
-                    
-                    return (
-                        <div key={idx} className="flex flex-col items-center gap-2 group" title={`${dayName}, ${dateStr}`}>
-                            <span className="text-[8px] font-black text-slate-400 uppercase">{dayName}</span>
-                            <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300">{dateStr}</span>
-                            <div className="relative mt-1">
-                                <div className={`w-3.5 h-3.5 rounded-full transition-transform group-hover:scale-125 ${
-                                    day.isAvailable === true ? 'bg-emerald-500 shadow-md shadow-emerald-500/30' : 
-                                    day.isAvailable === false ? 'bg-red-500 shadow-md shadow-red-500/30' : 
-                                    'bg-slate-200 dark:bg-slate-700'
-                                }`}></div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            <div className="flex justify-center items-center gap-3 text-[10px] font-black tracking-tight text-slate-500 dark:text-slate-400 uppercase pt-4 border-t border-slate-200 dark:border-slate-700">
-                <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>{summary.available} Disp</span>
-                <span className="text-slate-300 dark:text-slate-700">•</span>
-                <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>{summary.unavailable} Indisp</span>
-                <span className="text-slate-300 dark:text-slate-700">•</span>
-                <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>{summary.noData} Sem reg</span>
-            </div>
-        </div>
-    );
-};
 
 // Subcomponent for Circular Gauge
 const CircularGauge: React.FC<{ percentage: number; size?: number; strokeWidth?: number; color?: string; labelSize?: string }> = ({
@@ -120,7 +67,7 @@ const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => vo
         <div
             ref={ref}
             {...dragHandlers}
-            className="flex-1 flex gap-3 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing"
+            className="flex-1 flex gap-3 overflow-x-auto no-scrollbar py-1.5 px-1 cursor-grab active:cursor-grabbing"
         >
             {assets.map((asset: any) => (
                 <Card
@@ -189,37 +136,63 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [modalLoading, setModalLoading] = useState(false);
     const [history7Days, setHistory7Days] = useState<{ date: string; isAvailable: boolean | null }[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyOffset, setHistoryOffset] = useState(0);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
+    // Export Modal State
+    const [unitForExport, setUnitForExport] = useState<any | null>(null);
+
+    // Active Asset Tag ID based on selectedSectorName
+    const activeAssetTagId = useMemo(() => {
+        const row = allData.find(r => (r.tag_description || 'Geral') === selectedSectorName);
+        return row?.asset_tag_id;
+    }, [allData, selectedSectorName]);
 
     // Drag-to-scroll for the sector cards strip
     const { ref: sectorsScrollRef, dragHandlers: sectorsDragHandlers } = useDragToScroll<HTMLDivElement>();
 
     useEffect(() => {
-        if (!selectedAssetForModal?.id) {
-            setModalData(null);
-            return;
-        }
-
-        const fetchDetail = async () => {
+        if (!selectedAssetForModal?.id) return;
+        
+        const fetchDetailInfo = async () => {
             setModalLoading(true);
             try {
                 const data = await dataService.getUnitAssetTagItemById(selectedAssetForModal.id);
                 setModalData(data);
-                
-                // Fetch the availability history
-                setHistoryLoading(true);
-                const historyData = await dataService.getAssetAvailabilityHistory7Days(selectedAssetForModal.id);
-                setHistory7Days(historyData);
-                setHistoryLoading(false);
             } catch (error) {
-                console.error('Error fetching detail:', error);
+                console.error('Error fetching detail info:', error);
                 setModalData(null);
             } finally {
                 setModalLoading(false);
             }
         };
 
-        fetchDetail();
+        fetchDetailInfo();
+    }, [selectedAssetForModal?.id]);
+
+    useEffect(() => {
+        if (!selectedAssetForModal?.id) return;
+
+        const fetchHistoryData = async () => {
+            setHistoryLoading(true);
+            try {
+                const historyData = await dataService.getAssetAvailabilityHistory7Days(selectedAssetForModal.id, historyOffset);
+                setHistory7Days(historyData);
+            } catch (error) {
+                console.error('Error fetching history:', error);
+            } finally {
+                setHistoryLoading(false);
+            }
+        };
+
+        fetchHistoryData();
+    }, [selectedAssetForModal?.id, historyOffset]);
+
+    // Reset history offset when modal closes or asset changes
+    useEffect(() => {
+        if (!selectedAssetForModal) {
+            setHistoryOffset(0);
+        }
     }, [selectedAssetForModal?.id]);
 
     useEffect(() => {
@@ -506,7 +479,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 <div
                     ref={sectorsScrollRef}
                     {...sectorsDragHandlers}
-                    className="flex gap-4 overflow-x-auto no-scrollbar py-2 px-1 cursor-grab active:cursor-grabbing"
+                    className="flex gap-4 overflow-x-auto no-scrollbar py-3 px-1 cursor-grab active:cursor-grabbing"
                 >
                     {/* Sector Cards only */}
                     {sectorsStats.map((sector) => (
@@ -542,9 +515,9 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Sincronizando Ativos...</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div>
                         {unitsRows.map(unit => (
-                            <div key={unit.id} className="flex gap-4 items-center">
+                            <div key={unit.id} className="flex gap-3 items-center py-1.5 px-1">
                                 {/* Unit Info Card */}
                                 <Card className="shrink-0 w-64 p-3 rounded-[20px]! h-[88px] flex items-center justify-between relative group overflow-hidden border-slate-200 dark:border-slate-800">
                                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'} group-hover:w-1.5 transition-all`}></div>
@@ -577,6 +550,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         size="sm" 
                                         variant="ghost" 
                                         className="text-primary/30 hover:text-primary transition-colors"
+                                        onClick={() => setUnitForExport(unit)}
                                     />
                                 </Card>
 
@@ -594,7 +568,9 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             {/* Asset Detail Modal */}
             <Modal
                 isOpen={!!selectedAssetForModal}
-                onClose={() => setSelectedAssetForModal(null)}
+                onClose={() => {
+                    setSelectedAssetForModal(null);
+                }}
                 title="Detalhes da Disponibilidade"
                 maxWidth="sm"
             >
@@ -694,8 +670,15 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                             </div>
                         </div>
 
-                        {/* Availability History */}
-                        <AvailabilityHistory history={history7Days} loading={historyLoading} />
+                        {/* Availability History with period navigation */}
+                        <AvailabilityHistory 
+                            history={history7Days} 
+                            loading={historyLoading} 
+                            offsetDays={historyOffset}
+                            onOffsetChange={(dir) => {
+                                setHistoryOffset(prev => dir === 'prev' ? prev + 7 : Math.max(0, prev - 7));
+                            }}
+                        />
                     </div>
                 ) : (
                     <div className="p-8 text-center text-slate-400 uppercase text-[10px] font-black tracking-widest">
@@ -709,6 +692,30 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     src={lightboxImage}
                     onClose={() => setLightboxImage(null)}
                     alt="Evidência Fotográfica"
+                />
+            )}
+
+            {/* Availability Export Modal */}
+            {unitForExport && (
+                <AvailabilityExportModal 
+                    isOpen={!!unitForExport}
+                    onClose={() => setUnitForExport(null)}
+                    unitId={unitForExport.id}
+                    unitDescription={unitForExport.description}
+                    assetTagId={activeAssetTagId?.toString()}
+                    availableSubTags={Array.from(
+                        new Map(
+                            allData
+                                .filter((r: any) => 
+                                    r.unit_id.toString() === unitForExport.id && 
+                                    (activeAssetTagId ? r.asset_tag_id === activeAssetTagId : true)
+                                )
+                                .map((r: any) => [
+                                    r.asset_tag_sub_id?.toString() || 'null',
+                                    { id: r.asset_tag_sub_id?.toString() || 'null', description: r.tag_sub_description || 'Geral' }
+                                ])
+                        ).values()
+                    ).sort((a: any, b: any) => a.description.localeCompare(b.description))}
                 />
             )}
         </div>

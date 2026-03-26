@@ -4,64 +4,10 @@ import { Unit, AssetTag, User } from '../../types';
 import { IconButton } from '../../components/ui/IconButton';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
+import { AvailabilityHistory } from '../../components/ui/AvailabilityHistory';
 import { toast } from 'sonner';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
-const AvailabilityHistory: React.FC<{ history: { date: string; isAvailable: boolean | null }[], loading: boolean }> = ({ history, loading }) => {
-    if (loading) return (
-        <div className="flex flex-col items-center justify-center p-4">
-            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-    );
-
-    if (!history.length) return null;
-
-    const daysOfWeek = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
-
-    const summary = {
-        available: history.filter(h => h.isAvailable === true).length,
-        unavailable: history.filter(h => h.isAvailable === false).length,
-        noData: history.filter(h => h.isAvailable === null).length,
-    };
-
-    return (
-        <div className="mt-8 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
-            <h4 className="text-[10px] font-black tracking-[0.15em] text-slate-400 dark:text-slate-500 uppercase mb-4 text-center">
-                Histórico (Últimos 7 dias)
-            </h4>
-            
-            <div className="flex justify-between items-end gap-1 mb-5 px-1">
-                {history.map((day, idx) => {
-                    const dateObj = new Date(day.date + 'T12:00:00'); // Force local noon to avoid timezone shift
-                    const dayName = daysOfWeek[dateObj.getDay()];
-                    const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
-                    
-                    return (
-                        <div key={idx} className="flex flex-col items-center gap-2 group" title={`${dayName}, ${dateStr}`}>
-                            <span className="text-[8px] font-black text-slate-400 uppercase">{dayName}</span>
-                            <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300">{dateStr}</span>
-                            <div className="relative mt-1">
-                                <div className={`w-3.5 h-3.5 rounded-full transition-transform group-hover:scale-125 ${
-                                    day.isAvailable === true ? 'bg-emerald-500 shadow-md shadow-emerald-500/30' : 
-                                    day.isAvailable === false ? 'bg-red-500 shadow-md shadow-red-500/30' : 
-                                    'bg-slate-200 dark:bg-slate-700'
-                                }`}></div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            <div className="flex justify-center items-center gap-3 text-[10px] font-black tracking-tight text-slate-500 dark:text-slate-400 uppercase pt-4 border-t border-slate-200 dark:border-slate-700">
-                <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>{summary.available} Disp</span>
-                <span className="text-slate-300 dark:text-slate-700">•</span>
-                <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>{summary.unavailable} Indisp</span>
-                <span className="text-slate-300 dark:text-slate-700">•</span>
-                <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>{summary.noData} Sem reg</span>
-            </div>
-        </div>
-    );
-};
 
 interface UnitAssetTagAvailableDetailsProps {
     unitId: string;
@@ -82,37 +28,50 @@ export const UnitAssetTagAvailableDetails: React.FC<UnitAssetTagAvailableDetails
     const [assetTag, setAssetTag] = useState<any | null>(null);
     const [history7Days, setHistory7Days] = useState<{ date: string; isAvailable: boolean | null }[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyOffset, setHistoryOffset] = useState(0);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
             try {
-                setLoading(true);
-                // Attempt to load asset tag details
-                const itemData = await dataService.getUnitAssetTagItemById(assetTagId);
+                // ... same load logic but with offset
+                if (historyLoading) return; // Prevent multiple simultaneous fetches if triggered by loadData
+                
+                // Fetch basic info only once or when IDs change
+                // (Optimized: we could split history fetch from basic info fetch if needed)
+                const [itemData, unitsData] = await Promise.all([
+                    dataService.getUnitAssetTagItemById(assetTagId),
+                    dataService.getUnits('all')
+                ]);
+                
                 setAssetTag(itemData);
-
-                // Load unit
-                const unitsData = await dataService.getUnits('all');
                 const foundUnit = unitsData.find(u => u.id === unitId);
                 setUnit(foundUnit || null);
-
-                // Load history - 7 days availability
-                setHistoryLoading(true);
-                const historyData = await dataService.getAssetAvailabilityHistory7Days(assetTagId);
-                setHistory7Days(historyData);
-                setHistoryLoading(false);
-                
+                setLoading(false);
             } catch (error) {
-                console.error('Error loading history:', error);
-                toast.error('Erro ao carregar histórico');
-            } finally {
+                console.error('Error loading detail data:', error);
                 setLoading(false);
             }
         };
 
         loadData();
     }, [unitId, assetTagId]);
+
+    useEffect(() => {
+        const fetchHistory = async () => {
+            try {
+                setHistoryLoading(true);
+                const historyData = await dataService.getAssetAvailabilityHistory7Days(assetTagId, historyOffset);
+                setHistory7Days(historyData);
+                setHistoryLoading(false);
+            } catch (error) {
+                console.error('Error loading history:', error);
+                setHistoryLoading(false);
+            }
+        };
+
+        fetchHistory();
+    }, [assetTagId, historyOffset]);
 
     if (loading) {
         return (
@@ -227,7 +186,14 @@ export const UnitAssetTagAvailableDetails: React.FC<UnitAssetTagAvailableDetails
                         </div>
                     </div>
 
-                    <AvailabilityHistory history={history7Days} loading={historyLoading} />
+                    <AvailabilityHistory 
+                        history={history7Days} 
+                        loading={historyLoading} 
+                        offsetDays={historyOffset}
+                        onOffsetChange={(dir) => {
+                            setHistoryOffset(prev => dir === 'prev' ? prev + 7 : Math.max(0, prev - 7));
+                        }}
+                    />
                 </div>
 
                 {/* Floating Action Button */}

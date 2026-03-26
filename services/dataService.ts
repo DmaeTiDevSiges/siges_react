@@ -10660,10 +10660,14 @@ export const dataService = {
         });
     },
 
-    async getAssetAvailabilityHistory7Days(unitAssetTagId: string): Promise<{ date: string; isAvailable: boolean | null }[]> {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // Today + 6 previous days = 7 days
-        sevenDaysAgo.setHours(0, 0, 0, 0);
+    async getAssetAvailabilityHistory7Days(unitAssetTagId: string, offsetDays: number = 0): Promise<{ date: string; isAvailable: boolean | null }[]> {
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() - offsetDays);
+        endDate.setHours(23, 59, 59, 999);
+
+        const startDate = new Date(endDate);
+        startDate.setDate(startDate.getDate() - 6); // 7 days total inclusive
+        startDate.setHours(0, 0, 0, 0);
         
         // 1. Obter chaves estrangeiras do ativo
         const { data: tagData, error: tagError } = await supabase
@@ -10682,7 +10686,9 @@ export const dataService = {
             .from('v_assets_available')
             .select('is_available, reported_at')
             .eq('unit_id', tagData.unit_id)
-            .eq('asset_tag_id', tagData.asset_tag_id);
+            .eq('asset_tag_id', tagData.asset_tag_id)
+            .gte('reported_at', startDate.toISOString())
+            .lte('reported_at', endDate.toISOString());
 
         if (tagData.asset_tag_sub_id != null) {
             query = query.eq('asset_tag_sub_id', tagData.asset_tag_sub_id);
@@ -10701,20 +10707,16 @@ export const dataService = {
         const historyMap = new Map<string, boolean>();
         
         for (const record of (data || [])) {
-            // Only add if it's within the last 7 days
-            const recordDate = new Date(record.reported_at);
-            if (recordDate < sevenDaysAgo) continue;
-
             const dateStr = String(record.reported_at).substring(0, 10);
             if (!historyMap.has(dateStr)) {
                 historyMap.set(dateStr, record.is_available);
             }
         }
 
-        // Build array of exactly 7 days ending today
+        // Build array of exactly 7 days
         const result = [];
         for (let i = 6; i >= 0; i--) {
-            const d = new Date();
+            const d = new Date(endDate);
             d.setDate(d.getDate() - i);
             const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             
@@ -10725,5 +10727,31 @@ export const dataService = {
         }
 
         return result;
+    },
+
+    async getAssetAvailabilityForExport(unitId: string, startDate: string, endDate: string, assetTagId?: string, assetTagSubId?: string): Promise<any[]> {
+        let query = supabase
+            .from('v_assets_available')
+            .select('*')
+            .eq('unit_id', parseInt(unitId))
+            .gte('reported_at', startDate)
+            .lte('reported_at', endDate + ' 23:59:59');
+
+        if (assetTagId && assetTagId !== 'all') {
+            query = query.eq('asset_tag_id', parseInt(assetTagId));
+        }
+
+        if (assetTagSubId && assetTagSubId !== 'all') {
+            query = query.eq('asset_tag_sub_id', parseInt(assetTagSubId));
+        }
+
+        const { data, error } = await query.order('reported_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching export data:', error);
+            return [];
+        }
+
+        return data || [];
     }
 };
