@@ -10747,9 +10747,9 @@ export const dataService = {
 
         const { data, error } = await query
             .order('unit_description', { ascending: true })
-            .order('asset_tag_description', { ascending: true })
-            .order('asset_tag_sub_description', { ascending: true })
-            .order('reported_at', { ascending: false });
+            .order('tag_description', { ascending: true })
+            .order('tag_sub_description', { ascending: true })
+            .order('reported_at', { ascending: true });
 
         if (error) {
             console.error('Error fetching export data:', error);

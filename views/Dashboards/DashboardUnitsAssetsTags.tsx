@@ -480,7 +480,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 <div
                     ref={sectorsScrollRef}
                     {...sectorsDragHandlers}
-                    className="flex gap-4 overflow-x-auto no-scrollbar py-3 px-1 cursor-grab active:cursor-grabbing"
+                    className="flex gap-3 overflow-x-auto no-scrollbar py-3 px-1 cursor-grab active:cursor-grabbing"
                 >
                     {/* Sector Cards only */}
                     {sectorsStats.map((sector) => (
@@ -516,7 +516,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Sincronizando Ativos...</p>
                     </div>
                 ) : (
-                    <div>
+                    <div className="flex flex-col gap-3">
                         {unitsRows.map(unit => (
                             <div key={unit.id} className="flex gap-3 items-center py-1.5 px-1">
                                 {/* Unit Info Card */}
@@ -581,7 +581,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Carregando dados...</p>
                     </div>
                 ) : modalData ? (
-                    <div className="flex flex-col gap-4 p-2">
+                    <div className="flex flex-col gap-3 p-2">
                         {/* Header Info */}
                         <div className="flex justify-between items-start">
                             <div className="flex gap-4">
@@ -657,8 +657,16 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         {/* Reporter Section */}
                         <div className="flex items-center justify-between px-1">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200/50">
-                                    <span className="material-symbols-outlined text-slate-400 text-xl">person</span>
+                                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200/50 overflow-hidden">
+                                    {modalData.last_provider_company_id ? (
+                                        <img 
+                                            src={`https://dmae.site/siges/logos/${modalData.last_provider_company_id}.png`} 
+                                            alt="Equipe" 
+                                            className="w-full h-full object-contain p-1.5"
+                                        />
+                                    ) : (
+                                        <span className="material-symbols-outlined text-slate-400 text-xl">business</span>
+                                    )}
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-xs font-bold text-slate-700 dark:text-slate-200">

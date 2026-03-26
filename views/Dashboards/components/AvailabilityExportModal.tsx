@@ -91,13 +91,13 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
 
             const formattedData = data.map(item => ({
                 'Unidade': item.unit_description,
-                'Setor': item.asset_tag_description,
-                'Sub-Setor': item.asset_tag_sub_description || '-',
+                'Setor': item.tag_description,
+                'Sub-Setor': item.tag_sub_description || '-',
                 'Data Hora': formatDateTime(item.reported_at),
                 'Disponivel': item.is_available ? 'SIM' : 'NÃO',
-                'Motivo': item.reason_description || '-',
+                'Motivo': item.asset_unavailable_reason_description || '-',
                 'Observações': item.comments || '',
-                'Distancia (m)': item.unit_reported_distance != null ? Math.round(item.unit_reported_distance) : '-',
+                'Distancia (m)': item.unit_reported_distance_m != null ? Math.round(item.unit_reported_distance_m) : '-',
                 'Reportado por': item.reported_user_name_short || '-'
             }));
 
