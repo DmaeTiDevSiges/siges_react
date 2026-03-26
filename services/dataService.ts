@@ -5270,12 +5270,17 @@ export const dataService = {
             ? await supabase.from('units').select('latitude, longitude').eq('id', item.unit_id).single()
             : { data: null };
 
+        const companyLogoUrl = item.last_provider_company_file_path && item.last_provider_company_file_name
+            ? this.getPublicImageUrl(item.last_provider_company_file_path, item.last_provider_company_file_name, { width: 100, height: 100, resize: 'contain' })
+            : null;
+
+
         return {
             ...item,
             isAvailable: item.last_is_available ?? null,
             last_reported_by_name: item.last_user_full_name || item.last_user_name,
             last_reported_user_name_short: item.last_reported_user_name_short,
-            last_reported_by_company_logo: item.last_provider_company_logo, 
+            last_reported_by_company_logo: companyLogoUrl,
             last_reported_image: item.last_file_path && item.last_file_name
                 ? this.getPublicImageUrl(item.last_file_path, item.last_file_name, { width: 400, height: 400, resize: 'cover' })
                 : null,
@@ -9353,10 +9358,10 @@ export const dataService = {
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
+        // Utilizamos a view v_materials para trazer os materiais já filtrados e estruturados
         let query = supabase
-            .from('materials')
+            .from('v_materials')
             .select('*')
-            .eq('is_deteted', false)
             .order('description', { ascending: true })
             .range(from, to);
 
@@ -9365,12 +9370,12 @@ export const dataService = {
         }
 
         if (search) {
-            query = query.or(`description.ilike.%${search}%,code.ilike.%${search}%,searchable.ilike.%${search}%`);
+            query = query.or(`description.ilike.%${search}%,code.ilike.%${search}%`);
         }
 
         const { data, error } = await query;
         if (error) {
-            console.error('Error fetching materials catalog:', error);
+            console.error('Error fetching materials catalog from v_materials:', error);
             return [];
         }
 
@@ -9379,8 +9384,8 @@ export const dataService = {
             code: item.code,
             description: item.description,
             unit: item.unit,
-            defaultValue: item.price_unit || 0,
-            isAvailable: true // Column 'is_available' doesn't exist in new schema
+            defaultValue: item.price_unit || item.value_unit || 0,
+            isAvailable: true 
         }));
     },
 
@@ -9448,15 +9453,15 @@ export const dataService = {
         if (error) throw error;
     },
 
-    async updateMaterialInAsset(id: string, updates: { amount?: number, discount?: number }): Promise<void> {
+    async updateMaterialInAsset(id: string, updates: { amount?: number, discount?: number, valueUnit?: number }): Promise<void> {
         const payload: any = {};
         if (updates.amount !== undefined) payload.amount = updates.amount;
+        if (updates.discount !== undefined) payload.discount = updates.discount;
+        if (updates.valueUnit !== undefined) payload.value_unit = updates.valueUnit;
 
         // Ensure record is active if we are updating it
         // Check if is_deteted exists in schema based on error, but trying is_deleted as requested
         payload.is_deleted = false;
-
-        if (updates.discount !== undefined) payload.discount = updates.discount;
 
         const { error } = await supabase
             .from('orders_visits_assets_materials')

@@ -15,6 +15,7 @@ import { AvailabilityHistory } from '../../components/ui/AvailabilityHistory';
 import { useDragToScroll } from '../../hooks/useDragToScroll';
 import { AvailabilityExportModal } from './components/AvailabilityExportModal';
 import { RiFileExcel2Fill } from 'react-icons/ri';
+import { CompanyAvatar } from '../../components/ui/CompanyAvatar';
 
 
 // Subcomponent for Circular Gauge
@@ -518,7 +519,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 ) : (
                     <div className="flex flex-col gap-3">
                         {unitsRows.map(unit => (
-                            <div key={unit.id} className="flex gap-3 items-center py-1.5 px-1">
+                            <div key={unit.id} className="flex gap-3 items-center px-1">
                                 {/* Unit Info Card */}
                                 <Card className="shrink-0 w-64 p-3 rounded-[20px]! h-[88px] flex items-center justify-between relative group overflow-hidden border-slate-200 dark:border-slate-800">
                                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'} group-hover:w-1.5 transition-all`}></div>
@@ -657,16 +658,13 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         {/* Reporter Section */}
                         <div className="flex items-center justify-between px-1">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200/50 overflow-hidden">
-                                    {modalData.last_provider_company_id ? (
-                                        <img 
-                                            src={`https://dmae.site/siges/logos/${modalData.last_provider_company_id}.png`} 
-                                            alt="Equipe" 
-                                            className="w-full h-full object-contain p-1.5"
-                                        />
-                                    ) : (
-                                        <span className="material-symbols-outlined text-slate-400 text-xl">business</span>
-                                    )}
+                                <div className="p-0.5">
+                                    <CompanyAvatar 
+                                        src={modalData.last_reported_by_company_logo} 
+                                        name="Equipe" 
+                                        size="md"
+                                        className="rounded-xl!"
+                                    />
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
