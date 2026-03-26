@@ -3,7 +3,7 @@ import React from 'react';
 import { usePermissions } from '../contexts/PermissionsContext';
 
 interface BottomNavProps {
-  activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions';
+  activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags';
   setActiveTab: (tab: any) => void;
   isAdminSuper?: boolean;
   currentUser?: any;
@@ -38,7 +38,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
       {showDashboardOrdersAdmin && (
         <button
           onClick={() => setActiveTab('orders')}
-          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'orders' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'orders' || activeTab === 'dashboard-units-assets-tags' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'orders' ? '"FILL" 1' : '' }}>
             assignment

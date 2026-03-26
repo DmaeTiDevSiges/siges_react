@@ -5,7 +5,7 @@ import { usePermissions } from '../contexts/PermissionsContext';
 interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
-    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions';
+    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -54,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <SidebarItem
                         icon="assignment_add"
                         label="Gestão"
-                        isActive={activeTab === 'orders' || activeTab === 'visits'}
+                        isActive={activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags'}
                         isCollapsed={isCollapsed}
                         onClick={() => { onNavigate('orders'); }}
                     />

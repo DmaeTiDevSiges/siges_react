@@ -94,19 +94,25 @@
         background-clip: padding-box !important;
     }
 
-    .dark *::-webkit-scrollbar-thumb:hover {
+    .dark *:not(.no-scrollbar)::-webkit-scrollbar-thumb:hover {
         background: rgba(148, 163, 184, 0.3) !important;
         background-clip: padding-box !important;
     }
-}
 
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
-}
+    /* Ocultar scrollbar completamente em elementos com .no-scrollbar */
+    /* Usar especificidade maior que o seletor * acima */
+    .no-scrollbar,
+    .no-scrollbar * {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
 
-.no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    .no-scrollbar::-webkit-scrollbar,
+    .no-scrollbar *::-webkit-scrollbar {
+        display: none !important;
+        width: 0px !important;
+        height: 0px !important;
+    }
 }
 
 @layer utilities {

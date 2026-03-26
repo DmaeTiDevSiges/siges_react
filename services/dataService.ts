@@ -5252,50 +5252,35 @@ export const dataService = {
     },
 
     async getUnitAssetTagItemById(id: string): Promise<any> {
-        const { data, error } = await supabase
-            .from('cfg_units_assets_tags')
+        const { data: viewData, error: viewError } = await supabase
+            .from('v_units_assets_tags')
             .select('*')
             .eq('id', id)
             .single();
 
-        if (error) {
-            console.error('Error fetching unit asset tag item by id', error);
-            throw error;
+        if (viewError) {
+            console.error('Error fetching unit asset tag detail from view', viewError);
         }
 
-        const itemData = data as any;
+        const item = viewData as any;
+        if (!item) return null;
 
-        // Busca paralela: view (descrições) + unidade (lat/lon)
-        const [viewResult, unitResult] = await Promise.all([
-            supabase
-                .from('v_units_assets_tags')
-                .select('unit_description, asset_tag_tag_sub_description, client_name')
-                .eq('id', id)
-                .single(),
-            itemData.unit_id
-                ? supabase.from('units').select('latitude, longitude').eq('id', itemData.unit_id).single()
-                : Promise.resolve({ data: null })
-        ]);
-
-        if (viewResult.error) {
-            console.error('View Fetch Error:', viewResult.error);
-        }
+        // Fetch unit lat/lon if needed for other parts of the app
+        const { data: unitData } = item.unit_id
+            ? await supabase.from('units').select('latitude, longitude').eq('id', item.unit_id).single()
+            : { data: null };
 
         return {
-            ...itemData,
-            isAvailable: itemData.last_is_available ?? null, // ← mapeamento crítico para a lógica de notificação
-            unit_description: viewResult.data?.unit_description,
-            asset_tag_tag_sub_description: viewResult.data?.asset_tag_tag_sub_description,
-            client_name: viewResult.data?.client_name,
-            unit_latitude: (unitResult as any).data?.latitude ?? null,
-            unit_longitude: (unitResult as any).data?.longitude ?? null,
-            last_reported_by_name: itemData.users?.name,
-            last_reported_by_company_logo: itemData.users?.cfg_companies 
-                ? this.getPublicImageUrl(itemData.users.cfg_companies.img_file_path, itemData.users.cfg_companies.img_file_name, { width: 100, height: 100, resize: 'contain' })
+            ...item,
+            isAvailable: item.last_is_available ?? null,
+            last_reported_by_name: item.last_user_full_name || item.last_user_name,
+            last_reported_user_name_short: item.last_reported_user_name_short,
+            last_reported_by_company_logo: item.last_provider_company_logo, 
+            last_reported_image: item.last_file_path && item.last_file_name
+                ? this.getPublicImageUrl(item.last_file_path, item.last_file_name, { width: 400, height: 400, resize: 'cover' })
                 : null,
-            last_reported_image: itemData.last_file_path && itemData.last_file_name
-                ? this.getPublicImageUrl(itemData.last_file_path, itemData.last_file_name, { width: 400, height: 400, resize: 'cover' })
-                : null
+            unit_latitude: unitData?.latitude ?? null,
+            unit_longitude: unitData?.longitude ?? null,
         };
     },
 
@@ -6019,6 +6004,28 @@ export const dataService = {
             description: item.description,
             isAvailable: item.is_available
         })) as System[];
+    },
+
+    async getUnitsAssetsTagsDashboard(systemParentId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('v_units_assets_tags')
+            .select('*')
+            .eq('system_parent_id', systemParentId)
+            .order('unit_description');
+
+        if (error) {
+            console.error('Error fetching dashboard data:', error);
+            return [];
+        }
+
+        const rows = data || [];
+        return rows.map(row => ({
+            ...row,
+            last_reported_image: row.last_file_path && row.last_file_name
+                ? this.getPublicImageUrl(row.last_file_path, row.last_file_name, { width: 100, height: 100, resize: 'cover' })
+                : null,
+            last_provider_company_logo: row.last_provider_company_logo || null
+        }));
     },
 
     async getUnitTypesParent(): Promise<UnitType[]> {
@@ -10651,6 +10658,72 @@ export const dataService = {
         return await this.upsertMaintenanceChecklistItem(ovAssetId, planId, activityId, userId, {
             imgFilesNames: newList
         });
+    },
+
+    async getAssetAvailabilityHistory7Days(unitAssetTagId: string): Promise<{ date: string; isAvailable: boolean | null }[]> {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // Today + 6 previous days = 7 days
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+        
+        // 1. Obter chaves estrangeiras do ativo
+        const { data: tagData, error: tagError } = await supabase
+            .from('v_units_assets_tags')
+            .select('unit_id, asset_tag_id, asset_tag_sub_id')
+            .eq('id', parseInt(unitAssetTagId))
+            .single();
+
+        if (tagError || !tagData) {
+            console.error('Error fetching asset keys:', tagError);
+            return [];
+        }
+
+        // 2. Buscar histórico usando as chaves
+        let query = supabase
+            .from('v_assets_available')
+            .select('is_available, reported_at')
+            .eq('unit_id', tagData.unit_id)
+            .eq('asset_tag_id', tagData.asset_tag_id);
+
+        if (tagData.asset_tag_sub_id != null) {
+            query = query.eq('asset_tag_sub_id', tagData.asset_tag_sub_id);
+        } else {
+            query = query.is('asset_tag_sub_id', null);
+        }
+
+        const { data, error } = await query.order('reported_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching availability history:', error);
+            return [];
+        }
+
+        // Process in JS: since data is ordered DESC, the first record for a given day is the latest of that day
+        const historyMap = new Map<string, boolean>();
+        
+        for (const record of (data || [])) {
+            // Only add if it's within the last 7 days
+            const recordDate = new Date(record.reported_at);
+            if (recordDate < sevenDaysAgo) continue;
+
+            const dateStr = String(record.reported_at).substring(0, 10);
+            if (!historyMap.has(dateStr)) {
+                historyMap.set(dateStr, record.is_available);
+            }
+        }
+
+        // Build array of exactly 7 days ending today
+        const result = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            
+            result.push({
+                date: dateStr,
+                isAvailable: historyMap.has(dateStr) ? historyMap.get(dateStr)! : null
+            });
+        }
+
+        return result;
     }
 };
-

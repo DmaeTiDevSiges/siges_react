@@ -25,6 +25,7 @@ import { LoginScreen } from './views/Users/LoginScreen';
 import { DashboardScreen } from "./views/Dashboards/DashboardOrdersUserScreen";
 import { DashboardOrdersVisitsAdminScreen } from "./views/Dashboards/DashboardOrdersVisitsAdminScreen";
 import { DashboardUnitsPowerElectric } from "./views/Dashboards/DashboardUnitsPowerElectric";
+import { DashboardUnitsAssetsTags } from "./views/Dashboards/DashboardUnitsAssetsTags";
 import { SystemsList } from './views/Settings/Systems/SystemsList';
 import { SystemForm } from './views/Settings/Systems/SystemForm';
 import { UnitTypesList } from './views/Settings/UnitTypes/UnitTypesList';
@@ -92,7 +93,7 @@ import { AIKnowledgeAdmin } from './views/Settings/AIKnowledgeAdmin';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import { MaintenancePlansScreen } from './views/Settings/MaintenancePlans/MaintenancePlansScreen';
 
-type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
+type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details';
 
 import { ActionIcon } from './components/ui/ActionIcon';
@@ -115,7 +116,7 @@ const App: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags'>(() => {
     const saved = localStorage.getItem('app_active_tab');
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
@@ -296,8 +297,8 @@ const App: React.FC = () => {
   const [ordersDashboardTab, setOrdersDashboardTab] = useState<'OS' | 'VISITAS'>('OS');
 
   const getTabNavigation = () => {
-    // Only show tabs if on the Admin Dashboard or Energia Elétrica dashboard
-    if (currentScreen !== 'orders-dashboard' && currentScreen !== 'visits-dashboard' && currentScreen !== 'dashboard-units-power-electric') return undefined;
+    // Only show tabs if on the Admin Dashboard or specialized Dashboards
+    if (currentScreen !== 'orders-dashboard' && currentScreen !== 'visits-dashboard' && currentScreen !== 'dashboard-units-power-electric' && currentScreen !== 'dashboard-units-assets-tags') return undefined;
 
     return (
       <div className="flex items-center gap-4 h-full mt-1">
@@ -306,15 +307,21 @@ const App: React.FC = () => {
         <div className="flex gap-4">
           <button
             onClick={() => { setOrdersDashboardTab('OS'); setCurrentScreen('orders-dashboard'); }}
-            className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${ordersDashboardTab === 'OS' && currentScreen !== 'dashboard-units-power-electric' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+            className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
           >
             OS's
           </button>
           <button
             onClick={() => { setOrdersDashboardTab('VISITAS'); setCurrentScreen('visits-dashboard'); }}
-            className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${ordersDashboardTab === 'VISITAS' && currentScreen !== 'dashboard-units-power-electric' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+            className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${(currentScreen === 'visits-dashboard' || (currentScreen === 'orders-dashboard' && ordersDashboardTab === 'VISITAS')) ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
           >
             Visitas
+          </button>
+          <button
+            onClick={() => { setCurrentScreen('dashboard-units-assets-tags'); setActiveTab('dashboard-units-assets-tags'); }}
+            className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'dashboard-units-assets-tags' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+          >
+            Unidades
           </button>
           <button
             onClick={() => setCurrentScreen('dashboard-units-power-electric')}
@@ -1373,6 +1380,13 @@ const App: React.FC = () => {
             onFiltersChange={(filters) => console.log('Filters changed', filters)}
           />
         );
+      case 'dashboard-units-assets-tags':
+        return (
+          <DashboardUnitsAssetsTags
+            currentUser={currentUser!}
+            onSelectVisit={handleVisitSelect}
+          />
+        );
       case 'companies':
         return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
       case 'company-details':
@@ -2189,6 +2203,7 @@ const App: React.FC = () => {
                   (currentScreen as string) !== 'orders-dashboard' &&
                   (currentScreen as string) !== 'visits-dashboard' &&
                   (currentScreen as string) !== 'dashboard-units-power-electric' &&
+                  (currentScreen as string) !== 'dashboard-units-assets-tags' &&
                   (currentScreen as string) !== 'companies' &&
                   (currentScreen as string) !== 'units-search' &&
                   (currentScreen as string) !== 'assets-search' &&
