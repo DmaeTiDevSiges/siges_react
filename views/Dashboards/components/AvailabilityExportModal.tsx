@@ -90,13 +90,15 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
             toast.loading(`Gerando Excel com ${data.length} registros...`, { id: toastId });
 
             const formattedData = data.map(item => ({
-                'Data/Hora': formatDateTime(item.reported_at),
                 'Unidade': item.unit_description,
                 'Setor': item.asset_tag_description,
                 'Sub-Setor': item.asset_tag_sub_description || '-',
-                'Disponível': item.is_available ? 'SIM' : 'NÃO',
-                'Reportado por': item.reported_user_name_short || '-',
-                'Observações': item.comments || ''
+                'Data Hora': formatDateTime(item.reported_at),
+                'Disponivel': item.is_available ? 'SIM' : 'NÃO',
+                'Motivo': item.reason_description || '-',
+                'Observações': item.comments || '',
+                'Distancia (m)': item.unit_reported_distance != null ? Math.round(item.unit_reported_distance) : '-',
+                'Reportado por': item.reported_user_name_short || '-'
             }));
 
             const filename = `Disponibilidade_${unitDescription.replace(/\s+/g, '_')}_${startDate}_a_${endDate}`;

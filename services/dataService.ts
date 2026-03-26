@@ -10745,7 +10745,11 @@ export const dataService = {
             query = query.eq('asset_tag_sub_id', parseInt(assetTagSubId));
         }
 
-        const { data, error } = await query.order('reported_at', { ascending: false });
+        const { data, error } = await query
+            .order('unit_description', { ascending: true })
+            .order('asset_tag_description', { ascending: true })
+            .order('asset_tag_sub_description', { ascending: true })
+            .order('reported_at', { ascending: false });
 
         if (error) {
             console.error('Error fetching export data:', error);

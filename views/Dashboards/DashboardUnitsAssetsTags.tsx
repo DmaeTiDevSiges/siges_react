@@ -14,6 +14,7 @@ import { formatRelativeTime, formatDateTime } from '../../utils/formatters';
 import { AvailabilityHistory } from '../../components/ui/AvailabilityHistory';
 import { useDragToScroll } from '../../hooks/useDragToScroll';
 import { AvailabilityExportModal } from './components/AvailabilityExportModal';
+import { RiFileExcel2Fill } from 'react-icons/ri';
 
 
 // Subcomponent for Circular Gauge
@@ -545,13 +546,13 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                             )}
                                         </div>
                                     </div>
-                                    <IconButton 
-                                        icon="print" 
-                                        size="sm" 
-                                        variant="ghost" 
-                                        className="text-primary/30 hover:text-primary transition-colors"
+                                    <button 
                                         onClick={() => setUnitForExport(unit)}
-                                    />
+                                        className="h-8 w-8 flex items-center justify-center rounded-full text-primary/30 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 active:scale-[0.97] cursor-pointer"
+                                        title="Exportar Excel"
+                                    >
+                                        <RiFileExcel2Fill size={18} />
+                                    </button>
                                 </Card>
 
                                 {/* Assets Grid */}
