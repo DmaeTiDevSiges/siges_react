@@ -14,6 +14,7 @@ import { formatRelativeTime, formatDateTime } from '../../utils/formatters';
 import { AvailabilityHistory } from '../../components/ui/AvailabilityHistory';
 import { useDragToScroll } from '../../hooks/useDragToScroll';
 import { AvailabilityExportModal } from './components/AvailabilityExportModal';
+import { UnitsAvailabilityMap } from './components/UnitsAvailabilityMap';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { CompanyAvatar } from '../../components/ui/CompanyAvatar';
 import { BottomSheet } from '../../components/ui/BottomSheet';
@@ -165,11 +166,23 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [selectedAssetForSS, setSelectedAssetForSS] = useState<any | null>(null);
 
+    const [viewMode, setViewMode] = useState<'list' | 'map'>(() => 
+        (localStorage.getItem('siges_dashboard_view_mode') as 'list' | 'map') || 'list'
+    );
+
     // Accordion state for mobile
     const [expandedUnitId, setExpandedUnitId] = useState<number | null>(null);
 
+    // Persist view mode
+    useEffect(() => {
+        localStorage.setItem('siges_dashboard_view_mode', viewMode);
+    }, [viewMode]);
+
     // Export Modal State
     const [unitForExport, setUnitForExport] = useState<any | null>(null);
+
+    // Track unit selected via map
+    const [selectedUnitIdFromMap, setSelectedUnitIdFromMap] = useState<number | null>(null);
 
     // Active Asset Tag ID based on selectedSectorName
     const activeAssetTagId = useMemo(() => {
@@ -393,7 +406,10 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     description: row.unit_description,
                     lastReportedAt: null,
                     totalRate: 0,
-                    assets: []
+                    assets: [],
+                    latitude: row.unit_latitude,
+                    longitude: row.unit_longitude,
+                    percentage: 0 // Placeholder
                 };
             }
             
@@ -416,13 +432,13 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 let displayUnit = row.flow_rate_unit || '';
 
                 if (row.flow_rate_is_visible) {
-                    displayValue = row.total_flow_rate_max ?? row.flow_rate_max ?? row.last_flow_rate;
+                    displayValue = row.flow_rate_max || row.total_flow_rate_max || row.last_flow_rate || 0;
                     displayUnit = row.flow_rate_unit || '';
                 } else if (row.power_is_visible) {
-                    displayValue = row.total_power_max ?? row.power_max ?? row.last_power_last;
+                    displayValue = row.power_max || row.total_power_max || row.last_power || 0;
                     displayUnit = row.power_unit || '';
                 } else if (row.pressure_is_visible) {
-                    displayValue = row.total_pressure_max ?? row.pressure_max ?? row.last_pressure_last;
+                    displayValue = row.pressure_max || row.total_pressure_max || row.last_pressure || 0;
                     displayUnit = row.pressure_unit || '';
                 }
 
@@ -534,7 +550,29 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             {/* Top Cards: Disponibilidades por Setores */}
             <section className="shrink-0 mb-8 overflow-hidden px-1">
                 <div className="flex items-center justify-between gap-4 mb-4 px-1">
-                    <h3 className="text-[10px] font-black tracking-[0.2em] text-slate-400 dark:text-slate-500 uppercase whitespace-nowrap">Disponibilidade por Setores</h3>
+                    <div className="flex items-center gap-4">
+                        <h3 className="text-[10px] font-black tracking-[0.2em] text-slate-400 dark:text-slate-500 uppercase whitespace-nowrap">Disponibilidade por Setores</h3>
+                        
+                        {/* View Mode Switcher */}
+                        <div className="flex bg-slate-200/50 dark:bg-white/5 p-0.5 rounded-full border border-slate-200/50 dark:border-white/10 backdrop-blur-sm shadow-sm scale-90 origin-left">
+                            <button 
+                                onClick={() => setViewMode('list')}
+                                className={`px-2.5 py-1 rounded-full text-[9px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white dark:bg-slate-800 text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                title="Visualizar em lista"
+                            >
+                                <span className="material-symbols-outlined text-[14px]">view_list</span>
+                                <span className="hidden sm:inline">Lista</span>
+                            </button>
+                            <button 
+                                onClick={() => setViewMode('map')}
+                                className={`px-2.5 py-1 rounded-full text-[9px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${viewMode === 'map' ? 'bg-white dark:bg-slate-800 text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                title="Visualizar no mapa"
+                            >
+                                <span className="material-symbols-outlined text-[14px]">map</span>
+                                <span className="hidden sm:inline">Mapa</span>
+                            </button>
+                        </div>
+                    </div>
                     
                     {/* Latest Activity Line */}
                     {systemSummary?.lastReportedAt && (
@@ -639,78 +677,129 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Sincronizando Ativos...</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-1">
-                        {unitsRows.map(unit => {
-                            const isExpanded = expandedUnitId === unit.id;
-                            
-                            return (
-                                <div key={unit.id} className="flex flex-col md:flex-row gap-2 md:gap-3 items-stretch md:items-center">
-                                    {/* Unit Info Card */}
-                                    <Card 
-                                        onClick={() => {
-                                            if (window.innerWidth < 768) {
-                                                if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
-                                                setExpandedUnitId(isExpanded ? null : unit.id);
-                                            }
-                                        }}
-                                        className={`shrink-0 w-full md:w-auto md:min-w-[256px] p-3 rounded-[20px]! min-h-[88px] h-auto flex items-center justify-between relative group overflow-hidden border-slate-200 dark:border-slate-800 transition-all ${
-                                            isExpanded ? 'ring-2 ring-primary border-transparent' : 'cursor-pointer md:cursor-default active:scale-[0.99] md:active:scale-100'
-                                        }`}
-                                    >
-                                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'} group-hover:w-1.5 transition-all`}></div>
-                                        <div className="flex items-center gap-2.5">
-                                            <CircularGauge 
-                                                percentage={unit.percentage} 
-                                                size={44} 
-                                                strokeWidth={3.5}
-                                                color={unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-500' : 'text-rose-500'} 
-                                            />
-                                            <div className="min-w-0">
-                                                <h3 className="text-[12px] font-black text-slate-800 dark:text-white uppercase leading-tight pr-2">{unit.description}</h3>
-                                                {unit.lastReportedAt ? (
-                                                    <p className="text-[9px] font-black text-primary mt-0.5 uppercase tracking-tight">
-                                                        {(() => {
-                                                            const diffMs = new Date().getTime() - new Date(unit.lastReportedAt).getTime();
-                                                            const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                                                            const diffMins = Math.floor(diffMs / (1000 * 60));
-                                                            return `há ${diffHrs > 0 ? `${diffHrs} h` : `${diffMins} min`}`;
-                                                        })()}
-                                                    </p>
-                                                ) : (
-                                                    <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase">Sem registros</p>
-                                                )}
+                    <div className="flex flex-col gap-1 h-full">
+                        {viewMode === 'list' ? (
+                            <div className="flex flex-col gap-1">
+                                {unitsRows.map(unit => {
+                                    const isExpanded = expandedUnitId === unit.id;
+                                    
+                                    return (
+                                        <div key={unit.id} className="flex flex-col md:flex-row gap-2 md:gap-3 items-stretch md:items-center">
+                                            {/* Unit Info Card */}
+                                            <Card 
+                                                onClick={() => {
+                                                    if (window.innerWidth < 768) {
+                                                        if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
+                                                        setExpandedUnitId(isExpanded ? null : unit.id);
+                                                    }
+                                                }}
+                                                className={`shrink-0 w-full md:w-auto md:min-w-[256px] p-3 rounded-[20px]! min-h-[88px] h-auto flex items-center justify-between relative group overflow-hidden border-slate-200 dark:border-slate-800 transition-all ${
+                                                    isExpanded ? 'ring-2 ring-primary border-transparent' : 'cursor-pointer md:cursor-default active:scale-[0.99] md:active:scale-100'
+                                                }`}
+                                            >
+                                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'} group-hover:w-1.5 transition-all`}></div>
+                                                <div className="flex items-center gap-2.5">
+                                                    <CircularGauge 
+                                                        percentage={unit.percentage} 
+                                                        size={44} 
+                                                        strokeWidth={3.5}
+                                                        color={unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-500' : 'text-rose-500'} 
+                                                    />
+                                                    <div className="min-w-0">
+                                                        <h3 className="text-[12px] font-black text-slate-800 dark:text-white uppercase leading-tight pr-2">{unit.description}</h3>
+                                                        {unit.lastReportedAt ? (
+                                                            <p className="text-[9px] font-black text-primary mt-0.5 uppercase tracking-tight">
+                                                                {(() => {
+                                                                    const diffMs = new Date().getTime() - new Date(unit.lastReportedAt).getTime();
+                                                                    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                                                                    const diffMins = Math.floor(diffMs / (1000 * 60));
+                                                                    return `há ${diffHrs > 0 ? `${diffHrs} h` : `${diffMins} min`}`;
+                                                                })()}
+                                                            </p>
+                                                        ) : (
+                                                            <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase">Sem registros</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setUnitForExport(unit);
+                                                        }}
+                                                        className="h-8 w-8 items-center justify-center rounded-full text-primary/30 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 hidden md:flex"
+                                                        title="Exportar Excel"
+                                                    >
+                                                        <RiFileExcel2Fill size={18} />
+                                                    </button>
+                                                    
+                                                    <span className={`material-symbols-outlined text-slate-400 transition-transform md:hidden ${isExpanded ? 'rotate-180 text-primary' : ''}`}>
+                                                        expand_more
+                                                    </span>
+                                                </div>
+                                            </Card>
+
+                                            {/* Assets Grid - Fixed on Desktop, Collapsible on Mobile */}
+                                            <div className={`${isExpanded ? 'flex animate-in slide-in-from-top-1 fade-in duration-300 mb-2' : 'hidden md:flex'} flex-1 w-full overflow-hidden`}>
+                                                <AssetScrollRow
+                                                    assets={unit.assets}
+                                                    onAssetClick={setSelectedAssetForModal}
+                                                    onSSClick={setSelectedAssetForSS}
+                                                />
                                             </div>
                                         </div>
-                                        
-                                        <div className="flex items-center gap-2">
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setUnitForExport(unit);
-                                                }}
-                                                className="h-8 w-8 items-center justify-center rounded-full text-primary/30 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 hidden md:flex"
-                                                title="Exportar Excel"
-                                            >
-                                                <RiFileExcel2Fill size={18} />
-                                            </button>
-                                            
-                                            <span className={`material-symbols-outlined text-slate-400 transition-transform md:hidden ${isExpanded ? 'rotate-180 text-primary' : ''}`}>
-                                                expand_more
-                                            </span>
-                                        </div>
-                                    </Card>
-
-                                    {/* Assets Grid - Fixed on Desktop, Collapsible on Mobile */}
-                                    <div className={`${isExpanded ? 'flex animate-in slide-in-from-top-1 fade-in duration-300 mb-2' : 'hidden md:flex'} flex-1 w-full overflow-hidden`}>
-                                        <AssetScrollRow
-                                            assets={unit.assets}
-                                            onAssetClick={setSelectedAssetForModal}
-                                            onSSClick={setSelectedAssetForSS}
-                                        />
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="relative flex-1 w-full min-h-[400px]">
+                                <UnitsAvailabilityMap 
+                                    units={unitsRows} 
+                                    onUnitClick={(id) => {
+                                        setSelectedUnitIdFromMap(id);
+                                        if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
+                                    }}
+                                    className="w-full h-full"
+                                />
+                                
+                                {selectedUnitIdFromMap && (
+                                    <div className="absolute bottom-4 left-4 right-4 z-1001 animate-in slide-in-from-bottom-4 fade-in duration-300">
+                                        {(() => {
+                                            const unit = unitsRows.find(u => Number(u.id) === selectedUnitIdFromMap);
+                                            if (!unit) return null;
+                                            return (
+                                                <Card className="p-4 rounded-[28px]! bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200/50 dark:border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+                                                    <div className="flex items-center justify-between mb-3 px-1">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-2.5 h-10 rounded-full ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'}`}></div>
+                                                            <div>
+                                                                <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight leading-tight">{unit.description}</h4>
+                                                                <div className="flex items-center gap-2 mt-0.5">
+                                                                    <div className={`h-1.5 w-1.5 rounded-full ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'}`}></div>
+                                                                    <p className="text-[10px] font-black text-primary uppercase tracking-tight">Disponibilidade: {unit.percentage}%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <IconButton 
+                                                            icon="close" 
+                                                            size="sm" 
+                                                            onClick={() => setSelectedUnitIdFromMap(null)}
+                                                            className="bg-slate-100/50 dark:bg-slate-700/50 hover:bg-slate-200 transition-colors"
+                                                        />
+                                                    </div>
+                                                    <AssetScrollRow 
+                                                        assets={unit.assets}
+                                                        onAssetClick={setSelectedAssetForModal}
+                                                        onSSClick={setSelectedAssetForSS}
+                                                    />
+                                                </Card>
+                                            );
+                                        })()}
                                     </div>
-                                </div>
-                            );
-                        })}
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </main>
