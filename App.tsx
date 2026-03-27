@@ -2126,6 +2126,23 @@ const App: React.FC = () => {
     return <LoginScreen onLoginSuccess={() => window.location.reload()} isDarkMode={theme === 'dark'} onThemeToggle={toggleTheme} />;
   }
 
+  // Handle Fullscreen Map Mode via URL Param
+  const isFullscreenMap = new URLSearchParams(window.location.search).get('fullscreenMap') === 'true';
+  if (isFullscreenMap) {
+    return (
+      <PermissionsProvider currentUser={currentUser}>
+        <div className="fixed inset-0 bg-slate-50 dark:bg-slate-900 overflow-hidden">
+          <DashboardUnitsAssetsTags 
+            currentUser={currentUser!} 
+            onSelectVisit={handleVisitSelect}
+            isFullscreenMapMode={true}
+          />
+        </div>
+        <Toaster position="top-right" richColors closeButton style={{ top: '24px', position: 'fixed' }} />
+      </PermissionsProvider>
+    );
+  }
+
   const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: string) => {
     if (!currentUser) return;
 
@@ -2216,6 +2233,13 @@ const App: React.FC = () => {
                 showUserHeader={currentScreen !== 'settings'}
                 hidePadding={hideMainNavigation}
                 hideHeaderBorder={currentScreen === 'order-visit-approve'}
+                isDashboard={
+                  (currentScreen as string) === 'dashboard' ||
+                  (currentScreen as string) === 'orders-dashboard' ||
+                  (currentScreen as string) === 'visits-dashboard' ||
+                  (currentScreen as string) === 'dashboard-units-power-electric' ||
+                  (currentScreen as string) === 'dashboard-units-assets-tags'
+                }
                 onProfileClick={() => {
                   localStorage.setItem('last_main_tab', activeTab);
                   setCurrentScreen('profile');

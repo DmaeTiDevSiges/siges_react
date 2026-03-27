@@ -101,6 +101,24 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
                     offset: [0, -15],
                     className: 'custom-unit-tooltip'
                 })
+                .on('mouseover', (e) => {
+                    // Bring hovered marker to the front when overlapping
+                    e.target.setZIndexOffset(1000);
+                    const el = e.target.getElement();
+                    if (el) {
+                        const inner = el.querySelector('div > div');
+                        if (inner instanceof HTMLElement) inner.style.transform = 'scale(1.15)';
+                    }
+                })
+                .on('mouseout', (e) => {
+                    // Restore original depth
+                    e.target.setZIndexOffset(0);
+                    const el = e.target.getElement();
+                    if (el) {
+                        const inner = el.querySelector('div > div');
+                        if (inner instanceof HTMLElement) inner.style.transform = 'scale(1)';
+                    }
+                })
                 .on('click', () => {
                     onUnitClick(Number(unit.id));
                     leafletMap.current?.setView(latLng, 19, { animate: true });
@@ -121,7 +139,7 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
             <div ref={mapRef} className="w-full h-full z-0" />
             
             {/* Legend Overlay */}
-            <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm p-3 rounded-2xl border border-slate-200 dark:border-white/10 shadow-lg z-1000 flex flex-col gap-2">
+            <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm p-3 rounded-2xl border border-slate-200 dark:border-white/10 shadow-lg z-[1000] flex flex-col gap-2">
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Status de Disponibilidade</span>
                 <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />

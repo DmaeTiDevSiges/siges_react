@@ -105,12 +105,14 @@ const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => vo
                             <span className="material-symbols-outlined text-2xl text-slate-400">block</span>
                         )}
                         {asset.isActive && asset.orderId && !asset.isAvailable && (
-                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center shadow-sm">
-                                <span className="text-[8px] font-black text-white leading-none">!</span>
+                            <div className="absolute -top-1.5 -right-2 w-4 h-4 bg-red-600 rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center shadow-sm z-[10]">
+                                <span className="text-[8px] font-black text-white leading-none">
+                                    {asset.opCounter > 0 ? asset.opCounter : '!'}
+                                </span>
                             </div>
                         )}
                         {asset.isActive && asset.reportedImage && (
-                            <div className="absolute -top-1 -left-1 w-4 h-4 bg-slate-50 dark:bg-slate-700 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center shadow-sm">
+                            <div className="absolute -top-1.5 -left-2 w-4 h-4 bg-slate-50 dark:bg-slate-700 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center shadow-sm z-[10]">
                                 <span className="material-symbols-outlined text-[10px] text-slate-400">photo_camera</span>
                             </div>
                         )}
@@ -119,22 +121,6 @@ const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => vo
 
                     <p className="text-[10px] font-black text-slate-700 dark:text-slate-300 tabular-nums">{asset.value || '0'}<span className="text-[8px] opacity-60 ml-0.5">{asset.unit}</span></p>
 
-                    {/* Quick SS Action (Visible on Hover/Always on Mobile) */}
-                    {asset.isActive && (
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
-                                onSSClick(asset);
-                            }}
-                            className={`absolute -top-1 -right-1 w-7 h-7 bg-primary dark:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all z-10 hover:scale-110 active:scale-90 ${
-                                Capacitor.isNativePlatform() ? 'opacity-90' : 'opacity-0 group-hover:opacity-100'
-                            }`}
-                            title="Solicitar SS"
-                        >
-                            <span className="material-symbols-outlined text-[16px] font-bold">add</span>
-                        </button>
-                    )}
                 </Card>
             ))}
         </div>
@@ -143,10 +129,12 @@ const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => vo
 
 
 interface DashboardUnitsAssetsTagsProps {
-    currentUser: User | null;
+    currentUser: User;
+    onSelectVisit: (visit: any) => void;
+    isFullscreenMapMode?: boolean;
 }
 
-export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> = ({ currentUser }) => {
+export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> = ({ currentUser, onSelectVisit, isFullscreenMapMode = false }) => {
     const [selectedSystemId, setSelectedSystemId] = useState<string>(() => localStorage.getItem('siges_dashboard_system_id') || '');
     const [systems, setSystems] = useState<System[]>([]);
     const [allData, setAllData] = useState<any[]>([]);
@@ -166,16 +154,17 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [selectedAssetForSS, setSelectedAssetForSS] = useState<any | null>(null);
 
-    const [viewMode, setViewMode] = useState<'list' | 'map'>(() => 
-        (localStorage.getItem('siges_dashboard_view_mode') as 'list' | 'map') || 'list'
-    );
+    const [viewMode, setViewMode] = useState<'list' | 'map'>(() => {
+        if (isFullscreenMapMode) return 'map';
+        return (localStorage.getItem('dashboard_units_view_mode') as 'list' | 'map') || 'list';
+    });
 
     // Accordion state for mobile
     const [expandedUnitId, setExpandedUnitId] = useState<number | null>(null);
 
     // Persist view mode
     useEffect(() => {
-        localStorage.setItem('siges_dashboard_view_mode', viewMode);
+        localStorage.setItem('dashboard_units_view_mode', viewMode);
     }, [viewMode]);
 
     // Export Modal State
@@ -447,7 +436,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     subId: row.asset_tag_sub_id,
                     description: row.tag_sub_description || 'Equip.',
                     isAvailable: row.last_is_available,
-                    isActive: row.is_active,
+                    isActive: row.is_active ?? true,
                     value: displayValue,
                     unit: displayUnit,
                     reportedAt: row.last_reported_at,
@@ -463,7 +452,8 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     sectorName: row.tag_description,
                     companyLogo: row.last_provider_company_logo,
                     clientId: row.client_id,
-                    clientName: row.client_name
+                    clientName: row.client_name,
+                    opCounter: row.op_counter || 0
                 });
             }
         });
@@ -500,7 +490,67 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     [systems]);
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden px-6 py-4">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark overflow-hidden">
+            {isFullscreenMapMode ? (
+                <div className="fixed inset-0 bg-background-light dark:bg-background-dark z-[8000]">
+                    <UnitsAvailabilityMap 
+                        units={unitsRows} 
+                        onUnitClick={(id) => {
+                            setSelectedUnitIdFromMap(id);
+                            if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
+                        }}
+                        className="w-full h-full rounded-none!"
+                    />
+                    
+                    {selectedUnitIdFromMap && (
+                        <div className="absolute bottom-6 left-6 right-6 z-[8001] animate-in slide-in-from-bottom-4 fade-in duration-300">
+                            {(() => {
+                                const unit = unitsRows.find(u => Number(u.id) === selectedUnitIdFromMap);
+                                if (!unit) return null;
+                                return (
+                                    <Card className="p-4 rounded-[28px]! bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border border-slate-200/50 dark:border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.4)] max-w-xl mx-auto">
+                                        <div className="flex items-center justify-between mb-4 px-1">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-3 h-12 rounded-full ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'}`}></div>
+                                                <div>
+                                                    <h4 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight leading-tight">{unit.description}</h4>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <div className={`h-2 w-2 rounded-full ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'}`}></div>
+                                                        <p className="text-[11px] font-black text-primary uppercase tracking-tight">Disponibilidade: {unit.percentage}%</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <IconButton 
+                                                    icon="close" 
+                                                    size="md" 
+                                                    onClick={() => setSelectedUnitIdFromMap(null)}
+                                                    className="bg-slate-100/80 dark:bg-slate-700/80 hover:bg-slate-200 transition-colors"
+                                                />
+                                            </div>
+                                        </div>
+                                        <AssetScrollRow 
+                                            assets={unit.assets}
+                                            onAssetClick={setSelectedAssetForModal}
+                                            onSSClick={setSelectedAssetForSS}
+                                        />
+                                    </Card>
+                                );
+                            })()}
+                        </div>
+                    )}
+                    
+                    {/* Exit Button for Fullscreen */}
+                    <button 
+                        onClick={() => window.close()}
+                        className="absolute top-6 right-6 z-[8005] h-12 w-12 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/10 shadow-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-primary pointer-events-auto"
+                        title="Fechar Mapa"
+                    >
+                        <span className="material-symbols-outlined text-[28px]">close</span>
+                    </button>
+                </div>
+            ) : (
+                <div className="flex flex-col h-full px-6 py-4">
             {/* Header */}
             <header className="shrink-0 flex items-center justify-between mb-8">
                 <div className="flex items-center gap-8">
@@ -530,6 +580,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         />
                     </div>
 
+
                     <div className="flex bg-slate-200/50 dark:bg-white/5 p-1 rounded-full border border-slate-200/50 dark:border-white/10 backdrop-blur-sm shadow-sm">
                         <button 
                             onClick={() => setSortMode('disponibilidade')}
@@ -554,23 +605,27 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         <h3 className="text-[10px] font-black tracking-[0.2em] text-slate-400 dark:text-slate-500 uppercase whitespace-nowrap">Disponibilidade por Setores</h3>
                         
                         {/* View Mode Switcher */}
-                        <div className="flex bg-slate-200/50 dark:bg-white/5 p-0.5 rounded-full border border-slate-200/50 dark:border-white/10 backdrop-blur-sm shadow-sm scale-90 origin-left">
-                            <button 
-                                onClick={() => setViewMode('list')}
-                                className={`px-2.5 py-1 rounded-full text-[9px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white dark:bg-slate-800 text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                                title="Visualizar em lista"
-                            >
-                                <span className="material-symbols-outlined text-[14px]">view_list</span>
-                                <span className="hidden sm:inline">Lista</span>
-                            </button>
-                            <button 
-                                onClick={() => setViewMode('map')}
-                                className={`px-2.5 py-1 rounded-full text-[9px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${viewMode === 'map' ? 'bg-white dark:bg-slate-800 text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                                title="Visualizar no mapa"
-                            >
-                                <span className="material-symbols-outlined text-[14px]">map</span>
-                                <span className="hidden sm:inline">Mapa</span>
-                            </button>
+                        <div className="flex items-center gap-2">
+                            <div className="flex bg-slate-200/50 dark:bg-white/5 p-0.5 rounded-full border border-slate-200/50 dark:border-white/10 backdrop-blur-sm shadow-sm scale-90 origin-left">
+                                <button 
+                                    onClick={() => setViewMode('list')}
+                                    className={`px-2.5 py-1 rounded-full text-[9px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white dark:bg-slate-800 text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                    title="Visualizar em lista"
+                                >
+                                    <span className="material-symbols-outlined text-[14px]">view_list</span>
+                                    <span className="hidden sm:inline">Lista</span>
+                                </button>
+                                <button 
+                                    onClick={() => setViewMode('map')}
+                                    className={`px-2.5 py-1 rounded-full text-[9px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${viewMode === 'map' ? 'bg-white dark:bg-slate-800 text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                    title="Visualizar no mapa"
+                                >
+                                    <span className="material-symbols-outlined text-[14px]">map</span>
+                                    <span className="hidden sm:inline">Mapa</span>
+                                </button>
+                            </div>
+
+                            
                         </div>
                     </div>
                     
@@ -762,9 +817,21 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                     }}
                                     className="w-full h-full"
                                 />
+
+                                <button 
+                                    onClick={() => {
+                                        const url = new URL(window.location.href);
+                                        url.searchParams.set('fullscreenMap', 'true');
+                                        window.open(url.toString(), '_blank');
+                                    }}
+                                    className="absolute top-4 right-4 z-[4000] h-12 w-12 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/10 shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-primary pointer-events-auto"
+                                    title="Abrir Mapa em Tela Cheia"
+                                >
+                                    <span className="material-symbols-outlined text-[28px]">open_in_full</span>
+                                </button>
                                 
                                 {selectedUnitIdFromMap && (
-                                    <div className="absolute bottom-4 left-4 right-4 z-1001 animate-in slide-in-from-bottom-4 fade-in duration-300">
+                                    <div className="absolute bottom-4 left-4 right-4 z-[3000] animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto">
                                         {(() => {
                                             const unit = unitsRows.find(u => Number(u.id) === selectedUnitIdFromMap);
                                             if (!unit) return null;
@@ -803,6 +870,8 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     </div>
                 )}
             </main>
+                </div>
+            )}
 
             {/* Asset Detail Modal */}
             <Modal
@@ -812,6 +881,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 }}
                 title="Detalhes da Disponibilidade"
                 maxWidth="sm"
+                fullScreenMobile
             >
                 {modalLoading ? (
                     <div className="flex flex-col items-center justify-center p-12 gap-3">
@@ -819,7 +889,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Carregando dados...</p>
                     </div>
                 ) : modalData ? (
-                    <div className="flex flex-col gap-3 p-2">
+                    <div className="flex flex-col gap-3 p-2 pb-10">
                         {/* Header Info */}
                         <div className="flex justify-between items-start">
                             <div className="flex gap-4">
@@ -849,7 +919,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                     </div>
                                 )}
                                 <IconButton 
-                                    icon="add" 
+                                    icon="engineering" 
                                     onClick={() => {
                                         if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
                                         setSelectedAssetForSS(modalData);

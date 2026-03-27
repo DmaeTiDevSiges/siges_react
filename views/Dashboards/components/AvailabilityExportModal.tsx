@@ -7,6 +7,12 @@ import { RiFileExcel2Fill, RiHistoryLine, RiCalendarCheckLine, RiCalendarEventLi
 import { formatDateTime, formatDate } from '../../../utils/formatters';
 import { Calendar } from '../../../components/ui/Calendar';
 import { Select } from '../../../components/ui/Select';
+import { pdf } from '@react-pdf/renderer';
+import { AvailabilityReportDocument } from '../../../components/reports/AvailabilityReportDocument';
+import { getLogoBase64 } from '../../../utils/PdfImageUtils';
+import { FileUtils } from '../../../utils/FileUtils';
+import { FaFilePdf } from 'react-icons/fa';
+import { useEffect } from 'react';
 
 interface AvailabilityExportModalProps {
     isOpen: boolean;
@@ -33,7 +39,14 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
     const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [activeInput, setActiveInput] = useState<'start' | 'end'>('start');
     const [selectedSubTagId, setSelectedSubTagId] = useState('all');
-    const [isExporting, setIsExporting] = useState(false);
+    const [isExporting, setIsExporting] = useState<'excel' | 'pdf' | null>(null);
+    const [lastExportedFormat, setLastExportedFormat] = useState<'excel' | 'pdf' | null>(null);
+    const [hoveredFormat, setHoveredFormat] = useState<'excel' | 'pdf' | null>(null);
+
+    // Reset generated states when filters change
+    useEffect(() => {
+        setLastExportedFormat(null);
+    }, [startDate, endDate, selectedSubTagId]);
 
     const handleQuickSelect = (type: 'lastMonth' | 'currentMonth' | 'today') => {
         const now = new Date();
@@ -68,10 +81,10 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
         }
     };
 
-    const handleExport = async () => {
+    const handleExport = async (format: 'excel' | 'pdf') => {
         try {
-            setIsExporting(true);
-            const toastId = toast.loading('Buscando dados histórico de disponibilidade...');
+            setIsExporting(format);
+            const toastId = toast.loading(`Buscando dados histórico de disponibilidade para ${format.toUpperCase()}...`);
 
             const data = await dataService.getAssetAvailabilityForExport(
                 unitId,
@@ -83,34 +96,55 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
 
             if (!data || data.length === 0) {
                 toast.error('Nenhum dado encontrado para exportar.', { id: toastId });
-                setIsExporting(false);
+                setIsExporting(null);
                 return;
             }
 
-            toast.loading(`Gerando Excel com ${data.length} registros...`, { id: toastId });
-
-            const formattedData = data.map(item => ({
-                'Unidade': item.unit_description,
-                'Setor': item.tag_description,
-                'Sub-Setor': item.tag_sub_description || '-',
-                'Data Hora': formatDateTime(item.reported_at),
-                'Disponivel': item.is_available ? 'SIM' : 'NÃO',
-                'Motivo': item.asset_unavailable_reason_description || '-',
-                'Observações': item.comments || '',
-                'Distancia (m)': item.unit_reported_distance_m != null ? Math.round(item.unit_reported_distance_m) : '-',
-                'Reportado por': item.reported_user_name_short || '-'
-            }));
-
             const filename = `Disponibilidade_${unitDescription.replace(/\s+/g, '_')}_${startDate}_a_${endDate}`;
-            await ExcelExportUtils.exportToExcel(formattedData, filename, 'Disponibilidade');
 
-            toast.success('Excel exportado com sucesso!', { id: toastId });
-            onClose();
+            if (format === 'excel') {
+                toast.loading(`Gerando Excel com ${data.length} registros...`, { id: toastId });
+
+                const formattedData = data.map(item => ({
+                    'Unidade': item.unit_description,
+                    'Setor': item.tag_description,
+                    'Sub-Setor': item.tag_sub_description || '-',
+                    'Data Hora': formatDateTime(item.reported_at),
+                    'Disponivel': item.is_available ? 'SIM' : 'NÃO',
+                    'Motivo': item.asset_unavailable_reason_description || '-',
+                    'Observações': item.comments || '',
+                    'Distancia (m)': item.unit_reported_distance_m != null ? Math.round(item.unit_reported_distance_m) : '-',
+                    'Reportado por': item.reported_user_name_short || '-'
+                }));
+
+                await ExcelExportUtils.exportToExcel(formattedData, filename, 'Disponibilidade');
+                setLastExportedFormat('excel');
+                toast.success('Excel exportado com sucesso!', { id: toastId });
+            } else {
+                toast.loading(`Gerando PDF com ${data.length} registros...`, { id: toastId });
+
+                const logoBase64 = await getLogoBase64();
+                const doc = (
+                    <AvailabilityReportDocument 
+                        availability={data} 
+                        logoBase64={logoBase64} 
+                        unitDescription={unitDescription}
+                        startDate={formatDisplayDate(startDate)}
+                        endDate={formatDisplayDate(endDate)}
+                    />
+                );
+                
+                const blob = await pdf(doc).toBlob();
+                await FileUtils.downloadFile(blob, `${filename}.pdf`);
+                
+                setLastExportedFormat('pdf');
+                toast.success('PDF exportado com sucesso!', { id: toastId });
+            }
         } catch (error) {
-            console.error('Erro ao exportar Excel:', error);
-            toast.error('Ocorreu um erro ao exportar o Excel.');
+            console.error(`Erro ao exportar ${format}:`, error);
+            toast.error(`Ocorreu um erro ao exportar o ${format.toUpperCase()}.`);
         } finally {
-            setIsExporting(false);
+            setIsExporting(null);
         }
     };
 
@@ -214,21 +248,42 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
                     />
                 </div>
 
-                {/* 5. Footer Action Button */}
-                <div className="pt-2">
+                {/* 5. Footer Action Buttons */}
+                <div className="pt-2 grid grid-cols-2 gap-3" onMouseLeave={() => setHoveredFormat(null)}>
                     <button
-                        onClick={handleExport}
-                        disabled={isExporting}
-                        className="w-full bg-[#2563EB] hover:bg-blue-700 text-white font-black py-4.5 rounded-2xl flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none group"
+                        onClick={() => handleExport('excel')}
+                        onMouseEnter={() => setHoveredFormat('excel')}
+                        disabled={!!isExporting}
+                        className={`w-full py-4.5 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-[0.98] font-black uppercase tracking-widest text-[13px] ${
+                            (hoveredFormat === 'excel' || (hoveredFormat === null && lastExportedFormat === 'excel'))
+                            ? 'bg-[#2563EB] text-white shadow-blue-600/20' 
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-60'
+                        }`}
                     >
-                        {isExporting ? (
-                            <div className="w-5 h-5 border-3 border-white/20 border-t-white rounded-full animate-spin" />
+                        {isExporting === 'excel' ? (
+                            <div className="w-5 h-5 border-3 border-current border-t-transparent rounded-full animate-spin" />
                         ) : (
-                            <RiCheckFill className="text-xl group-hover:scale-110 transition-transform" />
+                            <RiFileExcel2Fill size={20} className={(hoveredFormat === 'excel' || (hoveredFormat === null && lastExportedFormat === 'excel')) ? 'text-white' : 'text-slate-400'} />
                         )}
-                        <span className="uppercase tracking-widest text-[13px]">
-                            {isExporting ? 'Processando...' : 'Aplicar Período e Exportar'}
-                        </span>
+                        <span>EXCEL</span>
+                    </button>
+
+                    <button
+                        onClick={() => handleExport('pdf')}
+                        onMouseEnter={() => setHoveredFormat('pdf')}
+                        disabled={!!isExporting}
+                        className={`w-full py-4.5 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-[0.98] font-black uppercase tracking-widest text-[13px] ${
+                            (hoveredFormat === 'pdf' || (hoveredFormat === null && lastExportedFormat === 'pdf'))
+                            ? 'bg-[#2563EB] text-white shadow-blue-600/20' 
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-60'
+                        }`}
+                    >
+                        {isExporting === 'pdf' ? (
+                            <div className="w-5 h-5 border-3 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <FaFilePdf size={20} className={(hoveredFormat === 'pdf' || (hoveredFormat === null && lastExportedFormat === 'pdf')) ? 'text-white' : 'text-slate-400'} />
+                        )}
+                        <span>PDF</span>
                     </button>
                 </div>
             </div>

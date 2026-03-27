@@ -19,6 +19,7 @@ interface LayoutProps {
   hidePadding?: boolean;
   tabNavigation?: React.ReactNode;
   hideHeaderBorder?: boolean;
+  isDashboard?: boolean;
 }
 
 export const Layout: React.FC<LayoutProps> = ({
@@ -36,7 +37,8 @@ export const Layout: React.FC<LayoutProps> = ({
   sidebar,
   hidePadding = false,
   tabNavigation,
-  hideHeaderBorder
+  hideHeaderBorder,
+  isDashboard = false
 }) => {
   const mainRef = React.useRef<HTMLElement>(null);
 
@@ -53,23 +55,25 @@ export const Layout: React.FC<LayoutProps> = ({
 
       <div className="flex flex-col flex-1 min-w-0">
         <div className="safe-area-top bg-surface-light dark:bg-card-dark">
-          <Header
-            title={title}
-            onMenuClick={onMenuClick}
-            showBackButton={showBackButton}
-            onBackClick={onBackClick}
-            currentUser={showUserHeader ? currentUser : null}
-            onStatusChange={onStatusChange}
-            onNotificationsClick={onNotificationsClick}
-            onProfileClick={onProfileClick}
-            rightAction={rightAction}
-            tabNavigation={tabNavigation}
-            hideBorder={hideHeaderBorder}
-          />
+          <div className={`${isDashboard ? 'max-w-[95%]' : 'max-w-7xl'} mx-auto w-full`}>
+            <Header
+              title={title}
+              onMenuClick={onMenuClick}
+              showBackButton={showBackButton}
+              onBackClick={onBackClick}
+              currentUser={showUserHeader ? currentUser : null}
+              onStatusChange={onStatusChange}
+              onNotificationsClick={onNotificationsClick}
+              onProfileClick={onProfileClick}
+              rightAction={rightAction}
+              tabNavigation={tabNavigation}
+              hideBorder={hideHeaderBorder}
+            />
+          </div>
         </div>
 
         <main ref={mainRef} className={`flex-1 overflow-y-auto no-scrollbar ${hidePadding ? 'pb-0' : 'pb-20'} md:pb-6`}>
-          <div className="max-w-7xl mx-auto w-full h-full">
+          <div className={`${isDashboard ? 'max-w-[95%]' : 'max-w-7xl'} mx-auto w-full h-full`}>
             {children}
           </div>
         </main>
