@@ -389,7 +389,7 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
                                     <>
                                         <div className="flex-[1.2]">
                                             <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 focus-within:text-indigo-500 text-center">
-                                                V. UNIT
+                                                Vlr.Unit
                                             </label>
                                             <input
                                                 type="text"

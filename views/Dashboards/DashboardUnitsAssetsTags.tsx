@@ -16,6 +16,10 @@ import { useDragToScroll } from '../../hooks/useDragToScroll';
 import { AvailabilityExportModal } from './components/AvailabilityExportModal';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { CompanyAvatar } from '../../components/ui/CompanyAvatar';
+import { BottomSheet } from '../../components/ui/BottomSheet';
+import { ServiceRequestForm } from '../ServiceRequest/ServiceRequestForm';
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 
 // Subcomponent for Circular Gauge
@@ -63,7 +67,7 @@ const CircularGauge: React.FC<{ percentage: number; size?: number; strokeWidth?:
 };
 
 // Scrollable row of asset cards with drag-to-scroll support
-const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => void }> = ({ assets, onAssetClick }) => {
+const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => void; onSSClick: (asset: any) => void }> = ({ assets, onAssetClick, onSSClick }) => {
     const { ref, dragHandlers } = useDragToScroll<HTMLDivElement>();
     return (
         <div
@@ -75,7 +79,7 @@ const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => vo
                 <Card
                     key={asset.id}
                     onClick={() => asset.isActive && onAssetClick(asset)}
-                    className={`shrink-0 min-w-[120px] w-fit p-2.5 rounded-[16px]! flex flex-col items-center justify-between text-center relative transition-all h-[88px] border-slate-200 dark:border-slate-800 ${
+                    className={`shrink-0 min-w-[120px] w-fit p-2.5 rounded-[16px]! flex flex-col items-center justify-between text-center relative transition-all min-h-[88px] h-auto border-slate-200 dark:border-slate-800 ${
                         asset.isActive
                             ? 'hover:shadow-lg active:scale-[0.98] cursor-pointer group'
                             : 'opacity-40 grayscale cursor-default'
@@ -111,7 +115,25 @@ const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => vo
                         )}
                     </div>
 
+
                     <p className="text-[10px] font-black text-slate-700 dark:text-slate-300 tabular-nums">{asset.value || '0'}<span className="text-[8px] opacity-60 ml-0.5">{asset.unit}</span></p>
+
+                    {/* Quick SS Action (Visible on Hover/Always on Mobile) */}
+                    {asset.isActive && (
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
+                                onSSClick(asset);
+                            }}
+                            className={`absolute -top-1 -right-1 w-7 h-7 bg-primary dark:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all z-10 hover:scale-110 active:scale-90 ${
+                                Capacitor.isNativePlatform() ? 'opacity-90' : 'opacity-0 group-hover:opacity-100'
+                            }`}
+                            title="Solicitar SS"
+                        >
+                            <span className="material-symbols-outlined text-[16px] font-bold">add</span>
+                        </button>
+                    )}
                 </Card>
             ))}
         </div>
@@ -127,6 +149,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [selectedSystemId, setSelectedSystemId] = useState<string>(() => localStorage.getItem('siges_dashboard_system_id') || '');
     const [systems, setSystems] = useState<System[]>([]);
     const [allData, setAllData] = useState<any[]>([]);
+    const [sectorsData, setSectorsData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedSectorName, setSelectedSectorName] = useState<string>(() => localStorage.getItem('siges_dashboard_sector_name') || '');
     const [sortMode, setSortMode] = useState<'disponibilidade' | 'alfabetica'>(() => 
@@ -140,6 +163,10 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyOffset, setHistoryOffset] = useState(0);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+    const [selectedAssetForSS, setSelectedAssetForSS] = useState<any | null>(null);
+
+    // Accordion state for mobile
+    const [expandedUnitId, setExpandedUnitId] = useState<number | null>(null);
 
     // Export Modal State
     const [unitForExport, setUnitForExport] = useState<any | null>(null);
@@ -254,8 +281,12 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const loadDashboardData = async (systemId: string, silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const data = await dataService.getUnitsAssetsTagsDashboard(systemId);
+            const [data, sectorsAgg] = await Promise.all([
+                dataService.getUnitsAssetsTagsDashboard(systemId),
+                dataService.getSystemsParentAssetsTagsAvailableRate(systemId)
+            ]);
             setAllData(data || []);
+            setSectorsData(sectorsAgg || []);
             
             // Group by description to find first sector name
             if (data && data.length > 0) {
@@ -272,42 +303,83 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
     // Aggregate stats by tag_description (Top Cards)
     const sectorsStats = useMemo(() => {
-        const stats: Record<string, any> = {};
+        // Collect manual stats regardless of view data (for activity and fallback)
+        const manualStats: Record<string, any> = {};
         allData.forEach(row => {
             const sName = row.tag_description || 'Geral';
-            if (!stats[sName]) {
-                stats[sName] = {
-                    id: sName,
-                    name: sName,
-                    unit: row.flow_rate_unit || 'L/s',
+            if (!manualStats[sName]) {
+                manualStats[sName] = {
                     count: 0,
                     availableCount: 0,
                     lastReportedAt: null,
-                    latestUnit: '',
-                    latestSubTag: '',
-                    latestUser: '',
-                    latestAvatar: ''
+                    latestRow: null
                 };
             }
-            stats[sName].count++;
-            if (row.last_is_available) stats[sName].availableCount++;
+            manualStats[sName].count++;
+            if (row.last_is_available) manualStats[sName].availableCount++;
             
-            if (row.last_reported_at && (!stats[sName].lastReportedAt || new Date(row.last_reported_at) > new Date(stats[sName].lastReportedAt))) {
-                stats[sName].lastReportedAt = row.last_reported_at;
-                stats[sName].latestUnit = row.unit_description;
-                stats[sName].latestSubTag = row.tag_sub_description;
-                stats[sName].latestUser = row.last_reported_user_name_short || row.last_created_user_name_short;
-                stats[sName].latestAvatar = row.last_user_avatar_url;
+            if (row.last_reported_at && (!manualStats[sName].lastReportedAt || new Date(row.last_reported_at) > new Date(manualStats[sName].lastReportedAt))) {
+                manualStats[sName].lastReportedAt = row.last_reported_at;
+                manualStats[sName].latestRow = row;
             }
         });
 
-        const result = Object.values(stats).map((s: any) => ({
-            ...s,
-            percentage: s.count > 0 ? Math.round((s.availableCount / s.count) * 100) : 0
-        }));
+        // Use precisely aggregated data from view if available
+        if (sectorsData.length > 0) {
+            return sectorsData.map(row => {
+                const sName = row.asset_tag_description || 'Geral';
+                const man = manualStats[sName] || { count: 0, availableCount: 0, latestRow: null };
+                
+                // If the sector doesn't have any specific visibility set, we fallback to general count availability
+                const hasSpecificVisible = row.flow_rate_is_visible || row.power_is_visible || row.pressure_is_visible;
 
-        return result.sort((a, b) => a.name.localeCompare(b.name));
-    }, [allData]);
+                return {
+                    id: sName,
+                    name: sName,
+                    flow: {
+                        visible: row.flow_rate_is_visible,
+                        percentage: Math.round((row.pct_flow_rate_available_fraction || 0) * 100),
+                        unit: row.flow_rate_unit || ''
+                    },
+                    power: {
+                        visible: row.power_is_visible,
+                        percentage: Math.round((row.pct_power_available_fraction || 0) * 100),
+                        unit: row.power_unit || ''
+                    },
+                    pressure: {
+                        visible: row.pressure_is_visible,
+                        percentage: Math.round((row.pct_pressure_available_fraction || 0) * 100),
+                        unit: row.pressure_unit || ''
+                    },
+                    general: {
+                        visible: !hasSpecificVisible,
+                        percentage: man.count > 0 ? Math.round((man.availableCount / man.count) * 100) : 0,
+                        unit: ''
+                    },
+                    lastReportedAt: man.latestRow?.last_reported_at,
+                    latestUnit: man.latestRow?.unit_description,
+                    latestSubTag: man.latestRow?.tag_sub_description,
+                    latestUser: man.latestRow?.last_reported_user_name_short || man.latestRow?.last_created_user_name_short,
+                    latestAvatar: man.latestRow?.last_user_avatar_url
+                };
+            }).sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        // Fallback to manual aggregation if view data is not loaded yet
+        return Object.entries(manualStats).map(([sName, man]: [string, any]) => ({
+            id: sName,
+            name: sName,
+            flow: { visible: true, percentage: Math.round((man.availableCount / man.count) * 100), unit: '' },
+            power: { visible: false, percentage: 0, unit: '' },
+            pressure: { visible: false, percentage: 0, unit: '' },
+            general: { visible: false, percentage: 0, unit: '' },
+            ...man,
+            latestUnit: man.latestRow?.unit_description,
+            latestSubTag: man.latestRow?.tag_sub_description,
+            latestUser: man.latestRow?.last_reported_user_name_short || man.latestRow?.last_created_user_name_short,
+            latestAvatar: man.latestRow?.last_user_avatar_url
+        })).sort((a, b) => a.name.localeCompare(b.name));
+    }, [allData, sectorsData]);
 
     // Group units and their specific assets for the active sector name
     const unitsRows = useMemo(() => {
@@ -339,23 +411,43 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 // Sum the custom available rate for the selected sector
                 unit.totalRate += (Number(row.last_asset_available_rate) || 0);
 
+                // Determine which physical value and unit to display based on visibility flags
+                let displayValue = row.last_flow_rate;
+                let displayUnit = row.flow_rate_unit || '';
+
+                if (row.flow_rate_is_visible) {
+                    displayValue = row.total_flow_rate_max ?? row.flow_rate_max ?? row.last_flow_rate;
+                    displayUnit = row.flow_rate_unit || '';
+                } else if (row.power_is_visible) {
+                    displayValue = row.total_power_max ?? row.power_max ?? row.last_power_last;
+                    displayUnit = row.power_unit || '';
+                } else if (row.pressure_is_visible) {
+                    displayValue = row.total_pressure_max ?? row.pressure_max ?? row.last_pressure_last;
+                    displayUnit = row.pressure_unit || '';
+                }
+
                 unit.assets.push({
                     id: row.id,
                     subId: row.asset_tag_sub_id,
                     description: row.tag_sub_description || 'Equip.',
                     isAvailable: row.last_is_available,
                     isActive: row.is_active,
-                    value: row.last_flow_rate,
-                    unit: row.flow_rate_unit || 'L/s',
+                    value: displayValue,
+                    unit: displayUnit,
                     reportedAt: row.last_reported_at,
                     orderId: row.last_o_id,
                     lastAssetAvailableId: row.last_asset_available_id,
                     suspendedReason: row.last_asset_unavailable_reason_description,
+                    lastComments: row.last_comments,
                     reportedByUser: row.last_user_full_name || row.last_user_name,
                     reportedByAvatar: row.last_user_avatar_url,
                     reportedImage: row.last_reported_image,
+                    unitId: row.unit_id,
                     unitDescription: row.unit_description,
-                    sectorName: row.tag_description
+                    sectorName: row.tag_description,
+                    companyLogo: row.last_provider_company_logo,
+                    clientId: row.client_id,
+                    clientName: row.client_name
                 });
             }
         });
@@ -498,14 +590,44 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                 <p className={`text-[11px] font-black uppercase whitespace-nowrap leading-tight tracking-tight ${selectedSectorName === sector.name ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>
                                     {sector.name}
                                 </p>
-                                <p className="text-[9px] font-bold text-slate-400 mt-1">{sector.unit}</p>
+                                <p className="text-[9px] font-bold text-slate-400 mt-1">
+                                    {sector.flow.visible ? sector.flow.unit : sector.power.visible ? sector.power.unit : sector.pressure.visible ? sector.pressure.unit : sector.general.unit}
+                                </p>
                             </div>
-                            <CircularGauge 
-                                percentage={sector.percentage} 
-                                size={44} 
-                                strokeWidth={3.5}
-                                color={sector.percentage >= 85 ? 'text-emerald-500' : sector.percentage > 50 ? 'text-amber-500' : 'text-rose-500'} 
-                            />
+                            <div className="flex items-center gap-2">
+                                {sector.flow.visible && (
+                                    <CircularGauge 
+                                        percentage={sector.flow.percentage} 
+                                        size={44} 
+                                        strokeWidth={3.5}
+                                        color={sector.flow.percentage >= 85 ? 'text-emerald-500' : sector.flow.percentage > 50 ? 'text-amber-500' : 'text-rose-500'} 
+                                    />
+                                )}
+                                {sector.power.visible && (
+                                    <CircularGauge 
+                                        percentage={sector.power.percentage} 
+                                        size={44} 
+                                        strokeWidth={3.5}
+                                        color={sector.power.percentage >= 85 ? 'text-emerald-500' : sector.power.percentage > 50 ? 'text-amber-500' : 'text-rose-500'} 
+                                    />
+                                )}
+                                {sector.pressure.visible && (
+                                    <CircularGauge 
+                                        percentage={sector.pressure.percentage} 
+                                        size={44} 
+                                        strokeWidth={3.5}
+                                        color={sector.pressure.percentage >= 85 ? 'text-emerald-500' : sector.pressure.percentage > 50 ? 'text-amber-500' : 'text-rose-500'} 
+                                    />
+                                )}
+                                {sector.general.visible && (
+                                    <CircularGauge 
+                                        percentage={sector.general.percentage} 
+                                        size={44} 
+                                        strokeWidth={3.5}
+                                        color={sector.general.percentage >= 85 ? 'text-emerald-500' : sector.general.percentage > 50 ? 'text-amber-500' : 'text-rose-500'} 
+                                    />
+                                )}
+                            </div>
                         </Card>
                     ))}
                 </div>
@@ -517,52 +639,78 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Sincronizando Ativos...</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-3">
-                        {unitsRows.map(unit => (
-                            <div key={unit.id} className="flex gap-3 items-center px-1">
-                                {/* Unit Info Card */}
-                                <Card className="shrink-0 w-64 p-3 rounded-[20px]! h-[88px] flex items-center justify-between relative group overflow-hidden border-slate-200 dark:border-slate-800">
-                                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'} group-hover:w-1.5 transition-all`}></div>
-                                    <div className="flex items-center gap-2.5">
-                                        <CircularGauge 
-                                            percentage={unit.percentage} 
-                                            size={44} 
-                                            strokeWidth={3.5}
-                                            color={unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-500' : 'text-rose-500'} 
-                                        />
-                                        <div className="min-w-0">
-                                            <h3 className="text-[12px] font-black text-slate-800 dark:text-white uppercase leading-tight truncate w-28">{unit.description}</h3>
-                                            {unit.lastReportedAt ? (() => {
-                                                const diffMs = new Date().getTime() - new Date(unit.lastReportedAt).getTime();
-                                                const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                                                const diffMins = Math.floor(diffMs / (1000 * 60));
-                                                
-                                                return (
-                                                    <p className="text-[9px] font-black text-primary mt-0.5 uppercase tracking-tight">
-                                                        há {diffHrs > 0 ? `${diffHrs} h` : `${diffMins} min`}
-                                                    </p>
-                                                );
-                                            })() : (
-                                                <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase">Sem registros</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={() => setUnitForExport(unit)}
-                                        className="h-8 w-8 flex items-center justify-center rounded-full text-primary/30 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 active:scale-[0.97] cursor-pointer"
-                                        title="Exportar Excel"
+                    <div className="flex flex-col gap-1">
+                        {unitsRows.map(unit => {
+                            const isExpanded = expandedUnitId === unit.id;
+                            
+                            return (
+                                <div key={unit.id} className="flex flex-col md:flex-row gap-2 md:gap-3 items-stretch md:items-center">
+                                    {/* Unit Info Card */}
+                                    <Card 
+                                        onClick={() => {
+                                            if (window.innerWidth < 768) {
+                                                if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
+                                                setExpandedUnitId(isExpanded ? null : unit.id);
+                                            }
+                                        }}
+                                        className={`shrink-0 w-full md:w-auto md:min-w-[256px] p-3 rounded-[20px]! min-h-[88px] h-auto flex items-center justify-between relative group overflow-hidden border-slate-200 dark:border-slate-800 transition-all ${
+                                            isExpanded ? 'ring-2 ring-primary border-transparent' : 'cursor-pointer md:cursor-default active:scale-[0.99] md:active:scale-100'
+                                        }`}
                                     >
-                                        <RiFileExcel2Fill size={18} />
-                                    </button>
-                                </Card>
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'} group-hover:w-1.5 transition-all`}></div>
+                                        <div className="flex items-center gap-2.5">
+                                            <CircularGauge 
+                                                percentage={unit.percentage} 
+                                                size={44} 
+                                                strokeWidth={3.5}
+                                                color={unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-500' : 'text-rose-500'} 
+                                            />
+                                            <div className="min-w-0">
+                                                <h3 className="text-[12px] font-black text-slate-800 dark:text-white uppercase leading-tight pr-2">{unit.description}</h3>
+                                                {unit.lastReportedAt ? (
+                                                    <p className="text-[9px] font-black text-primary mt-0.5 uppercase tracking-tight">
+                                                        {(() => {
+                                                            const diffMs = new Date().getTime() - new Date(unit.lastReportedAt).getTime();
+                                                            const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                                                            const diffMins = Math.floor(diffMs / (1000 * 60));
+                                                            return `há ${diffHrs > 0 ? `${diffHrs} h` : `${diffMins} min`}`;
+                                                        })()}
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase">Sem registros</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setUnitForExport(unit);
+                                                }}
+                                                className="h-8 w-8 items-center justify-center rounded-full text-primary/30 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 hidden md:flex"
+                                                title="Exportar Excel"
+                                            >
+                                                <RiFileExcel2Fill size={18} />
+                                            </button>
+                                            
+                                            <span className={`material-symbols-outlined text-slate-400 transition-transform md:hidden ${isExpanded ? 'rotate-180 text-primary' : ''}`}>
+                                                expand_more
+                                            </span>
+                                        </div>
+                                    </Card>
 
-                                {/* Assets Grid */}
-                                <AssetScrollRow
-                                    assets={unit.assets}
-                                    onAssetClick={setSelectedAssetForModal}
-                                />
-                            </div>
-                        ))}
+                                    {/* Assets Grid - Fixed on Desktop, Collapsible on Mobile */}
+                                    <div className={`${isExpanded ? 'flex animate-in slide-in-from-top-1 fade-in duration-300 mb-2' : 'hidden md:flex'} flex-1 w-full overflow-hidden`}>
+                                        <AssetScrollRow
+                                            assets={unit.assets}
+                                            onAssetClick={setSelectedAssetForModal}
+                                            onSSClick={setSelectedAssetForSS}
+                                        />
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </main>
@@ -611,6 +759,15 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         />
                                     </div>
                                 )}
+                                <IconButton 
+                                    icon="add" 
+                                    onClick={() => {
+                                        if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
+                                        setSelectedAssetForSS(modalData);
+                                    }}
+                                    className="h-11 w-11 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all rounded-2xl active:scale-95"
+                                    title="Nova Solicitação de Serviço"
+                                />
                             </div>
                         </div>
 
@@ -725,6 +882,35 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     ).sort((a: any, b: any) => a.description.localeCompare(b.description))}
                 />
             )}
+            {/* SS Form Bottom Sheet - Integrated Suggestion 2 & 3 */}
+            <BottomSheet
+                isOpen={!!selectedAssetForSS}
+                onClose={() => setSelectedAssetForSS(null)}
+                showCloseButton={false}
+            >
+                {selectedAssetForSS && (
+                    <ServiceRequestForm 
+                        onBack={() => setSelectedAssetForSS(null)}
+                        initialData={{
+                            clientId: selectedAssetForSS.clientId || selectedAssetForSS.client_id,
+                            unitId: selectedAssetForSS.unit_id || selectedAssetForSS.unitId,
+                            unitAssetTagId: selectedAssetForSS.id,
+                            requestedServices: `${selectedAssetForSS.description}: ${selectedAssetForSS.suspendedReason || ''} ${selectedAssetForSS.lastComments || ''}`.trim()
+                        }}
+                        initialContext={{
+                            clientName: selectedAssetForSS.clientName || selectedAssetForSS.client_name,
+                            unitDescription: selectedAssetForSS.unitDescription || selectedAssetForSS.unit_description,
+                            assetTagDescription: `${selectedAssetForSS.sectorName || selectedAssetForSS.asset_tag_tag_sub_description} > ${selectedAssetForSS.description || selectedAssetForSS.asset_tag_item_description}`,
+                            companyLogo: selectedAssetForSS.companyLogo || selectedAssetForSS.last_provider_company_logo
+                        }}
+                        onSubmit={() => {
+                            setSelectedAssetForSS(null);
+                            setSelectedAssetForModal(null);
+                            loadDashboardData(selectedSystemId, true);
+                        }}
+                    />
+                )}
+            </BottomSheet>
         </div>
     );
 };

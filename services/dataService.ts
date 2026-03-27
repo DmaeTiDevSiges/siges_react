@@ -6033,6 +6033,21 @@ export const dataService = {
         }));
     },
 
+    async getSystemsParentAssetsTagsAvailableRate(systemParentId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('v_systems_parent_assets_tags_available_rate')
+            .select('*')
+            .eq('system_parent_id', systemParentId)
+            .order('asset_tag_description');
+
+        if (error) {
+            console.error('Error fetching systems parent assets tags available rate:', error);
+            return [];
+        }
+
+        return data || [];
+    },
+
     async getUnitTypesParent(): Promise<UnitType[]> {
         const { data, error } = await supabase.from('cfg_units_types').select('*').is('parent_id', null).eq('is_deleted', 'false').eq('is_available', 'true').order('description');
         if (error) { console.error('Error fetching parent unit types:', error); return []; }
@@ -8377,7 +8392,8 @@ export const dataService = {
             afterTagSubId: data.after_tag_sub_id?.toString(),
             afterPriorityId: data.after_priority_id,
             clientId: data.client_id?.toString(),
-            orderTypeId: orderTypeId
+            orderTypeId: orderTypeId,
+            maintenancePlanId: data.maintenance_plan_id?.toString()
         };
 
 

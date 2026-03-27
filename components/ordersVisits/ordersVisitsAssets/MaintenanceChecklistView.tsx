@@ -71,15 +71,8 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
             ]);
             setPlans(availablePlans);
 
-            if (existingItems.length > 0) {
-                const firstPlanId = existingItems[0].maintenancePlanId;
-                if (firstPlanId) {
-                    handlePlanSelect(firstPlanId);
-                }
-            } else if (initialPlanId && initialPlanId !== '0') {
+            if (initialPlanId && initialPlanId !== '0') {
                 handlePlanSelect(initialPlanId);
-            } else if (availablePlans.length === 1) {
-                handlePlanSelect(availablePlans[0].id);
             }
         } catch (error) {
             console.error('Error fetching plans:', error);

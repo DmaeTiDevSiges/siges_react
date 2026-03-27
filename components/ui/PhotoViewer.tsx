@@ -117,6 +117,27 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
         setLastDistance(null);
     };
 
+    const handleDownload = async (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        try {
+            const response = await fetch(currentSrc);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const filename = currentSrc.split('/').pop()?.split('?')[0] || `imagem-${Date.now()}.jpg`;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Erro ao baixar imagem:', error);
+            // Fallback: abrir em nova guia
+            window.open(currentSrc, '_blank');
+        }
+    };
+
     return createPortal(
         <div
             className="fixed inset-0 z-9999 bg-black/95 flex flex-col items-center justify-center backdrop-blur-md animate-in fade-in duration-300"
@@ -145,8 +166,10 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
                 </div>
 
                 <div className="flex items-center gap-2 md:gap-3 bg-white/5 backdrop-blur-xl p-1.5 rounded-full border border-white/10 shadow-2xl">
+                    <IconButton icon="download" onClick={handleDownload} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
+                    <div className="w-px h-4 bg-white/10 my-auto mx-1" />
                     <IconButton icon="rotate_right" onClick={handleRotate} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
-                    <div className="w-px h-4 bg-white/10 my-automx-1" />
+                    <div className="w-px h-4 bg-white/10 my-auto mx-1" />
                     <IconButton icon="zoom_in" onClick={handleZoomIn} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
                     <IconButton icon="zoom_out" onClick={handleZoomOut} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
                     <IconButton icon="restart_alt" onClick={handleReset} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />

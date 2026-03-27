@@ -13,11 +13,17 @@ interface ServiceRequestFormProps {
     onBack: () => void;
     onSubmit?: (data: any) => void;
     initialData?: Partial<Order>;
+    initialContext?: {
+        clientName?: string;
+        unitDescription?: string;
+        assetTagDescription?: string;
+        companyLogo?: string | null;
+    };
 }
 
-export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, onSubmit, initialData }) => {
+export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, onSubmit, initialData, initialContext }) => {
     // State
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(initialContext ? 2 : 1);
     const [clients, setClients] = useState<Client[]>([]);
     const [units, setUnits] = useState<Unit[]>([]);
     const [assetTags, setAssetTags] = useState<AssetTag[]>([]);
@@ -111,13 +117,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
             return;
         }
 
-        // We'll show a simple prompt to distinguish Camera vs Gallery (Multi)
-        // Since we don't have ActionSheet installed, we'll use a simple choice or just default to Gallery Multi 
-        // if we want to follow the user's specific request for multiple.
-
-        // Actually, let's keep it simple: the user wants to be able to pick 4 at once from gallery.
-        // We can use picker and camera separately or try to integrate.
-
         try {
             const result = await Camera.pickImages({
                 quality: 80,
@@ -128,7 +127,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                 const newFiles: File[] = [];
                 const newPreviews: string[] = [];
 
-                // Ensure we only take up to the remaining limit
                 const photosToTake = result.photos.slice(0, 4 - selectedFiles.length);
 
                 for (const photo of photosToTake) {
@@ -183,7 +181,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
 
-        // Final Validation
         if (!formData.clientId || !formData.unitId || !formData.orderTypeId || !formData.requestedServices) {
             toast.error("Preencha todos os campos obrigatórios");
             return;
@@ -196,7 +193,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                 unitId: formData.unitId,
                 typeId: formData.orderTypeId,
                 priorityId: formData.priorityId || undefined,
-                unitAssetTagId: formData.unitAssetTagId || undefined, // Updated here
+                unitAssetTagId: formData.unitAssetTagId || undefined,
                 requestedServices: formData.requestedServices,
             };
 
@@ -206,13 +203,9 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                 const uploadPromises = selectedFiles.map(file => dataService.uploadOrderImage(createdOrder.companyId!, createdOrder.id, file));
                 const uploadResults = await Promise.all(uploadPromises);
 
-                // Collect filenames for the jsonb field
                 const filenames = uploadResults.map(res => res.filename);
-
-                // Update with all filenames
                 await dataService.updateOrderFiles(createdOrder.id, filenames);
 
-                // For backward compatibility, also update the main image fields with the first one
                 if (uploadResults.length > 0) {
                     await dataService.updateOrderImage(createdOrder.id, uploadResults[0].path, uploadResults[0].filename);
                 }
@@ -232,7 +225,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
 
     const isStep1Valid = !!(formData.clientId && formData.unitId);
     const isStep2Valid = !!(formData.orderTypeId && formData.requestedServices);
-    // Step 3 (Photo) is optional
 
     const handleNext = () => {
         if (step === 1 && isStep1Valid) setStep(2);
@@ -241,7 +233,8 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     };
 
     const handlePrev = () => {
-        if (step > 1) setStep(step - 1);
+        if (step > 1 && !initialContext) setStep(step - 1);
+        else if (step > 2 && initialContext) setStep(step - 1);
         else onBack();
     };
 
@@ -249,7 +242,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f172a] relative">
-            {/* Loading Bar */}
             {isLoading && (
                 <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500/20 z-50 overflow-hidden">
                     <div className="h-full bg-blue-500 animate-loading-bar" />
@@ -259,7 +251,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
             <div className="flex-1 flex flex-col overflow-hidden relative">
                 <div className="flex-1 overflow-y-auto no-scrollbar pb-6">
 
-                    {/* Hero Section - Static across steps, maybe animate background? */}
                     <div className="relative h-48 w-full shrink-0 overflow-hidden">
                         <div className="absolute inset-0 bg-slate-900/60 z-10 transition-colors duration-500"
                             style={{ backgroundColor: step === 1 ? 'rgba(15, 23, 42, 0.6)' : step === 2 ? 'rgba(15, 23, 42, 0.7)' : 'rgba(15, 23, 42, 0.8)' }}
@@ -271,10 +262,8 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                             style={{ transform: `scale(${1 + step * 0.05})` }}
                         />
 
-                        {/* Bottom Phase Information */}
-                        <div className="absolute bottom-5 left-5 right-5 z-20">
-                            {/* Client Summary */}
-                            {step > 1 && (
+                        <div className="absolute bottom-5 left-4 right-4 z-20">
+                            {step > 1 && !initialContext && (
                                 <div className="mb-3 flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                     <span className="text-xs font-bold text-slate-200">
                                         {clients.find(c => c.id === formData.clientId)?.name}
@@ -290,7 +279,20 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                 </div>
                             )}
 
-                            {/* Step Indicators and Title */}
+                            {initialContext && (
+                                <div className="mb-3 flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <span className="text-xs font-black text-slate-100 uppercase tracking-tight">
+                                        {initialContext.clientName}
+                                    </span>
+                                    <span className="text-xs font-black text-slate-100 uppercase tracking-tight">
+                                        {initialContext.unitDescription}
+                                    </span>
+                                    <span className="text-xs font-black text-slate-300 uppercase tracking-wider">
+                                        {initialContext.assetTagDescription}
+                                    </span>
+                                </div>
+                            )}
+
                             <span className="text-[10px] font-black tracking-widest text-white uppercase mb-1 flex items-center gap-2">
                                 <span className={`px-1.5 py-0.5 rounded ${step >= 1 ? 'bg-blue-500 text-white' : 'bg-white/10'}`}>1</span>
                                 <div className={`w-4 h-0.5 rounded ${step >= 2 ? 'bg-blue-500' : 'bg-white/20'}`} />
@@ -306,8 +308,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                         </div>
                     </div>
 
-                    <div className="px-5 py-4 space-y-5 animate-in slide-in-from-right-4 duration-300">
-                        {/* Step 1: Location */}
+                    <div className="px-4 py-4 space-y-5 animate-in slide-in-from-right-4 duration-300">
                         {step === 1 && (
                             <section className="space-y-5">
                                 <div className="space-y-4">
@@ -345,7 +346,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                             </section>
                         )}
 
-                        {/* Step 2: Details */}
                         {step === 2 && (
                             <section className="space-y-5">
                                 <div className="space-y-4">
@@ -367,7 +367,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                     <Textarea
                                         label="Descrição do Problema"
                                         required
-                                        rows={5}
+                                        rows={2}
                                         value={formData.requestedServices}
                                         onChange={e => setFormData(prev => ({ ...prev, requestedServices: e.target.value }))}
                                         placeholder="Descreva a necessidade com detalhes (Ex: ar condicionado pingando, lâmpada queimada...)"
@@ -376,7 +376,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                             </section>
                         )}
 
-                        {/* Step 3: Evidence */}
                         {step === 3 && (
                             <section className="space-y-3">
                                 <div className="flex flex-col gap-2 mb-4">
@@ -386,7 +385,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">
-                                    {/* Selected Photos List */}
                                     {previewUrls.map((url, index) => (
                                         <div key={index} className="relative group rounded-[12px] overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-32 shadow-sm cursor-pointer"
                                             onClick={() => setExpandedImageUrl(url)}
@@ -407,7 +405,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         </div>
                                     ))}
 
-                                    {/* Add Photo Button */}
                                     {previewUrls.length < 4 && (
                                         <div
                                             onClick={() => setIsPhotoActionOpen(true)}
@@ -424,21 +421,20 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                         )}
                     </div>
 
-                    {/* Footer Actions Moved to Bottom of Form */}
-                    <div className="flex gap-3 px-5 py-6 mt-4">
+                    <div className="flex gap-3 px-4 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] bg-white dark:bg-[#0f172a] border-t border-slate-100 dark:border-slate-800 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] fixed bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom duration-300">
                         <Button
-                            variant="ghost"
+                            variant="secondary"
                             onClick={handlePrev}
-                            className="flex-1 text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800"
+                            className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm"
                             disabled={isLoading}
                         >
-                            {step === 1 ? 'Cancelar' : 'Voltar'}
+                            {step === 3 ? 'Voltar' : 'Cancelar'}
                         </Button>
 
                         {step < 3 ? (
                             <Button
                                 onClick={handleNext}
-                                className={`flex-2 ${(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`flex-1 ${(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)}
                             >
                                 Próximo
@@ -447,7 +443,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                             <Button
                                 onClick={handleSubmit}
                                 disabled={isLoading}
-                                className="flex-2 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
                             >
                                 {isLoading ? 'Enviando...' : 'Enviar'}
                             </Button>
@@ -464,7 +460,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                 />
             )}
 
-            {/* Photo Action Sheet Overlay */}
             {isPhotoActionOpen && (
                 <div
                     className="fixed inset-0 z-150 bg-black/60 flex items-end justify-center animate-in fade-in duration-200"

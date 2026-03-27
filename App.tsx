@@ -302,8 +302,8 @@ const App: React.FC = () => {
 
     return (
       <div className="flex items-center gap-4 h-full mt-1">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Gestão</h1>
-        <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
+        <h1 className="hidden md:block text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Gestão</h1>
+        <div className="hidden md:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
         <div className="flex gap-4">
           <button
             onClick={() => { setOrdersDashboardTab('OS'); setCurrentScreen('orders-dashboard'); }}
