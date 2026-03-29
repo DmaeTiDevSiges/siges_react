@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
+import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 
 interface ServiceRequestFormProps {
     onBack: () => void;
@@ -460,50 +461,13 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                 />
             )}
 
-            {isPhotoActionOpen && (
-                <div
-                    className="fixed inset-0 z-150 bg-black/60 flex items-end justify-center animate-in fade-in duration-200"
-                    onClick={() => setIsPhotoActionOpen(false)}
-                >
-                    <div
-                        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-[24px] overflow-hidden animate-in slide-in-from-bottom duration-300 p-6"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Foto evidência</h3>
-
-                        <div className="space-y-2">
-                            <button
-                                className="w-full text-left py-4 px-2 text-lg font-semibold text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-slate-800 flex items-center gap-3"
-                                onClick={() => {
-                                    setIsPhotoActionOpen(false);
-                                    handleAddPhotos();
-                                }}
-                            >
-                                <span className="material-symbols-outlined text-blue-500">collections</span>
-                                Escolher da Galeria
-                            </button>
-                            <button
-                                className="w-full text-left py-4 px-2 text-lg font-semibold text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-3"
-                                onClick={() => {
-                                    setIsPhotoActionOpen(false);
-                                    takeCameraPhoto();
-                                }}
-                            >
-                                <span className="material-symbols-outlined text-blue-500">photo_camera</span>
-                                Tirar Foto
-                            </button>
-                        </div>
-
-                        <Button
-                            variant="ghost"
-                            className="w-full mt-6 py-4 text-slate-500 dark:text-slate-400"
-                            onClick={() => setIsPhotoActionOpen(false)}
-                        >
-                            Cancelar
-                        </Button>
-                    </div>
-                </div>
-            )}
+            <ImageUploadSheet
+                isOpen={isPhotoActionOpen}
+                onClose={() => setIsPhotoActionOpen(false)}
+                onSelectGallery={handleAddPhotos}
+                onTakeCamera={takeCameraPhoto}
+                title="Foto evidência"
+            />
         </div>
     );
 };

@@ -9,6 +9,7 @@ import { Select } from '../../components/ui/Select';
 import { Input } from '../../components/ui/Input';
 import { Textarea } from '../../components/ui/Textarea';
 import { DynamicField } from '../../components/ui/DynamicField';
+import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
@@ -78,10 +79,10 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
     const [tags, setTags] = useState<AssetTag[]>([]);
     const [unitTags, setUnitTags] = useState<AssetTag[]>([]);
     const [tagSubs, setTagSubs] = useState<AssetTagSub[]>([]);
-    const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(
         initialAsset && !isDuplicate ? dataService.getPublicImageUrl(initialAsset.imgFilePath, initialAsset.imgFileName, { width: 400, height: 400, resize: 'contain' }) : null
     );
+    const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
 
     // Dynamic attributes state
     const [attributes, setAttributes] = useState<AssetAttribute[]>([]);
@@ -242,16 +243,13 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
         }
     };
 
-    const takePhoto = async () => {
+    const takePhoto = async (source: CameraSource) => {
         try {
             const image = await Camera.getPhoto({
                 quality: 90,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,
-                source: CameraSource.Prompt, // Opens choice between Camera and Gallery
-                promptLabelHeader: 'Foto do Ativo',
-                promptLabelPhoto: 'Escolher da Galeria',
-                promptLabelPicture: 'Tirar Foto'
+                source: source
             });
 
             if (image.webPath) {
@@ -280,6 +278,8 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
             }
         } catch (error) {
             console.error('Error taking photo', error);
+        } finally {
+            setIsPhotoSheetOpen(false);
         }
     };
 
@@ -601,7 +601,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                         />
                                         <button
                                             type="button"
-                                            onClick={takePhoto}
+                                            onClick={() => setIsPhotoSheetOpen(true)}
                                             className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-blue-600 transition-colors border-2 border-white dark:border-slate-900"
                                         >
                                             <span className="material-symbols-outlined text-sm font-black">photo_camera</span>

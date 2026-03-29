@@ -49,17 +49,17 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
 
             {/* Sheet Container */}
             <div 
-                className={`relative w-full max-w-2xl bg-slate-50 dark:bg-slate-950 rounded-t-[32px] shadow-2xl overflow-hidden transition-transform duration-300 ease-out transform ${
+                className={`relative w-full max-w-2xl bg-slate-50 dark:bg-slate-950 rounded-t-[32px] shadow-2xl overflow-hidden transition-transform duration-300 ease-out transform flex flex-col ${
                     isOpen ? 'translate-y-0' : 'translate-y-full'
                 }`}
-                style={{ height }}
+                style={{ height, maxHeight: '92vh' }}
             >
                 {/* Drag Handle Bar */}
                 <div className="flex flex-col items-center pt-3 pb-2 shrink-0">
                     <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-1" />
                 </div>
 
-                {/* Header */}
+                {/* Header omitted for brevity in instruction if not changed, but I will include it to be safe */}
                 {(title || showCloseButton) && (
                     <div className="px-6 py-4 flex items-center justify-between shrink-0 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                         <div className="flex-1">
@@ -84,7 +84,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                 )}
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto no-scrollbar h-full">
+                <div className={`flex-1 overflow-y-auto no-scrollbar ${height === 'auto' ? '' : 'h-full'}`}>
                     {children}
                 </div>
             </div>

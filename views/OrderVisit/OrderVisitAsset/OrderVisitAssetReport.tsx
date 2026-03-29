@@ -18,6 +18,7 @@ import { Select } from '../../../components/ui/Select';
 import { Modal } from '../../../components/ui/Modal';
 import { getProcessingStatus } from '../../../components/ordersVisits/OrderVisitProcessingButton';
 import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
+import { ImageUploadSheet } from '../../../components/ui/ImageUploadSheet';
 
 const Switch: React.FC<{ checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
     <button
@@ -1370,61 +1371,13 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 />
             )}
 
-            {/* Photo Action Sheet Overlay */}
-            {photoActionSection && (
-                <div
-                    className="fixed inset-0 z-150 bg-linear-to-b from-black/20 to-black/60 flex items-end justify-center animate-in fade-in duration-200"
-                    onClick={() => setPhotoActionSection(null)}
-                >
-                    <div
-                        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-[24px] overflow-hidden animate-in slide-in-from-bottom duration-300 p-6 shadow-2xl"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="w-12 h-1 bg-slate-200 dark:bg-slate-800 rounded-full mx-auto mb-6" />
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Captura de Evidência</h3>
-
-                        <div className="space-y-2">
-                            <button
-                                className="w-full text-left py-4 px-3 text-sm font-black text-slate-700 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 flex items-center justify-between group"
-                                onClick={() => {
-                                    handleAddPhotos(photoActionSection);
-                                    setPhotoActionSection(null);
-                                }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 transition-transform group-hover:scale-110">
-                                        <span className="material-symbols-outlined text-xl">collections</span>
-                                    </div>
-                                    <span>Escolher da Galeria</span>
-                                </div>
-                                <span className="material-symbols-outlined text-slate-300">chevron_right</span>
-                            </button>
-                            <button
-                                className="w-full text-left py-4 px-3 text-sm font-black text-slate-700 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 flex items-center justify-between group"
-                                onClick={() => {
-                                    takeCameraPhoto(photoActionSection);
-                                    setPhotoActionSection(null);
-                                }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 transition-transform group-hover:scale-110">
-                                        <span className="material-symbols-outlined text-xl">photo_camera</span>
-                                    </div>
-                                    <span>Tirar Foto Agora</span>
-                                </div>
-                                <span className="material-symbols-outlined text-slate-300">chevron_right</span>
-                            </button>
-                        </div>
-                        <Button
-                            variant="ghost"
-                            className="w-full mt-6 py-4 text-slate-500 dark:text-slate-400 font-black text-[10px] uppercase tracking-widest border border-slate-100 dark:border-slate-800 rounded-xl"
-                            onClick={() => setPhotoActionSection(null)}
-                        >
-                            Cancelar
-                        </Button>
-                    </div>
-                </div>
-            )}
+            {/* Photo Action Sheet */}
+            <ImageUploadSheet
+                isOpen={!!photoActionSection}
+                onClose={() => setPhotoActionSection(null)}
+                onSelectGallery={() => handleAddPhotos(photoActionSection!)}
+                onTakeCamera={() => takeCameraPhoto(photoActionSection!)}
+            />
 
             {/* Upload Progress Overlay */}
             {uploadingCount > 0 && (

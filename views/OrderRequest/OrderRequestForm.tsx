@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Client, Unit, OrderType, OrderSubType, OrderObject, OrderPlan, Contract, Team, Priority, Order, AssetTag } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Button } from '../../components/ui/Button';
@@ -10,7 +10,7 @@ import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 
-interface OrderRequestFormProps {
+export interface OrderRequestFormProps {
     onBack: () => void;
     onSubmit?: (data: any) => void;
     initialData?: Partial<Order>;
@@ -19,7 +19,11 @@ interface OrderRequestFormProps {
     hideFooter?: boolean;
 }
 
-export const OrderRequestForm: React.FC<OrderRequestFormProps> = ({ onBack, onSubmit, initialData, mode, showCardHeader, hideFooter }) => {
+export interface OrderRequestFormRef {
+    submit: () => Promise<boolean>;
+}
+
+export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestFormProps>(({ onBack, onSubmit, initialData, mode, showCardHeader, hideFooter }, ref) => {
     // Detect edit mode
     const isEdit = mode === 'edit' || (!!initialData?.id && (initialData?.parentId !== undefined && initialData?.parentId !== null && Number(initialData.parentId) > 0));
 
@@ -271,10 +275,10 @@ export const OrderRequestForm: React.FC<OrderRequestFormProps> = ({ onBack, onSu
         setExistingImages(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (): Promise<boolean> => {
         if (!formData.clientId || !formData.unitId || !formData.orderTypeId || !formData.requestedServices || !formData.contractId || !formData.priorityId || !formData.orderTypeSubId || !formData.orderObjectId) {
             toast.error("Preencha todos os campos obrigatórios");
-            return;
+            return false;
         }
 
         setIsLoading(true);
@@ -334,10 +338,11 @@ export const OrderRequestForm: React.FC<OrderRequestFormProps> = ({ onBack, onSu
 
             if (onSubmit) onSubmit(resultOrder);
             else onBack();
-
+            return true;
         } catch (error: any) {
             console.error("Error processing OS", error);
             toast.error(error instanceof Error ? error.message : "Erro ao processar OS");
+            return false;
         } finally {
             setIsLoading(false);
         }
@@ -367,6 +372,17 @@ export const OrderRequestForm: React.FC<OrderRequestFormProps> = ({ onBack, onSu
         if (step > 1) setStep(step - 1);
         else onBack();
     };
+
+    useImperativeHandle(ref, () => ({
+        submit: async () => {
+            if (isStep1Valid) {
+                return await handleSubmit();
+            } else {
+                toast.error("Preencha todos os dados obrigatórios da OS");
+                return false;
+            }
+        }
+    }));
 
     return (
         <div className={`flex flex-col ${hideFooter ? '' : 'h-full'} bg-slate-50 dark:bg-[#0f172a] relative`}>
@@ -408,11 +424,13 @@ export const OrderRequestForm: React.FC<OrderRequestFormProps> = ({ onBack, onSu
                                     </div>
                                 )}
 
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-black transition-colors ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/50'}`}>1</div>
-                                    <div className={`w-5 h-0.5 rounded-full transition-colors ${step >= 2 ? 'bg-blue-600' : 'bg-white/20'}`} />
-                                    <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-black transition-colors ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/50'}`}>2</div>
-                                </div>
+                                {!hideFooter && (
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-black transition-colors ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/50'}`}>1</div>
+                                        <div className={`w-5 h-0.5 rounded-full transition-colors ${step >= 2 ? 'bg-blue-600' : 'bg-white/20'}`} />
+                                        <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-black transition-colors ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/50'}`}>2</div>
+                                    </div>
+                                )}
 
                                 <h2 className="text-2xl font-black text-white leading-none mt-2">
                                     {isEdit ? (step === 1 ? "Editar OS" : "Evidências") : (step === 1 ? "Dados da OS" : "Evidências")}
@@ -422,7 +440,7 @@ export const OrderRequestForm: React.FC<OrderRequestFormProps> = ({ onBack, onSu
                     )}
 
                     <div className={`px-4 pt-0 ${hideFooter ? 'pb-0' : 'pb-6'} space-y-4 animate-in slide-in-from-right-4 duration-300`}>
-                        {step === 1 && (
+                        {(step === 1 || hideFooter) && (
                             <section className="space-y-4">
                                 {!showCardHeader && (
                                     <Textarea
@@ -514,7 +532,7 @@ export const OrderRequestForm: React.FC<OrderRequestFormProps> = ({ onBack, onSu
                             </section>
                         )}
 
-                        {step === 2 && (
+                        {(step === 2 || hideFooter) && (
                             <section className="space-y-3">
                                 <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                                     Adicione até 4 fotos para ajudar a equipe a identificar o problema (Opcional).
@@ -619,4 +637,6 @@ export const OrderRequestForm: React.FC<OrderRequestFormProps> = ({ onBack, onSu
             )}
         </div>
     );
-};
+});
+
+OrderRequestForm.displayName = 'OrderRequestForm';

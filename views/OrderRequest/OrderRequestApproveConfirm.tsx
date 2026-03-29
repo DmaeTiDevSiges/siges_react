@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { OrderRequestForm } from './OrderRequestForm';
+import { OrderRequestForm, OrderRequestFormRef } from './OrderRequestForm';
 import { Order, OrderVisit, SuspendedReason } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Button } from '../../components/ui/Button';
@@ -19,6 +19,7 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
 
     const [hasReadToBottom, setHasReadToBottom] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const formRef = useRef<OrderRequestFormRef>(null);
 
     // Approval State
     const [formData, setFormData] = useState({
@@ -58,14 +59,21 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
 
         setIsLoading(true);
         try {
-            if (onSubmit) {
-                await onSubmit({
-                    ...formData,
-                });
+            if (formRef.current) {
+                const success = await formRef.current.submit();
+                if (!success) {
+                    setIsLoading(false);
+                    return;
+                }
+            } else {
+                if (onSubmit) {
+                    await onSubmit({
+                        ...formData,
+                    });
+                }
             }
         } catch (error) {
             console.error("Error approving", error);
-        } finally {
             setIsLoading(false);
         }
     };
@@ -78,7 +86,15 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
                 className="flex-1 overflow-y-auto no-scrollbar pb-32"
             >
                 <OrderRequestForm
+                    ref={formRef}
                     onBack={onBack}
+                    onSubmit={async () => {
+                        if (onSubmit) {
+                            await onSubmit({
+                                ...formData,
+                            });
+                        }
+                    }}
                     initialData={initialData}
                     mode="edit"
                     showCardHeader={true}

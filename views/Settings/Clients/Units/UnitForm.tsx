@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
+import { ImageUploadSheet } from '../../../../components/ui/ImageUploadSheet';
 
 // Fix for default marker icon in Leaflet + Vite
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -57,6 +58,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isUploadSheetOpen, setIsUploadSheetOpen] = useState(false);
 
     useEffect(() => {
         if (initialUnit?.imgFilePath && initialUnit?.imgFileName) {
@@ -74,16 +76,13 @@ export const UnitForm: React.FC<UnitFormProps> = ({
         }
     };
 
-    const takePhoto = async () => {
+    const handleTakePhoto = async (source: CameraSource) => {
         try {
             const image = await Camera.getPhoto({
                 quality: 90,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,
-                source: CameraSource.Prompt,
-                promptLabelHeader: 'Foto da Unidade',
-                promptLabelPhoto: 'Escolher da Galeria',
-                promptLabelPicture: 'Tirar Foto'
+                source: source
             });
 
             if (image.webPath) {
@@ -331,7 +330,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                 <div className="flex flex-col gap-1.5">
                     <label className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 ml-1">Foto de capa</label>
                     <div
-                        onClick={takePhoto}
+                        onClick={() => setIsUploadSheetOpen(true)}
                         className="w-full aspect-video rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center cursor-pointer hover:border-primary transition-colors overflow-hidden bg-slate-50 dark:bg-slate-900 group relative"
                     >
                         {previewUrl ? (
@@ -527,6 +526,13 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                 onCancel={onCancel}
                 isSaving={isSaving}
                 disabled={!hasPermission}
+            />
+
+            <ImageUploadSheet
+                isOpen={isUploadSheetOpen}
+                onClose={() => setIsUploadSheetOpen(false)}
+                onSelectGallery={() => handleTakePhoto(CameraSource.Photos)}
+                onTakeCamera={() => handleTakePhoto(CameraSource.Camera)}
             />
         </div>
     );

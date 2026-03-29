@@ -222,7 +222,7 @@ const FilterSelect: React.FC<{
     const count = Array.isArray(value) ? value.length : (value ? 1 : 0);
 
     return (
-        <div className={`relative flex items-center flex-1 min-w-[110px] h-[42px] transition-opacity shrink-0 ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`relative flex items-center w-auto min-w-[110px] h-[42px] transition-opacity shrink-0 ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
             <div className={`flex items-stretch h-full w-full bg-white dark:bg-slate-800 border rounded-xl shadow-sm overflow-hidden transition-all ${count > 0 ? 'border-primary ring-1 ring-primary/20' : 'border-slate-200 dark:border-slate-700'}`}>
                 <div
                     onClick={onClick}

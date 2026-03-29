@@ -3135,6 +3135,70 @@ export const dataService = {
 
     // Orders
     /**
+     * Get Active Orders (SS/OS) by unit asset tag ID
+     */
+    async getActiveOrdersByAssetTagId(unitAssetTagId: string | number): Promise<any[]> {
+        if (!unitAssetTagId) return [];
+        
+        try {
+            const numericId = typeof unitAssetTagId === 'string' ? parseInt(unitAssetTagId) : unitAssetTagId;
+            console.log('Querying active orders for ID:', numericId);
+            
+            const { data, error } = await supabase
+                .from('v_orders')
+                .select('id, order_mask, status_id, status_description, requested_services, requested_at, unit_asset_tag_id, unit_asset_tag_has_order, parent_id')
+                .eq('unit_asset_tag_id', numericId)
+                .eq('unit_asset_tag_has_order', true)
+                .or('parent_id.eq.0,parent_id.is.null')
+                .not('status_id', 'in', '(7,8)')
+                .order('requested_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching active orders:', error);
+                return [];
+            }
+
+            return data || [];
+        } catch (error) {
+            console.error('Exception in getActiveOrdersByAssetTagId:', error);
+            return [];
+        }
+    },
+    
+    /**
+     * Mark a Service Order (SS) as completed (status 8)
+     */
+    async completeServiceOrder(orderId: string | number, userId?: string | number, rating: number = 0): Promise<boolean> {
+        try {
+            const numericId = typeof orderId === 'string' ? parseInt(orderId, 10) : orderId;
+            if (isNaN(numericId)) return false;
+
+            const now = new Date().toISOString();
+            const { error } = await supabase
+                .from('orders')
+                .update({ 
+                    status_id: 8, 
+                    status_at: now,
+                    updated_at: now,
+                    unit_asset_tag_has_order: false,
+                    unit_asset_tag_no_has_order_user_id: userId || null,
+                    unit_asset_tag_no_has_order_at: now,
+                    rating: rating || null
+                })
+                .eq('id', numericId);
+
+            if (error) {
+                console.error('Error completing service order:', error);
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Exception in completeServiceOrder:', error);
+            return false;
+        }
+    },
+
+    /**
      * Create Service Request (Order)
      * Implements the complete flow from flows/servicesRequests/create-service-request.flow
      */
@@ -3342,6 +3406,16 @@ export const dataService = {
             .from('orders')
             .update({ img_file_path: folderPath })
             .eq('id', createdId);
+
+        // Se o usuário optou por receber notificações, adicioná-lo como seguidor da ordem
+        if (order.isNotifying) {
+            await supabase
+                .from('orders_followers')
+                .insert({
+                    o_id: parseInt(createdId),
+                    user_id: parseInt(currentUser.id)
+                });
+        }
 
         // Fetch the COMPLETE order details (includes mapping, joined names, and correctly formatted dates)
         let fullOrder = await this.getOrderById(createdId);
@@ -3692,7 +3766,6 @@ export const dataService = {
 
         return fullOrder;
     },
-
 
     async copyImagesFromOrderToOrder(srcCompanyId: string, srcOrderId: string, destCompanyId: string, destOrderId: string, files: string[]): Promise<void> {
         const { r2Service } = await import('./r2Service');
@@ -7343,7 +7416,10 @@ export const dataService = {
                 canceled_user_id: userId,
                 canceled_team_id: teamId,
                 canceled_at: now,
-                cancel_reason_id: reasonId
+                cancel_reason_id: reasonId,
+                unit_asset_tag_has_order: false,
+                unit_asset_tag_no_has_order_user_id: userId,
+                unit_asset_tag_no_has_order_at: now
             })
             .eq('id', orderId);
 
@@ -10599,19 +10675,35 @@ export const dataService = {
         }
 
         if (resultData) {
-             return {
+            return {
                 id: resultData.id.toString(),
                 orderVisitAssetId: resultData.ova_id.toString(),
                 activityId: resultData.activity_id.toString(),
                 isDeleted: resultData.is_deleted,
+                createdUserId: resultData.created_user_id?.toString(),
+                createdAt: resultData.created_at,
                 maintenancePlanId: resultData.maintenance_plan_id?.toString(),
                 isOk: resultData.is_ok,
                 imgFilePath: resultData.img_file_path,
-                imgFilesNames: resultData.img_files_names,
+                imgFilesNames: Array.isArray(resultData.img_files_names) ? resultData.img_files_names : (typeof resultData.img_files_names === 'string' ? JSON.parse(resultData.img_files_names) : []),
                 comments: resultData.comments
             };
         }
         return null;
+    },
+
+    async deleteMaintenanceChecklistItem(ovAssetId: string, planId: string, activityId: string): Promise<void> {
+        const { error } = await supabase
+            .from('orders_visits_assets_activities')
+            .delete()
+            .eq('ova_id', parseInt(ovAssetId))
+            .eq('maintenance_plan_id', parseInt(planId))
+            .eq('activity_id', parseInt(activityId));
+
+        if (error) {
+            console.error('Error deleting maintenance checklist item:', error);
+            throw error;
+        }
     },
 
     async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string): Promise<{ path: string; filename: string }> {

@@ -7,6 +7,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { OptimizedImage } from '../../ui/OptimizedImage';
 import { PhotoViewer } from '../../ui/PhotoViewer';
 import { Input } from '../../ui/Input';
+import { ImageUploadSheet } from '../../ui/ImageUploadSheet';
 
 interface MaintenanceChecklistViewProps {
     ovAssetId: string;
@@ -39,6 +40,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
     const [uploadingItem, setUploadingItem] = useState<string | null>(null);
     const [expandedImages, setExpandedImages] = useState<string[] | null>(null);
     const [deletingPhotos, setDeletingPhotos] = useState<Set<string>>(new Set());
+    const [uploadSheetOpenId, setUploadSheetOpenId] = useState<string | null>(null);
     
     const lastSyncedProgress = useRef<number>(-1);
 
@@ -186,6 +188,24 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
         }
     };
 
+    const handleResetItem = async (activityId: string) => {
+        try {
+            await dataService.deleteMaintenanceChecklistItem(ovAssetId, selectedPlanId, activityId);
+            setChecklistResponses(prev => {
+                const updated = { ...prev };
+                delete updated[activityId];
+                return updated;
+            });
+            if (onUpdateProcessing) {
+                onUpdateProcessing(2); // Set to "Reportado" or "Em Processamento"
+            }
+            toast.success('Atividade redefinida');
+        } catch (error) {
+            console.error('Error resetting item:', error);
+            toast.error('Erro ao redefinir atividade');
+        }
+    };
+
     const handleLocalCommentChange = (activityId: string, comment: string) => {
         setChecklistResponses(prev => ({
             ...prev,
@@ -201,7 +221,6 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
     };
 
     const handleSaveComment = async (activityId: string, comment: string) => {
-        if (!comment.trim()) return;
         try {
             const response = await dataService.upsertMaintenanceChecklistItem(ovAssetId, selectedPlanId, activityId, userId, { comments: comment });
             if (response) {
@@ -213,7 +232,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
         }
     };
 
-    const handleAddPhoto = async (activityId: string) => {
+    const handleTakePhoto = async (activityId: string, source: CameraSource) => {
         const response = checklistResponses[activityId];
         const existingPhotos = response?.imgFilesNames || [];
         
@@ -228,10 +247,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                 quality: 90,
                 allowEditing: false,
                 resultType: CameraResultType.Base64,
-                source: CameraSource.Prompt,
-                promptLabelHeader: 'Adicionar Foto',
-                promptLabelPhoto: 'Galeria',
-                promptLabelPicture: 'Câmera'
+                source: source
             });
 
             if (image.base64String) {
@@ -320,6 +336,8 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
         return dataService.getPublicImageUrl(path, fileName);
     };
 
+    const isPlanLocked = initialPlanId != null && initialPlanId !== '' && initialPlanId !== '0' && Number(initialPlanId) !== 0;
+
     return (
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between mb-6">
@@ -377,13 +395,19 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                         </label>
                     </div>
                     <Select
-                        disabled={disabled || loadingChecklist}
-                        value={selectedPlanId}
+                        disabled={disabled || loadingChecklist || isPlanLocked}
+                        value={selectedPlanId || (isPlanLocked ? String(initialPlanId) : '')}
                         onChange={(e: any) => handlePlanSelect(e.target.value)}
-                        options={[
-                            { value: '', label: 'Selecione um plano...' },
-                            ...plans.map(p => ({ value: p.id, label: p.description }))
-                        ]}
+                        options={isPlanLocked
+                            ? [{ 
+                                  value: String(initialPlanId), 
+                                  label: plans.find(p => String(p.id) === String(initialPlanId))?.description || 'Plano atual selecionado' 
+                              }]
+                            : [
+                                { value: '', label: 'Selecione um plano...' },
+                                ...plans.map(p => ({ value: String(p.id), label: p.description }))
+                            ]
+                        }
                     />
                 </div>
             )}
@@ -439,6 +463,15 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                     <span className="material-symbols-outlined text-xs">lock</span>
                                                                     <span className="text-[8px] font-black uppercase tracking-tighter">Histórico</span>
                                                                 </div>
+                                                            )}
+                                                            {!isHistorical && !isItemDisabled && response && response.isOk !== null && response.isOk !== undefined && (
+                                                                <button
+                                                                    onClick={() => handleResetItem(activity.activityId)}
+                                                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all shrink-0"
+                                                                    title="Limpar atividade"
+                                                                >
+                                                                    <span className="material-symbols-outlined text-lg">delete_outline</span>
+                                                                </button>
                                                             )}
                                                         </div>
 
@@ -504,7 +537,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                 ))}
                                                                 {!isItemDisabled && (response?.imgFilesNames?.length || 0) < 3 && (
                                                                     <button
-                                                                        onClick={() => handleAddPhoto(activity.activityId)}
+                                                                        onClick={() => setUploadSheetOpenId(activity.activityId)}
                                                                         disabled={uploadingItem === activity.activityId}
                                                                         className="w-10 h-10 rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 hover:text-indigo-500 hover:border-indigo-500 transition-all"
                                                                     >
@@ -520,19 +553,31 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
 
                                                         {/* Comment Section (Inline) */}
                                                         {(!isItemDisabled || response?.comments) && (
-                                                            <div className="relative">
+                                                            <div className="relative group/input">
                                                                 <Input
-                                                                    disabled={isItemDisabled}
+                                                                    disabled={isItemDisabled || isOk === null || isOk === undefined}
                                                                     placeholder="Adicionar observação..."
                                                                     value={response?.comments || ''}
                                                                     onChange={(e) => handleLocalCommentChange(activity.activityId, e.target.value)}
                                                                     onBlur={(e) => handleSaveComment(activity.activityId, e.target.value)}
-                                                                    className={`h-10! text-[10px] bg-transparent! ${
+                                                                    className={`h-10! text-[10px] bg-transparent! pr-8 ${
                                                                         isHistorical 
                                                                         ? 'border-transparent! text-slate-500 italic' 
                                                                         : ''
                                                                     }`}
                                                                 />
+                                                                {!isItemDisabled && response?.comments && isOk !== null && isOk !== undefined && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            handleLocalCommentChange(activity.activityId, '');
+                                                                            handleSaveComment(activity.activityId, '');
+                                                                        }}
+                                                                        className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors opacity-0 group-hover/input:opacity-100"
+                                                                        title="Limpar observação"
+                                                                    >
+                                                                        <span className="material-symbols-outlined text-[16px]">close</span>
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
@@ -562,6 +607,17 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                     onClose={() => setExpandedImages(null)}
                 />
             )}
+
+            <ImageUploadSheet
+                isOpen={!!uploadSheetOpenId}
+                onClose={() => setUploadSheetOpenId(null)}
+                onSelectGallery={() => {
+                    if (uploadSheetOpenId) handleTakePhoto(uploadSheetOpenId, CameraSource.Photos);
+                }}
+                onTakeCamera={() => {
+                    if (uploadSheetOpenId) handleTakePhoto(uploadSheetOpenId, CameraSource.Camera);
+                }}
+            />
         </div>
     );
 };

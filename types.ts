@@ -798,6 +798,7 @@ export interface Order {
   category?: string;
   description?: string;
   team?: string;
+  isNotifying?: boolean;
   teamDescription?: string;
   responsible?: string;
   responsibleAvatar?: string;

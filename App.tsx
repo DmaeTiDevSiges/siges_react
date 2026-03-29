@@ -1385,6 +1385,10 @@ const App: React.FC = () => {
           <DashboardUnitsAssetsTags
             currentUser={currentUser!}
             onSelectVisit={handleVisitSelect}
+            onCreateServiceRequest={(initialData) => {
+              setSelectedOrder(initialData as any);
+              setCurrentScreen('service-request-create');
+            }}
           />
         );
       case 'companies':
