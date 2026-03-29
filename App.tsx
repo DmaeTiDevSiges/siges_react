@@ -1785,9 +1785,9 @@ const App: React.FC = () => {
             onEdit={() => setCurrentScreen('service-request-create')}
             onGenerateOS={() => setCurrentScreen('order-create')}
             onCancelSS={async () => {
-              if (selectedOrder) {
+              if (selectedOrder && currentUser) {
                 try {
-                  await dataService.updateOrderStatus(selectedOrder.id, 7);
+                  await dataService.cancelServiceOrder(selectedOrder.id, currentUser.id);
                   toast.success('Solicitação cancelada com sucesso');
                   setCurrentScreen('orders-dashboard');
                 } catch (e) {
@@ -1829,9 +1829,9 @@ const App: React.FC = () => {
               setCurrentScreen('order-create');
             }}
             onCancel={async () => {
-              if (selectedOrder) {
+              if (selectedOrder && currentUser) {
                 try {
-                  await dataService.updateOrderStatus(selectedOrder.id, 7);
+                  await dataService.cancelServiceOrder(selectedOrder.id, currentUser.id);
                   toast.success('Ordem de serviço cancelada com sucesso');
                   setCurrentScreen('orders-dashboard');
                 } catch (e) {

@@ -159,6 +159,19 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [activeOrdersForModal, setActiveOrdersForModal] = useState<any[]>([]);
     const [currentOrderIndex, setCurrentOrderIndex] = useState(0);
 
+    // Inline SS Creation Form State
+    const [showSSForm, setShowSSForm] = useState(false);
+    const [ssFormStep, setSsFormStep] = useState(1);
+    const [ssFormLoading, setSsFormLoading] = useState(false);
+    const [orderTypes, setOrderTypes] = useState<OrderType[]>([]);
+    const [priorities, setPriorities] = useState<Priority[]>([]);
+    const [ssFormData, setSsFormData] = useState({
+        orderTypeId: '',
+        priorityId: '',
+        requestedServices: '',
+        receiveNotifications: false
+    });
+
     const [viewMode, setViewMode] = useState<'list' | 'map'>(() => {
         if (isFullscreenMapMode) return 'map';
         return (localStorage.getItem('dashboard_units_view_mode') as 'list' | 'map') || 'list';
@@ -335,6 +348,108 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             if (!silent) toast.error('Erro ao carregar dados do dashboard');
         } finally {
             if (!silent) setLoading(false);
+        }
+    };
+
+    // Load order types and priorities for inline SS form
+    useEffect(() => {
+        if (!showSSForm) return;
+        const load = async () => {
+            try {
+                const [types, prios] = await Promise.all([
+                    dataService.getOrderTypes('active'),
+                    dataService.getPriorities('active')
+                ]);
+                setOrderTypes(types);
+                setPriorities(prios);
+            } catch (e) {
+                console.error('Error loading SS form lists', e);
+            }
+        };
+        load();
+    }, [showSSForm]);
+
+    const openSSForm = () => {
+        const defaultDescription = `${modalData?.asset_tag_tag_sub_description || ''}: ${modalData?.last_asset_unavailable_reason_description || ''} ${modalData?.last_comments || ''}`;
+        setSsFormData({ 
+            orderTypeId: '', 
+            priorityId: '', 
+            requestedServices: defaultDescription.trim(), 
+            receiveNotifications: false 
+        });
+        setSsFormStep(1);
+        setShowSSForm(true);
+    };
+
+    const closeSSForm = () => {
+        setShowSSForm(false);
+        setSsFormStep(1);
+    };
+
+    const handleSSFormNext = () => {
+        if (ssFormStep === 1) {
+            if (!ssFormData.orderTypeId) {
+                toast.error('Selecione o Tipo de OS');
+                return;
+            }
+            setSsFormStep(2);
+        } else if (ssFormStep === 2) {
+            // Prioridade não é obrigatória? Pelo código original não parece ser.
+            // Vou permitir seguir sem selecionar se desejar, ou validar se houver regra.
+            setSsFormStep(3);
+        } else if (ssFormStep === 3) {
+            if (!ssFormData.requestedServices) {
+                toast.error('Descreva o problema');
+                return;
+            }
+            setSsFormStep(4);
+        }
+    };
+
+    const handleSSFormSubmit = async () => {
+        if (!modalData) return;
+        if (!ssFormData.orderTypeId || !ssFormData.requestedServices) {
+            toast.error('Preencha os campos obrigatórios');
+            return;
+        }
+
+        setSsFormLoading(true);
+        try {
+            const createdOrder = await dataService.createServiceRequest({
+                clientId: modalData.client_id?.toString(),
+                unitId: modalData.unit_id?.toString(),
+                typeId: ssFormData.orderTypeId,
+                priorityId: ssFormData.priorityId || undefined,
+                unitAssetTagId: modalData.id?.toString(),
+                requestedServices: ssFormData.requestedServices,
+            });
+
+            if (ssFormData.receiveNotifications && createdOrder?.id) {
+                try {
+                    await supabase.from('orders_followers').insert({
+                        o_id: parseInt(createdOrder.id),
+                        user_id: parseInt(currentUser.id)
+                    });
+                } catch (followerErr) {
+                    console.warn('Erro ao salvar seguidor:', followerErr);
+                }
+            }
+
+            toast.success('Solicitação de Serviço criada com sucesso!');
+            closeSSForm();
+
+            // Refresh active orders
+            if (selectedAssetForModal?.id) {
+                const orders = await dataService.getActiveOrdersByAssetTagId(selectedAssetForModal.id);
+                setActiveOrdersForModal(orders || []);
+                setCurrentOrderIndex(0);
+            }
+            if (selectedSystemId) loadDashboardData(selectedSystemId, true);
+        } catch (err) {
+            console.error('Erro ao criar SS:', err);
+            toast.error('Erro ao criar solicitação. Tente novamente.');
+        } finally {
+            setSsFormLoading(false);
         }
     };
 
@@ -955,6 +1070,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 isOpen={!!selectedAssetForModal}
                 onClose={() => {
                     setSelectedAssetForModal(null);
+                    closeSSForm();
                 }}
                 title="Detalhes da Disponibilidade"
                 maxWidth="sm"
@@ -1000,18 +1116,13 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                     icon="engineering"
                                     onClick={() => {
                                         if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
-                                        if (modalData && onCreateServiceRequest) {
-                                            onCreateServiceRequest({
-                                                clientId: modalData.client_id,
-                                                unitId: modalData.unit_id,
-                                                unitAssetTagId: modalData.id,
-                                                tagDescription: modalData.tag_description,
-                                                tagSubDescription: modalData.asset_tag_tag_sub_description,
-                                                itemDescription: modalData.asset_tag_item_description
-                                            });
-                                        }
+                                        openSSForm();
                                     }}
-                                    className="h-11 w-11 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all rounded-2xl active:scale-95"
+                                    className={`h-11 w-11 transition-all rounded-2xl active:scale-95 ${
+                                        showSSForm
+                                            ? 'bg-primary text-white shadow-md shadow-primary/30'
+                                            : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'
+                                    }`}
                                     title="Nova Solicitação de Serviço"
                                 />
                             </div>
@@ -1081,32 +1192,126 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                 </div>
                             </div>
                         </div>
-                                 {/* Criar SS button when there are no active orders */}
-                        {activeOrdersForModal.length === 0 && modalData && (
-                            <div className="px-1 mb-4">
-                                <button
-                                    onClick={() => {
-                                        if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
-                                        if (onCreateServiceRequest) {
-                                            onCreateServiceRequest({
-                                                clientId: modalData.client_id,
-                                                unitId: modalData.unit_id,
-                                                unitAssetTagId: modalData.id,
-                                                tagDescription: modalData.tag_description,
-                                                tagSubDescription: modalData.asset_tag_tag_sub_description,
-                                                itemDescription: modalData.asset_tag_item_description
-                                            });
-                                        }
-                                    }}
-                                    className="w-full py-4 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl flex items-center justify-center gap-3 text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest text-xs hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-all shadow-sm active:scale-95"
-                                >
-                                    <span className="material-symbols-outlined text-lg">add_circle</span>
-                                    Criar Nova SS
-                                </button>
+
+                        {/* Inline SS Creation Form */}
+                        {showSSForm && (
+                            <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                                {/* Step indicator */}
+                                <div className="flex items-center w-full mb-3 px-1 gap-1">
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors shrink-0 ${
+                                        ssFormStep >= 1 ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                    }`}>1</div>
+                                    <div className={`flex-1 h-0.5 rounded transition-colors ${ssFormStep >= 2 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors shrink-0 ${
+                                        ssFormStep >= 2 ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                    }`}>2</div>
+                                    <div className={`flex-1 h-0.5 rounded transition-colors ${ssFormStep >= 3 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors shrink-0 ${
+                                        ssFormStep >= 3 ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                    }`}>3</div>
+                                    <div className={`flex-1 h-0.5 rounded transition-colors ${ssFormStep >= 4 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors shrink-0 ${
+                                        ssFormStep >= 4 ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                    }`}>4</div>
+                                </div>
+
+                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[20px] p-4 border border-slate-100 dark:border-slate-800 space-y-3">
+                                    {ssFormStep === 1 && (
+                                        <Select
+                                            label="Tipo de OS"
+                                            required
+                                            value={ssFormData.orderTypeId}
+                                            onChange={(e) => setSsFormData(prev => ({ ...prev, orderTypeId: e.target.value }))}
+                                            options={orderTypes.map(t => ({ value: t.id, label: t.description }))}
+                                            placeholder="Selecione o Tipo"
+                                        />
+                                    )}
+
+                                    {ssFormStep === 2 && (
+                                        <Select
+                                            label="Prioridade"
+                                            value={ssFormData.priorityId}
+                                            onChange={(e) => setSsFormData(prev => ({ ...prev, priorityId: e.target.value }))}
+                                            options={priorities.map(p => ({ value: p.id, label: p.description }))}
+                                            placeholder="Selecione a Prioridade"
+                                        />
+                                    )}
+
+                                    {ssFormStep === 3 && (
+                                        <Textarea
+                                            label="Descrição do Problema"
+                                            required
+                                            rows={3}
+                                            value={ssFormData.requestedServices}
+                                            onChange={(e) => setSsFormData(prev => ({ ...prev, requestedServices: e.target.value }))}
+                                            placeholder="Descreva a necessidade com detalhes..."
+                                        />
+                                    )}
+
+                                    {ssFormStep === 4 && (
+                                        <div className="py-1">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-xs font-black text-slate-700 dark:text-slate-200">
+                                                        Receber notificações
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-medium leading-tight">
+                                                        Acompanhe as atualizações desta solicitação
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSsFormData(prev => ({ ...prev, receiveNotifications: !prev.receiveNotifications }))}
+                                                    className={`relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none shrink-0 ${
+                                                        ssFormData.receiveNotifications ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'
+                                                    }`}
+                                                >
+                                                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                                                        ssFormData.receiveNotifications ? 'translate-x-6' : 'translate-x-0'
+                                                    }`} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Form Actions */}
+                                    <div className="flex gap-2 pt-1">
+                                        <button
+                                            onClick={ssFormStep === 1 ? closeSSForm : () => setSsFormStep(prev => prev - 1)}
+                                            className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
+                                        >
+                                            {ssFormStep === 1 ? 'Cancelar' : 'Voltar'}
+                                        </button>
+                                        {ssFormStep < 4 ? (
+                                            <button
+                                                onClick={handleSSFormNext}
+                                                disabled={(ssFormStep === 1 && !ssFormData.orderTypeId) || (ssFormStep === 3 && !ssFormData.requestedServices)}
+                                                className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-white bg-primary hover:bg-primary/90 transition-all shadow-sm shadow-primary/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                Próximo
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={handleSSFormSubmit}
+                                                disabled={ssFormLoading}
+                                                className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-white bg-emerald-500 hover:bg-emerald-600 transition-all shadow-sm shadow-emerald-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                                            >
+                                                {ssFormLoading ? (
+                                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <>
+                                                        <span className="material-symbols-outlined text-sm">send</span>
+                                                        Enviar
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         )}
                         {/* Active Order Card */}
-                        {activeOrdersForModal.length > 0 && (
+                        {activeOrdersForModal.length > 0 && !showSSForm && (
                             <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 shadow-lg animate-in fade-in zoom-in duration-300 mx-1 relative">
                                 {/* Header Row: Arrow - Title - Arrow */}
                                 <div className="flex items-center justify-between mb-4">
@@ -1126,24 +1331,6 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                 ? 'SOLICITAÇÃO ATIVA'
                                                 : `${currentOrderIndex + 1}/${activeOrdersForModal.length} SOLICITAÇÕES ATIVAS`}
                                         </h4>
-                                        <button
-                                            onClick={() => {
-                                                if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
-                                                if (onCreateServiceRequest) {
-                                                    onCreateServiceRequest({
-                                                        clientId: modalData.client_id,
-                                                        unitId: modalData.unit_id,
-                                                        unitAssetTagId: modalData.id,
-                                                        tagDescription: modalData.tag_description,
-                                                        tagSubDescription: modalData.asset_tag_tag_sub_description,
-                                                        itemDescription: modalData.asset_tag_item_description
-                                                    });
-                                                }
-                                            }}
-                                            className="mt-1 text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:bg-blue-50 dark:hover:bg-blue-500/10 px-2 py-0.5 rounded-lg transition-colors border border-transparent hover:border-blue-200/50"
-                                        >
-                                            Criar Nova SS
-                                        </button>
                                     </div>
 
                                     {activeOrdersForModal.length > 1 ? (

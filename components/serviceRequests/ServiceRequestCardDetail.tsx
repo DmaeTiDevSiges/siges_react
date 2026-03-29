@@ -107,6 +107,19 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
         setShowViewer(true);
     };
 
+    const [isCancelling, setIsCancelling] = useState(false);
+
+    const handleConfirmCancel = async () => {
+        if (!onCancelSS) return;
+        setIsCancelling(true);
+        try {
+            await onCancelSS();
+        } finally {
+            setIsCancelling(false);
+            setShowCancelModal(false);
+        }
+    };
+
     return (
         <Card
             id={`service-request-detail-${req.id}`}
@@ -326,7 +339,9 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
             <Modal
                 isOpen={showCancelModal}
                 onClose={() => setShowCancelModal(false)}
-                onConfirm={onCancelSS}
+                onConfirm={handleConfirmCancel}
+                confirmLoading={isCancelling}
+                confirmLoadingLabel="CANCELANDO..."
                 title="Cancelar Solicitação"
                 message="Deseja realmente cancelar esta solicitação? Esta ação não poderá ser desfeita."
                 confirmLabel="Sim, Cancelar"

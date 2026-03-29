@@ -11,6 +11,7 @@ import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisit
 import { useOrderFollow } from '../../hooks/useOrderFollow';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
+import { Modal } from '../../components/ui/Modal';
 import { ManusIntegrationService, ManusImageClassification } from '../../services/manusIntegrationService';
 import { ManusVisit } from '../../types/manus';
 import { ManusVisitCard } from '../../components/ordersVisits/ManusVisitCard';
@@ -55,6 +56,8 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
 
     const [showMenu, setShowMenu] = useState(false);
     const [showConfirmVisit, setShowConfirmVisit] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [isCancelling, setIsCancelling] = useState(false);
     const [isStartingVisit, setIsStartingVisit] = useState(false);
     const [parentOrder, setParentOrder] = useState<Order | null>(null);
     const [visits, setVisits] = useState<OrderVisit[]>([]);
@@ -217,6 +220,17 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
         }
     };
 
+    const handleConfirmCancel = async () => {
+        if (!onCancel) return;
+        setIsCancelling(true);
+        try {
+            await onCancel();
+        } finally {
+            setIsCancelling(false);
+            setShowCancelModal(false);
+        }
+    };
+
     // Realtime visits update
     useEffect(() => {
         const subscription = dataService.subscribeToVisits((payload) => {
@@ -298,9 +312,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowMenu(false);
-                                        if (confirm('Deseja realmente cancelar esta ordem de serviço?')) {
-                                            onCancel?.();
-                                        }
+                                        setShowCancelModal(true);
                                     }}
                                     className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 hover:bg-red-500/10 transition-all active:scale-[0.98] group"
                                 >
@@ -688,6 +700,19 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                 />,
                 document.body
             )}
+            {/* Cancel Confirmation Modal */}
+            <Modal
+                isOpen={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={handleConfirmCancel}
+                confirmLoading={isCancelling}
+                confirmLoadingLabel="CANCELANDO..."
+                title="Cancelar Ordem de Serviço"
+                message="Deseja realmente cancelar esta ordem de serviço? Esta ação não poderá ser desfeita."
+                confirmLabel="Sim, Cancelar"
+                cancelLabel="Não, Manter"
+                type="error"
+            />
         </div >
     );
 };

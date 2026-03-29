@@ -3173,7 +3173,7 @@ export const dataService = {
             const numericId = typeof orderId === 'string' ? parseInt(orderId, 10) : orderId;
             if (isNaN(numericId)) return false;
 
-            const now = new Date().toISOString();
+            const now = getBrazilTimestamp();
             const { error } = await supabase
                 .from('orders')
                 .update({ 
@@ -3194,6 +3194,39 @@ export const dataService = {
             return true;
         } catch (error) {
             console.error('Exception in completeServiceOrder:', error);
+            return false;
+        }
+    },
+
+    /**
+     * Cancel Service Request (Order)
+     * Sets status_id to 7 (Cancelled) and updates asset tracking fields.
+     */
+    async cancelServiceOrder(orderId: string | number, userId: string | number): Promise<boolean> {
+        try {
+            const numericId = typeof orderId === 'string' ? parseInt(orderId, 10) : orderId;
+            if (isNaN(numericId)) return false;
+
+            const now = getBrazilTimestamp();
+            const { error } = await supabase
+                .from('orders')
+                .update({
+                    status_id: 7,
+                    status_at: now,
+                    updated_at: now,
+                    unit_asset_tag_has_order: false,
+                    unit_asset_tag_no_has_order_user_id: userId,
+                    unit_asset_tag_no_has_order_at: now
+                })
+                .eq('id', numericId);
+
+            if (error) {
+                console.error('Error cancelling service order:', error);
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Exception in cancelServiceOrder:', error);
             return false;
         }
     },
