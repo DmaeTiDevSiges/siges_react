@@ -68,14 +68,6 @@ export const Header: React.FC<HeaderProps> = ({
     return (
         <header className={`flex items-center px-4 py-2.5 justify-between bg-surface-light dark:bg-card-dark sticky top-0 z-20 ${hideBorder ? '' : 'border-b border-slate-200 dark:border-slate-800'}`}>
             <div className="flex items-center gap-2 flex-1 min-w-0">
-                {showBackButton && onBackClick && (
-                    <IconButton
-                        icon="arrow_back"
-                        onClick={onBackClick}
-                        className="-ml-2 text-slate-900 dark:text-white shrink-0"
-                    />
-                )}
-
                 <div className="flex flex-col flex-1 min-w-0">
                     {!tabNavigation ? (
                         <>

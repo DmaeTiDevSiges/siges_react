@@ -2170,7 +2170,7 @@ const App: React.FC = () => {
       case 'order-visit-asset-materials': return 'Materiais';
       case 'profile-permissions': return 'Gestão Permissões';
       case 'order-visit-approve': return 'Aprovação Visita';
-      case 'maintenance-plans': return 'Planos manutenção';
+      case 'maintenance-plans': return 'Planos Man Programada';
       case 'maintenance-plan-form': return 'Novo Plano';
       case 'maintenance-plan-edit': return 'Editar Plano';
       case 'maintenance-plan-details': return 'Detalhes do Plano';
