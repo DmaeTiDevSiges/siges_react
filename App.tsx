@@ -24,6 +24,7 @@ import { AppSettings } from './views/Settings/AppSettings';
 import { LoginScreen } from './views/Users/LoginScreen';
 import { DashboardScreen } from "./views/Dashboards/DashboardOrdersUserScreen";
 import { DashboardOrdersVisitsAdminScreen } from "./views/Dashboards/DashboardOrdersVisitsAdminScreen";
+import { DashboardOrdersVisitsTodayScreen } from "./views/Dashboards/DashboardOrdersVisitsTodayScreen";
 import { DashboardUnitsPowerElectric } from "./views/Dashboards/DashboardUnitsPowerElectric";
 import { DashboardUnitsAssetsTags } from "./views/Dashboards/DashboardUnitsAssetsTags";
 import { SystemsList } from './views/Settings/Systems/SystemsList';
@@ -94,7 +95,7 @@ import { PermissionsProvider } from './contexts/PermissionsContext';
 import { MaintenancePlansScreen } from './views/Settings/MaintenancePlans/MaintenancePlansScreen';
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
- | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details';
+ | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { AIAssistantBubble } from './components/ai/AIAssistantBubble';
@@ -1358,6 +1359,7 @@ const App: React.FC = () => {
             onSelectVisit={handleVisitSelect}
             onTrackUsers={handleTrackUsers}
             onCreateServiceRequest={() => setCurrentScreen('service-request-create')}
+            onNavigate={handleNavigate}
             activeTab={ordersDashboardTab}
           />
         );
@@ -1369,7 +1371,15 @@ const App: React.FC = () => {
             onSelectVisit={handleVisitSelect}
             onTrackUsers={handleTrackUsers}
             onCreateServiceRequest={() => setCurrentScreen('service-request-create')}
+            onNavigate={handleNavigate}
             activeTab="VISITAS"
+          />
+        );
+      case 'visits-today':
+        return (
+          <DashboardOrdersVisitsTodayScreen
+            company={selectedCompany!}
+            onBack={() => setCurrentScreen('orders-dashboard')}
           />
         );
       case 'dashboard-units-power-electric':
@@ -2182,9 +2192,8 @@ const App: React.FC = () => {
     currentScreen === 'asset-duplicate' ||
     currentScreen === 'unit-details' ||
     currentScreen === 'client-unit-form' ||
-    currentScreen === 'client-unit-edit' ||
-    currentScreen === 'maintenance-plan-details' ||
-    currentScreen === 'unit-asset-tag-available';
+    currentScreen === 'unit-asset-tag-available' ||
+    currentScreen === 'users-tracker';
 
   const hideMainNavigation = isInVisitContext || isFullPageScreen;
 
@@ -2242,7 +2251,8 @@ const App: React.FC = () => {
                   (currentScreen as string) === 'orders-dashboard' ||
                   (currentScreen as string) === 'visits-dashboard' ||
                   (currentScreen as string) === 'dashboard-units-power-electric' ||
-                  (currentScreen as string) === 'dashboard-units-assets-tags'
+                  (currentScreen as string) === 'dashboard-units-assets-tags' ||
+                  (currentScreen as string) === 'users-tracker'
                 }
                 onProfileClick={() => {
                   localStorage.setItem('last_main_tab', activeTab);

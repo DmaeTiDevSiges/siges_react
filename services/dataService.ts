@@ -5565,6 +5565,13 @@ export const dataService = {
         }
     },
 
+    subscribeToOrdersVisits(callback: (payload: any) => void) {
+        return supabase
+            .channel('orders_visits-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders_visits' }, callback)
+            .subscribe();
+    },
+
     async getUnitAssetTags(unitId: string): Promise<any[]> {
         const { data, error } = await supabase
             .from('cfg_units_assets_tags')
@@ -6199,6 +6206,16 @@ export const dataService = {
             return [];
         }
         return data || [];
+    },
+
+    async getUnitsByIds(ids: string[]): Promise<{ data: any[] | null, error: any }> {
+        if (!ids || ids.length === 0) return { data: [], error: null };
+        const numericIds = ids.map(id => parseInt(id)).filter(id => !isNaN(id));
+        const { data, error } = await supabase
+            .from('units')
+            .select('id, description, latitude, longitude, img_file_path, img_file_name')
+            .in('id', numericIds);
+        return { data, error };
     },
 
     async getFilteredUnits(filters: {
@@ -7497,6 +7514,97 @@ export const dataService = {
             .eq('id', orderId);
 
         if (error) throw error;
+    },
+
+    async getLeadersByCompany(companyId: string): Promise<User[]> {
+        // Step 1: Get team IDs for this company (users.team_id = cfg_teams.id)
+        const { data: teams, error: teamsError } = await supabase
+            .from('cfg_teams')
+            .select('id')
+            .eq('company_id', companyId);
+
+        if (teamsError || !teams || teams.length === 0) return [];
+
+        const teamIds = teams.map((t: any) => t.id);
+
+        // Step 2: Get leaders directly - users.team_id is a direct FK to cfg_teams
+        const { data, error } = await supabase
+            .from('users')
+            .select('*, cfg_users_statuses(id, description), cfg_profiles(description)')
+            .in('team_id', teamIds)
+            .eq('is_team_leader', true);
+
+        if (error) {
+            console.error('Error fetching leaders by company:', error);
+            return [];
+        }
+
+        return (data || []).map((item: any) => ({
+            id: item.id.toString(),
+            uuid: item.uuid,
+            email: item.email,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            nameFull: item.name_full,
+            nameShort: item.name_short,
+            statusId: item.status_id,
+            statusName: item.cfg_users_statuses?.description || 'Desconhecido',
+            profileId: item.profile_id?.toString(),
+            profileName: item.cfg_profiles?.description,
+            mobile: item.mobile,
+            phone: item.phone,
+            isAvailable: item.is_available,
+            ovIdInProgress: item.ov_id_in_progress,
+            avatarUrl: this.getPublicImageUrl(item.img_file_path, item.img_file_name, { width: 100, height: 100, resize: 'cover' })
+        })) as User[];
+    },
+
+    async getTodayVisitsByCompany(companyId: string): Promise<OrderVisit[]> {
+        const today = new Date();
+        const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+        const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+        const { data, error } = await supabase
+            .from('v_orders_visits')
+            .select('*')
+            .eq('o_provider_company_id', companyId)
+            .or(`ov_status_id.eq.1,and(ov_status_id.eq.2,ov_started_at.gte.${startOfDay},ov_started_at.lte.${endOfDay})`)
+            .order('ov_started_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching today visits by company:', error);
+            return [];
+        }
+
+        return (data || []).map((row: any) => ({
+            id: row.id.toString(),
+            oId: row.o_id?.toString(),
+            ovMask: row.ov_mask,
+            ovStatusId: row.ov_status_id,
+            ovProcessingId: row.ov_processing_id,
+            ovCreatedAt: row.ov_created_at,
+            ovCreatedUserId: row.ov_created_user_id?.toString(),
+            ovTeamLeadId: row.ov_team_leader_id?.toString(),
+            ovStartedAt: row.ov_started_at,
+            ovEndedAt: row.ov_ended_at,
+
+            // View fields
+            unitDescription: row.o_unit_description,
+            systemDescription: row.o_system_description,
+            clientName: row.o_client_name,
+            teamLeaderName: row.ov_team_leader_name_short,
+            statusDescription: row.ov_status_description,
+            processingDescription: row.ov_processing_description,
+            statusIcon: row.ov_status_icon,
+            statusColor: row.ov_status_color,
+
+            unitId: row.o_unit_id?.toString(),
+            orderMask: row.o_mask,
+            teamCode: row.o_team_code,
+            contractDescription: row.o_contract_description,
+            planDescription: row.o_plan_description,
+            requestedServices: row.o_requested_services
+        })) as OrderVisit[];
     },
 
     async getVisitsByTeam(teamId: string): Promise<OrderVisit[]> {

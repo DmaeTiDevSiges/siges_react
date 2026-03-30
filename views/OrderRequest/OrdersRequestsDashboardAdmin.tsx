@@ -29,6 +29,7 @@ interface OrdersRequestsDashboardAdminProps {
     onSelectVisit?: (visit: OrderVisit) => void;
     onTrackUsers?: (company: Company) => void;
     onCreateServiceRequest?: () => void;
+    onNavigate?: (path: string) => void;
     activeTab?: 'OS' | 'VISITAS';
 }
 

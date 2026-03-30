@@ -22,6 +22,19 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
+      proxy: {
+        '/osrm': {
+          target: 'https://routing.openstreetmap.de',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/osrm/, '/routed-car'),
+          secure: false,
+          configure: (proxy) => {
+            proxy.on('error', (err) => {
+              console.warn('[OSRM Proxy] error:', err.message);
+            });
+          }
+        }
+      }
     },
     preview: {
       port: 3000,
