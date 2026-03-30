@@ -23,6 +23,8 @@ import { ProfileScreen } from './views/Users/ProfileScreen';
 import { Sidebar } from './components/Sidebar';
 import { AppSettings } from './views/Settings/AppSettings';
 import { LoginScreen } from './views/Users/LoginScreen';
+import { ForgotPasswordScreen } from './views/Users/ForgotPasswordScreen';
+import { ResetPasswordScreen } from './views/Users/ResetPasswordScreen';
 import { DashboardScreen } from "./views/Dashboards/DashboardOrdersUserScreen";
 import { DashboardOrdersVisitsAdminScreen } from "./views/Dashboards/DashboardOrdersVisitsAdminScreen";
 import { DashboardOrdersVisitsTodayScreen } from "./views/Dashboards/DashboardOrdersVisitsTodayScreen";
@@ -178,6 +180,11 @@ const App: React.FC = () => {
   const showSplash = !minTimePassed || authLoading;
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('app_theme') as 'light' | 'dark') || 'dark';
+  });
+
+  const [authScreen, setAuthScreen] = useState<'login' | 'forgot-password' | 'reset-password'>(() => {
+    if (window.location.hash.includes('type=recovery')) return 'reset-password';
+    return 'login';
   });
 
   const toggleTheme = () => {
@@ -415,6 +422,18 @@ const App: React.FC = () => {
       }
     };
     loadUser();
+
+    // Listen for auth state changes (especially for password recovery)
+    const { data: { subscription: authSubscription } } = dataService.subscribeToAuthChanges((event: string) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthScreen('reset-password');
+      } else if (event === 'SIGNED_IN') {
+        loadUser();
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setAuthScreen('login');
+      }
+    });
 
     // Subscribe to user changes for real-time updates
     const subscription = dataService.subscribeToUsers((payload: any) => {
@@ -2164,7 +2183,20 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return <LoginScreen onLoginSuccess={() => window.location.reload()} isDarkMode={theme === 'dark'} onThemeToggle={toggleTheme} />;
+    if (authScreen === 'forgot-password') {
+      return <ForgotPasswordScreen onBack={() => setAuthScreen('login')} />;
+    }
+    if (authScreen === 'reset-password') {
+      return <ResetPasswordScreen onSuccess={() => setAuthScreen('login')} />;
+    }
+    return (
+      <LoginScreen 
+        onLoginSuccess={() => window.location.reload()} 
+        onForgotPassword={() => setAuthScreen('forgot-password')}
+        isDarkMode={theme === 'dark'} 
+        onThemeToggle={toggleTheme} 
+      />
+    );
   }
 
   // Handle Fullscreen Map Mode via URL Param

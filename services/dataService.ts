@@ -2622,6 +2622,12 @@ export const dataService = {
         }
     },
 
+    subscribeToAuthChanges(callback: (event: string, session: any) => void) {
+        return supabase.auth.onAuthStateChange((event, session) => {
+            callback(event, session);
+        });
+    },
+
     async signOut(): Promise<void> {
         try {
             const { error } = await supabase.auth.signOut();
@@ -2632,6 +2638,18 @@ export const dataService = {
             localStorage.clear();
             window.location.href = '/login'; // Force navigation to login instead of just reload
         }
+    },
+
+    async resetPassword(email: string): Promise<void> {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+    },
+
+    async updatePassword(password: string): Promise<void> {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
     },
 
     async getClients(): Promise<Client[]> {
