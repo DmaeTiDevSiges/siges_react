@@ -2082,7 +2082,7 @@ const App: React.FC = () => {
       case 'dashboard': return 'Meu Painel';
       case 'orders-dashboard': return '';
       case 'visits-dashboard': return '';
-      case 'users-tracker': return 'Rastreamento de Usuários';
+      case 'users-tracker': return 'VISITAS EM TEMPO REAL';
       case 'companies': return 'Empresas';
       case 'company-details': return 'Empresa';
       case 'company-form': return 'Nova Empresa';

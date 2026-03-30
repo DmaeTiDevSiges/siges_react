@@ -828,7 +828,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-4 pb-20 md:pb-6">
                         <section className="px-4 pt-4 pb-0">
                             <div className="flex items-center justify-between mb-0.5">
-                                <h2 className="font-bold text-slate-900 dark:text-white text-sm">SS's Não Programadas</h2>
+                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">SS's Não Programadas</h2>
                                 <div className="flex items-center gap-2">
                                     <RequestsListPDFButton
                                         filters={effectiveFilters}
@@ -897,7 +897,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
                         <section className="px-4 py-0 mt-0">
                             <div className="flex items-center justify-between mb-0.5">
-                                <h2 className="font-bold text-slate-900 dark:text-white text-sm">OS's Abertas</h2>
+                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">OS's Abertas</h2>
                                 {stats.openOS.reduce((acc, curr) => acc + curr.count, 0) === 0 && (
                                     <span className="text-[11px] font-bold text-slate-400 cursor-default select-none">Sem registros</span>
                                 )}
@@ -994,7 +994,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
                         <section className="px-4 py-4 mb-4">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="font-bold text-slate-900 dark:text-white">Ordens de Serviços</h2>
+                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">Ordens de Serviços</h2>
                                 <div className="flex items-center gap-2">
                                     <OrdersListPDFButton
                                         filters={effectiveFilters}

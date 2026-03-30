@@ -566,7 +566,9 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                         <div className="flex items-center gap-1">
                                             <span className="material-symbols-outlined text-[10px] text-slate-400">schedule</span>
                                             <span className="text-[9px] text-slate-400 font-medium">
-                                                {visit.ovStartedAt ? new Date(visit.ovStartedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}
+                                                {isClosed 
+                                                    ? (visit.ovEndedAt ? new Date(visit.ovEndedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A') 
+                                                    : (visit.ovStartedAt ? new Date(visit.ovStartedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A')}
                                             </span>
                                         </div>
                                     </div>
