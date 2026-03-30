@@ -676,6 +676,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 <div className="fixed inset-0 bg-background-light dark:bg-background-dark z-8000">
                     <UnitsAvailabilityMap
                         units={unitsRows}
+                        unitTagDescription={selectedSectorName}
                         onUnitClick={(id) => {
                             setSelectedUnitIdFromMap(id);
                             if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
@@ -995,6 +996,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                     <div className="relative flex-1 w-full min-h-[400px]">
                                         <UnitsAvailabilityMap
                                             units={unitsRows}
+                                            unitTagDescription={selectedSectorName}
                                             onUnitClick={(id) => {
                                                 setSelectedUnitIdFromMap(id);
                                                 if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
@@ -1468,6 +1470,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     unitId={unitForExport.id}
                     unitDescription={unitForExport.description}
                     assetTagId={activeAssetTagId?.toString()}
+                    assetTagDescription={selectedSectorName}
                     availableSubTags={Array.from(
                         new Map(
                             allData

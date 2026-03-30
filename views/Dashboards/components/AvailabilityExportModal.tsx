@@ -13,6 +13,8 @@ import { getLogoBase64 } from '../../../utils/PdfImageUtils';
 import { FileUtils } from '../../../utils/FileUtils';
 import { FaFilePdf } from 'react-icons/fa';
 import { useEffect } from 'react';
+import { AvailabilityDataView } from '../../../components/ui/AvailabilityDataView';
+import { RiWindowFill } from 'react-icons/ri';
 
 interface AvailabilityExportModalProps {
     isOpen: boolean;
@@ -20,6 +22,7 @@ interface AvailabilityExportModalProps {
     unitId: string;
     unitDescription: string;
     assetTagId?: string;
+    assetTagDescription?: string;
     availableSubTags: { id: string; description: string }[];
 }
 
@@ -29,6 +32,7 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
     unitId,
     unitDescription,
     assetTagId,
+    assetTagDescription,
     availableSubTags
 }) => {
     const [startDate, setStartDate] = useState(() => {
@@ -39,9 +43,11 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
     const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [activeInput, setActiveInput] = useState<'start' | 'end'>('start');
     const [selectedSubTagId, setSelectedSubTagId] = useState('all');
-    const [isExporting, setIsExporting] = useState<'excel' | 'pdf' | null>(null);
-    const [lastExportedFormat, setLastExportedFormat] = useState<'excel' | 'pdf' | null>(null);
-    const [hoveredFormat, setHoveredFormat] = useState<'excel' | 'pdf' | null>(null);
+    const [isExporting, setIsExporting] = useState<'excel' | 'pdf' | 'tela' | null>(null);
+    const [lastExportedFormat, setLastExportedFormat] = useState<'excel' | 'pdf' | 'tela' | null>(null);
+    const [hoveredFormat, setHoveredFormat] = useState<'excel' | 'pdf' | 'tela' | null>(null);
+    const [showDataView, setShowDataView] = useState(false);
+    const [fetchedData, setFetchedData] = useState<any[]>([]);
 
     // Reset generated states when filters change
     useEffect(() => {
@@ -147,6 +153,38 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
             setIsExporting(null);
         }
     };
+    
+
+    const handleShowOnScreen = async () => {
+        try {
+            setIsExporting('tela');
+            const toastId = toast.loading(`Buscando dados histórico de disponibilidade para exibir em TELA...`);
+
+            const data = await dataService.getAssetAvailabilityForExport(
+                unitId,
+                startDate,
+                endDate,
+                assetTagId,
+                selectedSubTagId
+            );
+
+            if (!data || data.length === 0) {
+                toast.error('Nenhum dado encontrado para exibir.', { id: toastId });
+                setIsExporting(null);
+                return;
+            }
+
+            setFetchedData(data);
+            setShowDataView(true);
+            setLastExportedFormat('tela');
+            toast.success('Dados carregados com sucesso!', { id: toastId });
+        } catch (error) {
+            console.error(`Erro ao buscar dados para tela:`, error);
+            toast.error(`Ocorreu um erro ao buscar os dados.`);
+        } finally {
+            setIsExporting(null);
+        }
+    };
 
     const subTagOptions = [
         { value: 'all', label: 'TODAS AS POSIÇÕES' },
@@ -248,13 +286,31 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
                     />
                 </div>
 
-                {/* 5. Footer Action Buttons */}
-                <div className="pt-2 grid grid-cols-2 gap-3" onMouseLeave={() => setHoveredFormat(null)}>
+                 {/* 5. Footer Action Buttons */}
+                <div className="pt-2 grid grid-cols-3 gap-2" onMouseLeave={() => setHoveredFormat(null)}>
+                    <button
+                        onClick={handleShowOnScreen}
+                        onMouseEnter={() => setHoveredFormat('tela')}
+                        disabled={!!isExporting}
+                        className={`w-full py-4.5 rounded-2xl flex flex-col items-center justify-center gap-1.5 shadow-xl transition-all active:scale-[0.98] font-black uppercase tracking-widest text-[11px] ${
+                            (hoveredFormat === 'tela' || (hoveredFormat === null && lastExportedFormat === 'tela'))
+                            ? 'bg-[#2563EB] text-white shadow-blue-600/20' 
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-60'
+                        }`}
+                    >
+                        {isExporting === 'tela' ? (
+                            <div className="w-5 h-5 border-3 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <RiWindowFill size={20} className={(hoveredFormat === 'tela' || (hoveredFormat === null && lastExportedFormat === 'tela')) ? 'text-white' : 'text-slate-400'} />
+                        )}
+                        <span>TELA</span>
+                    </button>
+
                     <button
                         onClick={() => handleExport('excel')}
                         onMouseEnter={() => setHoveredFormat('excel')}
                         disabled={!!isExporting}
-                        className={`w-full py-4.5 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-[0.98] font-black uppercase tracking-widest text-[13px] ${
+                        className={`w-full py-4.5 rounded-2xl flex flex-col items-center justify-center gap-1.5 shadow-xl transition-all active:scale-[0.98] font-black uppercase tracking-widest text-[11px] ${
                             (hoveredFormat === 'excel' || (hoveredFormat === null && lastExportedFormat === 'excel'))
                             ? 'bg-[#2563EB] text-white shadow-blue-600/20' 
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-60'
@@ -272,7 +328,7 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
                         onClick={() => handleExport('pdf')}
                         onMouseEnter={() => setHoveredFormat('pdf')}
                         disabled={!!isExporting}
-                        className={`w-full py-4.5 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-[0.98] font-black uppercase tracking-widest text-[13px] ${
+                        className={`w-full py-4.5 rounded-2xl flex flex-col items-center justify-center gap-1.5 shadow-xl transition-all active:scale-[0.98] font-black uppercase tracking-widest text-[11px] ${
                             (hoveredFormat === 'pdf' || (hoveredFormat === null && lastExportedFormat === 'pdf'))
                             ? 'bg-[#2563EB] text-white shadow-blue-600/20' 
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-60'
@@ -287,6 +343,17 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
                     </button>
                 </div>
             </div>
+
+            {/* Modal de visualização de dados em tela */}
+            <AvailabilityDataView 
+                isOpen={showDataView}
+                onClose={() => setShowDataView(false)}
+                data={fetchedData}
+                unitDescription={unitDescription}
+                assetTagDescription={assetTagDescription}
+                startDate={formatDisplayDate(startDate)}
+                endDate={formatDisplayDate(endDate)}
+            />
         </Modal>
     );
 };

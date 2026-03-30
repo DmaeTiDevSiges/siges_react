@@ -28,9 +28,10 @@ interface UnitsAvailabilityMapProps {
     units: Unit[];
     onUnitClick: (unitId: number) => void;
     className?: string;
+    unitTagDescription?: string;
 }
 
-export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ units, onUnitClick, className = '' }) => {
+export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ units, onUnitClick, className = '', unitTagDescription }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const leafletMap = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
@@ -140,7 +141,9 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
             
             {/* Legend Overlay */}
             <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm p-3 rounded-2xl border border-slate-200 dark:border-white/10 shadow-lg z-1000 flex flex-col gap-2">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Status de Disponibilidade</span>
+                <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
+                    Disponibilidade {unitTagDescription || ''}
+                </span>
                 <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
                     <span className="text-[9px] font-bold text-slate-700 dark:text-slate-200">Alta (≥ 85%)</span>

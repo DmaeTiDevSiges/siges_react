@@ -367,6 +367,12 @@ const App: React.FC = () => {
   };
 
   const getTabNavigation = () => {
+    const isDashboardScreen = currentScreen === 'orders-dashboard' || 
+                             currentScreen === 'visits-dashboard' || 
+                             currentScreen === 'dashboard-units-power-electric' || 
+                             currentScreen === 'dashboard-units-assets-tags';
+
+    if (!isDashboardScreen) return undefined;
     return <DashboardTabs />;
   };
 
