@@ -50,13 +50,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     isCollapsed={isCollapsed}
                     onClick={() => { onNavigate('dashboard'); }}
                 />
-                {(isAdminSuper || canView('dashboard_orders_admin')) && (
+                {(isAdminSuper || 
+                  canView('dashboard_orders') || 
+                  canView('dashboard_orders_visits') || 
+                  canView('dashboard_units_assets_tags') || 
+                  canView('dashboard_units_power_electric')) && (
                     <SidebarItem
                         icon="assignment_add"
                         label="Gestão"
-                        isActive={activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags'}
+                        isActive={activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric'}
                         isCollapsed={isCollapsed}
-                        onClick={() => { onNavigate('orders'); }}
+                        onClick={() => { 
+                            // Navegar para a primeira aba permitida
+                            if (canView('dashboard_orders')) onNavigate('orders');
+                            else if (canView('dashboard_orders_visits')) onNavigate('visits');
+                            else if (canView('dashboard_units_assets_tags')) onNavigate('dashboard-units-assets-tags');
+                            else if (canView('dashboard_units_power_electric')) onNavigate('dashboard-units-power-electric');
+                        }}
                     />
                 )}
                 {(isAdminSuper || canView('units')) && (

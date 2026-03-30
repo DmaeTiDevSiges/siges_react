@@ -12,13 +12,16 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, isAdminSuper, currentUser }) => {
   const { canView, canSearch, permissions } = usePermissions();
 
-  // Define visibility for each tab
-  const showDashboard = true; // Always show? Or check canView('dashboard')?
-  const showDashboardOrdersAdmin = canView('dashboard_orders_admin');
-  const showUnitsSearch = canSearch('units'); // Assuming route key is 'units'
+  // Definir visibilidade para cada aba
+  const showDashboard = true; 
+  const showGestao = isAdminSuper || 
+                    canView('dashboard_orders') || 
+                    canView('dashboard_orders_visits') || 
+                    canView('dashboard_units_assets_tags') || 
+                    canView('dashboard_units_power_electric');
+  const showUnitsSearch = canSearch('units'); 
   const showAssetsSearch = canSearch('assets');
-
-  const showSettings = isAdminSuper; // Only admin super
+  const showSettings = isAdminSuper; 
 
   return (
     <div className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 px-2 flex flex-row items-center justify-between rounded-t-[12px]" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}>
@@ -31,19 +34,24 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
           <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'dashboard' ? '"FILL" 1' : '' }}>
             grid_view
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-widest">Meu Painel</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest">Painel</span>
         </button>
       )}
 
-      {showDashboardOrdersAdmin && (
+      {showGestao && (
         <button
-          onClick={() => setActiveTab('orders')}
-          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'orders' || activeTab === 'dashboard-units-assets-tags' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+          onClick={() => {
+            if (canView('dashboard_orders')) setActiveTab('orders');
+            else if (canView('dashboard_orders_visits')) setActiveTab('visits');
+            else if (canView('dashboard_units_assets_tags')) setActiveTab('dashboard-units-assets-tags');
+            else if (canView('dashboard_units_power_electric')) setActiveTab('dashboard-units-power-electric');
+          }}
+          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
         >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'orders' ? '"FILL" 1' : '' }}>
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: (activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric') ? '"FILL" 1' : '' }}>
             assignment
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-center truncate w-full">Gestao OS</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-center truncate w-full">Gestão</span>
         </button>
       )}
 

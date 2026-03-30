@@ -24,14 +24,12 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       proxy: {
         '/osrm': {
-          target: 'https://routing.openstreetmap.de',
+          target: 'https://router.project-osrm.org',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/osrm/, '/routed-car'),
+          rewrite: (path) => path.replace(/^\/osrm/, ''),
           secure: false,
-          configure: (proxy) => {
-            proxy.on('error', (err) => {
-              console.warn('[OSRM Proxy] error:', err.message);
-            });
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           }
         }
       }

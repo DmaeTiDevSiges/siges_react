@@ -16,6 +16,7 @@ import { ClientsList } from './views/Settings/Clients/ClientsList';
 import { ClientDetails } from './views/Settings/Clients/ClientDetails';
 import { ClientForm } from './views/Settings/Clients/ClientForm';
 import { dataService } from './services/dataService';
+import { usePermissions } from './contexts/PermissionsContext';
 import { permissionService } from './services/permissionService';
 import { UserForm } from './views/Users/UserForm';
 import { ProfileScreen } from './views/Users/ProfileScreen';
@@ -297,43 +298,69 @@ const App: React.FC = () => {
 
   const [ordersDashboardTab, setOrdersDashboardTab] = useState<'OS' | 'VISITAS'>('OS');
 
-  const getTabNavigation = () => {
+  // Subcomponent for dashboard tabs that respects permissions
+  const DashboardTabs = () => {
+    const { canView } = usePermissions();
+    
+    // Check permissions for each tab
+    const hasOrders = canView('dashboard_orders');
+    const hasVisits = canView('dashboard_orders_visits');
+    const hasUnits = canView('dashboard_units_assets_tags');
+    const hasPower = canView('dashboard_units_power_electric');
+
     // Only show tabs if on the Admin Dashboard or specialized Dashboards
-    if (currentScreen !== 'orders-dashboard' && currentScreen !== 'visits-dashboard' && currentScreen !== 'dashboard-units-power-electric' && currentScreen !== 'dashboard-units-assets-tags') return undefined;
+    const isDashboardScreen = currentScreen === 'orders-dashboard' || 
+                             currentScreen === 'visits-dashboard' || 
+                             currentScreen === 'dashboard-units-power-electric' || 
+                             currentScreen === 'dashboard-units-assets-tags';
+
+    if (!isDashboardScreen) return null;
 
     return (
       <div className="flex items-center gap-4 h-full mt-1">
         <h1 className="hidden md:block text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Gestão</h1>
         <div className="hidden md:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
         <div className="flex gap-4">
-          <button
-            onClick={() => { setOrdersDashboardTab('OS'); setCurrentScreen('orders-dashboard'); }}
-            className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-          >
-            OS's
-          </button>
-          <button
-            onClick={() => { setOrdersDashboardTab('VISITAS'); setCurrentScreen('visits-dashboard'); }}
-            className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${(currentScreen === 'visits-dashboard' || (currentScreen === 'orders-dashboard' && ordersDashboardTab === 'VISITAS')) ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-          >
-            Visitas
-          </button>
-          <button
-            onClick={() => { setCurrentScreen('dashboard-units-assets-tags'); setActiveTab('dashboard-units-assets-tags'); }}
-            className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'dashboard-units-assets-tags' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-          >
-            Unidades
-          </button>
-          <button
-            onClick={() => setCurrentScreen('dashboard-units-power-electric')}
-            className={`pb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'dashboard-units-power-electric' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-          >
-            <span className="material-symbols-outlined text-[14px]">bolt</span>
-            Energia
-          </button>
+          {hasOrders && (
+            <button
+              onClick={() => { setOrdersDashboardTab('OS'); setCurrentScreen('orders-dashboard'); }}
+              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+            >
+              OS's
+            </button>
+          )}
+          {hasVisits && (
+            <button
+              onClick={() => { setOrdersDashboardTab('VISITAS'); setCurrentScreen('visits-dashboard'); }}
+              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${(currentScreen === 'visits-dashboard' || (currentScreen === 'orders-dashboard' && ordersDashboardTab === 'VISITAS')) ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+            >
+              Visitas
+            </button>
+          )}
+          {hasUnits && (
+            <button
+              onClick={() => { setCurrentScreen('dashboard-units-assets-tags'); setActiveTab('dashboard-units-assets-tags'); }}
+              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'dashboard-units-assets-tags' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+            >
+              Unidades
+            </button>
+          )}
+          {hasPower && (
+            <button
+              onClick={() => setCurrentScreen('dashboard-units-power-electric')}
+              className={`pb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'dashboard-units-power-electric' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+            >
+              <span className="material-symbols-outlined text-[14px]">bolt</span>
+              Energia
+            </button>
+          )}
         </div>
       </div>
     );
+  };
+
+  const getTabNavigation = () => {
+    return <DashboardTabs />;
   };
 
   const [notifications, setNotifications] = useState<UserNotification[]>([]);

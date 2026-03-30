@@ -398,7 +398,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                 } else {
                     try {
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 15000); // Aumentado para 15s
+                        const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduzido para 5s para evitar lag
 
                         const url = `/osrm/route/v1/driving/${startLng},${startLat};${unitCoords.lng},${unitCoords.lat}?overview=full&geometries=geojson`;
                         
@@ -411,11 +411,12 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                         if (data.routes && data.routes.length > 0) {
                             geometry = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]);
                             routesCacheRef.current.set(cacheKey, { geometry, lastPos: currentPos });
+                            console.log(`[Routes] OSRM v=${visitId} carregada com sucesso.`);
                         } else {
                             geometry = [currentPos, [unitCoords.lat, unitCoords.lng]];
                         }
                     } catch (e: any) {
-                        const reason = e?.name === 'AbortError' ? 'timeout (15s)' : e?.message;
+                        const reason = e?.name === 'AbortError' ? 'timeout (5s)' : e?.message;
                         console.warn(`[Routes] OSRM v=${visitId} falhou (${reason}), usando linha reta.`);
                         geometry = [currentPos, [unitCoords.lat, unitCoords.lng]];
                     }
