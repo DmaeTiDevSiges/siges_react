@@ -337,8 +337,18 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         </div>
                     </div>
 
-                    {/* Top Actions: Menu */}
-                    <div className="absolute top-4 right-4 z-30" onClick={(e) => e.stopPropagation()}>
+                    {/* Top Actions: Back, Title & Menu */}
+                    <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-3">
+                            <IconButton
+                                icon="arrow_back"
+                                onClick={onBack}
+                                variant="soft"
+                                className="bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg text-slate-700! dark:text-slate-200!"
+                            />
+                            <h1 className="text-xl font-black text-white drop-shadow-md tracking-tight uppercase">Unidade</h1>
+                        </div>
+
                         <div className="relative">
                             <IconButton
                                 icon="more_vert"

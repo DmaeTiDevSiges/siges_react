@@ -7855,6 +7855,12 @@ export const dataService = {
             approvedFiledAt: data.ov_approved_filed_at,
             approvedFiledUserId: data.ov_approved_filed_user_id?.toString(),
             approvedFiledUserNameShort: data.ov_approved_filed_user_name_short,
+            ovSignatureLeaderPath: data.ov_signature_leader_path,
+            ovSignatureLeaderName: data.ov_signature_leader_name,
+            ovSignatureLeaderAt: data.ov_signature_leader_at,
+            ovSignatureRequesterPath: data.ov_signature_requester_path,
+            ovSignatureRequesterName: data.ov_signature_requester_name,
+            ovSignatureRequesterAt: data.ov_signature_requester_at,
         } as OrderVisit;
     },
 

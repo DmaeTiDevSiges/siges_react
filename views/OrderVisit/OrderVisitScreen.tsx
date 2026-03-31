@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { OrderVisit, OrderVisitTeam, User } from '../../types';
+import { OrderVisit, OrderVisitTeam, User, Order } from '../../types';
 import { dataService } from '../../services/dataService';
 import { OrderVisitCardDetail } from '../../components/ordersVisits/OrderVisitCardDetail';
 import { Header } from '../../components/Header';
@@ -9,6 +9,7 @@ import { AccessDenied } from '../../components/permissions/AccessDenied';
 import { Card } from '../../components/ui/Card';
 import { OrderVisitProcessingButton } from '../../components/ordersVisits/OrderVisitProcessingButton';
 import { useKeyboard } from '../../hooks/useKeyboard';
+import { IconButton } from '../../components/ui/IconButton';
 
 interface OrderVisitPageProps {
     visitId: string;
@@ -29,9 +30,9 @@ import { VisitReportPDFButton } from '../../components/reports/VisitReportPDFBut
 import { OrderVisitServicesList } from './OrderVisitService/OrderVisitServicesList';
 import { OrderVisitFinancialDetail } from './OrderVisitFinancialDetail';
 import { OrderVisitAssetsList } from './OrderVisitAsset/OrderVisitAssetsList';
+import { SignatureSection } from '../../components/ordersVisits/SignatureSection';
 import { Modal } from '../../components/ui/Modal';
 import { OrderRequestForm } from '../OrderRequest/OrderRequestForm';
-import { Order } from '../../types';
 
 
 
@@ -333,6 +334,12 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                                 (visit.ovAssetsDisapprovedAmount || 0) > 0
                             ) ? handleDisapproveVisit : undefined}
                         />
+
+                        <SignatureSection 
+                            visit={visit} 
+                            onRefresh={refreshVisit} 
+                            isEditable={!visit.isFiled}
+                        />
                     </div>
                 );
             case 'transport':
@@ -388,7 +395,16 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     };
 
     return (
-        <div className="w-full safe-area-bottom">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
+            <div className="flex items-center gap-3 p-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-white/5 z-20">
+                <IconButton
+                    icon="arrow_back"
+                    onClick={() => window.history.back()}
+                    variant="ghost"
+                    size="sm"
+                />
+                <h1 className="text-lg font-black uppercase tracking-tight text-slate-700 dark:text-slate-200">Visita</h1>
+            </div>
             <div className="p-4 pb-24 md:max-w-3xl md:mx-auto w-full no-scrollbar">
                 {renderTabContent()}
             </div>
@@ -431,6 +447,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 onClose={() => setIsCloseModalOpen(false)}
                 onConfirm={handleConfirmCloseVisit}
                 isLoading={isClosing}
+                visit={visit}
             />
 
             {/* Bottom Navigation */}

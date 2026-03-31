@@ -314,16 +314,25 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                         </div>
                     </div>
 
-                    {/* Top Actions: Favorite & Menu */}
+                    {/* Top Actions: Back, Title, Favorite & Menu */}
                     <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                        <IconButton
-                            icon="star"
-                            onClick={handleToggleFavorite}
-                            variant="soft"
-                            className={`bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg transition-all duration-300 ${isFavorite ? 'text-amber-500! [font-variation-settings:\'FILL\'_1]' : 'text-slate-400!'} ${isAnimating ? 'animate-star-pop' : ''}`}
-                        />
+                        <div className="flex items-center gap-3">
+                            <IconButton
+                                icon="arrow_back"
+                                onClick={onBack}
+                                variant="soft"
+                                className="bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg text-slate-700! dark:text-slate-200!"
+                            />
+                            <h1 className="text-xl font-black text-white drop-shadow-md tracking-tight uppercase">Ativo</h1>
+                        </div>
 
                         <div className="flex items-center gap-2">
+                            <IconButton
+                                icon="star"
+                                onClick={handleToggleFavorite}
+                                variant="soft"
+                                className={`bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg transition-all duration-300 ${isFavorite ? 'text-amber-500! [font-variation-settings:\'FILL\'_1]' : 'text-slate-400!'} ${isAnimating ? 'animate-star-pop' : ''}`}
+                            />
                             <AssetDetailsPDFButton 
                                 asset={asset}
                                 attributes={attributes}

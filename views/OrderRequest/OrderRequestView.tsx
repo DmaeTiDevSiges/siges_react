@@ -279,8 +279,17 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full bg-background-light dark:bg-slate-950 text-slate-900 dark:text-white relative">
-            <div className="flex-1 overflow-y-auto no-scrollbar relative w-full">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
+            <div className="flex items-center gap-3 p-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-white/5 z-20">
+                <IconButton
+                    icon="arrow_back"
+                    onClick={onBack}
+                    variant="ghost"
+                    size="sm"
+                />
+                <h1 className="text-lg font-black uppercase tracking-tight text-slate-700 dark:text-slate-200">Ordem de Serviço</h1>
+            </div>
+            <div className="flex-1 overflow-y-auto no-scrollbar relative animate-in fade-in duration-700">
 
 
 

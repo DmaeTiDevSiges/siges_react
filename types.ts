@@ -909,6 +909,14 @@ export interface OrderVisit {
   approvedFiledAt?: string;
   approvedFiledUserId?: string;
   approvedFiledUserNameShort?: string;
+
+  // Signatures
+  ovSignatureLeaderPath?: string;
+  ovSignatureLeaderName?: string;
+  ovSignatureLeaderAt?: string;
+  ovSignatureRequesterPath?: string;
+  ovSignatureRequesterName?: string;
+  ovSignatureRequesterAt?: string;
 }
 
 export interface OrderVisitTeam {

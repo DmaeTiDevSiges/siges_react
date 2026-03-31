@@ -9,13 +9,15 @@ interface CloseVisitModalProps {
     onClose: () => void;
     onConfirm: (data: { statusId: number; suspendedReasonId?: number; progress: number }) => Promise<void>;
     isLoading?: boolean;
+    visit?: any; // To check signatures
 }
 
 export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
     isOpen,
     onClose,
     onConfirm,
-    isLoading = false
+    isLoading = false,
+    visit
 }) => {
     const [statusType, setStatusType] = useState<'concluded' | 'suspended' | null>(null);
     const [suspendedReasonId, setSuspendedReasonId] = useState<string>('');
@@ -105,6 +107,37 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                             <span className="font-bold uppercase text-xs tracking-widest">Concluída</span>
                         </button>
                     </div>
+
+                    {/* Signature Status Summary (Optional Reminder) */}
+                    {statusType === 'concluded' && visit && (
+                        <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-4 border border-slate-100 dark:border-white/5 space-y-3 animate-in slide-in-from-top-4 duration-300">
+                            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assinaturas Coletadas</h3>
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`material-symbols-outlined text-[18px] ${visit.ovSignatureLeaderPath ? 'text-emerald-500' : 'text-slate-300'}`}>
+                                            {visit.ovSignatureLeaderPath ? 'check_circle' : 'pending'}
+                                        </span>
+                                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Líder da Equipe</span>
+                                    </div>
+                                    <span className={`text-[10px] font-black uppercase tracking-tight ${visit.ovSignatureLeaderPath ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                                        {visit.ovSignatureLeaderPath ? 'OK' : 'PENDENTE'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`material-symbols-outlined text-[18px] ${visit.ovSignatureRequesterPath ? 'text-emerald-500' : 'text-slate-300'}`}>
+                                            {visit.ovSignatureRequesterPath ? 'check_circle' : 'pending'}
+                                        </span>
+                                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Requisitante</span>
+                                    </div>
+                                    <span className={`text-[10px] font-black uppercase tracking-tight ${visit.ovSignatureRequesterPath ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                                        {visit.ovSignatureRequesterPath ? 'OK' : 'PENDENTE'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {statusType === 'suspended' && (
                         <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
