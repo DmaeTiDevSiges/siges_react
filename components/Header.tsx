@@ -68,14 +68,23 @@ export const Header: React.FC<HeaderProps> = ({
     return (
         <header className={`flex items-center px-4 py-2.5 justify-between bg-surface-light dark:bg-card-dark sticky top-0 z-20 ${hideBorder ? '' : 'border-b border-slate-200 dark:border-slate-800'}`}>
             <div className="flex items-center gap-2 flex-1 min-w-0">
+                {showBackButton && (
+                    <IconButton
+                        icon="arrow_back"
+                        onClick={onBackClick}
+                        variant="ghost"
+                        size="sm"
+                        className="mr-1 mt-1 text-slate-700 dark:text-slate-300"
+                    />
+                )}
                 <div className="flex flex-col flex-1 min-w-0">
                     {!tabNavigation ? (
                         <>
-                            <h1 className="text-slate-900 dark:text-white text-2xl font-bold leading-tight tracking-tight truncate ml-1">
+                            <h1 className="text-slate-900 dark:text-white text-2xl font-bold leading-tight tracking-tight truncate">
                                 {title}
                             </h1>
                             {subtitle && (
-                                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 leading-none mt-0.5">
+                                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-0.5">
                                     {subtitle}
                                 </p>
                             )}

@@ -314,66 +314,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                         </div>
                     </div>
 
-                    {/* Top Actions: Back, Title, Favorite & Menu */}
-                    <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-3">
-                            <IconButton
-                                icon="arrow_back"
-                                onClick={onBack}
-                                variant="soft"
-                                className="bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg text-slate-700! dark:text-slate-200!"
-                            />
-                            <h1 className="text-xl font-black text-white drop-shadow-md tracking-tight uppercase">Ativo</h1>
-                        </div>
 
-                        <div className="flex items-center gap-2">
-                            <IconButton
-                                icon="star"
-                                onClick={handleToggleFavorite}
-                                variant="soft"
-                                className={`bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg transition-all duration-300 ${isFavorite ? 'text-amber-500! [font-variation-settings:\'FILL\'_1]' : 'text-slate-400!'} ${isAnimating ? 'animate-star-pop' : ''}`}
-                            />
-                            <AssetDetailsPDFButton 
-                                asset={asset}
-                                attributes={attributes}
-                                attributeValues={attributeValues}
-                                className="bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg hover:text-blue-500!"
-                            />
-                            <IconButton
-                                icon="more_vert"
-                                onClick={() => setShowMenu(!showMenu)}
-                                variant="soft"
-                                className="bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg text-slate-700! dark:text-slate-200!"
-                            />
-                        </div>
-
-                        {showMenu && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-                                <div className="absolute top-[52px] right-0 w-48 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 py-2 z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-                                    {canEdit('assets') && (
-                                        <button
-                                            onClick={() => { setShowMenu(false); onEdit?.(); }}
-                                            className="w-full text-left px-5 py-3.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group"
-                                        >
-                                            <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-blue-500 transition-colors">edit</span>
-                                            <span className="font-bold tracking-tight">Editar</span>
-                                        </button>
-                                    )}
-
-                                    {canCreate('assets') && (
-                                        <button
-                                            onClick={() => { setShowMenu(false); onDuplicate?.(); }}
-                                            className="w-full text-left px-5 py-3.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group border-t border-slate-100 dark:border-white/5"
-                                        >
-                                            <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-emerald-500 transition-colors">content_copy</span>
-                                            <span className="font-bold tracking-tight">Duplicar</span>
-                                        </button>
-                                    )}
-                                </div>
-                            </>
-                        )}
-                    </div>
 
                     {/* Expand/Collapse Label */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 opacity-0 group-hover:opacity-100">

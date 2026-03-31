@@ -337,44 +337,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         </div>
                     </div>
 
-                    {/* Top Actions: Back, Title & Menu */}
-                    <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-3">
-                            <IconButton
-                                icon="arrow_back"
-                                onClick={onBack}
-                                variant="soft"
-                                className="bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg text-slate-700! dark:text-slate-200!"
-                            />
-                            <h1 className="text-xl font-black text-white drop-shadow-md tracking-tight uppercase">Unidade</h1>
-                        </div>
 
-                        <div className="relative">
-                            <IconButton
-                                icon="more_vert"
-                                onClick={() => setShowMenu(!showMenu)}
-                                variant="soft"
-                                className="bg-white/80! dark:bg-slate-900/80! backdrop-blur-md shadow-lg text-slate-700! dark:text-slate-200!"
-                            />
-
-                            {showMenu && (
-                                <>
-                                    <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />
-                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-card-dark rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 z-30 py-1 overflow-hidden">
-                                        {onEdit && canEdit('units') && (
-                                            <button
-                                                onClick={() => { setShowMenu(false); onEdit(); }}
-                                                className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined text-[20px] text-slate-400">edit</span>
-                                                <span className="font-medium">Editar</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
 
                     {/* Expand/Collapse Label */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 opacity-0 group-hover:opacity-100">

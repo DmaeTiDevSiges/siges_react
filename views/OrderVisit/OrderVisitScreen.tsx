@@ -396,15 +396,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
-            <div className="flex items-center gap-3 p-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-white/5 z-20">
-                <IconButton
-                    icon="arrow_back"
-                    onClick={() => window.history.back()}
-                    variant="ghost"
-                    size="sm"
-                />
-                <h1 className="text-lg font-black uppercase tracking-tight text-slate-700 dark:text-slate-200">Visita</h1>
-            </div>
+
             <div className="p-4 pb-24 md:max-w-3xl md:mx-auto w-full no-scrollbar">
                 {renderTabContent()}
             </div>
