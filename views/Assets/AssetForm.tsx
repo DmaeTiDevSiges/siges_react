@@ -82,6 +82,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
     const [imagePreview, setImagePreview] = useState<string | null>(
         initialAsset && !isDuplicate ? dataService.getPublicImageUrl(initialAsset.imgFilePath, initialAsset.imgFileName, { width: 400, height: 400, resize: 'contain' }) : null
     );
+    const [imageFile, setImageFile] = useState<File | null>(null);
     const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
 
     // Dynamic attributes state
