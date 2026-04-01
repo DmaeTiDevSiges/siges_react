@@ -46,7 +46,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
 
     const answeredCount = activities.filter(a => {
         const r = checklistResponses[a.activityId];
-        return r && r.isOk !== null;
+        return r && r.status !== null && r.status !== undefined;
     }).length;
     
     const progressPercent = activities.length > 0 ? Math.round((answeredCount / activities.length) * 100) : 0;
@@ -163,14 +163,14 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
         }
     };
 
-    const handleAnswerItem = async (activityId: string, isOk: boolean | null) => {
+    const handleAnswerItem = async (activityId: string, status: 'OK' | 'NOK' | 'NA' | null) => {
         try {
             const response = await dataService.upsertMaintenanceChecklistItem(
                 ovAssetId,
                 selectedPlanId,
                 activityId,
                 userId,
-                { isOk }
+                { status }
             );
             if (response) {
                 setChecklistResponses(prev => ({
@@ -436,8 +436,8 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                     <div className="space-y-3">
                                         {sectionActivities.map(activity => {
                                             const response = checklistResponses[activity.activityId];
-                                            const isOk = response?.isOk;
-                                            const isHistorical = response && response.orderVisitAssetId !== ovAssetId && response.isOk !== null && response.isOk !== undefined;
+                                            const status = response?.status;
+                                            const isHistorical = response && response.orderVisitAssetId !== ovAssetId && response.status !== null && response.status !== undefined;
                                             const isItemDisabled = isHistorical || disabled;
                                                                                         
                                             return (
@@ -464,7 +464,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                     <span className="text-[8px] font-black uppercase tracking-tighter">Histórico</span>
                                                                 </div>
                                                             )}
-                                                            {!isHistorical && !isItemDisabled && response && response.isOk !== null && response.isOk !== undefined && (
+                                                            {!isHistorical && !isItemDisabled && response && response.status !== null && response.status !== undefined && (
                                                                 <button
                                                                     onClick={() => handleResetItem(activity.activityId)}
                                                                     className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all shrink-0"
@@ -480,9 +480,9 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                             <div className="flex items-center bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-100 dark:border-slate-800/50">
                                                                 <button
                                                                     disabled={isItemDisabled}
-                                                                    onClick={() => handleAnswerItem(activity.activityId, true)}
+                                                                    onClick={() => handleAnswerItem(activity.activityId, 'OK')}
                                                                     className={`w-12 h-10 flex items-center justify-center rounded-lg transition-all ${
-                                                                        isOk === true
+                                                                        status === 'OK'
                                                                         ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                                                                         : 'text-slate-400 dark:text-slate-600 hover:text-emerald-500 dark:hover:text-emerald-400'
                                                                     }`}
@@ -492,14 +492,27 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                 <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
                                                                 <button
                                                                     disabled={isItemDisabled}
-                                                                    onClick={() => handleAnswerItem(activity.activityId, false)}
+                                                                    onClick={() => handleAnswerItem(activity.activityId, 'NOK')}
                                                                     className={`w-12 h-10 flex items-center justify-center rounded-lg transition-all ${
-                                                                        isOk === false
+                                                                        status === 'NOK'
                                                                         ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
                                                                         : 'text-slate-400 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400'
                                                                     }`}
                                                                 >
                                                                     <span className="material-symbols-outlined text-xl">thumb_down</span>
+                                                                </button>
+                                                                <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
+                                                                <button
+                                                                    disabled={isItemDisabled}
+                                                                    onClick={() => handleAnswerItem(activity.activityId, 'NA')}
+                                                                    className={`w-12 h-10 flex items-center justify-center rounded-lg transition-all ${
+                                                                        status === 'NA'
+                                                                        ? 'bg-slate-500 dark:bg-slate-400 text-white shadow-lg shadow-slate-500/20'
+                                                                        : 'text-slate-400 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-300'
+                                                                    }`}
+                                                                    title="Não se aplica"
+                                                                >
+                                                                    <span className="material-symbols-outlined text-xl">do_not_disturb_on</span>
                                                                 </button>
                                                             </div>
 
@@ -555,7 +568,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                         {(!isItemDisabled || response?.comments) && (
                                                             <div className="relative group/input">
                                                                 <Input
-                                                                    disabled={isItemDisabled || isOk === null || isOk === undefined}
+                                                                    disabled={isItemDisabled || status === null || status === undefined}
                                                                     placeholder="Adicionar observação..."
                                                                     value={response?.comments || ''}
                                                                     onChange={(e) => handleLocalCommentChange(activity.activityId, e.target.value)}
@@ -566,7 +579,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                         : ''
                                                                     }`}
                                                                 />
-                                                                {!isItemDisabled && response?.comments && isOk !== null && isOk !== undefined && (
+                                                                {!isItemDisabled && response?.comments && status !== null && status !== undefined && (
                                                                     <button
                                                                         onClick={() => {
                                                                             handleLocalCommentChange(activity.activityId, '');

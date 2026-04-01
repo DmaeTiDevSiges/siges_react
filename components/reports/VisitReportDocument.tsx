@@ -482,7 +482,7 @@ export interface VisitReportData {
         activities?: Array<{ 
             activityDescription?: string; 
             activityCode?: string;
-            isOk?: boolean | null;
+            status?: 'OK' | 'NOK' | 'NA' | null;
             comments?: string;
             imgFilesNames?: string[];
             photosBase64?: string[];
@@ -824,9 +824,9 @@ export const VisitReportDocument = ({ data }: { data: VisitReportData }) => {
                                                                 <Text style={styles.activityDesc}>{actIdx + 1}. {act.activityDescription}</Text>
                                                                 <Text style={[
                                                                     styles.activityStatus, 
-                                                                    { color: act.isOk === true ? '#10B981' : (act.isOk === false ? '#EF4444' : '#64748B') }
+                                                                    { color: act.status === 'OK' ? '#10B981' : (act.status === 'NOK' ? '#EF4444' : '#64748B') }
                                                                 ]}>
-                                                                    {act.isOk === true ? '● OK' : (act.isOk === false ? '● NÃO OK' : '● —')}
+                                                                    {act.status === 'OK' ? '● OK' : act.status === 'NOK' ? '● NAO OK' : act.status === 'NA' ? '● N/A' : '● ---'}
                                                                 </Text>
                                                             </View>
 

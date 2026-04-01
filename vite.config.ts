@@ -9,13 +9,13 @@ export default defineConfig(({ mode }) => {
   // Try to read version from version.json
   let buildId = new Date().getTime().toString();
   try {
-    const versionPath = path.resolve(__dirname, 'public/version.json');
+    const versionPath = path.resolve(__dirname, 'public/version.txt');
     if (fs.existsSync(versionPath)) {
       const data = JSON.parse(fs.readFileSync(versionPath, 'utf-8'));
       buildId = data.version;
     }
   } catch (e) {
-    console.warn('Could not read version.json, using current timestamp');
+    console.warn('Could not read version.txt, using current timestamp');
   }
 
   return {

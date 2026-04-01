@@ -334,7 +334,7 @@ export interface OrderVisitAssetActivity {
   createdUserId?: string;
   createdAt?: string;
   maintenancePlanId?: string;
-  isOk?: boolean | null;
+  status?: 'OK' | 'NOK' | 'NA' | null;
   imgFilePath?: string;
   imgFilesNames?: any; // JSONB
   comments?: string;

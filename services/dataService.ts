@@ -9540,7 +9540,7 @@ export const dataService = {
                 createdAt: item.created_at,
                 activityDescription: activityInfo?.description,
                 activityCode: activityInfo?.code,
-                isOk: item.is_ok,
+                status: item.status,
                 comments: item.comments,
                 imgFilePath: item.img_file_path,
                 imgFilesNames: Array.isArray(item.img_files_names) ? item.img_files_names : (typeof item.img_files_names === 'string' ? JSON.parse(item.img_files_names) : []),
@@ -10674,7 +10674,7 @@ export const dataService = {
             createdUserId: item.created_user_id?.toString(),
             createdAt: item.created_at,
             maintenancePlanId: item.maintenance_plan_id?.toString(),
-            isOk: item.is_ok,
+            status: item.status,
             imgFilePath: item.img_file_path,
             imgFilesNames: Array.isArray(item.img_files_names) ? item.img_files_names : (typeof item.img_files_names === 'string' ? JSON.parse(item.img_files_names) : []),
             comments: item.comments
@@ -10702,7 +10702,7 @@ export const dataService = {
             createdUserId: item.created_user_id?.toString(),
             createdAt: item.created_at,
             maintenancePlanId: item.maintenance_plan_id?.toString(),
-            isOk: item.is_ok,
+            status: item.status,
             imgFilePath: item.img_file_path,
             imgFilesNames: item.img_files_names,
             comments: item.comments
@@ -10746,7 +10746,7 @@ export const dataService = {
                 createdUserId: item.created_user_id?.toString(),
                 createdAt: item.created_at,
                 maintenancePlanId: item.maintenance_plan_id?.toString(),
-                isOk: item.is_ok,
+                status: item.status,
                 imgFilePath: item.img_file_path,
                 imgFilesNames: Array.isArray(item.img_files_names) ? item.img_files_names : (typeof item.img_files_names === 'string' ? JSON.parse(item.img_files_names) : []),
                 comments: item.comments
@@ -10787,7 +10787,7 @@ export const dataService = {
         activityId: string, 
         userId: string, 
         updates: { 
-            isOk?: boolean | null, 
+            status?: 'OK' | 'NOK' | 'NA' | null, 
             comments?: string, 
             imgFilePath?: string, 
             imgFilesNames?: any 
@@ -10797,7 +10797,7 @@ export const dataService = {
             updated_user_id: parseInt(userId),
             updated_at: getBrazilTimestamp()
         };
-        if (updates.isOk !== undefined) dbUpdates.is_ok = updates.isOk;
+        if (updates.status !== undefined) dbUpdates.status = updates.status;
         if (updates.comments !== undefined) dbUpdates.comments = updates.comments;
         if (updates.imgFilePath !== undefined) dbUpdates.img_file_path = updates.imgFilePath;
         if (updates.imgFilesNames !== undefined) dbUpdates.img_files_names = updates.imgFilesNames;
@@ -10848,7 +10848,7 @@ export const dataService = {
                 createdUserId: resultData.created_user_id?.toString(),
                 createdAt: resultData.created_at,
                 maintenancePlanId: resultData.maintenance_plan_id?.toString(),
-                isOk: resultData.is_ok,
+                status: resultData.status,
                 imgFilePath: resultData.img_file_path,
                 imgFilesNames: Array.isArray(resultData.img_files_names) ? resultData.img_files_names : (typeof resultData.img_files_names === 'string' ? JSON.parse(resultData.img_files_names) : []),
                 comments: resultData.comments

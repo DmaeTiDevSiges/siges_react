@@ -10,8 +10,8 @@ const UpdateNotifier: React.FC = () => {
 
         const checkVersion = async () => {
             try {
-                // Fetch version.json with a cache-busting timestamp
-                const response = await fetch(`/version.json?t=${Date.now()}`, {
+                // Fetch version.txt with a cache-busting timestamp to bypass WAF blocks on .json files
+                const response = await fetch(`/version.txt?t=${Date.now()}`, {
                     cache: 'no-store',
                     headers: {
                         'Cache-Control': 'no-cache',

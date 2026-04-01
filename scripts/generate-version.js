@@ -16,8 +16,8 @@ if (!fs.existsSync(publicDir)) {
 }
 
 fs.writeFileSync(
-  path.join(publicDir, 'version.json'),
+  path.join(publicDir, 'version.txt'),
   JSON.stringify(versionInfo, null, 2)
 );
 
-console.log('✅ version.json generated:', versionInfo.version);
+console.log('✅ version.txt generated:', versionInfo.version);

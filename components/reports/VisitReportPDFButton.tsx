@@ -131,7 +131,7 @@ export const VisitReportPDFButton = ({
                         const response = responsesMap.get(node.activityId);
                         return {
                             ...node,
-                            isOk: response ? response.isOk : null,
+                            status: response ? response.status : null,
                             comments: response ? (response.comments || '') : (node.commentsDefault || ''),
                             imgFilePath: response?.imgFilePath,
                             imgFilesNames: response?.imgFilesNames || [],
@@ -139,16 +139,7 @@ export const VisitReportPDFButton = ({
                         };
                     });
                     
-                    // Add any activities that were manually added but are not in the plan (if any)
-                    const extraActivities = currentResponses.filter(r => !structure.some(s => s.activityId === r.activityId));
-                    if (extraActivities.length > 0) {
-                        activitiesByAssetId[assetId].push(...extraActivities.map(r => ({
-                            ...r,
-                            sectionDescription: 'Atividades Avulsas',
-                            sectionOrder: 9999,
-                            activityOrder: 9999
-                        })));
-                    }
+
                 } else {
                     // No plan assigned, just show all manual activities
                     activitiesByAssetId[assetId] = currentResponses.map(r => {
@@ -274,7 +265,7 @@ export const VisitReportPDFButton = ({
                         activityId: act.activityId,
                         activityDescription: act.activityDescription,
                         activityCode: act.activityCode,
-                        isOk: act.isOk,
+                        status: act.status,
                         comments: act.comments,
                         imgFilePath: act.imgFilePath,
                         imgFilesNames: act.imgFilesNames || [],
