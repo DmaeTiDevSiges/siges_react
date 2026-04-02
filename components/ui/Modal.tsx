@@ -65,7 +65,9 @@ export const Modal: React.FC<ModalProps> = ({
 
     const onDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         if (!draggable || !modalRef.current) return;
-        e.currentTarget.setPointerCapture(e.pointerId);
+        // Don't start drag if clicking on a button or interactive element
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('[role="button"]')) return;
         isDragging.current = true;
         const rect = modalRef.current.getBoundingClientRect();
         dragState.current = {
