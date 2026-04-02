@@ -25,7 +25,9 @@ const UpdateNotifier: React.FC = () => {
 
                 if (!response.ok) return;
 
-                const remoteVersion = (await response.text()).trim();
+                // Use .json() instead of .text() because version.txt is actually a JSON object
+                const remoteData = await response.json();
+                const remoteVersion = remoteData.version?.toString();
 
                 // Compare with the hardcoded __BUILD_ID__ from Vite define
                 if (remoteVersion && remoteVersion !== __BUILD_ID__) {
