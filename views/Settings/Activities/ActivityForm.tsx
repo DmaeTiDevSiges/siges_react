@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, OrderType, OrderSubType, Company, Department } from '../../../types';
+import { Activity, OrderType, Company, Department } from '../../../types';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
@@ -19,7 +19,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [orderTypes, setOrderTypes] = useState<OrderType[]>([]);
-    const [orderSubTypes, setOrderSubTypes] = useState<OrderSubType[]>([]);
     const [companies, setCompanies] = useState<Company[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
 
@@ -29,20 +28,17 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         description: initialActivity?.description || '',
         code: initialActivity?.code || '',
         isAvailable: initialActivity?.isAvailable ?? true,
-        linkedOrderTypeIds: initialActivity?.linkedOrderTypeIds || [],
-        linkedOrderSubTypeIds: initialActivity?.linkedOrderSubTypeIds || []
+        linkedOrderTypeIds: initialActivity?.linkedOrderTypeIds || []
     });
 
     useEffect(() => {
         const loadInitialData = async () => {
             try {
-                const [types, subs, comps] = await Promise.all([
+                const [types, comps] = await Promise.all([
                     dataService.getOrderTypes('active'),
-                    dataService.getOrderSubTypes('active'),
                     dataService.getCompanies().then(comps => comps.filter(c => c.status === 'active'))
                 ]);
                 setOrderTypes(types);
-                setOrderSubTypes(subs);
                 setCompanies(comps);
             } catch (error) {
                 console.error("Error loading initial data", error);
@@ -69,15 +65,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
             linkedOrderTypeIds: prev.linkedOrderTypeIds.includes(id)
                 ? prev.linkedOrderTypeIds.filter(tid => tid !== id)
                 : [...prev.linkedOrderTypeIds, id]
-        }));
-    };
-
-    const toggleOrderSubType = (id: string) => {
-        setForm(prev => ({
-            ...prev,
-            linkedOrderSubTypeIds: prev.linkedOrderSubTypeIds.includes(id)
-                ? prev.linkedOrderSubTypeIds.filter(tid => tid !== id)
-                : [...prev.linkedOrderSubTypeIds, id]
         }));
     };
 
@@ -191,42 +178,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block">
-                        Vincular a Sub-Tipos de OS
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {orderSubTypes.map(sub => (
-                            <label
-                                key={sub.id}
-                                className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${form.linkedOrderSubTypeIds.includes(sub.id)
-                                    ? 'bg-primary/10 border-primary ring-1 ring-primary/20'
-                                    : 'bg-white dark:bg-surface-dark border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                                    }`}
-                            >
-                                <div className="relative flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={form.linkedOrderSubTypeIds.includes(sub.id)}
-                                        onChange={() => toggleOrderSubType(sub.id)}
-                                        className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary transition-colors cursor-pointer"
-                                    />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <span className="text-sm font-bold text-slate-900 dark:text-white block truncate">
-                                        {sub.description}
-                                    </span>
-                                    <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium block">
-                                        {orderTypes.find(t => t.id === sub.orderTypeId)?.description || '---'}
-                                    </span>
-                                    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-tight">
-                                        {sub.code}
-                                    </span>
-                                </div>
-                            </label>
-                        ))}
-                    </div>
-                </div>
             </form>
 
             <ButtonSave

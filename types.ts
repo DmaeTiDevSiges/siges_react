@@ -26,6 +26,7 @@ export interface Contract {
   providerDepartmentId?: string;
   clientId?: string;
   description?: string;
+  object?: string; // New field
   isAvailable?: boolean;
   isDeleted?: boolean;
   code?: string;
@@ -880,6 +881,7 @@ export interface OrderVisit {
   oRequesterName?: string;
   oRequesterPhone?: string;
   contractDescription?: string;
+  contractObject?: string;
   planDescription?: string;
   oReasonDescription?: string;
   oCauseDescription?: string;

@@ -611,6 +611,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [processingStages, setProcessingStages] = useState<{ id: number, description: string, icon: string, icon_color: string, bg_color: string }[]>([]);
 
     const [loading, setLoading] = useState(true);
+    const initialLoadDone = React.useRef(false);
     const [activeFilter, setActiveFilter] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [visitTeams, setVisitTeams] = useState<Record<string, OrderVisitTeam[]>>({});
@@ -666,22 +667,22 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [selectionSearch, setSelectionSearch] = useState('');
 
     useEffect(() => {
-        // Clean up old shared localStorage keys (were incorrectly shared with OS dashboard)
+        // Clean up old shared localStorage keys
         localStorage.removeItem('dashboard_admin_date_start');
         localStorage.removeItem('dashboard_admin_date_end');
 
-        loadData();
+        loadData(true);
         loadFilterOptions();
 
-         const handleRefresh = () => loadData();
+         const handleRefresh = () => loadData(true);
          window.addEventListener('refresh_dashboard', handleRefresh);
  
          // Realtime updates
          const orderSub = dataService.subscribeToOrders(() => {
-             loadData();
+             loadData(false);
          });
          const visitSub = dataService.subscribeToVisits(() => {
-             loadData();
+             loadData(false);
          });
  
          return () => {
@@ -689,9 +690,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
              orderSub.unsubscribe();
              visitSub.unsubscribe();
          };
-     }, []);
+     }, [loadData, loadFilterOptions]);
 
-    const loadFilterOptions = async () => {
+    const loadFilterOptions = React.useCallback(async () => {
         try {
             const results = await Promise.allSettled([
                 dataService.getSystemsParent(),
@@ -720,11 +721,13 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         } catch (error) {
             console.error('Error loading filter options:', error);
         }
-    };
+    }, [currentUser.id]);
 
-    const loadData = async () => {
+    const loadData = React.useCallback(async (forceLoading = false) => {
         try {
-            setLoading(true);
+            if (forceLoading || !initialLoadDone.current) {
+                setLoading(true);
+            }
 
             // 2. Load processing stages
             const stages = await dataService.getProcessingConfigurations();
@@ -802,8 +805,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             console.error('Error loading visits:', error);
         } finally {
             setLoading(false);
+            initialLoadDone.current = true;
         }
-    };
+    }, [currentUser.id]); // currentUser is stable usually
 
     const loadTeamsForVisits = async (visitsToLoad: OrderVisitExtended[]) => {
         try {

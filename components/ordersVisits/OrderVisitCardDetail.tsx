@@ -19,9 +19,11 @@ interface OrderVisitCardDetailProps {
     onReportVisit?: () => void;
     onApproveVisit?: () => void;
     onDisapproveVisit?: () => void;
+    onFileVisit?: () => void;
     isReportLoading?: boolean;
     isApproveLoading?: boolean;
     isDisapproveLoading?: boolean;
+    isFileLoading?: boolean;
     hideHeaderActions?: boolean;
 }
 
@@ -36,9 +38,11 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
     onReportVisit,
     onApproveVisit,
     onDisapproveVisit,
+    onFileVisit,
     isReportLoading = false,
     isApproveLoading = false,
     isDisapproveLoading = false,
+    isFileLoading = false,
     hideHeaderActions = false
 }) => {
     // Determining colors
@@ -274,6 +278,22 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                         <span className="material-symbols-outlined">verified</span>
                     )}
                     {isApproveLoading ? 'Aguarde ...' : 'Aprovar Visita'}
+                </button>
+            )}
+
+            {/* File (Archive) Visit Button */}
+            {onFileVisit && (
+                <button
+                    onClick={onFileVisit}
+                    disabled={isFileLoading}
+                    className="w-full mt-4 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {isFileLoading ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                        <span className="material-symbols-outlined">inventory_2</span>
+                    )}
+                    {isFileLoading ? 'ARQUIVANDO...' : 'ARQUIVAR VISITA'}
                 </button>
             )}
 

@@ -19,19 +19,44 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Ajustar resolução para retina/high-dpi
-        const ratio = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * ratio;
-        canvas.height = rect.height * ratio;
-        ctx.scale(ratio, ratio);
+        // Use ResizeObserver to handle modal animations and responsive layout
+        const resizeObserver = new ResizeObserver(() => {
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
 
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#0f172a'; // slate-900
-    }, []);
+            const ratio = window.devicePixelRatio || 1;
+            
+            // Capture image if not empty to restore after resize
+            let tempImage: ImageData | null = null;
+            if (!isEmpty) {
+                try {
+                    tempImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                } catch (e) { /* ignore */ }
+            }
 
+            canvas.width = rect.width * ratio;
+            canvas.height = rect.height * ratio;
+            ctx.scale(ratio, ratio);
+
+            // Re-apply settings
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 3;
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            ctx.strokeStyle = isDarkMode ? '#f8fafc' : '#0f172a';
+
+            // Restore image if resizied
+            if (tempImage) {
+                ctx.putImageData(tempImage, 0, 0);
+            }
+        });
+
+        resizeObserver.observe(canvas);
+        return () => resizeObserver.disconnect();
+    }, [isEmpty]);
+
+    const points = useRef<{ x: number, y: number }[]>([]);
+    
     const getCoordinates = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
         const canvas = canvasRef.current;
         if (!canvas) return { x: 0, y: 0 };
@@ -40,6 +65,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
         let clientX, clientY;
 
         if ('touches' in e) {
+            if (e.touches.length === 0) return { x: 0, y: 0 };
             clientX = e.touches[0].clientX;
             clientY = e.touches[0].clientY;
         } else {
@@ -54,28 +80,41 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
     };
 
     const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+        if (e.cancelable) e.preventDefault();
         const { x, y } = getCoordinates(e);
+        
         const ctx = canvasRef.current?.getContext('2d');
         if (!ctx) return;
 
-        ctx.beginPath();
-        ctx.moveTo(x, y);
+        points.current = [{ x, y }];
         setIsDrawing(true);
         setIsEmpty(false);
+
+        ctx.beginPath();
+        ctx.moveTo(x, y);
     };
 
     const draw = (e: React.MouseEvent | React.TouchEvent) => {
         if (!isDrawing) return;
-        
-        // Impedir scroll durante a assinatura no mobile
         if (e.cancelable) e.preventDefault();
 
         const { x, y } = getCoordinates(e);
         const ctx = canvasRef.current?.getContext('2d');
         if (!ctx) return;
 
-        ctx.lineTo(x, y);
-        ctx.stroke();
+        points.current.push({ x, y });
+
+        if (points.current.length > 3) {
+            const lastThreePoints = points.current.slice(-3);
+            const xc = (lastThreePoints[1].x + lastThreePoints[2].x) / 2;
+            const yc = (lastThreePoints[1].y + lastThreePoints[2].y) / 2;
+            
+            ctx.quadraticCurveTo(lastThreePoints[1].x, lastThreePoints[1].y, xc, yc);
+            ctx.stroke();
+        } else {
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
     };
 
     const endDrawing = () => {
@@ -126,11 +165,17 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
                     className="w-full h-full cursor-crosshair"
                     style={{ touchAction: 'none' }}
                 />
+
+                {/* Guia horizontal de orientação (não salvável) */}
+                <div className="absolute left-10 right-10 bottom-12 border-b-2 border-slate-200 dark:border-slate-800 pointer-events-none flex items-center gap-2 pb-1">
+                    <span className="material-symbols-outlined text-slate-300 dark:text-slate-700 text-lg">edit</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700">Assine aqui</span>
+                </div>
                 
                 {isEmpty && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-40">
                         <span className="material-symbols-outlined text-4xl mb-2 text-slate-400">draw</span>
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Assine aqui</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Assine acima da linha</span>
                     </div>
                 )}
             </div>
@@ -145,7 +190,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
                 <button
                     onClick={handleSave}
                     disabled={isEmpty}
-                    className="flex-[2] px-6 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest text-white bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:grayscale transition-all shadow-lg shadow-primary/20"
+                    className="flex-2 px-6 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest text-white bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:grayscale transition-all shadow-lg shadow-primary/20"
                 >
                     Salvar Assinatura
                 </button>

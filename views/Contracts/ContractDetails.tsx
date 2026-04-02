@@ -12,6 +12,51 @@ interface ContractDetailsProps {
     onDelete?: () => void;
 }
 
+// Sub-component for individual search result rows to manage internal state
+const UserSearchRow: React.FC<{ 
+    user: any; 
+    onAdd: (userId: string, role: string) => void 
+}> = ({ user, onAdd }) => {
+    const [role, setRole] = React.useState('viewer');
+
+    return (
+        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#151e2e] rounded-xl border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-right-2 duration-300">
+            <div className="flex items-center gap-3">
+                <Avatar src={user.avatarUrl} alt={user.nameShort} size="sm" shape="circle" fallbackIcon="person" />
+                <div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white leading-none mb-1">
+                        {user.nameShort || user.nameFull}
+                    </p>
+                    <p className="text-xs text-slate-500">{user.email}</p>
+                </div>
+            </div>
+            <div className="flex items-center gap-2">
+                <select 
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="appearance-none px-3 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-primary/20 transition-all pr-8 relative"
+                    style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='C19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 8px center',
+                        backgroundSize: '12px'
+                    }}
+                >
+                    <option value="viewer">VIEWER</option>
+                    <option value="manager">MANAGER</option>
+                </select>
+                <button
+                    onClick={() => onAdd(user.id, role)}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all active:scale-95 group"
+                    title="Adicionar Gestor"
+                >
+                    <span className="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">person_add</span>
+                </button>
+            </div>
+        </div>
+    );
+};
+
 export const ContractDetails: React.FC<ContractDetailsProps> = ({
     contract,
     onEdit,
@@ -53,14 +98,26 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
         }
     };
 
-    const handleAddManager = async (userId: string) => {
+    const handleAddManager = async (userId: string, role: string = 'viewer') => {
         try {
-            await dataService.addContractManager(contract.id, userId);
+            await dataService.addContractManager(contract.id, userId, role);
             await loadManagers();
             setSearchQuery('');
         } catch (error) {
             console.error('Error adding manager:', error);
             toast.error('Erro ao adicionar gestor');
+        }
+    };
+
+    const handleUpdateManagerRole = async (managerId: string, currentRole: string) => {
+        const newRole = currentRole === 'manager' ? 'viewer' : 'manager';
+        try {
+            await dataService.addContractManager(contract.id, managerId, newRole);
+            await loadManagers();
+            toast.success(`Perfil alterado para ${newRole.toUpperCase()}`);
+        } catch (error) {
+            console.error('Error updating manager role:', error);
+            toast.error('Erro ao atualizar perfil');
         }
     };
 
@@ -83,7 +140,7 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
             user.email?.toLowerCase().includes(searchQuery.toLowerCase());
 
         // Don't show users who are already managers
-        const isNotManager = !managers.some(m => m.managerId === user.id);
+        const isNotManager = !managers.some(m => String(m.managerId) === String(user.id));
 
         return matchesSearch && isNotManager;
     });
@@ -266,26 +323,11 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
                                 <div className="space-y-2">
                                     {filteredUsers.length > 0 ? (
                                         filteredUsers.map(user => (
-                                            <div
-                                                key={user.id}
-                                                className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#151e2e] rounded-xl border border-slate-100 dark:border-slate-800"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <Avatar src={user.avatarUrl} alt={user.nameShort} size="sm" shape="circle" fallbackIcon="person" />
-                                                    <div>
-                                                        <p className="text-sm font-bold text-slate-900 dark:text-white leading-none mb-1">
-                                                            {user.nameShort || user.nameFull}
-                                                        </p>
-                                                        <p className="text-xs text-slate-500">{user.email}</p>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleAddManager(user.id)}
-                                                    className="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all active:scale-95"
-                                                >
-                                                    <span className="material-symbols-outlined text-[20px]">add</span>
-                                                </button>
-                                            </div>
+                                            <UserSearchRow 
+                                                key={user.id} 
+                                                user={user} 
+                                                onAdd={handleAddManager} 
+                                            />
                                         ))
                                     ) : (
                                         <div className="p-4 text-center text-slate-500 text-sm italic">
@@ -310,14 +352,18 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
                                     <div key={manager.id} className="flex items-center justify-between py-2 px-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800">
                                         <div className="flex items-center gap-3">
                                             <Avatar src={manager.managerAvatarUrl} alt={manager.managerName} size="sm" shape="circle" fallbackIcon="person" />
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
-                                                    {manager.managerName}
-                                                </p>
-                                                <p className="text-[10px] text-primary font-bold uppercase tracking-widest mt-0.5">
-                                                    {manager.role || 'Geral'}
-                                                </p>
-                                            </div>
+                                                <div className="flex flex-col">
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                                                        {manager.managerName}
+                                                    </p>
+                                                    <button
+                                                        onClick={() => handleUpdateManagerRole(manager.managerId, manager.role || 'viewer')}
+                                                        className="w-fit text-[10px] font-black uppercase tracking-widest mt-0.5 px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all"
+                                                        title="Clique para alternar perfil"
+                                                    >
+                                                        {manager.role || 'viewer'}
+                                                    </button>
+                                                </div>
                                         </div>
                                         <button
                                             onClick={() => handleRemoveManager(manager.managerId)}

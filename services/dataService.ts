@@ -39,6 +39,9 @@ export const getBrazilTimestamp = (dateInput?: string | Date | null) => {
     return `${map.get('year')}-${map.get('month')}-${map.get('day')}T${map.get('hour')}:${map.get('minute')}:${map.get('second')}-03:00`;
 };
 
+/** Alias for getBrazilTimestamp as requested by user */
+export const getBrazilTime = getBrazilTimestamp;
+
 
 const getProcessingConfigurations = async () => {
     const { data, error } = await supabase
@@ -184,6 +187,88 @@ export const dataService = {
         }
 
         return finalUrl;
+    },
+
+    getSignatureUrl(path: string, name: string): string {
+        return this.getPublicImageUrl(path, name, { width: 600, height: 300, resize: 'fit' });
+    },
+
+    async saveOrderVisitSignature(ovId: string, type: 'leader' | 'requester', base64: string): Promise<void> {
+        const { r2Service } = await import('./r2Service');
+        const folderPath = `signatures/visits/${ovId}`;
+        const fileName = `${type}_${Date.now()}.png`;
+        const fullPath = `${folderPath}/${fileName}`;
+
+        // Convert base64 to Blob
+        try {
+            const res = await fetch(base64);
+            const blob = await res.blob();
+            await r2Service.uploadFile(blob as any, fullPath);
+
+            const updateData: any = {};
+            if (type === 'leader') {
+                updateData.ov_signature_leader_path = folderPath;
+                updateData.ov_signature_leader_name = fileName;
+                updateData.ov_signature_leader_at = getBrazilTime();
+            } else {
+                updateData.ov_signature_requester_path = folderPath;
+                updateData.ov_signature_requester_name = fileName;
+                updateData.ov_signature_requester_at = getBrazilTime();
+            }
+
+            const { error } = await supabase
+                .from('orders_visits')
+                .update(updateData)
+                .eq('id', ovId);
+
+            if (error) throw error;
+        } catch (err) {
+            console.error('[dataService] Error saving signature:', err);
+            throw err;
+        }
+    },
+
+    async fileOrderVisit(visitId: string, userId: string): Promise<void> {
+        try {
+            const { error } = await supabase
+                .from('orders_visits')
+                .update({
+                    ov_is_filed: true,
+                    ov_approved_filed_user_id: userId,
+                    ov_approved_filed_at: getBrazilTime()
+                })
+                .eq('id', visitId);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('[dataService] Error filing order visit:', error);
+            throw error;
+        }
+    },
+
+    async deleteOrderVisitSignature(visitId: string, type: 'leader' | 'requester'): Promise<void> {
+        try {
+            const updateData: any = {};
+            if (type === 'leader') {
+                updateData.ov_signature_leader_path = null;
+                updateData.ov_signature_leader_name = null;
+                updateData.ov_signature_leader_at = null;
+            } else {
+                updateData.ov_signature_requester_path = null;
+                updateData.ov_signature_requester_name = null;
+                updateData.ov_signature_requester_at = null;
+            }
+
+            const { error } = await supabase
+                .from('orders_visits')
+                .update(updateData)
+                .eq('id', visitId);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('[dataService] Error deleting signature:', error);
+            throw error;
+        }
     },
 
     // Private helper for mapping raw database items (v_orders) to Order type
@@ -347,7 +432,8 @@ export const dataService = {
             providerDepartmentId: item.provider_department_id?.toString(),
             clientId: item.client_id?.toString(),
             description: item.description,
-            isAvailable: item.is_available,
+            object: item.object,
+            isAvailable: item.is_available ?? true,
             isDeleted: item.is_deleted,
             code: item.code,
             statusId: item.status_id,
@@ -393,6 +479,7 @@ export const dataService = {
             providerDepartmentId: data.provider_department_id?.toString(),
             clientId: data.client_id?.toString(),
             description: data.description,
+            object: data.object,
             isAvailable: data.is_available,
             isDeleted: data.is_deleted,
             code: data.code,
@@ -430,7 +517,8 @@ export const dataService = {
             providerDepartmentId: item.provider_department_id?.toString(),
             clientId: item.client_id?.toString(),
             description: item.description,
-            isAvailable: item.is_available,
+            object: item.object,
+            isAvailable: item.is_available ?? true,
             isDeleted: item.is_deleted,
             code: item.code,
             statusId: item.status_id,
@@ -808,6 +896,7 @@ export const dataService = {
             provider_department_id: contract.providerDepartmentId ? parseInt(contract.providerDepartmentId) : null,
             client_id: contract.clientId ? parseInt(contract.clientId) : null,
             description: contract.description,
+            object: contract.object,
             is_available: contract.isAvailable !== undefined ? contract.isAvailable : true,
             code: contract.code,
             status_id: contract.statusId,
@@ -842,6 +931,7 @@ export const dataService = {
         if (contract.providerDepartmentId !== undefined) dbData.provider_department_id = contract.providerDepartmentId ? parseInt(contract.providerDepartmentId) : null;
         if (contract.clientId !== undefined) dbData.client_id = contract.clientId ? parseInt(contract.clientId) : null;
         if (contract.description !== undefined) dbData.description = contract.description;
+        if (contract.object !== undefined) dbData.object = contract.object;
         if (contract.isAvailable !== undefined) dbData.is_available = contract.isAvailable;
         if (contract.code !== undefined) dbData.code = contract.code;
         if (contract.statusId !== undefined) dbData.status_id = contract.statusId;
@@ -1177,28 +1267,18 @@ export const dataService = {
         let allSubTypeLinks: any[] = [];
 
         if (activityIds.length > 0) {
-            const [typesRes, subsRes] = await Promise.all([
-                supabase
-                    .from('cfg_orders_types_activities')
-                    .select('activity_id, order_type_id')
-                    .in('activity_id', activityIds),
-                supabase
-                    .from('cfg_orders_types_subs_activities')
-                    .select('activity_id, order_type_sub_id')
-                    .in('activity_id', activityIds)
-            ]);
+            const typesRes = await supabase
+                .from('cfg_orders_types_activities')
+                .select('activity_id, o_type_id')
+                .in('activity_id', activityIds);
 
             if (!typesRes.error && typesRes.data) allTypeLinks = typesRes.data;
-            if (!subsRes.error && subsRes.data) allSubTypeLinks = subsRes.data;
         }
 
         // 3. Map results
         return activitiesData.map((item: any) => {
             const itemTypeLinks = allTypeLinks.filter(l => l.activity_id === item.id);
-            const linkedOrderTypeIds = itemTypeLinks.map(l => l.order_type_id.toString());
-
-            const itemSubTypeLinks = allSubTypeLinks.filter(l => l.activity_id === item.id);
-            const linkedOrderSubTypeIds = itemSubTypeLinks.map(l => l.order_type_sub_id.toString());
+            const linkedOrderTypeIds = itemTypeLinks.map(l => l.o_type_id.toString());
 
             return {
                 id: item.id.toString(),
@@ -1209,7 +1289,7 @@ export const dataService = {
                 isAvailable: item.is_available ?? true,
                 isDeleted: item.is_deleted,
                 linkedOrderTypeIds,
-                linkedOrderSubTypeIds
+                linkedOrderSubTypeIds: [] // No longer used
             };
         });
     },
@@ -1238,20 +1318,10 @@ export const dataService = {
         if (activity.linkedOrderTypeIds && activity.linkedOrderTypeIds.length > 0) {
             const relations = activity.linkedOrderTypeIds.map(orderTypeId => ({
                 activity_id: data.id,
-                order_type_id: orderTypeId,
+                o_type_id: orderTypeId,
                 is_available: true
             }));
             await supabase.from('cfg_orders_types_activities').insert(relations);
-        }
-
-        // Sync linked order sub-types
-        if (activity.linkedOrderSubTypeIds && activity.linkedOrderSubTypeIds.length > 0) {
-            const relations = activity.linkedOrderSubTypeIds.map(subTypeId => ({
-                activity_id: data.id,
-                order_type_sub_id: subTypeId,
-                is_available: true
-            }));
-            await supabase.from('cfg_orders_types_subs_activities').insert(relations);
         }
 
         return {
@@ -1285,24 +1355,10 @@ export const dataService = {
             if (activity.linkedOrderTypeIds.length > 0) {
                 const relations = activity.linkedOrderTypeIds.map(orderTypeId => ({
                     activity_id: parseInt(id),
-                    order_type_id: parseInt(orderTypeId),
+                    o_type_id: parseInt(orderTypeId),
                     is_available: true
                 }));
                 await supabase.from('cfg_orders_types_activities').insert(relations);
-            }
-        }
-
-        if (activity.linkedOrderSubTypeIds) {
-            // Remove old links
-            await supabase.from('cfg_orders_types_subs_activities').delete().eq('activity_id', id);
-            // Add new links
-            if (activity.linkedOrderSubTypeIds.length > 0) {
-                const relations = activity.linkedOrderSubTypeIds.map(subTypeId => ({
-                    activity_id: parseInt(id),
-                    order_type_sub_id: parseInt(subTypeId),
-                    is_available: true
-                }));
-                await supabase.from('cfg_orders_types_subs_activities').insert(relations);
             }
         }
 
@@ -7779,6 +7835,17 @@ export const dataService = {
         // Find matching config for this visit's processing ID
         const config = configs.find(c => c.id === data.ov_processing_id);
 
+        let contractObject = null;
+        const cId = orderData?.contract_id || data.o_contract_id;
+        if (cId) {
+            const { data: contractData } = await supabase
+                .from('contracts')
+                .select('object')
+                .eq('id', cId)
+                .single();
+            contractObject = contractData?.object;
+        }
+
         return {
             id: data.id?.toString(),
             oId: data.o_id?.toString(),
@@ -7826,6 +7893,7 @@ export const dataService = {
             oRequesterName: data.o_requester_name,
             oRequesterPhone: data.o_requester_phone,
             contractDescription: data.o_contract_description,
+            contractObject: contractObject,
             planDescription: data.o_plan_description,
             oReasonDescription: data.o_reason_description,
             oCauseDescription: data.o_cause_description,

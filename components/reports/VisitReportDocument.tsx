@@ -18,7 +18,7 @@ const C = {
 const styles = StyleSheet.create({
     page: {
         paddingTop: 30,
-        paddingBottom: 110,
+        paddingBottom: 220, // Increased to fit signatures + approval + footer at the bottom
         paddingHorizontal: 40,
         fontSize: 8,
         fontType: 'Helvetica',
@@ -364,6 +364,41 @@ const styles = StyleSheet.create({
         borderRadius: 2,
         textAlign: 'center',
     },
+    signatureSection: {
+        marginTop: 30,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: C.border,
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+    },
+    signatureBlock: {
+        width: '40%',
+        alignItems: 'center',
+    },
+    signatureImage: {
+        width: 140,
+        height: 50,
+        marginBottom: 5,
+        objectFit: 'contain',
+    },
+    signatureName: {
+        fontSize: 9,
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    signatureLabel: {
+        fontSize: 8,
+        color: C.gray,
+        marginTop: 2,
+        textAlign: 'center',
+    },
+    signatureDate: {
+        fontSize: 7,
+        color: C.gray,
+        marginTop: 2,
+        textAlign: 'center',
+    },
 });
 
 
@@ -396,6 +431,7 @@ export interface VisitReportData {
         assetTagSubDescription?: string;
         requestedServices?: string;
         contractDescription?: string;
+        object?: string;
         planDescription?: string;
         teamCode?: string;
         reason?: string;
@@ -419,6 +455,13 @@ export interface VisitReportData {
         approvedUserNameShort?: string;
         approvedFiledAt?: string;
         approvedFiledUserNameShort?: string;
+        // Signatures
+        signatureLeaderUrl?: string;
+        signatureLeaderName?: string;
+        signatureLeaderAt?: string;
+        signatureRequesterUrl?: string;
+        signatureRequesterName?: string;
+        signatureRequesterAt?: string;
     };
     // Team members
     team: Array<{
@@ -558,10 +601,10 @@ const fmtCurrency = (val: any) => {
 };
 
 // Reusable Meta Row
-const MetaRow = ({ label, value }: { label: string; value: any }) => (
+const MetaRow = ({ label, value, boldValue = false }: { label: string; value: any; boldValue?: boolean }) => (
     <View style={styles.metaRow}>
         <Text style={styles.metaLabel}>{label}:</Text>
-        <Text style={styles.metaValue}>{fmt(value)}</Text>
+        <Text style={[styles.metaValue, boldValue ? { fontWeight: 'bold' } : {}]}>{fmt(value)}</Text>
     </View>
 );
 
@@ -598,19 +641,23 @@ export const VisitReportDocument = ({ data }: { data: VisitReportData }) => {
                     <Text style={styles.sectionTitle}>Dados da Ordem de Serviço</Text>
                     <View style={{ flexDirection: 'row', gap: 20 }}>
                         <View style={styles.metaCol}>
-                            <MetaRow label="OS" value={visit.orderMask} />
-                            <MetaRow label="CLIENTE" value={visit.clientName} />
+                            <MetaRow label="OS" value={visit.orderMask} boldValue />
+                            <MetaRow label="UNIDADE" value={visit.unitDescription} />
                             <MetaRow label="SOLICITANTE" value={visit.requesterName} />
-                            <MetaRow label="CONTATO" value={visit.contactPhone} />
                             <MetaRow label="PRIORIDADE" value={visit.priority || "NORMAL"} />
+                            <MetaRow label="CONTRATO" value={visit.contractDescription} />
                         </View>
                         <View style={styles.metaCol}>
-                            <MetaRow label="UNIDADE" value={visit.unitDescription} />
-                            <MetaRow label="SETOR" value={visit.sectorDescription || visit.systemDescription} />
-                            <MetaRow label="CONTRATO" value={visit.contractDescription} />
+                            <MetaRow label="CLIENTE" value={visit.clientName} />
+                            <MetaRow 
+                                label="SETOR/POSIÇAO" 
+                                value={`${visit.sectorDescription || visit.systemDescription}${visit.assetTagSubDescription ? ` / ${visit.assetTagSubDescription}` : ''}`} 
+                            />
+                            <MetaRow label="FONE" value={visit.contactPhone} />
                             <MetaRow label="PLANO" value={visit.planDescription} />
                         </View>
                     </View>
+                    <MetaRow label="OBJETO" value={visit.object} />
                     <MetaRow label="OS SERVIÇOS" value={visit.requestedServices} />
                 </View>
 
@@ -890,6 +937,43 @@ export const VisitReportDocument = ({ data }: { data: VisitReportData }) => {
                         })}
                     </View>
                 ) : null}
+
+                {/* ── ASSINATURAS (FOOTER - LAST PAGE ONLY) ────────────────── */}
+                <View 
+                    style={{ position: 'absolute', bottom: 125, left: 40, right: 40, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-around' }} 
+                    fixed
+                    render={({ pageNumber, totalPages }: any) => (
+                        pageNumber === totalPages ? (
+                            <>
+                                {/* Leader Signature */}
+                                <View style={styles.signatureBlock}>
+                                    {visit.signatureLeaderUrl ? (
+                                        <Image src={visit.signatureLeaderUrl} style={styles.signatureImage} />
+                                    ) : (
+                                        <View style={[styles.signatureImage, { borderBottomWidth: 1, borderBottomColor: C.lightGray }]} />
+                                    )}
+                                    <Text style={styles.signatureLabel}>Líder da Equipe / Técnico</Text>
+                                    {visit.signatureLeaderAt && (
+                                        <Text style={styles.signatureDate}>Assinado em: {fmtDate(visit.signatureLeaderAt)} {fmtTime(visit.signatureLeaderAt)}</Text>
+                                    )}
+                                </View>
+
+                                {/* Requester Signature */}
+                                <View style={styles.signatureBlock}>
+                                    {visit.signatureRequesterUrl ? (
+                                        <Image src={visit.signatureRequesterUrl} style={styles.signatureImage} />
+                                    ) : (
+                                        <View style={[styles.signatureImage, { borderBottomWidth: 1, borderBottomColor: C.lightGray }]} />
+                                    )}
+                                    <Text style={styles.signatureLabel}>Requisitante / Cliente / Contratado</Text>
+                                    {visit.signatureRequesterAt && (
+                                        <Text style={styles.signatureDate}>Assinado em: {fmtDate(visit.signatureRequesterAt)} {fmtTime(visit.signatureRequesterAt)}</Text>
+                                    )}
+                                </View>
+                            </>
+                        ) : null
+                    )}
+                />
 
                 {/* ── QUADRO DE APROVAÇÕES ──────────────────────────────────── */}
                 <View style={styles.approvalSection} fixed>

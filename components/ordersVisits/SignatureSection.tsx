@@ -17,7 +17,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
     const [isSaving, setIsSaving] = useState(false);
 
     const handleSaveSignature = async (base64: string) => {
-        if (!signingType) return;
+        if (!signingType || !isEditable) return;
         
         try {
             setIsSaving(true);
@@ -30,6 +30,23 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
             toast.error('Falha ao salvar assinatura digital.');
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleDeleteSignature = async (type: 'leader' | 'requester') => {
+        if (!isEditable) return;
+        
+        if (!confirm(`Deseja realmente excluir a assinatura do ${type === 'leader' ? 'Líder' : 'Requisitante'}?`)) {
+            return;
+        }
+
+        try {
+            await dataService.deleteOrderVisitSignature(visit.id, type);
+            toast.success('Assinatura removida');
+            onRefresh();
+        } catch (error) {
+            console.error('Erro ao excluir assinatura:', error);
+            toast.error('Falha ao excluir assinatura.');
         }
     };
 
@@ -54,9 +71,23 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Líder da Equipe</span>
                         </div>
                         {leaderSignatureUrl && (
-                            <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full">
-                                <span className="material-symbols-outlined text-[14px]">verified</span>
-                                <span className="text-[8px] font-black uppercase tracking-widest">Assinado</span>
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full">
+                                    <span className="material-symbols-outlined text-[14px]">verified</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest">Assinado</span>
+                                </div>
+                                {isEditable && (
+                                    <button 
+                                        onClick={() => handleDeleteSignature('leader')}
+                                        className="w-6 h-6 flex items-center justify-center bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                        title="Excluir assinatura"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">delete</span>
+                                    </button>
+                                )}
+                                {!isEditable && (
+                                    <span className="material-symbols-outlined text-slate-300 text-[16px]" title="Registro Arquivado">lock</span>
+                                )}
                             </div>
                         )}
                     </div>
@@ -93,12 +124,26 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-slate-400 text-[18px]">person_check</span>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Requisitante / Cliente</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Requisitante / Cliente / Contratado</span>
                         </div>
                         {requesterSignatureUrl && (
-                            <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full">
-                                <span className="material-symbols-outlined text-[14px]">verified</span>
-                                <span className="text-[8px] font-black uppercase tracking-widest">Assinado</span>
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full">
+                                    <span className="material-symbols-outlined text-[14px]">verified</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest">Assinado</span>
+                                </div>
+                                {isEditable && (
+                                    <button 
+                                        onClick={() => handleDeleteSignature('requester')}
+                                        className="w-6 h-6 flex items-center justify-center bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                        title="Excluir assinatura"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">delete</span>
+                                    </button>
+                                )}
+                                {!isEditable && (
+                                    <span className="material-symbols-outlined text-slate-300 text-[16px]" title="Registro Arquivado">lock</span>
+                                )}
                             </div>
                         )}
                     </div>

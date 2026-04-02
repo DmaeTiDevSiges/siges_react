@@ -200,6 +200,7 @@ export const VisitReportPDFButton = ({
                     assetTagSubDescription: visit.assetTagSubDescription,
                     requestedServices: visit.requestedServices,
                     contractDescription: visit.contractDescription,
+                    object: visit.contractObject,
                     planDescription: visit.planDescription,
                     teamCode: visit.teamCode,
                     reason: visit.oReasonDescription,
@@ -220,6 +221,12 @@ export const VisitReportPDFButton = ({
                     approvedUserNameShort: visit.approvedUserNameShort,
                     approvedFiledAt: visit.approvedFiledAt,
                     approvedFiledUserNameShort: visit.approvedFiledUserNameShort,
+                    signatureLeaderUrl: visit.ovSignatureLeaderPath,
+                    signatureLeaderName: visit.ovSignatureLeaderName,
+                    signatureLeaderAt: visit.ovSignatureLeaderAt,
+                    signatureRequesterUrl: visit.ovSignatureRequesterPath,
+                    signatureRequesterName: visit.ovSignatureRequesterName,
+                    signatureRequesterAt: visit.ovSignatureRequesterAt,
                 },
                 team: team || [],
                 vehicles: vehicles || [],
@@ -329,10 +336,30 @@ export const VisitReportPDFButton = ({
                 })
             );
 
+            // Signatures processing
+            const leaderSigUrl = reportData.visit.signatureLeaderUrl && reportData.visit.signatureLeaderName 
+                ? imgproxyService.generateUrl(`s3://siges/${reportData.visit.signatureLeaderUrl}/${reportData.visit.signatureLeaderName}`, { width: 400, height: 200, resize: 'fit', format: 'png' }) 
+                : null;
+            const requesterSigUrl = reportData.visit.signatureRequesterUrl && reportData.visit.signatureRequesterName 
+                ? imgproxyService.generateUrl(`s3://siges/${reportData.visit.signatureRequesterUrl}/${reportData.visit.signatureRequesterName}`, { width: 400, height: 200, resize: 'fit', format: 'png' }) 
+                : null;
+
+            const sigUrlsToFetch = [leaderSigUrl, requesterSigUrl].filter(Boolean) as string[];
+            const sigBase64s = sigUrlsToFetch.length > 0 ? await urlsToBase64(sigUrlsToFetch) : [];
+
+            let sigBase64Idx = 0;
+            const finalSignatureLeaderUrl = leaderSigUrl ? sigBase64s[sigBase64Idx++] : undefined;
+            const finalSignatureRequesterUrl = requesterSigUrl ? sigBase64s[sigBase64Idx++] : undefined;
+
             const reportDataWithBase64: VisitReportData = {
                 ...reportData,
                 logoBase64,
                 assets: assetsWithBase64,
+                visit: {
+                    ...reportData.visit,
+                    signatureLeaderUrl: finalSignatureLeaderUrl,
+                    signatureRequesterUrl: finalSignatureRequesterUrl,
+                }
             };
 
             // 5. Render PDF and download

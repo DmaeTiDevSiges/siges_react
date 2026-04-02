@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
 
 const CHECK_INTERVAL = 1000 * 60 * 5; // 5 minutes
 
@@ -7,6 +8,9 @@ const UpdateNotifier: React.FC = () => {
     useEffect(() => {
         // Only run in production
         if (import.meta.env.DEV) return;
+        
+        // Don't run in native environments (Android/iOS APKs)
+        if (Capacitor.isNativePlatform()) return;
 
         const checkVersion = async () => {
             try {
@@ -21,8 +25,7 @@ const UpdateNotifier: React.FC = () => {
 
                 if (!response.ok) return;
 
-                const data = await response.json();
-                const remoteVersion = data.version;
+                const remoteVersion = (await response.text()).trim();
 
                 // Compare with the hardcoded __BUILD_ID__ from Vite define
                 if (remoteVersion && remoteVersion !== __BUILD_ID__) {

@@ -58,6 +58,8 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isApproving, setIsApproving] = useState(false);
     const [isDisapproving, setIsDisapproving] = useState(false);
     const [isDisapproveModalOpen, setIsDisapproveModalOpen] = useState(false);
+    const [isFileModalOpen, setIsFileModalOpen] = useState(false);
+    const [isFiling, setIsFiling] = useState(false);
     const [fullOrderData, setFullOrderData] = useState<Order | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
     const isKeyboardVisible = useKeyboard();
@@ -252,6 +254,27 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
             setIsDisapproving(false);
         }
     };
+    
+    const handleFileVisit = () => {
+        setIsFileModalOpen(true);
+    };
+
+    const handleConfirmFileVisit = async () => {
+        if (!visit || !currentUser) return;
+
+        try {
+            setIsFiling(true);
+            await dataService.fileOrderVisit(visit.id, currentUser.id);
+            toast.success('Visita arquivada com sucesso!');
+            await refreshVisit();
+            setIsFileModalOpen(false);
+        } catch (error) {
+            console.error('Error filing visit:', error);
+            toast.error('Erro ao arquivar visita');
+        } finally {
+            setIsFiling(false);
+        }
+    };
 
 
 
@@ -309,6 +332,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             isReportLoading={isReporting}
                             isApproveLoading={isApproving}
                             isDisapproveLoading={isDisapproving}
+                            isFileLoading={isFiling}
                             hideHeaderActions={true}
                             onReportVisit={(
                                 visit.ovStatusId === 2 &&
@@ -333,6 +357,13 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                                 (visit.ovProcessingId || 1) !== 4 &&
                                 (visit.ovAssetsDisapprovedAmount || 0) > 0
                             ) ? handleDisapproveVisit : undefined}
+                            onFileVisit={(
+                                (isContractManager || currentUser?.isAdminSuper || currentUser?.isAdmin) &&
+                                (visit.ovProcessingId || 1) === 5 &&
+                                !visit.isFiled &&
+                                (visit.ovAssetsAmount || 0) > 0 &&
+                                (visit.ovAssetsAmount || 0) === (visit.ovAssetsApprovedAmount || 0)
+                            ) ? handleFileVisit : undefined}
                         />
 
                         <SignatureSection 
@@ -457,6 +488,35 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 onConfirm={handleConfirmDisapproveVisit}
                 isLoading={isDisapproving}
             />
+
+            {/* Modal de Arquivamento */}
+            <Modal
+                isOpen={isFileModalOpen}
+                onClose={() => setIsFileModalOpen(false)}
+                title="Arquivar Visita"
+                maxWidth="sm"
+            >
+                <div className="p-4 space-y-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Deseja realmente arquivar esta visita? Esta ação registrará sua aprovação final e marcará a visita como arquivada.
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setIsFileModalOpen(false)}
+                            className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleConfirmFileVisit}
+                            disabled={isFiling}
+                            className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50"
+                        >
+                            {isFiling ? 'ARQUIVANDO...' : 'Confirmar Arquivamento'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };
