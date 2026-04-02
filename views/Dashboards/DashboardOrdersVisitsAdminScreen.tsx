@@ -666,31 +666,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     });
     const [selectionSearch, setSelectionSearch] = useState('');
 
-    useEffect(() => {
-        // Clean up old shared localStorage keys
-        localStorage.removeItem('dashboard_admin_date_start');
-        localStorage.removeItem('dashboard_admin_date_end');
 
-        loadData(true);
-        loadFilterOptions();
-
-         const handleRefresh = () => loadData(true);
-         window.addEventListener('refresh_dashboard', handleRefresh);
- 
-         // Realtime updates
-         const orderSub = dataService.subscribeToOrders(() => {
-             loadData(false);
-         });
-         const visitSub = dataService.subscribeToVisits(() => {
-             loadData(false);
-         });
- 
-         return () => {
-             window.removeEventListener('refresh_dashboard', handleRefresh);
-             orderSub.unsubscribe();
-             visitSub.unsubscribe();
-         };
-     }, [loadData, loadFilterOptions]);
 
     const loadFilterOptions = React.useCallback(async () => {
         try {
@@ -808,6 +784,32 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             initialLoadDone.current = true;
         }
     }, [currentUser.id]); // currentUser is stable usually
+
+    useEffect(() => {
+        // Clean up old shared localStorage keys
+        localStorage.removeItem('dashboard_admin_date_start');
+        localStorage.removeItem('dashboard_admin_date_end');
+
+        loadData(true);
+        loadFilterOptions();
+
+         const handleRefresh = () => loadData(true);
+         window.addEventListener('refresh_dashboard', handleRefresh);
+ 
+         // Realtime updates
+         const orderSub = dataService.subscribeToOrders(() => {
+             loadData(false);
+         });
+         const visitSub = dataService.subscribeToVisits(() => {
+             loadData(false);
+         });
+ 
+         return () => {
+             window.removeEventListener('refresh_dashboard', handleRefresh);
+             orderSub.unsubscribe();
+             visitSub.unsubscribe();
+         };
+     }, [loadData, loadFilterOptions]);
 
     const loadTeamsForVisits = async (visitsToLoad: OrderVisitExtended[]) => {
         try {
