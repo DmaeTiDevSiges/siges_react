@@ -1077,6 +1077,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 title="Detalhes da Disponibilidade"
                 maxWidth="sm"
                 fullScreenMobile
+                draggable
             >
                 {modalLoading ? (
                     <div className="flex flex-col items-center justify-center p-12 gap-3">

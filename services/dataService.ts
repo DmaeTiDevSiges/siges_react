@@ -10123,6 +10123,27 @@ export const dataService = {
         return data || [];
     },
 
+    async getOrdersVisitsAssetsMovedMerged(ovIds: string[]): Promise<any[]> {
+        if (!ovIds.length) return [];
+        const { data, error } = await supabase
+            .from('v_orders_visits_assets')
+            .select('id, is_moved, asset_id, asset_type_id, asset_type_description')
+            .in('ov_id', ovIds)
+            .eq('is_moved', true);
+
+        if (error) {
+            console.error('Error fetching moved assets:', error);
+            return [];
+        }
+
+        return (data || []).map((item: any) => ({
+            id: item.id,
+            isMoved: item.is_moved,
+            assetTypeId: item.asset_type_id,
+            assetTypeDescription: item.asset_type_description || 'N/A'
+        }));
+    },
+
     /**
      * Busca o histórico completo de uma Solicitação de Serviço (SS).
      * Compila criação da OS, visitas e todas as intervenções realizadas.

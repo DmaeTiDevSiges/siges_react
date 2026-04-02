@@ -514,6 +514,44 @@ const InsightsTrend: React.FC<{ data: { label: string, value: number }[] }> = ({
     );
 };
 
+const InsightsMovementsBar: React.FC<{ data: { label: string; value: number; color: string }[] }> = ({ data }) => {
+    const maxValue = Math.max(...data.map(d => d.value), 1);
+    if (data.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full gap-2 py-4">
+                <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 text-3xl">moving</span>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Sem movimentações</p>
+            </div>
+        );
+    }
+    return (
+        <div className="flex flex-col gap-2.5 w-full">
+            {data.slice(0, 5).map((item, i) => (
+                <div key={i} className="flex flex-col gap-1 group/bar">
+                    <div className="flex justify-between items-end">
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase truncate pr-2 max-w-[70%]">{item.label}</span>
+                        <span className="text-[10px] font-black text-slate-400 font-mono">{item.value} ativo{item.value !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 dark:bg-slate-800/50 rounded-full overflow-hidden">
+                        <div
+                            className="h-full rounded-full transition-all duration-1000"
+                            style={{
+                                width: `${(item.value / maxValue) * 100}%`,
+                                backgroundColor: item.color
+                            }}
+                        />
+                    </div>
+                </div>
+            ))}
+            {data.length > 5 && (
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center pt-1">
+                    +{data.length - 5} tipo{data.length - 5 !== 1 ? 's' : ''} adicionais
+                </p>
+            )}
+        </div>
+    );
+};
+
 export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdminScreenProps> = ({ currentUser, onSelectVisit, currentFilters, onFiltersChange }) => {
     // Advanced Filters State
     const [advancedFilters, setAdvancedFilters] = useState<OrderFilters>(() => {
@@ -619,10 +657,12 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         services: any[];
         materials: any[];
         vehicles: any[];
+        movedAssets: any[];
     }>({
         services: [],
         materials: [],
-        vehicles: []
+        vehicles: [],
+        movedAssets: []
     });
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         services: false,
@@ -1096,8 +1136,22 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             .sort((a, b) => b.value - a.value)
             .slice(0, 3);
 
-        return { composition, trend, units, totalComposition };
-    }, [financialTotals, filteredVisits]);
+        // 4. Asset Movements by Type
+        const movementMap = new Map();
+        appropriationData.movedAssets.forEach(a => {
+            const type = a.assetTypeDescription || 'N/A';
+            movementMap.set(type, (movementMap.get(type) || 0) + 1);
+        });
+        const movements = Array.from(movementMap.entries())
+            .map(([label, value], i) => ({
+                label,
+                value,
+                color: colors[i % colors.length]
+            }))
+            .sort((a, b) => b.value - a.value);
+
+        return { composition, trend, units, movements, totalComposition };
+    }, [financialTotals, filteredVisits, appropriationData.movedAssets]);
 
     // 4. Visible Slice for Infinite Scroll
     const displayedVisits = useMemo(() => {
@@ -1109,7 +1163,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         if (!loading && filteredVisits.length > 0) {
             fetchAppropriationData();
         } else if (filteredVisits.length === 0) {
-            setAppropriationData({ services: [], materials: [], vehicles: [] });
+            setAppropriationData({ services: [], materials: [], vehicles: [], movedAssets: [] });
         }
     }, [filteredVisits, loading]);
 
@@ -1119,10 +1173,11 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             const ovIds = filteredVisits.map(v => v.id);
             if (!ovIds.length) return;
 
-            const [servicesRaw, materialsRaw, vehiclesRaw] = await Promise.all([
+            const [servicesRaw, materialsRaw, vehiclesRaw, movedAssetsRaw] = await Promise.all([
                 dataService.getOrdersVisitsServicesMerged(ovIds),
                 dataService.getOrdersVisitsMaterialsMerged(ovIds),
-                dataService.getOrdersVisitsVehiclesMerged(ovIds)
+                dataService.getOrdersVisitsVehiclesMerged(ovIds),
+                dataService.getOrdersVisitsAssetsMovedMerged(ovIds)
             ]);
 
             // Aggregate helper - Groups by: description, code, unit value, and discount
@@ -1161,7 +1216,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             setAppropriationData({
                 services: aggregate(servicesRaw, 'code', 'description'),
                 materials: aggregate(materialsRaw, 'material_code', 'material_description'),
-                vehicles: aggregate(vehiclesRaw, 'code', 'vehicle_description')
+                vehicles: aggregate(vehiclesRaw, 'code', 'vehicle_description'),
+                movedAssets: movedAssetsRaw
             });
         } catch (error) {
             console.error('Error fetching appropriation data:', error);
@@ -1323,7 +1379,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     </button>
                                 )}
                                 <button
-                                    onClick={loadData}
+                                    onClick={() => loadData(true)}
                                     className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 group"
                                 >
                                     <span className="material-symbols-outlined text-xl">filter_list</span>
@@ -1366,7 +1422,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                     </div>
 
                     {/* --- INSIGHTS SECTION (NEW) --- */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 px-1 py-2 bg-slate-50/50 dark:bg-slate-800/10 rounded-[16px]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 px-1 py-2 bg-slate-50/50 dark:bg-slate-800/10 rounded-[16px]">
                         {/* Cost Composition Doughnut */}
                         <div className="flex flex-col bg-white dark:bg-slate-800/50 p-6 rounded-[16px] border border-slate-200 dark:border-slate-700/50 shadow-sm transition-all hover:shadow-md group">
                             <div className="flex items-center gap-3 mb-6">
@@ -1409,6 +1465,20 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             </div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6 px-1">Top 3 unidades com maiores gastos</p>
                             <InsightsBar data={insightData.units} />
+                        </div>
+
+                        {/* Ativos Movimentados por Tipo */}
+                        <div className="flex flex-col bg-white dark:bg-slate-800/50 p-6 rounded-[16px] border border-slate-200 dark:border-slate-700/50 shadow-sm transition-all hover:shadow-md">
+                            <div className="flex items-center gap-3 mb-2">
+                                <span className="material-symbols-outlined text-primary text-xl">precision_manufacturing</span>
+                                <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Movimentação por Tipo</h3>
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-1">
+                                {insightData.movements.reduce((acc: number, m: any) => acc + m.value, 0)} ativo{insightData.movements.reduce((acc: number, m: any) => acc + m.value, 0) !== 1 ? 's' : ''} movimentados
+                            </p>
+                            <div className="flex-1">
+                                <InsightsMovementsBar data={insightData.movements} />
+                            </div>
                         </div>
                     </div>
 

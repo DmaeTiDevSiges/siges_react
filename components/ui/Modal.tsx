@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { IconButton } from './IconButton';
 
@@ -19,6 +19,7 @@ interface ModalProps {
     loading?: boolean;
     confirmLoading?: boolean;
     confirmLoadingLabel?: string;
+    draggable?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -36,7 +37,8 @@ export const Modal: React.FC<ModalProps> = ({
     hideHeader = false,
     noPadding = false,
     confirmLoading = false,
-    confirmLoadingLabel
+    confirmLoadingLabel,
+    draggable = false,
 }) => {
     // Control body scroll when modal is open
     useEffect(() => {
@@ -49,6 +51,48 @@ export const Modal: React.FC<ModalProps> = ({
             document.body.style.overflow = 'unset';
         };
     }, [isOpen]);
+
+    // Drag state
+    const modalRef = useRef<HTMLDivElement>(null);
+    const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+    const dragState = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+    const isDragging = useRef(false);
+
+    // Reset position when modal opens
+    useEffect(() => {
+        if (isOpen) setPosition(null);
+    }, [isOpen]);
+
+    const onDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        if (!draggable || !modalRef.current) return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        isDragging.current = true;
+        const rect = modalRef.current.getBoundingClientRect();
+        dragState.current = {
+            startX: e.clientX,
+            startY: e.clientY,
+            originX: rect.left,
+            originY: rect.top,
+        };
+    }, [draggable]);
+
+    const onDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isDragging.current || !dragState.current || !modalRef.current) return;
+        const dx = e.clientX - dragState.current.startX;
+        const dy = e.clientY - dragState.current.startY;
+        const newX = dragState.current.originX + dx;
+        const newY = dragState.current.originY + dy;
+        // Clamp inside viewport
+        const rect = modalRef.current.getBoundingClientRect();
+        const clampedX = Math.max(8, Math.min(window.innerWidth - rect.width - 8, newX));
+        const clampedY = Math.max(8, Math.min(window.innerHeight - rect.height - 8, newY));
+        setPosition({ x: clampedX, y: clampedY });
+    }, []);
+
+    const onDragEnd = useCallback(() => {
+        isDragging.current = false;
+        dragState.current = null;
+    }, []);
 
     if (!isOpen) return null;
 
@@ -99,23 +143,44 @@ export const Modal: React.FC<ModalProps> = ({
     };
 
     return createPortal(
-        <div className="fixed inset-0 flex items-center justify-center p-4 sm:p-6" style={{ zIndex: 9999 }}>
+        <div
+            className={draggable ? 'fixed inset-0' : 'fixed inset-0 flex items-center justify-center p-4 sm:p-6'}
+            style={{ zIndex: 9999 }}
+        >
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-                onClick={onClose}
+                onClick={draggable ? undefined : onClose}
             />
 
             {/* Modal Container */}
-            <div className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white dark:bg-card-dark 
-                ${fullScreenMobile ? 'h-auto max-h-[92vh]' : 'max-h-[90vh]'} rounded-2xl
-                shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300`}
+            <div
+                ref={modalRef}
+                className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white dark:bg-card-dark 
+                    ${fullScreenMobile ? 'h-auto max-h-[92vh]' : 'max-h-[90vh]'} rounded-2xl
+                    shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300
+                    ${draggable ? 'select-none' : ''}`}
+                style={draggable ? (position
+                    ? { position: 'fixed', left: position.x, top: position.y, zIndex: 10000 }
+                    : { position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 10000 }
+                ) : {}}
+                onPointerMove={onDragMove}
+                onPointerUp={onDragEnd}
+                onPointerLeave={onDragEnd}
             >
                 {children ? (
                     <div className="flex flex-col h-full sm:h-auto">
                         {!hideHeader && (
-                            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
-                                <h3 className="flex-1">
+                            <div
+                                className={`p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                onPointerDown={draggable ? onDragStart : undefined}
+                            >
+                                <h3 className="flex-1 flex items-center gap-2">
+                                    {draggable && (
+                                        <span className="material-symbols-outlined text-[18px] text-slate-300 dark:text-slate-600 shrink-0 select-none">
+                                            drag_indicator
+                                        </span>
+                                    )}
                                     {typeof title === 'string' ? (
                                         <span className="text-lg font-black text-slate-900 dark:text-white uppercase leading-none">{title}</span>
                                     ) : (
