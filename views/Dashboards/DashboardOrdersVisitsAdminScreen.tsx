@@ -472,27 +472,12 @@ const InsightsTrend: React.FC<{ data: { label: string, value: number }[] }> = ({
                                 y={y - 10}
                                 textAnchor="middle"
                                 className="text-[10px] font-black fill-slate-900 dark:fill-white select-none pointer-events-none transition-all duration-300 group-hover/point:scale-125"
-                                stroke="white"
+                                stroke="currentColor"
                                 strokeWidth="3"
-                                style={{
-                                    paintOrder: 'stroke',
-                                    strokeOpacity: 0.9,
-                                    // In Dark Mode, we use the card's background color (#020617 or similar) for the stroke
-                                    // This creates a much cleaner "cut-out" effect than generic white/gray
-                                }}
-                                // Conditional stroke for Dark Mode using inline style since standard Tailwind doesn't support stroke-color variants as easily in all SVG environments
-                                data-dark-stroke="#0f172a"
+                                style={{ stroke: 'white', paintOrder: 'stroke', strokeOpacity: 0.9 }}
                             >
                                 {d.value}
                             </text>
-
-                            {/* Custom CSS to handle the dark mode stroke properly */}
-                            <style>{`
-                                .dark [data-dark-stroke="#0f172a"] { 
-                                    stroke: #0f172a !important; 
-                                    stroke-width: 4px;
-                                }
-                            `}</style>
 
                             {/* Point */}
                             <circle
@@ -637,6 +622,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
     const [tempDateRange, setTempDateRange] = useState<{ start: string; end: string }>(dateRange);
     const [activeDateInput, setActiveDateInput] = useState<'start' | 'end'>('start');
+
+    // All Units Modal State
+    const [isAllUnitsModalOpen, setIsAllUnitsModalOpen] = useState(false);
 
     // Sync temp range when modal opens
     useEffect(() => {
@@ -1131,10 +1119,11 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             const unit = v.unitDescription || 'Sem Unidade';
             unitMap.set(unit, (unitMap.get(unit) || 0) + (v.totalValue || 0));
         });
-        const units = Array.from(unitMap.entries())
+        const allUnits = Array.from(unitMap.entries())
             .map(([label, value]) => ({ label, value }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 3);
+            .sort((a, b) => b.value - a.value);
+
+        const topUnits = allUnits.slice(0, 3);
 
         // 4. Asset Movements by Type
         const movementMap = new Map();
@@ -1150,7 +1139,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             }))
             .sort((a, b) => b.value - a.value);
 
-        return { composition, trend, units, movements, totalComposition };
+        return { composition, trend, units: topUnits, allUnits, movements, totalComposition };
     }, [financialTotals, filteredVisits, appropriationData.movedAssets]);
 
     // 4. Visible Slice for Infinite Scroll
@@ -1465,6 +1454,14 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             </div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6 px-1">Top 3 unidades com maiores gastos</p>
                             <InsightsBar data={insightData.units} />
+                            
+                            <button 
+                                onClick={() => setIsAllUnitsModalOpen(true)}
+                                className="mt-auto pt-6 text-[10px] font-black text-primary hover:text-primary-dark uppercase tracking-widest flex items-center justify-center gap-1 group/btn border-t border-slate-100 dark:border-slate-800/50"
+                            >
+                                Ver Todos os Gastos
+                                <span className="material-symbols-outlined text-[14px] group-hover/btn:translate-x-1 transition-transform">chevron_right</span>
+                            </button>
                         </div>
 
                         {/* Ativos Movimentados por Tipo */}
@@ -1716,6 +1713,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 onClose={() => setIsDateModalOpen(false)}
                 title="INFORMAR PERÍODO"
                 maxWidth="sm"
+                draggable
             >
                 <div className="flex flex-col gap-4 px-2 pb-2 -mt-4">
                     {/* Shortcuts */}
@@ -1819,6 +1817,61 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                         >
                             <span className="material-symbols-outlined">check</span>
                             Aplicar Período
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+            {/* Modal for All Units Expenses */}
+            <Modal
+                isOpen={isAllUnitsModalOpen}
+                onClose={() => setIsAllUnitsModalOpen(false)}
+                title="GASTOS POR UNIDADE"
+                maxWidth="lg"
+                draggable
+            >
+                <div className="flex flex-col gap-4">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">
+                        Listagem completa de gastos acumulados por unidade no período selecionado
+                    </p>
+                    
+                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                        <div className="max-h-[60vh] overflow-y-auto p-4 no-scrollbar">
+                            <div className="flex flex-col gap-6">
+                                {(() => {
+                                    const allUnits = (insightData as any).allUnits || [];
+                                    const maxValue = Math.max(...allUnits.map((d: any) => d.value), 1);
+                                    
+                                    return allUnits.map((item: any, i: number) => (
+                                        <div key={i} className="flex flex-col gap-2 group/bar">
+                                            <div className="flex justify-between items-end">
+                                                <div className="flex items-center gap-3 min-w-0 pr-4">
+                                                    <span className="text-[10px] font-black text-slate-400 font-mono w-6 text-right shrink-0">{i + 1}º</span>
+                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase truncate">{item.label}</span>
+                                                </div>
+                                                <span className="text-xs font-black text-primary font-mono shrink-0">{formatCurrency(item.value)}</span>
+                                            </div>
+                                            <div className="h-2.5 bg-slate-200 dark:bg-white/5 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-primary rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(var(--color-primary),0.3)]"
+                                                    style={{ width: `${(item.value / maxValue) * 100}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ));
+                                })()}
+                          </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center p-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {(insightData as any).allUnits?.length || 0} UNIDADES ENCONTRADAS
+                        </span>
+                        <button
+                            onClick={() => setIsAllUnitsModalOpen(false)}
+                            className="px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs uppercase hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-['Inter']"
+                        >
+                            Fechar
                         </button>
                     </div>
                 </div>
