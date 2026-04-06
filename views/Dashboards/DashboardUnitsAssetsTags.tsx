@@ -20,51 +20,10 @@ import { RiFileExcel2Fill } from 'react-icons/ri';
 import { CompanyAvatar } from '../../components/ui/CompanyAvatar';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { CircularGauge } from '../../components/ui/CircularGauge';
 
 
-// Subcomponent for Circular Gauge
-const CircularGauge: React.FC<{ percentage: number; size?: number; strokeWidth?: number; color?: string; labelSize?: string }> = ({
-    percentage,
-    size = 48,
-    strokeWidth = 4,
-    color = 'text-emerald-500',
-    labelSize = 'text-[10px]'
-}) => {
-    const radius = (size - strokeWidth) / 2;
-    const circumference = radius * 2 * Math.PI;
-    const offset = circumference - (percentage / 100) * circumference;
 
-    return (
-        <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
-            <svg className="transform -rotate-90" width={size} height={size}>
-                <circle
-                    className="text-slate-100 dark:text-slate-800"
-                    strokeWidth={strokeWidth}
-                    stroke="currentColor"
-                    fill="transparent"
-                    r={radius}
-                    cx={size / 2}
-                    cy={size / 2}
-                />
-                <circle
-                    className={`${color} transition-all duration-700 ease-out`}
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="transparent"
-                    r={radius}
-                    cx={size / 2}
-                    cy={size / 2}
-                />
-            </svg>
-            <span className={`absolute ${labelSize} font-black ${color} tracking-tighter`}>
-                {percentage}%
-            </span>
-        </div>
-    );
-};
 
 // Scrollable row of asset cards with drag-to-scroll support
 const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => void; }> = ({ assets, onAssetClick }) => {
@@ -665,6 +624,14 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         return sectorsStats.find(s => s.name === selectedSectorName) || sectorsStats[0];
     }, [allData, selectedSectorName, sectorsStats]);
 
+    const sectorPercentage = useMemo(() => {
+        if (!systemSummary) return 0;
+        if (systemSummary.flow?.visible) return systemSummary.flow.percentage;
+        if (systemSummary.power?.visible) return systemSummary.power.percentage;
+        if (systemSummary.pressure?.visible) return systemSummary.pressure.percentage;
+        return systemSummary.general?.percentage || 0;
+    }, [systemSummary]);
+
     const systemOptions = useMemo(() =>
         systems.map(s => ({ value: s.id, label: s.description })),
         [systems]);
@@ -677,6 +644,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     <UnitsAvailabilityMap
                         units={unitsRows}
                         unitTagDescription={selectedSectorName}
+                        unitTagPercentage={sectorPercentage}
                         onUnitClick={(id) => {
                             setSelectedUnitIdFromMap(id);
                             if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
@@ -693,7 +661,13 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                     <Card className="p-4 rounded-[28px]! bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border border-slate-200/50 dark:border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.4)] w-fit min-w-[320px] max-w-full transition-all mx-auto">
                                         <div className="flex items-center justify-between mb-4 px-1 gap-8">
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-3 h-12 rounded-full ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'}`}></div>
+                                                <CircularGauge 
+                                                    percentage={unit.percentage} 
+                                                    size={56}
+                                                    strokeWidth={4.5}
+                                                    color={unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-400' : 'text-rose-500'}
+                                                    labelSize="text-[12px]"
+                                                />
                                                 <div>
                                                     <h4 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight leading-tight">{unit.description}</h4>
                                                     <div className="flex items-center gap-2 mt-1">
@@ -997,6 +971,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         <UnitsAvailabilityMap
                                             units={unitsRows}
                                             unitTagDescription={selectedSectorName}
+                                            unitTagPercentage={sectorPercentage}
                                             onUnitClick={(id) => {
                                                 setSelectedUnitIdFromMap(id);
                                                 if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
@@ -1025,7 +1000,13 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                         <Card className="p-4 rounded-[28px]! bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200/50 dark:border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
                                                             <div className="flex items-center justify-between mb-3 px-1">
                                                                 <div className="flex items-center gap-3">
-                                                                    <div className={`w-2.5 h-10 rounded-full ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'}`}></div>
+                                                                    <CircularGauge 
+                                                                        percentage={unit.percentage} 
+                                                                        size={48}
+                                                                        strokeWidth={4}
+                                                                        color={unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-400' : 'text-rose-500'}
+                                                                        labelSize="text-[10px]"
+                                                                    />
                                                                     <div>
                                                                         <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight leading-tight">{unit.description}</h4>
                                                                         <div className="flex items-center gap-2 mt-0.5">

@@ -83,7 +83,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     onManageAvailability,
     onInformAvailability
 }) => {
-    const { canView, canEdit, canCreate } = usePermissions();
+    const { canView, canEdit, canCreate, canDelete } = usePermissions();
     const [selectedSector, setSelectedSector] = useState<string | null>(() => {
         return localStorage.getItem(`unit_active_sector_${unit.id}`);
     });
@@ -312,6 +312,53 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     return (
         <div className="flex flex-col h-full bg-background-light dark:bg-slate-950 text-slate-900 dark:text-white relative">
             <div className={`flex-1 overflow-y-auto no-scrollbar relative transition-all duration-500 ${isHeaderExpanded ? 'overflow-hidden' : ''}`}>
+                {/* Floating Top Controls */}
+                <div className="absolute top-4 left-4 right-4 z-60 flex justify-between pointer-events-none">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onBack?.(); }}
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md border border-white/20 text-white hover:bg-black/40 transition-all pointer-events-auto"
+                    >
+                        <span className="material-symbols-outlined">arrow_back</span>
+                    </button>
+
+                    {(onEdit || onDelete) && (
+                        <div className="relative pointer-events-auto">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+                                className={`w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md border border-white/20 text-white hover:bg-black/40 transition-all ${showMenu ? 'bg-black/40' : ''}`}
+                            >
+                                <span className="material-symbols-outlined">more_vert</span>
+                            </button>
+
+                            {showMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 z-20 py-2 overflow-hidden animate-in fade-in zoom-in duration-200">
+                                        {onEdit && canEdit('units') && (
+                                            <button
+                                                onClick={() => { setShowMenu(false); onEdit(); }}
+                                                className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-center gap-3 transition-colors"
+                                            >
+                                                <span className="material-symbols-outlined text-blue-500">edit</span>
+                                                <span className="font-medium">Editar Unidade</span>
+                                            </button>
+                                        )}
+                                        {onDelete && canDelete('units') && (
+                                            <button
+                                                onClick={() => { setShowMenu(false); onDelete(); }}
+                                                className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center gap-3 transition-colors border-t border-slate-50 dark:border-slate-800/50"
+                                            >
+                                                <span className="material-symbols-outlined">delete</span>
+                                                <span className="font-medium">Excluir Unidade</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 {/* Hero Cover Image */}
                 <div
                     onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}

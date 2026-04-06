@@ -2,6 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { CircularGauge } from '../../../components/ui/CircularGauge';
 
 // Fix for default Leaflet marker icons in some environments (like Vite)
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -29,9 +30,10 @@ interface UnitsAvailabilityMapProps {
     onUnitClick: (unitId: number) => void;
     className?: string;
     unitTagDescription?: string;
+    unitTagPercentage?: number;
 }
 
-export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ units, onUnitClick, className = '', unitTagDescription }) => {
+export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ units, onUnitClick, className = '', unitTagDescription, unitTagPercentage = 0 }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const leafletMap = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
@@ -75,13 +77,39 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
             const latLng = L.latLng(Number(unit.latitude), Number(unit.longitude));
             bounds.extend(latLng);
 
-            // Determine border color based on percentage
-            const color = unit.percentage >= 85 ? '#10b981' : unit.percentage > 50 ? '#fbbf24' : '#f43f5e';
+            // Circular Progress calculation for Marker
+            const size = 42;
+            const strokeWidth = 3.5;
+            const radius = (size - strokeWidth) / 2;
+            const circumference = radius * 2 * Math.PI;
+            const offset = circumference - (unit.percentage / 100) * circumference;
             
             const markerHtml = `
-                <div class="relative group">
-                    <div class="w-10 h-10 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-95" style="border: 3px solid ${color};">
-                        <span class="text-[10px] font-black ${unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-500' : 'text-rose-500'}">
+                <div class="relative group flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
+                    <svg class="transform -rotate-90 absolute" width="${size}" height="${size}" style="pointer-events: none;">
+                        <circle
+                            class="text-slate-100 dark:text-slate-800"
+                            stroke-width="${strokeWidth}"
+                            stroke="currentColor"
+                            fill="transparent"
+                            r="${radius}"
+                            cx="${size / 2}"
+                            cy="${size / 2}"
+                        />
+                        <circle
+                            style="stroke-dasharray: ${circumference}; stroke-dashoffset: ${offset}; transition: stroke-dashoffset 0.7s ease-out;"
+                            class="${unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-500' : 'text-rose-500'}"
+                            stroke-width="${strokeWidth}"
+                            stroke-linecap="round"
+                            stroke="currentColor"
+                            fill="transparent"
+                            r="${radius}"
+                            cx="${size / 2}"
+                            cy="${size / 2}"
+                        />
+                    </svg>
+                    <div class="w-8 h-8 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 active:scale-95">
+                        <span class="text-[9px] font-black ${unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-500' : 'text-rose-500'}">
                             ${unit.percentage}%
                         </span>
                     </div>
@@ -91,8 +119,8 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
             const icon = L.divIcon({
                 className: 'custom-unit-marker',
                 html: markerHtml,
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
+                iconSize: [size, size],
+                iconAnchor: [size / 2, size / 2]
             });
 
             const marker = L.marker(latLng, { icon })
@@ -140,21 +168,38 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
             <div ref={mapRef} className="w-full h-full z-0" />
             
             {/* Legend Overlay */}
-            <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm p-3 rounded-2xl border border-slate-200 dark:border-white/10 shadow-lg z-1000 flex flex-col gap-2">
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
-                    Disponibilidade {unitTagDescription || ''}
-                </span>
-                <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-                    <span className="text-[9px] font-bold text-slate-700 dark:text-slate-200">Alta (≥ 85%)</span>
+            <div className="absolute top-4 left-4 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-4 rounded-[28px]! border border-slate-200/50 dark:border-white/10 shadow-xl z-5000 flex flex-col gap-4 min-w-[180px]">
+                <div className="flex items-center gap-4">
+                    <CircularGauge 
+                        percentage={unitTagPercentage} 
+                        size={52}
+                        strokeWidth={4.5}
+                        color={unitTagPercentage >= 85 ? 'text-emerald-500' : unitTagPercentage > 50 ? 'text-amber-400' : 'text-rose-500'}
+                        labelSize="text-[11px]"
+                    />
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-0.5 leading-tight">
+                            Disponibilidade
+                        </span>
+                        <span className="text-[12px] font-black text-primary uppercase tracking-tight leading-tight whitespace-nowrap">
+                            {unitTagDescription || 'Geral'}
+                        </span>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50" />
-                    <span className="text-[9px] font-bold text-slate-700 dark:text-slate-200">Alerta (51-84%)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50" />
-                    <span className="text-[9px] font-bold text-slate-700 dark:text-slate-200">Crítica (≤ 50%)</span>
+
+                <div className="flex flex-col gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/30" />
+                        <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-tight">Alta (≥ 85%)</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400/30" />
+                        <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-tight">Alerta (51-84%)</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm shadow-rose-500/30" />
+                        <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-tight">Crítica (≤ 50%)</span>
+                    </div>
                 </div>
             </div>
 
