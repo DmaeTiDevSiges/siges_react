@@ -1,8 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from "./supabase";
 
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+if (!geminiApiKey) {
+  console.error("AI Service: VITE_GEMINI_API_KEY não está configurada.");
+}
+
 // Inicializa a IA com a chave de API
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+const genAI = new GoogleGenerativeAI(geminiApiKey);
 
 /**
  * AI Service for SIGES Assistant
@@ -58,6 +63,8 @@ export const aiService = {
         
         DIRETRIZES:
         - Use 'getOrders' sempre que o usuário perguntar sobre ordens de serviço (OS), ordens suspensas ou pendentes.
+        - Use 'getAssets' para consultar ativos/equipamentos.
+        - Use 'getContracts' para consultar contratos.
         - Se o usuário mencionar uma OS específica (ex: 8.1.2025), use a ferramenta para buscar os detalhes.
         - Quando listar ordens, informe sempre o ID (Máscara), a Descrição e o Status.
         - Se uma busca por uma OS específica não retornar nada, informe ao usuário que não encontrou essa OS no sistema.
@@ -75,6 +82,28 @@ export const aiService = {
                   type: "OBJECT" as any,
                   properties: {
                     orderId: { type: "STRING" as any, description: "ID ou Máscara da OS (ex: 8.1.2025)" },
+                    limit: { type: "NUMBER" as any, description: "Limite de resultados" }
+                  }
+                }
+              },
+              {
+                name: "getAssets",
+                description: "Consulta ativos/equipamentos no sistema.",
+                parameters: {
+                  type: "OBJECT" as any,
+                  properties: {
+                    assetId: { type: "STRING" as any, description: "ID ou descrição do ativo" },
+                    limit: { type: "NUMBER" as any, description: "Limite de resultados" }
+                  }
+                }
+              },
+              {
+                name: "getContracts",
+                description: "Consulta contratos no sistema.",
+                parameters: {
+                  type: "OBJECT" as any,
+                  properties: {
+                    contractId: { type: "STRING" as any, description: "ID ou descrição do contrato" },
                     limit: { type: "NUMBER" as any, description: "Limite de resultados" }
                   }
                 }
@@ -154,6 +183,103 @@ else {
               return { functionResponse: { name: call.name, response: { error: e.message } } };
             }
           }
+
+          if (call.name === "getAssets") {
+            try {
+              // 1. Perfil para filtro de empresa
+              const { data: userProfile } = await supabase
+                .from("users")
+                .select("id, company_id")
+                .eq("uuid", userId)
+                .maybeSingle();
+
+              // 2. Query
+              let query = supabase
+                .from("v_assets")
+                .select("id, description, unit_description, type_description");
+
+              if (args.assetId) {
+                query = query.or(`description.ilike.%${args.assetId}%,unit_description.ilike.%${args.assetId}%`);
+              } else if (userProfile?.company_id) {
+                query = query.eq("company_id", userProfile.company_id);
+              } else {
+                return { functionResponse: { name: call.name, response: { error: "Não foi possível filtrar por empresa." } } };
+              }
+
+              const { data: assetsData, error: assetsError } = await query
+                .limit(args.limit || 10);
+
+              if (assetsError) {
+                console.error("AI Service Error:", assetsError);
+                return { functionResponse: { name: call.name, response: { error: "Erro técnico na consulta banco." } } };
+              }
+
+              return {
+                functionResponse: {
+                  name: call.name,
+                  response: { 
+                    assets: (assetsData || []).map(a => ({
+                      id: a.id,
+                      descricao: a.description,
+                      unidade: a.unit_description,
+                      tipo: a.type_description
+                    }))
+                  }
+                }
+              };
+            } catch (e: any) {
+              return { functionResponse: { name: call.name, response: { error: e.message } } };
+            }
+          }
+
+          if (call.name === "getContracts") {
+            try {
+              // 1. Perfil para filtro de empresa
+              const { data: userProfile } = await supabase
+                .from("users")
+                .select("id, company_id")
+                .eq("uuid", userId)
+                .maybeSingle();
+
+              // 2. Query
+              let query = supabase
+                .from("v_contracts")
+                .select("id, description, status_description, company_description");
+
+              if (args.contractId) {
+                query = query.or(`description.ilike.%${args.contractId}%,company_description.ilike.%${args.contractId}%`);
+              } else if (userProfile?.company_id) {
+                query = query.eq("company_id", userProfile.company_id);
+              } else {
+                return { functionResponse: { name: call.name, response: { error: "Não foi possível filtrar por empresa." } } };
+              }
+
+              const { data: contractsData, error: contractsError } = await query
+                .limit(args.limit || 10);
+
+              if (contractsError) {
+                console.error("AI Service Error:", contractsError);
+                return { functionResponse: { name: call.name, response: { error: "Erro técnico na consulta banco." } } };
+              }
+
+              return {
+                functionResponse: {
+                  name: call.name,
+                  response: { 
+                    contracts: (contractsData || []).map(c => ({
+                      id: c.id,
+                      descricao: c.description,
+                      status: c.status_description,
+                      empresa: c.company_description
+                    }))
+                  }
+                }
+              };
+            } catch (e: any) {
+              return { functionResponse: { name: call.name, response: { error: e.message } } };
+            }
+          }
+
           return { functionResponse: { name: call.name, response: { error: "Função não suportada." } } };
         }));
 
@@ -170,7 +296,17 @@ else {
       ]);
 
       return text;
-    } catch (error) {
+    } catch (error: any) {
+      if (typeof error?.message === 'string' && error.message.includes('Your API key was reported as leaked')) {
+        const msg = 'Erro Gemini: chave de API inválida ou relatada como vazada. Atualize VITE_GEMINI_API_KEY com uma chave válida.';
+        console.error("AI Service: Chat Error - API key issue", error);
+        throw new Error(msg);
+      }
+      if (typeof error?.message === 'string' && error.message.includes('403')) {
+        const msg = 'Erro Gemini: permissão negada. Verifique sua chave de API Gemini.';
+        console.error("AI Service: Chat Error - permission issue", error);
+        throw new Error(msg);
+      }
       console.error("AI Service: Chat Error", error);
       throw error;
     }

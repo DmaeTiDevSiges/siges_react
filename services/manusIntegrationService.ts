@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { r2Service } from './r2Service';
 import { ManusVisit, ManusService, ManusVehicle, ManusMaterial, ManusReport } from '../types/manus';
 import { getBrazilTimestamp } from './dataService';
 import { generateUrl as getProxyUrl } from './imgproxyService';
@@ -361,7 +362,7 @@ export class ManusIntegrationService {
         const beforeFiles: string[] = [];
         const afterFiles: string[] = [];
         
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
 
         // Requirement: scan only Reports.Images
         const rawImages = rep.Images || [];

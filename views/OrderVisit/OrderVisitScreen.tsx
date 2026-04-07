@@ -347,7 +347,6 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             onApproveVisit={(
                                 (isContractManager || currentUser?.isAdminSuper || currentUser?.isAdmin) &&
                                 (visit.ovProcessingId || 1) !== 5 &&
-                                (visit.ovProcessingId || 1) !== 4 &&
                                 (visit.ovAssetsAmount || 0) > 0 &&
                                 (visit.ovAssetsAmount || 0) === (visit.ovAssetsApprovedAmount || 0)
                             ) ? handleApproveVisit : undefined}

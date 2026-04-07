@@ -114,6 +114,20 @@ export const AIChatWindow: React.FC<{ isOpen: boolean; onClose: () => void }> = 
                   Minhas ordens
                 </button>
                 <button 
+                  onClick={() => handleSend('Quais ativos estão na minha empresa?')} 
+                  disabled={isLoading || !sessionId}
+                  className="px-3 py-1.5 bg-slate-800 text-xs text-slate-300 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700 disabled:opacity-50"
+                >
+                  Meus ativos
+                </button>
+                <button 
+                  onClick={() => handleSend('Quais contratos estão ativos?')} 
+                  disabled={isLoading || !sessionId}
+                  className="px-3 py-1.5 bg-slate-800 text-xs text-slate-300 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700 disabled:opacity-50"
+                >
+                  Contratos
+                </button>
+                <button 
                   onClick={() => handleSend('Como trocar um disjuntor?')} 
                   disabled={isLoading || !sessionId}
                   className="px-3 py-1.5 bg-slate-800 text-xs text-slate-300 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700 disabled:opacity-50"

@@ -1,5 +1,6 @@
 // Data Service for SIGES application
 import { supabase } from './supabase';
+import { r2Service } from './r2Service';
 import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason } from '../types';
 
 
@@ -194,7 +195,8 @@ export const dataService = {
     },
 
     async saveOrderVisitSignature(ovId: string, type: 'leader' | 'requester', base64: string): Promise<void> {
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
+
         const folderPath = `signatures/visits/${ovId}`;
         const fileName = `${type}_${Date.now()}.png`;
         const fullPath = `${folderPath}/${fileName}`;
@@ -756,7 +758,8 @@ export const dataService = {
         // 3. Upload Logo if it's base64 to R2
         if (company.logoUrl && company.logoUrl.startsWith('data:')) {
             try {
-                const { r2Service } = await import('./r2Service');
+                // r2Service is now static
+
                 const folderPath = `companies/${companyId}/logo`;
                 const fileName = `${Date.now()}.jpg`;
                 const fullPath = `${folderPath}/${fileName}`;
@@ -2516,7 +2519,8 @@ export const dataService = {
 
                 // 3. Delete old image from R2 if it exists
                 if (oldFullFile && !oldFullFile.includes('settings/images')) {
-                    const { r2Service } = await import('./r2Service');
+                    // r2Service is now static
+
                     try {
                         await r2Service.deleteFile(oldFullFile);
                     } catch (delError) {
@@ -2764,7 +2768,8 @@ export const dataService = {
 
         if (client.logoUrl && client.logoUrl.startsWith('data:')) {
             try {
-                const { r2Service } = await import('./r2Service');
+                // r2Service is now static
+
                 const folderPath = `clients/${clientId}`;
                 const fileName = `avatar_${Date.now()}.jpg`;
                 const fullPath = `${folderPath}/${fileName}`;
@@ -2813,7 +2818,8 @@ export const dataService = {
 
         if (client.logoUrl && client.logoUrl.startsWith('data:')) {
             try {
-                const { r2Service } = await import('./r2Service');
+                // r2Service is now static
+
                 const folderPath = `clients/${id}`;
                 const fileName = `avatar_${Date.now()}.jpg`;
                 const fullPath = `${folderPath}/${fileName}`;
@@ -3875,7 +3881,8 @@ export const dataService = {
     },
 
     async copyImagesFromOrderToOrder(srcCompanyId: string, srcOrderId: string, destCompanyId: string, destOrderId: string, files: string[]): Promise<void> {
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
+
         const srcFolder = `companies/${srcCompanyId}/orders/${srcOrderId}/images`;
         const destFolder = `companies/${destCompanyId}/orders/${destOrderId}/images`;
 
@@ -3897,7 +3904,8 @@ export const dataService = {
     },
 
     async uploadOrderImage(companyId: string, orderId: string, file: File): Promise<{ path: string; filename: string }> {
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
+
         const fileExt = file.name.split('.').pop();
         // Adiciona um random string para evitar colisão em uploads simultâneos
         const uniqueSuffix = Math.random().toString(36).substring(7);
@@ -4603,7 +4611,8 @@ export const dataService = {
 
     async uploadAssetImage(assetId: string, file: File): Promise<{ path: string, filename: string }> {
         // Importar r2Service dinamicamente
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
+
 
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
@@ -5588,7 +5597,8 @@ export const dataService = {
         const path = `companies/1/units/${unitId}/assets_available`;
 
         try {
-            const { r2Service } = await import('./r2Service');
+            // r2Service is now static
+
             // Upload to Cloudflare R2
             await r2Service.uploadFile(file as any, `${path}/${filename}`);
             
@@ -5628,7 +5638,8 @@ export const dataService = {
         const path = `units_assets_tags/${unitAssetTagId}/${filename}`;
 
         try {
-            const { r2Service } = await import('./r2Service');
+            // r2Service is now static
+
             // Attempt R2 file upload primarily due to Supabase timeouts
             await r2Service.uploadFile(file as any, path);
             
@@ -5872,7 +5883,8 @@ export const dataService = {
     // -------------------------------------------------------------------------
 
     async uploadUserAvatar(userId: string, file: File | Blob): Promise<{ path: string, filename: string }> {
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
+
 
         // Se for File, pega extensão, se for Blob (de base64), assume .jpg
         const fileExt = (file as File).name ? (file as File).name.split('.').pop() : 'jpg';
@@ -5893,7 +5905,8 @@ export const dataService = {
 
     async uploadUnitImage(clientId: string, unitId: string, file: File): Promise<{ path: string, filename: string }> {
         // Importar r2Service dinamicamente para evitar problemas de dependência circular se houver
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
+
 
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
@@ -7881,7 +7894,7 @@ export const dataService = {
             materialsValue: data.ov_materials_value,
             vehiclesValue: data.ov_vehicles_value,
             totalValue: data.ov_total_value,
-            companyId: data.o_company_id?.toString(),
+            companyId: data.o_provider_company_id?.toString(),
             providerCompanyId: data.o_provider_company_id?.toString(),
             providerDepartmentId: orderData?.provider_department_id?.toString() || data.o_provider_department_id?.toString(),
             isFiled: data.ov_is_filed,
@@ -8860,7 +8873,8 @@ export const dataService = {
 
     async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after'): Promise<{ path: string, filename: string }> {
         // Importar r2Service dinamicamente
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
+
 
         const fileExt = file.name.split('.').pop();
         // Add random suffix to prevent duplicate names when uploading multiple files simultaneously
@@ -8882,10 +8896,10 @@ export const dataService = {
         if (assetData.ov_id) {
             const { data: visitData } = await supabase
                 .from('v_orders_visits')
-                .select('o_company_id')
+                .select('o_provider_company_id')
                 .eq('id', assetData.ov_id)
                 .single();
-            companyId = visitData?.o_company_id;
+            companyId = visitData?.o_provider_company_id;
         }
 
         // Fallback: try to get company from the asset record via assets table
@@ -8913,7 +8927,8 @@ export const dataService = {
 
         // 2. Upload to Cloudflare R2
         try {
-            const { r2Service } = await import('./r2Service');
+            // r2Service is now static
+
             await r2Service.uploadFile(file, fullPath);
         } catch (uploadError) {
             console.error('Error uploading to R2:', uploadError);
@@ -9119,7 +9134,8 @@ export const dataService = {
     },
 
     async removeAssetFromOrderVisit(ovaId: string): Promise<void> {
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
+
 
         // 1. Fetch current record to get metadata for storage deletion AND visitId
         const { data: ova, error: fetchError } = await supabase
@@ -10961,7 +10977,8 @@ export const dataService = {
     },
 
     async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string): Promise<{ path: string; filename: string }> {
-        const { r2Service } = await import('./r2Service');
+        // r2Service is now static
+
         
         // Ensure file extension is standard
         let fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpeg';
@@ -11010,7 +11027,8 @@ export const dataService = {
 
         // 3. Try to delete from R2
         try {
-            const { r2Service } = await import('./r2Service');
+            // r2Service is now static
+
             // Replicate the path logic from the component/upload to ensure consistency
             const folderPath = existing.img_file_path || `checklist/${ovAssetId}/${activityId}`;
             const fullPath = `${folderPath}/${fileName}`.replace(/\/+/g, '/');

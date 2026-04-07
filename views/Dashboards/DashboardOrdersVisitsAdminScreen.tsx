@@ -781,7 +781,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 contractId: row.o_contract_id?.toString(),
                 planId: row.o_plan_id?.toString(),
                 teamId: row.o_team_id?.toString(),
-                companyId: row.o_company_id?.toString(),
+                companyId: row.o_provider_company_id?.toString(),
                 parentId: row.o_parent_id ? Number(row.o_parent_id) : null,
                 o_plan_description: row.o_plan_description || row.plan_description,
                 priorityId: row.o_priority_id?.toString(),
