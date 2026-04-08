@@ -11154,5 +11154,107 @@ export const dataService = {
         }
 
         return data || [];
+    },
+
+    // ==========================================
+    // MANUS INTEGRATION METHODS
+    // ==========================================
+
+    /**
+     * Verifica se um contrato usa integração com Manus
+     */
+    async checkContractUsesManus(contractId: string): Promise<boolean> {
+        try {
+            const { data, error } = await supabase
+                .from('contracts')
+                .select('is_use_manus')
+                .eq('id', contractId)
+                .single();
+
+            if (error) {
+                console.error('Error checking contract Manus flag:', error);
+                return false;
+            }
+
+            return data?.is_use_manus || false;
+        } catch (error) {
+            console.error('Error checking contract Manus flag:', error);
+            return false;
+        }
+    },
+
+    /**
+     * Busca dados de uma visita no sistema Manus
+     */
+    async getManusVisitData(visitId: string): Promise<any | null> {
+        try {
+            // Aqui você pode adaptar conforme a estrutura real da tabela do Manus
+            const { data, error } = await supabase
+                .from('manus_visits')
+                .select('*')
+                .eq('visit_id', visitId)
+                .single();
+
+            if (error) {
+                console.error('Error fetching Manus visit data:', error);
+                return null;
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Error fetching Manus visit data:', error);
+            return null;
+        }
+    },
+
+    /**
+     * Envia dados de uma visita para o Manus
+     */
+    async sendVisitToManus(visitId: string, visitData: any): Promise<boolean> {
+        try {
+            const { error } = await supabase
+                .from('manus_visits')
+                .upsert({
+                    visit_id: visitId,
+                    ...visitData,
+                    synced_at: getBrazilTimestamp()
+                });
+
+            if (error) {
+                console.error('Error sending visit to Manus:', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error sending visit to Manus:', error);
+            return false;
+        }
+    },
+
+    /**
+     * Atualiza status de sincronização com Manus
+     */
+    async updateManusSyncStatus(visitId: string, status: string, message?: string): Promise<boolean> {
+        try {
+            const { error } = await supabase
+                .from('manus_visits')
+                .update({
+                    sync_status: status,
+                    sync_message: message,
+                    updated_at: getBrazilTimestamp()
+                })
+                .eq('visit_id', visitId);
+
+            if (error) {
+                console.error('Error updating Manus sync status:', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error updating Manus sync status:', error);
+            return false;
+        }
     }
 };

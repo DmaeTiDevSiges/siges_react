@@ -44,6 +44,7 @@ export interface Contract {
   dateStart?: string;
   dateEnd?: string;
   totalValue?: number;
+  isUseManus?: boolean; // Integration with Manus system
 
   // UI helpers
   clientCompanyName?: string;

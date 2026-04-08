@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { OrderVisit, OrderVisitTeam, User, Order } from '../../types';
 import { dataService } from '../../services/dataService';
 import { OrderVisitCardDetail } from '../../components/ordersVisits/OrderVisitCardDetail';
+import { ManusIntegration } from '../../components/ordersVisits/ManusIntegration';
 import { Header } from '../../components/Header';
 import { toast } from 'sonner';
 import { usePermissions } from '../../contexts/PermissionsContext';
@@ -365,10 +366,16 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             ) ? handleFileVisit : undefined}
                         />
 
-                        <SignatureSection 
-                            visit={visit} 
-                            onRefresh={refreshVisit} 
+                        <SignatureSection
+                            visit={visit}
+                            onRefresh={refreshVisit}
                             isEditable={!visit.isFiled}
+                        />
+
+                        {/* Integração com Manus (se habilitada no contrato) */}
+                        <ManusIntegration
+                            contractId={visit.contractId}
+                            visitId={visitId}
                         />
                     </div>
                 );
