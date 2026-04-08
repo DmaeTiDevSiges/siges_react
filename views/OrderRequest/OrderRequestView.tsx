@@ -16,6 +16,7 @@ import { ManusIntegrationService, ManusImageClassification } from '../../service
 import { ManusVisit } from '../../types/manus';
 import { ManusVisitCard } from '../../components/ordersVisits/ManusVisitCard';
 import { ManusImageSelectionModal } from '../../components/ordersVisits/ManusImageSelectionModal';
+import { formatCurrency } from '../../utils/formatters';
 
 interface OrderRequestViewProps {
     order: Order;
@@ -487,7 +488,15 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                             </div>
                                         ) : null}
 
-                                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 px-1">Histórico de Visitas ({visits.length})</h3>
+                                        <div className="flex items-center justify-between px-1">
+                                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Histórico de Visitas ({visits.length})</h3>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total:</span>
+                                                <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
+                                                    {formatCurrency(visits.reduce((sum, v) => sum + (v.totalValue || 0), 0))}
+                                                </span>
+                                            </div>
+                                        </div>
                                         <div className="flex flex-col gap-3">
                                             {visits.map(visit => (
                                                 <OrderVisitCardListItem
