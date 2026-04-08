@@ -47,7 +47,7 @@ export const UnitsList: React.FC<UnitsListProps> = ({ client, onSelect, onAdd })
     const filteredUnits = units.filter(u => {
         const matchesSearch = u.description.toLowerCase().includes(search.toLowerCase()) ||
             (u.code && u.code.toLowerCase().includes(search.toLowerCase()));
-        const matchesFilter = filter === 'all' || u.status === filter;
+        const matchesFilter = filter === 'all' || u.statusId === (filter === 'active' ? '1' : '2');
         return matchesSearch && matchesFilter;
     });
 

@@ -291,7 +291,7 @@ export interface Unit {
   systemName?: string;
   imgFilePath?: string;
   imgFileName?: string;
-  status: 'active' | 'inactive';
+  statusId: string;
   logoUrl?: string;
   descriptionFull?: string;
   clientName?: string;

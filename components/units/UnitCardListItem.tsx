@@ -72,7 +72,7 @@ export const UnitCardListItem: React.FC<UnitCardProps> = ({ unit, onClick, showC
                         ) : (
                             <div />
                         )}
-                        <StatusBadge status={unit.status} size="sm" />
+                        <StatusBadge status={unit.statusId === '1' ? 'active' : 'inactive'} size="sm" />
                     </div>
                 </div>
 

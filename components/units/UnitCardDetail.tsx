@@ -68,7 +68,7 @@ export const UnitCardDetail: React.FC<UnitCardDetailProps> = ({ unit }) => {
                         ) : (
                             <div />
                         )}
-                        <StatusBadge status={unit.status} size="sm" />
+                        <StatusBadge status={unit.statusId === '1' ? 'active' : 'inactive'} size="sm" />
                     </div>
                 </div>
 

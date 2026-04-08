@@ -2878,7 +2878,7 @@ export const dataService = {
         // 1. Fetch Units
         const { data: units, error: unitsError } = await supabase
             .from('units')
-            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, is_available, img_file_path, img_file_name, description_full')
+            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
             .eq('client_id', clientId)
             .eq('is_deleted', 'false');
 
@@ -2920,7 +2920,7 @@ export const dataService = {
                 systemName: systemsMap.get(item.system_id),
                 imgFilePath: item.img_file_path,
                 imgFileName: item.img_file_name,
-                status: item.is_available ? 'active' : 'inactive',
+                statusId: item.status_id?.toString() || '1',
                 logoUrl: this.getPublicImageUrl(item.img_file_path, item.img_file_name, {
                     width: 400,
                     height: 400,
@@ -2934,7 +2934,7 @@ export const dataService = {
     async searchUnits(search: string = '', limit: number = 50): Promise<Unit[]> {
         let query = supabase
             .from('units')
-            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, is_available, img_file_path, img_file_name, description_full')
+            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
             .eq('is_deleted', 'false');
 
         if (search && search.trim().length > 0) {
@@ -2982,7 +2982,7 @@ export const dataService = {
             systemName: systemsMap.get(item.system_id),
             imgFilePath: item.img_file_path,
             imgFileName: item.img_file_name,
-            status: item.is_available ? 'active' : 'inactive',
+            statusId: item.status_id?.toString() || '1',
             logoUrl: this.getPublicImageUrl(item.img_file_path, item.img_file_name, {
                 width: 400,
                 height: 400,
@@ -3048,7 +3048,7 @@ export const dataService = {
             systemName: sysSubRes.data?.description,
             imgFilePath: unitData.img_file_path,
             imgFileName: unitData.img_file_name,
-            status: unitData.is_available ? 'active' : 'inactive',
+            statusId: unitData.status_id?.toString() || '1',
             logoUrl: logoUrl,
             descriptionFull: unitData.description_full
         };
@@ -3075,7 +3075,7 @@ export const dataService = {
             unit_type_id: unit.unitTypeId && unit.unitTypeId !== '' ? parseInt(unit.unitTypeId) : null,
             system_parent_id: unit.systemParentId && unit.systemParentId !== '' ? parseInt(unit.systemParentId) : null,
             system_id: unit.systemId && unit.systemId !== '' ? parseInt(unit.systemId) : null,
-            is_available: true,
+            status_id: unit.statusId ? parseInt(unit.statusId) : 1,
             img_file_path: unit.imgFilePath,
             img_file_name: unit.imgFileName
         };
@@ -3083,7 +3083,7 @@ export const dataService = {
         const { data, error } = await supabase
             .from('units')
             .insert(dbData)
-            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, is_available, img_file_path, img_file_name, description_full')
+            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
             .single();
 
         if (error) throw error;
@@ -3104,19 +3104,31 @@ export const dataService = {
         if (unit.unitTypeId !== undefined) dbData.unit_type_id = unit.unitTypeId && unit.unitTypeId !== '' ? parseInt(unit.unitTypeId) : null;
         if (unit.systemParentId !== undefined) dbData.system_parent_id = unit.systemParentId && unit.systemParentId !== '' ? parseInt(unit.systemParentId) : null;
         if (unit.systemId !== undefined) dbData.system_id = unit.systemId && unit.systemId !== '' ? parseInt(unit.systemId) : null;
-        if (unit.status !== undefined) dbData.is_available = unit.status === 'active';
+        
+        // Update status_id only
+        if (unit.statusId !== undefined) {
+            dbData.status_id = unit.statusId && unit.statusId !== '' ? parseInt(unit.statusId) : null;
+            console.log(`🔄 [updateUnit] Updating status_id for unit ${id}: ${dbData.status_id}`);
+        }
+        
         if (unit.imgFilePath !== undefined) dbData.img_file_path = unit.imgFilePath;
         if (unit.imgFileName !== undefined) dbData.img_file_name = unit.imgFileName;
+
+        console.log(`💾 [updateUnit] Data to update:`, dbData);
 
         const { data, error } = await supabase
             .from('units')
             .update(dbData)
             .eq('id', id)
-            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, is_available, img_file_path, img_file_name, description_full')
+            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error(`❌ [updateUnit] Database error:`, error);
+            throw error;
+        }
 
+        console.log(`✅ [updateUnit] Update successful, fetching fresh data...`);
         return this.getUnitById(id) as any;
     },
 

@@ -108,7 +108,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
         systemId: initialUnit?.systemId || '',
         unitTypeParentId: initialUnit?.unitTypeParentId || '',
         unitTypeId: initialUnit?.unitTypeId || '',
-        status: initialUnit?.status || 'active' as 'active' | 'inactive',
+        statusId: initialUnit?.statusId || '1', // Default to '1' (Ativo)
         clientId: initialUnit?.clientId || clientId
     });
 
@@ -513,11 +513,11 @@ export const UnitForm: React.FC<UnitFormProps> = ({
 
                 <Select
                     label="Situação"
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value as 'active' | 'inactive' })}
+                    value={form.statusId}
+                    onChange={(e) => setForm({ ...form, statusId: e.target.value })}
                 >
-                    <option value="active">Ativo</option>
-                    <option value="inactive">Inativo</option>
+                    <option value="1">Ativo</option>
+                    <option value="2">Inativo</option>
                 </Select>
             </form>
 

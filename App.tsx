@@ -1122,12 +1122,19 @@ const App: React.FC = () => {
 
   const handleSaveUnit = async (unit: Partial<import('./types').Unit>, file?: File | null) => {
     try {
-      console.log('💾 Saving unit:', { unit, hasFile: !!file, fileName: file?.name });
+      console.log('💾 Saving unit:', { 
+        unit, 
+        hasFile: !!file, 
+        fileName: file?.name,
+        statusId: unit.statusId,
+        isEdit: selectedUnit?.id && currentScreen === 'client-unit-edit'
+      });
 
       let savedUnit: import('./types').Unit;
       const isEdit = selectedUnit?.id && currentScreen === 'client-unit-edit';
 
       if (isEdit) {
+        console.log('✏️ Editing unit:', selectedUnit!.id, 'with data:', unit);
         savedUnit = await dataService.updateUnit(selectedUnit!.id, unit);
         console.log('✏️ Unit updated:', savedUnit);
       } else {

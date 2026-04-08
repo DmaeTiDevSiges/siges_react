@@ -28,8 +28,43 @@ export class ManusIntegrationService {
         console.error(`Falha Manus API: ${response.status} ${response.statusText}`);
         throw new Error(`Erro ao buscar dados do Manus: ${response.statusText}`);
       }
-      const data = await response.json();
-      console.log("Manus API Raw Response:", data);
+      
+      // Get raw text to inspect and fix malformed JSON
+      const rawText = await response.text();
+      console.log("=== MANUS API DEBUG ===");
+      console.log("Raw Response Length:", rawText.length);
+
+      // Try to parse JSON, with fallback for malformed responses
+      let data: any = [];
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseError) {
+        console.error("Failed to parse Manus API response as JSON:", parseError);
+        
+        // Fix common Manus API JSON issues:
+        // 1. "Key":, (missing value) → "Key":null,
+        // 2. Trailing commas before }]
+        try {
+          let fixedText = rawText
+            .replace(/^\uFEFF/, '') // Remove BOM
+            // Fix missing values: "Key":, → "Key":null,
+            .replace(/:\s*,/g, ':null,')
+            // Fix missing values at end: "Key":,} → "Key":null}
+            .replace(/:\s*}/g, ':null}')
+            .replace(/:\s*]/g, ':null]')
+            // Remove trailing commas before } or ]
+            .replace(/,\s*([\]}])/g, '$1');
+          
+          data = JSON.parse(fixedText);
+          console.log("Successfully fixed Manus JSON and parsed");
+        } catch (e) {
+          console.error("All JSON parsing attempts failed, returning empty array");
+          console.error("Raw response (last 1000 chars):", rawText.substring(Math.max(0, rawText.length - 1000)));
+          data = [];
+        }
+      }
+
+      console.log("Manus API Parsed Response (visits count):", Array.isArray(data) ? data.length : typeof data);
 
       let manusVisits: ManusVisit[] = [];
       if (Array.isArray(data)) {
