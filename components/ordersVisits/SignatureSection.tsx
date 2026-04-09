@@ -169,7 +169,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                         )}
                     </div>
 
-                    {isEditable && !requesterSignatureUrl && (
+                    {canDelete && !requesterSignatureUrl && (
                         <button 
                             onClick={() => setSigningType('requester')}
                             className="w-full py-3 text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl transition-all shadow-lg shadow-indigo-600/20 hover:shadow-indigo-600/30 active:scale-[0.98]"
