@@ -8,6 +8,7 @@ import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
 
 interface UnitAssetTagAvailableFormProps {
     unitId: string;
@@ -247,7 +248,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest animate-pulse">Carregando...</p>
                 </div>
             ) : (
-                <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-6 pb-24">
+                <KeyboardAwareScrollView className="flex-1 no-scrollbar px-4 py-6 pb-24" extraPadding={40}>
                     {/* Status Selection Card */}
                     <div className="mb-8 relative group">
 
@@ -376,7 +377,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                             </button>
                         </div>
                     </div>
-                </div>
+                </KeyboardAwareScrollView>
             )}
 
             {/* Image Source Selection Sheet */}

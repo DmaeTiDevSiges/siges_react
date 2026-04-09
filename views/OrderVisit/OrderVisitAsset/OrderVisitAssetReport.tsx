@@ -1135,7 +1135,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                             </button>
                                         )}
                                     </div>
-                                    {canView('orders_visits_processing_approve') && (
+                                    {canView('orders_visits_processing_approve') && Number(visitProcessingId || 1) === 2 && (
                                         <button
                                             onClick={() => setLocalEditMode('approval')}
                                             className="py-4 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-emerald-500/20"

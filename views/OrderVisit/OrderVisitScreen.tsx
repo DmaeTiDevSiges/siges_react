@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { OrderVisit, OrderVisitTeam, User, Order } from '../../types';
 import { dataService } from '../../services/dataService';
 import { OrderVisitCardDetail } from '../../components/ordersVisits/OrderVisitCardDetail';
-import { ManusIntegration } from '../../components/ordersVisits/ManusIntegration';
 import { Header } from '../../components/Header';
 import { toast } from 'sonner';
 import { usePermissions } from '../../contexts/PermissionsContext';
@@ -11,6 +10,7 @@ import { Card } from '../../components/ui/Card';
 import { OrderVisitProcessingButton } from '../../components/ordersVisits/OrderVisitProcessingButton';
 import { useKeyboard } from '../../hooks/useKeyboard';
 import { IconButton } from '../../components/ui/IconButton';
+import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
 
 interface OrderVisitPageProps {
     visitId: string;
@@ -371,12 +371,6 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             onRefresh={refreshVisit}
                             isEditable={!visit.isFiled}
                         />
-
-                        {/* Integração com Manus (se habilitada no contrato) */}
-                        <ManusIntegration
-                            contractId={visit.contractId}
-                            visitId={visitId}
-                        />
                     </div>
                 );
             case 'transport':
@@ -434,9 +428,9 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
 
-            <div className="p-4 pb-24 md:max-w-3xl md:mx-auto w-full no-scrollbar">
+            <KeyboardAwareScrollView className="p-4 pb-24 md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
                 {renderTabContent()}
-            </div>
+            </KeyboardAwareScrollView>
 
             {/* Modal de Reporte */}
             <Modal

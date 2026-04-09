@@ -42,8 +42,10 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.lineWidth = 3;
+            
+            // Detectar tema para cor do traço
             const isDarkMode = document.documentElement.classList.contains('dark');
-            ctx.strokeStyle = isDarkMode ? '#f8fafc' : '#0f172a';
+            ctx.strokeStyle = isDarkMode ? '#f8fafc' : '#0f172a'; // Branco no dark, Preto no light
 
             // Restore image if resizied
             if (tempImage) {
@@ -82,9 +84,16 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
     const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
         if (e.cancelable) e.preventDefault();
         const { x, y } = getCoordinates(e);
-        
+
         const ctx = canvasRef.current?.getContext('2d');
         if (!ctx) return;
+
+        // Garantir que a cor do traço está configurada
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 3;
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        ctx.strokeStyle = isDarkMode ? '#f8fafc' : '#0f172a';
 
         points.current = [{ x, y }];
         setIsDrawing(true);
@@ -135,9 +144,32 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        // Exportar como PNG base64
-        const dataUrl = canvas.toDataURL('image/png');
-        onSave(dataUrl);
+        // Criar um canvas temporário para normalizar a assinatura
+        // Salvamos sempre com linhas pretas e fundo transparente para que o 
+        // frontend possa inverter a cor (dark:invert) de forma consistente.
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        if (tempCtx) {
+            // 1. Desenha a assinatura original
+            tempCtx.drawImage(canvas, 0, 0);
+            
+            // 2. Garante que todas as linhas fiquem pretas para o salvamento
+            // Mantendo a opacidade original de cada pixel (transparência preservada)
+            // Usando preto puro (#000000) para que a inversão (dark:invert) resulte em branco puro.
+            tempCtx.globalCompositeOperation = 'source-in';
+            tempCtx.fillStyle = '#000000'; 
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // Exportar como PNG base64
+            const dataUrl = tempCanvas.toDataURL('image/png');
+            onSave(dataUrl);
+        } else {
+            // Fallback
+            onSave(canvas.toDataURL('image/png'));
+        }
     };
 
     return (

@@ -130,6 +130,115 @@ export async function urlsToBase64(urls: (string | undefined)[]): Promise<string
 }
 
 /**
+ * Adiciona fundo branco em uma imagem base64 (para evitar transparência em assinaturas).
+ * Garante que a assinatura seja sempre visível no PDF, independente do tema original.
+ */
+export async function addWhiteBackgroundToImage(base64: string): Promise<string> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve(base64);
+                    return;
+                }
+                
+                // Preencher com fundo branco primeiro
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Desenhar imagem original por cima
+                ctx.drawImage(img, 0, 0);
+                
+                // Analisar pixels para detectar se precisa de correção
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                let hasLightSignature = false;
+                let totalDarkPixels = 0;
+                
+                // Contar pixels escuros (traço da assinatura)
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // Pixel escuro (traço)
+                    if (r < 100 && g < 100 && b < 100) {
+                        totalDarkPixels++;
+                    }
+                    
+                    // Pixel claro/quase branco que não é fundo branco puro
+                    // Isso indica assinatura clara sobre fundo transparente
+                    if (data[i + 3] < 255 && r > 180 && g > 180 && b > 180) {
+                        hasLightSignature = true;
+                    }
+                }
+                
+                console.log(`[PdfImageUtils] Signature analysis: ${totalDarkPixels} dark pixels, hasLightSignature=${hasLightSignature}`);
+                
+                // Se detectou assinatura clara ou poucos pixels escuros, aplicar correção
+                if (hasLightSignature || totalDarkPixels < 50) {
+                    console.log('[PdfImageUtils] Applying signature correction');
+                    
+                    // Limpar e redesenhar com processamento
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Fundo branco
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Criar canvas temporário para processamento
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = canvas.width;
+                    tempCanvas.height = canvas.height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    
+                    if (tempCtx) {
+                        tempCtx.drawImage(img, 0, 0);
+                        const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                        const pixels = imgData.data;
+                        
+                        // Processar pixels
+                        for (let i = 0; i < pixels.length; i += 4) {
+                            const a = pixels[i + 3];
+                            
+                            // Se tem alpha significativo, converter para preto
+                            if (a > 30) {
+                                pixels[i] = 0;     // R
+                                pixels[i + 1] = 0; // G
+                                pixels[i + 2] = 0; // B
+                                pixels[i + 3] = Math.min(255, a * 1.3); // Alpha amplificado
+                            }
+                        }
+                        
+                        tempCtx.putImageData(imgData, 0, 0);
+                        ctx.drawImage(tempCanvas, 0, 0);
+                    }
+                }
+                
+                // Converter para base64
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        resolve(base64);
+                        return;
+                    }
+                    blobToDataUri(blob).then(resolve).catch(() => resolve(base64));
+                }, 'image/png');
+            } catch (error) {
+                console.error('[PdfImageUtils] Error processing signature:', error);
+                resolve(base64);
+            }
+        };
+        img.onerror = () => resolve(base64);
+        img.src = base64;
+    });
+}
+
+/**
  * Retorna o logo da aplicação como base64 data URI.
  *
  * Tenta múltiplas estratégias de URL para compatibilidade com:

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { FileUtils } from '../../utils/FileUtils';
 import { dataService } from '../../services/dataService';
 import { VisitReportDocument, VisitReportData } from './VisitReportDocument';
-import { urlsToBase64, getLogoBase64 } from '../../utils/PdfImageUtils';
+import { urlsToBase64, getLogoBase64, addWhiteBackgroundToImage } from '../../utils/PdfImageUtils';
 import { imgproxyService } from '../../services/imgproxyService';
 import { FaFilePdf } from 'react-icons/fa';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
@@ -348,8 +348,12 @@ export const VisitReportPDFButton = ({
             const sigBase64s = sigUrlsToFetch.length > 0 ? await urlsToBase64(sigUrlsToFetch) : [];
 
             let sigBase64Idx = 0;
-            const finalSignatureLeaderUrl = leaderSigUrl ? sigBase64s[sigBase64Idx++] : undefined;
-            const finalSignatureRequesterUrl = requesterSigUrl ? sigBase64s[sigBase64Idx++] : undefined;
+            // Adicionar fundo branco nas assinaturas para evitar transparência
+            const leaderSigBase64 = leaderSigUrl ? sigBase64s[sigBase64Idx++] : undefined;
+            const requesterSigBase64 = requesterSigUrl ? sigBase64s[sigBase64Idx++] : undefined;
+            
+            const finalSignatureLeaderUrl = leaderSigBase64 ? await addWhiteBackgroundToImage(leaderSigBase64) : undefined;
+            const finalSignatureRequesterUrl = requesterSigBase64 ? await addWhiteBackgroundToImage(requesterSigBase64) : undefined;
 
             const reportDataWithBase64: VisitReportData = {
                 ...reportData,

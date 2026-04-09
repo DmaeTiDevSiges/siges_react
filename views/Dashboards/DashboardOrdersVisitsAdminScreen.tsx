@@ -75,7 +75,7 @@ const AnimatedCount: React.FC<{ value: number; active?: boolean; color?: string 
 
     return (
         <span
-            className={`text-xl font-black transition-all duration-300 ${isAnimating ? 'scale-125 text-primary brightness-150' : 'scale-100'} ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`}
+            className={`text-base font-black transition-all duration-300 ${isAnimating ? 'scale-125 text-primary brightness-150' : 'scale-100'} ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`}
             style={!isAnimating && color && !active ? { color } : undefined}
         >
             {displayValue}
@@ -112,16 +112,16 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, col
                         {icon}
                     </span>
                 </div>
-                <div className="flex flex-col items-end">
-                    <AnimatedCount value={count} active={active} color={styleColor} />
-                    {totalValue !== undefined && (
-                        <span className={`text-[10px] font-black mt-0.5 ${active ? 'text-primary/70' : 'text-slate-400'}`}>
-                            {formatCurrency(totalValue)}
-                        </span>
-                    )}
-                </div>
+                {totalValue !== undefined && (
+                    <span className={`text-base font-black transition-all duration-300 ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`} style={color && !active ? { color } : undefined}>
+                        {formatCurrency(totalValue)}
+                    </span>
+                )}
             </div>
-            <p className={`text-[13px] font-bold ${active ? 'text-primary' : 'text-slate-500 dark:text-slate-300'}`}>{label}</p>
+            <div className="flex justify-between items-center">
+                <p className={`text-[13px] font-bold ${active ? 'text-primary' : 'text-slate-500 dark:text-slate-300'}`}>{label}</p>
+                <AnimatedCount value={count} active={active} color={styleColor} />
+            </div>
         </div>
     );
 };

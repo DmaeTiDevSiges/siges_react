@@ -4,6 +4,7 @@ import { dataService } from '../../services/dataService';
 import { Select } from '../../components/ui/Select';
 import { ButtonSave } from '../../components/ui/ButtonSave';
 import { Modal } from '../../components/ui/Modal';
+import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
 
 interface UserFormProps {
     companyId: string;
@@ -140,8 +141,9 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="flex-1 p-4 w-full space-y-6 overflow-y-auto pb-10">
-                {/* Email */}
+            <form onSubmit={handleSubmit}>
+                <KeyboardAwareScrollView className="flex-1 p-4 w-full space-y-6 pb-10" extraPadding={30}>
+                    {/* Email */}
                 <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">E-mail *</label>
                     <input
@@ -251,6 +253,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                         maxLength={15}
                     />
                 </div>
+                </KeyboardAwareScrollView>
             </form>
 
             <ButtonSave

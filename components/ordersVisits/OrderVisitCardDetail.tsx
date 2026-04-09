@@ -200,7 +200,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                 </div>
 
                 {/* Add Member Footer */}
-                {onAddTeamMember && !visit.isFiled && [1, 4].includes(Number(visit.ovProcessingId || 1)) && (
+                {onAddTeamMember && !visit.isFiled && [1, 2, 3, 4].includes(Number(visit.ovProcessingId || 1)) && (
                     <div className="pt-2 flex gap-2">
                         <div className="flex-1">
                             <Select

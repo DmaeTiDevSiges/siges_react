@@ -40,7 +40,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForg
 
         try {
             const company = companies.find(cc => cc.id === companyId);
-            const fullEmail = `${username}${company?.emailSuffix || ''}`;
+            // Remove espaços em branco antes e depois do username
+            const trimmedUsername = username.trim();
+            const fullEmail = `${trimmedUsername}${company?.emailSuffix || ''}`;
 
             await dataService.signIn(fullEmail, password);
             onLoginSuccess();

@@ -4,6 +4,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { ButtonSave } from '../../components/ui/ButtonSave';
 import { dataService } from '../../services/dataService';
+import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
 
 interface TeamFormProps {
     departmentId?: string;
@@ -85,39 +86,41 @@ export const TeamForm: React.FC<TeamFormProps> = ({
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="flex-1 p-4 space-y-6 overflow-y-auto pb-10">
-                <Input
-                    label="Nome da Equipe"
-                    placeholder="Ex: Equipe de Cadastro"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    required
-                />
-
-                <Input
-                    label="Código"
-                    placeholder="Ex: EP-CAD"
-                    value={form.code}
-                    onChange={(e) => setForm({ ...form, code: e.target.value })}
-                    required
-                />
-
-                {(companyId || departments.length > 0) && (
-                    <Select
-                        label="Departamento"
-                        value={form.departmentId}
-                        onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
-                        disabled={loadingDepartments}
+            <form onSubmit={handleSubmit}>
+                <KeyboardAwareScrollView className="flex-1 p-4 space-y-6 pb-10" extraPadding={30}>
+                    <Input
+                        label="Nome da Equipe"
+                        placeholder="Ex: Equipe de Cadastro"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
                         required
-                    >
-                        <option value="">Selecione um departamento</option>
-                        {departments.map(dept => (
-                            <option key={dept.id} value={dept.id}>
-                                {dept.name} ({dept.code})
-                            </option>
-                        ))}
-                    </Select>
-                )}
+                    />
+
+                    <Input
+                        label="Código"
+                        placeholder="Ex: EP-CAD"
+                        value={form.code}
+                        onChange={(e) => setForm({ ...form, code: e.target.value })}
+                        required
+                    />
+
+                    {(companyId || departments.length > 0) && (
+                        <Select
+                            label="Departamento"
+                            value={form.departmentId}
+                            onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+                            disabled={loadingDepartments}
+                            required
+                        >
+                            <option value="">Selecione um departamento</option>
+                            {departments.map(dept => (
+                                <option key={dept.id} value={dept.id}>
+                                    {dept.name} ({dept.code})
+                                </option>
+                            ))}
+                        </Select>
+                    )}
+                </KeyboardAwareScrollView>
             </form>
 
             <ButtonSave
