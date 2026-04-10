@@ -2696,7 +2696,7 @@ export const dataService = {
             console.error('Unexpected error during sign out:', e);
         } finally {
             localStorage.clear();
-            window.location.href = '/login'; // Force navigation to login instead of just reload
+            window.location.href = '/'; // Redirect to root so Nginx serves the SPA correctly
         }
     },
 
