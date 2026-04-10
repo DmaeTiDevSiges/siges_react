@@ -2239,12 +2239,19 @@ const App: React.FC = () => {
     );
   }
 
+  // Reset-password must be checked BEFORE the !currentUser guard.
+  // Supabase recovery sessions authenticate the user automatically, so currentUser
+  // will be set — but we still need to show the password reset form.
+  if (authScreen === 'reset-password') {
+    return <ResetPasswordScreen onSuccess={() => {
+      setAuthScreen('login');
+      setCurrentUser(null); // Force re-auth after password change
+    }} />;
+  }
+
   if (!currentUser) {
     if (authScreen === 'forgot-password') {
       return <ForgotPasswordScreen onBack={() => setAuthScreen('login')} />;
-    }
-    if (authScreen === 'reset-password') {
-      return <ResetPasswordScreen onSuccess={() => setAuthScreen('login')} />;
     }
     return (
       <LoginScreen 
