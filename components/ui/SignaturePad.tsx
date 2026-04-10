@@ -45,7 +45,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
             
             // Detectar tema para cor do traço
             const isDarkMode = document.documentElement.classList.contains('dark');
-            ctx.strokeStyle = isDarkMode ? '#f8fafc' : '#0f172a'; // Branco no dark, Preto no light
+            ctx.strokeStyle = isDarkMode ? '#FFFFFF' : '#000000'; // Branco puro no dark, Preto puro no light
 
             // Restore image if resizied
             if (tempImage) {
@@ -92,12 +92,11 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.lineWidth = 3;
-        const isDarkMode = document.documentElement.classList.contains('dark');
-        ctx.strokeStyle = isDarkMode ? '#f8fafc' : '#0f172a';
-
-        points.current = [{ x, y }];
         setIsDrawing(true);
         setIsEmpty(false);
+
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        ctx.strokeStyle = isDarkMode ? '#FFFFFF' : '#000000';
 
         ctx.beginPath();
         ctx.moveTo(x, y);

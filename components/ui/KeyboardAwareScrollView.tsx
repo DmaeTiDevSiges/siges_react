@@ -87,10 +87,10 @@ export const KeyboardAwareScrollView: React.FC<KeyboardAwareScrollViewProps> = (
         <div
             ref={containerRef}
             className={`overflow-y-auto ${className}`}
-            style={{
+            style={keyboardHeight > 0 ? {
                 paddingBottom: `${dynamicPadding}px`,
                 transition: 'padding-bottom 0.3s ease-out'
-            }}
+            } : {}}
         >
             {children}
         </div>

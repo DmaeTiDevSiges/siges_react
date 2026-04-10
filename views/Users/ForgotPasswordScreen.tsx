@@ -38,11 +38,24 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
             const company = companies.find(cc => cc.id === companyId);
             const fullEmail = `${username}${company?.emailSuffix || ''}`;
 
-            await dataService.resetPassword(fullEmail);
+            // A requisição de SMTP do Supabase no Easypanel costuma demorar e voltar 504 (Gateway Timeout), 
+            // porém o e-mail é de fato enviado no background. 
+            // Para não deixar o usuário esperando 30 segundos, forçamos um sucesso visual em 5s se ele não falhar de cara.
+            await Promise.race([
+                dataService.resetPassword(fullEmail),
+                new Promise(resolve => setTimeout(resolve, 5000))
+            ]);
+            
             setSuccess(true);
         } catch (err: any) {
             console.error('Reset request error:', err);
-            setError('Ocorreu um erro ao tentar enviar o e-mail de recuperação. Verifique seus dados.');
+            
+            // Caso ocorra o 504 rapidamente, também interpretamos como sucesso visual
+            if (err?.name === 'AuthRetryableFetchError' || String(err).includes('504') || String(err).includes('Gateway Timeout')) {
+                setSuccess(true);
+            } else {
+                setError('Ocorreu um erro ao tentar enviar o e-mail de recuperação. Verifique seus dados.');
+            }
         } finally {
             setLoading(false);
         }

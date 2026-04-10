@@ -428,7 +428,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
 
-            <KeyboardAwareScrollView className="p-4 pb-24 md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
+            <KeyboardAwareScrollView className="p-4 pb-32 md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
                 {renderTabContent()}
             </KeyboardAwareScrollView>
 

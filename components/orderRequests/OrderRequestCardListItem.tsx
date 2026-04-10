@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Order } from '../../types';
 import { Card } from '../ui/Card';
 import { CompanyAvatar } from '../ui/CompanyAvatar';
 import { Avatar } from '../ui/Avatar';
 import { formatDateTime, getPriorityColor, getStatusConfig } from '../../utils/formatters';
 import { OrderActionManager } from './OrderActionManager';
+import { dataService } from '../../services/dataService';
+import { PhotoViewer } from '../ui/PhotoViewer';
 
 interface OrderRequestCardListItemProps {
     order: Order;
@@ -15,7 +17,48 @@ interface OrderRequestCardListItemProps {
 }
 
 export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> = ({ order: req, onClick, onSuccess, noBorder, noShadow }) => {
+    const [showViewer, setShowViewer] = useState(false);
+    const [viewerIndex, setViewerIndex] = useState(0);
     const statusCfg = getStatusConfig(req.statusId);
+
+    const imageUrls = useMemo(() => {
+        // Robust handling of image filenames: handles camelCase, snake_case, and string or array formats
+        let files = req.imgFilesNames || (req as any).img_files_names || req.images;
+
+        if (typeof files === 'string' && files.length > 0) {
+            try {
+                if (files.startsWith('[') || files.startsWith('{')) {
+                    files = JSON.parse(files.replace('{', '[').replace('}', ']'));
+                } else {
+                    files = files.split(',').map(s => s.trim());
+                }
+            } catch (e) {
+                // Manual parse for postgres array format if JSON.parse fails
+                files = files.replace(/[{}]/g, '').split(',').map(s => s.trim().replace(/"/g, ''));
+            }
+        }
+
+        if (!files || !Array.isArray(files) || files.length === 0) return [];
+
+        // Prefer explicit path from DB if available
+        const folderPath = req.imgFilePath || (req as any).img_file_path || (req.companyId && req.id ? `companies/${req.companyId}/orders/${req.id}/images` : null);
+
+        if (!folderPath) return [];
+
+        return files.map(filename =>
+            dataService.getPublicImageUrl(
+                folderPath,
+                filename,
+                { width: 400, height: 400, resize: 'cover' }
+            ) || ''
+        ).filter(url => url !== '');
+    }, [req.imgFilesNames, (req as any).img_files_names, req.images, req.imgFilePath, (req as any).img_file_path, req.companyId, req.id]);
+
+    const handleImageClick = (e: React.MouseEvent, index: number) => {
+        e.stopPropagation();
+        setViewerIndex(index);
+        setShowViewer(true);
+    };
 
     return (
         <Card
@@ -46,9 +89,31 @@ export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> =
                     : req.typeDescription}
             </p>
             <div className="relative">
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-1 leading-tight whitespace-pre-line flex-1 pr-6">{req.requestedServices}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 leading-tight whitespace-pre-line flex-1 pr-6">{req.requestedServices}</p>
                 <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 absolute -right-2 top-0.5">chevron_right</span>
             </div>
+
+            {/* Image Gallery */}
+            {imageUrls.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 items-center" onClick={(e) => e.stopPropagation()}>
+                    {imageUrls.map((url, index) => (
+                        <div
+                            key={index}
+                            onClick={(e) => handleImageClick(e, index)}
+                            className="shrink-0 w-[80px] h-[80px] rounded-lg overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm cursor-pointer hover:opacity-90 transition-opacity relative group"
+                        >
+                            <Avatar
+                                src={url}
+                                alt={`Imagem ${index + 1}`}
+                                shape="rounded"
+                                className="w-full! h-full! rounded-none!"
+                                imageClassName="hover:scale-105 transition-transform duration-500 object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mb-2">
                 <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -105,6 +170,15 @@ export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> =
                     </div>
                 </div>
             </div>
+            {showViewer && (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <PhotoViewer
+                        images={imageUrls}
+                        initialIndex={viewerIndex}
+                        onClose={() => setShowViewer(false)}
+                    />
+                </div>
+            )}
         </Card>
     );
 };

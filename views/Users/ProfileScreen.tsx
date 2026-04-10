@@ -9,6 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 import { FaceDetectionCamera } from '../../components/ui/FaceDetectionCamera';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
 import { ButtonSave } from '../../components/ui/ButtonSave';
+import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 
 
 
@@ -75,6 +76,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [teamMembers, setTeamMembers] = useState<User[]>([]);
     const [avatarUrl, setAvatarUrl] = useState<string | undefined>(initialUser?.avatarUrl || user?.avatarUrl);
     const [showCamera, setShowCamera] = useState(false);
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [editingImage, setEditingImage] = useState<File | string | null>(null);
 
     // Team Management State
     const [isTeamExpanded, setIsTeamExpanded] = useState(false);
@@ -623,42 +626,68 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         {showCamera && (
                             <FaceDetectionCamera
                                 onCapture={async (img) => {
-                                    setAvatarUrl(img);
+                                    setEditingImage(img);
+                                    setIsEditorOpen(true);
                                     setShowCamera(false);
-                                    if (user?.uuid) {
-                                        try {
-                                            setSaving(true);
+                                }}
+                                onCancel={() => setShowCamera(false)}
+                            />
+                        )}
+
+                        <ImageEditorModal
+                            isOpen={isEditorOpen}
+                            imageFile={editingImage || ''}
+                            preventAnnotation={true}
+                            onClose={() => {
+                                setIsEditorOpen(false);
+                                setEditingImage(null);
+                            }}
+                            onSave={async (file) => {
+                                setIsEditorOpen(false);
+                                setEditingImage(null);
+                                
+                                // Process the edited file
+                                if (user?.uuid) {
+                                    try {
+                                        setSaving(true);
+                                        const reader = new FileReader();
+                                        reader.onloadend = async () => {
+                                            const imgData = reader.result as string;
+                                            setAvatarUrl(imgData);
+                                            
                                             await dataService.updateProfile(user.uuid, {
-                                                avatarUrl: img
+                                                avatarUrl: imgData
                                             });
+                                            
                                             if (onUserUpdate) {
                                                 onUserUpdate({
                                                     ...user,
-                                                    avatarUrl: img
+                                                    avatarUrl: imgData
                                                 } as User);
                                             }
+                                            
                                             setModal({
                                                 isOpen: true,
                                                 title: 'Sucesso',
                                                 message: 'Avatar atualizado com sucesso!',
                                                 type: 'success'
                                             });
-                                        } catch (error) {
-                                            console.error("Error updating avatar", error);
-                                            setModal({
-                                                isOpen: true,
-                                                title: 'Erro',
-                                                message: 'Falha ao atualizar avatar no servidor.',
-                                                type: 'error'
-                                            });
-                                        } finally {
-                                            setSaving(false);
-                                        }
+                                        };
+                                        reader.readAsDataURL(file);
+                                    } catch (error) {
+                                        console.error("Error updating avatar", error);
+                                        setModal({
+                                            isOpen: true,
+                                            title: 'Erro',
+                                            message: 'Falha ao atualizar avatar no servidor.',
+                                            type: 'error'
+                                        });
+                                    } finally {
+                                        setSaving(false);
                                     }
-                                }}
-                                onCancel={() => setShowCamera(false)}
-                            />
-                        )}
+                                }
+                            }}
+                        />
 
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
                             {user?.nameFull || 'Nome do Usuário'}

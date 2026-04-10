@@ -8,6 +8,7 @@ import { OptimizedImage } from '../../ui/OptimizedImage';
 import { PhotoViewer } from '../../ui/PhotoViewer';
 import { Input } from '../../ui/Input';
 import { ImageUploadSheet } from '../../ui/ImageUploadSheet';
+import { ImageEditorModal } from '../../ui/ImageEditorModal';
 
 interface MaintenanceChecklistViewProps {
     ovAssetId: string;
@@ -41,6 +42,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
     const [expandedImages, setExpandedImages] = useState<string[] | null>(null);
     const [deletingPhotos, setDeletingPhotos] = useState<Set<string>>(new Set());
     const [uploadSheetOpenId, setUploadSheetOpenId] = useState<string | null>(null);
+    const [editingPhoto, setEditingPhoto] = useState<{ activityId: string, fileName: string, src: string } | null>(null);
     
     const lastSyncedProgress = useRef<number>(-1);
 
@@ -106,7 +108,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
             const [planSections, currentResponses, historyResponses] = await Promise.all([
                 dataService.getMaintenancePlanSections(planId),
                 dataService.getMaintenanceChecklistItems(ovAssetId, planId),
-                assetId ? dataService.getGlobalMaintenanceChecklistItems(assetId, planId) : Promise.resolve([])
+                assetId ? dataService.getGlobalMaintenanceChecklistItems(assetId, planId, ovAssetId) : Promise.resolve([])
             ]);
 
             console.log('Fetched sections:', planSections.length);
@@ -328,7 +330,6 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
         }
     };
 
-
     const getFullImageUrl = (activityId: string, fileName: string) => {
         const response = checklistResponses[activityId];
         const resOvAssetId = response?.orderVisitAssetId || ovAssetId;
@@ -337,6 +338,56 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
     };
 
     const isPlanLocked = initialPlanId != null && initialPlanId !== '' && initialPlanId !== '0' && Number(initialPlanId) !== 0;
+
+    const handleEditPhoto = (activityId: string, fileName: string) => {
+        const src = getFullImageUrl(activityId, fileName);
+        setEditingPhoto({ activityId, fileName, src });
+    };
+
+    const handleSaveEditedPhoto = async (editedFile: File) => {
+        if (!editingPhoto) return;
+        const { activityId, fileName } = editingPhoto;
+
+        try {
+            const uploadPromise = async () => {
+                // 1. Upload new version
+                const uploadResult = await dataService.uploadChecklistImage(ovAssetId, activityId, editedFile, companyId, assetId);
+
+                // 2. Remove old version from checklist data
+                const response = checklistResponses[activityId];
+                if (response && response.imgFilesNames) {
+                    const updatedPhotos = response.imgFilesNames.map(f => f === fileName ? uploadResult.filename : f);
+                    
+                    const updatedResponse = await dataService.upsertMaintenanceChecklistItem(
+                        ovAssetId,
+                        selectedPlanId,
+                        activityId,
+                        userId,
+                        { 
+                            imgFilesNames: updatedPhotos,
+                            imgFilePath: uploadResult.path
+                        }
+                    );
+
+                    if (updatedResponse) {
+                        setChecklistResponses(prev => ({
+                            ...prev,
+                            [activityId]: updatedResponse
+                        }));
+                    }
+                }
+                setEditingPhoto(null);
+            };
+
+            toast.promise(uploadPromise(), {
+                loading: 'Salvando edições...',
+                success: 'Foto editada com sucesso!',
+                error: 'Erro ao salvar edições'
+            });
+        } catch (error) {
+            console.error('Error saving edited photo:', error);
+        }
+    };
 
     return (
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
@@ -536,15 +587,27 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                             />
                                                                         </div>
                                                                         {!isItemDisabled && (
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    handleRemovePhoto(activity.activityId, img);
-                                                                                }}
-                                                                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center z-20 shadow-md border-2 border-white dark:border-slate-900"
-                                                                            >
-                                                                                <span className="material-symbols-outlined text-[10px] font-bold">close</span>
-                                                                            </button>
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleRemovePhoto(activity.activityId, img);
+                                                                                    }}
+                                                                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center z-20 shadow-md border-2 border-white dark:border-slate-900"
+                                                                                >
+                                                                                    <span className="material-symbols-outlined text-[10px] font-bold">close</span>
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleEditPhoto(activity.activityId, img);
+                                                                                    }}
+                                                                                    className="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-500 text-white rounded-full flex items-center justify-center z-20 shadow-md border-2 border-white dark:border-slate-900"
+                                                                                    title="Editar foto"
+                                                                                >
+                                                                                    <span className="material-symbols-outlined text-[10px] font-bold">edit</span>
+                                                                                </button>
+                                                                            </>
                                                                         )}
                                                                     </div>
                                                                 ))}
@@ -631,6 +694,15 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                     if (uploadSheetOpenId) handleTakePhoto(uploadSheetOpenId, CameraSource.Camera);
                 }}
             />
+
+            {editingPhoto && (
+                <ImageEditorModal
+                    isOpen={!!editingPhoto}
+                    imageFile={editingPhoto.src}
+                    onClose={() => setEditingPhoto(null)}
+                    onSave={handleSaveEditedPhoto}
+                />
+            )}
         </div>
     );
 };

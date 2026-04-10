@@ -12,6 +12,7 @@ import { DynamicField } from '../../components/ui/DynamicField';
 import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 
 
 interface AssetFormProps {
@@ -84,6 +85,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
     );
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isPhotoSheetOpen, setIsPhotoSheetOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     // Dynamic attributes state
     const [attributes, setAttributes] = useState<AssetAttribute[]>([]);
@@ -282,6 +284,13 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
         } finally {
             setIsPhotoSheetOpen(false);
         }
+    };
+
+    const handleSaveEditedImage = (editedFile: File) => {
+        const newUrl = URL.createObjectURL(editedFile);
+        setImagePreview(newUrl);
+        setImageFile(editedFile);
+        setIsEditing(false);
     };
 
     useEffect(() => {
@@ -600,13 +609,24 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                             size="md"
                                             className="border-2 border-slate-100 dark:border-white/5 shadow-md h-16 w-16"
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsPhotoSheetOpen(true)}
-                                            className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-blue-600 transition-colors border-2 border-white dark:border-slate-900"
-                                        >
-                                            <span className="material-symbols-outlined text-sm font-black">photo_camera</span>
-                                        </button>
+                                        <div className="absolute -bottom-2 -right-2 flex gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsPhotoSheetOpen(true)}
+                                                className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-blue-600 transition-colors border-2 border-white dark:border-slate-900"
+                                            >
+                                                <span className="material-symbols-outlined text-sm font-black">photo_camera</span>
+                                            </button>
+                                            {imagePreview && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsEditing(true)}
+                                                    className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-indigo-600 transition-colors border-2 border-white dark:border-slate-900"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm font-black">edit</span>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 

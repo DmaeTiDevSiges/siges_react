@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
+import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 
 export interface OrderRequestFormProps {
@@ -61,6 +62,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
     const [isLoading, setIsLoading] = useState(false);
     const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
     const [isPhotoActionOpen, setIsPhotoActionOpen] = useState(false);
+    const [editingImage, setEditingImage] = useState<{ url: string | File; index: number | null } | null>(null);
 
     useEffect(() => {
         const loadLists = async () => {
@@ -214,25 +216,17 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
         try {
             const result = await Camera.pickImages({
                 quality: 80,
-                limit: 4 - totalPhotos
+                limit: 1 // Sequential editing
             });
 
             if (result.photos.length > 0) {
-                const newFiles: File[] = [];
-                const newPreviews: string[] = [];
-
-                for (const photo of result.photos) {
-                    if (photo.webPath) {
-                        newPreviews.push(photo.webPath);
-                        const response = await fetch(photo.webPath);
-                        const blob = await response.blob();
-                        const file = new File([blob], `os_evidence_${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${photo.format}`, { type: blob.type });
-                        newFiles.push(file);
-                    }
+                const photo = result.photos[0];
+                if (photo.webPath) {
+                    const response = await fetch(photo.webPath);
+                    const blob = await response.blob();
+                    const file = new File([blob], `os_evidence_${Date.now()}.${photo.format}`, { type: blob.type });
+                    setEditingImage({ url: file, index: null });
                 }
-
-                setPreviewUrls(prev => [...prev, ...newPreviews]);
-                setSelectedFiles(prev => [...prev, ...newFiles]);
             }
         } catch (error) {
             console.error('Error picking images', error);
@@ -255,11 +249,10 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
             });
 
             if (image.webPath) {
-                setPreviewUrls(prev => [...prev, image.webPath!]);
                 const response = await fetch(image.webPath);
                 const blob = await response.blob();
                 const file = new File([blob], `os_evidence_${Date.now()}.${image.format}`, { type: blob.type });
-                setSelectedFiles(prev => [...prev, file]);
+                setEditingImage({ url: file, index: null });
             }
         } catch (error) {
             console.error('Error taking photo', error);
@@ -273,6 +266,31 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
 
     const removeExistingPhoto = (index: number) => {
         setExistingImages(prev => prev.filter((_, i) => i !== index));
+    };
+    const handleSaveEditedImage = (editedFile: File) => {
+        if (!editingImage) return;
+
+        const newUrl = URL.createObjectURL(editedFile);
+
+        if (editingImage.index !== null) {
+            // Editing existing
+            setPreviewUrls(prev => {
+                const next = [...prev];
+                next[editingImage.index!] = newUrl;
+                return next;
+            });
+            setSelectedFiles(prev => {
+                const next = [...prev];
+                next[editingImage.index!] = editedFile;
+                return next;
+            });
+        } else {
+            // Adding new
+            setPreviewUrls(prev => [...prev, newUrl]);
+            setSelectedFiles(prev => [...prev, editedFile]);
+        }
+
+        setEditingImage(null);
     };
 
     const handleSubmit = async (): Promise<boolean> => {
@@ -529,6 +547,25 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                     options={orderPlans.map(p => ({ value: p.id, label: p.description }))}
                                     placeholder="Nenhum plano selecionado"
                                 />
+
+                                <div className="flex gap-4 py-4 pt-2">
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handlePrev}
+                                        className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm min-h-[52px] rounded-2xl"
+                                        disabled={isLoading}
+                                    >
+                                        Cancelar
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleNext}
+                                        className={`flex-1 min-h-[52px] rounded-2xl ${!isStep1Valid ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={!isStep1Valid || isLoading}
+                                    >
+                                        Próximo
+                                    </Button>
+                                </div>
                             </section>
                         )}
 
@@ -543,9 +580,9 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                         const folderPath = initialData?.imgFilePath || `companies/${initialData?.companyId}/orders/${initialData?.id}/images`;
                                         const imageUrl = dataService.getPublicImageUrl(folderPath, img);
                                         return (
-                                            <div key={`ss-img-${index}`} className="relative group rounded-[12px] overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-32 shadow-sm cursor-pointer" onClick={() => setExpandedImageUrl(imageUrl)}>
+                                            <div key={`ss-img-${index}`} className="relative group rounded-[12px] overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-32 shadow-sm cursor-pointer" onClick={() => setExpandedImageUrl(imageUrl || null)}>
                                                 <div className="absolute top-1.5 left-1.5 z-10 bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">SS</div>
-                                                <OptimizedImage src={imageUrl} alt={`Evidence SS ${index + 1}`} preset="thumbnail" className="w-full h-full object-cover" />
+                                                <OptimizedImage src={imageUrl || ""} alt={`Evidence SS ${index + 1}`} preset="thumbnail" className="w-full h-full object-cover" />
                                                 <button onClick={(e) => { e.stopPropagation(); removeExistingPhoto(index); }} className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg z-20">
                                                     <span className="material-symbols-outlined text-[18px]">delete</span>
                                                 </button>
@@ -562,9 +599,28 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                             <div key={`new-img-${index}`} className="relative group rounded-[12px] overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-32 shadow-sm cursor-pointer" onClick={() => setExpandedImageUrl(url)}>
                                                 <div className="absolute top-1.5 left-1.5 z-10 bg-blue-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">NOVA</div>
                                                 <OptimizedImage src={url} alt={`Evidence ${photoNumber}`} className="w-full h-full object-cover" preset="thumbnail" />
-                                                <button onClick={(e) => { e.stopPropagation(); removePhoto(index); }} className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg z-20">
-                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                </button>
+
+                                                <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 z-20">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            removePhoto(index);
+                                                        }}
+                                                        className="w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditingImage({ url, index });
+                                                        }}
+                                                        className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                    </button>
+                                                </div>
+
                                                 <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px]">
                                                     <p className="text-[10px] text-white font-bold uppercase tracking-wider">FOTO {photoNumber}</p>
                                                 </div>
@@ -581,34 +637,34 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                         </div>
                                     )}
                                 </div>
+
+                                <div className="flex gap-4 py-6 mt-4">
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handlePrev}
+                                        className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm min-h-[52px] rounded-2xl"
+                                        disabled={isLoading}
+                                    >
+                                        Voltar
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleSubmit}
+                                        disabled={isLoading}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 min-h-[52px] rounded-2xl"
+                                    >
+                                        {isLoading ? 'Enviando...' : 'Enviar'}
+                                    </Button>
+                                </div>
                             </section>
                         )}
                     </div>
-
-                    {/* Footer Actions Moved to Bottom of Form */}
-                    {!hideFooter && (
-                        <div className="flex gap-3 px-5 py-6 mt-4">
-                            <button
-                                onClick={handlePrev}
-                                className="flex-1 px-4 py-2 text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 font-bold uppercase tracking-widest text-xs disabled:opacity-50 transition-all rounded-lg"
-                                disabled={isLoading}
-                            >
-                                {step === 1 ? 'Cancelar' : 'Voltar'}
-                            </button>
-                            <Button
-                                onClick={handleNext}
-                                loading={isLoading}
-                                className={`flex-2 ${step === 2 ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20' : 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/20'} text-white shadow-lg uppercase tracking-widest font-black text-xs rounded-lg`}
-                            >
-                                {step === 2 ? 'ENVIAR' : 'PRÓXIMO'}
-                            </Button>
-                        </div>
-                    )}
                 </div>
+
             </div>
 
             {expandedImageUrl && (
-                <PhotoViewer src={expandedImageUrl} onClose={() => setExpandedImageUrl(null)} alt="Evidência da OS" />
+                <PhotoViewer src={expandedImageUrl || undefined} onClose={() => setExpandedImageUrl(null)} alt="Evidência da OS" />
             )}
 
             {isPhotoActionOpen && (
@@ -634,6 +690,15 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                         <Button variant="ghost" className="w-full mt-4" onClick={() => setIsPhotoActionOpen(false)}>Cancelar</Button>
                     </div>
                 </div>
+            )}
+
+            {editingImage && (
+                <ImageEditorModal
+                    isOpen={!!editingImage}
+                    imageFile={editingImage?.url}
+                    onClose={() => setEditingImage(null)}
+                    onSave={handleSaveEditedImage}
+                />
             )}
         </div>
     );

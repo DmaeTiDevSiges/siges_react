@@ -12,6 +12,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
 import { ImageUploadSheet } from '../../../../components/ui/ImageUploadSheet';
+import { ImageEditorModal } from '../../../../components/ui/ImageEditorModal';
 
 // Fix for default marker icon in Leaflet + Vite
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -59,6 +60,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
     const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploadSheetOpen, setIsUploadSheetOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
         if (initialUnit?.imgFilePath && initialUnit?.imgFileName) {
@@ -95,6 +97,13 @@ export const UnitForm: React.FC<UnitFormProps> = ({
         } catch (error) {
             console.error('Error taking photo', error);
         }
+    };
+
+    const handleSaveEditedImage = (editedFile: File) => {
+        const newUrl = URL.createObjectURL(editedFile);
+        setPreviewUrl(newUrl);
+        setSelectedFile(editedFile);
+        setIsEditing(false);
     };
 
     const [form, setForm] = useState({
@@ -334,7 +343,31 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                         className="w-full aspect-video rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center cursor-pointer hover:border-primary transition-colors overflow-hidden bg-slate-50 dark:bg-slate-900 group relative"
                     >
                         {previewUrl ? (
-                            <OptimizedImage src={previewUrl} alt="Preview" className="w-full h-full object-cover" preset="large" />
+                            <div className="relative w-full h-full">
+                                <OptimizedImage src={previewUrl} alt="Preview" className="w-full h-full object-cover" preset="large" />
+                                <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsUploadSheetOpen(true);
+                                        }}
+                                        className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform"
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsEditing(true);
+                                        }}
+                                        className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform"
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">edit</span>
+                                    </button>
+                                </div>
+                            </div>
                         ) : (
                             <div className="flex flex-col items-center gap-2">
                                 <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors text-3xl">photo_camera</span>
@@ -534,6 +567,15 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                 onSelectGallery={() => handleTakePhoto(CameraSource.Photos)}
                 onTakeCamera={() => handleTakePhoto(CameraSource.Camera)}
             />
+
+            {isEditing && previewUrl && (
+                <ImageEditorModal
+                    isOpen={isEditing}
+                    imageFile={previewUrl}
+                    onClose={() => setIsEditing(false)}
+                    onSave={handleSaveEditedImage}
+                />
+            )}
         </div>
     );
 };

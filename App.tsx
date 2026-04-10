@@ -182,10 +182,47 @@ const App: React.FC = () => {
     return (localStorage.getItem('app_theme') as 'light' | 'dark') || 'dark';
   });
 
+  // Computed once from the URL at the time the app loads.
+  // Used to know if this page load originated from a password recovery link.
+  // Covers: implicit (#type=recovery), PKCE via GoTrue (?code=), token_hash approach (?token_hash=...&type=recovery)
+  const isRecoveryFlow = (() => {
+    const params = new URLSearchParams(window.location.search);
+    return window.location.hash.includes('type=recovery') ||
+           params.get('type') === 'recovery' ||
+           params.has('token_hash') ||
+           params.has('code'); // In this app, ?code= only comes from GoTrue recovery redirects (no OAuth)
+  })();
+
   const [authScreen, setAuthScreen] = useState<'login' | 'forgot-password' | 'reset-password'>(() => {
+    const params = new URLSearchParams(window.location.search);
     if (window.location.hash.includes('type=recovery')) return 'reset-password';
+    if (params.get('type') === 'recovery') return 'reset-password';
+    if (params.has('token_hash') && params.get('type') === 'recovery') return 'reset-password';
+    // PKCE code from GoTrue — supabase-js will auto-exchange it and fire PASSWORD_RECOVERY
+    // Show reset screen immediately so the user doesn't see a flash of the login screen
+    if (params.has('code')) return 'reset-password';
     return 'login';
   });
+
+  // Safe Links bypass: verify OTP when token_hash approach is used
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get('token_hash');
+    const type = params.get('type');
+    if (tokenHash && type === 'recovery') {
+      window.history.replaceState({}, document.title, '/');
+      import('./services/supabase').then(({ supabase }) => {
+        supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error }) => {
+          if (error) {
+            console.error('Token verification failed:', error);
+            setAuthScreen('forgot-password');
+          } else {
+            setAuthScreen('reset-password');
+          }
+        });
+      });
+    }
+  }, []);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
@@ -432,9 +469,16 @@ const App: React.FC = () => {
     // Listen for auth state changes (especially for password recovery)
     const { data: { subscription: authSubscription } } = dataService.subscribeToAuthChanges((event: string) => {
       if (event === 'PASSWORD_RECOVERY') {
+        // Explicit recovery event — always show reset screen
         setAuthScreen('reset-password');
       } else if (event === 'SIGNED_IN') {
-        loadUser();
+        if (isRecoveryFlow) {
+          // SIGNED_IN can fire instead of (or after) PASSWORD_RECOVERY in PKCE flow.
+          // If we loaded from a recovery URL, keep showing the reset screen.
+          setAuthScreen('reset-password');
+        } else {
+          loadUser();
+        }
       } else if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         setAuthScreen('login');

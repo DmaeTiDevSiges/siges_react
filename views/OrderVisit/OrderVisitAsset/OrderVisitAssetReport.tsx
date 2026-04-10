@@ -19,6 +19,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { getProcessingStatus } from '../../../components/ordersVisits/OrderVisitProcessingButton';
 import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
 import { ImageUploadSheet } from '../../../components/ui/ImageUploadSheet';
+import { ImageEditorModal } from '../../../components/ui/ImageEditorModal';
 
 const Switch: React.FC<{ checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
     <button
@@ -62,10 +63,11 @@ interface ImageGridProps {
     isReadOnly: boolean;
     setExpandedImage: (img: string) => void;
     removeImage: (type: 'initial' | 'final', index: number) => void;
+    editImage: (type: 'initial' | 'final', index: number) => void;
     setPhotoActionSection: (section: 'initial' | 'final') => void;
 }
 
-const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpandedImage, removeImage, setPhotoActionSection }) => {
+const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpandedImage, removeImage, editImage, setPhotoActionSection }) => {
     return (
         <div className="space-y-2 mt-3">
             <div className="grid grid-cols-3 gap-3">
@@ -81,17 +83,32 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpa
                                     onClick={() => setExpandedImage(img)}
                                     preset="medium"
                                 />
-                                {images.length > 1 && !isReadOnly && (
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            removeImage(type, idx);
-                                        }}
-                                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg z-20"
-                                    >
-                                        <span className="material-symbols-outlined text-[14px]">delete</span>
-                                    </button>
+                                {!isReadOnly && (
+                                    <>
+                                        {images.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeImage(type, idx);
+                                                }}
+                                                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg z-20"
+                                            >
+                                                <span className="material-symbols-outlined text-[14px]">delete</span>
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                editImage(type, idx);
+                                            }}
+                                            className="absolute bottom-6 right-1 w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-lg z-20"
+                                            title="Editar imagem"
+                                        >
+                                            <span className="material-symbols-outlined text-[14px]">edit</span>
+                                        </button>
+                                    </>
                                 )}
                                 <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px] text-center">
                                     <p className="text-[8px] text-white font-bold uppercase tracking-wider">Foto {idx + 1}</p>
@@ -159,6 +176,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [showApproveMovedModal, setShowApproveMovedModal] = useState(false);
     const [visitProcessingId, setVisitProcessingId] = useState<number | null>(null);
     const [isVisitFiled, setIsVisitFiled] = useState(false);
+    const [editingImage, setEditingImage] = useState<{ type: 'initial' | 'final', index: number | null, src: string | File } | null>(null);
 
     // Asset swap state
     const [showSwapPage, setShowSwapPage] = useState(false);
@@ -529,75 +547,28 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         try {
             const result = await Camera.pickImages({
                 quality: 80,
-                limit: 3 - currentImages.length
+                limit: 1 // For auto-open flow, limit to 1 at a time for better UX
             });
 
-            const photosToUpload = result.photos.slice(0, 3 - currentImages.length);
-
-            if (photosToUpload.length > 0) {
-                setUploadingCount(photosToUpload.length);
+            if (result.photos.length > 0) {
+                const photo = result.photos[0];
+                let blob: Blob;
                 try {
-                    const newUrls: string[] = [];
-                    const newFilenames: string[] = [];
-
-                    for (const photo of photosToUpload) {
-                        let blob: Blob;
-                        try {
-                            // No APK, o pickImages retorna um webPath que as vezes falha com fetch direto
-                            // Tentamos ler via fetch, e se falhar (especialmente em caminhos locais), usamos Filesystem
-                            const response = await fetch(photo.webPath!);
-                            blob = await response.blob();
-                        } catch (fetchError) {
-                            console.warn('Fetch falhou no webPath, tentando ler via capacitor-filesystem:', photo.webPath);
-                            // Fallback para ler o arquivo nativo se o webPath falhar no WebView do Android
-                            if (photo.path) {
-                                const { Filesystem } = await import('@capacitor/filesystem');
-                                const fileData = await Filesystem.readFile({
-                                    path: photo.path
-                                });
-                                // Converter b64 para blob
-                                const responseB64 = await fetch(`data:image/${photo.format};base64,${fileData.data}`);
-                                blob = await responseB64.blob();
-                            } else {
-                                throw new Error('Não foi possível ler o arquivo da foto (caminho não encontrado)');
-                            }
-                        }
-
-                        const file = new File([blob], `report_${type}_${Date.now()}_${Math.random().toString(36).substring(7)}.${photo.format}`, { type: blob.type || `image/${photo.format}` });
-
-                        const uploadResult = await dataService.uploadOrderVisitAssetPhoto(
-                            assetId,
-                            file,
-                            type === 'initial' ? 'before' : 'after'
-                        );
-
-                        newUrls.push(photo.webPath!);
-                        newFilenames.push(uploadResult.filename);
-                    }
-
-                    if (type === 'initial') {
-                        setInitialImages(prev => [...prev, ...newUrls]);
-                        setAsset(prev => prev ? {
-                            ...prev,
-                            beforeImgFilesNames: [...(prev.beforeImgFilesNames || []), ...newFilenames],
-                            initialPhotoUrls: [...(prev.initialPhotoUrls || []), ...newUrls]
-                        } : prev);
-                    } else {
-                        setFinalImages(prev => [...prev, ...newUrls]);
-                        setAsset(prev => prev ? {
-                            ...prev,
-                            afterImgFilesNames: [...(prev.afterImgFilesNames || []), ...newFilenames],
-                            finalPhotoUrls: [...(prev.finalPhotoUrls || []), ...newUrls]
-                        } : prev);
-                    }
-                    toast.success("Fotos enviadas com sucesso!");
-                } finally {
-                    setUploadingCount(0);
+                    const response = await fetch(photo.webPath!);
+                    blob = await response.blob();
+                } catch (fetchError) {
+                    if (photo.path) {
+                        const { Filesystem } = await import('@capacitor/filesystem');
+                        const fileData = await Filesystem.readFile({ path: photo.path });
+                        const responseB64 = await fetch(`data:image/${photo.format};base64,${fileData.data}`);
+                        blob = await responseB64.blob();
+                    } else { throw fetchError; }
                 }
+                const file = new File([blob], `report_${type}_${Date.now()}.${photo.format}`, { type: blob.type });
+                setEditingImage({ type, index: null, src: file });
             }
         } catch (error) {
             console.error('Error picking images', error);
-            setUploadingCount(0);
         }
     };
 
@@ -617,39 +588,10 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             });
 
             if (image.webPath) {
-                const uploadPromise = async () => {
-                    const response = await fetch(image.webPath!);
-                    const blob = await response.blob();
-                    const file = new File([blob], `report_${type}_${Date.now()}.${image.format}`, { type: blob.type });
-
-                    const uploadResult = await dataService.uploadOrderVisitAssetPhoto(
-                        assetId,
-                        file,
-                        type === 'initial' ? 'before' : 'after'
-                    );
-
-                    if (type === 'initial') {
-                        setInitialImages(prev => [...prev, image.webPath!]);
-                        setAsset(prev => prev ? {
-                            ...prev,
-                            beforeImgFilesNames: [...(prev.beforeImgFilesNames || []), uploadResult.filename],
-                            initialPhotoUrls: [...(prev.initialPhotoUrls || []), image.webPath!]
-                        } : prev);
-                    } else {
-                        setFinalImages(prev => [...prev, image.webPath!]);
-                        setAsset(prev => prev ? {
-                            ...prev,
-                            afterImgFilesNames: [...(prev.afterImgFilesNames || []), uploadResult.filename],
-                            finalPhotoUrls: [...(prev.finalPhotoUrls || []), image.webPath!]
-                        } : prev);
-                    }
-                };
-
-                toast.promise(uploadPromise(), {
-                    loading: 'Enviando foto...',
-                    success: 'Foto salva!',
-                    error: 'Erro ao salvar foto'
-                });
+                const response = await fetch(image.webPath!);
+                const blob = await response.blob();
+                const file = new File([blob], `report_${type}_${Date.now()}.${image.format}`, { type: blob.type });
+                setEditingImage({ type, index: null, src: file });
             }
         } catch (error) {
             console.error('Error taking photo', error);
@@ -703,6 +645,97 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         } catch (error) {
             console.error('Error removing image', error);
         }
+    };
+
+    const handleSaveEditedImage = async (editedFile: File) => {
+        if (!editingImage) return;
+        const { type, index } = editingImage;
+
+        const newWebPath = URL.createObjectURL(editedFile);
+        
+        // 1. Update state immediately (Optimistic UI)
+        if (type === 'initial') {
+            setInitialImages(prev => {
+                const next = [...prev];
+                if (index !== null) next[index] = newWebPath;
+                else next.push(newWebPath);
+                return next;
+            });
+            setAsset(prev => {
+                if (!prev) return prev;
+                const nextUrls = [...(prev.initialPhotoUrls || [])];
+                if (index !== null) nextUrls[index] = newWebPath;
+                else nextUrls.push(newWebPath);
+                return { ...prev, initialPhotoUrls: nextUrls };
+            });
+        } else {
+            setFinalImages(prev => {
+                const next = [...prev];
+                if (index !== null) next[index] = newWebPath;
+                else next.push(newWebPath);
+                return next;
+            });
+            setAsset(prev => {
+                if (!prev) return prev;
+                const nextUrls = [...(prev.finalPhotoUrls || [])];
+                if (index !== null) nextUrls[index] = newWebPath;
+                else nextUrls.push(newWebPath);
+                return { ...prev, finalPhotoUrls: nextUrls };
+            });
+        }
+        
+        setEditingImage(null);
+
+        // 2. Upload in background
+        try {
+            const uploadPromise = async () => {
+                const uploadResult = await dataService.uploadOrderVisitAssetPhoto(
+                    assetId,
+                    editedFile,
+                    type === 'initial' ? 'before' : 'after'
+                );
+
+                // If editing existing, remove old version
+                if (index !== null) {
+                    const filenames = type === 'initial' ? asset?.beforeImgFilesNames : asset?.afterImgFilesNames;
+                    const oldFilename = filenames?.[index];
+                    if (oldFilename) {
+                        try {
+                            await dataService.removeOrderVisitAssetPhoto(assetId, type === 'initial' ? 'before' : 'after', oldFilename);
+                        } catch (e) { console.warn('Could not remove old image:', e); }
+                    }
+                }
+
+                // Update server-side filename in state
+                setAsset(prev => {
+                    if (!prev) return prev;
+                    if (type === 'initial') {
+                        const nextFilenames = [...(prev.beforeImgFilesNames || [])];
+                        if (index !== null) nextFilenames[index] = uploadResult.filename;
+                        else nextFilenames.push(uploadResult.filename);
+                        return { ...prev, beforeImgFilesNames: nextFilenames };
+                    } else {
+                        const nextFilenames = [...(prev.afterImgFilesNames || [])];
+                        if (index !== null) nextFilenames[index] = uploadResult.filename;
+                        else nextFilenames.push(uploadResult.filename);
+                        return { ...prev, afterImgFilesNames: nextFilenames };
+                    }
+                });
+            };
+
+            toast.promise(uploadPromise(), {
+                loading: 'Salvando no servidor...',
+                success: 'Imagem sincronizada!',
+                error: 'Erro ao sincronizar imagem'
+            });
+        } catch (error) {
+            console.error('Error in background upload:', error);
+        }
+    };
+
+    const handleEditImage = (type: 'initial' | 'final', index: number) => {
+        const src = type === 'initial' ? initialImages[index] : finalImages[index];
+        setEditingImage({ type, index, src });
     };
 
     const handleAfterClientChange = async (clientId: string) => {
@@ -762,7 +795,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     return (
         <div className="min-h-screen bg-transparent">
 
-            <div className="max-w-md mx-auto p-4 space-y-6 pb-8">
+            <div className="max-w-md mx-auto p-4 space-y-6 pb-32">
 
 
                 {asset.processingId === 4 && asset.disapprovedNotes && (
@@ -797,6 +830,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         isReadOnly={isReadOnly}
                         setExpandedImage={setExpandedImage}
                         removeImage={removeImage}
+                        editImage={handleEditImage}
                         setPhotoActionSection={setPhotoActionSection}
                     />
                 </div>
@@ -1041,6 +1075,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         isReadOnly={isReadOnly}
                         setExpandedImage={setExpandedImage}
                         removeImage={removeImage}
+                        editImage={handleEditImage}
                         setPhotoActionSection={setPhotoActionSection}
                     />
                 </div>
@@ -1217,17 +1252,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     {/* Page Header */}
                     <div className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-100 dark:border-slate-800 p-4">
                         <div className="max-w-md mx-auto flex items-center gap-4">
-                            <button 
-                                onClick={() => {
-                                    setShowSwapPage(false);
-                                    setSwapSearchCode('');
-                                    setSwapSearchResults([]);
-                                    setSelectedAssetForSwap(null);
-                                }}
-                                className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 active:scale-90 transition-all"
-                            >
-                                <span className="material-symbols-outlined">arrow_back</span>
-                            </button>
+
                             <h2 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Buscar Ativo</h2>
                         </div>
                     </div>
@@ -1372,12 +1397,24 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             )}
 
             {/* Photo Action Sheet */}
-            <ImageUploadSheet
-                isOpen={!!photoActionSection}
-                onClose={() => setPhotoActionSection(null)}
-                onSelectGallery={() => handleAddPhotos(photoActionSection!)}
-                onTakeCamera={() => takeCameraPhoto(photoActionSection!)}
-            />
+            {photoActionSection && (
+                <ImageUploadSheet
+                    isOpen={!!photoActionSection}
+                    onClose={() => setPhotoActionSection(null)}
+                    onTakeCamera={() => takeCameraPhoto(photoActionSection)}
+                    onSelectGallery={() => handleAddPhotos(photoActionSection)}
+                />
+            )}
+
+            {/* Image Editor Modal */}
+            {editingImage && (
+                <ImageEditorModal
+                    isOpen={!!editingImage}
+                    imageFile={editingImage.src}
+                    onClose={() => setEditingImage(null)}
+                    onSave={handleSaveEditedImage}
+                />
+            )}
 
             {/* Upload Progress Overlay */}
             {uploadingCount > 0 && (

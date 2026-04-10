@@ -3,6 +3,7 @@ import { Company } from '../../../types';
 import { Input } from '../../../components/ui/Input';
 import { ButtonSave } from '../../../components/ui/ButtonSave';
 import { Modal } from '../../../components/ui/Modal';
+import { ImageEditorModal } from '../../../components/ui/ImageEditorModal';
 
 interface CompanyFormProps {
     initialCompany?: Partial<Company>;
@@ -30,6 +31,8 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialCompany, onSave
         message: '',
         type: 'info'
     });
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [editingImage, setEditingImage] = useState<File | string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -123,11 +126,8 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialCompany, onSave
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
-                                            const reader = new FileReader();
-                                            reader.onloadend = () => {
-                                                setForm({ ...form, logoUrl: reader.result as string });
-                                            };
-                                            reader.readAsDataURL(file);
+                                            setEditingImage(file);
+                                            setIsEditorOpen(true);
                                         }
                                     }}
                                 />
@@ -135,6 +135,25 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialCompany, onSave
                         </div>
                     </div>
                 </div>
+
+                <ImageEditorModal
+                    isOpen={isEditorOpen}
+                    imageFile={editingImage || ''}
+                    preventAnnotation={true}
+                    onClose={() => {
+                        setIsEditorOpen(false);
+                        setEditingImage(null);
+                    }}
+                    onSave={(file) => {
+                        setIsEditorOpen(false);
+                        setEditingImage(null);
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            setForm({ ...form, logoUrl: reader.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                    }}
+                />
             </form>
 
             <ButtonSave

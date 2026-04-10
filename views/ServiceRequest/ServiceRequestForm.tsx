@@ -9,6 +9,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
+import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 
 interface ServiceRequestFormProps {
     onBack: () => void;
@@ -46,6 +47,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     const [isLoading, setIsLoading] = useState(false);
     const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
     const [isPhotoActionOpen, setIsPhotoActionOpen] = useState(false);
+    const [editingImage, setEditingImage] = useState<{ url: string | File; index: number | null } | null>(null);
 
     // Load initial data
     useEffect(() => {
@@ -121,27 +123,17 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         try {
             const result = await Camera.pickImages({
                 quality: 80,
-                limit: 4 - selectedFiles.length
+                limit: 1 // Sequential editing for better UX
             });
 
             if (result.photos.length > 0) {
-                const newFiles: File[] = [];
-                const newPreviews: string[] = [];
-
-                const photosToTake = result.photos.slice(0, 4 - selectedFiles.length);
-
-                for (const photo of photosToTake) {
-                    if (photo.webPath) {
-                        newPreviews.push(photo.webPath);
-                        const response = await fetch(photo.webPath);
-                        const blob = await response.blob();
-                        const file = new File([blob], `ss_evidence_${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${photo.format}`, { type: blob.type });
-                        newFiles.push(file);
-                    }
+                const photo = result.photos[0];
+                if (photo.webPath) {
+                    const response = await fetch(photo.webPath);
+                    const blob = await response.blob();
+                    const file = new File([blob], `ss_evidence_${Date.now()}.${photo.format}`, { type: blob.type });
+                    setEditingImage({ url: file, index: null });
                 }
-
-                setPreviewUrls(prev => [...prev, ...newPreviews]);
-                setSelectedFiles(prev => [...prev, ...newFiles]);
             }
         } catch (error) {
             console.error('Error picking images', error);
@@ -163,11 +155,10 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
             });
 
             if (image.webPath) {
-                setPreviewUrls(prev => [...prev, image.webPath!]);
                 const response = await fetch(image.webPath);
                 const blob = await response.blob();
                 const file = new File([blob], `ss_evidence_${Date.now()}.${image.format}`, { type: blob.type });
-                setSelectedFiles(prev => [...prev, file]);
+                setEditingImage({ url: file, index: null });
             }
         } catch (error) {
             console.error('Error taking photo', error);
@@ -177,6 +168,32 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     const removePhoto = (index: number) => {
         setPreviewUrls(prev => prev.filter((_, i) => i !== index));
         setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSaveEditedImage = (editedFile: File) => {
+        if (!editingImage) return;
+
+        const newUrl = URL.createObjectURL(editedFile);
+
+        if (editingImage.index !== null) {
+            // Editing existing
+            setPreviewUrls(prev => {
+                const next = [...prev];
+                next[editingImage.index!] = newUrl;
+                return next;
+            });
+            setSelectedFiles(prev => {
+                const next = [...prev];
+                next[editingImage.index!] = editedFile;
+                return next;
+            });
+        } else {
+            // New photo
+            setPreviewUrls(prev => [...prev, newUrl]);
+            setSelectedFiles(prev => [...prev, editedFile]);
+        }
+
+        setEditingImage(null);
     };
 
     const handleSubmit = async (e?: React.FormEvent) => {
@@ -250,7 +267,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
             )}
 
             <div className="flex-1 flex flex-col overflow-hidden relative">
-                <div className="flex-1 overflow-y-auto no-scrollbar pb-6">
+                <div className="flex-1 overflow-y-auto no-scrollbar">
 
                     <div className="relative h-48 w-full shrink-0 overflow-hidden">
                         <div className="absolute inset-0 bg-slate-900/60 z-10 transition-colors duration-500"
@@ -344,6 +361,25 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         );
                                     })()}
                                 </div>
+
+                                <div className="flex gap-4 py-4">
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handlePrev}
+                                        className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm min-h-[52px] rounded-2xl"
+                                        disabled={isLoading}
+                                    >
+                                        Cancelar
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleNext}
+                                        className={`flex-1 min-h-[52px] rounded-2xl ${!isStep1Valid ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={!isStep1Valid}
+                                    >
+                                        Próximo
+                                    </Button>
+                                </div>
                             </section>
                         )}
 
@@ -374,6 +410,25 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         placeholder="Descreva a necessidade com detalhes (Ex: ar condicionado pingando, lâmpada queimada...)"
                                     />
                                 </div>
+
+                                <div className="flex gap-4 py-4">
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handlePrev}
+                                        className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm min-h-[52px] rounded-2xl"
+                                        disabled={isLoading}
+                                    >
+                                        Cancelar
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleNext}
+                                        className={`flex-1 min-h-[52px] rounded-2xl ${!isStep2Valid ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={!isStep2Valid}
+                                    >
+                                        Próximo
+                                    </Button>
+                                </div>
                             </section>
                         )}
 
@@ -391,15 +446,28 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                             onClick={() => setExpandedImageUrl(url)}
                                         >
                                             <OptimizedImage src={url} alt={`Evidence ${index + 1}`} className="w-full h-full object-cover" preset="thumbnail" />
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    removePhoto(index);
-                                                }}
-                                                className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg z-20"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            </button>
+                                            
+                                            <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 z-20">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        removePhoto(index);
+                                                    }}
+                                                    className="w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingImage({ url, index });
+                                                    }}
+                                                    className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                </button>
+                                            </div>
+
                                             <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px]">
                                                 <p className="text-[9px] text-white font-bold uppercase tracking-wider">Foto {index + 1}</p>
                                             </div>
@@ -418,36 +486,26 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         </div>
                                     )}
                                 </div>
+
+                                <div className="flex gap-4 py-6 mt-4">
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handlePrev}
+                                        className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm min-h-[52px] rounded-2xl"
+                                        disabled={isLoading}
+                                    >
+                                        Voltar
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleSubmit}
+                                        disabled={isLoading}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 min-h-[52px] rounded-2xl"
+                                    >
+                                        {isLoading ? 'Enviando...' : 'Enviar'}
+                                    </Button>
+                                </div>
                             </section>
-                        )}
-                    </div>
-
-                    <div className="flex gap-3 px-4 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] bg-white dark:bg-[#0f172a] border-t border-slate-100 dark:border-slate-800 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] fixed bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom duration-300">
-                        <Button
-                            variant="secondary"
-                            onClick={handlePrev}
-                            className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm"
-                            disabled={isLoading}
-                        >
-                            {step === 3 ? 'Voltar' : 'Cancelar'}
-                        </Button>
-
-                        {step < 3 ? (
-                            <Button
-                                onClick={handleNext}
-                                className={`flex-1 ${(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                disabled={(step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid)}
-                            >
-                                Próximo
-                            </Button>
-                        ) : (
-                            <Button
-                                onClick={handleSubmit}
-                                disabled={isLoading}
-                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
-                            >
-                                {isLoading ? 'Enviando...' : 'Enviar'}
-                            </Button>
                         )}
                     </div>
                 </div>
@@ -455,7 +513,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
 
             {expandedImageUrl && (
                 <PhotoViewer
-                    src={expandedImageUrl}
+                    src={expandedImageUrl || undefined}
                     onClose={() => setExpandedImageUrl(null)}
                     alt="Evidência da Solicitação"
                 />
@@ -468,6 +526,15 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                 onTakeCamera={takeCameraPhoto}
                 title="Foto evidência"
             />
+
+            {editingImage && (
+                <ImageEditorModal
+                    isOpen={!!editingImage}
+                    imageFile={editingImage?.url}
+                    onClose={() => setEditingImage(null)}
+                    onSave={handleSaveEditedImage}
+                />
+            )}
         </div>
     );
 };

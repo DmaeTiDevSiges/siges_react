@@ -9,6 +9,7 @@ import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
+import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 
 interface UnitAssetTagAvailableFormProps {
     unitId: string;
@@ -40,6 +41,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
     const [isImageSourceSheetOpen, setIsImageSourceSheetOpen] = useState(false);
     const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
     const [unit, setUnit] = useState<{ latitude?: number; longitude?: number } | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -120,6 +122,13 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
         if (imagePreview) URL.revokeObjectURL(imagePreview);
         setSelectedImage(null);
         setImagePreview(null);
+    };
+
+    const handleSaveEditedImage = (editedFile: File) => {
+        const newUrl = URL.createObjectURL(editedFile);
+        setImagePreview(newUrl);
+        setSelectedImage(editedFile);
+        setIsEditing(false);
     };
 
     const handleSave = async () => {
@@ -332,12 +341,20 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                                             className="w-full h-full object-cover cursor-zoom-in"
                                             onClick={() => setIsPreviewOpen(true)}
                                         />
-                                        <button
-                                            onClick={removeImage}
-                                            className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-75 transition-transform z-10"
-                                        >
-                                            <span className="material-symbols-outlined text-[16px]">close</span>
-                                        </button>
+                                        <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 z-10">
+                                            <button
+                                                onClick={removeImage}
+                                                className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-75 transition-transform"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">close</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setIsEditing(true)}
+                                                className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-75 transition-transform"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">edit</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div
@@ -418,6 +435,15 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                     />
                 </div>
             </BottomSheet>
+
+            {isEditing && imagePreview && (
+                <ImageEditorModal
+                    isOpen={isEditing}
+                    imageFile={imagePreview}
+                    onClose={() => setIsEditing(false)}
+                    onSave={handleSaveEditedImage}
+                />
+            )}
         </div>
     );
 };
