@@ -548,28 +548,30 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                     placeholder="Nenhum plano selecionado"
                                 />
 
-                                <div className="flex gap-4 py-4 pt-2">
-                                    <Button
-                                        variant="secondary"
-                                        onClick={handlePrev}
-                                        className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm min-h-[52px] rounded-2xl"
-                                        disabled={isLoading}
-                                    >
-                                        Cancelar
-                                    </Button>
+                                {!hideFooter && (
+                                    <div className="flex gap-4 py-4 pt-2">
+                                        <Button
+                                            variant="secondary"
+                                            onClick={handlePrev}
+                                            className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm min-h-[52px] rounded-2xl"
+                                            disabled={isLoading}
+                                        >
+                                            Cancelar
+                                        </Button>
 
-                                    <Button
-                                        onClick={handleNext}
-                                        className={`flex-1 min-h-[52px] rounded-2xl ${!isStep1Valid ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        disabled={!isStep1Valid || isLoading}
-                                    >
-                                        Próximo
-                                    </Button>
-                                </div>
+                                        <Button
+                                            onClick={handleNext}
+                                            className={`flex-1 min-h-[52px] rounded-2xl ${!isStep1Valid ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            disabled={!isStep1Valid || isLoading}
+                                        >
+                                            Próximo
+                                        </Button>
+                                    </div>
+                                )}
                             </section>
                         )}
 
-                        {(step === 2 || hideFooter) && (
+                        {(step === 2 && !hideFooter) && (
                             <section className="space-y-3">
                                 <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                                     Adicione até 4 fotos para ajudar a equipe a identificar o problema (Opcional).
