@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Order } from '../../types';
+import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
 import { dataService } from '../../services/dataService';
 import { PhotoViewer } from '../ui/PhotoViewer';
@@ -17,9 +17,10 @@ interface ServiceRequestCardDetailProps {
     onEdit?: () => void;
     onGenerateOS?: () => void;
     onCancelSS?: () => void;
+    currentUser?: User | null;
 }
 
-export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> = ({ order: req, onClick, isFollowed, onToggleFollow, onEdit, onGenerateOS, onCancelSS }) => {
+export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> = ({ order: req, onClick, isFollowed, onToggleFollow, onEdit, onGenerateOS, onCancelSS, currentUser }) => {
     const [showMenu, setShowMenu] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const statusCfg = getStatusConfig(req.statusId);
@@ -288,7 +289,20 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                                     </button>
                                 )}
 
-
+                                {onEdit && currentUser?.isAdminSuper && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowMenu(false); onEdit?.(); }}
+                                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all active:scale-[0.98] group"
+                                    >
+                                        <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shadow-sm transition-transform group-hover:scale-110">
+                                            <span className="material-symbols-outlined text-[28px]">edit_square</span>
+                                        </div>
+                                        <div className="flex flex-col items-start text-left">
+                                            <span className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Editar SS</span>
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Alterar dados da solicitação</span>
+                                        </div>
+                                    </button>
+                                )}
 
                                 {onCancelSS && (
                                     <button

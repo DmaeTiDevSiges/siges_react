@@ -23,6 +23,13 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 <textarea
                     ref={ref}
                     id={textareaId}
+                    onFocus={(e) => {
+                        if (props.onFocus) props.onFocus(e);
+                        const target = e.target;
+                        setTimeout(() => {
+                            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 300);
+                    }}
                     className={`
                         block w-full px-4 py-3
                         bg-white dark:bg-[#1e293b] 

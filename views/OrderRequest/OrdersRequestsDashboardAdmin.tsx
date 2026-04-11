@@ -204,6 +204,19 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         localStorage.setItem('cachedStats', JSON.stringify(stats));
     }, [stats]);
 
+    // Persist Filter State
+    useEffect(() => {
+        localStorage.setItem('advancedOrdersFilters', JSON.stringify(advancedOrdersFilters));
+    }, [advancedOrdersFilters]);
+
+    useEffect(() => {
+        localStorage.setItem('appliedOrdersFilters', JSON.stringify(appliedFilters));
+    }, [appliedFilters]);
+
+    useEffect(() => {
+        localStorage.setItem('hasAppliedOrdersFilters', String(hasAppliedFilters));
+    }, [hasAppliedFilters]);
+
     // Persist Data State (Moved here to ensure all state vars are declared)
     useEffect(() => {
         try {
@@ -670,6 +683,12 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     <DashboardOrdersVisitsAdminScreen
                         currentUser={currentUser}
                         onSelectVisit={onSelectVisit || (() => { })}
+                        currentFilters={advancedOrdersFilters}
+                        onFiltersChange={setAdvancedOrdersFilters}
+                        appliedFilters={appliedFilters}
+                        onAppliedFiltersChange={setAppliedFilters}
+                        searchQuery={searchQuery}
+                        onSearchQueryChange={setSearchQuery}
                     />
                 </div>
             )}

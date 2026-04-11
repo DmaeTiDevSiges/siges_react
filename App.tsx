@@ -1461,7 +1461,10 @@ const App: React.FC = () => {
             onSelectOrder={handleOrderSelect}
             onSelectVisit={handleVisitSelect}
             onTrackUsers={handleTrackUsers}
-            onCreateServiceRequest={() => setCurrentScreen('service-request-create')}
+            onCreateServiceRequest={() => {
+              setSelectedOrder(null);
+              setCurrentScreen('service-request-create');
+            }}
             onNavigate={handleNavigate}
             activeTab={ordersDashboardTab}
           />
@@ -1473,7 +1476,10 @@ const App: React.FC = () => {
             onSelectOrder={handleOrderSelect}
             onSelectVisit={handleVisitSelect}
             onTrackUsers={handleTrackUsers}
-            onCreateServiceRequest={() => setCurrentScreen('service-request-create')}
+            onCreateServiceRequest={() => {
+              setSelectedOrder(null);
+              setCurrentScreen('service-request-create');
+            }}
             onNavigate={handleNavigate}
             activeTab="VISITAS"
           />
@@ -2212,7 +2218,7 @@ const App: React.FC = () => {
       case 'asset-tag-sub-edit': return 'Editar Posição';
       case 'notifications': return 'Notificações';
       case 'service-request-detail': return 'Detalhes da SS';
-      case 'service-request-create': return 'Nova SS';
+      case 'service-request-create': return selectedOrder?.id ? 'Editar SS' : 'Nova SS';
       case 'order-create': return 'Nova OS';
       case 'order-detail': return 'Detalhes da OS';
       case 'order-visit-execute': return 'Visita';

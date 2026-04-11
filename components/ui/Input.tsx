@@ -31,6 +31,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     <input
                         ref={ref}
                         id={inputId}
+                        onFocus={(e) => {
+                            if (props.onFocus) props.onFocus(e);
+                            const target = e.target;
+                            setTimeout(() => {
+                                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 300);
+                        }}
                         className={`
                             block w-full h-12 px-4 
                             bg-white dark:bg-[#1e293b] 

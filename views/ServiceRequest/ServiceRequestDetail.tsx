@@ -148,6 +148,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                         onEdit={onEdit}
                         onGenerateOS={onGenerateOS}
                         onCancelSS={onCancelSS}
+                        currentUser={currentUser}
                         isFollowed={order.id ? isOrderFollowed(order.id) : false}
                         onToggleFollow={async (e) => {
                             e.stopPropagation();

@@ -24,7 +24,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         const selectId = id || generatedId;
         const [isOpen, setIsOpen] = useState(false);
         const [search, setSearch] = useState('');
-        const [coords, setCoords] = useState({ left: 0, top: 0, width: 0 });
+        const [coords, setCoords] = useState({ left: 0, top: 0, width: 0, placement: 'bottom', maxHeight: 256 });
         const containerRef = useRef<HTMLDivElement>(null);
         const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -74,20 +74,56 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             const updatePosition = () => {
                 if (containerRef.current && isOpen) {
                     const rect = containerRef.current.getBoundingClientRect();
+                    const viewHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                    const viewTop = window.visualViewport ? window.visualViewport.offsetTop : 0;
+                    
+                    const spaceBelow = viewHeight - rect.bottom;
+                    const spaceAbove = rect.top - viewTop;
+                    
+                    let placement = 'bottom';
+                    let top = rect.bottom;
+                    let maxHeight = 256;
+                    
+                    if (spaceBelow < 280 && spaceAbove > spaceBelow) {
+                        placement = 'top';
+                        top = rect.top;
+                        maxHeight = Math.max(120, spaceAbove - 20);
+                    } else {
+                        maxHeight = Math.max(120, spaceBelow - 20);
+                    }
+
                     setCoords({
                         left: rect.left,
-                        top: rect.bottom + 8, // +8px for mt-2 effect
-                        width: rect.width
+                        top,
+                        width: rect.width,
+                        placement,
+                        maxHeight
                     });
                 }
+            };
+
+            const handleScroll = (e: Event) => {
+                if (dropdownRef.current?.contains(e.target as Node)) {
+                    return;
+                }
+                updatePosition();
             };
 
             if (isOpen) {
                 updatePosition();
                 document.addEventListener('mousedown', handleClickOutside);
                 window.addEventListener('resize', updatePosition);
-                // Close on scroll to avoid detached dropdowns
-                window.addEventListener('scroll', () => setIsOpen(false), true);
+                if (window.visualViewport) {
+                    window.visualViewport.addEventListener('resize', updatePosition);
+                    window.visualViewport.addEventListener('scroll', updatePosition);
+                }
+                window.addEventListener('scroll', handleScroll, true);
+                
+                setTimeout(() => {
+                    if (containerRef.current) {
+                        containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 150);
             } else {
                 setSearch(''); // Auto-clear search when closing
             }
@@ -95,7 +131,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             return () => {
                 document.removeEventListener('mousedown', handleClickOutside);
                 window.removeEventListener('resize', updatePosition);
-                window.removeEventListener('scroll', () => setIsOpen(false), true);
+                if (window.visualViewport) {
+                    window.visualViewport.removeEventListener('resize', updatePosition);
+                    window.visualViewport.removeEventListener('scroll', updatePosition);
+                }
+                window.removeEventListener('scroll', handleScroll, true);
             };
         }, [isOpen]);
 
@@ -201,73 +241,85 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                     {/* Dropdown Menu - Portaled */}
                     {isOpen && createPortal(
                         <div
-                            ref={dropdownRef}
                             style={{
                                 position: 'fixed',
                                 left: coords.left,
                                 top: coords.top,
                                 width: coords.width,
                                 zIndex: 99999, // Higher than Modal
+                                transform: coords.placement === 'top' ? 'translateY(-100%)' : 'none',
+                                pointerEvents: 'none', // Prevent the wrapper from blocking clicks
                             }}
-                            className="bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
                         >
-                            {/* Search Field */}
-                            <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
-                                <div className="relative">
-                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-lg">search</span>
-                                    <input
-                                        autoFocus
-                                        type="text"
-                                        placeholder="Filtrar opções..."
-                                        value={search}
-                                        onChange={(e) => {
-                                            setSearch(e.target.value);
-                                            if (onSearchChange) onSearchChange(e.target.value);
-                                        }}
-                                        className="w-full h-10 pl-9 pr-3 bg-white dark:bg-slate-800 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-slate-900 dark:text-white transition-all"
-                                        onClick={(e) => e.stopPropagation()}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Escape') setIsOpen(false);
-                                        }}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Options List */}
-                            <div className="max-h-64 overflow-y-auto no-scrollbar py-1">
-                                {filteredOptions.length > 0 ? (
-                                    filteredOptions.map((opt) => (
-                                        <div
-                                            key={`${opt.value}-${opt.label}`}
-                                            onClick={(e) => handleSelect(opt.value, e)}
-                                            className={`
-                                                px-4 py-2.5 text-sm cursor-pointer transition-all flex items-center justify-between
-                                                ${(multiple && Array.isArray(value) && value.includes(String(opt.value))) || (!multiple && String(opt.value) === String(value))
-                                                    ? 'bg-primary/10 text-primary font-semibold'
-                                                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'}
-                                            `}
-                                        >
-                                            <div className="flex items-center gap-3 truncate">
-                                                {multiple && (
-                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${Array.isArray(value) && value.includes(String(opt.value)) ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
-                                                        {Array.isArray(value) && value.includes(String(opt.value)) && (
-                                                            <span className="material-symbols-outlined text-white text-[12px] font-bold">check</span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                <span className="truncate">{opt.label}</span>
-                                            </div>
-                                            {!multiple && String(opt.value) === String(value) && (
-                                                <span className="material-symbols-outlined text-lg">check</span>
-                                            )}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="px-4 py-10 text-center">
-                                        <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 text-4xl mb-2">search_off</span>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Nenhum resultado encontrado.</p>
+                            <div
+                                ref={dropdownRef}
+                                style={{ maxHeight: `${coords.maxHeight}px`, pointerEvents: 'auto' }}
+                                className={`bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-in fade-in flex flex-col duration-200 ${coords.placement === 'top' ? 'mb-2' : 'mt-2'}`}
+                            >
+                                {/* Search Field */}
+                                <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+                                    <div className="relative">
+                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-lg">search</span>
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="Filtrar opções..."
+                                            value={search}
+                                            onChange={(e) => {
+                                                setSearch(e.target.value);
+                                                if (onSearchChange) onSearchChange(e.target.value);
+                                            }}
+                                            className="w-full h-10 pl-9 pr-3 bg-white dark:bg-slate-800 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-slate-900 dark:text-white transition-all"
+                                            onClick={(e) => e.stopPropagation()}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Escape') setIsOpen(false);
+                                            }}
+                                            onFocus={(e) => {
+                                                // Natively ensure search input is fully visible if keyboard causes reflow
+                                                setTimeout(() => {
+                                                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                }, 300);
+                                            }}
+                                        />
                                     </div>
-                                )}
+                                </div>
+
+                                {/* Options List */}
+                                <div className="flex-1 overflow-y-auto no-scrollbar py-1">
+                                    {filteredOptions.length > 0 ? (
+                                        filteredOptions.map((opt) => (
+                                            <div
+                                                key={`${opt.value}-${opt.label}`}
+                                                onClick={(e) => handleSelect(opt.value, e)}
+                                                className={`
+                                                    px-4 py-2.5 text-sm cursor-pointer transition-all flex items-center justify-between
+                                                    ${(multiple && Array.isArray(value) && value.includes(String(opt.value))) || (!multiple && String(opt.value) === String(value))
+                                                        ? 'bg-primary/10 text-primary font-semibold'
+                                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'}
+                                                `}
+                                            >
+                                                <div className="flex items-center gap-3 truncate">
+                                                    {multiple && (
+                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${Array.isArray(value) && value.includes(String(opt.value)) ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
+                                                            {Array.isArray(value) && value.includes(String(opt.value)) && (
+                                                                <span className="material-symbols-outlined text-white text-[12px] font-bold">check</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    <span className="truncate">{opt.label}</span>
+                                                </div>
+                                                {!multiple && String(opt.value) === String(value) && (
+                                                    <span className="material-symbols-outlined text-lg">check</span>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-4 py-10 text-center">
+                                            <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 text-4xl mb-2">search_off</span>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400">Nenhum resultado encontrado.</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>,
                         document.body

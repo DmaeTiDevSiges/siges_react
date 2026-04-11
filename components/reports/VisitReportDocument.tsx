@@ -17,7 +17,7 @@ const C = {
 
 const styles = StyleSheet.create({
     page: {
-        paddingTop: 30,
+        paddingTop: 82,
         paddingBottom: 220, // Increased to fit signatures + approval + footer at the bottom
         paddingHorizontal: 40,
         fontSize: 8,
@@ -399,6 +399,12 @@ const styles = StyleSheet.create({
         marginTop: 2,
         textAlign: 'center',
     },
+    fixedHeaderContainer: {
+        position: 'absolute',
+        top: 30,
+        left: 40,
+        right: 40,
+    },
 });
 
 
@@ -611,7 +617,10 @@ const MetaRow = ({ label, value, boldValue = false }: { label: string; value: an
 // ---------------------------------------------------------------------------
 // Main Document
 // ---------------------------------------------------------------------------
-export const VisitReportDocument = ({ data }: { data: VisitReportData }) => {
+// ---------------------------------------------------------------------------
+// Reusable Report Pages Component
+// ---------------------------------------------------------------------------
+export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
     const { visit, team = [], vehicles = [], services = [], assets = [] } = data;
 
     // Safe date for footer
@@ -622,18 +631,20 @@ export const VisitReportDocument = ({ data }: { data: VisitReportData }) => {
     const teamString = (team || []).map(m => m.userName).filter(Boolean).join(', ');
 
     return (
-        <Document title={`Relatório de Visita ${visit.ovMask || visit.id}`}>
-            <Page size="A4" style={styles.page}>
+        <Page size="A4" style={styles.page}>
 
-                {/* ── HEADER ──────────────────────────────────────────────── */}
-                <View style={styles.headerContainer}>
-                    <View style={styles.header}>
-                        <View>
-                            <Text style={styles.title}>Relatório de Visita Técnica</Text>
+                {/* ── FIXED HEADER ─────────────────────────────────────────── */}
+                <View style={styles.fixedHeaderContainer} fixed>
+                    {/* ── HEADER ──────────────────────────────────────────────── */}
+                    <View style={styles.headerContainer}>
+                        <View style={styles.header}>
+                            <View>
+                                <Text style={styles.title}>Relatório de Visita Técnica</Text>
+                            </View>
+                            {data.logoBase64 ? <Image src={data.logoBase64} style={styles.logo} /> : null}
                         </View>
-                        {data.logoBase64 ? <Image src={data.logoBase64} style={styles.logo} /> : null}
+                        <View style={styles.headerLine} />
                     </View>
-                    <View style={styles.headerLine} />
                 </View>
 
                 {/* ── DADOS DA ORDEM DE SERVIÇO ───────────────────────────── */}
@@ -856,8 +867,8 @@ export const VisitReportDocument = ({ data }: { data: VisitReportData }) => {
                                                 <Text style={styles.planProgress}>Progresso: {asset.maintenancePlanProgress || 0}%</Text>
                                             </View>
 
-                                            {asset.activities.map((act, actIdx) => {
-                                                const showSection = actIdx === 0 || act.sectionDescription !== asset.activities[actIdx - 1]?.sectionDescription;
+                                            {(asset.activities || []).map((act, actIdx) => {
+                                                const showSection = actIdx === 0 || act.sectionDescription !== (asset.activities || [])[actIdx - 1]?.sectionDescription;
                                                 return (
                                                     <React.Fragment key={actIdx}>
                                                         {showSection && (
@@ -1012,7 +1023,23 @@ export const VisitReportDocument = ({ data }: { data: VisitReportData }) => {
                         render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
                     />
                 </View>
-            </Page>
-        </Document>
+        </Page>
     );
 };
+
+// ---------------------------------------------------------------------------
+// Main Documents
+// ---------------------------------------------------------------------------
+export const VisitReportDocument = ({ data }: { data: VisitReportData }) => (
+    <Document title={`Relatório de Visita ${data.visit.ovMask || data.visit.id}`}>
+        <VisitReportPages data={data} />
+    </Document>
+);
+
+export const BatchVisitReportDocument = ({ reportsData, title }: { reportsData: VisitReportData[], title?: string }) => (
+    <Document title={title || "Relatórios de Visitas"}>
+        {reportsData.map((data, idx) => (
+            <VisitReportPages key={idx} data={data} />
+        ))}
+    </Document>
+);

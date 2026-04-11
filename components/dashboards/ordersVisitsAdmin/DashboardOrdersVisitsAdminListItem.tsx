@@ -4,6 +4,7 @@ import { Card } from '../../ui/Card';
 import { UserAvatar } from '../../ui/UserAvatar';
 import { formatDateTime, getPriorityColor, formatCurrency } from '../../../utils/formatters';
 import { IconButton } from '../../ui/IconButton';
+import { VisitReportPDFButton } from '../../reports/VisitReportPDFButton';
 
 interface DashboardOrdersVisitsAdminListItemProps {
     visit: OrderVisit;
@@ -83,6 +84,9 @@ export const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsA
 
                 {/* Progress and Action */}
                 <div className="flex items-center gap-3">
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <VisitReportPDFButton visitId={visit.id} visitMask={visit.ovMask || ''} variant="action" />
+                    </div>
                     <CircularProgress progress={visit.progress || 0} />
                     <button
                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${visit.ovProcessingId === 1 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400' :

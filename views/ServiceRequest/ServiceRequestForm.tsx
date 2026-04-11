@@ -37,13 +37,34 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         clientId: initialData?.clientId || '',
         unitId: initialData?.unitId || '',
         unitAssetTagId: initialData?.unitAssetTagId || '',
-        orderTypeId: initialData?.typeId || '',
-        priorityId: initialData?.priorityId || '',
+        orderTypeId: initialData?.orderTypeId || initialData?.typeId || '',
+        priorityId: initialData?.priorityId?.toString() || '',
         requestedServices: initialData?.requestedServices || ''
     });
 
-    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+    type PhotoItem = { file: File | null; url: string; filename: string | null };
+    const [photos, setPhotos] = useState<PhotoItem[]>(() => {
+        if (!initialData) return [];
+        let files = initialData.imgFilesNames || (initialData as any).img_files_names || initialData.images;
+        if (typeof files === 'string') {
+            try {
+                if (files.startsWith('[')) files = JSON.parse(files);
+                else files = files.split(',').map(s => s.trim());
+            } catch(e) {
+                files = files.replace(/[{}]/g, '').split(',').map(s => s.trim().replace(/"/g, ''));
+            }
+        }
+        if (!files || !Array.isArray(files) || files.length === 0) return [];
+        
+        const folderPath = initialData.imgFilePath || (initialData.companyId && initialData.id ? `companies/${initialData.companyId}/orders/${initialData.id}/images` : null);
+        if (!folderPath) return [];
+
+        return files.map(filename => ({
+            file: null,
+            filename: filename,
+            url: dataService.getPublicImageUrl(folderPath, filename, { width: 400, height: 400, resize: 'cover' }) || ''
+        })).filter(p => p.url !== '');
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
     const [isPhotoActionOpen, setIsPhotoActionOpen] = useState(false);
@@ -88,9 +109,6 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         } else {
             setUnits([]);
         }
-        if (step === 1 && formData.unitId) { // Only reset if currently editing step 1 to avoid side effects if loading pre-filled data later
-            setFormData(prev => ({ ...prev, unitId: '' }));
-        }
     }, [formData.clientId]);
 
     // Load AssetTags when Unit changes
@@ -109,13 +127,10 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         } else {
             setAssetTags([]);
         }
-        if (step === 1 && formData.unitAssetTagId) {
-            setFormData(prev => ({ ...prev, unitAssetTagId: '' }));
-        }
     }, [formData.unitId]);
 
     const handleAddPhotos = async () => {
-        if (selectedFiles.length >= 4) {
+        if (photos.length >= 4) {
             toast.error("Máximo de 4 fotos permitido");
             return;
         }
@@ -141,7 +156,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     };
 
     const takeCameraPhoto = async () => {
-        if (selectedFiles.length >= 4) {
+        if (photos.length >= 4) {
             toast.error("Máximo de 4 fotos permitido");
             return;
         }
@@ -166,8 +181,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     };
 
     const removePhoto = (index: number) => {
-        setPreviewUrls(prev => prev.filter((_, i) => i !== index));
-        setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+        setPhotos(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleSaveEditedImage = (editedFile: File) => {
@@ -177,20 +191,14 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
 
         if (editingImage.index !== null) {
             // Editing existing
-            setPreviewUrls(prev => {
+            setPhotos(prev => {
                 const next = [...prev];
-                next[editingImage.index!] = newUrl;
-                return next;
-            });
-            setSelectedFiles(prev => {
-                const next = [...prev];
-                next[editingImage.index!] = editedFile;
+                next[editingImage.index!] = { file: editedFile, url: newUrl, filename: null };
                 return next;
             });
         } else {
             // New photo
-            setPreviewUrls(prev => [...prev, newUrl]);
-            setSelectedFiles(prev => [...prev, editedFile]);
+            setPhotos(prev => [...prev, { file: editedFile, url: newUrl, filename: null }]);
         }
 
         setEditingImage(null);
@@ -206,7 +214,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
 
         setIsLoading(true);
         try {
-            const newOrder: Partial<Order> = {
+            const orderPayload: Partial<Order> = {
                 clientId: formData.clientId,
                 unitId: formData.unitId,
                 typeId: formData.orderTypeId,
@@ -215,27 +223,46 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                 requestedServices: formData.requestedServices,
             };
 
-            const createdOrder = await dataService.createServiceRequest(newOrder);
+            let savedOrder: Order;
+            
+            if (initialData?.id) {
+                savedOrder = await dataService.updateOrder(initialData.id, orderPayload);
+                toast.success("Solicitação atualizada com sucesso!");
+            } else {
+                savedOrder = await dataService.createServiceRequest(orderPayload);
+                toast.success("Solicitação enviada!");
+            }
 
-            if (selectedFiles.length > 0 && createdOrder.id && createdOrder.companyId) {
-                const uploadPromises = selectedFiles.map(file => dataService.uploadOrderImage(createdOrder.companyId!, createdOrder.id, file));
+            if (photos.length >= 0 && savedOrder.id && savedOrder.companyId) {
+                // Determine new files and keep old filenames
+                const newPhotos = photos.filter(p => p.file !== null);
+                const keptFilenames = photos.filter(p => p.filename !== null).map(p => p.filename as string);
+
+                const uploadPromises = newPhotos.map(p => dataService.uploadOrderImage(savedOrder.companyId!, savedOrder.id, p.file!));
                 const uploadResults = await Promise.all(uploadPromises);
 
-                const filenames = uploadResults.map(res => res.filename);
-                await dataService.updateOrderFiles(createdOrder.id, filenames);
+                const finalFilenames = [...keptFilenames, ...uploadResults.map(res => res.filename)];
+                
+                await dataService.updateOrderFiles(savedOrder.id, finalFilenames);
 
-                if (uploadResults.length > 0) {
-                    await dataService.updateOrderImage(createdOrder.id, uploadResults[0].path, uploadResults[0].filename);
+                if (finalFilenames.length > 0) {
+                    const heroFolderPath = `companies/${savedOrder.companyId}/orders/${savedOrder.id}/images`;
+                    await dataService.updateOrderImage(savedOrder.id, heroFolderPath, finalFilenames[0]);
+                } else {
+                    await dataService.updateOrderImage(savedOrder.id, '', '');
                 }
             }
 
-            toast.success("Solicitação enviada!");
-            if (onSubmit) onSubmit(createdOrder);
+            // Ensure we have the latest data (with all joins and images) before returning to detail screen
+            const refreshed = await dataService.getOrderById(savedOrder.id);
+            if (refreshed) savedOrder = refreshed;
+
+            if (onSubmit) onSubmit(savedOrder);
             else onBack();
 
         } catch (error) {
-            console.error("Error creating SS", error);
-            toast.error("Erro ao enviar. Tente novamente.");
+            console.error("Error saving SS", error);
+            toast.error("Erro ao salvar. Tente novamente.");
         } finally {
             setIsLoading(false);
         }
@@ -334,7 +361,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         label="Cliente"
                                         required
                                         value={formData.clientId}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, clientId: e.target.value }))}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, clientId: e.target.value, unitId: '', unitAssetTagId: '' }))}
                                         options={clients.map(c => ({ value: c.id, label: c.name }))}
                                         placeholder="Selecione o Cliente"
                                     />
@@ -343,7 +370,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         required
                                         value={formData.unitId}
                                         disabled={isUnitDisabled}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, unitId: e.target.value }))}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, unitId: e.target.value, unitAssetTagId: '' }))}
                                         options={units.map(u => ({ value: u.id, label: u.descriptionFull || u.description }))}
                                         placeholder={isUnitDisabled ? "Selecione o Cliente Primeiro" : "Selecione a Unidade"}
                                     />
@@ -441,11 +468,17 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">
-                                    {previewUrls.map((url, index) => (
-                                        <div key={index} className="relative group rounded-[12px] overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-32 shadow-sm cursor-pointer"
-                                            onClick={() => setExpandedImageUrl(url)}
+                                    {photos.map((photo, index) => (
+                                        <div
+                                            key={index}
+                                            className="relative aspect-video rounded-[14px] overflow-hidden group cursor-pointer shadow-sm min-h-[140px] bg-slate-900 border border-slate-200 dark:border-white/10"
+                                            onClick={() => setExpandedImageUrl(photo.url)}
                                         >
-                                            <OptimizedImage src={url} alt={`Evidence ${index + 1}`} className="w-full h-full object-cover" preset="thumbnail" />
+                                            <img
+                                                src={photo.url}
+                                                alt={`Evidência ${index + 1}`}
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                            />
                                             
                                             <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 z-20">
                                                 <button
@@ -460,7 +493,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        setEditingImage({ url, index });
+                                                        setEditingImage({ url: photo.url, index });
                                                     }}
                                                     className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg"
                                                 >
@@ -474,7 +507,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         </div>
                                     ))}
 
-                                    {previewUrls.length < 4 && (
+                                    {photos.length < 4 && (
                                         <div
                                             onClick={() => setIsPhotoActionOpen(true)}
                                             className="border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-[12px] h-32 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group relative overflow-hidden"
@@ -502,7 +535,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         disabled={isLoading}
                                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 min-h-[52px] rounded-2xl"
                                     >
-                                        {isLoading ? 'Enviando...' : 'Enviar'}
+                                        {isLoading ? 'Salvando...' : (initialData?.id ? 'Salvar Edição' : 'Enviar')}
                                     </Button>
                                 </div>
                             </section>

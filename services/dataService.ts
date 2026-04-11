@@ -3957,9 +3957,34 @@ export const dataService = {
         if (order.requestedServices !== undefined) dbData.requested_services = order.requestedServices;
         if (order.clientId !== undefined) dbData.client_id = order.clientId ? parseInt(order.clientId) : null;
         if (order.unitId !== undefined) dbData.unit_id = order.unitId ? parseInt(order.unitId) : null;
-        if (order.unitAssetTagId !== undefined) dbData.unit_asset_tag_id = order.unitAssetTagId ? parseInt(order.unitAssetTagId) : null;
-        if (order.assetTagId !== undefined) dbData.asset_tag_id = order.assetTagId ? parseInt(order.assetTagId) : null;
-        if (order.assetTagSubId !== undefined) dbData.asset_tag_sub_id = order.assetTagSubId ? parseInt(order.assetTagSubId) : null;
+
+        // Resolve unitAssetTagId via cfg_units_assets_tags to get the correct asset_tag_id
+        // (same logic used in createServiceRequest to avoid ID mismatch between tables)
+        if (order.unitAssetTagId !== undefined) {
+            const newUnitAssetTagId = order.unitAssetTagId ? parseInt(order.unitAssetTagId) : null;
+            dbData.unit_asset_tag_id = newUnitAssetTagId;
+
+            if (newUnitAssetTagId) {
+                const { data: tagData, error: assetTagError } = await supabase
+                    .from('cfg_units_assets_tags')
+                    .select('asset_tag_id, asset_tag_sub_id')
+                    .eq('id', newUnitAssetTagId)
+                    .single();
+
+                if (!assetTagError && tagData) {
+                    dbData.asset_tag_id = tagData.asset_tag_id ?? null;
+                    dbData.asset_tag_sub_id = tagData.asset_tag_sub_id ?? null;
+                }
+            } else {
+                // Clearing the sector clears both derived fields if explicitly set to null/empty
+                dbData.asset_tag_id = null;
+                dbData.asset_tag_sub_id = null;
+            }
+        }
+
+        // Allow direct assetTagId override only if unitAssetTagId was not provided
+        if (order.assetTagId !== undefined && order.unitAssetTagId === undefined) dbData.asset_tag_id = order.assetTagId ? parseInt(order.assetTagId) : null;
+        if (order.assetTagSubId !== undefined && order.unitAssetTagId === undefined) dbData.asset_tag_sub_id = order.assetTagSubId ? parseInt(order.assetTagSubId) : null;
         if (order.statusId !== undefined) dbData.status_id = order.statusId;
         if (order.statusAt !== undefined) dbData.status_at = order.statusAt;
         if (order.causeReasonId !== undefined) dbData.cause_reason_id = order.causeReasonId;
@@ -4004,12 +4029,25 @@ export const dataService = {
             await this.updateServiceRequestStatus(data.parent_id.toString());
         }
 
-        const updatedData = data as any;
-        return {
-            ...updatedData,
-            id: updatedData.id.toString(),
-            companyId: updatedData.company_id?.toString()
-        } as Order;
+        // Return the COMPLETE order details (includes mapping, joined names, and correctly formatted dates)
+        let fullOrder = await this.getOrderById(id);
+
+        if (!fullOrder) {
+            // Try again after 500ms if first attempt failed - views might have slight delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+            fullOrder = await this.getOrderById(id);
+        }
+
+        if (!fullOrder) {
+            const updatedData = data as any;
+            return {
+                ...updatedData,
+                id: updatedData.id.toString(),
+                companyId: updatedData.company_id?.toString()
+            } as Order;
+        }
+
+        return fullOrder;
     },
 
 

@@ -8,12 +8,17 @@ import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
 import { VisitsListPDFButton } from '../../components/reports/VisitsListPDFButton';
 import { FilterSelect } from '../../components/ui/FilterSelect';
+import { BatchVisitReportPDFButton } from '../../components/reports/BatchVisitReportPDFButton';
 
 interface DashboardOrdersVisitsAdminScreenProps {
     currentUser: User;
     onSelectVisit: (visit: OrderVisit) => void;
     currentFilters?: OrderFilters;
     onFiltersChange?: (filters: OrderFilters) => void;
+    appliedFilters?: OrderFilters;
+    onAppliedFiltersChange?: (filters: OrderFilters) => void;
+    searchQuery?: string;
+    onSearchQueryChange?: (query: string) => void;
 }
 
 interface VisitStats {
@@ -55,6 +60,7 @@ interface StatCardProps {
     active?: boolean;
     onClick?: () => void;
     styleColor?: string;
+    visits?: OrderVisitExtended[];
 }
 
 // Helper Component for Animated Count
@@ -83,7 +89,7 @@ const AnimatedCount: React.FC<{ value: number; active?: boolean; color?: string 
     );
 };
 
-const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, color, active, onClick, styleColor }) => {
+const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, color, active, onClick, styleColor, visits }) => {
     // Helper to get translucent background from HEX or tailwind
     const getIconBgStyle = () => {
         if (styleColor) return { backgroundColor: `${styleColor} 1A` }; // 10% opacity
@@ -95,12 +101,12 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, col
     return (
         <div
             onClick={onClick}
-            className={`backdrop-blur-sm p-4 rounded-[16px] border shadow-sm transition-all cursor-pointer group flex-1 min-w-[160px] lg:min-w-[180px] shrink-0 ${active
+            className={`backdrop-blur-sm p-4 rounded-[16px] border shadow-sm transition-all cursor-pointer group flex-1 min-w-[160px] lg:min-w-[180px] min-h-[110px] shrink-0 flex flex-col justify-between ${active
                 ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900'
                 : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md'
                 }`}
         >
-            <div className="flex justify-between items-start mb-2">
+            <div className="flex justify-between items-start">
                 <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${iconBgClass}`}
                     style={getIconBgStyle()}
@@ -112,13 +118,21 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, col
                         {icon}
                     </span>
                 </div>
-                {totalValue !== undefined && (
-                    <span className={`text-base font-black transition-all duration-300 ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`} style={color && !active ? { color } : undefined}>
-                        {formatCurrency(totalValue)}
-                    </span>
-                )}
+                <div className="flex flex-col items-end gap-2">
+                    {totalValue !== undefined && (
+                        <span className={`text-base font-black transition-all duration-300 ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`} style={color && !active ? { color } : undefined}>
+                            {formatCurrency(totalValue)}
+                        </span>
+                    )}
+                    {visits && visits.length > 0 && (
+                        <BatchVisitReportPDFButton 
+                            visits={visits} 
+                            filename={`relatorios-${label.toLowerCase().replace(/\s+/g, '-')}`}
+                        />
+                    )}
+                </div>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mt-4">
                 <p className={`text-[13px] font-bold ${active ? 'text-primary' : 'text-slate-500 dark:text-slate-300'}`}>{label}</p>
                 <AnimatedCount value={count} active={active} color={styleColor} />
             </div>
@@ -537,35 +551,80 @@ const InsightsMovementsBar: React.FC<{ data: { label: string; value: number; col
     );
 };
 
-export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdminScreenProps> = ({ currentUser, onSelectVisit, currentFilters, onFiltersChange }) => {
-    // Advanced Filters State
+export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdminScreenProps> = ({ 
+    currentUser, 
+    onSelectVisit, 
+    currentFilters, 
+    onFiltersChange,
+    appliedFilters: appliedFiltersProp,
+    onAppliedFiltersChange,
+    searchQuery: searchQueryProp,
+    onSearchQueryChange
+}) => {
+    // UI Filters State (What's visible in the selection bar)
     const [advancedFilters, setAdvancedFilters] = useState<OrderFilters>(() => {
         if (currentFilters) return currentFilters;
         try {
-            const saved = localStorage.getItem('advancedDashboardFilters');
+            const saved = localStorage.getItem('advancedOrdersFilters'); // Use same key as OS
             return saved ? JSON.parse(saved) : {};
         } catch (e) { return {}; }
     });
 
-    // Sync from Parent (Prop) -> Local State
+    const [searchQuery, setSearchQuery] = useState(() => {
+        if (searchQueryProp !== undefined) return searchQueryProp;
+        return '';
+    });
+
+    useEffect(() => {
+        if (searchQueryProp !== undefined) {
+            setSearchQuery(searchQueryProp);
+        }
+    }, [searchQueryProp]);
+
+    useEffect(() => {
+        if (onSearchQueryChange) {
+            onSearchQueryChange(searchQuery);
+        }
+    }, [searchQuery, onSearchQueryChange]);
+
+    // Applied Filters State (What's actually filtering the data)
+    const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => {
+        if (appliedFiltersProp) return appliedFiltersProp;
+        try {
+            const saved = localStorage.getItem('appliedOrdersFilters'); // Use same key as OS
+            return saved ? JSON.parse(saved) : {};
+        } catch (e) { return {}; }
+    });
+
+    // Sync UI Filters from Parent
     useEffect(() => {
         if (currentFilters) {
-            setAdvancedFilters(prev => {
-                if (JSON.stringify(prev) !== JSON.stringify(currentFilters)) {
-                    return currentFilters;
-                }
-                return prev;
-            });
+            setAdvancedFilters(currentFilters);
         }
     }, [currentFilters]);
 
-    // Sync from Local State -> Parent (Callback)
+    // Sync Applied Filters from Parent
+    useEffect(() => {
+        if (appliedFiltersProp) {
+            setAppliedFilters(appliedFiltersProp);
+        }
+    }, [appliedFiltersProp]);
+
+    // Notify Parent of UI Filter changes
     useEffect(() => {
         if (onFiltersChange) {
             onFiltersChange(advancedFilters);
         }
-        localStorage.setItem('advancedDashboardFilters', JSON.stringify(advancedFilters));
+        localStorage.setItem('advancedOrdersFilters', JSON.stringify(advancedFilters));
     }, [advancedFilters, onFiltersChange]);
+
+    // Notify Parent of Applied Filter changes
+    useEffect(() => {
+        if (onAppliedFiltersChange) {
+            onAppliedFiltersChange(appliedFilters);
+        }
+        localStorage.setItem('appliedOrdersFilters', JSON.stringify(appliedFilters));
+    }, [appliedFilters, onAppliedFiltersChange]);
     const [visits, setVisits] = useState<OrderVisitExtended[]>([]);
 
     // Date Range Filter State
@@ -639,7 +698,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [loading, setLoading] = useState(true);
     const initialLoadDone = React.useRef(false);
     const [activeFilter, setActiveFilter] = useState<string>('all');
-    const [searchQuery, setSearchQuery] = useState('');
     const [visitTeams, setVisitTeams] = useState<Record<string, OrderVisitTeam[]>>({});
     const [appropriationData, setAppropriationData] = useState<{
         services: any[];
@@ -1007,7 +1065,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
             // Advanced Filters helper
             const checkFilter = (filterKey: keyof OrderFilters, visitKey: keyof OrderVisitExtended) => {
-                const filterValue = (advancedFilters as any)[filterKey];
+                const filterValue = (appliedFilters as any)[filterKey];
                 if (!filterValue || (Array.isArray(filterValue) && filterValue.length === 0)) return true;
 
                 const visitValue = (visit as any)[visitKey]?.toString();
@@ -1031,12 +1089,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             if (!checkFilter('orderPlanId', 'planId')) return false;
             if (!checkFilter('orderTeamId', 'teamId')) return false;
 
-            // Global Filter: parent_id > 0 (removed as it was too restrictive for this dashboard)
-            // if (!(visit.parentId && visit.parentId > 0)) return false;
-
             return true;
         });
-    }, [visits, searchQuery, advancedFilters, dateRange]);
+    }, [visits, searchQuery, appliedFilters, dateRange]);
 
     // 2. Dynamic Stats - Calculated directly from Base Filter
     const stats = useMemo(() => {
@@ -1255,78 +1310,80 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
                 {/* Horizontal Filter Bar */}
                 <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
-                    <div className="flex flex-col p-3 gap-1">
+                    <div className="flex flex-col p-4 gap-2">
                         {/* Filters Row (Scrollable) */}
                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1">
-                            <FilterSelect
-                                label="SISTEMA"
-                                value={advancedFilters.systemParentId || []}
-                                onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterOptions.systems.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                onClear={() => handleSystemChange([])}
-                            />
-                            <FilterSelect
-                                label="SUB-SISTEMA"
-                                value={advancedFilters.systemId || []}
-                                onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                onClear={() => setAdvancedFilters(prev => ({ ...prev, systemId: [] }))}
-                                disabled={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)}
-                            />
-                            <FilterSelect
-                                label="TIPO UNIDADE"
-                                value={advancedFilters.unitTypeParentId || []}
-                                onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterOptions.unitTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                onClear={() => handleParentUnitTypeChange([])}
-                            />
-                            <FilterSelect
-                                label="SUB-TIPO UNIDADE"
-                                value={advancedFilters.unitTypeId || []}
-                                onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                onClear={() => setAdvancedFilters(prev => ({ ...prev, unitTypeId: [] }))}
-                                disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)}
-                            />
-                            <FilterSelect
-                                label="UNIDADES"
-                                value={advancedFilters.unitId || []}
-                                onClick={() => openSelectionModal('unitId', 'UNIDADES', filterOptions.units.map(opt => ({ value: String(opt.id), label: opt.description_full || opt.description })))}
-                                onClear={() => setAdvancedFilters(prev => ({ ...prev, unitId: [] }))}
-                            />
-                            <FilterSelect
-                                label="FINALIDADE"
-                                value={advancedFilters.orderObjectId || []}
-                                onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterOptions.orderObjects.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                onClear={() => setAdvancedFilters(prev => ({ ...prev, orderObjectId: [] }))}
-                            />
-                            <FilterSelect
-                                label="TIPO OS"
-                                value={advancedFilters.orderTypeId || []}
-                                onClick={() => openSelectionModal('orderTypeId', 'TIPO OS', filterOptions.orderTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                onClear={() => handleOrderTypeChange([])}
-                            />
-                            <FilterSelect
-                                label="SUB-TIPO OS"
-                                value={advancedFilters.orderTypeSubId || []}
-                                onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))}
-                                disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)}
-                            />
-                            <FilterSelect
-                                label="CONTRATO"
-                                value={advancedFilters.contractId || []}
-                                onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts.map(opt => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))}
-                                onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))}
-                            />
-                            <FilterSelect
-                                label="PLANO"
-                                value={advancedFilters.orderPlanId || []}
-                                onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterOptions.plans.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                onClear={() => setAdvancedFilters(prev => ({ ...prev, orderPlanId: [] }))}
-                            />
-                            <FilterSelect
-                                label="EQUIPE"
-                                value={advancedFilters.orderTeamId || []}
-                                onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterOptions.teams.map(opt => ({ value: String(opt.id), label: opt.name || opt.description })))}
-                                onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))}
-                            />
+                            <div className="flex items-center justify-between gap-2 min-w-full pb-1">
+                                <FilterSelect
+                                    label="SISTEMA"
+                                    value={advancedFilters.systemParentId || []}
+                                    onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterOptions.systems.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                    onClear={() => handleSystemChange([])}
+                                />
+                                <FilterSelect
+                                    label="SUB-SISTEMA"
+                                    value={advancedFilters.systemId || []}
+                                    onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, systemId: [] }))}
+                                    disabled={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)}
+                                />
+                                <FilterSelect
+                                    label="TIPO UNIDADE"
+                                    value={advancedFilters.unitTypeParentId || []}
+                                    onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterOptions.unitTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                    onClear={() => handleParentUnitTypeChange([])}
+                                />
+                                <FilterSelect
+                                    label="SUB-TIPO UNIDADE"
+                                    value={advancedFilters.unitTypeId || []}
+                                    onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, unitTypeId: [] }))}
+                                    disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)}
+                                />
+                                <FilterSelect
+                                    label="UNIDADES"
+                                    value={advancedFilters.unitId || []}
+                                    onClick={() => openSelectionModal('unitId', 'UNIDADES', filterOptions.units.map(opt => ({ value: String(opt.id), label: opt.description_full || opt.description })))}
+                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, unitId: [] }))}
+                                />
+                                <FilterSelect
+                                    label="FINALIDADE"
+                                    value={advancedFilters.orderObjectId || []}
+                                    onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterOptions.orderObjects.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, orderObjectId: [] }))}
+                                />
+                                <FilterSelect
+                                    label="TIPO OS"
+                                    value={advancedFilters.orderTypeId || []}
+                                    onClick={() => openSelectionModal('orderTypeId', 'TIPO OS', filterOptions.orderTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                    onClear={() => handleOrderTypeChange([])}
+                                />
+                                <FilterSelect
+                                    label="SUB-TIPO OS"
+                                    value={advancedFilters.orderTypeSubId || []}
+                                    onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))}
+                                    disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)}
+                                />
+                                <FilterSelect
+                                    label="CONTRATO"
+                                    value={advancedFilters.contractId || []}
+                                    onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts.map(opt => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))}
+                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))}
+                                />
+                                <FilterSelect
+                                    label="PLANO"
+                                    value={advancedFilters.orderPlanId || []}
+                                    onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterOptions.plans.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, orderPlanId: [] }))}
+                                />
+                                <FilterSelect
+                                    label="EQUIPE"
+                                    value={advancedFilters.orderTeamId || []}
+                                    onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterOptions.teams.map(opt => ({ value: String(opt.id), label: opt.name || opt.description })))}
+                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))}
+                                />
+                            </div>
                         </div>
 
                         {/* Action Row (Date Inputs + Buttons) */}
@@ -1368,7 +1425,10 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => loadData(true)}
+                                    onClick={() => {
+                                        setAppliedFilters({ ...advancedFilters });
+                                        loadData(true);
+                                    }}
                                     className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 group"
                                 >
                                     <span className="material-symbols-outlined text-xl">filter_list</span>
@@ -1391,9 +1451,11 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             color="text-slate-400"
                             active={activeFilter === 'all'}
                             onClick={() => setActiveFilter('all')}
+                            visits={baseFilteredVisits}
                         />
                         {processingStages.map(stage => {
                             const isHex = stage.icon_color && stage.icon_color.startsWith('#');
+                            const stageVisits = baseFilteredVisits.filter(v => v.ovProcessingId === stage.id);
                             return (
                                 <StatCard
                                     key={stage.id}
@@ -1405,6 +1467,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     styleColor={isHex ? stage.icon_color : undefined}
                                     active={activeFilter === String(stage.id)}
                                     onClick={() => setActiveFilter(String(stage.id))}
+                                    visits={stageVisits}
                                 />
                             );
                         })}
