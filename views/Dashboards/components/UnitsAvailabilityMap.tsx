@@ -1,7 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { CircularGauge } from '../../../components/ui/CircularGauge';
 
 // Fix for default Leaflet marker icons in some environments (like Vite)
@@ -19,8 +18,11 @@ L.Marker.prototype.options.icon = DefaultIcon;
 interface Unit {
     id: string;
     description: string;
-    latitude: number;
-    longitude: number;
+    // Both naming conventions supported (db may return either)
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+    unit_latitude?: number | string | null;
+    unit_longitude?: number | string | null;
     percentage: number;
     lastReportedAt?: string | null;
 }
@@ -37,6 +39,9 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
     const mapRef = useRef<HTMLDivElement>(null);
     const leafletMap = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
+    // Keep callback ref to avoid restarting the map on every render
+    const onUnitClickRef = useRef(onUnitClick);
+    useEffect(() => { onUnitClickRef.current = onUnitClick; }, [onUnitClick]);
 
     useEffect(() => {
         if (!mapRef.current) return;
@@ -57,6 +62,9 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
             }).addTo(leafletMap.current);
         }
 
+        // Force tile recalculation in case the container was hidden during initialization
+        setTimeout(() => leafletMap.current?.invalidateSize(), 100);
+
         // Cleanup function for markers
         const cleanup = () => {
             markersRef.current.forEach(m => m.remove());
@@ -71,10 +79,18 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
         let validCoords = 0;
 
         units.forEach(unit => {
-            if (!unit.latitude || !unit.longitude) return;
+            const lat = unit.unit_latitude ?? unit.latitude;
+            const lng = unit.unit_longitude ?? unit.longitude;
+
+            if (lat === undefined || lat === null || lng === undefined || lng === null) return;
+            
+            const latitude = typeof lat === 'string' ? parseFloat(lat) : Number(lat);
+            const longitude = typeof lng === 'string' ? parseFloat(lng) : Number(lng);
+
+            if (isNaN(latitude) || isNaN(longitude)) return;
 
             validCoords++;
-            const latLng = L.latLng(Number(unit.latitude), Number(unit.longitude));
+            const latLng = L.latLng(latitude, longitude);
             bounds.extend(latLng);
 
             // Circular Progress calculation for Marker
@@ -149,7 +165,7 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
                     }
                 })
                 .on('click', () => {
-                    onUnitClick(Number(unit.id));
+                    onUnitClickRef.current(Number(unit.id));
                     leafletMap.current?.setView(latLng, 19, { animate: true });
                 });
 
@@ -161,10 +177,10 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
         }
 
         return cleanup;
-    }, [units, onUnitClick]);
+    }, [units]); // onUnitClick excluded intentionally — handled via ref to prevent map re-init
 
     return (
-        <div className={`relative w-full h-[500px] rounded-3xl overflow-hidden border border-slate-200 dark:border-white/5 shadow-inner bg-slate-100 dark:bg-slate-900 ${className}`}>
+        <div className={`relative w-full min-h-[400px] rounded-3xl overflow-hidden border border-slate-200 dark:border-white/5 shadow-inner bg-slate-100 dark:bg-slate-900 ${className}`}>
             <div ref={mapRef} className="w-full h-full z-0" />
             
             {/* Legend Overlay */}

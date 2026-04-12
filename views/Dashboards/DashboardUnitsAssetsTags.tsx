@@ -638,7 +638,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
 
     return (
-        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark overflow-hidden">
+        <div className="flex flex-col bg-background-light dark:bg-background-dark">
             {isFullscreenMapMode ? (
                 <div className="fixed inset-0 bg-background-light dark:bg-background-dark z-8000">
                     <UnitsAvailabilityMap
@@ -712,7 +712,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     </button>
                 </div>
             ) : (
-                <div className="flex flex-col h-full px-4 sm:px-6 py-3 sm:py-4">
+                <div className="flex flex-col px-4 sm:px-6 py-3 sm:py-4">
                     {/* Header */}
                     <header className="shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-8">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-8 w-full sm:w-auto">
@@ -886,14 +886,14 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                             ))}
                         </div>
                     </section>
-                    <main className="flex-1 overflow-y-auto no-scrollbar pb-6 sm:pb-10">
+                    <main className="pb-6 sm:pb-10">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center h-80 gap-3">
                                 <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Sincronizando Ativos...</p>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-1 sm:gap-2 h-full">
+                            <div className="flex flex-col gap-1 sm:gap-2">
                                 {viewMode === 'list' ? (
                                     <div className="flex flex-col gap-1 sm:gap-2">
                                         {unitsRows.map(unit => {
@@ -967,7 +967,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="relative flex-1 w-full min-h-[400px]">
+                                    <div className="relative w-full h-[500px]">
                                         <UnitsAvailabilityMap
                                             units={unitsRows}
                                             unitTagDescription={selectedSectorName}

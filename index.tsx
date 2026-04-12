@@ -2,6 +2,7 @@ import { Buffer } from 'buffer';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import 'leaflet/dist/leaflet.css';
 import './index.css';
 import './global.css';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';

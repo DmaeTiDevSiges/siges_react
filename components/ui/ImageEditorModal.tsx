@@ -367,12 +367,70 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
     };
 
     const handleExport = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!image) return;
         setIsSaving(true);
 
-        // Export the live canvas directly — it already renders the correct result
-        canvas.toBlob((blob) => {
+        // 1. Create an offscreen canvas with exact image dimensions
+        const isRotated = rotation === 90 || rotation === 270;
+        const exportWidth = isRotated ? image.height : image.width;
+        const exportHeight = isRotated ? image.width : image.height;
+
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = exportWidth;
+        offCanvas.height = exportHeight;
+        const octx = offCanvas.getContext('2d');
+        
+        if (!octx) {
+            setIsSaving(false);
+            return;
+        }
+
+        // 2. Clear and apply rotation
+        octx.save();
+        octx.translate(exportWidth / 2, exportHeight / 2);
+        octx.rotate((rotation * Math.PI) / 180);
+        octx.translate(-image.width / 2, -image.height / 2);
+
+        // 3. Draw original image
+        octx.drawImage(image, 0, 0);
+
+        // 4. Draw all objects (annotations)
+        const allObjects = [...objects];
+        if (currentObject) allObjects.push(currentObject);
+
+        allObjects.forEach(obj => {
+            octx.strokeStyle = obj.color;
+            octx.fillStyle = obj.color;
+            octx.lineWidth = obj.lineWidth; // Use stable line width for export
+            octx.lineCap = 'round';
+            octx.lineJoin = 'round';
+
+            if (obj.type === 'pen' && obj.points && obj.points.length > 1) {
+                octx.beginPath();
+                octx.moveTo(obj.points[0].x, obj.points[0].y);
+                for (let i = 1; i < obj.points.length; i++) {
+                    octx.lineTo(obj.points[i].x, obj.points[i].y);
+                }
+                octx.stroke();
+            } else if (obj.type === 'arrow' && obj.points && obj.points.length === 2) {
+                drawArrow(octx, obj.points[0].x, obj.points[0].y, obj.points[1].x, obj.points[1].y, obj.lineWidth);
+            } else if (obj.type === 'circle' && obj.points && obj.points.length === 2) {
+                const p1 = obj.points[0];
+                const p2 = obj.points[1];
+                const radius = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                octx.beginPath();
+                octx.arc(p1.x, p1.y, radius, 0, Math.PI * 2);
+                octx.stroke();
+            } else if (obj.type === 'text' && obj.points && obj.points[0] && obj.text) {
+                octx.font = `bold ${obj.fontSize || 20}px Inter, sans-serif`;
+                octx.fillText(obj.text, obj.points[0].x, obj.points[0].y);
+            }
+        });
+
+        octx.restore();
+
+        // 5. Export result
+        offCanvas.toBlob((blob) => {
             setIsSaving(false);
             if (blob) {
                 const file = new File([blob], `edited_${Date.now()}.jpg`, { type: 'image/jpeg' });
@@ -381,7 +439,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
                 console.error("toBlob returned null");
                 alert("Erro ao processar imagem. Tente novamente.");
             }
-        }, 'image/jpeg', 0.92);
+        }, 'image/jpeg', 0.90);
     };
 
     if (!isOpen) return null;
@@ -389,24 +447,15 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 
     return createPortal(
         <div className="fixed inset-0 z-9999 bg-black flex flex-col animate-in fade-in duration-300">
-            {/* Toolbar Top */}
-            <div className="p-4 bg-linear-to-b from-black/80 to-transparent flex items-center justify-between z-10">
-                <IconButton icon="close" onClick={onClose} variant="soft" className="bg-white/10! text-white!" />
-                {!preventAnnotation && (
-                    <div className="flex gap-2 bg-white/10 p-1 rounded-2xl backdrop-blur-xl border border-white/10">
-                        <ToolButton active={mode === 'pan'} icon="pan_tool" onClick={() => setMode('pan')} />
-                        <ToolButton active={mode === 'pen'} icon="edit" onClick={() => setMode('pen')} />
-                        <ToolButton active={mode === 'arrow'} icon="trending_flat" onClick={() => setMode('arrow')} />
-                        <ToolButton active={mode === 'circle'} icon="radio_button_unchecked" onClick={() => setMode('circle')} />
-                        <ToolButton active={mode === 'text'} icon="text_fields" onClick={() => setMode('text')} />
-                    </div>
-                )}
+            {/* Toolbar Top - Only Close and OK */}
+            <div className="p-4 bg-linear-to-b from-black to-transparent flex items-center justify-between z-10">
+                <IconButton icon="close" onClick={onClose} variant="soft" size="lg" className="bg-white/10! text-white! rounded-2xl!" />
                 <Button 
                     onClick={handleExport} 
                     disabled={isSaving}
-                    className="bg-emerald-600 hover:bg-emerald-700 font-bold px-6 h-10!"
+                    className="bg-primary hover:bg-primary/90 text-white font-black px-6 h-12! rounded-2xl shadow-xl shadow-primary/20 transition-all active:scale-95"
                 >
-                    {isSaving ? 'SALVANDO...' : 'OK'}
+                    {isSaving ? '...' : 'OK'}
                 </Button>
             </div>
 
@@ -425,29 +474,43 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
                 />
             </div>
 
-            {/* Toolbar Bottom */}
-            <div className="p-4 bg-linear-to-t from-black/80 to-transparent flex items-center justify-between z-10">
-                {!preventAnnotation ? (
-                    <div className="flex gap-2">
-                        <ColorDot active={color === '#ff0000'} color="#ff0000" onClick={() => setColor('#ff0000')} />
-                        <ColorDot active={color === '#facc15'} color="#facc15" onClick={() => setColor('#facc15')} />
-                        <ColorDot active={color === '#22c55e'} color="#22c55e" onClick={() => setColor('#22c55e')} />
-                        <ColorDot active={color === '#ffffff'} color="#ffffff" onClick={() => setColor('#ffffff')} />
+            {/* Toolbar Bottom - Tools, Colors and Actions */}
+            <div className="px-4 pb-8 pt-6 bg-linear-to-t from-black to-transparent flex flex-col gap-6 z-10">
+                {!preventAnnotation && (
+                    <div className="flex justify-center">
+                        <div className="flex gap-2.5 bg-white/10 p-1.5 rounded-[24px] backdrop-blur-2xl border border-white/10 shadow-2xl">
+                            <ToolButton active={mode === 'pan'} icon="pan_tool" onClick={() => setMode('pan')} />
+                            <ToolButton active={mode === 'pen'} icon="edit" onClick={() => setMode('pen')} />
+                            <ToolButton active={mode === 'arrow'} icon="trending_flat" onClick={() => setMode('arrow')} />
+                            <ToolButton active={mode === 'circle'} icon="radio_button_unchecked" onClick={() => setMode('circle')} />
+                            <ToolButton active={mode === 'text'} icon="text_fields" onClick={() => setMode('text')} />
+                        </div>
                     </div>
-                ) : (
-                    <div />
                 )}
-                
-                <div className="flex gap-4">
-                    <IconButton icon="rotate_right" onClick={rotateImage} variant="soft" className="bg-white/10! text-white!" />
-                    {!preventAnnotation && (
-                        <IconButton icon="undo" onClick={handleUndo} disabled={objects.length === 0} variant="soft" className="bg-white/10! text-white!" />
+
+                <div className="flex items-center justify-between">
+                    {!preventAnnotation ? (
+                        <div className="flex gap-3">
+                            <ColorDot active={color === '#ff0000'} color="#ff0000" onClick={() => setColor('#ff0000')} />
+                            <ColorDot active={color === '#facc15'} color="#facc15" onClick={() => setColor('#facc15')} />
+                            <ColorDot active={color === '#22c55e'} color="#22c55e" onClick={() => setColor('#22c55e')} />
+                            <ColorDot active={color === '#ffffff'} color="#ffffff" onClick={() => setColor('#ffffff')} />
+                        </div>
+                    ) : (
+                        <div />
                     )}
+                    
+                    <div className="flex gap-4">
+                        <IconButton icon="rotate_right" onClick={rotateImage} variant="soft" size="md" className="bg-white/10! text-white! rounded-xl!" />
+                        {!preventAnnotation && (
+                            <IconButton icon="undo" onClick={handleUndo} disabled={objects.length === 0} variant="soft" size="md" className="bg-white/10! text-white! rounded-xl!" />
+                        )}
+                    </div>
                 </div>
             </div>
             
             {/* Status Hint */}
-            <div className="absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none">
+            <div className="absolute bottom-52 left-0 right-0 flex justify-center pointer-events-none">
                 <div className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-[10px] text-white/60 font-black uppercase tracking-widest border border-white/5">
                     {mode === 'pan' ? 'Use 2 dedos para zoom / Corte' : `MODO: ${mode.toUpperCase()}`}
                 </div>
@@ -460,9 +523,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 const ToolButton: React.FC<{ active: boolean; icon: string; onClick: () => void }> = ({ active, icon, onClick }) => (
     <button
         onClick={onClick}
-        className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${active ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-white/60 hover:bg-white/5'}`}
+        className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl transition-all duration-200 ${active ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110 z-10' : 'text-white/70 hover:bg-white/10 active:scale-95'}`}
     >
-        <span className="material-symbols-outlined">{icon}</span>
+        <span className="material-symbols-outlined text-xl">{icon}</span>
     </button>
 );
 

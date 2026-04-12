@@ -5,6 +5,7 @@ import { UserVisitsPanel } from '../../components/ui/UserVisitsPanel';
 import { dataService } from '../../services/dataService';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
+import { getProcessingStatus } from '../../components/ordersVisits/OrderVisitProcessingButton';
 
 interface DashboardScreenProps {
     currentUser: User | null;
@@ -197,8 +198,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                         <div className="flex-1 px-4 pb-24 overflow-y-auto no-scrollbar">
                             <div className="flex items-center justify-between mb-4 px-1">
                                 <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
-                                    {selectedService === 'autorizados' ? 'OS Autorizadas' :
-                                        selectedService === 'agendadas' ? 'OS Agendadas' : 'OS Suspensas'}
+                                    {selectedService === 'autorizados' ? 'OS Autorizados' :
+                                        selectedService === 'agendadas' ? 'OS Agendados' : 'OS Suspensos'}
                                 </h2>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                     {filteredOrders.length} {filteredOrders.length === 1 ? 'Registro' : 'Registros'}
@@ -265,7 +266,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                         <div className="flex-1 px-4 overflow-y-auto no-scrollbar pb-24">
                             <div className="flex items-center justify-between mb-4 px-1">
                                 <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
-                                    {selectedVisitStatus.charAt(0).toUpperCase() + selectedVisitStatus.slice(1)} ({filteredVisits.length})
+                                    {getProcessingStatus(
+                                        selectedVisitStatus === 'rascunho' ? 1 :
+                                        selectedVisitStatus === 'reportadas' ? 2 :
+                                        selectedVisitStatus === 'revisadas' ? 3 :
+                                        selectedVisitStatus === 'reprovadas' ? 4 : 1
+                                    ).label} ({filteredVisits.length})
                                 </h2>
                             </div>
 

@@ -107,32 +107,32 @@ export const AIChatWindow: React.FC<{ isOpen: boolean; onClose: () => void }> = 
             <p className="text-slate-400 text-sm">Como posso ajudar você hoje?</p>
             <div className="mt-4 flex flex-wrap gap-2 justify-center">
                 <button 
-                  onClick={() => handleSend('Quais são minhas ordens pendentes?')} 
+                  onClick={() => handleSend('Quais solicitações estão pendentes de aprovação?')} 
                   disabled={isLoading || !sessionId}
                   className="px-3 py-1.5 bg-slate-800 text-xs text-slate-300 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700 disabled:opacity-50"
                 >
-                  Minhas ordens
+                  Pendências de Aprovação
+                </button>
+                <button 
+                  onClick={() => handleSend('Preciso criar uma nova Solicitação de Serviço (SS)')} 
+                  disabled={isLoading || !sessionId}
+                  className="px-3 py-1.5 bg-slate-800 text-xs text-slate-300 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700 disabled:opacity-50"
+                >
+                  Criar Nova SS
                 </button>
                 <button 
                   onClick={() => handleSend('Quais ativos estão na minha empresa?')} 
                   disabled={isLoading || !sessionId}
                   className="px-3 py-1.5 bg-slate-800 text-xs text-slate-300 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700 disabled:opacity-50"
                 >
-                  Meus ativos
+                  Consultar Ativos
                 </button>
                 <button 
-                  onClick={() => handleSend('Quais contratos estão ativos?')} 
+                  onClick={() => handleSend('Dúvida sobre manutenção')} 
                   disabled={isLoading || !sessionId}
                   className="px-3 py-1.5 bg-slate-800 text-xs text-slate-300 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700 disabled:opacity-50"
                 >
-                  Contratos
-                </button>
-                <button 
-                  onClick={() => handleSend('Como trocar um disjuntor?')} 
-                  disabled={isLoading || !sessionId}
-                  className="px-3 py-1.5 bg-slate-800 text-xs text-slate-300 rounded-lg hover:bg-slate-700 transition-colors border border-slate-700 disabled:opacity-50"
-                >
-                  Dúvida técnica
+                  Dúvida Técnica
                 </button>
             </div>
           </div>

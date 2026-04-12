@@ -1,0 +1,14 @@
+{
+  "workflows": {
+    "PD4JYm7wRsypmIDV": {
+      "lastSyncedHash": "56d3665fdaa986cb9e7239d926dcf410313df566536b72ebe05bbc04bb4da866",
+      "lastSyncedAt": "2026-03-28T19:47:14.331Z",
+      "filename": "SigesWhatsappUserNotification.workflow.ts"
+    },
+    "X3YuuywO3VuOKZ1S": {
+      "lastSyncedHash": "1c99ac91e9db43c568f90efc359ff4fb268f5614e88763148613f3a73809c3ca",
+      "lastSyncedAt": "2026-04-12T03:21:59.692Z",
+      "filename": "siges_assistant.workflow.ts"
+    }
+  }
+}

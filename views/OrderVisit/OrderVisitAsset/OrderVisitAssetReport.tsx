@@ -80,7 +80,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpa
                                     src={img}
                                     alt={`Foto ${idx + 1}`}
                                     className="w-full h-full object-cover"
-                                    onClick={() => setExpandedImage(img)}
+                                    onClick={() => editImage(type, idx)}
                                     preset="medium"
                                 />
                                 {!isReadOnly && (
@@ -97,17 +97,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpa
                                                 <span className="material-symbols-outlined text-[14px]">delete</span>
                                             </button>
                                         )}
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                editImage(type, idx);
-                                            }}
-                                            className="absolute bottom-6 right-1 w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-lg z-20"
-                                            title="Editar imagem"
-                                        >
-                                            <span className="material-symbols-outlined text-[14px]">edit</span>
-                                        </button>
+
                                     </>
                                 )}
                                 <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px] text-center">

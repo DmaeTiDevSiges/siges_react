@@ -166,6 +166,16 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
     };
 
     const handleAnswerItem = async (activityId: string, status: 'OK' | 'NOK' | 'NA' | null) => {
+        // Optimistic Update: Update state immediately for instant feedback
+        const previousResponses = { ...checklistResponses };
+        setChecklistResponses(prev => ({
+            ...prev,
+            [activityId]: {
+                ...(prev[activityId] || {}),
+                status
+            }
+        }));
+
         try {
             const response = await dataService.upsertMaintenanceChecklistItem(
                 ovAssetId,
@@ -181,11 +191,13 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                 }));
                 // Check if we need to update progress/status
                 if (onUpdateProcessing) {
-                    onUpdateProcessing(2); // Set to "Reportado" or "Em Processamento"
+                    onUpdateProcessing(2);
                 }
             }
         } catch (error) {
             console.error('Error answering item:', error);
+            // Revert on error
+            setChecklistResponses(previousResponses);
             toast.error('Erro ao salvar resposta');
         }
     };
@@ -532,9 +544,9 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                 <button
                                                                     disabled={isItemDisabled}
                                                                     onClick={() => handleAnswerItem(activity.activityId, 'OK')}
-                                                                    className={`w-12 h-10 flex items-center justify-center rounded-lg transition-all ${
+                                                                    className={`w-12 h-10 flex items-center justify-center rounded-lg transition-all duration-150 active:ring-4 active:ring-emerald-500/30 active:brightness-125 ${
                                                                         status === 'OK'
-                                                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                                        ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] ring-2 ring-emerald-500/20'
                                                                         : 'text-slate-400 dark:text-slate-600 hover:text-emerald-500 dark:hover:text-emerald-400'
                                                                     }`}
                                                                 >
@@ -544,9 +556,9 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                 <button
                                                                     disabled={isItemDisabled}
                                                                     onClick={() => handleAnswerItem(activity.activityId, 'NOK')}
-                                                                    className={`w-12 h-10 flex items-center justify-center rounded-lg transition-all ${
+                                                                    className={`w-12 h-10 flex items-center justify-center rounded-lg transition-all duration-150 active:ring-4 active:ring-red-500/30 active:brightness-125 ${
                                                                         status === 'NOK'
-                                                                        ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                                                                        ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)] ring-2 ring-red-500/20'
                                                                         : 'text-slate-400 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400'
                                                                     }`}
                                                                 >
@@ -556,9 +568,9 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                 <button
                                                                     disabled={isItemDisabled}
                                                                     onClick={() => handleAnswerItem(activity.activityId, 'NA')}
-                                                                    className={`w-12 h-10 flex items-center justify-center rounded-lg transition-all ${
+                                                                    className={`w-12 h-10 flex items-center justify-center rounded-lg transition-all duration-150 active:ring-4 active:ring-slate-500/30 active:brightness-125 ${
                                                                         status === 'NA'
-                                                                        ? 'bg-slate-500 dark:bg-slate-400 text-white shadow-lg shadow-slate-500/20'
+                                                                        ? 'bg-slate-500 dark:bg-slate-400 text-white shadow-[0_0_15px_rgba(100,116,139,0.4)] ring-2 ring-slate-500/20'
                                                                         : 'text-slate-400 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-300'
                                                                     }`}
                                                                     title="Não se aplica"
@@ -577,8 +589,8 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                         }`}
                                                                     >
                                                                         <div 
-                                                                            className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700"
-                                                                            onClick={() => setExpandedImages(response.imgFilesNames.map((n: string) => getFullImageUrl(activity.activityId, n)))}
+                                                                            className="w-[70px] h-[70px] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 active:scale-95 transition-all"
+                                                                            onClick={() => handleEditPhoto(activity.activityId, img)}
                                                                         >
                                                                             <OptimizedImage 
                                                                                 src={getFullImageUrl(activity.activityId, img)} 
@@ -593,20 +605,11 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                                         e.stopPropagation();
                                                                                         handleRemovePhoto(activity.activityId, img);
                                                                                     }}
-                                                                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center z-20 shadow-md border-2 border-white dark:border-slate-900"
+                                                                                    className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center z-20 shadow-md border-2 border-white dark:border-slate-900 active:scale-95"
                                                                                 >
-                                                                                    <span className="material-symbols-outlined text-[10px] font-bold">close</span>
+                                                                                    <span className="material-symbols-outlined text-[14px] font-bold">close</span>
                                                                                 </button>
-                                                                                <button
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        handleEditPhoto(activity.activityId, img);
-                                                                                    }}
-                                                                                    className="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-500 text-white rounded-full flex items-center justify-center z-20 shadow-md border-2 border-white dark:border-slate-900"
-                                                                                    title="Editar foto"
-                                                                                >
-                                                                                    <span className="material-symbols-outlined text-[10px] font-bold">edit</span>
-                                                                                </button>
+
                                                                             </>
                                                                         )}
                                                                     </div>
@@ -615,12 +618,12 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                     <button
                                                                         onClick={() => setUploadSheetOpenId(activity.activityId)}
                                                                         disabled={uploadingItem === activity.activityId}
-                                                                        className="w-10 h-10 rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 hover:text-indigo-500 hover:border-indigo-500 transition-all"
+                                                                        className="w-[70px] h-[70px] rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 hover:text-indigo-500 hover:border-indigo-500 transition-all active:scale-95"
                                                                     >
                                                                         {uploadingItem === activity.activityId ? (
-                                                                            <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                                                            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                                                                         ) : (
-                                                                            <span className="material-symbols-outlined text-lg">add_a_photo</span>
+                                                                            <span className="material-symbols-outlined text-2xl">add_a_photo</span>
                                                                         )}
                                                                     </button>
                                                                 )}

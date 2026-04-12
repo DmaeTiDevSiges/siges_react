@@ -77,6 +77,12 @@ export const UserVisitsPanel: React.FC<UserVisitsPanelProps> = ({
             count: rascunhoCount
         },
         {
+            id: 'reprovadas',
+            processingId: PROCESSING_STATUSES.REPROVADAS.id,
+            label: PROCESSING_STATUSES.REPROVADAS.label,
+            count: reprovadasCount
+        },
+        {
             id: 'reportadas',
             processingId: PROCESSING_STATUSES.REPORTADAS.id,
             label: PROCESSING_STATUSES.REPORTADAS.label,
@@ -87,12 +93,6 @@ export const UserVisitsPanel: React.FC<UserVisitsPanelProps> = ({
             processingId: PROCESSING_STATUSES.REVISADAS.id,
             label: PROCESSING_STATUSES.REVISADAS.label,
             count: revisadasCount
-        },
-        {
-            id: 'reprovadas',
-            processingId: PROCESSING_STATUSES.REPROVADAS.id,
-            label: PROCESSING_STATUSES.REPROVADAS.label,
-            count: reprovadasCount
         }
     ];
 

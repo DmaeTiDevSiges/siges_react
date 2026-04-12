@@ -72,27 +72,27 @@ export const UserServicesPanel: React.FC<UserServicesPanelProps> = ({
     const services = [
         {
             id: 'autorizados',
-            icon: 'check_circle', // Trocado icone para check ou similar, mantendo calendar se preferir
-            label: 'Autorizadas',
+            icon: 'check_circle',
+            label: 'Autorizados',
             count: autorizadosCount,
             color: 'text-blue-400',
             bgColor: 'bg-blue-400/10 border-2 border-blue-400/50 shadow-[0_0_10px_rgba(96,165,250,0.2)]'
         },
         {
-            id: 'agendadas',
-            icon: 'calendar_month',
-            label: 'Agendadas',
-            count: agendadasCount,
-            color: 'text-orange-400',
-            bgColor: 'bg-orange-400/10 border-2 border-orange-400/50 shadow-[0_0_10px_rgba(251,146,60,0.2)]'
-        },
-        {
             id: 'suspensos',
             icon: 'do_not_disturb_on',
-            label: 'Suspensas',
+            label: 'Suspensos',
             count: suspensosCount,
             color: 'text-rose-400',
             bgColor: 'bg-rose-400/10 border-2 border-rose-400/50 shadow-[0_0_10px_rgba(251,113,133,0.2)]'
+        },
+        {
+            id: 'agendadas',
+            icon: 'calendar_month',
+            label: 'Agendados',
+            count: agendadasCount,
+            color: 'text-orange-400',
+            bgColor: 'bg-orange-400/10 border-2 border-orange-400/50 shadow-[0_0_10px_rgba(251,146,60,0.2)]'
         }
     ];
 
