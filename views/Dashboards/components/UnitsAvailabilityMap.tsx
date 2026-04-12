@@ -3,17 +3,15 @@ import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { CircularGauge } from '../../../components/ui/CircularGauge';
 
-// Fix for default Leaflet marker icons in some environments (like Vite)
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+// Fix for default Leaflet marker icons in some environments (like Vite/Capacitor)
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
-L.Marker.prototype.options.icon = DefaultIcon;
+
+import 'leaflet/dist/leaflet.css';
 
 interface Unit {
     id: string;
@@ -53,9 +51,16 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
                 attributionControl: false
             }).setView([-29.98, -51.18], 16); // Default center (usually overridden by bounds)
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CartoDB',
+                subdomains: 'abcd',
+                maxZoom: 20
             }).addTo(leafletMap.current);
+
+            // Force recalculation multiple times for Android WebView
+            setTimeout(() => leafletMap.current?.invalidateSize(), 100);
+            setTimeout(() => leafletMap.current?.invalidateSize(), 500);
+            setTimeout(() => leafletMap.current?.invalidateSize(), 1500);
 
             L.control.zoom({
                 position: 'bottomright'
@@ -179,9 +184,34 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
         return cleanup;
     }, [units]); // onUnitClick excluded intentionally — handled via ref to prevent map re-init
 
+    // Force invalidateSize on mount and window resize
+    useEffect(() => {
+        const handleResize = () => {
+            if (leafletMap.current) {
+                leafletMap.current.invalidateSize();
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        
+        // Use ResizeObserver for the container itself
+        const observer = new ResizeObserver(() => {
+            leafletMap.current?.invalidateSize();
+        });
+
+        if (mapRef.current) {
+            observer.observe(mapRef.current);
+        }
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            observer.disconnect();
+        };
+    }, []);
+
     return (
-        <div className={`relative w-full min-h-[400px] rounded-3xl overflow-hidden border border-slate-200 dark:border-white/5 shadow-inner bg-slate-100 dark:bg-slate-900 ${className}`}>
-            <div ref={mapRef} className="w-full h-full z-0" />
+        <div className={`relative w-full h-full min-h-[400px] rounded-[32px] overflow-hidden border border-slate-200 dark:border-white/5 shadow-inner bg-slate-100 dark:bg-slate-900 ${className}`} style={{ transform: 'translateZ(0)', willChange: 'transform' }}>
+            <div ref={mapRef} className="absolute inset-0 z-0 bg-transparent" />
             
             {/* Legend Overlay */}
             <div className="absolute top-4 left-4 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-4 rounded-[28px]! border border-slate-200/50 dark:border-white/10 shadow-xl z-5000 flex flex-col gap-4 min-w-[180px]">

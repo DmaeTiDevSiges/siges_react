@@ -967,7 +967,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="relative w-full h-[500px]">
+                                    <div className="relative w-full h-[600px] lg:h-[calc(100vh-380px)] min-h-[500px]">
                                         <UnitsAvailabilityMap
                                             units={unitsRows}
                                             unitTagDescription={selectedSectorName}
