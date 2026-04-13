@@ -308,6 +308,18 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         };
     }, [appliedFilters, selectedStatusId, selectedPeriod]);
 
+    // Restricted filters specifically for Unscheduled SS's (to match dashboard widgets behavior)
+    const ssEffectiveFilters = React.useMemo(() => {
+        return {
+            systemParentId: appliedFilters.systemParentId,
+            systemId: appliedFilters.systemId,
+            unitTypeParentId: appliedFilters.unitTypeParentId,
+            unitTypeId: appliedFilters.unitTypeId,
+            unitId: appliedFilters.unitId,
+            period: selectedPeriod || appliedFilters.period,
+        };
+    }, [appliedFilters, selectedPeriod]);
+
     const fetchData = useCallback(async (
         loadMore: boolean = false,
         isManual: boolean = false,
@@ -850,8 +862,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">SS's Não Programadas</h2>
                                 <div className="flex items-center gap-2">
                                     <RequestsListPDFButton
-                                        filters={effectiveFilters}
-                                        searchQuery={searchQuery}
+                                        filters={ssEffectiveFilters}
                                         totalCount={
                                             selectedPeriod
                                                 ? (stats.unscheduled.find(p => p.label === selectedPeriod)?.count || 0)
@@ -859,8 +870,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         }
                                     />
                                     <RequestsExcelExportButton
-                                        filters={effectiveFilters}
-                                        searchQuery={searchQuery}
+                                        filters={ssEffectiveFilters}
                                         filename="relatorio-ss"
                                         title="EXCEL"
                                         totalCount={
