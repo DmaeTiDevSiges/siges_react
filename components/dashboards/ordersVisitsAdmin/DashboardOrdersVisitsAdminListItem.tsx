@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { OrderVisit, OrderVisitTeam } from '../../../types';
 import { Card } from '../../ui/Card';
 import { UserAvatar } from '../../ui/UserAvatar';
@@ -51,7 +51,7 @@ const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
     );
 };
 
-export const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminListItemProps> = ({
+const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminListItemProps> = ({
     visit,
     teamMembers = [],
     onClick
@@ -217,3 +217,5 @@ export const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsA
         </Card>
     );
 };
+
+export default memo(DashboardOrdersVisitsAdminListItem);

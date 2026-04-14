@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { dataService } from '../../services/dataService';
 import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
-import { DashboardOrdersVisitsAdminListItem } from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
+import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
@@ -718,7 +718,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [isFetchingAppropriation, setIsFetchingAppropriation] = useState(false);
 
     // Pagination/Infinite Scroll State
-    const [visibleCount, setVisibleCount] = useState(20);
+    const [visibleCount, setVisibleCount] = useState(50);
     const loadMoreRef = React.useRef<HTMLDivElement>(null);
 
     // Advanced Filters State (Managed above)
@@ -769,6 +769,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
             const getVal = (res: any) => (res.status === 'fulfilled' ? res.value : []);
 
+            const contracts = getVal(results[5]);
+
             setFilterOptions(prev => ({
                 ...prev,
                 systems: getVal(results[0]),
@@ -776,10 +778,25 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 orderObjects: getVal(results[2]),
                 orderTypes: getVal(results[3]),
                 plans: getVal(results[4]),
-                contracts: getVal(results[5]),
+                contracts,
                 teams: getVal(results[6]),
                 units: getVal(results[7])
             }));
+
+            // Pré-selecionar todos os contratos gerenciados se o usuário não definiu nenhum
+            if (contracts.length > 0) {
+                const defaultContractIds = contracts.map((c: any) => String(c.id));
+                setAdvancedFilters(prev => {
+                    const hasContracts = Array.isArray(prev.contractId) && prev.contractId.length > 0;
+                    if (!hasContracts) return { ...prev, contractId: defaultContractIds };
+                    return prev;
+                });
+                setAppliedFilters(prev => {
+                    const hasContracts = Array.isArray(prev.contractId) && prev.contractId.length > 0;
+                    if (!hasContracts) return { ...prev, contractId: defaultContractIds };
+                    return prev;
+                });
+            }
         } catch (error) {
             console.error('Error loading filter options:', error);
         }
@@ -1129,12 +1146,14 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             materials: appropriationData.materials.reduce((acc, i) => acc + (i.value_total || 0), 0),
             vehicles: appropriationData.vehicles.reduce((acc, i) => acc + (i.value_total || 0), 0)
         };
-    }, [appropriationData]);
+    }, [appropriationData.services, appropriationData.materials, appropriationData.vehicles]);
 
     const totalSumValue = financialTotals.services + financialTotals.materials + financialTotals.vehicles;
 
     // --- PRE-CALCULATE INSIGHT DATA ---
     const insightData = useMemo(() => {
+        if (!filteredVisits.length) return { composition: [], trend: [], units: [], allUnits: [], movements: [], totalComposition: 0 };
+        
         // 1. Composition by Plan
         const planMap = new Map();
         filteredVisits.forEach(v => {
@@ -1195,20 +1214,50 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             .sort((a, b) => b.value - a.value);
 
         return { composition, trend, units: topUnits, allUnits, movements, totalComposition };
-    }, [financialTotals, filteredVisits, appropriationData.movedAssets]);
+    }, [filteredVisits, appropriationData.movedAssets]);
 
     // 4. Visible Slice for Infinite Scroll
     const displayedVisits = useMemo(() => {
         return filteredVisits.slice(0, visibleCount);
     }, [filteredVisits, visibleCount]);
 
-    // Fetch Appropriation Data when filtered visits change
+    // Memoize the mapped visits for the PDF list button to avoid heavy computation in render
+    const pdfVisitsData = useMemo(() => {
+        return filteredVisits.map(v => ({
+            ovMask: v.ovMask,
+            ovStartedAt: v.ovStartedAt,
+            ovEndedAt: v.ovEndedAt,
+            contractDescription: (v as OrderVisitExtended).contractDescription || v.contractDescription,
+            orderMask: v.orderMask,
+            typeCode: (v as OrderVisitExtended).typeCode,
+            typeSubCode: (v as OrderVisitExtended).typeSubCode,
+            unitDescription: v.unitDescription,
+            sectorDescription: (v as OrderVisitExtended).sectorDescription,
+            statusDescription: v.statusDescription,
+            processingDescription: v.processingDescription,
+            materialsValue: v.materialsValue,
+            vehiclesValue: v.vehiclesValue,
+            servicesValue: v.servicesValue,
+            totalValue: v.totalValue,
+        }));
+    }, [filteredVisits]);
+
+    // Fetch Appropriation Data when filtered visits change (with debounce)
+    const fetchDebounceRef = useRef<any>(null);
+
     useEffect(() => {
         if (!loading && filteredVisits.length > 0) {
-            fetchAppropriationData();
+            if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
+            fetchDebounceRef.current = setTimeout(() => {
+                fetchAppropriationData();
+            }, 600);
         } else if (filteredVisits.length === 0) {
+            if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
             setAppropriationData({ services: [], materials: [], vehicles: [], movedAssets: [] });
         }
+        return () => {
+            if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
+        };
     }, [filteredVisits, loading]);
 
     const fetchAppropriationData = async () => {
@@ -1272,7 +1321,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     // Reset pagination when filters change
     useEffect(() => {
-        setVisibleCount(20);
+        setVisibleCount(50);
     }, [activeFilter, searchQuery, advancedFilters, dateRange]);
 
     // Setup Intersection Observer for Infinite Scroll
@@ -1280,10 +1329,10 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting && visibleCount < filteredVisits.length) {
-                    setVisibleCount(prev => prev + 20);
+                    setVisibleCount(prev => prev + 100);
                 }
             },
-            { threshold: 0.1, rootMargin: '100px' }
+            { threshold: 0.1, rootMargin: '1000px' }
         );
 
         const currentRef = loadMoreRef.current;
@@ -1370,6 +1419,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     value={advancedFilters.contractId || []}
                                     onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts.map(opt => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))}
                                     onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))}
+                                    required
                                 />
                                 <FilterSelect
                                     label="PLANO"
@@ -1413,10 +1463,15 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
                             {/* Buttons */}
                             <div className="flex items-center gap-3">
-                                {/* Clear all shortcut */}
+                                {/* Clear all shortcut - restaura contratos padrão */}
                                 {(Object.values(advancedFilters).some(v => Array.isArray(v) && v.length > 0)) && (
                                     <button
-                                        onClick={() => { setAdvancedFilters({}); setUnitSubTypes([]); setOrderSubTypes([]); }}
+                                        onClick={() => {
+                                            const defaultContractIds = filterOptions.contracts.map((c: any) => String(c.id));
+                                            setAdvancedFilters({ contractId: defaultContractIds });
+                                            setUnitSubTypes([]);
+                                            setOrderSubTypes([]);
+                                        }}
                                         className="flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all duration-200 group active:scale-95"
                                         title="Limpar todos os filtros"
                                     >
@@ -1426,6 +1481,12 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 )}
                                 <button
                                     onClick={() => {
+                                        // Validação: contrato é obrigatório
+                                        const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];
+                                        if (selectedContracts.length === 0) {
+                                            toast.error('Selecione ao menos um contrato para filtrar');
+                                            return;
+                                        }
                                         setAppliedFilters({ ...advancedFilters });
                                         loadData(true);
                                     }}
@@ -1586,7 +1647,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 </p>
                             </div>
 
-                            <div className="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto">
+                            <div className="flex flex-col items-end md:flex-row md:items-center justify-end gap-3 md:gap-5 w-full md:w-auto">
                                 {/* Search */}
                                 <div className="relative w-full md:w-64">
                                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
@@ -1601,34 +1662,16 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     />
                                 </div>
 
-                                {/* Detailed Totals - Cost Composition & Total */}
-                                <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg dark:shadow-2xl backdrop-blur-md">
-                                    {/* PDF Export Button */}
-                                    <VisitsListPDFButton
-                                        className="shrink-0"
-                                        visits={filteredVisits.map(v => ({
-                                            ovMask: v.ovMask,
-                                            ovStartedAt: v.ovStartedAt,
-                                            ovEndedAt: v.ovEndedAt,
-                                            contractDescription: (v as OrderVisitExtended).contractDescription || v.contractDescription,
-                                            orderMask: v.orderMask,
-                                            typeCode: (v as OrderVisitExtended).typeCode,
-                                            typeSubCode: (v as OrderVisitExtended).typeSubCode,
-                                            unitDescription: v.unitDescription,
-                                            sectorDescription: (v as OrderVisitExtended).sectorDescription,
-                                            statusDescription: v.statusDescription,
-                                            processingDescription: v.processingDescription,
-                                            materialsValue: v.materialsValue,
-                                            vehiclesValue: v.vehiclesValue,
-                                            servicesValue: v.servicesValue,
-                                            totalValue: v.totalValue,
-                                        }))}
-                                        totalCount={filteredVisits.length}
-                                        filename="relatorio-visitas"
-                                    />
+                                {/* PDF Export Button */}
+                                <VisitsListPDFButton
+                                    className="shrink-0"
+                                    visits={pdfVisitsData}
+                                    totalCount={filteredVisits.length}
+                                    filename="relatorio-visitas"
+                                />
 
                                     {/* Composition Stats (Percentages) */}
-                                    <div className="hidden md:flex items-center gap-4 px-4 py-1 border-l border-slate-200 dark:border-slate-700/50">
+                                    <div className="flex items-center gap-4 px-2 py-1">
                                         {/* Services % */}
                                         <div className="flex flex-col items-center group/item cursor-help relative">
                                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-wide mb-0.5">Serviços</span>
@@ -1673,7 +1716,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                             {formatCurrency(totalSumValue)}
                                         </span>
                                     </div>
-                                </div>
                             </div>
                         </div>
                     </div>

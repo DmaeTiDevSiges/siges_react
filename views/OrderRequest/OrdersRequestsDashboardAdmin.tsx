@@ -22,6 +22,7 @@ import { OrdersListPDFButton } from '../../components/reports/OrdersListPDFButto
 import { ExcelExportButton } from '../../components/reports/ExcelExportButton';
 import { RequestsListPDFButton } from '../../components/reports/RequestsListPDFButton';
 import { RequestsExcelExportButton } from '../../components/reports/RequestsExcelExportButton';
+import { FilterSelect } from '../../components/ui/FilterSelect';
 
 interface OrdersRequestsDashboardAdminProps {
     currentUser: User | null;
@@ -460,6 +461,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     return res.value;
                 };
 
+                const contracts = getVal(results[5], 'contracts');
+
                 setFilterOptions(prev => ({
                     ...prev,
                     systems: getVal(results[0], 'systems'),
@@ -467,10 +470,25 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     orderObjects: getVal(results[2], 'orderObjects'),
                     orderTypes: getVal(results[3], 'orderTypes'),
                     plans: getVal(results[4], 'plans'),
-                    contracts: getVal(results[5], 'contracts'),
+                    contracts,
                     teams: getVal(results[6], 'teams'),
                     units: getVal(results[7], 'units')
                 }));
+
+                // Pré-selecionar todos os contratos gerenciados se o usuário não definiu nenhum
+                if (contracts.length > 0) {
+                    const defaultContractIds = contracts.map((c: any) => String(c.id));
+                    setAdvancedOrdersFilters(prev => {
+                        const hasContracts = Array.isArray(prev.contractId) && prev.contractId.length > 0;
+                        if (!hasContracts) return { ...prev, contractId: defaultContractIds };
+                        return prev;
+                    });
+                    setAppliedFilters(prev => {
+                        const hasContracts = Array.isArray(prev.contractId) && prev.contractId.length > 0;
+                        if (!hasContracts) return { ...prev, contractId: defaultContractIds };
+                        return prev;
+                    });
+                }
 
                 // Populate dashboard widgets with static data
                 const teamsData = getVal(results[6], 'teams');
@@ -774,6 +792,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         value={advancedOrdersFilters.contractId || []}
                                         onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts.map(opt => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))}
                                         onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, contractId: [] }))}
+                                        required
                                     />
                                     <FilterSelect
                                         label="PLANO"
@@ -824,10 +843,18 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </div>
 
                                 <div className="flex items-center gap-3">
-                                    {/* Clear all shortcut */}
+                                    {/* Clear all shortcut - restaura contratos padrão */}
                                     {Object.values(advancedOrdersFilters).some(v => Array.isArray(v) && v.length > 0) && (
                                         <button
-                                            onClick={() => { setAdvancedOrdersFilters({}); setAppliedFilters({}); setUnitSubTypes([]); setOrderSubTypes([]); setHasAppliedFilters(false); }}
+                                            onClick={() => {
+                                                const defaultContractIds = filterOptions.contracts.map((c: any) => String(c.id));
+                                                const resetFilters = { contractId: defaultContractIds };
+                                                setAdvancedOrdersFilters(resetFilters);
+                                                setAppliedFilters(resetFilters);
+                                                setUnitSubTypes([]);
+                                                setOrderSubTypes([]);
+                                                setHasAppliedFilters(false);
+                                            }}
                                             className="flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all duration-200 group active:scale-95"
                                             title="Limpar todos os filtros"
                                         >
@@ -838,6 +865,12 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
                                     <button
                                         onClick={() => {
+                                            // Validação: contrato é obrigatório
+                                            const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
+                                            if (selectedContracts.length === 0) {
+                                                toast.error('Selecione ao menos um contrato para filtrar');
+                                                return;
+                                            }
                                             const newFilters = { ...advancedOrdersFilters };
                                             setAppliedFilters(newFilters);
                                             setHasAppliedFilters(true);
@@ -1174,42 +1207,3 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     );
 };
 
-/**
- * Compact Filter Select Wrapper for the Horizontal Bar
- */
-const FilterSelect: React.FC<{
-    label: string;
-    value: string | string[];
-    onClick: () => void;
-    onClear: () => void;
-    disabled?: boolean;
-}> = ({ label, value, onClick, onClear, disabled }) => {
-    const count = Array.isArray(value) ? value.length : (value ? 1 : 0);
-
-    return (
-        <div className={`relative flex items-center flex-1 min-w-[110px] h-[42px] transition-opacity ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-            <div className={`flex items-stretch h-full w-full bg-white dark:bg-slate-800 border rounded-xl shadow-sm overflow-hidden transition-all ${count > 0 ? 'border-primary ring-1 ring-primary/20' : 'border-slate-200 dark:border-slate-700'}`}>
-                <div
-                    onClick={onClick}
-                    className="flex-1 px-3 flex flex-col justify-center border-r border-slate-100 dark:border-slate-700/50 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors min-w-0"
-                >
-                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none mb-0.5">{label}</span>
-                    <div className="flex items-center gap-1.5">
-                        <span className={`text-[11px] font-bold ${count > 0 ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {count > 0 ? `${count} ${count === 1 ? 'item' : 'itens'}` : 'Todos'}
-                        </span>
-                    </div>
-                </div>
-
-                {count > 0 && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onClear(); }}
-                        className="px-3 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors border-l border-slate-100 dark:border-slate-700/50"
-                    >
-                        <span className="material-symbols-outlined text-[18px]">close</span>
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-};
