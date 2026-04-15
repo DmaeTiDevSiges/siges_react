@@ -4300,6 +4300,24 @@ export const dataService = {
         return this.getContracts(contractIds);
     },
 
+    async isUserContractManager(userId: string, contractId: string): Promise<boolean> {
+        const { data, error } = await supabase
+            .from('contracts_managers')
+            .select('id')
+            .eq('contract_id', contractId)
+            .eq('manager_id', userId)
+            .eq('role', 'manager')
+            .eq('is_deleted', false)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error checking if user is contract manager:', error);
+            return false;
+        }
+
+        return !!data;
+    },
+
     async addContractManager(contractId: string, managerId: string, role: string = 'viewer'): Promise<void> {
         // Check if already exists (deleted or not)
         const { data: existingFollow, error: checkError } = await supabase
@@ -8641,21 +8659,23 @@ export const dataService = {
         const data = { ...viewData, ...tableData };
 
         let orderTypeId = data.o_type_id?.toString();
+        let contractId = data.o_contract_id?.toString();
         const oCompanyId = data.o_company_id || data.company_id;
 
-        // If o_type_id is not in the asset view, fetch it from the visit view
-        if (!orderTypeId && data.ov_id) {
+        // If o_type_id is not in the asset view, fetch it from the visit view or order
+        if ((!orderTypeId || !contractId) && data.o_id) {
             try {
-                const { data: visitData } = await supabase
-                    .from('v_orders_visits')
-                    .select('o_type_id')
-                    .eq('id', data.ov_id)
+                const { data: orderData } = await supabase
+                    .from('v_orders')
+                    .select('o_type_id, o_contract_id')
+                    .eq('id', data.o_id)
                     .single();
-                if (visitData) {
-                    orderTypeId = visitData.o_type_id?.toString();
+                if (orderData) {
+                    if (!orderTypeId) orderTypeId = orderData.o_type_id?.toString();
+                    if (!contractId) contractId = orderData.o_contract_id?.toString();
                 }
             } catch (vError) {
-                console.warn('Could not fetch visit data for orderTypeId', vError);
+                console.warn('Could not fetch order data for orderTypeId/contractId', vError);
             }
         }
 

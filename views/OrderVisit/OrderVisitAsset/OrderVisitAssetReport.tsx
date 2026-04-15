@@ -167,6 +167,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [visitProcessingId, setVisitProcessingId] = useState<number | null>(null);
     const [isVisitFiled, setIsVisitFiled] = useState(false);
     const [editingImage, setEditingImage] = useState<{ type: 'initial' | 'final', index: number | null, src: string | File } | null>(null);
+    const [isContractManager, setIsContractManager] = useState(false);
 
     // Asset swap state
     const [showSwapPage, setShowSwapPage] = useState(false);
@@ -227,6 +228,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             }
 
             if (user) setCurrentUserId(user.id);
+            let isManager = false;
 
             if (data) {
                 setAsset(data);
@@ -249,7 +251,15 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 setAfterStatusId(data.afterStatusId || '');
                 setAfterPriorityId(data.afterPriorityId);
                 setAfterLocation(data.afterLocation || '');
-                setMovedComments(data.movedComments || '');
+
+                if (user && data.oContractId) {
+                    try {
+                        isManager = await dataService.isUserContractManager(user.id, data.oContractId);
+                    } catch (mError) {
+                        console.warn('Could not verify contract manager status', mError);
+                    }
+                }
+                setIsContractManager(isManager);
             } else {
                 toast.error('Ativo da visita não encontrado');
                 onBack();
@@ -1160,7 +1170,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                             </button>
                                         )}
                                     </div>
-                                    {canView('orders_visits_processing_approve') && (
+                                    {isContractManager && (
                                         <button
                                             onClick={() => setLocalEditMode('approval')}
                                             className="py-4 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-emerald-500/20"

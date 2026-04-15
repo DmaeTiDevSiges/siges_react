@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { dataService } from '../../services/dataService';
 import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
@@ -49,7 +49,187 @@ interface OrderVisitExtended extends OrderVisit {
     sectorDescription?: string;
 }
 
-// Helper Components
+// Isolated Filter Bar Section to prevent Dashboard re-renders during filter selection
+const FilterBarSection = React.memo(({ 
+    advancedFilters, 
+    setAdvancedFilters, 
+    filterSelectOptions,
+    handleSystemChange,
+    handleParentUnitTypeChange,
+    handleOrderTypeChange,
+    unitSubTypes,
+    orderSubTypes
+}: { 
+    advancedFilters: OrderFilters;
+    setAdvancedFilters: React.Dispatch<React.SetStateAction<OrderFilters>>;
+    filterSelectOptions: any;
+    handleSystemChange: (id: string | string[]) => void;
+    handleParentUnitTypeChange: (id: string | string[]) => void;
+    handleOrderTypeChange: (id: string | string[]) => void;
+    unitSubTypes: any[];
+    orderSubTypes: any[];
+}) => {
+    const [selectionModal, setSelectionModal] = useState<{
+        isOpen: boolean;
+        filterKey: keyof OrderFilters;
+        label: string;
+        options: { value: string; label: string }[];
+        currentValue: string[];
+    }>({
+        isOpen: false,
+        filterKey: 'contractId',
+        label: '',
+        options: [],
+        currentValue: []
+    });
+
+    const openSelectionModal = useCallback((key: keyof OrderFilters, label: string, options: { value: string; label: string }[]) => {
+        const value = advancedFilters[key];
+        const currentValue = Array.isArray(value)
+            ? (value as any[]).map(String)
+            : (value !== undefined && value !== null ? [String(value)] : []);
+
+        setSelectionModal({
+            isOpen: true,
+            filterKey: key,
+            label,
+            options,
+            currentValue
+        });
+    }, [advancedFilters]);
+
+    const handleModalConfirm = useCallback((value: string[]) => {
+        const key = selectionModal.filterKey;
+        if (key === 'systemParentId') {
+            handleSystemChange(value);
+        } else if (key === 'unitTypeParentId') {
+            handleParentUnitTypeChange(value);
+        } else if (key === 'orderTypeId') {
+            handleOrderTypeChange(value);
+        } else {
+            setAdvancedFilters(prev => ({ ...prev, [key]: value }));
+        }
+        setSelectionModal(prev => ({ ...prev, isOpen: false }));
+    }, [selectionModal.filterKey, setAdvancedFilters, handleSystemChange, handleParentUnitTypeChange, handleOrderTypeChange]);
+
+    return (
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1">
+            <FilterSelect label="SISTEMA" value={advancedFilters.systemParentId || []} onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterSelectOptions.systems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSystemChange([])} />
+            <FilterSelect label="SUB-SISTEMA" value={advancedFilters.systemId || []} onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterSelectOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, systemId: [] }))} disabled={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)} />
+            <FilterSelect label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} />
+            <FilterSelect label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, unitTypeId: [] }))} disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
+            <FilterSelect label="UNIDADES" value={advancedFilters.unitId || []} onClick={() => openSelectionModal('unitId', 'UNIDADES', filterSelectOptions.units.map((opt: any) => ({ value: String(opt.id), label: opt.description_full || opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, unitId: [] }))} />
+            <FilterSelect label="FINALIDADE" value={advancedFilters.orderObjectId || []} onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterSelectOptions.orderObjects.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderObjectId: [] }))} />
+            <FilterSelect label="TIPO OS" value={advancedFilters.orderTypeId || []} onClick={() => openSelectionModal('orderTypeId', 'TIPO OS', filterSelectOptions.orderTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleOrderTypeChange([])} />
+            <FilterSelect label="SUB-TIPO OS" value={advancedFilters.orderTypeSubId || []} onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))} disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)} />
+            <FilterSelect label="CONTRATO" value={advancedFilters.contractId || []} onClick={() => openSelectionModal('contractId', 'CONTRATO', filterSelectOptions.contracts.map((opt: any) => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))} required />
+            <FilterSelect label="PLANO" value={advancedFilters.orderPlanId || []} onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterSelectOptions.plans.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderPlanId: [] }))} />
+            <FilterSelect label="EQUIPE" value={advancedFilters.orderTeamId || []} onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))} />
+
+            <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
+                <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} />
+            </Modal>
+        </div>
+    );
+});
+
+// Memoized Item for Filter Selection List
+const FilterOptionItem = React.memo(({ 
+    opt, 
+    isSelected, 
+    onToggle 
+}: { 
+    opt: { value: string; label: string }; 
+    isSelected: boolean; 
+    onToggle: (value: string) => void;
+}) => {
+    return (
+        <label
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5' : ''}`}
+        >
+            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
+                {isSelected && <span className="material-symbols-outlined text-white text-[16px] font-bold">check</span>}
+            </div>
+            <input
+                type="checkbox"
+                className="hidden"
+                checked={isSelected}
+                onChange={() => onToggle(opt.value)}
+            />
+            <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{opt.label}</span>
+        </label>
+    );
+});
+
+// Modal Content Component for Filters
+const FilterSelectionContent: React.FC<{
+    label: string;
+    options: { value: string; label: string }[];
+    initialValue: string[];
+    onConfirm: (value: string[]) => void;
+}> = ({ label, options, initialValue, onConfirm }) => {
+    const [selectionSearch, setSelectionSearch] = useState('');
+    const [currentValue, setCurrentValue] = useState<string[]>(initialValue);
+
+    const filteredOptions = useMemo(() => {
+        const query = selectionSearch.toLowerCase().trim();
+        if (!query) return options;
+        return options.filter(opt => opt.label.toLowerCase().includes(query));
+    }, [options, selectionSearch]);
+
+    const selectedSet = useMemo(() => new Set(currentValue), [currentValue]);
+
+    const handleToggle = useCallback((value: string) => {
+        setCurrentValue(prev => 
+            prev.includes(value) 
+                ? prev.filter(v => v !== value) 
+                : [...prev, value]
+        );
+    }, []);
+
+    return (
+        <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100">
+            <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                <input
+                    type="text"
+                    placeholder={`Pesquisar ${label}...`}
+                    value={selectionSearch}
+                    onChange={(e) => setSelectionSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                    autoFocus
+                />
+            </div>
+
+            <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
+                {filteredOptions.length > 0 ? (
+                    filteredOptions.map(opt => (
+                        <FilterOptionItem
+                            key={opt.value}
+                            opt={opt}
+                            isSelected={selectedSet.has(opt.value)}
+                            onToggle={handleToggle}
+                        />
+                    ))
+                ) : (
+                    <div className="py-10 text-center flex flex-col items-center gap-2">
+                        <span className="material-symbols-outlined text-slate-300 text-4xl">search_off</span>
+                        <p className="text-slate-400 text-sm font-medium">Nenhum resultado encontrado</p>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                    onClick={() => onConfirm(currentValue)}
+                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all"
+                >
+                    Confirmar Seleção ({currentValue.length})
+                </button>
+            </div>
+        </div>
+    );
+};
 
 interface StatCardProps {
     icon: string;
@@ -63,7 +243,6 @@ interface StatCardProps {
     visits?: OrderVisitExtended[];
 }
 
-// Helper Component for Animated Count
 const AnimatedCount: React.FC<{ value: number; active?: boolean; color?: string }> = ({ value, active, color }) => {
     const [displayValue, setDisplayValue] = useState(value);
     const [isAnimating, setIsAnimating] = useState(false);
@@ -90,9 +269,8 @@ const AnimatedCount: React.FC<{ value: number; active?: boolean; color?: string 
 };
 
 const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, color, active, onClick, styleColor, visits }) => {
-    // Helper to get translucent background from HEX or tailwind
     const getIconBgStyle = () => {
-        if (styleColor) return { backgroundColor: `${styleColor} 1A` }; // 10% opacity
+        if (styleColor) return { backgroundColor: `${styleColor} 1A` };
         return undefined;
     };
 
@@ -139,96 +317,6 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, col
         </div>
     );
 };
-
-interface VisitCardProps {
-    visit: OrderVisit;
-    onClick: () => void;
-    formatDate: (date?: string) => string;
-    getStatusColor: (statusId: number) => string;
-}
-
-const VisitCard: React.FC<VisitCardProps> = ({ visit, onClick, formatDate, getStatusColor }) => (
-    <div
-        onClick={onClick}
-        className="group relative bg-slate-100/5 dark:bg-slate-800/40 rounded-[16px] p-5 hover:bg-slate-200/10 dark:hover:bg-slate-800/60 transition-all cursor-pointer border border-slate-200 dark:border-white/5 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 flex flex-col h-full active:scale-[0.98]"
-    >
-        {/* Header - Prominent Badge like Order Card */}
-        <div className="flex justify-between items-start mb-4">
-            <div className={`flex flex-col gap-0.5 px-4 py-2.5 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white ${getStatusColor(visit.ovStatusId)}`}>
-                <span className="text-[18px] font-black leading-none tracking-tight">{visit.ovMask}</span>
-                <div className="flex justify-between items-center w-full mt-1">
-                    <span className="text-[9px] font-bold opacity-90 uppercase tracking-tighter">{visit.statusDescription}</span>
-                    <span className="text-[9px] font-black opacity-80">{visit.ovStatusId}</span>
-                </div>
-            </div>
-            {/* Action Icon */}
-            <button className="text-slate-400 hover:text-yellow-400 transition-colors shrink-0">
-                <span className="material-symbols-outlined">star</span>
-            </button>
-        </div>
-
-        {/* Content Section */}
-        <div className="flex-1 min-w-0">
-            {visit.clientName && (
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 leading-none truncate">{visit.clientName}</p>
-            )}
-            <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight mb-0.5 group-hover:text-primary transition-colors line-clamp-1">
-                {visit.unitDescription}
-            </h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 leading-none truncate">
-                {visit.orderMask} • {visit.teamCode || 'Sem equipe'}
-            </p>
-
-            {/* Description Box */}
-            <div className="relative mb-4 group/desc">
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-tight line-clamp-2 pr-6 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800/50">
-                    {visit.requestedServices || 'Sem descrição'}
-                </p>
-                <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 absolute right-2 top-1/2 -translate-y-1/2 group-hover/desc:translate-x-1 transition-transform">chevron_right</span>
-            </div>
-        </div>
-
-        {/* Footer Info Info Grid */}
-        <div className="grid grid-cols-2 gap-y-1 mb-4 border-b border-slate-100 dark:border-white/5 pb-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 min-w-0">
-                <span className="material-symbols-outlined text-sm shrink-0">person</span>
-                <span className="truncate">{visit.teamLeaderName || 'Sem líder'}</span>
-            </div>
-            <div className="text-xs font-bold text-slate-500 dark:text-slate-400 text-right">
-                {formatDate(visit.ovStartedAt)}
-            </div>
-        </div>
-
-        {/* Progress Section */}
-        <div className="flex items-center gap-3 mb-3">
-            <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div
-                    className="h-full bg-primary transition-all duration-500 shadow-[0_0_8px_rgba(var(--color-primary),0.5)]"
-                    style={{ width: `${visit.progress || 0}% ` }}
-                />
-            </div>
-            <span className="text-[10px] font-black text-slate-900 dark:text-white leading-none">
-                {visit.progress || 0}%
-            </span>
-        </div>
-
-        {/* Bottom Processing Badge */}
-        <div className="flex items-center gap-3 pt-1">
-            <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center border border-slate-100 dark:border-slate-800 shadow-inner">
-                <span className="material-symbols-outlined text-xl text-primary">engineering</span>
-            </div>
-            <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight truncate">
-                    {(visit as any).processingDescription || 'PROCESSAMENTO'}
-                </span>
-                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                    EM ANDAMENTO
-                </span>
-            </div>
-        </div>
-    </div>
-);
-
 
 const AppropriationTable: React.FC<{ items: any[] }> = ({ items }) => {
     if (!items.length) {
@@ -295,9 +383,6 @@ const AppropriationTable: React.FC<{ items: any[] }> = ({ items }) => {
     );
 };
 
-/**
- * Cost Appropriation Section Component
- */
 interface AppropriationSectionProps {
     title: string;
     icon: string;
@@ -319,7 +404,6 @@ const AppropriationSection: React.FC<AppropriationSectionProps> = ({
 }) => {
     return (
         <div className="flex flex-col bg-white dark:bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden shadow-sm dark:shadow-none transition-all duration-300">
-            {/* Header Bar - Styled like the 'financialTotals' bar */}
             <div
                 onClick={onToggle}
                 className={`flex items-center justify-between p-4 cursor-pointer transition-all duration-300 hover:bg-slate-50 dark:hover:bg-white/5 active:scale-[0.99] group ${isExpanded ? 'bg-primary/10 dark:bg-primary/20 border-b border-primary/20' : 'bg-transparent'
@@ -359,7 +443,6 @@ const AppropriationSection: React.FC<AppropriationSectionProps> = ({
                 </div>
             </div>
 
-            {/* Content Table */}
             <div className={`transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                 <div className="p-0 border-t border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-900/40">
                     <AppropriationTable items={items} />
@@ -368,8 +451,6 @@ const AppropriationSection: React.FC<AppropriationSectionProps> = ({
         </div>
     );
 };
-
-// --- CHART HELPERS (SVG BASED) ---
 
 const InsightsDoughnut: React.FC<{ data: { label: string, value: number, color: string }[] }> = ({ data }) => {
     const total = data.reduce((acc, d) => acc + d.value, 0);
@@ -434,13 +515,11 @@ const InsightsTrend: React.FC<{ data: { label: string, value: number }[] }> = ({
     const maxVal = Math.max(...data.map(d => d.value), 1);
     if (data.length === 0) return null;
 
-    // Build SVG points for an Area Chart with internal padding
     const width = 300;
     const height = 100;
-    const paddingX = 12; // Prevents labels on extremes from being cut
-    const paddingY = 22; // Space for labels above points
+    const paddingX = 12;
+    const paddingY = 22;
 
-    // Calculate internal width available for data
     const chartWidth = width - (paddingX * 2);
     const chartHeight = height - paddingY;
 
@@ -460,10 +539,8 @@ const InsightsTrend: React.FC<{ data: { label: string, value: number }[] }> = ({
                     </linearGradient>
                 </defs>
 
-                {/* Area Background */}
                 <path d={areaPath} fill="url(#trendGradient)" className="transition-all duration-700" />
 
-                {/* Trend Line */}
                 <path
                     d={linePath}
                     fill="none"
@@ -480,7 +557,6 @@ const InsightsTrend: React.FC<{ data: { label: string, value: number }[] }> = ({
 
                     return (
                         <g key={i} className="group/point">
-                            {/* Value Label with High-Contrast Halo */}
                             <text
                                 x={x}
                                 y={y - 10}
@@ -493,7 +569,6 @@ const InsightsTrend: React.FC<{ data: { label: string, value: number }[] }> = ({
                                 {d.value}
                             </text>
 
-                            {/* Point */}
                             <circle
                                 cx={x}
                                 cy={y}
@@ -561,11 +636,10 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     searchQuery: searchQueryProp,
     onSearchQueryChange
 }) => {
-    // UI Filters State (What's visible in the selection bar)
     const [advancedFilters, setAdvancedFilters] = useState<OrderFilters>(() => {
         if (currentFilters) return currentFilters;
         try {
-            const saved = localStorage.getItem('advancedOrdersFilters'); // Use same key as OS
+            const saved = localStorage.getItem('advancedOrdersFilters');
             return saved ? JSON.parse(saved) : {};
         } catch (e) { return {}; }
     });
@@ -587,30 +661,26 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         }
     }, [searchQuery, onSearchQueryChange]);
 
-    // Applied Filters State (What's actually filtering the data)
     const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => {
         if (appliedFiltersProp) return appliedFiltersProp;
         try {
-            const saved = localStorage.getItem('appliedOrdersFilters'); // Use same key as OS
+            const saved = localStorage.getItem('appliedOrdersFilters');
             return saved ? JSON.parse(saved) : {};
         } catch (e) { return {}; }
     });
 
-    // Sync UI Filters from Parent
     useEffect(() => {
         if (currentFilters) {
             setAdvancedFilters(currentFilters);
         }
     }, [currentFilters]);
 
-    // Sync Applied Filters from Parent
     useEffect(() => {
         if (appliedFiltersProp) {
             setAppliedFilters(appliedFiltersProp);
         }
     }, [appliedFiltersProp]);
 
-    // Notify Parent of UI Filter changes
     useEffect(() => {
         if (onFiltersChange) {
             onFiltersChange(advancedFilters);
@@ -618,7 +688,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         localStorage.setItem('advancedOrdersFilters', JSON.stringify(advancedFilters));
     }, [advancedFilters, onFiltersChange]);
 
-    // Notify Parent of Applied Filter changes
     useEffect(() => {
         if (onAppliedFiltersChange) {
             onAppliedFiltersChange(appliedFilters);
@@ -627,7 +696,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     }, [appliedFilters, onAppliedFiltersChange]);
     const [visits, setVisits] = useState<OrderVisitExtended[]>([]);
 
-    // Date Range Filter State
     const todayStr = useMemo(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -655,15 +723,12 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         };
     }, []);
 
-    // Date Range Filter State with persistence
-    // NOTE: Using 'visits_dashboard_date_*' keys (separate from OS dashboard keys)
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
         const savedStart = localStorage.getItem('visits_dashboard_date_start');
         const savedEnd = localStorage.getItem('visits_dashboard_date_end');
         if (savedStart && savedEnd) {
             return { start: savedStart, end: savedEnd };
         }
-        // Default: last 6 months (broad range to show historical data)
         const now = new Date();
         const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
         const firstDay = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
@@ -671,28 +736,23 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         return { start: firstDay, end: lastDay };
     });
 
-    // Update persistence when dateRange changes
     useEffect(() => {
         localStorage.setItem('visits_dashboard_date_start', dateRange.start);
         localStorage.setItem('visits_dashboard_date_end', dateRange.end);
     }, [dateRange]);
 
-    // Date Range Modal State
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
     const [tempDateRange, setTempDateRange] = useState<{ start: string; end: string }>(dateRange);
     const [activeDateInput, setActiveDateInput] = useState<'start' | 'end'>('start');
 
-    // All Units Modal State
     const [isAllUnitsModalOpen, setIsAllUnitsModalOpen] = useState(false);
 
-    // Sync temp range when modal opens
     useEffect(() => {
         if (isDateModalOpen) {
             setTempDateRange(dateRange);
         }
     }, [isDateModalOpen, dateRange]);
 
-    // Dynamic Stats and Processing Stages
     const [processingStages, setProcessingStages] = useState<{ id: number, description: string, icon: string, icon_color: string, bg_color: string }[]>([]);
 
     const [loading, setLoading] = useState(true);
@@ -717,11 +777,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     });
     const [isFetchingAppropriation, setIsFetchingAppropriation] = useState(false);
 
-    // Pagination/Infinite Scroll State
     const [visibleCount, setVisibleCount] = useState(50);
     const loadMoreRef = React.useRef<HTMLDivElement>(null);
 
-    // Advanced Filters State (Managed above)
     const [filterOptions, setFilterOptions] = useState({
         systems: [] as any[],
         subSystems: [] as any[],
@@ -735,24 +793,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     });
     const [unitSubTypes, setUnitSubTypes] = useState<any[]>([]);
     const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
-
-    // Selection Modal State
-    const [selectionModal, setSelectionModal] = useState<{
-        isOpen: boolean;
-        filterKey: keyof OrderFilters;
-        label: string;
-        options: { value: string; label: string }[];
-        currentValue: string[];
-    }>({
-        isOpen: false,
-        filterKey: 'orderTypeId',
-        label: '',
-        options: [],
-        currentValue: []
-    });
-    const [selectionSearch, setSelectionSearch] = useState('');
-
-
 
     const loadFilterOptions = React.useCallback(async () => {
         try {
@@ -783,7 +823,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 units: getVal(results[7])
             }));
 
-            // Pré-selecionar todos os contratos gerenciados se o usuário não definiu nenhum
             if (contracts.length > 0) {
                 const defaultContractIds = contracts.map((c: any) => String(c.id));
                 setAdvancedFilters(prev => {
@@ -808,11 +847,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 setLoading(true);
             }
 
-            // 2. Load processing stages
             const stages = await dataService.getProcessingConfigurations();
             setProcessingStages(stages);
 
-            // 3. Load all visits from v_orders_visits via dataService
             const data = await dataService.getOrdersVisitsView();
 
             const mappedVisits: OrderVisitExtended[] = (data || []).map((row: any) => ({
@@ -839,13 +876,11 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
                 ovDurationHours: row.ov_duration_hours ? parseFloat(row.ov_duration_hours) : 0,
 
-                // Value fields
                 servicesValue: row.ov_services_value ? parseFloat(row.ov_services_value) : 0,
                 materialsValue: row.ov_materials_value ? parseFloat(row.ov_materials_value) : 0,
                 vehiclesValue: row.ov_vehicles_value ? parseFloat(row.ov_vehicles_value) : 0,
                 totalValue: row.ov_total_value ? parseFloat(row.ov_total_value) : 0,
 
-                // Filter fields mapping
                 systemId: row.o_system_id?.toString(),
                 systemParentId: row.o_system_parent_id?.toString(),
                 unitTypeId: row.o_unit_type_id?.toString(),
@@ -869,7 +904,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 ovAssetsDisapprovedAmount: row.ov_assets_disapproved_amount,
                 ovAssetsApprovedNoFiledAmount: row.ov_assets_approved_no_filed_amount,
                 ovAssetsApprovedFiledAmount: row.ov_assets_approved_filed_amount,
-                // Extra fields for visits list PDF
                 typeCode: row.o_type_code || row.type_code,
                 typeSubCode: row.o_type_sub_code || row.type_sub_code,
                 sectorDescription: row.o_asset_tag_description || row.asset_tag_description || row.o_system_description,
@@ -878,7 +912,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
             setVisits(mappedVisits);
 
-            // 4. Load teams for all visible visits
             loadTeamsForVisits(mappedVisits);
         } catch (error) {
             console.error('Error loading visits:', error);
@@ -886,10 +919,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             setLoading(false);
             initialLoadDone.current = true;
         }
-    }, [currentUser.id]); // currentUser is stable usually
+    }, [currentUser.id]);
 
     useEffect(() => {
-        // Clean up old shared localStorage keys
         localStorage.removeItem('dashboard_admin_date_start');
         localStorage.removeItem('dashboard_admin_date_end');
 
@@ -899,7 +931,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
          const handleRefresh = () => loadData(true);
          window.addEventListener('refresh_dashboard', handleRefresh);
  
-         // Realtime updates
          const orderSub = dataService.subscribeToOrders(() => {
              loadData(false);
          });
@@ -925,12 +956,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         }
     };
 
-    const formatDate = (dateString?: string) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    };
-
     const formatDateDisplay = (dateString?: string) => {
         if (!dateString) return '';
         const parts = dateString.split('-');
@@ -940,18 +965,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         return dateString;
     };
 
-    const getStatusColor = (statusId: number) => {
-        switch (statusId) {
-            case 1: return 'bg-yellow-500';
-            case 2: return 'bg-blue-500';
-            case 3: return 'bg-green-500';
-            case 4: return 'bg-purple-500';
-            case 7: return 'bg-red-500';
-            default: return 'bg-gray-500';
-        }
-    };
-
-    // Filter Logic
     const handleSystemChange = async (systemId: string | string[]) => {
         setAdvancedFilters(prev => ({ ...prev, systemParentId: systemId, systemId: [] }));
         if (systemId && (Array.isArray(systemId) ? systemId.length > 0 : true)) {
@@ -985,37 +998,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         }
     };
 
-    const openSelectionModal = (key: keyof OrderFilters, label: string, options: { value: string; label: string }[]) => {
-        const value = advancedFilters[key];
-        const currentValue = Array.isArray(value)
-            ? (value as any[]).map(String)
-            : (value !== undefined && value !== null ? [String(value)] : []);
-        setSelectionModal({
-            isOpen: true,
-            filterKey: key,
-            label,
-            options,
-            currentValue
-        });
-        setSelectionSearch('');
-    };
-
-    const handleModalConfirm = (value: string[]) => {
-        const key = selectionModal.filterKey;
-        const finalValue = value; // Keep purely as string array
-
-        if (key === 'systemParentId') {
-            handleSystemChange(finalValue);
-        } else if (key === 'unitTypeParentId') {
-            handleParentUnitTypeChange(finalValue);
-        } else if (key === 'orderTypeId') {
-            handleOrderTypeChange(finalValue);
-        } else {
-            setAdvancedFilters(prev => ({ ...prev, [key]: finalValue }));
-        }
-        setSelectionModal(prev => ({ ...prev, isOpen: false }));
-    };
-
     const handleDateModalOpen = () => {
         setTempDateRange(dateRange);
         setActiveDateInput('start');
@@ -1035,14 +1017,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         setIsDateModalOpen(false);
     };
 
-    // -------------------------------------------------------------------------
-    // REACTIVE FILTERING LOGIC
-    // -------------------------------------------------------------------------
-
-    // 1. Base Filter (Search + Advanced Filters) - Used to calculate CARD COUNTS
     const baseFilteredVisits = useMemo(() => {
         return visits.filter(visit => {
-            // Search Query Filter
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
                 const matches = (
@@ -1055,15 +1031,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 if (!matches) return false;
             }
 
-            // Date Range Filter
             if (dateRange.start || dateRange.end) {
-                // Use ovStartedAt first, fallback to ovCreatedAt
                 const visitDateStr = visit.ovStartedAt || visit.ovCreatedAt;
-                if (!visitDateStr) {
-                    // Visits with no date at all pass through (e.g., drafts)
-                    // to avoid hiding them; they will appear at the top
-                    return true;
-                }
+                if (!visitDateStr) return true;
 
                 const visitDate = new Date(visitDateStr);
 
@@ -1080,7 +1050,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 }
             }
 
-            // Advanced Filters helper
             const checkFilter = (filterKey: keyof OrderFilters, visitKey: keyof OrderVisitExtended) => {
                 const filterValue = (appliedFilters as any)[filterKey];
                 if (!filterValue || (Array.isArray(filterValue) && filterValue.length === 0)) return true;
@@ -1110,7 +1079,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         });
     }, [visits, searchQuery, appliedFilters, dateRange]);
 
-    // 2. Dynamic Stats - Calculated directly from Base Filter
     const stats = useMemo(() => {
         const newStats: Record<number, { count: number; total: number }> = {};
         processingStages.forEach(stage => {
@@ -1123,7 +1091,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         return newStats;
     }, [baseFilteredVisits, processingStages]);
 
-    // 3. Final Filtered List - Base Filter + Active Card Filter
     const filteredVisits = useMemo(() => {
         return baseFilteredVisits
             .filter(visit => {
@@ -1135,11 +1102,10 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             .sort((a, b) => {
                 const dateA = a.ovStartedAt ? new Date(a.ovStartedAt).getTime() : 0;
                 const dateB = b.ovStartedAt ? new Date(b.ovStartedAt).getTime() : 0;
-                return dateA - dateB; // Oldest first (Ascending)
+                return dateA - dateB;
             });
     }, [baseFilteredVisits, activeFilter]);
 
-    // 4. Global Financial Totals - Sum of all visits in the filtered list
     const financialTotals = useMemo(() => {
         return {
             services: appropriationData.services.reduce((acc, i) => acc + (i.value_total || 0), 0),
@@ -1150,11 +1116,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     const totalSumValue = financialTotals.services + financialTotals.materials + financialTotals.vehicles;
 
-    // --- PRE-CALCULATE INSIGHT DATA ---
     const insightData = useMemo(() => {
         if (!filteredVisits.length) return { composition: [], trend: [], units: [], allUnits: [], movements: [], totalComposition: 0 };
         
-        // 1. Composition by Plan
         const planMap = new Map();
         filteredVisits.forEach(v => {
             const plan = v.o_plan_description || 'Sem Plano';
@@ -1172,7 +1136,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
         const totalComposition = composition.reduce((acc, c) => acc + c.value, 0);
 
-        // 2. Daily Trend (Visits per day)
         const dailyMap = new Map();
         filteredVisits.forEach(v => {
             if (!v.ovStartedAt) return;
@@ -1181,13 +1144,12 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         });
         const trend = Array.from(dailyMap.entries())
             .sort((a, b) => a[0].localeCompare(b[0]))
-            .slice(-10) // Last 10 days found
+            .slice(-10)
             .map(([day, count]) => ({
                 label: day.split('-').slice(1).reverse().join('/'),
                 value: count
             }));
 
-        // 3. Top 3 Units by Value
         const unitMap = new Map();
         filteredVisits.forEach(v => {
             const unit = v.unitDescription || 'Sem Unidade';
@@ -1197,9 +1159,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             .map(([label, value]) => ({ label, value }))
             .sort((a, b) => b.value - a.value);
 
-        const topUnits = allUnits.slice(0, 3);
-
-        // 4. Asset Movements by Type
         const movementMap = new Map();
         appropriationData.movedAssets.forEach(a => {
             const type = a.assetTypeDescription || 'N/A';
@@ -1213,15 +1172,13 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             }))
             .sort((a, b) => b.value - a.value);
 
-        return { composition, trend, units: topUnits, allUnits, movements, totalComposition };
+        return { composition, trend, units: allUnits.slice(0, 3), allUnits, movements, totalComposition };
     }, [filteredVisits, appropriationData.movedAssets]);
 
-    // 4. Visible Slice for Infinite Scroll
     const displayedVisits = useMemo(() => {
         return filteredVisits.slice(0, visibleCount);
     }, [filteredVisits, visibleCount]);
 
-    // Memoize the mapped visits for the PDF list button to avoid heavy computation in render
     const pdfVisitsData = useMemo(() => {
         return filteredVisits.map(v => ({
             ovMask: v.ovMask,
@@ -1242,7 +1199,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         }));
     }, [filteredVisits]);
 
-    // Fetch Appropriation Data when filtered visits change (with debounce)
     const fetchDebounceRef = useRef<any>(null);
 
     useEffect(() => {
@@ -1273,7 +1229,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 dataService.getOrdersVisitsAssetsMovedMerged(ovIds)
             ]);
 
-            // Aggregate helper - Groups by: description, code, unit value, and discount
             const aggregate = (items: any[], codeKey: string, descKey: string) => {
                 const map = new Map<string, any>();
                 items.forEach(item => {
@@ -1281,8 +1236,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                     const desc = item[descKey] || item.description || 'Sem descrição';
                     const valueUnit = Number(item.value_unit || 0).toFixed(2);
                     const discount = Number(item.discount || 1).toFixed(3);
-
-                    // Group by: code + description + unit value + discount
                     const key = `${code}_${desc}_${valueUnit}_${discount}`;
 
                     if (map.has(key)) {
@@ -1301,9 +1254,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                         });
                     }
                 });
-                return Array.from(map.values()).sort((a, b) =>
-                    (a.description || '').localeCompare(b.description || '', 'pt-BR')
-                );
+                return Array.from(map.values()).sort((a, b) => (a.description || '').localeCompare(b.description || '', 'pt-BR'));
             };
 
             setAppropriationData({
@@ -1319,12 +1270,10 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         }
     };
 
-    // Reset pagination when filters change
     useEffect(() => {
         setVisibleCount(50);
     }, [activeFilter, searchQuery, advancedFilters, dateRange]);
 
-    // Setup Intersection Observer for Infinite Scroll
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
@@ -1356,89 +1305,19 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     return (
         <>
             <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white animate-in fade-in duration-500 relative">
-
-                {/* Horizontal Filter Bar */}
                 <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
                     <div className="flex flex-col p-4 gap-2">
-                        {/* Filters Row (Scrollable) */}
-                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1">
-                            <div className="flex items-center justify-between gap-2 min-w-full pb-1">
-                                <FilterSelect
-                                    label="SISTEMA"
-                                    value={advancedFilters.systemParentId || []}
-                                    onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterOptions.systems.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                    onClear={() => handleSystemChange([])}
-                                />
-                                <FilterSelect
-                                    label="SUB-SISTEMA"
-                                    value={advancedFilters.systemId || []}
-                                    onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, systemId: [] }))}
-                                    disabled={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)}
-                                />
-                                <FilterSelect
-                                    label="TIPO UNIDADE"
-                                    value={advancedFilters.unitTypeParentId || []}
-                                    onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterOptions.unitTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                    onClear={() => handleParentUnitTypeChange([])}
-                                />
-                                <FilterSelect
-                                    label="SUB-TIPO UNIDADE"
-                                    value={advancedFilters.unitTypeId || []}
-                                    onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, unitTypeId: [] }))}
-                                    disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)}
-                                />
-                                <FilterSelect
-                                    label="UNIDADES"
-                                    value={advancedFilters.unitId || []}
-                                    onClick={() => openSelectionModal('unitId', 'UNIDADES', filterOptions.units.map(opt => ({ value: String(opt.id), label: opt.description_full || opt.description })))}
-                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, unitId: [] }))}
-                                />
-                                <FilterSelect
-                                    label="FINALIDADE"
-                                    value={advancedFilters.orderObjectId || []}
-                                    onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterOptions.orderObjects.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, orderObjectId: [] }))}
-                                />
-                                <FilterSelect
-                                    label="TIPO OS"
-                                    value={advancedFilters.orderTypeId || []}
-                                    onClick={() => openSelectionModal('orderTypeId', 'TIPO OS', filterOptions.orderTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                    onClear={() => handleOrderTypeChange([])}
-                                />
-                                <FilterSelect
-                                    label="SUB-TIPO OS"
-                                    value={advancedFilters.orderTypeSubId || []}
-                                    onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))}
-                                    disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)}
-                                />
-                                <FilterSelect
-                                    label="CONTRATO"
-                                    value={advancedFilters.contractId || []}
-                                    onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts.map(opt => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))}
-                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))}
-                                    required
-                                />
-                                <FilterSelect
-                                    label="PLANO"
-                                    value={advancedFilters.orderPlanId || []}
-                                    onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterOptions.plans.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, orderPlanId: [] }))}
-                                />
-                                <FilterSelect
-                                    label="EQUIPE"
-                                    value={advancedFilters.orderTeamId || []}
-                                    onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterOptions.teams.map(opt => ({ value: String(opt.id), label: opt.name || opt.description })))}
-                                    onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Action Row (Date Inputs + Buttons) */}
+                        <FilterBarSection 
+                            advancedFilters={advancedFilters}
+                            setAdvancedFilters={setAdvancedFilters}
+                            filterSelectOptions={filterOptions}
+                            handleSystemChange={handleSystemChange}
+                            handleParentUnitTypeChange={handleParentUnitTypeChange}
+                            handleOrderTypeChange={handleOrderTypeChange}
+                            unitSubTypes={unitSubTypes}
+                            orderSubTypes={orderSubTypes}
+                        />
                         <div className="flex items-center justify-between gap-3 pb-1 pt-0 mt-0">
-                            {/* Date Range Selector Button - Precise Size */}
                             <div
                                 onClick={handleDateModalOpen}
                                 className="group w-auto flex items-center gap-3 bg-white dark:bg-slate-800 p-1.5 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 cursor-pointer transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
@@ -1461,9 +1340,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 <span className="material-symbols-outlined text-slate-300 text-lg group-hover:text-primary transition-colors shrink-0">edit_calendar</span>
                             </div>
 
-                            {/* Buttons */}
                             <div className="flex items-center gap-3">
-                                {/* Clear all shortcut - restaura contratos padrão */}
                                 {(Object.values(advancedFilters).some(v => Array.isArray(v) && v.length > 0)) && (
                                     <button
                                         onClick={() => {
@@ -1481,7 +1358,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 )}
                                 <button
                                     onClick={() => {
-                                        // Validação: contrato é obrigatório
                                         const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];
                                         if (selectedContracts.length === 0) {
                                             toast.error('Selecione ao menos um contrato para filtrar');
@@ -1497,12 +1373,10 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 </button>
                             </div>
                         </div>
-                    </div>    {/* Action Row */}
-
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto no-scrollbar p-4">
-                    {/* Stats Cards - Dynamic Fluid Grid/Scroll */}
                     <div className="flex gap-4 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 mb-2 pt-2 w-full">
                         <StatCard
                             icon="apps"
@@ -1534,9 +1408,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                         })}
                     </div>
 
-                    {/* --- INSIGHTS SECTION (NEW) --- */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 px-1 py-2 bg-slate-50/50 dark:bg-slate-800/10 rounded-[16px]">
-                        {/* Cost Composition Doughnut */}
                         <div className="flex flex-col bg-white dark:bg-slate-800/50 p-6 rounded-[16px] border border-slate-200 dark:border-slate-700/50 shadow-sm transition-all hover:shadow-md group">
                             <div className="flex items-center gap-3 mb-6">
                                 <span className="material-symbols-outlined text-primary text-xl">pie_chart</span>
@@ -1558,7 +1430,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             </div>
                         </div>
 
-                        {/* Performance Daily Trend */}
                         <div className="flex flex-col bg-white dark:bg-slate-800/50 p-6 rounded-[16px] border border-slate-200 dark:border-slate-700/50 shadow-sm transition-all hover:shadow-md">
                             <div className="flex items-center gap-3 mb-2">
                                 <span className="material-symbols-outlined text-primary text-xl">trending_up</span>
@@ -1570,7 +1441,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             </div>
                         </div>
 
-                        {/* Ranking das Unidades Top 3 */}
                         <div className="flex flex-col bg-white dark:bg-slate-800/50 p-6 rounded-[16px] border border-slate-200 dark:border-slate-700/50 shadow-sm transition-all hover:shadow-md">
                             <div className="flex items-center gap-3 mb-2">
                                 <span className="material-symbols-outlined text-primary text-xl">location_city</span>
@@ -1588,7 +1458,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             </button>
                         </div>
 
-                        {/* Ativos Movimentados por Tipo */}
                         <div className="flex flex-col bg-white dark:bg-slate-800/50 p-6 rounded-[16px] border border-slate-200 dark:border-slate-700/50 shadow-sm transition-all hover:shadow-md">
                             <div className="flex items-center gap-3 mb-2">
                                 <span className="material-symbols-outlined text-primary text-xl">precision_manufacturing</span>
@@ -1603,7 +1472,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                         </div>
                     </div>
 
-                    {/* Appropriation Sections */}
                     <div className="flex flex-col gap-4 mb-8 px-1">
                         <AppropriationSection
                             title="Serviços"
@@ -1634,7 +1502,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                         />
                     </div>
 
-                    {/* Visits List */}
                     <div className="p-4">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                             <div className="flex flex-col gap-1">
@@ -1648,7 +1515,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             </div>
 
                             <div className="flex flex-col items-end md:flex-row md:items-center justify-end gap-3 md:gap-5 w-full md:w-auto">
-                                {/* Search */}
                                 <div className="relative w-full md:w-64">
                                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
                                         search
@@ -1662,7 +1528,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     />
                                 </div>
 
-                                {/* PDF Export Button */}
                                 <VisitsListPDFButton
                                     className="shrink-0"
                                     visits={pdfVisitsData}
@@ -1670,9 +1535,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     filename="relatorio-visitas"
                                 />
 
-                                    {/* Composition Stats (Percentages) */}
                                     <div className="flex items-center gap-4 px-2 py-1">
-                                        {/* Services % */}
                                         <div className="flex flex-col items-center group/item cursor-help relative">
                                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-wide mb-0.5">Serviços</span>
                                             <div className="flex items-center gap-1.5">
@@ -1683,7 +1546,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                             </div>
                                         </div>
 
-                                        {/* Materials % */}
                                         <div className="flex flex-col items-center group/item cursor-help relative">
                                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-wide mb-0.5">Materiais</span>
                                             <div className="flex items-center gap-1.5">
@@ -1694,7 +1556,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                             </div>
                                         </div>
 
-                                        {/* Vehicles % */}
                                         <div className="flex flex-col items-center group/item cursor-help relative">
                                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-wide mb-0.5">Transportes</span>
                                             <div className="flex items-center gap-1.5">
@@ -1706,7 +1567,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                         </div>
                                     </div>
 
-                                    {/* Total Geral */}
                                     <div className="flex flex-col px-4 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 shadow-sm min-w-[140px]">
                                         <div className="flex justify-between items-center mb-0.5">
                                             <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-tighter">TOTAL GERAL</span>
@@ -1731,7 +1591,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                         ))}
                     </div>
 
-                    {/* Sentinel for Infinite Scroll */}
                     {filteredVisits.length > visibleCount && (
                         <div ref={loadMoreRef} className="py-10 flex justify-center">
                             <div className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 shadow-sm">
@@ -1751,67 +1610,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 </div>
             </div>
 
-            {/* Selection Modal for Filters */}
-            <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
-                <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100">
-                    <div className="relative">
-                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                        <input
-                            type="text"
-                            placeholder={`Pesquisar ${selectionModal.label}...`}
-                            value={selectionSearch}
-                            onChange={(e) => setSelectionSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-                        />
-                    </div>
-
-                    <div className="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
-                        {selectionModal.options
-                            .filter(opt => opt.label.toLowerCase().includes(selectionSearch.toLowerCase()))
-                            .map(opt => {
-                                const isSelected = selectionModal.currentValue.includes(opt.value);
-                                return (
-                                    <label
-                                        key={opt.value}
-                                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5' : ''}`}
-                                    >
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
-                                            {isSelected && <span className="material-symbols-outlined text-white text-[16px] font-bold">check</span>}
-                                        </div>
-                                        <input
-                                            type="checkbox"
-                                            className="hidden"
-                                            checked={isSelected}
-                                            onChange={() => {
-                                                const newVal = isSelected
-                                                    ? selectionModal.currentValue.filter(v => v !== opt.value)
-                                                    : [...selectionModal.currentValue, opt.value];
-                                                setSelectionModal(prev => ({ ...prev, currentValue: newVal }));
-                                            }}
-                                        />
-                                        <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{opt.label}</span>
-                                    </label>
-                                );
-                            })}
-                        {selectionModal.options.filter(opt => opt.label.toLowerCase().includes(selectionSearch.toLowerCase())).length === 0 && (
-                            <div className="py-10 text-center flex flex-col items-center gap-2">
-                                <span className="material-symbols-outlined text-slate-300 text-4xl">search_off</span>
-                                <p className="text-slate-400 text-sm">Nenhum resultado encontrado</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                        <button
-                            onClick={() => handleModalConfirm(selectionModal.currentValue)}
-                            className="flex-1 py-3 bg-primary text-white rounded-xl font-bold font-['Inter'] shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 text-sm"
-                        >
-                            Confirmar ({selectionModal.currentValue.length})
-                        </button>
-                    </div>
-                </div>
-            </Modal>
-
             {/* Date Range Selection Modal */}
             <Modal
                 isOpen={isDateModalOpen}
@@ -1823,9 +1621,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 <div className="flex flex-col gap-4 px-2 pb-2 -mt-4">
                     {/* Shortcuts */}
                     <div className="flex w-full mb-1 relative">
-                        {/* Indicadores visuais de scroll para mobile (fades) */}
-                        <div className="absolute left-0 top-0 bottom-0 w-3 bg-linear-to-r from-white dark:from-(--bg-card-dark,#1e293b) to-transparent pointer-events-none z-10 sm:hidden" />
-                        <div className="absolute right-0 top-0 bottom-0 w-3 bg-linear-to-l from-white dark:from-(--bg-card-dark,#1e293b) to-transparent pointer-events-none z-10 sm:hidden" />
+                        <div className="absolute left-0 top-0 bottom-0 w-3 bg-linear-to-r from-white dark:from-slate-900 to-transparent pointer-events-none z-10 sm:hidden" />
+                        <div className="absolute right-0 top-0 bottom-0 w-3 bg-linear-to-l from-white dark:from-slate-900 to-transparent pointer-events-none z-10 sm:hidden" />
                         
                         <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-2 pt-1 w-full justify-start sm:justify-center items-center snap-x snap-mandatory px-2">
                             {(() => {
@@ -1926,6 +1723,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                     </div>
                 </div>
             </Modal>
+
             {/* Modal for All Units Expenses */}
             <Modal
                 isOpen={isAllUnitsModalOpen}
@@ -1964,7 +1762,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                         </div>
                                     ));
                                 })()}
-                          </div>
+                            </div>
                         </div>
                     </div>
 

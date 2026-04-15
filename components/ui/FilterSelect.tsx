@@ -37,7 +37,7 @@ export const FilterSelect: React.FC<{
                                     ? 'text-primary'
                                     : 'text-slate-500 dark:text-slate-400'
                         }`}>
-                            {count > 0 ? `${count} ${count === 1 ? 'item' : 'itens'}` : 'Obrigatório'}
+                            {count > 0 ? `${count} ${count === 1 ? 'item' : 'itens'}` : (required ? 'Obrigatório' : 'Todos')}
                         </span>
                     </div>
                 </div>

@@ -1054,6 +1054,7 @@ export interface OrderVisitAssetView extends OrderVisitAsset {
   beforeStatusColor?: string;
   reportedUserNameShort?: string;
   activitiesDescription?: string;
+  oContractId?: string;
 }
 
 export interface AssetHistoryItem {

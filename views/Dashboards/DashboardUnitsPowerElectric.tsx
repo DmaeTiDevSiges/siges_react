@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { dataService } from '../../services/dataService';
 import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
-import { DashboardOrdersVisitsAdminListItem } from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
+import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
 
-interface DashboardOrdersVisitsAdminScreenProps {
+interface DashboardUnitsPowerElectricProps {
     currentUser: User;
     onSelectVisit: (visit: OrderVisit) => void;
     currentFilters?: OrderFilters;
@@ -37,6 +37,213 @@ interface OrderVisitExtended extends OrderVisit {
     parentId?: number | null;
     o_plan_description?: string;
 }
+
+// Isolated Filter Bar Section to prevent Dashboard re-renders during filter selection
+const FilterBarSection = React.memo(({ 
+    advancedFilters, 
+    setAdvancedFilters, 
+    filterSelectOptions: rawFilterOptions,
+    handleSystemChange,
+    handleParentUnitTypeChange,
+    handleOrderTypeChange,
+    unitSubTypes,
+    orderSubTypes
+}: { 
+    advancedFilters: OrderFilters;
+    setAdvancedFilters: React.Dispatch<React.SetStateAction<OrderFilters>>;
+    filterSelectOptions: any;
+    handleSystemChange: (id: string | string[]) => void;
+    handleParentUnitTypeChange: (id: string | string[]) => void;
+    handleOrderTypeChange: (id: string | string[]) => void;
+    unitSubTypes: any[];
+    orderSubTypes: any[];
+}) => {
+    const [selectionModal, setSelectionModal] = useState<{
+        isOpen: boolean;
+        filterKey: keyof OrderFilters;
+        label: string;
+        options: { value: string; label: string }[];
+        currentValue: string[];
+    }>({
+        isOpen: false,
+        filterKey: 'orderTypeId',
+        label: '',
+        options: [],
+        currentValue: []
+    });
+
+    // Memoize the mapping logic to prevent expensive re-computes on every render
+    const filterOptions = useMemo(() => ({
+        systems: (rawFilterOptions?.systems || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
+        subSystems: (rawFilterOptions?.subSystems || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
+        unitTypes: (rawFilterOptions?.unitTypes || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
+        unitSubTypes: (unitSubTypes || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
+        orderObjects: (rawFilterOptions?.orderObjects || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
+        orderTypes: (rawFilterOptions?.orderTypes || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
+        orderSubTypes: (orderSubTypes || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
+        contracts: (rawFilterOptions?.contracts || []).map((opt: any) => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })),
+        plans: (rawFilterOptions?.plans || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
+        teams: (rawFilterOptions?.teams || []).map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description }))
+    }), [rawFilterOptions, unitSubTypes, orderSubTypes]);
+
+    const openSelectionModal = useCallback((key: keyof OrderFilters, label: string, options: { value: string; label: string }[]) => {
+        const value = advancedFilters[key];
+        const currentValue = Array.isArray(value)
+            ? (value as any[]).map(String)
+            : (value !== undefined && value !== null ? [String(value)] : []);
+
+        setSelectionModal({
+            isOpen: true,
+            filterKey: key,
+            label,
+            options,
+            currentValue
+        });
+    }, [advancedFilters]);
+
+    const handleModalConfirm = useCallback((value: string[]) => {
+        const key = selectionModal.filterKey;
+        if (key === 'systemParentId') {
+            handleSystemChange(value);
+        } else if (key === 'unitTypeParentId') {
+            handleParentUnitTypeChange(value);
+        } else if (key === 'orderTypeId') {
+            handleOrderTypeChange(value);
+        } else {
+            setAdvancedFilters(prev => ({ ...prev, [key]: value }));
+        }
+        setSelectionModal(prev => ({ ...prev, isOpen: false }));
+    }, [selectionModal.filterKey, setAdvancedFilters, handleSystemChange, handleParentUnitTypeChange, handleOrderTypeChange]);
+
+    return (
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1">
+            <FilterSelect label="SISTEMA" value={advancedFilters.systemParentId || []} onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterOptions.systems)} onClear={() => handleSystemChange([])} />
+            <FilterSelect label="SUB-SISTEMA" value={advancedFilters.systemId || []} onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems)} onClear={() => setAdvancedFilters(prev => ({ ...prev, systemId: [] }))} disabled={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)} />
+            <FilterSelect label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterOptions.unitTypes)} onClear={() => handleParentUnitTypeChange([])} />
+            <FilterSelect label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', filterOptions.unitSubTypes)} onClear={() => setAdvancedFilters(prev => ({ ...prev, unitTypeId: [] }))} disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
+            <FilterSelect label="FINALIDADE" value={advancedFilters.orderObjectId || []} onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterOptions.orderObjects)} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderObjectId: [] }))} />
+            <FilterSelect label="TIPO OS" value={advancedFilters.orderTypeId || []} onClick={() => openSelectionModal('orderTypeId', 'TIPO OS', filterOptions.orderTypes)} onClear={() => handleOrderTypeChange([])} />
+            <FilterSelect label="SUB-TIPO OS" value={advancedFilters.orderTypeSubId || []} onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', filterOptions.orderSubTypes)} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))} disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)} />
+            <FilterSelect label="CONTRATO" value={advancedFilters.contractId || []} onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts)} onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))} required />
+            <FilterSelect label="PLANO" value={advancedFilters.orderPlanId || []} onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterOptions.plans)} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderPlanId: [] }))} />
+            <FilterSelect label="EQUIPE" value={advancedFilters.orderTeamId || []} onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterOptions.teams)} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))} />
+
+            <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
+                <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} />
+            </Modal>
+        </div>
+    );
+});
+
+// Memoized Item for Filter Selection List
+const FilterOptionItem = React.memo(({ 
+    opt, 
+    isSelected, 
+    onToggle 
+}: { 
+    opt: { value: string; label: string }; 
+    isSelected: boolean; 
+    onToggle: (value: string) => void;
+}) => {
+    return (
+        <label
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5' : ''}`}
+        >
+            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
+                {isSelected && <span className="material-symbols-outlined text-white text-[16px] font-bold">check</span>}
+            </div>
+            <input
+                type="checkbox"
+                className="hidden"
+                checked={isSelected}
+                onChange={() => onToggle(opt.value)}
+            />
+            <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{opt.label}</span>
+        </label>
+    );
+});
+
+// Modal Content Component for Filters
+const FilterSelectionContent: React.FC<{
+    label: string;
+    options: { value: string; label: string }[];
+    initialValue: string[];
+    onConfirm: (value: string[]) => void;
+}> = ({ label, options, initialValue, onConfirm }) => {
+    const [selectionSearch, setSelectionSearch] = useState('');
+    const [currentValue, setCurrentValue] = useState<string[]>(initialValue);
+
+    const filteredOptions = useMemo(() => {
+        const query = selectionSearch.toLowerCase().trim();
+        if (!query) return options;
+        return options.filter(opt => opt.label.toLowerCase().includes(query));
+    }, [options, selectionSearch]);
+
+    const selectedSet = useMemo(() => new Set(currentValue), [currentValue]);
+
+    const handleToggle = useCallback((value: string) => {
+        setCurrentValue(prev => 
+            prev.includes(value) 
+                ? prev.filter(v => v !== value) 
+                : [...prev, value]
+        );
+    }, []);
+
+    return (
+        <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100 text-left">
+            <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                <input
+                    type="text"
+                    placeholder={`Pesquisar ${label}...`}
+                    value={selectionSearch}
+                    onChange={(e) => setSelectionSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                    autoFocus
+                />
+            </div>
+
+            <div className="max-h-[40vh] overflow-y-auto no-scrollbar flex flex-col gap-1">
+                {filteredOptions.length > 0 ? (
+                    filteredOptions.map(opt => (
+                        <FilterOptionItem
+                            key={opt.value}
+                            opt={opt}
+                            isSelected={selectedSet.has(opt.value)}
+                            onToggle={handleToggle}
+                        />
+                    ))
+                ) : (
+                    <div className="py-8 text-center text-slate-400">
+                        <span className="material-symbols-outlined text-4xl mb-2 opacity-20">search_off</span>
+                        <p className="text-xs uppercase font-bold tracking-widest">Nenhum resultado encontrado</p>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selecionados</span>
+                    <span className="text-sm font-black text-primary">{currentValue.length}</span>
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setCurrentValue([])}
+                        className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-red-500 transition-colors uppercase tracking-widest"
+                    >
+                        Limpar
+                    </button>
+                    <button
+                        onClick={() => onConfirm(currentValue)}
+                        className="px-6 py-2.5 bg-primary text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95"
+                    >
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // Helper Components
 
@@ -209,29 +416,28 @@ const VisitCard: React.FC<VisitCardProps> = ({ visit, onClick, formatDate, getSt
     </div>
 );
 
-/**
- * Compact Filter Select Wrapper
- */
-const FilterSelect: React.FC<{
+
+const FilterSelect = React.memo(({ label, value, onClick, onClear, disabled, required }: {
     label: string;
     value: string | string[];
     onClick: () => void;
     onClear: () => void;
     disabled?: boolean;
-}> = ({ label, value, onClick, onClear, disabled }) => {
+    required?: boolean;
+}) => {
     const count = Array.isArray(value) ? value.length : (value ? 1 : 0);
 
     return (
         <div className={`relative flex items-center w-auto min-w-[110px] h-[42px] transition-opacity shrink-0 ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-            <div className={`flex items-stretch h-full w-full bg-white dark:bg-slate-800 border rounded-xl shadow-sm overflow-hidden transition-all ${count > 0 ? 'border-primary ring-1 ring-primary/20' : 'border-slate-200 dark:border-slate-700'}`}>
+            <div className={`flex items-stretch h-full w-full bg-white dark:bg-slate-800 border rounded-xl shadow-sm overflow-hidden transition-all ${count > 0 ? 'border-primary ring-1 ring-primary/20' : (required ? 'border-red-200 dark:border-red-900/50 hover:border-red-300' : 'border-slate-200 dark:border-slate-700')}`}>
                 <div
                     onClick={onClick}
                     className="flex-1 px-3 flex flex-col justify-center border-r border-slate-100 dark:border-slate-700/50 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors min-w-0"
                 >
-                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none mb-0.5">{label}</span>
+                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none mb-0.5">{label} {required && <span className="text-red-500">*</span>}</span>
                     <div className="flex items-center gap-1.5">
-                        <span className={`text-[11px] font-bold ${count > 0 ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {count > 0 ? `${count} ${count === 1 ? 'Item' : 'Itens'}` : 'Todos'}
+                        <span className={`text-[11px] font-bold ${count > 0 ? 'text-primary' : (required ? 'text-red-500' : 'text-slate-500 dark:text-slate-400')}`}>
+                            {count > 0 ? `${count} ${count === 1 ? 'Item' : 'Itens'}` : (required ? 'Obrigatório' : 'Todos')}
                         </span>
                     </div>
                 </div>
@@ -247,7 +453,7 @@ const FilterSelect: React.FC<{
             </div>
         </div>
     );
-};
+});
 
 const AppropriationTable: React.FC<{ items: any[] }> = ({ items }) => {
     if (!items.length) {
@@ -742,7 +948,7 @@ const InsightsTrend: React.FC<{ data: { label: string, value: number }[] }> = ({
     );
 };
 
-export const DashboardUnitsPowerElectric: React.FC<DashboardOrdersVisitsAdminScreenProps> = ({ currentUser, onSelectVisit, currentFilters, onFiltersChange }) => {
+export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricProps> = ({ currentUser, onSelectVisit, currentFilters, onFiltersChange }) => {
     // Advanced Filters State
     const [advancedFilters, setAdvancedFilters] = useState<OrderFilters>(() => {
         if (currentFilters) return currentFilters;
@@ -841,21 +1047,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardOrdersVisitsAdminScr
     const [unitSubTypes, setUnitSubTypes] = useState<any[]>([]);
     const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
 
-    // Selection Modal State
-    const [selectionModal, setSelectionModal] = useState<{
-        isOpen: boolean;
-        filterKey: keyof OrderFilters;
-        label: string;
-        options: { value: string; label: string }[];
-        currentValue: string[];
-    }>({
-        isOpen: false,
-        filterKey: 'orderTypeId',
-        label: '',
-        options: [],
-        currentValue: []
-    });
-    const [selectionSearch, setSelectionSearch] = useState('');
+    // Modal state was moved to FilterBarSection for performance
 
      useEffect(() => {
          loadData();
@@ -1069,36 +1261,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardOrdersVisitsAdminScr
         }
     };
 
-    const openSelectionModal = (key: keyof OrderFilters, label: string, options: { value: string; label: string }[]) => {
-        const value = advancedFilters[key];
-        const currentValue = Array.isArray(value)
-            ? (value as any[]).map(String)
-            : (value !== undefined && value !== null ? [String(value)] : []);
-        setSelectionModal({
-            isOpen: true,
-            filterKey: key,
-            label,
-            options,
-            currentValue
-        });
-        setSelectionSearch('');
-    };
 
-    const handleModalConfirm = (value: string[]) => {
-        const key = selectionModal.filterKey;
-        const finalValue = value; // Keep purely as string array
-
-        if (key === 'systemParentId') {
-            handleSystemChange(finalValue);
-        } else if (key === 'unitTypeParentId') {
-            handleParentUnitTypeChange(finalValue);
-        } else if (key === 'orderTypeId') {
-            handleOrderTypeChange(finalValue);
-        } else {
-            setAdvancedFilters(prev => ({ ...prev, [key]: finalValue }));
-        }
-        setSelectionModal(prev => ({ ...prev, isOpen: false }));
-    };
 
     // -------------------------------------------------------------------------
     // REACTIVE FILTERING LOGIC
@@ -1404,71 +1567,17 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardOrdersVisitsAdminScr
             <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
                 <div className="flex flex-col p-3 gap-1">
                     {/* Filters Row (Scrollable) */}
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1">
-                        <FilterSelect
-                            label="SISTEMA"
-                            value={advancedFilters.systemParentId || []}
-                            onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterOptions.systems.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                            onClear={() => handleSystemChange([])}
-                        />
-                        <FilterSelect
-                            label="SUB-SISTEMA"
-                            value={advancedFilters.systemId || []}
-                            onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                            onClear={() => setAdvancedFilters(prev => ({ ...prev, systemId: [] }))}
-                            disabled={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)}
-                        />
-                        <FilterSelect
-                            label="TIPO UNIDADE"
-                            value={advancedFilters.unitTypeParentId || []}
-                            onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterOptions.unitTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                            onClear={() => handleParentUnitTypeChange([])}
-                        />
-                        <FilterSelect
-                            label="SUB-TIPO UNIDADE"
-                            value={advancedFilters.unitTypeId || []}
-                            onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                            onClear={() => setAdvancedFilters(prev => ({ ...prev, unitTypeId: [] }))}
-                            disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)}
-                        />
-                        <FilterSelect
-                            label="FINALIDADE"
-                            value={advancedFilters.orderObjectId || []}
-                            onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterOptions.orderObjects.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                            onClear={() => setAdvancedFilters(prev => ({ ...prev, orderObjectId: [] }))}
-                        />
-                        <FilterSelect
-                            label="TIPO OS"
-                            value={advancedFilters.orderTypeId || []}
-                            onClick={() => openSelectionModal('orderTypeId', 'TIPO OS', filterOptions.orderTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                            onClear={() => handleOrderTypeChange([])}
-                        />
-                        <FilterSelect
-                            label="SUB-TIPO OS"
-                            value={advancedFilters.orderTypeSubId || []}
-                            onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                            onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))}
-                            disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)}
-                        />
-                        <FilterSelect
-                            label="CONTRATO"
-                            value={advancedFilters.contractId || []}
-                            onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts.map(opt => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))}
-                            onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))}
-                        />
-                        <FilterSelect
-                            label="PLANO"
-                            value={advancedFilters.orderPlanId || []}
-                            onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterOptions.plans.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                            onClear={() => setAdvancedFilters(prev => ({ ...prev, orderPlanId: [] }))}
-                        />
-                        <FilterSelect
-                            label="EQUIPE"
-                            value={advancedFilters.orderTeamId || []}
-                            onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterOptions.teams.map(opt => ({ value: String(opt.id), label: opt.name || opt.description })))}
-                            onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))}
-                        />
-                    </div>
+                    {/* Isolated Filter Bar Section to prevent Dashboard re-renders during filter selection */}
+                    <FilterBarSection 
+                        advancedFilters={advancedFilters}
+                        setAdvancedFilters={setAdvancedFilters}
+                        filterSelectOptions={filterOptions}
+                        handleSystemChange={handleSystemChange}
+                        handleParentUnitTypeChange={handleParentUnitTypeChange}
+                        handleOrderTypeChange={handleOrderTypeChange}
+                        unitSubTypes={unitSubTypes}
+                        orderSubTypes={orderSubTypes}
+                    />
 
                     {/* Action Row (Date Inputs + Buttons) */}
                     <div className="flex items-center justify-between gap-3 pb-1 pt-0 mt-0">
@@ -1541,10 +1650,12 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardOrdersVisitsAdminScr
                 {/* Tables Grid Section */}
                 <div className="flex flex-col gap-8">
                     {/* Operational Units Table */}
-                    <UnitsPowerElectricTable
-                        items={filteredUnits}
-                        unitsOrders={unitsOrders}
-                    />
+                    {useMemo(() => (
+                        <UnitsPowerElectricTable
+                            items={filteredUnits}
+                            unitsOrders={unitsOrders}
+                        />
+                    ), [filteredUnits, unitsOrders])}
 
                     {/* Invoices Table */}
                     <InvoicesTable items={[]} />
@@ -1553,66 +1664,6 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardOrdersVisitsAdminScr
                 {/* Removed Original Results Section */}
             </div>
 
-            {/* Selection Modal for Filters */}
-            <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
-                <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100">
-                    <div className="relative">
-                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                        <input
-                            type="text"
-                            placeholder={`Pesquisar ${selectionModal.label}...`}
-                            value={selectionSearch}
-                            onChange={(e) => setSelectionSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-                        />
-                    </div>
-
-                    <div className="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
-                        {selectionModal.options
-                            .filter(opt => opt.label.toLowerCase().includes(selectionSearch.toLowerCase()))
-                            .map(opt => {
-                                const isSelected = selectionModal.currentValue.includes(opt.value);
-                                return (
-                                    <label
-                                        key={opt.value}
-                                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5' : ''}`}
-                                    >
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
-                                            {isSelected && <span className="material-symbols-outlined text-white text-[16px] font-bold">check</span>}
-                                        </div>
-                                        <input
-                                            type="checkbox"
-                                            className="hidden"
-                                            checked={isSelected}
-                                            onChange={() => {
-                                                const newVal = isSelected
-                                                    ? selectionModal.currentValue.filter(v => v !== opt.value)
-                                                    : [...selectionModal.currentValue, opt.value];
-                                                setSelectionModal(prev => ({ ...prev, currentValue: newVal }));
-                                            }}
-                                        />
-                                        <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{opt.label}</span>
-                                    </label>
-                                );
-                            })}
-                        {selectionModal.options.filter(opt => opt.label.toLowerCase().includes(selectionSearch.toLowerCase())).length === 0 && (
-                            <div className="py-10 text-center flex flex-col items-center gap-2">
-                                <span className="material-symbols-outlined text-slate-300 text-4xl">search_off</span>
-                                <p className="text-slate-400 text-sm">Nenhum resultado encontrado</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                        <button
-                            onClick={() => handleModalConfirm(selectionModal.currentValue)}
-                            className="flex-1 py-3 bg-primary text-white rounded-xl font-bold font-['Inter'] shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 text-sm"
-                        >
-                            Confirmar ({selectionModal.currentValue.length})
-                        </button>
-                    </div>
-                </div>
-            </Modal>
 
 
         </div>
