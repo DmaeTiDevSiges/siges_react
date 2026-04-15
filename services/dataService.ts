@@ -8571,6 +8571,7 @@ export const dataService = {
                 activitiesDescription: item.activities_description,
                 maintenancePlanId: item.maintenance_plan_id?.toString(),
                 maintenancePlanProgress: item.maintenance_plan_progress,
+                oContractId: item.o_contract_id?.toString(),
                 imgUrl: initialPhotoUrls[0], 
                 initialPhotoUrls,
                 finalPhotoUrls
@@ -8667,12 +8668,12 @@ export const dataService = {
             try {
                 const { data: orderData } = await supabase
                     .from('v_orders')
-                    .select('o_type_id, o_contract_id')
+                    .select('type_id, contract_id')
                     .eq('id', data.o_id)
                     .single();
                 if (orderData) {
-                    if (!orderTypeId) orderTypeId = orderData.o_type_id?.toString();
-                    if (!contractId) contractId = orderData.o_contract_id?.toString();
+                    if (!orderTypeId) orderTypeId = orderData.type_id?.toString();
+                    if (!contractId) contractId = orderData.contract_id?.toString();
                 }
             } catch (vError) {
                 console.warn('Could not fetch order data for orderTypeId/contractId', vError);
@@ -8785,6 +8786,7 @@ export const dataService = {
             afterPriorityId: data.after_priority_id,
             clientId: data.client_id?.toString(),
             orderTypeId: orderTypeId,
+            oContractId: contractId,
             maintenancePlanId: data.maintenance_plan_id?.toString()
         };
 

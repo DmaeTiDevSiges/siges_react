@@ -255,9 +255,12 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 if (user && data.oContractId) {
                     try {
                         isManager = await dataService.isUserContractManager(user.id, data.oContractId);
+                        console.log('Contract Manager Check:', { userId: user.id, contractId: data.oContractId, isManager });
                     } catch (mError) {
                         console.warn('Could not verify contract manager status', mError);
                     }
+                } else {
+                    console.log('Contract Manager Check Skipped:', { hasUser: !!user, hasContractId: !!data?.oContractId });
                 }
                 setIsContractManager(isManager);
             } else {
@@ -1082,8 +1085,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-4 pb-12">
-                    {/* 1) RASCUNHO (1) ou REJEITADO (4) actions */}
-                    {([1, 4].includes(Number(asset.processingId || 1))) && (
+                    {/* 1) RASCUNHO (1), REVISADO (3) ou REJEITADO (4) actions */}
+                    {([1, 3, 4].includes(Number(asset.processingId || 1))) && (
                         <div className="flex flex-col gap-3">
                             <button
                                 disabled={uploadingCount > 0 || isUpdatingStatus}
@@ -1148,7 +1151,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     )}
 
                     {/* 2) REPORTADO -> Review / Approve actions (for users with permissions) */}
-                    {([2, 3].includes(Number(asset.processingId)) || localEditMode) && (
+                    {(Number(asset.processingId) === 2 || localEditMode) && (
                         <div className="flex flex-col gap-3">
                             {!localEditMode ? (
                                 <>

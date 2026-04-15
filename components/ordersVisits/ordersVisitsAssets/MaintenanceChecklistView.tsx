@@ -614,7 +614,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                                         )}
                                                                     </div>
                                                                 ))}
-                                                                {!isItemDisabled && (response?.imgFilesNames?.length || 0) < 3 && (
+                                                                {!isItemDisabled && (status !== null && status !== undefined) && (response?.imgFilesNames?.length || 0) < 3 && (
                                                                     <button
                                                                         onClick={() => setUploadSheetOpenId(activity.activityId)}
                                                                         disabled={uploadingItem === activity.activityId}
