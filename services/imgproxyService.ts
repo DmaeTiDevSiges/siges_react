@@ -205,10 +205,27 @@ let disabledUntil       = 0;
 const MAX_FAILURES    = 3;
 const RECOVERY_TIME   = 2 * 60 * 1000; // 2 minutos
 
+// ── Log de diagnóstico na inicialização ────────────────────────────────────
+let _diagLogged = false;
+const _logDiag = () => {
+    if (_diagLogged) return;
+    _diagLogged = true;
+    const url  = import.meta.env.VITE_IMGPROXY_URL;
+    const key  = import.meta.env.VITE_IMGPROXY_KEY;
+    const salt = import.meta.env.VITE_IMGPROXY_SALT;
+    console.group('[imgproxyService] Diagnóstico de configuração');
+    console.log('  VITE_IMGPROXY_URL :', url  ? `✅ ${url}`                : '❌ NÃO DEFINIDO');
+    console.log('  VITE_IMGPROXY_KEY :', key  ? `✅ (${key.length} chars)` : '❌ NÃO DEFINIDO');
+    console.log('  VITE_IMGPROXY_SALT:', salt ? `✅ (${salt.length} chars)`: '❌ NÃO DEFINIDO');
+    console.log('  Status geral      :', (url && key && salt) ? '✅ Configurado' : '⚠️  Desativado (fallback ativo)');
+    console.groupEnd();
+};
+
 /**
  * Retorna true se o imgproxy está configurado e o circuit breaker está fechado.
  */
 export const isImgproxyConfigured = (): boolean => {
+    _logDiag();
     const hasConfig = !!(
         import.meta.env.VITE_IMGPROXY_URL &&
         import.meta.env.VITE_IMGPROXY_KEY &&
@@ -219,6 +236,7 @@ export const isImgproxyConfigured = (): boolean => {
     // Recuperação automática após o tempo de espera
     if (Date.now() > disabledUntil) {
         if (disabledUntil > 0) {
+            console.info('[imgproxyService] 🔄 Circuit breaker recuperado — reativando imgproxy.');
             consecutiveFailures = 0;
             disabledUntil       = 0;
         }

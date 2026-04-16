@@ -212,6 +212,11 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
             return;
         }
 
+        if (formData.requestedServices.trim().length < 10) {
+            toast.error("A descrição do problema deve ter pelo menos 10 caracteres");
+            return;
+        }
+
         setIsLoading(true);
         try {
             const orderPayload: Partial<Order> = {
@@ -269,7 +274,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     };
 
     const isStep1Valid = !!(formData.clientId && formData.unitId);
-    const isStep2Valid = !!(formData.orderTypeId && formData.requestedServices);
+    const isStep2Valid = !!(formData.orderTypeId && formData.requestedServices && formData.requestedServices.trim().length >= 10);
 
     const handleNext = () => {
         if (step === 1 && isStep1Valid) setStep(2);
@@ -434,7 +439,8 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         rows={2}
                                         value={formData.requestedServices}
                                         onChange={e => setFormData(prev => ({ ...prev, requestedServices: e.target.value }))}
-                                        placeholder="Descreva a necessidade com detalhes (Ex: ar condicionado pingando, lâmpada queimada...)"
+                                        placeholder="Ex.: Realizar vistoria, GMB01: Painel nao liga ..."
+                                        error={formData.requestedServices.length > 0 && formData.requestedServices.trim().length < 10 ? "Mínimo de 10 caracteres" : ""}
                                     />
                                 </div>
 

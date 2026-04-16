@@ -10892,7 +10892,7 @@ export const dataService = {
             // Fetch all OrderVisitAsset records for this asset and plan, ordered by ID DESC (latest first)
             const { data: ovaRecords, error: ovaError } = await supabase
                 .from('orders_visits_assets')
-                .select('id, maintenance_plan_progress')
+                .select('id')
                 .eq('asset_id', parseInt(assetId))
                 .eq('maintenance_plan_id', parseInt(planId))
                 .eq('is_deleted', false)
@@ -10902,51 +10902,39 @@ export const dataService = {
                 return [];
             }
 
-            // identify the current "open" cycle
-            // We look at the latest record (excluding the current one)
+            // Exclude current visit
             const previousOvas = currentOvaId 
                 ? ovaRecords.filter(r => r.id.toString() !== currentOvaId.toString())
                 : ovaRecords;
 
             if (previousOvas.length === 0) return [];
 
-            const latestPrevious = previousOvas[0];
-            const latestProgress = latestPrevious.maintenance_plan_progress || 0;
+            // Limit to the last 50 visits to avoid huge IN queries, usually enough to find the "última visita"
+            const previousOvaIds = previousOvas.map(r => r.id).slice(0, 50);
 
-            if (latestProgress >= 100) {
-                // Latest cycle was completed. Start fresh.
-                return [];
-            }
-
-            // We are in an open cycle. Collect all OVA IDs from the current open cycle.
-            // A cycle is a sequence of OVAs ending just before a completed one (>= 100%).
-            const openCycleOvaIds: number[] = [];
-            for (const record of previousOvas) {
-                if (record.maintenance_plan_progress !== null && record.maintenance_plan_progress !== undefined && record.maintenance_plan_progress >= 100) {
-                    break; // End of current cycle found
-                }
-                openCycleOvaIds.push(record.id);
-            }
-
-            if (openCycleOvaIds.length === 0) {
-                return [];
-            }
-
-            // Then fetch all maintenance checklist activities for these cycle ovaIds
+            // Fetch activities for all selected previous OVAs, only where status is filled
             const { data, error } = await supabase
                 .from('orders_visits_assets_activities')
                 .select('*')
-                .in('ova_id', openCycleOvaIds)
+                .in('ova_id', previousOvaIds)
                 .eq('maintenance_plan_id', parseInt(planId))
-                .eq('is_deleted', false)
-                .order('created_at', { ascending: false });
+                .not('status', 'is', null)
+                .order('ova_id', { ascending: false });
 
             if (error) {
                 console.error('Error fetching global maintenance checklist items:', error);
                 return [];
             }
 
-            return data.map((item: any) => ({
+            // Filter to keep only the absolute most recent status for each activity
+            const latestActivitiesMap = new Map<number, any>();
+            for (const item of data || []) {
+                if (!latestActivitiesMap.has(item.activity_id)) {
+                    latestActivitiesMap.set(item.activity_id, item);
+                }
+            }
+
+            return Array.from(latestActivitiesMap.values()).map((item: any) => ({
                 id: item.id.toString(),
                 orderVisitAssetId: item.ova_id.toString(),
                 activityId: item.activity_id.toString(),

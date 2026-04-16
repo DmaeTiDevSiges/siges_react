@@ -16,7 +16,7 @@ export interface OptimizedImageProps {
     loading?: 'lazy' | 'eager';
 }
 
-export const OptimizedImage: React.FC<OptimizedImageProps> = ({
+const OptimizedImageBase: React.FC<OptimizedImageProps> = ({
     src,
     alt,
     preset = 'medium',
@@ -43,6 +43,25 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
             ? imgproxyService.generateSrcSet(src)
             : undefined;
 
+    // ── Debug: log ao montar o componente ─────────────────────────────────
+    React.useEffect(() => {
+        const configured = imgproxyService.isImgproxyConfigured();
+        const mode = isLocalUrl
+            ? '📁 LOCAL (blob/data — sem proxy)'
+            : configured
+            ? `✅ IMGPROXY [preset=${preset}]`
+            : '⚠️ FALLBACK (imgproxy não configurado ou circuit-breaker aberto)';
+
+        console.group(`[OptimizedImage] ${mode}`);
+        console.log('  src original :', src);
+        if (!isLocalUrl && configured) {
+            console.log('  URL gerada   :', optimizedSrc);
+            if (srcSet) console.log('  srcSet       :', srcSet);
+        }
+        console.groupEnd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [src]);
+
     const handleError = () => {
         if (hasError) {
             // Já está usando a original — não faz mais nada
@@ -51,6 +70,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         }
 
         // Primeira falha: reporta ao circuit breaker e usa original
+        console.error('[OptimizedImage] ❌ Falha ao carregar via imgproxy:', optimizedSrc, '→ usando URL original:', src);
         imgproxyService.reportServiceFailure();
         setHasError(true);
         setIsLoading(false);
@@ -59,6 +79,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
     const handleLoad = () => {
         if (shouldOptimize) {
             // Sucesso via imgproxy — reseta contador de falhas
+            console.log('[OptimizedImage] ✅ Carregada com sucesso via imgproxy:', optimizedSrc);
             imgproxyService.reportServiceSuccess();
         }
         setIsLoading(false);
@@ -84,3 +105,5 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         </div>
     );
 };
+
+export const OptimizedImage = React.memo(OptimizedImageBase);
