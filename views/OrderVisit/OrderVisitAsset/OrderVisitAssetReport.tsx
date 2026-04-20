@@ -168,6 +168,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [isVisitFiled, setIsVisitFiled] = useState(false);
     const [editingImage, setEditingImage] = useState<{ type: 'initial' | 'final', index: number | null, src: string | File } | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
+    const [maintenanceProgress, setMaintenanceProgress] = useState<number>(0);
+    const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
 
     // Asset swap state
     const [showSwapPage, setShowSwapPage] = useState(false);
@@ -263,6 +265,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     console.log('Contract Manager Check Skipped:', { hasUser: !!user, hasContractId: !!data?.oContractId });
                 }
                 setIsContractManager(isManager);
+                setMaintenanceProgress(data.maintenancePlanProgress ?? 0);
             } else {
                 toast.error('Ativo da visita não encontrado');
                 onBack();
@@ -846,7 +849,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     companyId={asset.oCompanyId}
                     userId={currentUserId}
                     initialPlanId={asset.maintenancePlanId}
-                    onUpdateProcessing={(val) => handleUpdateField({ processing_id: val })}
+                    onUpdateProgress={(val) => setMaintenanceProgress(val)}
                     disabled={isReadOnly || isVisitFiled}
                 />
 
@@ -1107,6 +1110,13 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                             return;
                                         }
                                         if (!validateMovement()) return;
+                                    }
+
+                                    // Checagem de plano de manutenção incompleto
+                                    const hasMaintenancePlan = asset.maintenancePlanId && asset.maintenancePlanId !== '0';
+                                    if (hasMaintenancePlan && maintenanceProgress < 100) {
+                                        setShowIncompletePlanConfirmModal(true);
+                                        return;
                                     }
 
                                     setShowReportConfirmModal(true);
@@ -1545,6 +1555,34 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 confirmLoading={isUpdatingStatus}
                 confirmLoadingLabel="APROVANDO..."
                 cancelLabel="Cancelar"
+            />
+
+            {/* Incomplete Maintenance Plan Confirmation Modal */}
+            <Modal
+                isOpen={showIncompletePlanConfirmModal}
+                onClose={() => setShowIncompletePlanConfirmModal(false)}
+                onConfirm={async () => {
+                    setShowIncompletePlanConfirmModal(false);
+                    if (maintenanceProgress === 0) {
+                        try {
+                            // Quando progress = 0, desvincula o plano
+                            await dataService.updateOrderVisitAssetPlan(assetId, null as any);
+                            await dataService.updateOrderVisitAssetProgress(assetId, 0);
+                        } catch (err) {
+                            console.error('Error clearing maintenance plan:', err);
+                        }
+                    }
+                    setShowReportConfirmModal(true);
+                }}
+                title="Plano de Manutenção Incompleto"
+                message={
+                    maintenanceProgress === 0
+                        ? "O plano de manutenção associado a este ativo está apenas 0% concluído. Portanto, a relação com este será desvinculado. Deseja reportar o relatório assim mesmo?"
+                        : `O plano de manutenção associado a este ativo está apenas ${maintenanceProgress}% concluído. Portanto os itens faltantes deverao ser respondidos em outro momento para fins de encerrar a relação com o plano de manutencao. Deseja reportar o relatório assim mesmo?`
+                }
+                type="warning"
+                confirmLabel="Sim, Reportar assim mesmo"
+                cancelLabel="Não, Voltar ao checklist"
             />
 
             {/* Report Confirmation Modal */}

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { IconButton } from './IconButton';
 import { Button } from './Button';
 import { imgproxyService } from '../../services/imgproxyService';
+import { FileUtils } from '../../utils/FileUtils';
 
 
 interface Point {
@@ -366,9 +367,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
         setObjects(prev => prev.slice(0, -1));
     };
 
-    const handleExport = () => {
-        if (!image) return;
-        setIsSaving(true);
+    const generateEditedBlob = async (quality = 0.90): Promise<Blob | null> => {
+        if (!image) return null;
 
         // 1. Create an offscreen canvas with exact image dimensions
         const isRotated = rotation === 90 || rotation === 270;
@@ -380,12 +380,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
         offCanvas.height = exportHeight;
         const octx = offCanvas.getContext('2d');
         
-        if (!octx) {
-            setIsSaving(false);
-            return;
-        }
+        if (!octx) return null;
 
-        // 2. Clear and apply rotation
+        // 2. Apply rotation
         octx.save();
         octx.translate(exportWidth / 2, exportHeight / 2);
         octx.rotate((rotation * Math.PI) / 180);
@@ -429,17 +426,44 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 
         octx.restore();
 
-        // 5. Export result
-        offCanvas.toBlob((blob) => {
-            setIsSaving(false);
+        return new Promise((resolve) => {
+            offCanvas.toBlob(resolve, 'image/jpeg', quality);
+        });
+    };
+
+    const handleExport = async () => {
+        setIsSaving(true);
+        try {
+            const blob = await generateEditedBlob(0.90);
             if (blob) {
                 const file = new File([blob], `edited_${Date.now()}.jpg`, { type: 'image/jpeg' });
                 onSave(file);
             } else {
-                console.error("toBlob returned null");
-                alert("Erro ao processar imagem. Tente novamente.");
+                throw new Error("toBlob returned null");
             }
-        }, 'image/jpeg', 0.90);
+        } catch (error) {
+            console.error("Editor: export failed", error);
+            alert("Erro ao processar imagem. Tente novamente.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDownload = async () => {
+        setIsSaving(true);
+        try {
+            const blob = await generateEditedBlob(0.95);
+            if (blob) {
+                await FileUtils.downloadFile(blob, `siges_imagem_${Date.now()}.jpg`);
+            } else {
+                throw new Error("Blob is null");
+            }
+        } catch (error) {
+            console.error("Editor: download failed", error);
+            alert("Erro ao baixar imagem.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     if (!isOpen) return null;
@@ -447,16 +471,27 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 
     return createPortal(
         <div className="fixed inset-0 z-9999 bg-black flex flex-col animate-in fade-in duration-300">
-            {/* Toolbar Top - Only Close and OK */}
+            {/* Toolbar Top - Close, Download and OK */}
             <div className="p-4 bg-linear-to-b from-black to-transparent flex items-center justify-between z-10">
                 <IconButton icon="close" onClick={onClose} variant="soft" size="lg" className="bg-white/10! text-white! rounded-2xl!" />
-                <Button 
-                    onClick={handleExport} 
-                    disabled={isSaving}
-                    className="bg-primary hover:bg-primary/90 text-white font-black px-6 h-12! rounded-2xl shadow-xl shadow-primary/20 transition-all active:scale-95"
-                >
-                    {isSaving ? '...' : 'OK'}
-                </Button>
+                
+                <div className="flex gap-3 items-center">
+                    <IconButton 
+                        icon="download" 
+                        onClick={handleDownload} 
+                        disabled={isSaving}
+                        variant="soft" 
+                        size="lg" 
+                        className="bg-white/10! text-white! rounded-2xl!" 
+                    />
+                    <Button 
+                        onClick={handleExport} 
+                        disabled={isSaving}
+                        className="bg-primary hover:bg-primary/90 text-white font-black px-6 h-12! rounded-2xl shadow-xl shadow-primary/20 transition-all active:scale-95"
+                    >
+                        {isSaving ? '...' : 'OK'}
+                    </Button>
+                </div>
             </div>
 
             {/* Canvas Area */}

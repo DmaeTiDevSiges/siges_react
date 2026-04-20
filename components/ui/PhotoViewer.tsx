@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { IconButton } from './IconButton';
 import { OptimizedImage } from './OptimizedImage';
+import { FileUtils } from '../../utils/FileUtils';
 
 interface PhotoViewerProps {
     src?: string;
@@ -121,19 +122,13 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
         e?.stopPropagation();
         try {
             const response = await fetch(currentSrc);
+            if (!response.ok) throw new Error('Falha ao buscar imagem');
             const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
             const filename = currentSrc.split('/').pop()?.split('?')[0] || `imagem-${Date.now()}.jpg`;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
+            await FileUtils.downloadFile(blob, filename);
         } catch (error) {
             console.error('Erro ao baixar imagem:', error);
-            // Fallback: abrir em nova guia
+            // Fallback: abrir em nova guia em caso de erro CORS/Network
             window.open(currentSrc, '_blank');
         }
     };
