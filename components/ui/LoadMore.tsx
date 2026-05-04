@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import { Loading } from './Loading';
+
 
 interface LoadMoreProps {
     current: number;
@@ -57,7 +59,7 @@ export const LoadMore: React.FC<LoadMoreProps> = ({
                     className="flex items-center gap-2 px-6 py-2.5 bg-white dark:bg-card-dark border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:border-primary dark:hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/10 text-primary font-semibold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group"
                 >
                     {loading ? (
-                        <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
+                        <Loading size="xs" />
                     ) : (
                         <span className="material-symbols-outlined text-[20px] group-hover:translate-y-0.5 transition-transform">expand_more</span>
                     )}

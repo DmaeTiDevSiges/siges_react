@@ -8,6 +8,8 @@ import { dataService } from '../../services/dataService';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
 import { formatCurrency } from '../../utils/formatters';
+import { Loading } from '../../components/ui/Loading';
+
 
 interface ServiceRequestDetailProps {
     order: Order;
@@ -184,7 +186,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                                     <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4 px-1">OS's Vinculadas</h3>
                                     {isLoadingOrders ? (
                                         <div className="flex justify-center py-8">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
+                                            <Loading size="sm" />
                                         </div>
                                     ) : childOrders.length > 0 ? (
                                         <div className="space-y-4 px-1">
@@ -213,7 +215,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 {isLoadingVisits ? (
                                     <div className="py-20 text-center space-y-4">
-                                        <div className="w-12 h-12 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mx-auto mb-4" />
+                                        <Loading size="md" />
                                         <p className="text-slate-500 dark:text-slate-400 font-bold animate-pulse">CARREGANDO VISITAS...</p>
                                     </div>
                                 ) : visits.length > 0 ? (
@@ -261,7 +263,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-1">
                                 {isLoadingHistory ? (
                                     <div className="py-20 text-center space-y-4">
-                                        <div className="w-12 h-12 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mx-auto mb-4" />
+                                        <Loading size="md" />
                                         <p className="text-slate-500 dark:text-slate-400 font-bold animate-pulse">CARREGANDO HISTÓRICO...</p>
                                     </div>
                                 ) : history.length > 0 ? (

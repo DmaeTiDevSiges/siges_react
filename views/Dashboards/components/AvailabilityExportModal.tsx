@@ -15,6 +15,7 @@ import { FaFilePdf } from 'react-icons/fa';
 import { useEffect } from 'react';
 import { AvailabilityDataView } from '../../../components/ui/AvailabilityDataView';
 import { RiWindowFill } from 'react-icons/ri';
+import { Loading } from '../../../components/ui/Loading';
 
 interface AvailabilityExportModalProps {
     isOpen: boolean;
@@ -299,7 +300,7 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
                         }`}
                     >
                         {isExporting === 'tela' ? (
-                            <div className="w-5 h-5 border-3 border-current border-t-transparent rounded-full animate-spin" />
+                            <Loading size="xs" />
                         ) : (
                             <RiWindowFill size={20} className={(hoveredFormat === 'tela' || (hoveredFormat === null && lastExportedFormat === 'tela')) ? 'text-white' : 'text-slate-400'} />
                         )}
@@ -317,7 +318,7 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
                         }`}
                     >
                         {isExporting === 'excel' ? (
-                            <div className="w-5 h-5 border-3 border-current border-t-transparent rounded-full animate-spin" />
+                            <Loading size="xs" />
                         ) : (
                             <RiFileExcel2Fill size={20} className={(hoveredFormat === 'excel' || (hoveredFormat === null && lastExportedFormat === 'excel')) ? 'text-white' : 'text-slate-400'} />
                         )}
@@ -335,7 +336,7 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
                         }`}
                     >
                         {isExporting === 'pdf' ? (
-                            <div className="w-5 h-5 border-3 border-current border-t-transparent rounded-full animate-spin" />
+                            <Loading size="xs" />
                         ) : (
                             <FaFilePdf size={20} className={(hoveredFormat === 'pdf' || (hoveredFormat === null && lastExportedFormat === 'pdf')) ? 'text-white' : 'text-slate-400'} />
                         )}

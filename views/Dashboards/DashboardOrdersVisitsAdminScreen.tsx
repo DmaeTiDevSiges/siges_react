@@ -4,6 +4,7 @@ import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 import { toast } from 'sonner';
+import { Loading } from '../../components/ui/Loading';
 import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
 import { VisitsListPDFButton } from '../../components/reports/VisitsListPDFButton';
@@ -425,9 +426,9 @@ const AppropriationSection: React.FC<AppropriationSectionProps> = ({
 
                 <div className="flex items-center gap-5">
                     {loading && (
-                        <span className="material-symbols-outlined animate-spin text-sm text-primary/50">
-                            autorenew
-                        </span>
+                        <div className="flex items-center mr-2">
+                            <Loading size="xs" />
+                        </div>
                     )}
                     <div className="flex flex-col items-end">
                         <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none mb-1">Total {title}</span>
@@ -1296,8 +1297,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-900">
+                <Loading size="xl" text="Carregando Painel..." />
             </div>
         );
     }
@@ -1592,11 +1593,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                     </div>
 
                     {filteredVisits.length > visibleCount && (
-                        <div ref={loadMoreRef} className="py-10 flex justify-center">
-                            <div className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 shadow-sm">
-                                <span className="material-symbols-outlined animate-spin text-primary">autorenew</span>
-                                <span className="text-sm font-bold uppercase tracking-widest">Carregando mais visitas ({filteredVisits.length - visibleCount} restantes)</span>
-                            </div>
+                        <div ref={loadMoreRef} className="py-10 flex flex-col items-center justify-center gap-4">
+                            <Loading size="sm" text={`Carregando mais visitas (${filteredVisits.length - visibleCount} restantes)`} />
                         </div>
                     )}
 

@@ -8,6 +8,8 @@ import { urlsToBase64, getLogoBase64, addWhiteBackgroundToImage } from '../../ut
 import { imgproxyService } from '../../services/imgproxyService';
 import { FaFilePdf } from 'react-icons/fa';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
+import { Loading } from '../ui/Loading';
+
 
 
 interface VisitReportPDFButtonProps {
@@ -391,7 +393,7 @@ export const VisitReportPDFButton = ({
             >
                 {loading ? (
                     <>
-                        <HiOutlineDotsCircleHorizontal className="animate-spin text-slate-400" />
+                        <Loading size="xs" />
                         <span className="text-[11px] font-black text-slate-400 uppercase tracking-tight">Gerando...</span>
                     </>
                 ) : (
@@ -415,7 +417,7 @@ export const VisitReportPDFButton = ({
                 title="Exportar Relatório PDF da Visita"
             >
                 {loading ? (
-                    <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <Loading size="xs" />
                 ) : (
                     <FaFilePdf size={14} className="text-red-500" />
                 )}
@@ -432,7 +434,7 @@ export const VisitReportPDFButton = ({
         >
             {loading ? (
                 <>
-                    <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <Loading size="xs" />
                     <span>Gerando…</span>
                 </>
             ) : (

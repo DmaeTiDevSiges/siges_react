@@ -12,6 +12,7 @@ import { Calendar } from '../../components/ui/Calendar';
 import { FilterSelect } from '../../components/ui/FilterSelect';
 import { formatCurrency } from '../../utils/formatters';
 import { Select } from '../../components/ui/Select';
+import { Loading } from '../../components/ui/Loading';
 
 interface DashboardOrdersVisitsTodayScreenProps {
     company: Company;
@@ -128,6 +129,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
     const [selectedVisitIds, setSelectedVisitIds] = useState<Set<string>>(new Set());
     const [unitsData, setUnitsData] = useState<Record<string, { lat: number, lng: number, imageUrl?: string }>>({});
     const [visitsTeams, setVisitsTeams] = useState<Record<string, OrderVisitTeam[]>>({});
+    const [isLoading, setIsLoading] = useState(false);
     
     // Filter States
     const [filters, setFilters] = useState<DashboardFilters>({
@@ -224,6 +226,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
 
     // --- Data Loading ---
     const loadInitialData = async () => {
+        setIsLoading(true);
         try {
             // Load Visits using the new view and date range
             const visitsData = await dataService.getOrdersVisitsView();
@@ -279,10 +282,12 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
             setUsers(usersData);
             const leadersList = usersData.filter(u => u.profileId === '3' || u.profileId === 'Líder'); // Adjust condition based on how profile is returned
             setLeaders(leadersList);
-
+            // loadTeams(mappedVisits.map(v => v.id));
         } catch (error) {
             console.error('Error loading analytics data:', error);
             toast.error('Erro ao carregar dados do dashboard');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -511,6 +516,14 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
             />
         </div>
     );
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-950">
+                <Loading size="xl" text="Iniciando Monitoramento..." />
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">

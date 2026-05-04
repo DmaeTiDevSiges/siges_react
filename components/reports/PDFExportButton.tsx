@@ -4,6 +4,8 @@ import { OSDocument } from './OSDocument';
 import { HiDocumentDownload, HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
 import { FileUtils } from '../../utils/FileUtils';
 import { toast } from 'sonner';
+import { Loading } from '../ui/Loading';
+
 
 interface PDFExportButtonProps {
     osData: any;
@@ -46,7 +48,7 @@ export const PDFExportButton = ({ osData, className = "" }: PDFExportButtonProps
         >
             {isGenerating ? (
                 <>
-                    <HiOutlineDotsCircleHorizontal className="animate-spin" />
+                    <Loading size="xs" />
                     <span>Gerando...</span>
                 </>
             ) : (

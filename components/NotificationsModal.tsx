@@ -5,6 +5,8 @@ import { dataService } from '../services/dataService';
 import { getInitials } from '../utils/formatters';
 import { UserNotification } from '../types';
 import { UserAvatar, UserStatus as AvatarStatus } from './ui/UserAvatar';
+import { Loading } from './ui/Loading';
+
 
 interface NotificationsModalProps {
     isOpen: boolean;
@@ -264,7 +266,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                     )}
                     {isLoadingMore && (
                         <div className="flex justify-center py-4">
-                            <span className="material-symbols-outlined animate-spin text-primary">sync</span>
+                            <Loading size="xs" />
                         </div>
                     )}
                 </div>

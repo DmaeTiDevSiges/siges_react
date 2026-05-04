@@ -34,6 +34,8 @@ import { OrderVisitAssetsList } from './OrderVisitAsset/OrderVisitAssetsList';
 import { SignatureSection } from '../../components/ordersVisits/SignatureSection';
 import { Modal } from '../../components/ui/Modal';
 import { OrderRequestForm } from '../OrderRequest/OrderRequestForm';
+import { Loading } from '../../components/ui/Loading';
+
 
 
 
@@ -282,7 +284,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     if (loading) {
         return (
             <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
-                <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4" />
+                <Loading size="md" />
                 <p className="text-slate-500 font-bold animate-pulse">CARREGANDO VISITA...</p>
             </div>
         );

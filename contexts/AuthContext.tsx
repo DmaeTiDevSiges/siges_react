@@ -49,7 +49,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const login = async (email: string, password: string) => {
         setLoading(true);
         try {
-            // TODO: Implement login in dataService
+            await dataService.signIn(email, password);
             await loadCurrentUser();
         } catch (error) {
             console.error('Login error:', error);
@@ -64,7 +64,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
      */
     const logout = async () => {
         try {
-            // TODO: Implement logout in dataService
+            await dataService.signOut();
             setCurrentUser(null);
         } catch (error) {
             console.error('Logout error:', error);

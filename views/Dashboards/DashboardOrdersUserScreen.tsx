@@ -3,9 +3,10 @@ import { User, Order, OrderVisit } from '../../types';
 import { UserServicesPanel } from '../../components/ui/UserServicesPanel';
 import { UserVisitsPanel } from '../../components/ui/UserVisitsPanel';
 import { dataService } from '../../services/dataService';
-import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
 import { getProcessingStatus } from '../../components/ordersVisits/OrderVisitProcessingButton';
+import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
+import { Loading } from '../../components/ui/Loading';
 
 interface DashboardScreenProps {
     currentUser: User | null;
@@ -207,9 +208,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                             </div>
 
                             {isLoading ? (
-                                <div className="flex flex-col items-center justify-center py-12 gap-3">
-                                    <div className="w-8 h-8 border-3 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                                    <p className="text-slate-400 text-xs font-medium">Carregando...</p>
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <Loading overlay text="Sincronizando..." />
                                 </div>
                             ) : filteredOrders.length > 0 ? (
                                 <div className="flex flex-col gap-3">
@@ -277,8 +277,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center py-12 gap-3">
-                                    <div className="w-8 h-8 border-3 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                                    <p className="text-slate-400 text-xs font-medium">Carregando...</p>
+                                    <Loading overlay text="Sincronizando..." />
                                 </div>
                             ) : filteredVisits.length > 0 ? (
                                 <div className="flex flex-col gap-3 pb-4">

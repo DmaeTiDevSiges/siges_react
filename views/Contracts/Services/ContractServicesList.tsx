@@ -10,6 +10,8 @@ import { Button } from '../../../components/ui/Button';
 import { DecimalInput } from '../../../components/ui/DecimalInput';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { IconButton } from '../../../components/ui/IconButton';
+import { Loading } from '../../../components/ui/Loading';
+
 
 interface ContractServicesListProps {
     contractId: string;
@@ -177,7 +179,7 @@ export const ContractServicesList: React.FC<ContractServicesListProps> = ({ cont
             <div className="flex flex-col gap-3">
                 {loading && contractServices.length === 0 ? (
                     <div className="flex justify-center py-8">
-                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <Loading size="xs" />
                     </div>
                 ) : contractServices.length > 0 ? (
                     contractServices.map(item => (

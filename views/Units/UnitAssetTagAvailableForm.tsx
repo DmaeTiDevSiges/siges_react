@@ -10,6 +10,8 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
+import { Loading } from '../../components/ui/Loading';
+
 
 interface UnitAssetTagAvailableFormProps {
     unitId: string;
@@ -253,7 +255,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
         <div className="flex flex-col bg-slate-50 dark:bg-slate-900 min-h-full h-full overflow-hidden animate-in fade-in duration-300">
             {loading ? (
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary border-t-transparent mb-4"></div>
+                    <Loading size="md" />
                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest animate-pulse">Carregando...</p>
                 </div>
             ) : (
@@ -384,7 +386,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                                 className={`w-full h-14 rounded-2xl bg-primary text-white font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/25 flex items-center justify-center gap-3 active:scale-[0.98] transition-all hover:brightness-110 ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
                                 {saving ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
+                                    <Loading size="xs" />
                                 ) : (
                                     <>
                                         <span className="material-symbols-outlined text-[20px] [font-variation-settings:'wght'_600]">assignment_turned_in</span>

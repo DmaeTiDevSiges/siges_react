@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { dataService } from '../../../services/dataService';
 import { Activity, OrderVisitAssetActivity, User } from '../../../types';
 import { toast } from 'sonner';
+import { Loading } from '../../../components/ui/Loading';
+
 
 interface OrderVisitAssetActivitiesProps {
     ovAssetId: string;
@@ -78,7 +80,7 @@ export const OrderVisitAssetActivities: React.FC<OrderVisitAssetActivitiesProps>
     if (loading) {
         return (
             <div className="flex h-[60vh] items-center justify-center p-8">
-                <div className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+                <Loading size="sm" />
             </div>
         );
     }
@@ -173,7 +175,7 @@ export const OrderVisitAssetActivities: React.FC<OrderVisitAssetActivitiesProps>
                                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105' : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
                                     }`}>
                                     {isSaving ? (
-                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <Loading size="xs" />
                                     ) : (
                                         <span className="material-symbols-outlined text-sm font-bold">
                                             {isSelected ? 'done' : 'add'}

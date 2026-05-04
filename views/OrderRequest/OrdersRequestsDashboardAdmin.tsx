@@ -23,6 +23,8 @@ import { ExcelExportButton } from '../../components/reports/ExcelExportButton';
 import { RequestsListPDFButton } from '../../components/reports/RequestsListPDFButton';
 import { RequestsExcelExportButton } from '../../components/reports/RequestsExcelExportButton';
 import { FilterSelect } from '../../components/ui/FilterSelect';
+import { Loading } from '../../components/ui/Loading';
+
 
 interface OrdersRequestsDashboardAdminProps {
     currentUser: User | null;
@@ -1087,7 +1089,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             <div className="flex flex-col gap-4">
                                 {isLoading ? (
                                     <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                                        <Loading size="md" />
                                         <p className="text-slate-400 font-medium">Carregando solicitações...</p>
                                     </div>
                                 ) : filteredOrders.length > 0 ? (
@@ -1112,7 +1114,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 {!isLoading && recentRequests.length > 0 && <div ref={sentinelRef} className="h-4" />}
                                 {isLoadingMore && (
                                     <div className="flex flex-col items-center justify-center py-8 gap-3">
-                                        <div className="w-8 h-8 border-3 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                                        <Loading size="sm" />
                                         <p className="text-slate-400 text-sm font-medium">Carregando mais solicitações...</p>
                                     </div>
                                 )}

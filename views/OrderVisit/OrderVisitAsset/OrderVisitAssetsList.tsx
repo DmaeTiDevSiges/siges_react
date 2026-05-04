@@ -11,6 +11,8 @@ import { OrderVisitAssetCardListItem } from '../../../components/ordersVisits/or
 import { scanBarcode, IS_NATIVE } from '../../../utils/scanner';
 import { IconButton } from '../../../components/ui/IconButton';
 import { BarcodeScannerModal } from '../../../components/ui/BarcodeScannerModal';
+import { Loading } from '../../../components/ui/Loading';
+
 
 interface OrderVisitAssetsListProps {
     visitId: string;
@@ -193,7 +195,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
     if (loading) {
         return (
             <div className="flex justify-center p-8">
-                <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                <Loading size="sm" />
             </div>
         );
     }

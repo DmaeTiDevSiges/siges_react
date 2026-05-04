@@ -5,6 +5,8 @@ import { Modal } from '../ui/Modal';
 import { SignaturePad } from '../ui/SignaturePad';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
+import { Loading } from '../ui/Loading';
+
 
 interface SignatureSectionProps {
     visit: OrderVisit;
@@ -197,7 +199,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                         <div className="flex flex-col items-center justify-center h-[300px] gap-4">
                             <div className="relative">
                                 <div className="h-16 w-16 rounded-full border-4 border-slate-100 dark:border-slate-800 animate-pulse"></div>
-                                <div className="absolute inset-0 h-16 w-16 rounded-full border-t-4 border-primary animate-spin"></div>
+                                <Loading size="xs" />
                             </div>
                             <span className="text-xs font-black uppercase tracking-widest text-slate-500 animate-pulse">Processando Assinatura</span>
                         </div>

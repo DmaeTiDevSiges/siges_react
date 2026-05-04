@@ -8,6 +8,8 @@ import { getLogoBase64 } from '../../utils/PdfImageUtils';
 import { MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity } from '../../types';
 import { FaFilePdf } from 'react-icons/fa';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
+import { Loading } from '../ui/Loading';
+
 
 interface MaintenancePlanPDFButtonProps {
     planId: string;
@@ -94,7 +96,7 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
             >
                 {loading ? (
                     <>
-                        <HiOutlineDotsCircleHorizontal className="animate-spin text-slate-400" />
+                        <Loading size="xs" />
                         <span className="text-[11px] font-black text-slate-400 uppercase tracking-tighter">Processando...</span>
                     </>
                 ) : (
@@ -119,7 +121,7 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
                 title="Exportar PDF do Plano"
             >
                 {loading ? (
-                    <HiOutlineDotsCircleHorizontal className="animate-spin text-slate-400" />
+                    <Loading size="xs" />
                 ) : (
                     <FaFilePdf size={20} className="text-red-500" />
                 )}
@@ -136,7 +138,7 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
         >
             {loading ? (
                 <>
-                    <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <Loading size="xs" />
                     <span>Gerando…</span>
                 </>
             ) : (

@@ -28,6 +28,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { Loading } from '../../../components/ui/Loading';
+
 
 interface MaintenancePlanFormProps {
     planId: string | null;
@@ -571,7 +573,7 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
     if (loading) {
         return (
             <div className="p-12 flex flex-col items-center justify-center text-slate-500">
-                <span className="material-symbols-outlined animate-spin text-4xl mb-4 text-primary">progress_activity</span>
+                <Loading size="md" />
                 <p className="font-medium">Carregando plano...</p>
             </div>
         );

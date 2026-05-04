@@ -7,6 +7,8 @@ import { Card } from '../../../components/ui/Card';
 import { ButtonDelete } from '../../../components/ui/ButtonDelete';
 import { ButtonNew } from '../../../components/ui/ButtonNew';
 import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
+import { Loading } from '../../../components/ui/Loading';
+
 
 interface OrderVisitAssetMaterialsProps {
     ovAssetId: string;
@@ -201,7 +203,7 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
     if (loading) {
         return (
             <div className="flex h-[60vh] justify-center items-center p-8">
-                <div className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+                <Loading size="sm" />
             </div>
         );
     }

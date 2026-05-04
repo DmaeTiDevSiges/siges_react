@@ -10,6 +10,8 @@ import { FaceDetectionCamera } from '../../components/ui/FaceDetectionCamera';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
 import { ButtonSave } from '../../components/ui/ButtonSave';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
+import { Loading } from '../../components/ui/Loading';
+
 
 
 
@@ -561,7 +563,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
         return (
             <Layout title="Perfil" onMenuClick={onMenuClick} showBackButton onBackClick={onBack}>
                 <div className="flex items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <Loading size="sm" />
                 </div>
             </Layout>
         );
@@ -951,7 +953,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                 />
                                                 <span className="material-symbols-outlined absolute left-3 top-3 text-slate-400 text-[20px]">search</span>
                                                 {searchingTeam && (
-                                                    <span className="material-symbols-outlined absolute right-3 top-3 text-primary text-[20px] animate-spin">progress_activity</span>
+                                                    <Loading size="xs" />
                                                 )}
                                             </div>
 

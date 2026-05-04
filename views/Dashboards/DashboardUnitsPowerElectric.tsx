@@ -4,6 +4,7 @@ import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 import { toast } from 'sonner';
+import { Loading } from '../../components/ui/Loading';
 import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
 
@@ -563,9 +564,9 @@ const AppropriationSection: React.FC<AppropriationSectionProps> = ({
 
                 <div className="flex items-center gap-5">
                     {loading && (
-                        <span className="material-symbols-outlined animate-spin text-sm text-primary/50">
-                            autorenew
-                        </span>
+                        <div className="flex items-center mr-2">
+                            <Loading size="xs" />
+                        </div>
                     )}
                     <div className="flex flex-col items-end">
                         <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none mb-1">Total {title}</span>
@@ -1554,8 +1555,8 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-900">
+                <Loading size="xl" text="Carregando Unidades..." />
             </div>
         );
     }

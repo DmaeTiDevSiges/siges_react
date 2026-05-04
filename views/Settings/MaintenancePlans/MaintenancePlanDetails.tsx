@@ -5,6 +5,8 @@ import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { IconButton } from '../../../components/ui/IconButton';
 import { MaintenancePlanPDFButton } from '../../../components/reports/MaintenancePlanPDFButton';
 import { Button } from '../../../components/ui/Button';
+import { Loading } from '../../../components/ui/Loading';
+
 
 interface MaintenancePlanDetailsProps {
     planId: string;
@@ -73,7 +75,7 @@ export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ 
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-64 space-y-4">
-                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <Loading size="md" />
                 <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Carregando detalhes...</p>
             </div>
         );

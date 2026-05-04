@@ -11,6 +11,8 @@ import { PhotoViewer } from '../../ui/PhotoViewer';
 import { Input } from '../../ui/Input';
 import { ImageUploadSheet } from '../../ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../ui/ImageEditorModal';
+import { Loading } from '../../ui/Loading';
+
 
 interface MaintenanceChecklistViewProps {
     ovAssetId: string;
@@ -181,7 +183,7 @@ const ActivityItem = React.memo(({
                         ))}
                         {!isDisabled && (status !== null && status !== undefined) && imgFilesNames.length < 3 && (
                             <button onClick={() => setUploadSheetOpenId(activity.activityId)} disabled={uploadingItem === activity.activityId} className="w-[70px] h-[70px] rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 hover:text-indigo-500 hover:border-indigo-500 transition-all active:scale-95 shrink-0">
-                                {uploadingItem === activity.activityId ? (<div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />) : (<span className="material-symbols-outlined text-2xl">add_a_photo</span>)}
+                                {uploadingItem === activity.activityId ? (<Loading size="xs" />) : (<span className="material-symbols-outlined text-2xl">add_a_photo</span>)}
                             </button>
                         )}
                     </div>

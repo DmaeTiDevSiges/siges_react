@@ -14,6 +14,8 @@ import { UnitAssetTagAvailableForm } from '../../../Units/UnitAssetTagAvailableF
 import { PhotoViewer } from '../../../../components/ui/PhotoViewer';
 import { toast } from 'sonner';
 import { apiN8nService } from '../../../../services/apiN8nService';
+import { Loading } from '../../../../components/ui/Loading';
+
 
 interface UnitDetailsProps {
     unit: Unit;
@@ -516,7 +518,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="space-y-4">
                             {isLoadingAvailability ? (
                                 <div className="flex justify-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                    <Loading size="sm" />
                                 </div>
                             ) : availabilityItems.length === 0 ? (
                                 <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm">
@@ -727,7 +729,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="p-3 min-h-[300px]">
                             {isLoadingAssets ? (
                                 <div className="flex flex-col items-center justify-center py-20">
-                                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                                    <Loading size="md" />
                                     <p className="text-slate-500 font-bold animate-pulse">CARREGANDO ATIVOS...</p>
                                 </div>
                             ) : modalAssets.length === 0 ? (
@@ -775,7 +777,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="p-3 min-h-[300px]">
                             {isLoadingMovedAssets ? (
                                 <div className="flex flex-col items-center justify-center py-20">
-                                    <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                    <Loading size="md" />
                                     <p className="text-slate-500 font-bold animate-pulse">CARREGANDO ATIVOS MOVIDOS...</p>
                                 </div>
                             ) : movedAssets.length === 0 ? (

@@ -7,6 +7,8 @@ import { Card } from '../ui/Card';
 import { UserAvatar } from '../ui/UserAvatar';
 import { formatDateTime } from '../../utils/formatters';
 import { OrderVisitProcessingButton } from './OrderVisitProcessingButton';
+import { Loading } from '../ui/Loading';
+
 
 interface OrderVisitCardDetailProps {
     visit: OrderVisit;
@@ -218,7 +220,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                             className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-md transition-all active:scale-95 ${isAdding || !selectedUserId ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
                         >
                             {isAdding ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <Loading size="xs" />
                             ) : (
                                 <span className="material-symbols-outlined font-black">add</span>
                             )}
@@ -257,7 +259,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                     className="w-full mt-4 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     {isReportLoading ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <Loading size="xs" />
                     ) : (
                         <span className="material-symbols-outlined">send</span>
                     )}
@@ -273,7 +275,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                     className="w-full mt-4 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     {isApproveLoading ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <Loading size="xs" />
                     ) : (
                         <span className="material-symbols-outlined">verified</span>
                     )}
@@ -289,7 +291,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                     className="w-full mt-4 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     {isFileLoading ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <Loading size="xs" />
                     ) : (
                         <span className="material-symbols-outlined">inventory_2</span>
                     )}
@@ -305,7 +307,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                     className="w-full mt-4 py-4 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-lg shadow-red-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     {isDisapproveLoading ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <Loading size="xs" />
                     ) : (
                         <span className="material-symbols-outlined">rebase_edit</span>
                     )}

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { IconButton } from './IconButton';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Loading } from './Loading';
+
 
 // Safe haptic trigger (no-op on web)
 const triggerHaptic = async (style: ImpactStyle = ImpactStyle.Light) => {
@@ -309,7 +311,7 @@ export const Modal: React.FC<ModalProps> = ({
                                 >
                                     {confirmLoading ? (
                                         <>
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <Loading size="xs" />
                                             <span>{confirmLoadingLabel || 'Processando...'}</span>
                                         </>
                                     ) : (
@@ -351,7 +353,7 @@ export const Modal: React.FC<ModalProps> = ({
                                 >
                                     {confirmLoading ? (
                                         <>
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <Loading size="xs" />
                                             <span>{confirmLoadingLabel || 'Processando...'}</span>
                                         </>
                                     ) : (confirmLabel || 'Confirmar')}

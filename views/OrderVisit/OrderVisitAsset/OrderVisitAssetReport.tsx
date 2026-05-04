@@ -20,6 +20,8 @@ import { getProcessingStatus } from '../../../components/ordersVisits/OrderVisit
 import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
 import { ImageUploadSheet } from '../../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../../components/ui/ImageEditorModal';
+import { Loading } from '../../../components/ui/Loading';
+
 
 const Switch: React.FC<{ checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
     <button
@@ -789,7 +791,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     if (loading) {
         return (
             <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-                <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                <Loading size="sm" />
             </div>
         );
     }
@@ -1318,7 +1320,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                             className="w-12 h-12 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20"
                                         >
                                             {isSearchingSwap ? (
-                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                <Loading size="xs" />
                                             ) : (
                                                 <span className="material-symbols-outlined">search</span>
                                             )}
@@ -1330,7 +1332,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
                         {isSearchingSwap && (
                             <div className="flex justify-center py-12">
-                                <div className="w-10 h-10 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                                <Loading size="sm" />
                             </div>
                         )}
 
@@ -1370,7 +1372,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                                             className="w-full py-5 bg-indigo-500 hover:bg-indigo-600 active:scale-[0.98] text-white font-black rounded-[24px] shadow-xl shadow-indigo-500/20 transition-all flex items-center justify-center gap-3 group"
                                                         >
                                                             {isSwapping ? (
-                                                                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                <Loading size="xs" />
                                                             ) : (
                                                                 <>
                                                                     <span className="material-symbols-outlined text-2xl transition-transform group-hover:scale-110">check_circle</span>
@@ -1440,7 +1442,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                         cloud_upload
                                     </span>
                                 </div>
-                                <div className="absolute inset-0 border-4 border-transparent border-t-indigo-500 rounded-full animate-spin" />
+                                <Loading size="xs" />
                             </div>
                             <div className="text-center space-y-2">
                                 <h3 className="text-lg font-black text-slate-900 dark:text-white">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Header } from './Header';
 import { UserProfileHeader } from './ui/UserProfileHeader';
+import { Loading } from './ui/Loading';
 import { User } from '../types';
 
 interface LayoutProps {
@@ -20,6 +21,8 @@ interface LayoutProps {
   tabNavigation?: React.ReactNode;
   hideHeaderBorder?: boolean;
   isDashboard?: boolean;
+  loading?: boolean;
+  loadingText?: string;
 }
 
 export const Layout: React.FC<LayoutProps> = ({
@@ -38,7 +41,9 @@ export const Layout: React.FC<LayoutProps> = ({
   hidePadding = false,
   tabNavigation,
   hideHeaderBorder,
-  isDashboard = false
+  isDashboard = false,
+  loading = false,
+  loadingText
 }) => {
   const mainRef = React.useRef<HTMLElement>(null);
 
@@ -72,8 +77,13 @@ export const Layout: React.FC<LayoutProps> = ({
           </div>
         </div>
 
-        <main ref={mainRef} className={`flex-1 overflow-y-auto no-scrollbar ${hidePadding ? 'pb-0' : 'pb-20'} md:pb-6`}>
-          <div className="w-full h-full">
+        <main ref={mainRef} className={`flex-1 overflow-y-auto no-scrollbar ${hidePadding ? 'pb-0' : 'pb-20'} md:pb-6 relative`}>
+          {loading && (
+            <div className="absolute inset-0 z-[50] bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm flex items-center justify-center transition-all duration-300">
+              <Loading size="lg" text={loadingText} />
+            </div>
+          )}
+          <div className={`w-full h-full transition-opacity duration-300 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
             {children}
           </div>
         </main>

@@ -1,5 +1,7 @@
 import React from 'react';
 import { ManusVisit } from '../../types/manus';
+import { Loading } from '../ui/Loading';
+
 
 interface ManusVisitCardProps {
     visit: ManusVisit;
@@ -124,7 +126,7 @@ export const ManusVisitCard: React.FC<ManusVisitCardProps> = ({ visit, onVerify,
                 )}
                 {visit._importStatus === 'verifying' && (
                     <button disabled className="w-full py-2 bg-slate-100 dark:bg-slate-700 text-slate-400 text-xs font-bold uppercase rounded-xl flex justify-center items-center gap-2">
-                        <span className="material-symbols-outlined text-[14px] animate-spin">refresh</span>
+                        <Loading size="xs" />
                         Verificando...
                     </button>
                 )}
@@ -138,7 +140,7 @@ export const ManusVisitCard: React.FC<ManusVisitCardProps> = ({ visit, onVerify,
                 )}
                 {visit._importStatus === 'importing' && (
                     <button disabled className="w-full py-2 bg-indigo-400 text-white text-xs font-bold uppercase rounded-xl flex justify-center items-center gap-2">
-                        <span className="material-symbols-outlined text-[14px] animate-spin">sync</span>
+                        <Loading size="xs" />
                         Importando...
                     </button>
                 )}

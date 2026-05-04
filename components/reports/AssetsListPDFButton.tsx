@@ -6,6 +6,8 @@ import { FileUtils } from '../../utils/FileUtils';
 import { AssetsListDocument, AssetListRow } from './AssetsListDocument';
 import { dataService } from '../../services/dataService';
 import { getLogoBase64 } from '../../utils/PdfImageUtils';
+import { Loading } from '../ui/Loading';
+
 
 interface AssetsListPDFButtonProps {
     unitId: string;
@@ -79,7 +81,7 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
             title="Exportar Ativos para PDF"
         >
             {isGenerating ? (
-                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <Loading size="xs" />
             ) : (
                 <FaFilePdf className="text-lg" />
             )}

@@ -4,6 +4,8 @@ import { RiFileExcel2Fill } from 'react-icons/ri';
 import { dataService } from '../../services/dataService';
 import { OrderFilters } from '../../types';
 import { toast } from 'sonner';
+import { Loading } from '../ui/Loading';
+
 
 interface RequestsExcelExportButtonProps {
     filters: OrderFilters;
@@ -84,7 +86,7 @@ export const RequestsExcelExportButton = ({
             className={`flex items-center gap-2 px-4 py-1.5 bg-green-600/20 border border-green-600/50 text-green-500 rounded-full hover:bg-green-600/30 disabled:opacity-50 transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm ${className}`}
         >
             {isExporting ? (
-                <div className="w-3 h-3 border-2 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
+                <Loading size="xs" />
             ) : (
                 <RiFileExcel2Fill size={14} />
             )}

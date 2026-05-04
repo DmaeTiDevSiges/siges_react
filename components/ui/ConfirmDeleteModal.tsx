@@ -1,5 +1,7 @@
 import React from 'react';
 import { Modal } from './Modal';
+import { Loading } from './Loading';
+
 
 interface ConfirmDeleteModalProps {
     isOpen: boolean;
@@ -57,7 +59,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
                     >
                         {isLoading ? (
                             <>
-                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <Loading size="xs" />
                                 EXCLUINDO...
                             </>
                         ) : (

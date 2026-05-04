@@ -1,4 +1,6 @@
 import React from 'react';
+import { Loading } from './Loading';
+
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'dashed' | 'ghost';
@@ -37,7 +39,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 {loading ? (
                     <div className="flex items-center gap-3">
                         <div className="relative flex items-center justify-center">
-                            <span className="material-symbols-outlined text-[20px] animate-spin">sync</span>
+                            <Loading size="xs" />
                             <div className="absolute inset-0 rounded-full border-2 border-primary/20 border-t-transparent animate-[spin_0.6s_linear_infinite]" />
                         </div>
                         <span className="tracking-wide text-sm font-bold uppercase transition-all">Enviando...</span>

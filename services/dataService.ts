@@ -65,6 +65,9 @@ const metadataCache = {
     CACHE_DURATION: 5 * 60 * 1000 // 5 minutos
 };
 
+// Debounce for auth requests to prevent NavigatorLockAcquireTimeoutError (lock contention)
+let currentUserPromise: Promise<User | null> | null = null;
+
 export const dataService = {
     async getProcessingConfigurations() {
         const { data, error } = await supabase
@@ -2311,8 +2314,11 @@ export const dataService = {
     },
 
     async getCurrentUser(): Promise<User | null> {
+        if (currentUserPromise) return currentUserPromise;
 
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        currentUserPromise = (async () => {
+            try {
+                const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
         if (authError || !authUser) {
             // If token is invalid (401/403), clear it to prevent repeated network errors
@@ -2446,7 +2452,16 @@ export const dataService = {
             trackerIntervalSeconds: data.tracker_interval_seconds ?? null,
             permissions: permissions
         } as User;
-    },
+    } catch (error) {
+        currentUserPromise = null;
+        throw error;
+    }
+})().finally(() => {
+    currentUserPromise = null;
+});
+
+    return currentUserPromise;
+},
 
     async updateProfile(userUuid: string, user: Partial<User>): Promise<void> {
         // 1. Update basic info first
@@ -7265,8 +7280,9 @@ export const dataService = {
     },
 
     subscribeToUsers(callback: (payload: any) => void) {
+        const channelName = `users-changes-${Math.random().toString(36).substring(7)}`;
         return supabase
-            .channel('users-changes')
+            .channel(channelName)
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'users' },

@@ -7,6 +7,8 @@ import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { AvailabilityHistory } from '../../components/ui/AvailabilityHistory';
 import { toast } from 'sonner';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { Loading } from '../../components/ui/Loading';
+
 
 
 interface UnitAssetTagAvailableDetailsProps {
@@ -76,7 +78,7 @@ export const UnitAssetTagAvailableDetails: React.FC<UnitAssetTagAvailableDetails
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                <Loading size="md" />
                 <p className="text-slate-500 font-medium">Carregando histórico...</p>
             </div>
         );

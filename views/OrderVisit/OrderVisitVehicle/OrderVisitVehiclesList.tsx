@@ -7,6 +7,8 @@ import { ButtonDelete } from '../../../components/ui/ButtonDelete';
 import { ButtonNew } from '../../../components/ui/ButtonNew';
 import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
 import { toast } from 'sonner';
+import { Loading } from '../../../components/ui/Loading';
+
 
 interface OrderVisitVehiclesListProps {
     visitId: string;
@@ -194,7 +196,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
     if (loading) {
         return (
             <div className="flex justify-center p-8">
-                <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                <Loading size="sm" />
             </div>
         );
     }

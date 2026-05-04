@@ -1,5 +1,7 @@
 import React from 'react';
 import { IconButton } from './IconButton';
+import { Loading } from './Loading';
+
 
 interface AvailabilityHistoryProps {
     history: { date: string; isAvailable: boolean | null }[];
@@ -40,7 +42,7 @@ export const AvailabilityHistory: React.FC<AvailabilityHistoryProps> = ({
                 
                 <h4 className="text-[10px] font-black tracking-[0.15em] text-slate-400 dark:text-slate-500 uppercase text-center flex items-center gap-2">
                     {offsetDays === 0 ? 'Histórico (Últimos 7 dias)' : 'Histórico (Período Anterior)'}
-                    {loading && <div className="w-2 h-2 border border-primary border-t-transparent rounded-full animate-spin"></div>}
+                    {loading && <Loading size="xs" />}
                 </h4>
 
                 {onOffsetChange ? (

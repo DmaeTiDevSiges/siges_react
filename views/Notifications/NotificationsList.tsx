@@ -4,6 +4,8 @@ import { getInitials } from '../../utils/formatters';
 import { UserNotification } from '../../types';
 import { toast } from 'sonner';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
+import { Loading } from '../../components/ui/Loading';
+
 
 interface NotificationsListProps {
     notifications: UserNotification[];
@@ -253,7 +255,7 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
                         {isLoadingMore && (
                             <div className="flex justify-center py-6">
                                 <div className="flex items-center gap-3 text-primary font-bold uppercase text-[10px] tracking-widest">
-                                    <span className="material-symbols-outlined animate-spin">sync</span>
+                                    <Loading size="xs" />
                                     Carregando mais...
                                 </div>
                             </div>

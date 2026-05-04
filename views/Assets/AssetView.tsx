@@ -16,6 +16,8 @@ import { AssetAlert } from '../../types';
 import { AssetDetailsPDFButton } from '../../components/reports/AssetDetailsPDFButton';
 
 import QRCode from 'react-qr-code';
+import { Loading } from '../../components/ui/Loading';
+
 
 interface AssetDetailsProps {
     asset: Asset;
@@ -633,7 +635,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                                     {isLoadingHistory && history.length === 0 ? (
                                         <div className="flex justify-center p-8">
-                                            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                            <Loading size="xs" />
                                         </div>
                                     ) : history.length === 0 ? (
                                         <div className="text-center py-8 text-slate-500 text-xs uppercase font-bold">

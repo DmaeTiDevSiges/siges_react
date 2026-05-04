@@ -5,6 +5,8 @@ import { Avatar } from '../../components/ui/Avatar';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
 import { ContractServicesList } from './Services/ContractServicesList';
+import { Loading } from '../../components/ui/Loading';
+
 
 interface ContractDetailsProps {
     contract: Contract;
@@ -344,7 +346,7 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
 
                         {loading && managers.length === 0 ? (
                             <div className="flex justify-center py-8">
-                                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                <Loading size="xs" />
                             </div>
                         ) : managers.length > 0 ? (
                             <div className="space-y-3">

@@ -8,6 +8,8 @@ import { urlsToBase64, getLogoBase64, addWhiteBackgroundToImage } from '../../ut
 import { imgproxyService } from '../../services/imgproxyService';
 import { FaFilePdf } from 'react-icons/fa';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
+import { Loading } from '../ui/Loading';
+
 
 interface BatchVisitReportPDFButtonProps {
     visits: any[];
@@ -248,7 +250,7 @@ export const BatchVisitReportPDFButton = ({
         >
             {loading ? (
                 <>
-                    <HiOutlineDotsCircleHorizontal className="animate-spin text-slate-400" />
+                    <Loading size="xs" />
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">...</span>
                 </>
             ) : (

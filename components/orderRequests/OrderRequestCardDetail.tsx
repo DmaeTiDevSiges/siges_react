@@ -7,6 +7,8 @@ import { OrderActionManager } from './OrderActionManager';
 import { dataService } from '../../services/dataService';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';
+import { Loading } from '../ui/Loading';
+
 
 interface OrderCardDetailProps {
     order: Order;
@@ -181,7 +183,7 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, on
                 >
                     {isStartingVisit ? (
                         <>
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <Loading size="xs" />
                             <span>INICIANDO...</span>
                         </>
                     ) : (

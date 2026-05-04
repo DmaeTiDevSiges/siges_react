@@ -103,6 +103,8 @@ type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard
 import { ActionIcon } from './components/ui/ActionIcon';
 import { AIAssistantBubble } from './components/ai/AIAssistantBubble';
 import { imgproxyService } from './services/imgproxyService';
+import { Loading } from './components/ui/Loading';
+
 
 const App: React.FC = () => {
   const [minTimePassed, setMinTimePassed] = useState(false);
@@ -2240,7 +2242,7 @@ const App: React.FC = () => {
   if (authLoading) {
     return (
       <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <Loading size="md" />
       </div>
     );
   }

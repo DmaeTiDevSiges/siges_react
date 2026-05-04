@@ -1,5 +1,7 @@
 import React from 'react';
 import { usePermissions } from '../contexts/PermissionsContext';
+import { Loading } from './ui/Loading';
+
 
 interface ProtectedRouteProps {
     routeKey: string;
@@ -20,7 +22,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         return (
             <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                    <Loading size="md" />
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
                         Verificando permissões...
                     </p>

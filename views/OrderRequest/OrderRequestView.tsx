@@ -17,6 +17,8 @@ import { ManusVisit } from '../../types/manus';
 import { ManusVisitCard } from '../../components/ordersVisits/ManusVisitCard';
 import { ManusImageSelectionModal } from '../../components/ordersVisits/ManusImageSelectionModal';
 import { formatCurrency } from '../../utils/formatters';
+import { Loading } from '../../components/ui/Loading';
+
 
 interface OrderRequestViewProps {
     order: Order;
@@ -458,7 +460,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 {isLoadingVisits ? (
                                     <div className="py-20 text-center space-y-4">
-                                        <div className="w-12 h-12 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mx-auto mb-4" />
+                                        <Loading size="md" />
                                         <p className="text-slate-500 dark:text-slate-400 font-bold animate-pulse">CARREGANDO VISITAS...</p>
                                     </div>
                                 ) : visits.length > 0 ? (
@@ -466,7 +468,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                         {/* Manus Import section */}
                                         {isLoadingManus ? (
                                             <div className="py-4 text-center">
-                                                <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                                                <Loading size="xs" />
                                                 <p className="text-xs text-slate-500 dark:text-slate-400 font-bold animate-pulse">Buscando no Manus...</p>
                                             </div>
                                         ) : manusVisits.length > 0 ? (
@@ -515,7 +517,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                     <div className="flex flex-col gap-4">
                                         {isLoadingManus ? (
                                             <div className="py-4 text-center">
-                                                <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                                                <Loading size="xs" />
                                                 <p className="text-xs text-slate-500 dark:text-slate-400 font-bold animate-pulse">Buscando no Manus...</p>
                                             </div>
                                         ) : manusVisits.length > 0 ? (
@@ -555,7 +557,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-1">
                                 {isLoadingHistory ? (
                                     <div className="py-20 text-center space-y-4">
-                                        <div className="w-12 h-12 border-4 border-rose-500/30 border-t-rose-500 rounded-full animate-spin mx-auto mb-4" />
+                                        <Loading size="md" />
                                         <p className="text-slate-500 dark:text-slate-400 font-bold animate-pulse uppercase tracking-widest text-[10px]">CARREGANDO HISTÓRICO...</p>
                                     </div>
                                 ) : history.length > 0 ? (

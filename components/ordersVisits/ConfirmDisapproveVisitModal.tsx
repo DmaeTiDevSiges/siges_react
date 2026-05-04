@@ -1,5 +1,7 @@
 import React from 'react';
 import { Card } from '../ui/Card';
+import { Loading } from '../ui/Loading';
+
 
 interface ConfirmDisapproveVisitModalProps {
     isOpen: boolean;
@@ -49,7 +51,7 @@ export const ConfirmDisapproveVisitModal: React.FC<ConfirmDisapproveVisitModalPr
                                 >
                                     {isLoading ? (
                                         <>
-                                            <div className="w-5 h-5 border-3 border-white/20 border-t-white rounded-full animate-spin" />
+                                            <Loading size="xs" />
                                             <span>Processando...</span>
                                         </>
                                     ) : (

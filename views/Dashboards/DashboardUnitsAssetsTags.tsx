@@ -20,6 +20,7 @@ import { RiFileExcel2Fill } from 'react-icons/ri';
 import { CompanyAvatar } from '../../components/ui/CompanyAvatar';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Loading } from '../../components/ui/Loading';
 import { CircularGauge } from '../../components/ui/CircularGauge';
 
 
@@ -889,8 +890,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     <main className="pb-6 sm:pb-10">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center h-80 gap-3">
-                                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Sincronizando Ativos...</p>
+                                <Loading size="lg" text="Sincronizando Ativos..." />
                             </div>
                         ) : (
                             <div className="flex flex-col gap-1 sm:gap-2">
@@ -1062,8 +1062,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             >
                 {modalLoading ? (
                     <div className="flex flex-col items-center justify-center p-12 gap-3">
-                        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Carregando dados...</p>
+                        <Loading size="md" text="Carregando dados..." />
                     </div>
                 ) : modalData ? (
                     <div className="flex flex-col gap-2 sm:gap-3 p-2 sm:p-3 pb-8 sm:pb-10">
@@ -1281,7 +1280,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                 className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-white bg-emerald-500 hover:bg-emerald-600 transition-all shadow-sm shadow-emerald-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                                             >
                                                 {ssFormLoading ? (
-                                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                    <Loading size="xs" />
                                                 ) : (
                                                     <>
                                                         <span className="material-symbols-outlined text-sm">send</span>
@@ -1387,7 +1386,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                             className="flex-2 py-2.5 bg-amber-600 hover:bg-amber-700 rounded-xl text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-amber-600/20 transition-all flex items-center justify-center gap-4 px-4 whitespace-nowrap"
                                                         >
                                                             {completingOrderId ? (
-                                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                <Loading size="xs" />
                                                             ) : (
                                                                 <>
                                                                     <span className="material-symbols-outlined text-base">

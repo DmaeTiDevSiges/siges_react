@@ -43,24 +43,6 @@ const OptimizedImageBase: React.FC<OptimizedImageProps> = ({
             ? imgproxyService.generateSrcSet(src)
             : undefined;
 
-    // ── Debug: log ao montar o componente ─────────────────────────────────
-    React.useEffect(() => {
-        const configured = imgproxyService.isImgproxyConfigured();
-        const mode = isLocalUrl
-            ? '📁 LOCAL (blob/data — sem proxy)'
-            : configured
-            ? `✅ IMGPROXY [preset=${preset}]`
-            : '⚠️ FALLBACK (imgproxy não configurado ou circuit-breaker aberto)';
-
-        console.group(`[OptimizedImage] ${mode}`);
-        console.log('  src original :', src);
-        if (!isLocalUrl && configured) {
-            console.log('  URL gerada   :', optimizedSrc);
-            if (srcSet) console.log('  srcSet       :', srcSet);
-        }
-        console.groupEnd();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [src]);
 
     const handleError = () => {
         if (hasError) {

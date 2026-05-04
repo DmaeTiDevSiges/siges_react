@@ -4,6 +4,7 @@ import { dataService } from '../../services/dataService';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { UnitCardListItem } from '../../components/units/UnitCardListItem';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { Loading } from '../../components/ui/Loading';
 
 interface UnitsSearchProps {
     currentUser: User;
@@ -141,8 +142,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                 {/* ... loading/empty states same as before ... */}
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20">
-                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                        <p className="text-slate-400 text-sm">Carregando unidades...</p>
+                        <Loading size="lg" text="Carregando unidades..." />
                     </div>
                 ) : filteredUnits.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20">

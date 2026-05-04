@@ -8,6 +8,8 @@ import { OrderFilters } from '../../types';
 import { toast } from 'sonner';
 import { FileUtils } from '../../utils/FileUtils';
 import { getLogoBase64 } from '../../utils/PdfImageUtils';
+import { Loading } from '../ui/Loading';
+
 
 interface OrdersListPDFButtonProps {
     filters: OrderFilters;
@@ -77,7 +79,7 @@ export const OrdersListPDFButton = ({
         >
             {isGenerating ? (
                 <>
-                    <HiOutlineDotsCircleHorizontal className="animate-spin" />
+                    <Loading size="xs" />
                     <span>Processando...</span>
                 </>
             ) : (
