@@ -1,7 +1,7 @@
 import React from 'react';
 import { OrderVisit } from '../../types';
 import { Card } from '../ui/Card';
-import { formatDateTime, formatCurrency } from '../../utils/formatters';
+import { formatDateTime, formatCurrency, getStatusConfig } from '../../utils/formatters';
 import { OrderVisitProcessingButton } from './OrderVisitProcessingButton';
 import { VisitReportPDFButton } from '../reports/VisitReportPDFButton';
 
@@ -23,6 +23,11 @@ export const OrderVisitCardListItem: React.FC<OrderVisitCardListItemProps> = ({ 
                         {visit.ovMask}
                     </span>
 
+                    {visit.clientName && (
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none block mt-1">
+                            {visit.clientName}
+                        </span>
+                    )}
                     <div className="flex items-center gap-1">
                         <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 leading-none truncate">
                             {visit.unitDescription || 'N/A'}
@@ -38,6 +43,13 @@ export const OrderVisitCardListItem: React.FC<OrderVisitCardListItemProps> = ({ 
                             {visit.teamCode || '---'} {visit.teamLeaderName && `| ${visit.teamLeaderName}`}
                         </span>
                     </div>
+                    {visit.planDescription && (
+                        <div className="flex justify-end mt-1">
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
+                                {visit.planDescription.toUpperCase()}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Side: Status, Value+PDF, Progress */}
@@ -45,6 +57,20 @@ export const OrderVisitCardListItem: React.FC<OrderVisitCardListItemProps> = ({ 
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         {visit.processingDescription || visit.statusDescription}
                     </span>
+
+                    {/* OS Status Info */}
+                    {visit.ovOStatusId !== 8 && (
+                        <div className="flex flex-col items-end text-right">
+                            <span className="text-[10px] font-black uppercase text-white">
+                                {visit.ovOStatusDescription || (visit.ovOStatusId ? getStatusConfig(visit.ovOStatusId).label : '')}
+                            </span>
+                            {visit.ovOStatusId === 6 && visit.ovOSuspendedReasonDescription && (
+                                <span className="text-[9px] font-bold text-white uppercase max-w-[120px] leading-tight line-clamp-1" title={visit.ovOSuspendedReasonDescription}>
+                                    {visit.ovOSuspendedReasonDescription}
+                                </span>
+                            )}
+                        </div>
+                    )}
 
                     <div className="flex items-center gap-2">
                         <div onClick={(e) => e.stopPropagation()}>

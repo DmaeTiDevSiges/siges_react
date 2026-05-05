@@ -1125,10 +1125,13 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                 ovEndedAt: row.ov_ended_at,
                 unitDescription: row.o_unit_description,
                 systemDescription: row.o_system_description,
-                clientName: row.o_client_name,
+                clientName: row.client_name || row.o_client_name,
                 teamLeaderName: row.ov_team_leader_name_short,
                 statusDescription: row.ov_status_description,
                 processingDescription: row.ov_processing_description,
+                ovOStatusId: row.ov_o_status_id,
+                ovOStatusDescription: row.ov_o_status_description,
+                ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
                 unitId: row.o_unit_id?.toString(),
                 orderMask: row.o_mask,
                 teamCode: row.o_team_code,
@@ -1165,7 +1168,10 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                 ovAssetsRevisedAmount: row.ov_assets_revised_amount,
                 ovAssetsDisapprovedAmount: row.ov_assets_disapproved_amount,
                 ovAssetsApprovedNoFiledAmount: row.ov_assets_approved_no_filed_amount,
-                ovAssetsApprovedFiledAmount: row.ov_assets_approved_filed_amount
+                ovAssetsApprovedFiledAmount: row.ov_assets_approved_filed_amount,
+                planDescription: row.o_plan_description || row.plan_description,
+                assetTagDescription: row.o_asset_tag_description || row.asset_tag_description,
+                assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description,
             }));
 
             setVisits(mappedVisits);

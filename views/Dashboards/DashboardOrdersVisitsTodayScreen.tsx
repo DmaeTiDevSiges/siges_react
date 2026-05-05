@@ -39,6 +39,10 @@ interface DashboardVisit {
     systemParentId?: string;
     unitTypeParentId?: string;
     orderTypeId?: string;
+    ovOStatusId?: number;
+    ovOStatusDescription?: string;
+    ovOSuspendedReasonDescription?: string;
+    planDescription?: string;
 }
 
 interface DashboardFilters {
@@ -248,15 +252,21 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 requestedServices: row.requested_services,
                 ovStartedAt: row.ov_started_at,
                 ovCreatedAt: row.ov_created_at,
+                ovOStatusId: row.ov_o_status_id,
+                ovOStatusDescription: row.ov_o_status_description,
+                ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
                 progress: row.ov_progress,
                 teamLeaderId: row.team_leader_id?.toString(),
                 teamLeaderName: row.team_leader_name_short,
-                clientName: row.client_name,
+                clientName: row.client_name || row.o_client_name,
                 orderMask: row.order_mask,
                 totalValue: row.ov_total_value,
                 systemParentId: row.o_system_parent_id?.toString(),
                 unitTypeParentId: row.o_unit_type_parent_id?.toString(),
-                orderTypeId: row.o_type_id?.toString()
+                orderTypeId: row.o_type_id?.toString(),
+                planDescription: row.o_plan_description || row.plan_description,
+                assetTagDescription: row.o_asset_tag_description || row.asset_tag_description,
+                assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description
             }));
 
             setVisits(mappedVisits);

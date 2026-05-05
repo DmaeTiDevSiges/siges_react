@@ -8,6 +8,7 @@ import { UserAvatar } from '../ui/UserAvatar';
 import { formatDateTime } from '../../utils/formatters';
 import { OrderVisitProcessingButton } from './OrderVisitProcessingButton';
 import { Loading } from '../ui/Loading';
+import { getStatusConfig } from '../../utils/formatters';
 
 
 interface OrderVisitCardDetailProps {
@@ -115,6 +116,20 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {/* OS Status Info */}
+                    {visit.ovOStatusId !== 8 && (
+                        <div className="flex flex-col items-end text-right mr-1">
+                            <span className="text-[10px] font-black uppercase text-white">
+                                {visit.ovOStatusDescription || (visit.ovOStatusId ? getStatusConfig(visit.ovOStatusId).label : '')}
+                            </span>
+                            {visit.ovOStatusId === 6 && visit.ovOSuspendedReasonDescription && (
+                                <span className="text-[9px] font-bold text-white uppercase max-w-[150px] leading-tight mt-0.5 line-clamp-2" title={visit.ovOSuspendedReasonDescription}>
+                                    {visit.ovOSuspendedReasonDescription}
+                                </span>
+                            )}
+                        </div>
+                    )}
+
                     {/* Progress Circle */}
                     <div className="relative w-12 h-12 flex items-center justify-center">
                         <svg className="w-full h-full transform -rotate-90">
@@ -200,6 +215,13 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                         </div>
                     ))}
                 </div>
+                {visit.planDescription && (
+                    <div className="flex justify-end mt-2 mb-2">
+                        <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">
+                            {visit.planDescription.toUpperCase()}
+                        </span>
+                    </div>
+                )}
 
                 {/* Add Member Footer */}
                 {onAddTeamMember && !visit.isFiled && [1, 2, 3, 4].includes(Number(visit.ovProcessingId || 1)) && (

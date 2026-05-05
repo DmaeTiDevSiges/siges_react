@@ -7774,7 +7774,11 @@ export const dataService = {
             teamCode: row.o_team_code,
             contractDescription: row.o_contract_description,
             planDescription: row.o_plan_description,
-            requestedServices: row.o_requested_services
+            requestedServices: row.o_requested_services,
+            ovOStatusId: row.ov_o_status_id,
+            ovOStatusDescription: row.ov_o_status_description,
+            ovOSuspendedReasonId: row.ov_o_suspended_reason_id,
+            ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description
         })) as OrderVisit[];
     },
 
@@ -7814,7 +7818,11 @@ export const dataService = {
             orderMask: row.o_mask,
             teamCode: row.o_team_code,
             contractDescription: row.o_contract_description,
-            planDescription: row.o_plan_description
+            planDescription: row.o_plan_description,
+            ovOStatusId: row.ov_o_status_id,
+            ovOStatusDescription: row.ov_o_status_description,
+            ovOSuspendedReasonId: row.ov_o_suspended_reason_id,
+            ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description
         })) as OrderVisit[];
     },
 
@@ -7857,6 +7865,10 @@ export const dataService = {
             contractDescription: row.o_contract_description,
             planDescription: row.o_plan_description,
             progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
+            ovOStatusId: row.ov_o_status_id,
+            ovOStatusDescription: row.ov_o_status_description,
+            ovOSuspendedReasonId: row.ov_o_suspended_reason_id,
+            ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
         })) as OrderVisit[];
     },
 
@@ -7968,7 +7980,9 @@ export const dataService = {
             requestedServices: data.o_requested_services,
             progress: data.ov_o_progress ? Math.round(parseFloat(data.ov_o_progress) * 100) : 0,
             ovOStatusId: data.ov_o_status_id,
+            ovOStatusDescription: data.ov_o_status_description,
             ovOSuspendedReasonId: data.ov_o_suspended_reason_id,
+            ovOSuspendedReasonDescription: data.ov_o_suspended_reason_description,
             processingIcon: config?.icon,
             processingIconColor: config?.icon_color,
             processingBgColor: config?.bg_color,
@@ -7991,7 +8005,7 @@ export const dataService = {
             oRequesterPhone: data.o_requester_phone,
             contractDescription: data.o_contract_description,
             contractObject: contractObject,
-            planDescription: data.o_plan_description,
+            planDescription: data.o_plan_description || data.plan_description,
             oReasonDescription: data.o_reason_description,
             oCauseDescription: data.o_cause_description,
             observation: data.o_comments || data.ov_comments,
@@ -8341,7 +8355,9 @@ export const dataService = {
                 requestedServices: item.o_requested_services,
                 progress: item.ov_o_progress ? Math.round(parseFloat(item.ov_o_progress) * 100) : 0,
                 ovOStatusId: item.ov_o_status_id,
+                ovOStatusDescription: item.ov_o_status_description,
                 ovOSuspendedReasonId: item.ov_o_suspended_reason_id,
+                ovOSuspendedReasonDescription: item.ov_o_suspended_reason_description,
                 processingIcon: config?.icon,
                 processingIconColor: config?.icon_color,
                 processingBgColor: config?.bg_color,
@@ -8404,7 +8420,9 @@ export const dataService = {
                 requestedServices: item.o_requested_services,
                 progress: item.ov_o_progress ? Math.round(parseFloat(item.ov_o_progress) * 100) : 0,
                 ovOStatusId: item.ov_o_status_id,
+                ovOStatusDescription: item.ov_o_status_description,
                 ovOSuspendedReasonId: item.ov_o_suspended_reason_id,
+                ovOSuspendedReasonDescription: item.ov_o_suspended_reason_description,
                 processingIcon: config?.icon,
                 processingIconColor: config?.icon_color,
                 processingBgColor: config?.bg_color,

@@ -843,7 +843,9 @@ export interface OrderVisit {
   ovComments?: string;
   ovProcessingId: number;
   ovOStatusId?: number;
+  ovOStatusDescription?: string;
   ovOSuspendedReasonId?: number;
+  ovOSuspendedReasonDescription?: string;
 
   // Mapped from cfg_orders_visits_processing (frontend-side join option)
   processingIcon?: string;

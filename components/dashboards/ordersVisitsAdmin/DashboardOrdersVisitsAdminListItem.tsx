@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { OrderVisit, OrderVisitTeam } from '../../../types';
 import { Card } from '../../ui/Card';
 import { UserAvatar } from '../../ui/UserAvatar';
-import { formatDateTime, getPriorityColor, formatCurrency } from '../../../utils/formatters';
+import { formatDateTime, getPriorityColor, formatCurrency, getStatusConfig } from '../../../utils/formatters';
 import { IconButton } from '../../ui/IconButton';
 import { VisitReportPDFButton } from '../../reports/VisitReportPDFButton';
 
@@ -87,6 +87,21 @@ const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminLis
                     <div onClick={(e) => e.stopPropagation()}>
                         <VisitReportPDFButton visitId={visit.id} visitMask={visit.ovMask || ''} variant="action" />
                     </div>
+
+                    {/* OS Status Info */}
+                    {visit.ovOStatusId !== 8 && (
+                        <div className="flex flex-col items-end text-right mr-1">
+                            <span className="text-[10px] font-black uppercase text-white">
+                                {visit.ovOStatusDescription || (visit.ovOStatusId ? getStatusConfig(visit.ovOStatusId).label : '')}
+                            </span>
+                            {visit.ovOStatusId === 6 && visit.ovOSuspendedReasonDescription && (
+                                <span className="text-[9px] font-bold text-white uppercase max-w-[150px] leading-tight mt-0.5 line-clamp-2" title={visit.ovOSuspendedReasonDescription}>
+                                    {visit.ovOSuspendedReasonDescription}
+                                </span>
+                            )}
+                        </div>
+                    )}
+
                     <CircularProgress progress={visit.progress || 0} />
                     <button
                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${visit.ovProcessingId === 1 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400' :
@@ -120,16 +135,13 @@ const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminLis
                 </h3>
                 <div className="flex items-center gap-2">
                     <span className="text-[11px] font-black text-slate-400 uppercase tracking-tight">
-                        {visit.systemDescription || 'SISTEMA'}
+                        {visit.assetTagDescription ? (
+                            `${visit.assetTagDescription}${visit.assetTagSubDescription ? ` / ${visit.assetTagSubDescription}` : ''}`
+                        ) : (
+                            visit.systemDescription || 'SISTEMA'
+                        )}
                     </span>
-                    {(visit.ovAssetsAmount || 0) > 0 && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md leading-none ${(visit.ovAssetsReportedAmount || 0) === (visit.ovAssetsAmount || 0)
-                                ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
-                                : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'
-                            }`} title="Ativos Reportados / Total Ativos">
-                            {visit.ovAssetsReportedAmount || 0}/{visit.ovAssetsAmount || 0}
-                        </span>
-                    )}
+
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 leading-tight">
                     {visit.requestedServices || 'Sem descrição do serviço'}
@@ -168,6 +180,13 @@ const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminLis
                             </div>
                         ))}
                     </div>
+                    {visit.planDescription && (
+                        <div className="flex justify-end mt-2">
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
+                                {visit.planDescription.toUpperCase()}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer Row: Timestamps and then Financial Breakdown */}
