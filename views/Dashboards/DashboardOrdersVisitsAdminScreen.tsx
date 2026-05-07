@@ -851,7 +851,10 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             const stages = await dataService.getProcessingConfigurations();
             setProcessingStages(stages);
 
-            const data = await dataService.getOrdersVisitsView();
+            const data = await dataService.getOrdersVisitsView({
+                startDate: dateRange.start,
+                endDate: dateRange.end
+            });
 
             const mappedVisits: OrderVisitExtended[] = (data || []).map((row: any) => ({
                 id: row.id.toString(),
@@ -859,7 +862,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 ovMask: row.ov_mask,
                 ovStatusId: row.ov_status_id,
                 ovProcessingId: row.ov_processing_id,
-                ovCreatedAt: row.ov_created_at,
+                ovCreatedAt: row.ov_created_at || row.o_requested_at,
                 ovCreatedUserId: row.ov_created_user_id?.toString(),
                 ovTeamLeadId: row.ov_team_leader_id?.toString(),
                 ovStartedAt: row.ov_started_at,
@@ -918,15 +921,15 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             }));
 
             setVisits(mappedVisits);
-
-            loadTeamsForVisits(mappedVisits);
+            // Optimization: Only load teams for visible visits if there are many
+            loadTeamsForVisits(mappedVisits.slice(0, 100));
         } catch (error) {
             console.error('Error loading visits:', error);
         } finally {
             setLoading(false);
             initialLoadDone.current = true;
         }
-    }, [currentUser.id]);
+    }, [currentUser.id, dateRange]);
 
     useEffect(() => {
         localStorage.removeItem('dashboard_admin_date_start');
@@ -952,16 +955,23 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
          };
      }, [loadData, loadFilterOptions]);
 
-    const loadTeamsForVisits = async (visitsToLoad: OrderVisitExtended[]) => {
+    const loadTeamsForVisits = React.useCallback(async (visitsToLoad: OrderVisitExtended[]) => {
         try {
             if (!visitsToLoad.length) return;
-            const visitIds = visitsToLoad.map(v => v.id);
+            // Only fetch teams for visits that don't have them in state yet
+            const visitIds = visitsToLoad
+                .map(v => v.id)
+                .filter(id => !visitTeams[id]);
+                
+            if (visitIds.length === 0) return;
+
             const teamResults = await dataService.getOrdersVisitsTeamsBulk(visitIds);
             setVisitTeams(prev => ({ ...prev, ...teamResults }));
         } catch (error) {
             console.error('Error loading visit teams:', error);
         }
-    };
+    }, [visitTeams]);
+
 
     const formatDateDisplay = (dateString?: string) => {
         if (!dateString) return '';
@@ -1185,6 +1195,12 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const displayedVisits = useMemo(() => {
         return filteredVisits.slice(0, visibleCount);
     }, [filteredVisits, visibleCount]);
+
+    useEffect(() => {
+        if (displayedVisits.length > 0) {
+            loadTeamsForVisits(displayedVisits);
+        }
+    }, [displayedVisits, loadTeamsForVisits]);
 
     const pdfVisitsData = useMemo(() => {
         return filteredVisits.map(v => ({

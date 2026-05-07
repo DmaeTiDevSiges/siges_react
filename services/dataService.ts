@@ -872,11 +872,21 @@ export const dataService = {
         return { ...company, id } as Company;
     },
 
-    async getOrdersVisitsView() {
-        const { data, error } = await supabase
+    async getOrdersVisitsView(filters?: { startDate?: string; endDate?: string }) {
+        let query = supabase
             .from('v_orders_visits')
             .select('*')
             .order('ov_started_at', { ascending: true });
+
+        if (filters?.startDate) {
+            // We use ov_started_at or o_requested_at (as ov_created_at is missing in this view)
+            query = query.or(`ov_started_at.gte.${filters.startDate},and(ov_started_at.is.null,o_requested_at.gte.${filters.startDate})`);
+        }
+        if (filters?.endDate) {
+            query = query.or(`ov_started_at.lte.${filters.endDate},and(ov_started_at.is.null,o_requested_at.lte.${filters.endDate})`);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Error fetching visits view:', error);

@@ -1070,7 +1070,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
              orderSub.unsubscribe();
              visitSub.unsubscribe();
          };
-     }, []);
+     }, [dateRange]);
 
     const loadFilterOptions = async () => {
         try {
@@ -1110,7 +1110,10 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
             setProcessingStages(stages);
 
             // 3. Load all visits from v_orders_visits via dataService
-            const data = await dataService.getOrdersVisitsView();
+            const data = await dataService.getOrdersVisitsView({
+                startDate: dateRange.start,
+                endDate: dateRange.end
+            });
 
             const mappedVisits: OrderVisitExtended[] = (data || []).map((row: any) => ({
                 id: row.id.toString(),
@@ -1118,7 +1121,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                 ovMask: row.ov_mask,
                 ovStatusId: row.ov_status_id,
                 ovProcessingId: row.ov_processing_id,
-                ovCreatedAt: row.ov_created_at,
+                ovCreatedAt: row.ov_created_at || row.o_requested_at,
                 ovCreatedUserId: row.ov_created_user_id?.toString(),
                 ovTeamLeadId: row.ov_team_leader_id?.toString(),
                 ovStartedAt: row.ov_started_at,
@@ -1186,8 +1189,8 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
             });
             setFilteredUnits(filteredUnitsData);
 
-            // 5. Load teams for all visible visits
-            loadTeamsForVisits(mappedVisits);
+            // Optimization: Only load teams for visible visits if there are many
+            loadTeamsForVisits(mappedVisits.slice(0, 50));
 
             // 6. Reload orders for these units (will be handled by useEffect below)
         } catch (error) {

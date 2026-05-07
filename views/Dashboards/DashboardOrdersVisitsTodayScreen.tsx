@@ -233,7 +233,10 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
         setIsLoading(true);
         try {
             // Load Visits using the new view and date range
-            const visitsData = await dataService.getOrdersVisitsView();
+            const visitsData = await dataService.getOrdersVisitsView({
+                startDate: dateRange.start,
+                endDate: dateRange.end
+            });
             // Filter by date range (naive filter for now as getOrdersVisitsView doesn't take params)
             const filteredByDate = visitsData.filter(v => {
                 const date = (v.ov_started_at || v.ov_created_at || '').split('T')[0];
@@ -251,7 +254,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 unitLongitude: row.unit_longitude,
                 requestedServices: row.requested_services,
                 ovStartedAt: row.ov_started_at,
-                ovCreatedAt: row.ov_created_at,
+                ovCreatedAt: row.ov_created_at || row.o_requested_at,
                 ovOStatusId: row.ov_o_status_id,
                 ovOStatusDescription: row.ov_o_status_description,
                 ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
