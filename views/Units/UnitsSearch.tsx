@@ -142,7 +142,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                 {/* ... loading/empty states same as before ... */}
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20">
-                        <Loading size="lg" text="Carregando unidades..." />
+                        <Loading size="md" text="Carregando unidades..." />
                     </div>
                 ) : filteredUnits.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20">

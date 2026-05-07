@@ -11,6 +11,7 @@ import { Marker } from '../../../../components/ui/Marker';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
 
 import { UnitCardListItem } from '../../../../components/units/UnitCardListItem';
+import { Loading } from '../../../../components/ui/Loading';
 
 interface UnitsListProps {
     client: Client;
@@ -135,7 +136,9 @@ export const UnitsList: React.FC<UnitsListProps> = ({ client, onSelect, onAdd })
             {/* 3. Units List */}
             <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-20">
                 {loading ? (
-                    <div className="text-center py-20 text-slate-400">Carregando unidades...</div>
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <Loading size="md" text="Carregando unidades..." />
+                    </div>
                 ) : filteredUnits.length === 0 ? (
                     <div className="text-center py-20 text-slate-400">
                         {search ? 'Nenhuma unidade encontrada para esta busca' : 'Nenhuma unidade cadastrada'}

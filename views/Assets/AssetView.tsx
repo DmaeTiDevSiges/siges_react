@@ -635,7 +635,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                                     {isLoadingHistory && history.length === 0 ? (
                                         <div className="flex justify-center p-8">
-                                            <Loading size="xs" />
+                                            <Loading size="md" />
                                         </div>
                                     ) : history.length === 0 ? (
                                         <div className="text-center py-8 text-slate-500 text-xs uppercase font-bold">

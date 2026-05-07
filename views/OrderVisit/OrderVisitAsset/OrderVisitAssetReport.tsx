@@ -42,6 +42,9 @@ interface OrderVisitAssetReportProps {
     onBack: () => void;
     onManageActivities?: (orderTypeId: string) => void;
     onManageMaterials?: () => void;
+    readOnly?: boolean;
+    initialAsset?: OrderVisitAssetView;
+    initialVisit?: OrderVisit;
 }
 
 const SectionHeader: React.FC<{ icon: string; title: string; required?: boolean; action?: React.ReactNode }> = ({ icon, title, required, action }) => (
@@ -82,7 +85,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpa
                                     src={img}
                                     alt={`Foto ${idx + 1}`}
                                     className="w-full h-full object-cover"
-                                    onClick={() => editImage(type, idx)}
+                                    onClick={() => isReadOnly ? setExpandedImage(img) : editImage(type, idx)}
                                     preset="medium"
                                 />
                                 {!isReadOnly && (
@@ -145,13 +148,13 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpa
     );
 };
 
-export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials }) => {
-    const [asset, setAsset] = useState<OrderVisitAssetView | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [initialCondition, setInitialCondition] = useState('');
-    const [finalCondition, setFinalCondition] = useState('');
-    const [initialImages, setInitialImages] = useState<string[]>([]);
-    const [finalImages, setFinalImages] = useState<string[]>([]);
+export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials, readOnly, initialAsset, initialVisit }) => {
+    const [asset, setAsset] = useState<OrderVisitAssetView | null>(initialAsset || null);
+    const [loading, setLoading] = useState(!initialAsset);
+    const [initialCondition, setInitialCondition] = useState(initialAsset?.beforeComments || '');
+    const [finalCondition, setFinalCondition] = useState(initialAsset?.afterComments || '');
+    const [initialImages, setInitialImages] = useState<string[]>(initialAsset?.initialPhotoUrls || []);
+    const [finalImages, setFinalImages] = useState<string[]>(initialAsset?.finalPhotoUrls || []);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
     const [photoActionSection, setPhotoActionSection] = useState<'initial' | 'final' | null>(null);
     const [activities, setActivities] = useState<OrderVisitAssetActivity[]>([]);
@@ -166,11 +169,11 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [showRemoveModal, setShowRemoveModal] = useState(false);
     const [showReportConfirmModal, setShowReportConfirmModal] = useState(false);
     const [showApproveMovedModal, setShowApproveMovedModal] = useState(false);
-    const [visitProcessingId, setVisitProcessingId] = useState<number | null>(null);
-    const [isVisitFiled, setIsVisitFiled] = useState(false);
+    const [visitProcessingId, setVisitProcessingId] = useState<number | null>(initialVisit?.ovProcessingId || null);
+    const [isVisitFiled, setIsVisitFiled] = useState(!!initialVisit?.isFiled);
     const [editingImage, setEditingImage] = useState<{ type: 'initial' | 'final', index: number | null, src: string | File } | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
-    const [maintenanceProgress, setMaintenanceProgress] = useState<number>(0);
+    const [maintenanceProgress, setMaintenanceProgress] = useState<number>(initialAsset?.maintenancePlanProgress || 0);
     const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
 
     // Asset swap state
@@ -186,7 +189,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [selectedAssetForSwap, setSelectedAssetForSwap] = useState<Asset | null>(null);
 
     // Movement state
-    const [isMoved, setIsMoved] = useState(false);
+    const [isMoved, setIsMoved] = useState(initialAsset?.isMoved || false);
     const [afterClientId, setAfterClientId] = useState('');
     const [afterUnitId, setAfterUnitId] = useState('');
     const [afterUnitAssetTagId, setAfterUnitAssetTagId] = useState('');
@@ -195,7 +198,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [afterStatusId, setAfterStatusId] = useState('');
     const [afterPriorityId, setAfterPriorityId] = useState<number | undefined>(undefined);
     const [afterLocation, setAfterLocation] = useState('');
-    const [movedComments, setMovedComments] = useState('');
+    const [movedComments, setMovedComments] = useState(initialAsset?.movedComments || '');
 
     const [clientsList, setClientsList] = useState<any[]>([]);
     const [unitsList, setUnitsList] = useState<any[]>([]);
@@ -205,21 +208,23 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
     const { canView } = usePermissions();
 
-    const isReadOnly = asset ? (
+    const isReadOnly = readOnly || (asset ? (
         ![1, 3, 4].includes(asset.processingId || 1) && !localEditMode
-    ) : true;
+    ) : true);
 
     const loadPageData = async () => {
         try {
-            setLoading(true);
+            if (!initialAsset) setLoading(true);
+
+            // In readOnly mode, skip user/permissions data — only fetch display data
             const [data, activitiesData, materialsData, user] = await Promise.all([
                 dataService.getOrderVisitAssetById(assetId),
                 dataService.getOrderVisitAssetActivities(assetId),
                 dataService.getOrderVisitAssetMaterials(assetId),
-                dataService.getCurrentUser()
+                readOnly ? Promise.resolve(null) : dataService.getCurrentUser()
             ]);
 
-            if (data?.ovId) {
+            if (!readOnly && data?.ovId && !initialVisit) {
                 try {
                     const visitData = await dataService.getActiveOrderVisit(data.ovId);
                     if (visitData) {
@@ -256,15 +261,12 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 setAfterPriorityId(data.afterPriorityId);
                 setAfterLocation(data.afterLocation || '');
 
-                if (user && data.oContractId) {
+                if (!readOnly && user && data.oContractId) {
                     try {
                         isManager = await dataService.isUserContractManager(user.id, data.oContractId);
-                        console.log('Contract Manager Check:', { userId: user.id, contractId: data.oContractId, isManager });
                     } catch (mError) {
                         console.warn('Could not verify contract manager status', mError);
                     }
-                } else {
-                    console.log('Contract Manager Check Skipped:', { hasUser: !!user, hasContractId: !!data?.oContractId });
                 }
                 setIsContractManager(isManager);
                 setMaintenanceProgress(data.maintenancePlanProgress ?? 0);
@@ -819,7 +821,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 )}
 
                 {/* Asset Detail Card */}
-                <OrderVisitAssetCardDetail asset={asset} />
+                {!readOnly && <OrderVisitAssetCardDetail asset={asset} />}
 
                 {/* Condição Antes */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
@@ -1089,6 +1091,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 </div>
 
                 {/* Action Buttons */}
+                {!readOnly && (
                 <div className="flex flex-col gap-4 pb-12">
                     {/* 1) RASCUNHO (1), REVISADO (3) ou REJEITADO (4) actions */}
                     {([1, 3, 4].includes(Number(asset.processingId || 1))) && (
@@ -1259,6 +1262,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     )}
 
                 </div>
+                )}
             </div>
 
             {/* Asset Swap Page (Overlay) */}

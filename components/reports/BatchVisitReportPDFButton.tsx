@@ -16,6 +16,7 @@ interface BatchVisitReportPDFButtonProps {
     filename?: string;
     className?: string;
     label?: string;
+    variant?: 'pill' | 'action';
 }
 
 /**
@@ -26,6 +27,7 @@ export const BatchVisitReportPDFButton = ({
     filename = 'relatorio-lote-visitas',
     className = '',
     label,
+    variant = 'pill',
 }: BatchVisitReportPDFButtonProps) => {
     const [loading, setLoading] = useState(false);
 
@@ -240,6 +242,31 @@ export const BatchVisitReportPDFButton = ({
             setLoading(false);
         }
     };
+
+    if (variant === 'action') {
+        return (
+            <button
+                onClick={handleExport}
+                disabled={loading}
+                className={`flex items-center gap-2 px-3 h-8 bg-[#0f172a] border border-white/5 rounded-full hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 ${className}`}
+                title={label || "Exportar relatórios completos em um único PDF"}
+            >
+                {loading ? (
+                    <>
+                        <Loading size="xs" />
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-tight">Gerando...</span>
+                    </>
+                ) : (
+                    <>
+                        <FaFilePdf size={14} className="text-red-500" />
+                        <span className="text-[11px] font-black text-slate-200 uppercase tracking-tight">
+                            PDF{visits.length > 0 ? ` (${visits.length})` : ''}
+                        </span>
+                    </>
+                )}
+            </button>
+        );
+    }
 
     return (
         <button

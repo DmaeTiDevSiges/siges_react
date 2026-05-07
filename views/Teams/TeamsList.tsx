@@ -3,6 +3,7 @@ import { Team } from '../../types';
 import { dataService } from '../../services/dataService';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { Loading } from '../../components/ui/Loading';
 import { LoadMore } from '../../components/ui/LoadMore';
 import { IconButton } from '../../components/ui/IconButton';
 
@@ -42,7 +43,11 @@ export const TeamsList: React.FC<TeamsListProps> = ({ departmentId, onSelect, on
     );
 
     if (loading) {
-        return <div className="p-8 text-center text-slate-500">Carregando equipes...</div>;
+        return (
+            <div className="flex flex-col items-center justify-center py-20">
+                <Loading size="md" text="Carregando equipes..." />
+            </div>
+        );
     }
 
     return (

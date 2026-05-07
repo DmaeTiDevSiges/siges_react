@@ -252,6 +252,8 @@ const App: React.FC = () => {
   const [selectedAssetTagSub, setSelectedAssetTagSub] = useState<AssetTagSub | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [lastAssetSource, setLastAssetSource] = useState<Screen>('assets-search');
+  const [selectedOrderVisitAsset, setSelectedOrderVisitAsset] = useState<OrderVisitAssetView | null>(null);
+  const [selectedVisitForAssetReport, setSelectedVisitForAssetReport] = useState<OrderVisit | null>(null);
   const [selectedOrderVisitAssetId, setSelectedOrderVisitAssetId] = useState<string | null>(null);
   const [selectedOrderTypeId, setSelectedOrderTypeId] = useState<string | null>(null);
   const [selectedUnitAssetTag, setSelectedUnitAssetTag] = useState<any>(null);
@@ -261,8 +263,10 @@ const App: React.FC = () => {
     setCurrentScreen('unit-asset-tag-details');
   };
 
-  const handleOrderVisitAssetSelect = (assetId: string) => {
-    setSelectedOrderVisitAssetId(assetId);
+  const handleOrderVisitAssetSelect = (asset: OrderVisitAssetView, visit: OrderVisit) => {
+    setSelectedOrderVisitAsset(asset);
+    setSelectedOrderVisitAssetId(asset.id);
+    setSelectedVisitForAssetReport(visit);
     setCurrentScreen('order-visit-asset-report');
   };
 
@@ -2092,6 +2096,8 @@ const App: React.FC = () => {
         return selectedOrderVisitAssetId ? (
           <OrderVisitAssetReport
             assetId={selectedOrderVisitAssetId}
+            initialAsset={selectedOrderVisitAsset || undefined}
+            initialVisit={selectedVisitForAssetReport || undefined}
             onBack={() => setCurrentScreen('order-visit-execute')}
             onManageActivities={(orderTypeId) => {
               setSelectedOrderTypeId(orderTypeId);

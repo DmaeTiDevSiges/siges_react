@@ -16,6 +16,12 @@
     --radius-xl: 12px;
 
     --animate-loading-bar: loading-bar 1.5s infinite linear;
+    --animate-spin: spin 1s linear infinite;
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
 
     @keyframes loading-bar {
         0% {
@@ -368,4 +374,16 @@
 
 .leaflet-top, .leaflet-bottom {
     z-index: 1000 !important;
+}
+
+/* Neutralize h-screen / min-h-screen inside inline report containers */
+.inline-report-wrapper > div {
+    min-height: 0 !important;
+    height: auto !important;
+}
+.inline-report-wrapper .min-h-screen {
+    min-height: 0 !important;
+}
+.inline-report-wrapper .h-screen {
+    height: auto !important;
 }

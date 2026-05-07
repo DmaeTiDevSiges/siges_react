@@ -6,6 +6,7 @@ import { FilterList } from '../../../components/ui/FilterList';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { LoadMore } from '../../../components/ui/LoadMore';
 
+import { Loading } from '../../../components/ui/Loading';
 import { IconButton } from '../../../components/ui/IconButton';
 
 interface ClientsListProps {
@@ -62,7 +63,11 @@ export const ClientsList: React.FC<ClientsListProps> = ({ onSelect, onAdd }) => 
     });
 
     if (loading) {
-        return <div className="p-8 text-center text-slate-500">Carregando clientes...</div>;
+        return (
+            <div className="flex flex-col items-center justify-center py-20">
+                <Loading size="md" text="Carregando clientes..." />
+            </div>
+        );
     }
 
     return (

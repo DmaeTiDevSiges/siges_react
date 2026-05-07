@@ -4,6 +4,7 @@ import { dataService } from '../../../../services/dataService';
 import { SearchInput } from '../../../../components/ui/SearchInput';
 import { StatusBadge } from '../../../../components/ui/StatusBadge';
 import { IconButton } from '../../../../components/ui/IconButton';
+import { Loading } from '../../../../components/ui/Loading';
 import { LoadMore } from '../../../../components/ui/LoadMore';
 
 interface AssetTypesListProps {
@@ -106,7 +107,13 @@ export const AssetTypesList: React.FC<AssetTypesListProps> = ({ onSelect, onAdd 
 
     // We use the LoadMore component which handles IntersectionObserver internally
 
-    if (loading && !listCache) return <div className="p-8 text-center text-slate-500">Carregando tipos...</div>;
+    if (loading && !listCache) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20">
+                <Loading size="md" text="Carregando tipos..." />
+            </div>
+        );
+    }
 
     if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 

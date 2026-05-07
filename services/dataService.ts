@@ -8606,6 +8606,7 @@ export const dataService = {
                 maintenancePlanId: item.maintenance_plan_id?.toString(),
                 maintenancePlanProgress: item.maintenance_plan_progress,
                 oContractId: item.o_contract_id?.toString(),
+                orderTypeId: item.o_type_id?.toString(),
                 imgUrl: initialPhotoUrls[0], 
                 initialPhotoUrls,
                 finalPhotoUrls

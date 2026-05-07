@@ -1304,7 +1304,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     if (loading) {
         return (
             <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-900">
-                <Loading size="xl" text="Carregando Painel..." />
+                <Loading size="md" text="Carregando Painel..." />
             </div>
         );
     }

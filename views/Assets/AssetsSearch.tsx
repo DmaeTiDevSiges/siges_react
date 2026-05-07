@@ -210,7 +210,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
             <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 pb-24 space-y-4">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20">
-                        <Loading size="lg" text="Carregando ativos..." />
+                        <Loading size="md" text="Carregando ativos..." />
                     </div>
                 ) : error ? (
                     <div className="flex flex-col items-center justify-center py-20 px-6 text-center">

@@ -518,7 +518,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="space-y-4">
                             {isLoadingAvailability ? (
                                 <div className="flex justify-center py-8">
-                                    <Loading size="sm" />
+                                    <Loading size="md" />
                                 </div>
                             ) : availabilityItems.length === 0 ? (
                                 <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm">

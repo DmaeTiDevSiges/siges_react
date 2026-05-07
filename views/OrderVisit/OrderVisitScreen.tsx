@@ -18,7 +18,7 @@ interface OrderVisitPageProps {
     onEndVisit?: () => void;
     activeTab?: VisitTab;
     onTabChange?: (tab: VisitTab) => void;
-    onAssetSelect?: (assetId: string) => void;
+    onAssetSelect?: (asset: OrderVisitAssetView, visit: OrderVisit) => void;
     onApproveVisitRequest?: (visit: OrderVisit, order: Order) => void;
 }
 
@@ -395,7 +395,11 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             initialUnitName={visit.unitDescription}
                             isEditable={!visit.isFiled}
                             onVisitRefresh={refreshVisit}
-                            onAssetSelect={onAssetSelect}
+                            onAssetSelect={(asset) => {
+                                if (onAssetSelect && visit) {
+                                    onAssetSelect(asset, visit);
+                                }
+                            }}
                         />
                     </div>
                 );

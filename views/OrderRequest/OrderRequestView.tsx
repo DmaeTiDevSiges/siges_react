@@ -18,6 +18,10 @@ import { ManusVisitCard } from '../../components/ordersVisits/ManusVisitCard';
 import { ManusImageSelectionModal } from '../../components/ordersVisits/ManusImageSelectionModal';
 import { formatCurrency } from '../../utils/formatters';
 import { Loading } from '../../components/ui/Loading';
+import { BatchVisitReportPDFButton } from '../../components/reports/BatchVisitReportPDFButton';
+import { OrderVisitAssetCardListItem } from '../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardListItem';
+import { OrderVisitAssetReport } from '../OrderVisit/OrderVisitAsset/OrderVisitAssetReport';
+import { OrderVisitAssetView } from '../../types';
 
 
 interface OrderRequestViewProps {
@@ -73,6 +77,11 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     const [selectedVisitForImages, setSelectedVisitForImages] = useState<ManusVisit | null>(null);
     const [history, setHistory] = useState<ServiceHistoryItem[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+    // Histórico — assets grouped by visit
+    const [visitAssetsMap, setVisitAssetsMap] = useState<Record<string, { visit: OrderVisit; assets: OrderVisitAssetView[] }>>({});
+    const [isLoadingVisitAssets, setIsLoadingVisitAssets] = useState(false);
+    const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
     // Get current user for logic and follow hook
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -155,13 +164,24 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     
     useEffect(() => {
         if (activeTab === 'Histórico' && order.id) {
-            setIsLoadingHistory(true);
-            dataService.getServiceOrderHistory(order.id)
-                .then(data => {
-                    setHistory(data);
+            setIsLoadingVisitAssets(true);
+            dataService.getVisitsByOrderId(order.id)
+                .then(async (visitsData) => {
+                    const map: Record<string, { visit: OrderVisit; assets: OrderVisitAssetView[] }> = {};
+                    await Promise.all(
+                        visitsData.map(async (v) => {
+                            try {
+                                const assets = await dataService.getOrderVisitAssets(v.id);
+                                map[v.id] = { visit: v, assets };
+                            } catch {
+                                map[v.id] = { visit: v, assets: [] };
+                            }
+                        })
+                    );
+                    setVisitAssetsMap(map);
                 })
-                .catch(err => console.error('Error fetching OS history:', err))
-                .finally(() => setIsLoadingHistory(false));
+                .catch(err => console.error('Error fetching visit assets:', err))
+                .finally(() => setIsLoadingVisitAssets(false));
         }
     }, [activeTab, order.id]);
 
@@ -492,7 +512,12 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
 
                                         <div className="flex items-center justify-between px-1">
                                             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Histórico de Visitas ({visits.length})</h3>
-                                            <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2">
+                                                <BatchVisitReportPDFButton
+                                                    visits={visits}
+                                                    variant="action"
+                                                    filename={`relatorios-os-${order.orderMask || order.id}`}
+                                                />
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total:</span>
                                                 <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
                                                     {formatCurrency(visits.reduce((sum, v) => sum + (v.totalValue || 0), 0))}
@@ -554,97 +579,122 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                         )}
 
                         {activeTab === 'Histórico' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-1">
-                                {isLoadingHistory ? (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                {isLoadingVisitAssets ? (
                                     <div className="py-20 text-center space-y-4">
                                         <Loading size="md" />
-                                        <p className="text-slate-500 dark:text-slate-400 font-bold animate-pulse uppercase tracking-widest text-[10px]">CARREGANDO HISTÓRICO...</p>
+                                        <p className="text-slate-500 dark:text-slate-400 font-bold animate-pulse uppercase tracking-widest text-[10px]">CARREGANDO ATIVOS...</p>
                                     </div>
-                                ) : history.length > 0 ? (
-                                    <div className="relative pb-8">
-                                        {/* Vertical Line */}
-                                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-white/5 rounded-full" />
-
-                                        <div className="space-y-8 relative">
-                                            {history.map((item, idx) => {
-                                                const isLast = idx === history.length - 1;
-                                                
-                                                // Event configuration
-                                                let icon = 'history';
-                                                let iconColor = 'bg-slate-500';
-                                                
-                                                if (item.type === 'created') { icon = 'add_task'; iconColor = 'bg-blue-500'; }
-                                                else if (item.type === 'visit_started') { icon = 'play_arrow'; iconColor = 'bg-emerald-500'; }
-                                                else if (item.type === 'visit_ended') { icon = 'stop'; iconColor = 'bg-rose-500'; }
-                                                else if (item.type === 'intervention') { icon = 'engineering'; iconColor = 'bg-orange-500'; }
-                                                else if (item.type === 'material') { icon = 'inventory_2'; iconColor = 'bg-amber-500'; }
-                                                else if (item.type === 'status_change') { icon = 'sync'; iconColor = 'bg-indigo-500'; }
-
-                                                return (
-                                                    <div key={item.id} className="relative pl-12">
-                                                        {/* Dot/Icon */}
-                                                        <div className={`absolute left-0 top-0 w-8 h-8 rounded-xl ${iconColor} flex items-center justify-center text-white shadow-lg z-10`}>
-                                                            <span className="material-symbols-outlined text-[18px]">{icon}</span>
-                                                        </div>
-
-                                                        {/* Content */}
-                                                        <div className="bg-white dark:bg-card-dark rounded-2xl p-4 border border-slate-100 dark:border-white/5 shadow-sm space-y-2">
-                                                            <div className="flex justify-between items-start">
-                                                                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.title}</h4>
-                                                                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 dark:bg-white/5 px-2 py-0.5 rounded-full">
-                                                                    {new Date(item.date).toLocaleDateString()} {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                </span>
-                                                            </div>
-
-                                                            {item.description && (
-                                                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{item.description}</p>
-                                                            )}
-
-                                                            {(item.assetCode || item.userName || item.statusName) && (
-                                                                <div className="flex flex-wrap gap-2 pt-1">
-                                                                    {item.assetCode && (
-                                                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/5">
-                                                                            <span className="material-symbols-outlined text-[14px] text-slate-400">precision_manufacturing</span>
-                                                                            <span className="text-[10px] font-black text-slate-600 dark:text-slate-300">{item.assetCode}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {item.userName && (
-                                                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/5">
-                                                                            <span className="material-symbols-outlined text-[14px] text-slate-400">person</span>
-                                                                            <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase">{item.userName}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {item.statusName && (
-                                                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg border" 
-                                                                             style={{ 
-                                                                                backgroundColor: item.statusColor ? `${item.statusColor}10` : 'transparent',
-                                                                                borderColor: item.statusColor ? `${item.statusColor}30` : 'transparent'
-                                                                             }}>
-                                                                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.statusColor || '#ccc' }} />
-                                                                            <span className="text-[10px] font-black uppercase" style={{ color: item.statusColor || '#888' }}>{item.statusName}</span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
+                                ) : Object.keys(visitAssetsMap).length === 0 ? (
+                                    <div className="py-20 text-center space-y-4">
+                                        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
+                                            <span className="material-symbols-outlined text-4xl">precision_manufacturing</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Sem ativos registrados</p>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500">Nenhum ativo encontrado nas visitas desta OS.</p>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="py-20 text-center space-y-4">
-                                        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
-                                            <span className="material-symbols-outlined text-4xl">history</span>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Ações não disponíveis</p>
-                                            <p className="text-xs text-slate-400 dark:text-slate-500">Nenhum evento registrado no histórico desta OS.</p>
+                                    /* Visits scroll horizontally, assets stack vertically */
+                                    <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
+                                        <div className="flex gap-4 pb-4 items-start" style={{ width: 'max-content' }}>
+                                            {Object.values(visitAssetsMap)
+                                                .filter(({ assets }) => assets.length > 0)
+                                                .sort((a, b) => new Date(b.visit.ovCreatedAt).getTime() - new Date(a.visit.ovCreatedAt).getTime())
+                                                .map(({ visit, assets }) => (
+                                                    /* Each visit is a fixed-width column */
+                                                    <div key={visit.id} className="w-[448px] shrink-0 flex flex-col gap-3">
+                                                        {/* Visit Header */}
+                                                            <div className="flex flex-col gap-1 px-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Visita</span>
+                                                                    <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">
+                                                                        {visit.ovMask}
+                                                                    </span>
+                                                                    {visit.teamLeaderName && (
+                                                                        <span className="ml-auto text-[10px] font-bold text-slate-400 truncate max-w-[150px]">
+                                                                            {visit.teamLeaderName}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="flex items-center justify-between px-1 mt-1">
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        {visit.ovOStatusDescription && (
+                                                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wide">
+                                                                                {visit.ovOStatusDescription}
+                                                                            </span>
+                                                                        )}
+                                                                        {visit.ovOSuspendedReasonDescription && (
+                                                                            <span className="text-[9px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-wide flex items-center gap-1">
+                                                                                <span className="w-1 h-1 rounded-full bg-amber-500" />
+                                                                                {visit.ovOSuspendedReasonDescription}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className="text-[10px] font-bold text-slate-400">
+                                                                            {visit.ovStartedAt && new Date(visit.ovStartedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                                            {visit.ovEndedAt && ` — ${new Date(visit.ovEndedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                        {/* Vertical asset cards */}
+                                                        <div className="flex flex-col gap-3">
+                                                            {assets.map(asset => (
+                                                                <div key={asset.id} className="flex flex-col">
+                                                                    <div
+                                                                        onClick={() => setSelectedAssetIds(prev =>
+                                                                            prev.includes(asset.id)
+                                                                                ? prev.filter(id => id !== asset.id)
+                                                                                : [...prev, asset.id]
+                                                                        )}
+                                                                    >
+                                                                        <OrderVisitAssetCardListItem
+                                                                            asset={asset}
+                                                                        />
+                                                                    </div>
+
+                                                                    {/* Inline asset report */}
+                                                                    {selectedAssetIds.includes(asset.id) && (
+                                                                        <div className="mt-2 rounded-2xl border border-white/5 bg-slate-950 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                                                                            <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-slate-900">
+                                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Relatório do Ativo</span>
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setSelectedAssetIds(prev => prev.filter(id => id !== asset.id));
+                                                                                    }}
+                                                                                    className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-90"
+                                                                                >
+                                                                                    <span className="material-symbols-outlined text-[16px]">close</span>
+                                                                                </button>
+                                                                            </div>
+                                                                            <div className="h-auto inline-report-wrapper">
+                                                                                <OrderVisitAssetReport
+                                                                                    assetId={asset.id}
+                                                                                    onBack={() => setSelectedAssetIds(prev => prev.filter(id => id !== asset.id))}
+                                                                                    readOnly
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            }
                                         </div>
                                     </div>
                                 )}
                             </div>
                         )}
+
 
                         {activeTab === 'Assets' && (
                             <div className="py-20 text-center space-y-4 animate-in fade-in duration-500">

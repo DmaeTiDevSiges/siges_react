@@ -6,6 +6,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { LoadMore } from '../../components/ui/LoadMore';
 import { Modal } from '../../components/ui/Modal';
 import { IconButton } from '../../components/ui/IconButton';
+import { Loading } from '../../components/ui/Loading';
 
 interface DepartmentsListProps {
     companyId?: string;
@@ -308,7 +309,11 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
     };
 
     if (loading) {
-        return <div className="p-8 text-center text-slate-500">Carregando departamentos...</div>;
+        return (
+            <div className="flex flex-col items-center justify-center py-20">
+                <Loading size="md" text="Carregando departamentos..." />
+            </div>
+        );
     }
 
     return (

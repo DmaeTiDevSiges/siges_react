@@ -20,7 +20,7 @@ interface OrderVisitAssetsListProps {
     initialUnitId?: string;
     initialUnitName?: string;
     onVisitRefresh?: () => void;
-    onAssetSelect?: (assetId: string) => void;
+    onAssetSelect?: (asset: OrderVisitAssetView) => void;
 }
 
 export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
@@ -394,7 +394,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                         asset={asset}
                         onClick={() => {
                             if (onAssetSelect) {
-                                onAssetSelect(asset.id);
+                                onAssetSelect(asset);
                             }
                         }}
                     />

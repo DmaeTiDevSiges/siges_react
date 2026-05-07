@@ -6,6 +6,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { LoadMore } from '../../components/ui/LoadMore';
 import { IconButton } from '../../components/ui/IconButton';
+import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
 
@@ -107,7 +108,13 @@ export const UsersList: React.FC<UsersListProps> = ({ companyId, onAddUser, onSe
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-slate-500">Carregando usuários...</div>;
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20">
+                <Loading size="md" text="Carregando usuários..." />
+            </div>
+        );
+    }
 
     const filters = ['Todos', 'Ativos', 'Em Análise', 'Inativos'];
 

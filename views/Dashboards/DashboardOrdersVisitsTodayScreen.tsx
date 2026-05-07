@@ -530,7 +530,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-950">
-                <Loading size="xl" text="Iniciando Monitoramento..." />
+                <Loading size="md" text="Iniciando Monitoramento..." />
             </div>
         );
     }

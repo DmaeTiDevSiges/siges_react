@@ -890,7 +890,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     <main className="pb-6 sm:pb-10">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center h-80 gap-3">
-                                <Loading size="lg" text="Sincronizando Ativos..." />
+                                <Loading size="md" text="Sincronizando Ativos..." />
                             </div>
                         ) : (
                             <div className="flex flex-col gap-1 sm:gap-2">
