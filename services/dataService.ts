@@ -884,12 +884,17 @@ export const dataService = {
             .order('ov_started_at', { ascending: false })
             .range(from, to);
 
-        if (filters?.startDate) {
-            query = query.or(`ov_started_at.gte.${filters.startDate},and(ov_started_at.is.null,o_requested_at.gte.${filters.startDate})`);
-        }
-        if (filters?.endDate) {
-            query = query.or(`ov_started_at.lte.${filters.endDate},and(ov_started_at.is.null,o_requested_at.lte.${filters.endDate})`);
-        }
+        const d = new Date();
+        const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+        const startDate = filters?.startDate || todayStr;
+        const endDate = filters?.endDate || todayStr;
+
+        const startStr = startDate.includes('T') || startDate.includes(' ') ? startDate : `${startDate} 00:00:00`;
+        query = query.or(`ov_started_at.gte.${startStr},and(ov_started_at.is.null,o_requested_at.gte.${startStr})`);
+
+        const endStr = endDate.includes('T') || endDate.includes(' ') ? endDate : `${endDate} 23:59:59`;
+        query = query.or(`ov_started_at.lte.${endStr},and(ov_started_at.is.null,o_requested_at.lte.${endStr})`);
 
         const { data, error, count } = await query;
 
