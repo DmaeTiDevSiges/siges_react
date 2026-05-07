@@ -779,6 +779,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [isFetchingAppropriation, setIsFetchingAppropriation] = useState(false);
 
     const [visibleCount, setVisibleCount] = useState(50);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const isLoadingMoreRef = useRef(false);
     const loadMoreRef = React.useRef<HTMLDivElement>(null);
 
     const [filterOptions, setFilterOptions] = useState({
@@ -842,6 +844,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         }
     }, [currentUser.id]);
 
+    const [isFetchingAll, setIsFetchingAll] = useState(false);
+
     const loadData = React.useCallback(async (forceLoading = false) => {
         try {
             if (forceLoading || !initialLoadDone.current) {
@@ -851,12 +855,10 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             const stages = await dataService.getProcessingConfigurations();
             setProcessingStages(stages);
 
-            const data = await dataService.getOrdersVisitsView({
-                startDate: dateRange.start,
-                endDate: dateRange.end
-            });
+            const PAGE_SIZE = 100;
 
-            const mappedVisits: OrderVisitExtended[] = (data || []).map((row: any) => ({
+            // Helper: map raw row → OrderVisitExtended
+            const mapRow = (row: any): OrderVisitExtended => ({
                 id: row.id.toString(),
                 oId: row.o_id?.toString(),
                 ovMask: row.ov_mask,
@@ -918,14 +920,45 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 assetTagDescription: row.o_asset_tag_description || row.asset_tag_description,
                 assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description,
                 contractDescription: row.o_contract_description || row.contract_description,
-            }));
+            });
 
-            setVisits(mappedVisits);
-            // Optimization: Only load teams for visible visits if there are many
-            loadTeamsForVisits(mappedVisits.slice(0, 100));
+            // ── Page 0: show content immediately ──────────────────────────
+            const firstResult = await dataService.getOrdersVisitsView({
+                startDate: dateRange.start,
+                endDate: dateRange.end,
+                page: 0,
+                pageSize: PAGE_SIZE
+            });
+
+            const firstBatch = (firstResult.data || []).map(mapRow);
+            setVisits(firstBatch);
+            setLoading(false);
+            initialLoadDone.current = true;
+            loadTeamsForVisits(firstBatch.slice(0, 50));
+
+            // ── Pages 1+: fetch remaining in background ───────────────────
+            const totalCount = firstResult.count ?? 0;
+            const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+            if (totalPages > 1) {
+                setIsFetchingAll(true);
+                try {
+                    for (let page = 1; page < totalPages; page++) {
+                        const result = await dataService.getOrdersVisitsView({
+                            startDate: dateRange.start,
+                            endDate: dateRange.end,
+                            page,
+                            pageSize: PAGE_SIZE
+                        });
+                        const batch = (result.data || []).map(mapRow);
+                        setVisits(prev => [...prev, ...batch]);
+                    }
+                } finally {
+                    setIsFetchingAll(false);
+                }
+            }
         } catch (error) {
             console.error('Error loading visits:', error);
-        } finally {
             setLoading(false);
             initialLoadDone.current = true;
         }
@@ -955,22 +988,25 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
          };
      }, [loadData, loadFilterOptions]);
 
+    const visitTeamsRef = useRef<Record<string, OrderVisitTeam[]>>({})
+
     const loadTeamsForVisits = React.useCallback(async (visitsToLoad: OrderVisitExtended[]) => {
         try {
             if (!visitsToLoad.length) return;
-            // Only fetch teams for visits that don't have them in state yet
+            // Use ref to check loaded IDs to avoid stale closure / re-render loop
             const visitIds = visitsToLoad
                 .map(v => v.id)
-                .filter(id => !visitTeams[id]);
+                .filter(id => !visitTeamsRef.current[id]);
                 
             if (visitIds.length === 0) return;
 
             const teamResults = await dataService.getOrdersVisitsTeamsBulk(visitIds);
+            visitTeamsRef.current = { ...visitTeamsRef.current, ...teamResults };
             setVisitTeams(prev => ({ ...prev, ...teamResults }));
         } catch (error) {
             console.error('Error loading visit teams:', error);
         }
-    }, [visitTeams]);
+    }, []);
 
 
     const formatDateDisplay = (dateString?: string) => {
@@ -1300,21 +1336,27 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting && visibleCount < filteredVisits.length) {
-                    setVisibleCount(prev => prev + 100);
+                if (
+                    entries[0].isIntersecting &&
+                    visibleCount < filteredVisits.length &&
+                    !isLoadingMoreRef.current
+                ) {
+                    isLoadingMoreRef.current = true;
+                    setIsLoadingMore(true);
+                    // Small delay so React can render before next batch
+                    setTimeout(() => {
+                        setVisibleCount(prev => prev + 30);
+                        setIsLoadingMore(false);
+                        isLoadingMoreRef.current = false;
+                    }, 150);
                 }
             },
-            { threshold: 0.1, rootMargin: '1000px' }
+            { threshold: 0, rootMargin: '300px' }
         );
 
         const currentRef = loadMoreRef.current;
-        if (currentRef) {
-            observer.observe(currentRef);
-        }
-
-        return () => {
-            if (currentRef) observer.unobserve(currentRef);
-        };
+        if (currentRef) observer.observe(currentRef);
+        return () => { if (currentRef) observer.unobserve(currentRef); };
     }, [filteredVisits.length, visibleCount]);
 
     if (loading) {
@@ -1534,6 +1576,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 </h2>
                                 <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-8">
                                     {filteredVisits.length} registros encontrados
+                                    {isFetchingAll && (
+                                        <span className="ml-2 text-primary animate-pulse">· sincronizando...</span>
+                                    )}
                                 </p>
                             </div>
 
@@ -1614,9 +1659,23 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                         ))}
                     </div>
 
+                    {/* Infinite scroll sentinel */}
                     {filteredVisits.length > visibleCount && (
-                        <div ref={loadMoreRef} className="py-10 flex flex-col items-center justify-center gap-4">
-                            <Loading size="sm" text={`Carregando mais visitas (${filteredVisits.length - visibleCount} restantes)`} />
+                        <div ref={loadMoreRef} className="py-8 flex flex-col items-center justify-center gap-3">
+                            {isLoadingMore ? (
+                                <>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        {filteredVisits.length - visibleCount} visitas restantes
+                                    </span>
+                                </>
+                            ) : (
+                                <div className="w-16 h-0.5 bg-slate-200 dark:bg-slate-700 rounded-full" />
+                            )}
                         </div>
                     )}
 

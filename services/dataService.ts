@@ -872,28 +872,33 @@ export const dataService = {
         return { ...company, id } as Company;
     },
 
-    async getOrdersVisitsView(filters?: { startDate?: string; endDate?: string }) {
+    async getOrdersVisitsView(filters?: { startDate?: string; endDate?: string; page?: number; pageSize?: number }) {
+        const pageSize = filters?.pageSize ?? 100;
+        const page = filters?.page ?? 0;
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
         let query = supabase
             .from('v_orders_visits')
-            .select('*')
-            .order('ov_started_at', { ascending: true });
+            .select('*', { count: 'exact' })
+            .order('ov_started_at', { ascending: false })
+            .range(from, to);
 
         if (filters?.startDate) {
-            // We use ov_started_at or o_requested_at (as ov_created_at is missing in this view)
             query = query.or(`ov_started_at.gte.${filters.startDate},and(ov_started_at.is.null,o_requested_at.gte.${filters.startDate})`);
         }
         if (filters?.endDate) {
             query = query.or(`ov_started_at.lte.${filters.endDate},and(ov_started_at.is.null,o_requested_at.lte.${filters.endDate})`);
         }
 
-        const { data, error } = await query;
+        const { data, error, count } = await query;
 
         if (error) {
             console.error('Error fetching visits view:', error);
-            return [];
+            return { data: [], count: 0 };
         }
 
-        return data;
+        return { data: data ?? [], count: count ?? 0 };
     },
 
     async deleteCompany(id: string): Promise<void> {
