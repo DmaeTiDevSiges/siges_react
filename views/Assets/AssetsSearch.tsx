@@ -22,6 +22,17 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
     const hasSearchPermission = canSearch('assets');
 
     const [search, setSearch] = useState(() => localStorage.getItem('assets_search') || '');
+    const [activeSearch, setActiveSearch] = useState(search);
+
+    const handleSearch = () => {
+        setActiveSearch(search);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
     const [assets, setAssets] = useState<Asset[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -32,6 +43,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
     const handleScanResult = async (result: string) => {
         setSearch(result);
+        setActiveSearch(result);
         localStorage.setItem('assets_search', result);
 
         try {
@@ -117,7 +129,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         setVisibleCount(PAGE_SIZE);
 
         const fetchData = async () => {
-            if (!search.trim()) {
+            if (!activeSearch.trim()) {
                 setAssets([]);
                 setLoading(false);
                 setError(null);
@@ -127,7 +139,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
             try {
                 setLoading(true);
                 setError(null);
-                const data = await dataService.getAssets('all', search);
+                const data = await dataService.getAssets('all', activeSearch);
                 setAssets(data);
             } catch (err: any) {
                 console.error('AssetsSearch: ERRO no fetchData:', err);
@@ -137,9 +149,8 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
             }
         };
 
-        const timer = setTimeout(fetchData, 300);
-        return () => clearTimeout(timer);
-    }, [search, hasSearchPermission]);
+        fetchData();
+    }, [activeSearch, hasSearchPermission]);
 
     // Use server-side filtered assets directly
     const filteredAssets = assets;
@@ -165,39 +176,51 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
             {/* Header Section */}
             <div className="px-4 pt-4 pb-3 bg-linear-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary/20 dark:via-primary/10 border-b border-primary/10 dark:border-primary/20">
-                <SearchInput
-                    placeholder="Código, descrição, marca, modelo, serial"
-                    value={search}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        setSearch(val);
-                        localStorage.setItem('assets_search', val);
-                    }}
-                    onClear={() => {
-                        setSearch('');
-                        localStorage.setItem('assets_search', '');
-                    }}
-                    rightAction={
-                        <IconButton
-                            icon="barcode_scanner"
-                            size="sm"
-                            variant="ghost"
-                            className="text-primary"
-                            onClick={async () => {
-                                if (IS_NATIVE) {
-                                    try {
-                                        const result = await scanBarcode();
-                                        if (result) handleScanResult(result);
-                                    } catch (err: any) {
-                                        toast.error(err.message || 'Erro ao escanear');
-                                    }
-                                } else {
-                                    setIsScannerOpen(true);
-                                }
+                <div className="flex gap-2">
+                    <div className="flex-1">
+                        <SearchInput
+                            placeholder="Código, descrição, marca, modelo, serial"
+                            value={search}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setSearch(val);
+                                localStorage.setItem('assets_search', val);
                             }}
+                            onKeyDown={handleKeyDown}
+                            onClear={() => {
+                                setSearch('');
+                                setActiveSearch('');
+                                localStorage.setItem('assets_search', '');
+                            }}
+                            rightAction={
+                                <IconButton
+                                    icon="barcode_scanner"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-primary"
+                                    onClick={async () => {
+                                        if (IS_NATIVE) {
+                                            try {
+                                                const result = await scanBarcode();
+                                                if (result) handleScanResult(result);
+                                            } catch (err: any) {
+                                                toast.error(err.message || 'Erro ao escanear');
+                                            }
+                                        } else {
+                                            setIsScannerOpen(true);
+                                        }
+                                    }}
+                                />
+                            }
                         />
-                    }
-                />
+                    </div>
+                    <button
+                        onClick={handleSearch}
+                        className="px-4 bg-primary text-white rounded-[12px] font-bold active:scale-95 transition-all shadow-sm flex items-center justify-center hover:bg-primary-dark"
+                    >
+                        Buscar
+                    </button>
+                </div>
             </div>
 
             <BarcodeScannerModal

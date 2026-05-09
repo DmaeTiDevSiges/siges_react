@@ -25,13 +25,15 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
     const PAGE_SIZE = 20;
 
     // ... useEffects ...
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearch(search);
-        }, 500); // Aguarda 500ms após o usuário parar de digitar
+    const handleSearch = () => {
+        setDebouncedSearch(search);
+    };
 
-        return () => clearTimeout(timer);
-    }, [search]);
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -121,20 +123,31 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
             {/* Header Section */}
             <div className="px-4 pt-4 pb-3 bg-linear-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary/20 dark:via-primary/10 border-b border-primary/10 dark:border-primary/20">
-                {/* Search Bar */}
-                <SearchInput
-                    placeholder="Nome e/ou código"
-                    value={search}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        setSearch(val);
-                        localStorage.setItem('units_search', val);
-                    }}
-                    onClear={() => {
-                        setSearch('');
-                        localStorage.setItem('units_search', '');
-                    }}
-                />
+                <div className="flex gap-2">
+                    <div className="flex-1">
+                        <SearchInput
+                            placeholder="Nome e/ou código"
+                            value={search}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setSearch(val);
+                                localStorage.setItem('units_search', val);
+                            }}
+                            onKeyDown={handleKeyDown}
+                            onClear={() => {
+                                setSearch('');
+                                setDebouncedSearch('');
+                                localStorage.setItem('units_search', '');
+                            }}
+                        />
+                    </div>
+                    <button
+                        onClick={handleSearch}
+                        className="px-4 bg-primary text-white rounded-[12px] font-bold active:scale-95 transition-all shadow-sm flex items-center justify-center hover:bg-primary-dark"
+                    >
+                        Buscar
+                    </button>
+                </div>
             </div>
 
             {/* Units List */}
