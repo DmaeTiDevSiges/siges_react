@@ -758,6 +758,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     const [loading, setLoading] = useState(true);
     const initialLoadDone = React.useRef(false);
+    const fetchIdRef = useRef(0);
     const [activeFilter, setActiveFilter] = useState<string>('all');
     const [visitTeams, setVisitTeams] = useState<Record<string, OrderVisitTeam[]>>({});
     const [appropriationData, setAppropriationData] = useState<{
@@ -847,12 +848,14 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [isFetchingAll, setIsFetchingAll] = useState(false);
 
     const loadData = React.useCallback(async (forceLoading = false) => {
+        const currentFetchId = ++fetchIdRef.current;
         try {
             if (forceLoading || !initialLoadDone.current) {
                 setLoading(true);
             }
 
             const stages = await dataService.getProcessingConfigurations();
+            if (currentFetchId !== fetchIdRef.current) return;
             setProcessingStages(stages);
 
             const PAGE_SIZE = 100;
@@ -927,8 +930,12 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 startDate: dateRange.start,
                 endDate: dateRange.end,
                 page: 0,
-                pageSize: PAGE_SIZE
+                pageSize: PAGE_SIZE,
+                ...appliedFilters,
+                searchQuery
             });
+
+            if (currentFetchId !== fetchIdRef.current) return;
 
             const firstBatch = (firstResult.data || []).map(mapRow);
             setVisits(firstBatch);
@@ -948,26 +955,36 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             startDate: dateRange.start,
                             endDate: dateRange.end,
                             page,
-                            pageSize: PAGE_SIZE
+                            pageSize: PAGE_SIZE,
+                            ...appliedFilters,
+                            searchQuery
                         });
+                        
+                        if (currentFetchId !== fetchIdRef.current) return;
+                        
                         const batch = (result.data || []).map(mapRow);
-                        setVisits(prev => [...prev, ...batch]);
+                        setVisits(prev => {
+                            const existingIds = new Set(prev.map(v => v.id));
+                            const newItems = batch.filter(v => !existingIds.has(v.id));
+                            return [...prev, ...newItems];
+                        });
                     }
                 } finally {
-                    setIsFetchingAll(false);
+                    if (currentFetchId === fetchIdRef.current) {
+                        setIsFetchingAll(false);
+                    }
                 }
             }
         } catch (error) {
             console.error('Error loading visits:', error);
-            setLoading(false);
-            initialLoadDone.current = true;
+            if (currentFetchId === fetchIdRef.current) {
+                setLoading(false);
+                initialLoadDone.current = true;
+            }
         }
-    }, [currentUser.id, dateRange]);
+    }, [currentUser.id, dateRange, appliedFilters, searchQuery]);
 
     useEffect(() => {
-        localStorage.removeItem('dashboard_admin_date_start');
-        localStorage.removeItem('dashboard_admin_date_end');
-
         loadData(true);
         loadFilterOptions();
 

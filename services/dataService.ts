@@ -872,7 +872,24 @@ export const dataService = {
         return { ...company, id } as Company;
     },
 
-    async getOrdersVisitsView(filters?: { startDate?: string; endDate?: string; page?: number; pageSize?: number }) {
+    async getOrdersVisitsView(filters?: { 
+        startDate?: string; 
+        endDate?: string; 
+        page?: number; 
+        pageSize?: number;
+        contractId?: string | string[];
+        systemParentId?: string | string[];
+        systemId?: string | string[];
+        unitTypeParentId?: string | string[];
+        unitTypeId?: string | string[];
+        unitId?: string | string[];
+        orderObjectId?: string | string[];
+        orderTypeId?: string | string[];
+        orderTypeSubId?: string | string[];
+        orderPlanId?: string | string[];
+        orderTeamId?: string | string[];
+        searchQuery?: string;
+    }) {
         const pageSize = filters?.pageSize ?? 100;
         const page = filters?.page ?? 0;
         const from = page * pageSize;
@@ -895,6 +912,33 @@ export const dataService = {
 
         const endStr = endDate.includes('T') || endDate.includes(' ') ? endDate : `${endDate} 23:59:59`;
         query = query.or(`ov_started_at.lte.${endStr},and(ov_started_at.is.null,o_requested_at.lte.${endStr})`);
+
+        // Helper to apply array or single value filter
+        const applyFilter = (col: string, val?: string | string[]) => {
+            if (!val) return;
+            if (Array.isArray(val)) {
+                if (val.length > 0) query = query.in(col, val);
+            } else {
+                query = query.eq(col, val);
+            }
+        };
+
+        applyFilter('o_contract_id', filters?.contractId);
+        applyFilter('o_system_parent_id', filters?.systemParentId);
+        applyFilter('o_system_id', filters?.systemId);
+        applyFilter('o_unit_type_parent_id', filters?.unitTypeParentId);
+        applyFilter('o_unit_type_id', filters?.unitTypeId);
+        applyFilter('o_unit_id', filters?.unitId);
+        applyFilter('o_object_id', filters?.orderObjectId);
+        applyFilter('o_type_id', filters?.orderTypeId);
+        applyFilter('o_type_sub_id', filters?.orderTypeSubId);
+        applyFilter('o_plan_id', filters?.orderPlanId);
+        applyFilter('o_team_id', filters?.orderTeamId);
+
+        if (filters?.searchQuery) {
+            const search = `%${filters.searchQuery}%`;
+            query = query.or(`ov_mask.ilike.${search},o_unit_description.ilike.${search},o_client_name.ilike.${search},o_mask.ilike.${search}`);
+        }
 
         const { data, error, count } = await query;
 
