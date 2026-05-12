@@ -383,6 +383,7 @@ export const dataService = {
             priorityName: item.priority_description,
             priorityDescription: item.priority_description,
             priorityCode: item.priority_code,
+            priorityColor: item.priority_color,
             objectCode: item.object_code,
             objectDescription: item.object_description,
             causeReasonDescription: item.cause_reason_description || 'N/I',

@@ -5,6 +5,7 @@ import { CompanyAvatar } from '../ui/CompanyAvatar';
 import { dataService } from '../../services/dataService';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';
+import { getPriorityColor } from '../../utils/formatters';
 
 interface ServiceRequestCardListItemProps {
     order: Order;
@@ -106,8 +107,11 @@ export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProp
         >
             {/* Header with Date Badge and Company Logo */}
             <div className="flex justify-between items-start mb-3">
-                {/* Date Badge - Compact Red/Pink */}
-                <div className="flex flex-col px-4 py-2.5 rounded-[14px] bg-rose-500 text-white shadow-md min-w-[120px]">
+                {/* Date Badge - Priority Color */}
+                <div
+                    className="flex flex-col px-4 py-2.5 rounded-[14px] text-white shadow-md min-w-[120px]"
+                    style={{ backgroundColor: getPriorityColor(req.priorityColor || req.priorityCode) }}
+                >
                     <span className="text-[20px] font-black leading-none mb-1">{req.orderMask || 'OS'}</span>
                     <div className="flex justify-between items-center w-full gap-2">
                         <span className="text-[9px] font-bold opacity-90 uppercase tracking-tighter">SS {req.typeCode || 'N/I'}</span>
