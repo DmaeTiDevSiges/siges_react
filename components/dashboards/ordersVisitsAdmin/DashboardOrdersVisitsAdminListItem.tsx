@@ -67,8 +67,8 @@ const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminLis
                 <div className="flex flex-col gap-3">
                     {/* ID Badge */}
                     <div
-                        className={`relative flex flex-col gap-0.5 px-4 py-3 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white overflow-hidden ${!visit.priorityColor ? getPriorityColor(visit.priorityCode || 'AT') : ''}`}
-                        style={visit.priorityColor ? { backgroundColor: visit.priorityColor } : undefined}
+                        className="relative flex flex-col gap-0.5 px-4 py-3 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white overflow-hidden"
+                        style={{ backgroundColor: getPriorityColor(visit.priorityColor || visit.priorityCode || 'AT') }}
                     >
                         <span className="text-[18px] font-black leading-none tracking-tight">{visit.ovMask}</span>
                         <div className="flex justify-between items-center w-full mt-1">

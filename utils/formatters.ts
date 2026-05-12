@@ -123,8 +123,14 @@ export const formatRelativeTime = (date: string | Date | null | undefined): stri
  * @param priorityCode - Priority code (AT, MD, BX)
  * @returns Tailwind class for background color
  */
-export const getPriorityColor = (priorityCodeOrColor?: string): string => {
-    const val = priorityCodeOrColor?.toLowerCase();
+export const getPriorityColor = (priorityCodeOrColor?: string | number): string => {
+    if (!priorityCodeOrColor) return '#64748b'; // Default slate-500
+    
+    const val = String(priorityCodeOrColor).toLowerCase();
+    
+    // If it's already a hex color, return it
+    if (val.startsWith('#')) return val;
+    
     switch (val) {
         // Raw DB color names
         case 'red':    return '#f43f5e'; // rose-500
@@ -136,6 +142,10 @@ export const getPriorityColor = (priorityCodeOrColor?: string): string => {
         case 'at':     return '#f43f5e'; // Alta - rose-500
         case 'md':     return '#f97316'; // Média - orange-500
         case 'bx':     return '#22c55e'; // Baixa - green-500
+        // Numeric IDs (based on DB screenshot)
+        case '1':      return '#f43f5e'; // Alta
+        case '2':      return '#f97316'; // Média
+        case '3':      return '#22c55e'; // Baixa
         default:       return '#64748b'; // slate-500
     }
 };

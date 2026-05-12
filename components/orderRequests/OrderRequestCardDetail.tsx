@@ -73,7 +73,10 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, on
             className="rounded-[16px]! hover:shadow-xl active:scale-[0.98] active:bg-slate-50 dark:active:bg-white/5 transition-all cursor-pointer group relative overflow-hidden"
         >
             <div className="flex justify-between items-start mb-4">
-                <div className={`flex flex-col gap-0.5 px-4 py-2.5 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white ${getPriorityColor(req.priorityCode || (req as any).priority_code)}`}>
+                <div
+                    className="flex flex-col gap-0.5 px-4 py-2.5 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white"
+                    style={{ backgroundColor: getPriorityColor(req.priorityColor || req.priorityCode || (req as any).priority_code || (req as any).priority_color) }}
+                >
                     <span className="text-[18px] font-black leading-none tracking-tight">{req.orderMask || (req as any).order_mask}</span>
                     <div className="flex justify-between items-center w-full mt-1">
                         <span className="text-[9px] font-bold opacity-90 uppercase tracking-tighter">OS {req.typeCode || (req as any).type_code}/{req.typeSubCode || (req as any).type_sub_code}/{req.objectCode || (req as any).object_code}</span>

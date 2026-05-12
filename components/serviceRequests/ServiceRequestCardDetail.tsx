@@ -130,7 +130,10 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
             {/* Header with Date Badge and Company Logo */}
             <div className="flex justify-between items-start mb-3">
                 {/* Date Badge - Priority Based Color */}
-                <div className={`flex flex-col px-4 py-2.5 rounded-[14px] text-white shadow-md min-w-[120px] ${getPriorityColor(req.priorityCode || 'AT')}`}>
+                <div
+                    className="flex flex-col px-4 py-2.5 rounded-[14px] text-white shadow-md min-w-[120px]"
+                    style={{ backgroundColor: getPriorityColor(req.priorityColor || req.priorityCode || (req as any).priority_code || (req as any).priority_color || 'AT') }}
+                >
                     <span className="text-[20px] font-black leading-none mb-1">{req.orderMask || 'OS'}</span>
                     <div className="flex justify-between items-center w-full gap-2">
                         <span className="text-[9px] font-bold opacity-90 uppercase tracking-tighter">SS {req.typeCode || 'N/I'}</span>
