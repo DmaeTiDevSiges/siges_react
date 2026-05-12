@@ -116,7 +116,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setMinTimePassed(true);
-    }, 2500);
+    }, 7000);
     return () => clearTimeout(timer);
   }, []);
 

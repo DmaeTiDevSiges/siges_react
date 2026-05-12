@@ -35,49 +35,22 @@ export const SplashScreen: React.FC = () => {
                 }}
             />
 
-            {/* Signal Pulse Waves */}
-            <div className="absolute flex items-center justify-center">
-                {[1, 2, 3].map((i) => (
-                    <div
-                        key={i}
-                        className="absolute rounded-full border border-primary/20"
-                        style={{
-                            width: 200,
-                            height: 200,
-                            animation: `splash-wave 3s cubic-bezier(0, 0.5, 0.5, 1) infinite`,
-                            animationDelay: `${i * 1}s`,
-                        }}
-                    />
-                ))}
-            </div>
 
             {/* Main Content Container */}
             <div className="relative z-10 flex flex-col items-center">
-                {/* Logo with Glassmorphism & Shimmer */}
-                <div 
-                    className="relative p-8 rounded-[40px] bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden group"
+                {/* Logo */}
+                <img
+                    src="/siges_logo.png"
+                    alt="SIGES Logo"
+                    className="w-48 h-48 md:w-56 md:h-56 mx-auto object-contain filter drop-shadow-[0_0_40px_rgba(19,127,236,0.6)]"
                     style={{
                         animation: 'splash-entrance 1s cubic-bezier(0.16, 1, 0.3, 1) forwards',
                     }}
-                >
-                    {/* Shimmer Effect */}
-                    <div 
-                        className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent"
-                        style={{
-                            animation: 'splash-shimmer 2s infinite',
-                        }}
-                    />
-                    
-                    <img
-                        src="/siges_logo.png"
-                        alt="SIGES Logo"
-                        className="w-24 h-24 md:w-32 md:h-32 object-contain filter drop-shadow-[0_0_20px_rgba(19,127,236,0.4)]"
-                    />
-                </div>
+                />
 
                 {/* Brand Name & Tagline */}
                 <div 
-                    className="mt-10 flex flex-col items-center"
+                    className="mt-1 flex flex-col items-center"
                     style={{
                         animation: 'splash-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both',
                     }}
@@ -87,7 +60,7 @@ export const SplashScreen: React.FC = () => {
                     </h1>
                     <div className="h-[1px] w-12 bg-primary/50 mb-4" />
                     <p className="text-[10px] md:text-xs font-medium text-slate-400 tracking-[0.4em] uppercase">
-                        Sistemas de Gestão de Serviços
+                        Sistema Gerenciador de Serviços
                     </p>
                 </div>
 
@@ -98,13 +71,10 @@ export const SplashScreen: React.FC = () => {
                         animation: 'splash-fade-in 0.5s ease 0.6s both',
                     }}
                 >
-                    {/* Percentage Counter */}
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-mono font-bold text-white tabular-nums">
-                            {progress.toString().padStart(3, '0')}
-                        </span>
-                        <span className="text-xs font-mono text-primary font-bold">%</span>
-                    </div>
+                    {/* Loading Text */}
+                    <span className="text-xs font-medium text-slate-400 tracking-[0.3em] uppercase animate-pulse">
+                        Carregando...
+                    </span>
 
                     {/* Progress Bar Container */}
                     <div className="w-full h-[2px] bg-white/5 rounded-full overflow-hidden">
@@ -114,25 +84,6 @@ export const SplashScreen: React.FC = () => {
                         />
                     </div>
                 </div>
-            </div>
-
-            {/* Bottom Brand Identity */}
-            <div 
-                className="absolute bottom-10 flex flex-col items-center gap-2"
-                style={{
-                    animation: 'splash-fade-in 0.5s ease 0.8s both',
-                }}
-            >
-                <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                    <span className="text-[9px] font-bold text-slate-500 tracking-[0.3em] uppercase">
-                        Protocolo Signal Ativo
-                    </span>
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                </div>
-                <span className="text-[8px] font-medium text-slate-600 tracking-[0.1em] uppercase opacity-50">
-                    © 2026 DMAE TI DEV TEAM
-                </span>
             </div>
 
             {/* Animations */}
