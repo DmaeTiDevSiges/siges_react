@@ -183,6 +183,8 @@ export interface User {
   isAdminSuper?: boolean;
   isTeamLeader?: boolean;
   isAvailable?: boolean;
+  shiftStart?: string;
+  shiftEnd?: string;
 
   // Operational
   isOvInProgress?: boolean;

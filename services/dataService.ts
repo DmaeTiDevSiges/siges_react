@@ -83,6 +83,18 @@ export const dataService = {
         return data as { id: number, description: string, icon: string, icon_color: string, bg_color: string }[];
     },
 
+    // Atualização de Heartbeat do usuário
+    async updateLastOnline(userId: string): Promise<void> {
+        try {
+            await supabase
+                .from('users')
+                .update({ last_online: new Date().toISOString() })
+                .eq('id', userId);
+        } catch (error) {
+            console.error('Error updating last_online:', error);
+        }
+    },
+
     // Limpar cache de metadados (útil após updates de empresas/usuários/unidades)
     clearMetadataCache() {
         metadataCache.companies = null;
@@ -2109,6 +2121,8 @@ export const dataService = {
             teamName: item.cfg_teams?.description,
             vehicleId: item.vehicle_id?.toString(),
             isAvailable: item.is_available,
+            shiftStart: item.shift_start,
+            shiftEnd: item.shift_end,
             ovIdInProgress: item.ov_id_in_progress
         })) as User[];
     },
@@ -2193,6 +2207,8 @@ export const dataService = {
                 : undefined,
             teamId: item.team_id?.toString(),
             isAvailable: item.is_available,
+            shiftStart: item.shift_start,
+            shiftEnd: item.shift_end,
             ovIdInProgress: item.ov_id_in_progress
         })) as User[];
     },
@@ -2362,7 +2378,9 @@ export const dataService = {
             profile_id: (user.profileId && user.profileId !== '') ? parseInt(user.profileId) : null,
             status_id: 1, // Requested: 1
             img_file_path: 'settings/images',
-            img_file_name: 'noImageUser.png'
+            img_file_name: 'noImageUser.png',
+            shift_start: '08:00:00',
+            shift_end: '18:00:00'
         };
 
         // We use the MAIN supabase client here because we need the Admin's (current user) permissions
@@ -2514,6 +2532,8 @@ export const dataService = {
             opIdInProgressBigInt: data.op_id_in_progress,
             latitude: data.latitude,
             longitude: data.longitude,
+            shiftStart: data.shift_start,
+            shiftEnd: data.shift_end,
             trackerIntervalSeconds: data.tracker_interval_seconds ?? null,
             permissions: permissions
         } as User;
@@ -2537,7 +2557,9 @@ export const dataService = {
             phone: user.phone,
             profile_id: (user.profileId && user.profileId !== '') ? parseInt(user.profileId) : undefined,
             team_id: (user.teamId && user.teamId !== '') ? parseInt(user.teamId) : undefined,
-            company_id: (user.companyId && user.companyId !== '') ? parseInt(user.companyId) : undefined
+            company_id: (user.companyId && user.companyId !== '') ? parseInt(user.companyId) : undefined,
+            shift_start: user.shiftStart,
+            shift_end: user.shiftEnd
         };
 
         const { error: updateError } = await supabase
@@ -8518,6 +8540,22 @@ export const dataService = {
         }
 
         return data || [];
+    },
+
+    // -------------------------------------------------------------------------
+    // ORDER VISIT
+    // -------------------------------------------------------------------------
+    async getOrderVisitById(visitId: string): Promise<OrderVisit | null> {
+        const { data, error } = await supabase
+            .from('v_orders_visits')
+            .select('*')
+            .eq('id', visitId)
+            .single();
+        if (error) {
+            console.error('Error fetching visit by id', error);
+            return null;
+        }
+        return data as OrderVisit;
     },
 
     // -------------------------------------------------------------------------

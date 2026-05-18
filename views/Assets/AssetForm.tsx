@@ -842,6 +842,22 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                 {/* Fixed Footer */}
                 <ButtonSave isSaving={isSaving} onCancel={onCancel} onSave={handleSubmit} />
             </form>
+
+            <ImageUploadSheet
+                isOpen={isPhotoSheetOpen}
+                onClose={() => setIsPhotoSheetOpen(false)}
+                onSelectGallery={() => takePhoto(CameraSource.Photos)}
+                onTakeCamera={() => takePhoto(CameraSource.Camera)}
+            />
+
+            {isEditing && imagePreview && (
+                <ImageEditorModal
+                    isOpen={isEditing}
+                    imageFile={imagePreview}
+                    onClose={() => setIsEditing(false)}
+                    onSave={handleSaveEditedImage}
+                />
+            )}
         </div>
     );
 };

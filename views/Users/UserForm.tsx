@@ -21,6 +21,8 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
     const [mobile, setMobile] = useState('');
     const [teamId, setTeamId] = useState('');
     const [profileId, setProfileId] = useState('');
+    const [shiftStart, setShiftStart] = useState('08:00');
+    const [shiftEnd, setShiftEnd] = useState('18:00');
     const [teams, setTeams] = useState<Team[]>([]);
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -106,7 +108,9 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                 mobile: mobileClean,
                 teamId,
                 profileId,
-                companyId
+                companyId,
+                shiftStart,
+                shiftEnd
             }, password);
 
             setModal({
@@ -253,6 +257,34 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                         maxLength={15}
                     />
                 </div>
+                
+                {/* Horário de Trabalho */}
+                <div className="space-y-4 pt-2">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Horário de Trabalho</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Início do Turno</label>
+                            <input
+                                type="time"
+                                required
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                                value={shiftStart}
+                                onChange={e => setShiftStart(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Fim do Turno</label>
+                            <input
+                                type="time"
+                                required
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                                value={shiftEnd}
+                                onChange={e => setShiftEnd(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                </div>
+
                 </KeyboardAwareScrollView>
             </form>
 

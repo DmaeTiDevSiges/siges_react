@@ -72,6 +72,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [companies, setCompanies] = useState<import('../../types').Company[]>([]);
     const [teams, setTeams] = useState<import('../../types').Team[]>([]);
+    const [shiftStart, setShiftStart] = useState('08:00');
+    const [shiftEnd, setShiftEnd] = useState('18:00');
     const [currentUser, setCurrentLoggedUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
@@ -135,6 +137,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             setProfileId(initialUser.profileId || '');
             setTeamId(initialUser.teamId || '');
             setCompanyId(initialUser.companyId || '');
+            setShiftStart(initialUser.shiftStart?.slice(0, 5) || '08:00');
+            setShiftEnd(initialUser.shiftEnd?.slice(0, 5) || '18:00');
 
             // Load profiles and teams for current user's company
             if (initialUser.companyId) {
@@ -163,6 +167,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         setAvatarUrl(currentUserToEdit.avatarUrl);
                         setProfileId(currentUserToEdit.profileId || '');
                         setTeamId(currentUserToEdit.teamId || '');
+                        setShiftStart(currentUserToEdit.shiftStart?.slice(0, 5) || '08:00');
+                        setShiftEnd(currentUserToEdit.shiftEnd?.slice(0, 5) || '18:00');
 
                         if (currentUserToEdit.companyId) {
                             setCompanyId(currentUserToEdit.companyId);
@@ -283,7 +289,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 avatarUrl: avatarUrl,
                 profileId: profileId || undefined,
                 teamId: teamId || undefined,
-                companyId: companyId || undefined
+                companyId: companyId || undefined,
+                shiftStart: shiftStart,
+                shiftEnd: shiftEnd
             });
 
             if (onUserUpdate) {
@@ -303,7 +311,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                     teamId: teamId || undefined,
                     teamName: selectedTeam?.name || user.teamName,
                     companyId: companyId || undefined,
-                    companyName: selectedCompany?.name || user.companyName
+                    companyName: selectedCompany?.name || user.companyName,
+                    shiftStart: shiftStart,
+                    shiftEnd: shiftEnd
                 } as User);
             }
 
@@ -530,6 +540,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
 
     const handleStatusChange = async (newStatus: UserStatus) => {
         if (!onStatusChange || !user?.uuid) return;
+
+        const isInProgress = user.isOvInProgress || (user as any).is_ov_in_progress;
+        if (newStatus === 'unavailable' && (isInProgress === true || isInProgress === 1 || isInProgress === 'true')) {
+            setShowStatusModal(false);
+            setModal({
+                isOpen: true,
+                title: 'Ação Bloqueada',
+                message: 'Você não pode ficar Indisponível enquanto possui uma visita em aberto.',
+                type: 'error'
+            });
+            return;
+        }
 
         setIsUpdatingStatus(true);
         try {
@@ -1023,6 +1045,47 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                     )}
                                 </div>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Shift Management Section */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">
+                            Turno de Trabalho
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* Shift Start Card */}
+                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-500 flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined">wb_twilight</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Início</label>
+                                    <input
+                                        type="time"
+                                        value={shiftStart}
+                                        onChange={(e) => setShiftStart(e.target.value)}
+                                        disabled={!isOwner && !isAdmin}
+                                        className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    />
+                                </div>
+                            </div>
+                            {/* Shift End Card */}
+                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined">bedtime</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Término</label>
+                                    <input
+                                        type="time"
+                                        value={shiftEnd}
+                                        onChange={(e) => setShiftEnd(e.target.value)}
+                                        disabled={!isOwner && !isAdmin}
+                                        className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 

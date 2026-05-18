@@ -2042,6 +2042,7 @@ CREATE TABLE IF NOT EXISTS public.users (
     longitude numeric,
     tracker_at timestamp without time zone DEFAULT now(),
     ov_id_in_progress_mask text,
+    last_online timestamp with time zone,
     PRIMARY KEY (id)
 );
 
@@ -2795,4 +2796,32 @@ NULL as id;
 -- CREATE POLICY "Users can view own data"
 -- ON users FOR SELECT
 -- USING (auth.uid() = id);
+
+-- =============================================================================
+-- Section: Background Jobs (pg_cron)
+-- =============================================================================
+
+-- Habilitar a extensão pg_cron para agendar rotinas (essencial para VPS)
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Agendamento da rotina automática de check-out
+-- Executa a cada 5 minutos e marca como Indisponível os usuários que estão fora do expediente
+-- e sem atividade (heartbeat/last_online) há mais de 10 minutos.
+SELECT cron.schedule(
+  'auto-checkout-job', 
+  '*/5 * * * *', 
+  $$
+    UPDATE public.users 
+    SET is_available = false 
+    WHERE is_available = true 
+      AND is_ov_in_progress = false 
+      AND last_online < NOW() - INTERVAL '10 minutes'
+      AND (
+          (NOW() AT TIME ZONE 'America/Sao_Paulo')::time >= shift_end
+          OR 
+          (NOW() AT TIME ZONE 'America/Sao_Paulo')::time < shift_start
+      );
+  $$
+);
+
 

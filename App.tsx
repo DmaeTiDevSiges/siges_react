@@ -83,7 +83,7 @@ import { OrderVisitAssetActivities } from './views/OrderVisit/OrderVisitAsset/Or
 import { OrderVisitAssetMaterials } from './views/OrderVisit/OrderVisitAsset/OrderVisitAssetMaterials';
 import { OrderVisitBottomNav } from './components/ordersVisits/OrderVisitBottomNav';
 import { Toaster, toast } from 'sonner';
-import { Company, Client, Department, Team, User, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Contract, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, Asset, UserNotification, Order } from './types';
+import { Company, Client, Department, Team, User, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Contract, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, Asset, UserNotification, Order, OrderVisit, OrderVisitAssetView } from './types';
 
 import { UsersTracker } from './views/Users/UsersTracker';
 import { AllUsersList } from './views/Admin/AllUsersList';
@@ -91,6 +91,8 @@ import { UserViewScreen } from './views/Admin/UserViewScreen';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
 import { LocationBlockedScreen } from './views/System/LocationBlockedScreen';
+import { useShiftMonitor } from './hooks/useShiftMonitor';
+import { Modal } from './components/ui/Modal';
 
 import { ProfilePermissionsScreen } from './views/Admin/ProfilePermissionsScreen';
 import { AIKnowledgeAdmin } from './views/Settings/AIKnowledgeAdmin';
@@ -595,6 +597,25 @@ const App: React.FC = () => {
 
   // Background location tracker — updates users.latitude, users.longitude and users.tracker_at
   const { isLocationBlocked } = useLocationTracker(currentUser?.id, currentUser?.trackerIntervalSeconds, retryLocation);
+
+  // Background shift monitor - alerts user to change availability status based on shift hours
+  const { showShiftAlert, dismissAlert } = useShiftMonitor(currentUser);
+
+  // Heartbeat system (sends a ping every 3 minutes if active)
+  useEffect(() => {
+    if (!currentUser || !currentUser.id) return;
+
+    const ping = () => {
+      dataService.updateLastOnline(currentUser.id).catch(console.error);
+    };
+
+    // Ping immediately when user is loaded
+    ping();
+
+    // Ping every 3 minutes
+    const interval = setInterval(ping, 180000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
 
   // Load departments when company changes
   useEffect(() => {
@@ -2297,6 +2318,11 @@ const App: React.FC = () => {
   const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: string) => {
     if (!currentUser) return;
 
+    if (!isAvailable && currentUser.isOvInProgress) {
+        toast.error("Você não pode ficar Indisponível enquanto possui uma visita em aberto.");
+        return;
+    }
+
     try {
       await dataService.updateUserAvailability(currentUser.id, isAvailable, ovIdInProgress);
 
@@ -2428,6 +2454,41 @@ const App: React.FC = () => {
             {isLocationBlocked && (
               <LocationBlockedScreen onRetry={() => setRetryLocation(prev => prev + 1)} />
             )}
+
+            <Modal
+              isOpen={showShiftAlert.show}
+              onClose={() => dismissAlert(showShiftAlert.type)}
+              title={showShiftAlert.type === 'START' ? 'Início de Turno' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Visita em Andamento' : 'Fim de Expediente'}
+              message={showShiftAlert.message}
+              type="info"
+              confirmLabel={showShiftAlert.type === 'START' ? 'Ficar Disponível' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Ir para a Visita' : 'NÃO ESTOU MAIS DISPONÍVEL'}
+              cancelLabel="Ainda estou disponível"
+              onConfirm={async () => {
+                 if (showShiftAlert.type === 'END_WITH_VISIT') {
+                     dismissAlert(showShiftAlert.type);
+                     if (currentUser?.ovIdInProgress) {
+                         try {
+                             const visit = await dataService.getOrderVisitById(currentUser.ovIdInProgress);
+                             if (visit) {
+                                 handleVisitSelect(visit);
+                             } else {
+                                 toast.error("Visita não encontrada.");
+                             }
+                         } catch(e) {
+                             toast.error("Erro ao carregar visita em andamento.");
+                         }
+                     }
+                     return;
+                 }
+                 try {
+                     await handleUserStatusChange(showShiftAlert.type === 'START', currentUser?.ovIdInProgress || '');
+                     dismissAlert(showShiftAlert.type);
+                     toast.success(showShiftAlert.type === 'START' ? 'Você está online!' : 'Check-out realizado com sucesso.');
+                 } catch(e) {
+                     toast.error('Erro ao atualizar status.');
+                 }
+              }}
+            />
 
             <Toaster position="top-right" richColors closeButton style={{ top: '96px', position: 'fixed' }} />
             <UpdateNotifier />

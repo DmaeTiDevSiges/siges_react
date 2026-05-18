@@ -46,12 +46,22 @@ export const BatchVisitReportPDFButton = ({
             const logoBase64 = await getLogoBase64();
             const reportsData: VisitReportData[] = [];
 
+            // Ordenar as visitas em ordem crescente do início da visita (ovStartedAt), com fallback para a data de criação (ovCreatedAt) e ID
+            const sortedVisits = [...visits].sort((a, b) => {
+                const timeA = a.ovStartedAt ? new Date(a.ovStartedAt).getTime() : (a.ovCreatedAt ? new Date(a.ovCreatedAt).getTime() : 0);
+                const timeB = b.ovStartedAt ? new Date(b.ovStartedAt).getTime() : (b.ovCreatedAt ? new Date(b.ovCreatedAt).getTime() : 0);
+                if (timeA !== timeB) {
+                    return timeA - timeB;
+                }
+                return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+            });
+
             // 1. Process each visit
-            for (let i = 0; i < visits.length; i++) {
-                const visitItem = visits[i];
+            for (let i = 0; i < sortedVisits.length; i++) {
+                const visitItem = sortedVisits[i];
                 const visitId = visitItem.id;
                 
-                toast.loading(`Processando visita ${i + 1}/${visits.length}: ${visitItem.ovMask || visitId}`, { id: toastId });
+                toast.loading(`Processando visita ${i + 1}/${sortedVisits.length}: ${visitItem.ovMask || visitId}`, { id: toastId });
 
                 // Fetch data for this specific visit
                 const [visit, team, vehicles, assets, services, allActivities, allMaterials] = await Promise.all([

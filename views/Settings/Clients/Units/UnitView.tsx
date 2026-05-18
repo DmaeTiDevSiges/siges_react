@@ -315,13 +315,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
         <div className="flex flex-col h-full bg-background-light dark:bg-slate-950 text-slate-900 dark:text-white relative">
             <div className={`flex-1 overflow-y-auto no-scrollbar relative transition-all duration-500 ${isHeaderExpanded ? 'overflow-hidden' : ''}`}>
                 {/* Floating Top Controls */}
-                <div className="absolute top-4 left-4 right-4 z-60 flex justify-between pointer-events-none">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onBack?.(); }}
-                        className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md border border-white/20 text-white hover:bg-black/40 transition-all pointer-events-auto"
-                    >
-                        <span className="material-symbols-outlined">arrow_back</span>
-                    </button>
+                <div className="absolute top-4 left-4 right-4 z-60 flex justify-end pointer-events-none">
 
                     {(onEdit || onDelete) && (
                         <div className="relative pointer-events-auto">
