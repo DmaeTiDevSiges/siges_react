@@ -672,29 +672,45 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     useEffect(() => {
         if (currentFilters) {
-            setAdvancedFilters(currentFilters);
+            const currentStr = JSON.stringify(advancedFilters);
+            const propStr = JSON.stringify(currentFilters);
+            if (currentStr !== propStr) {
+                setAdvancedFilters(currentFilters);
+            }
         }
-    }, [currentFilters]);
+    }, [currentFilters, advancedFilters]);
 
     useEffect(() => {
         if (appliedFiltersProp) {
-            setAppliedFilters(appliedFiltersProp);
+            const currentStr = JSON.stringify(appliedFilters);
+            const propStr = JSON.stringify(appliedFiltersProp);
+            if (currentStr !== propStr) {
+                setAppliedFilters(appliedFiltersProp);
+            }
         }
-    }, [appliedFiltersProp]);
+    }, [appliedFiltersProp, appliedFilters]);
 
     useEffect(() => {
         if (onFiltersChange) {
-            onFiltersChange(advancedFilters);
+            const currentStr = JSON.stringify(advancedFilters);
+            const propStr = JSON.stringify(currentFilters);
+            if (currentStr !== propStr) {
+                onFiltersChange(advancedFilters);
+            }
         }
         localStorage.setItem('advancedOrdersFilters', JSON.stringify(advancedFilters));
-    }, [advancedFilters, onFiltersChange]);
+    }, [advancedFilters, currentFilters, onFiltersChange]);
 
     useEffect(() => {
         if (onAppliedFiltersChange) {
-            onAppliedFiltersChange(appliedFilters);
+            const currentStr = JSON.stringify(appliedFilters);
+            const propStr = JSON.stringify(appliedFiltersProp);
+            if (currentStr !== propStr) {
+                onAppliedFiltersChange(appliedFilters);
+            }
         }
         localStorage.setItem('appliedOrdersFilters', JSON.stringify(appliedFilters));
-    }, [appliedFilters, onAppliedFiltersChange]);
+    }, [appliedFilters, appliedFiltersProp, onAppliedFiltersChange]);
     const [visits, setVisits] = useState<OrderVisitExtended[]>([]);
 
     const todayStr = useMemo(() => {
