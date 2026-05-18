@@ -780,6 +780,15 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [isFetchingAppropriation, setIsFetchingAppropriation] = useState(false);
 
     const [visibleCount, setVisibleCount] = useState(50);
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => {
+        const saved = localStorage.getItem('visits_dashboard_sort_order');
+        return (saved === 'asc' || saved === 'desc') ? saved : 'asc';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('visits_dashboard_sort_order', sortOrder);
+    }, [sortOrder]);
+
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const isLoadingMoreRef = useRef(false);
     const loadMoreRef = React.useRef<HTMLDivElement>(null);
@@ -1170,11 +1179,16 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 return true;
             })
             .sort((a, b) => {
-                const dateA = a.ovStartedAt ? new Date(a.ovStartedAt).getTime() : 0;
-                const dateB = b.ovStartedAt ? new Date(b.ovStartedAt).getTime() : 0;
-                return dateA - dateB;
+                const dateA = a.ovStartedAt ? new Date(a.ovStartedAt).getTime() : (a.ovCreatedAt ? new Date(a.ovCreatedAt).getTime() : 0);
+                const dateB = b.ovStartedAt ? new Date(b.ovStartedAt).getTime() : (b.ovCreatedAt ? new Date(b.ovCreatedAt).getTime() : 0);
+                if (dateA !== dateB) {
+                    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+                }
+                return sortOrder === 'asc' 
+                    ? String(a.id).localeCompare(String(b.id), undefined, { numeric: true })
+                    : String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
             });
-    }, [baseFilteredVisits, activeFilter]);
+    }, [baseFilteredVisits, activeFilter, sortOrder]);
 
     const financialTotals = useMemo(() => {
         return {
@@ -1612,6 +1626,23 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                         className="w-full bg-white dark:bg-slate-800 border-2 cursor-text border-slate-200 dark:border-slate-700/50 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all shadow-sm"
                                     />
                                 </div>
+
+                                <button
+                                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                    className="flex items-center gap-2 px-4 py-1.5 bg-slate-800/40 border border-slate-700 hover:border-slate-600 text-slate-300 rounded-xl hover:bg-slate-700 transition-all active:scale-[0.98] text-[10px] font-bold uppercase tracking-wider shadow-sm shrink-0"
+                                    title={sortOrder === 'asc' ? 'Ordenado por data de início (Crescente)' : 'Ordenado por data de início (Decrescente)'}
+                                >
+                                    <span 
+                                        className={`material-symbols-outlined text-[14px] text-primary transition-transform duration-300 select-none ${
+                                            sortOrder === 'desc' ? 'rotate-180' : ''
+                                        }`}
+                                    >
+                                        arrow_upward
+                                    </span>
+                                    <span>
+                                        Início
+                                    </span>
+                                </button>
 
                                 <VisitsListPDFButton
                                     className="shrink-0"
