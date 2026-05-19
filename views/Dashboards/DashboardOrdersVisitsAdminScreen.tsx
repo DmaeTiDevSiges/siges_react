@@ -650,6 +650,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         return '';
     });
 
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+
     useEffect(() => {
         if (searchQueryProp !== undefined) {
             setSearchQuery(searchQueryProp);
@@ -657,10 +659,17 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     }, [searchQueryProp]);
 
     useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
+
+    useEffect(() => {
         if (onSearchQueryChange) {
-            onSearchQueryChange(searchQuery);
+            onSearchQueryChange(debouncedSearchQuery);
         }
-    }, [searchQuery, onSearchQueryChange]);
+    }, [debouncedSearchQuery, onSearchQueryChange]);
 
     const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => {
         if (appliedFiltersProp) return appliedFiltersProp;
@@ -957,7 +966,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 page: 0,
                 pageSize: PAGE_SIZE,
                 ...appliedFilters,
-                searchQuery
+                searchQuery: debouncedSearchQuery
             });
 
             if (currentFetchId !== fetchIdRef.current) return;
@@ -982,7 +991,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             page,
                             pageSize: PAGE_SIZE,
                             ...appliedFilters,
-                            searchQuery
+                            searchQuery: debouncedSearchQuery
                         });
                         
                         if (currentFetchId !== fetchIdRef.current) return;
@@ -1007,28 +1016,46 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 initialLoadDone.current = true;
             }
         }
-    }, [currentUser.id, dateRange, appliedFilters, searchQuery]);
+    }, [currentUser.id, dateRange, appliedFilters, debouncedSearchQuery]);
+
+    const loadDataRef = useRef(loadData);
+    const loadFilterOptionsRef = useRef(loadFilterOptions);
 
     useEffect(() => {
-        loadData(true);
-        loadFilterOptions();
+        loadDataRef.current = loadData;
+    }, [loadData]);
 
-         const handleRefresh = () => loadData(true);
-         window.addEventListener('refresh_dashboard', handleRefresh);
- 
-         const orderSub = dataService.subscribeToOrders(() => {
-             loadData(false);
-         });
-         const visitSub = dataService.subscribeToVisits(() => {
-             loadData(false);
-         });
- 
-         return () => {
-             window.removeEventListener('refresh_dashboard', handleRefresh);
-             orderSub.unsubscribe();
-             visitSub.unsubscribe();
-         };
-     }, [loadData, loadFilterOptions]);
+    useEffect(() => {
+        loadFilterOptionsRef.current = loadFilterOptions;
+    }, [loadFilterOptions]);
+
+    useEffect(() => {
+        loadDataRef.current(true);
+        loadFilterOptionsRef.current();
+
+        const handleRefresh = () => loadDataRef.current(true);
+        window.addEventListener('refresh_dashboard', handleRefresh);
+
+        const orderSub = dataService.subscribeToOrders(() => {
+            loadDataRef.current(false);
+        });
+        const visitSub = dataService.subscribeToVisits(() => {
+            loadDataRef.current(false);
+        });
+
+        return () => {
+            window.removeEventListener('refresh_dashboard', handleRefresh);
+            orderSub.unsubscribe();
+            visitSub.unsubscribe();
+        };
+    }, []); // Run ONLY once on mount!
+
+    // Trigger loadData when parameters change, without tearing down/recreating subscriptions
+    useEffect(() => {
+        if (initialLoadDone.current) {
+            loadData(false);
+        }
+    }, [dateRange, appliedFilters, debouncedSearchQuery, loadData]);
 
     const visitTeamsRef = useRef<Record<string, OrderVisitTeam[]>>({})
 

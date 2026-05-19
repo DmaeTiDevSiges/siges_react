@@ -950,7 +950,7 @@ export const dataService = {
 
         if (filters?.searchQuery) {
             const search = `%${filters.searchQuery}%`;
-            query = query.or(`ov_mask.ilike.${search},o_unit_description.ilike.${search},o_client_name.ilike.${search},o_mask.ilike.${search}`);
+            query = query.or(`ov_mask.ilike.${search},o_unit_description.ilike.${search},client_name.ilike.${search},o_mask.ilike.${search}`);
         }
 
         const { data, error, count } = await query;
