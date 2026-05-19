@@ -42,7 +42,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     const filtersScroll = useDraggableScroll();
     const unscheduledSSScroll = useDraggableScroll();
     const openOSScroll = useDraggableScroll();
+    const osSectorScroll = useDraggableScroll();
+    const openOSCarouselScroll = useDraggableScroll();
     const leadersScroll = useDraggableScroll();
+    const ssSectorScroll = useDraggableScroll();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [quickSearchValue, setQuickSearchValue] = useState('');
@@ -73,7 +76,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         } catch { return []; }
     });
     const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
-    const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+    const [selectedPeriod, setSelectedPeriod] = useState<string | null>('Hoje');
 
     // Use the custom hook for follow functionality
     const { followedOrderIds, isOrderFollowed, toggleFollow } = useOrderFollow(currentUser?.id);
@@ -180,6 +183,20 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         } catch { return []; }
     });
 
+    const [openOS, setOpenOS] = useState<Order[]>(() => {
+        try {
+            const saved = localStorage.getItem('cachedOpenOS_v1');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+
+    const [osAssetTagId, setOsAssetTagId] = useState<string[]>(() => {
+        try {
+            const saved = localStorage.getItem('cachedOsAssetTagId_v1');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+
     const [stats, setStats] = useState(() => {
         try {
             const saved = localStorage.getItem('cachedStats');
@@ -199,7 +216,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 { id: 4, label: 'Agendadas', count: 0, icon: 'calendar_month', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10' },
                 { id: 5, label: 'Execução', count: 0, icon: 'engineering', color: 'text-green-500', bgColor: 'bg-green-500/10' },
                 { id: 6, label: 'Suspensas', count: 0, icon: 'pause_circle', color: 'text-red-500', bgColor: 'bg-red-500/10' },
-            ]
+            ],
+            ssSectorCounts: [] as Array<{ id: string, label: string, count: number }>,
+            osSectorCounts: [] as Array<{ id: string, label: string, count: number }>
         };
     });
 
@@ -228,13 +247,15 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             localStorage.setItem('cachedHasMore_v2', String(hasMore));
             localStorage.setItem('cachedTotalOrders_v2', String(totalOrders));
             localStorage.setItem('cachedUnscheduledSS_v3', JSON.stringify(unscheduledSS));
+            localStorage.setItem('cachedOpenOS_v1', JSON.stringify(openOS));
+            localStorage.setItem('cachedOsAssetTagId_v1', JSON.stringify(osAssetTagId));
             localStorage.setItem('cachedTeams', JSON.stringify(teams));
             localStorage.setItem('cachedUsers', JSON.stringify(users));
             localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
         } catch (e) {
             console.error('💾 Dashboard: Erro ao salvar cache no localStorage', e);
         }
-    }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, teams, users, filterOptions]);
+    }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, teams, users, filterOptions]);
 
     const leadersByCompany = React.useMemo(() => {
         const leaders = users
@@ -302,6 +323,26 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         });
     }, [recentRequests, selectedStatusId, selectedPeriod]);
 
+    // Client-side filter for the unscheduled SS carousel by selected sector (assetTagId)
+    const displayedUnscheduledSS = React.useMemo(() => {
+        const activeTagIds = Array.isArray(appliedFilters.assetTagId)
+            ? appliedFilters.assetTagId
+            : appliedFilters.assetTagId
+                ? [appliedFilters.assetTagId]
+                : [];
+        if (activeTagIds.length === 0) return unscheduledSS;
+        return unscheduledSS.filter(ss =>
+            ss.assetTagId != null && activeTagIds.includes(ss.assetTagId.toString())
+        );
+    }, [unscheduledSS, appliedFilters.assetTagId]);
+
+    const displayedOpenOS = React.useMemo(() => {
+        if (osAssetTagId.length === 0) return openOS;
+        return openOS.filter(os =>
+            os.assetTagId != null && osAssetTagId.includes(os.assetTagId.toString())
+        );
+    }, [openOS, osAssetTagId]);
+
     // Effective filters for reports - combining persisted filters with interactive dashboard filters
     const effectiveFilters = React.useMemo(() => {
         return {
@@ -323,12 +364,44 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         };
     }, [appliedFilters, selectedPeriod]);
 
+    const osEffectiveFilters = React.useMemo(() => {
+        return {
+            systemParentId: appliedFilters.systemParentId,
+            systemId: appliedFilters.systemId,
+            unitTypeParentId: appliedFilters.unitTypeParentId,
+            unitTypeId: appliedFilters.unitTypeId,
+            unitId: appliedFilters.unitId,
+            statusId: selectedStatusId ?? undefined,
+            assetTagId: osAssetTagId.length > 0 ? osAssetTagId : undefined,
+        };
+    }, [appliedFilters, selectedStatusId, osAssetTagId]);
+
     const fetchData = useCallback(async (
         loadMore: boolean = false,
         isManual: boolean = false,
-        overrideFilters?: OrderFilters
+        overrideFilters?: OrderFilters & { osAssetTagId?: string[] }
     ) => {
-        const filtersToUse = overrideFilters || appliedFilters;
+        const statusIdFromOverride = overrideFilters?.statusId !== undefined
+            ? overrideFilters.statusId
+            : selectedStatusId;
+        const periodFromOverride = overrideFilters?.period !== undefined
+            ? overrideFilters.period
+            : selectedPeriod;
+        const ssAssetTagFromOverride = overrideFilters?.assetTagId !== undefined
+            ? overrideFilters.assetTagId
+            : appliedFilters.assetTagId;
+        const osAssetTagFromOverride = overrideFilters?.osAssetTagId !== undefined
+            ? overrideFilters.osAssetTagId
+            : osAssetTagId;
+
+        const ordersListFilters: OrderFilters = {
+            ...appliedFilters,
+            ...overrideFilters,
+            statusId: statusIdFromOverride ?? undefined,
+            period: statusIdFromOverride ? undefined : (periodFromOverride ?? undefined),
+            assetTagId: statusIdFromOverride ? undefined : ssAssetTagFromOverride,
+        };
+        delete ordersListFilters.osAssetTagId;
 
         try {
             let pageToFetch = 0;
@@ -346,43 +419,66 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             let ordersResult: { data: Order[], hasMore: boolean, total: number };
             let statsResult: any = null;
             let unscheduledSSResult: Order[] = [];
+            let openOSResult: Order[] = [];
 
              const restrictedSSFilters = {
-                 systemParentId: filtersToUse.systemParentId,
-                 systemId: filtersToUse.systemId,
-                 unitTypeParentId: filtersToUse.unitTypeParentId,
-                 unitTypeId: filtersToUse.unitTypeId,
-                 unitId: filtersToUse.unitId,
-                 period: filtersToUse.period
+                 systemParentId: ordersListFilters.systemParentId,
+                 systemId: ordersListFilters.systemId,
+                 unitTypeParentId: ordersListFilters.unitTypeParentId,
+                 unitTypeId: ordersListFilters.unitTypeId,
+                 unitId: ordersListFilters.unitId,
+                 period: periodFromOverride ?? undefined,
+             };
+
+             const unscheduledSSFilters = {
+                 ...restrictedSSFilters,
+                 assetTagId: ssAssetTagFromOverride,
+             };
+
+             const restrictedOSFilters = {
+                 systemParentId: ordersListFilters.systemParentId,
+                 systemId: ordersListFilters.systemId,
+                 unitTypeParentId: ordersListFilters.unitTypeParentId,
+                 unitTypeId: ordersListFilters.unitTypeId,
+                 unitId: ordersListFilters.unitId,
+                 statusId: statusIdFromOverride ?? undefined,
+             };
+
+             const openOSFilters = {
+                 ...restrictedOSFilters,
+                 assetTagId: osAssetTagFromOverride?.length ? osAssetTagFromOverride : undefined,
              };
  
              if (loadMore) {
                  // When loading more, we ONLY need the next page of orders
                  ordersResult = await dataService.getOrdersFilters({
                      search: searchQuery,
-                     ...filtersToUse,
+                     ...ordersListFilters,
                      page: pageToFetch,
                      pageSize: 50
                  });
              } else {
                  // When filtering/loading initial, we execute ALL requests in parallel for maximum speed
-                 const [pOrders, pStats, pUnscheduled] = await Promise.all([
+                 const [pOrders, pStats, pUnscheduled, pOpenOS] = await Promise.all([
                      dataService.getOrdersFilters({
                          search: searchQuery,
-                         ...filtersToUse,
-                         page: 0, // Always page 0 for new filter
+                         ...ordersListFilters,
+                         page: 0,
                          pageSize: 50
                      }),
-                     dataService.getDashboardStats({
-                         search: searchQuery,
-                         ...filtersToUse
-                     }, restrictedSSFilters),
-                     dataService.getUnscheduledSS(restrictedSSFilters)
+                     dataService.getDashboardStats(
+                         { search: searchQuery, ...appliedFilters },
+                         restrictedSSFilters,
+                         restrictedOSFilters
+                     ),
+                     dataService.getUnscheduledSS(unscheduledSSFilters),
+                     dataService.getOpenOS(openOSFilters)
                  ]);
 
                 ordersResult = pOrders;
                 statsResult = pStats;
                 unscheduledSSResult = pUnscheduled;
+                openOSResult = pOpenOS;
             }
 
             const { data: orders, hasMore: moreAvailable, total } = ordersResult;
@@ -418,14 +514,19 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             { id: 4, label: 'Agendadas', count: statsResult.osCounts[4] || 0, icon: 'calendar_month', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10' },
                             { id: 5, label: 'Execução', count: statsResult.osCounts[5] || 0, icon: 'engineering', color: 'text-green-500', bgColor: 'bg-green-500/10' },
                             { id: 6, label: 'Suspensas', count: statsResult.osCounts[6] || 0, icon: 'pause_circle', color: 'text-red-500', bgColor: 'bg-red-500/10' },
-                        ]
+                        ],
+                        ssSectorCounts: statsResult.ssSectorCounts || [],
+                        osSectorCounts: statsResult.osSectorCounts || []
                     });
                 }
 
                 // 2. Update Unscheduled SS
                 setUnscheduledSS(unscheduledSSResult);
 
-                // 3. Update Main List
+                // 3. Update Open OS carousel
+                setOpenOS(openOSResult);
+
+                // 4. Update Main List
                 setRecentRequests(orders);
                 setHasMore(moreAvailable);
             }
@@ -439,7 +540,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             setIsLoadingMore(false);
             isLoadingMoreRef.current = false;
         }
-    }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, hasAppliedFilters, recentRequests.length]);
+    }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length]);
 
     useEffect(() => {
         const loadOptions = async () => {
@@ -919,10 +1020,14 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto">
                                 {stats.unscheduled.map((item, idx) => (
                                     <div key={idx} onClick={() => {
-                                        const newPeriod = selectedPeriod === item.label ? null : item.label;
-                                        setSelectedPeriod(newPeriod);
-                                        setSelectedStatusId(null);
-                                        fetchData(false, true, { ...appliedFilters, period: newPeriod });
+                                        // Period cards are exclusive selectors (no toggle/deselect to null).
+                                        // Clicking any period always sets it as active.
+                                        // Clicking the already-active period just clears the sector filter.
+                                        const clickedPeriod = item.label;
+                                        setSelectedPeriod(clickedPeriod);
+                                        setAdvancedOrdersFilters(prev => ({ ...prev, assetTagId: [] }));
+                                        setAppliedFilters(prev => ({ ...prev, assetTagId: [] }));
+                                        fetchData(false, true, { ...appliedFilters, period: clickedPeriod, assetTagId: [] });
                                     }}
                                         className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-[110px] cursor-pointer
                                     ${selectedPeriod === item.label ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
@@ -935,9 +1040,43 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     </div>
                                 ))}
                             </div>
+
+                            {stats.ssSectorCounts && stats.ssSectorCounts.length > 0 && (
+                                <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                    ref={ssSectorScroll.ref}
+                                    onMouseDown={ssSectorScroll.onMouseDown}
+                                    onTouchStart={ssSectorScroll.onTouchStart}
+                                    onClickCapture={ssSectorScroll.onClickCapture}>
+                                    {stats.ssSectorCounts.map((item, idx) => {
+                                        const isSelected = Array.isArray(advancedOrdersFilters.assetTagId)
+                                            ? advancedOrdersFilters.assetTagId.includes(item.id)
+                                            : advancedOrdersFilters.assetTagId === item.id;
+                                        
+                                        return (
+                                            <div key={idx} onClick={() => {
+                                                const newAssetTagId = isSelected ? [] : [item.id];
+                                                setAdvancedOrdersFilters(prev => ({ ...prev, assetTagId: newAssetTagId }));
+                                                setAppliedFilters(prev => ({ ...prev, assetTagId: newAssetTagId }));
+                                                // Pass period explicitly so it is not lost in the override merge
+                                                fetchData(false, true, { ...appliedFilters, period: selectedPeriod, assetTagId: newAssetTagId });
+                                            }}
+                                                className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer
+                                                    ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                `}>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <p className={`text-[11px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
+                                                        {item.label}
+                                                    </p>
+                                                    <span className="text-[16px] font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </section>
 
-                        {unscheduledSS.length > 0 && (
+                        {displayedUnscheduledSS.length > 0 && (
                             <section className="px-4 py-0">
 
                                 <div className="flex gap-4 overflow-x-auto no-scrollbar pt-0 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
@@ -945,7 +1084,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     onMouseDown={unscheduledSSScroll.onMouseDown}
                                     onTouchStart={unscheduledSSScroll.onTouchStart}
                                     onClickCapture={unscheduledSSScroll.onClickCapture}>
-                                    {unscheduledSS.map((ss) => (
+                                    {displayedUnscheduledSS.map((ss) => (
                                         <div key={ss.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
                                             <ServiceRequestCardListItem
                                                 order={ss}
@@ -976,9 +1115,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     <div key={idx} onClick={() => {
                                         const newStatusId = selectedStatusId === item.id ? null : item.id;
                                         setSelectedStatusId(newStatusId);
-                                        setSelectedPeriod(null);
-                                        // Trigger a reload through fetchData
-                                        fetchData(false, true, { ...appliedFilters, statusId: newStatusId });
+                                        setOsAssetTagId([]);
+                                        fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
                                     }}
                                         className={`backdrop-blur-sm p-3.5 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-[140px] md:w-[160px] cursor-pointer
                                 ${selectedStatusId === item.id ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
@@ -993,7 +1131,67 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     </div>
                                 ))}
                             </div>
+
+                            {stats.osSectorCounts && stats.osSectorCounts.length > 0 && (
+                                <div
+                                    className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                    ref={osSectorScroll.ref}
+                                    onMouseDown={osSectorScroll.onMouseDown}
+                                    onTouchStart={osSectorScroll.onTouchStart}
+                                    onClickCapture={osSectorScroll.onClickCapture}
+                                >
+                                    {stats.osSectorCounts.map((item, idx) => {
+                                        const isSelected = osAssetTagId.includes(item.id);
+                                        return (
+                                            <div
+                                                key={idx}
+                                                onClick={() => {
+                                                    const newOsAssetTagId = isSelected ? [] : [item.id];
+                                                    setOsAssetTagId(newOsAssetTagId);
+                                                    fetchData(false, true, {
+                                                        ...appliedFilters,
+                                                        statusId: selectedStatusId,
+                                                        osAssetTagId: newOsAssetTagId,
+                                                    });
+                                                }}
+                                                className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer
+                                                    ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                `}
+                                            >
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <p className={`text-[11px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
+                                                        {item.label}
+                                                    </p>
+                                                    <span className="text-[16px] font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </section>
+
+                        {displayedOpenOS.length > 0 && (
+                            <section className="px-4 py-0">
+                                <div
+                                    className="flex gap-4 overflow-x-auto no-scrollbar pt-0 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                    ref={openOSCarouselScroll.ref}
+                                    onMouseDown={openOSCarouselScroll.onMouseDown}
+                                    onTouchStart={openOSCarouselScroll.onTouchStart}
+                                    onClickCapture={openOSCarouselScroll.onClickCapture}
+                                >
+                                    {displayedOpenOS.map((os) => (
+                                        <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0">
+                                            <OrderRequestCardListItem
+                                                order={os}
+                                                onClick={() => onSelectOrder?.(os)}
+                                                onSuccess={() => fetchData(false, true)}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
 
                         <section className="px-4 py-1.5">
                             <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"

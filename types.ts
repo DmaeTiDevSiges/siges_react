@@ -1123,4 +1123,6 @@ export interface OrderFilters {
   parentId?: string | string[];
   period?: string | null;
   orderMask?: string;
+  /** Filtro de setor exclusivo do carrossel de OS abertas (dashboard admin). */
+  osAssetTagId?: string | string[];
 }

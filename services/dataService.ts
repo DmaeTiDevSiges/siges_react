@@ -7095,18 +7095,24 @@ export const dataService = {
         }
     },
 
-     async getDashboardStats(filters?: OrderFilters, ssFiltersOverride?: OrderFilters): Promise<{
+     async getDashboardStats(
+         filters?: OrderFilters,
+         ssFiltersOverride?: OrderFilters,
+         osFiltersOverride?: OrderFilters
+     ): Promise<{
          ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number };
          osCounts: Record<number, number>;
+         ssSectorCounts?: Array<{ id: string, label: string, count: number }>;
+         osSectorCounts?: Array<{ id: string, label: string, count: number }>;
      }> {
         // Base queries using the general orders view with manual status/hierarchy filters
         let ssUnscheduledQuery = supabase.from('v_orders')
-            .select('requested_at')
+            .select('requested_at, asset_tag_id, unit_asset_tag_id, asset_tag_description')
             .eq('status_id', 1)
             .is('parent_id', null);
 
         let osQuery = supabase.from('v_orders')
-            .select('status_id, parent_id')
+            .select('status_id, parent_id, asset_tag_id, asset_tag_description')
             .not('status_id', 'in', '(7,8)')
             .not('parent_id', 'is', null);
 
@@ -7143,7 +7149,7 @@ export const dataService = {
 
          if (filters) {
              ssUnscheduledQuery = applyFiltersToQuery(ssUnscheduledQuery, ssFiltersOverride || filters);
-             osQuery = applyFiltersToQuery(osQuery, filters);
+             osQuery = applyFiltersToQuery(osQuery, osFiltersOverride || filters);
          }
 
         const [ssUnscheduledRes, osRes] = await Promise.all([ssUnscheduledQuery, osQuery]);
@@ -7184,7 +7190,54 @@ export const dataService = {
             }
         });
 
-        return { ssCounts, osCounts };
+        const ssSectorMap: Record<string, { id: string, label: string, count: number }> = {};
+        
+        // Filter by period filter if it exists in the active filters
+        const periodFilter = ssFiltersOverride?.period || filters?.period;
+        let sectorDataList = ssDataList;
+        if (periodFilter) {
+            sectorDataList = ssDataList.filter((o: any) => {
+                const d = parseDate(o.requested_at);
+                if (!d) return false;
+                if (periodFilter === 'Hoje') return d >= today;
+                if (periodFilter === 'Ontem') return d >= yesterday && d < today;
+                if (periodFilter === '< 7 dias') return d >= sevenDaysAgo;
+                if (periodFilter === '< 15 dias') return d >= fifteenDaysAgo;
+                return true;
+            });
+        }
+
+        sectorDataList.forEach((o: any) => {
+            const id = o.asset_tag_id ? o.asset_tag_id.toString() : 'null';
+            const label = o.asset_tag_description || 'Sem Setor';
+            if (!ssSectorMap[id]) {
+                ssSectorMap[id] = { id, label, count: 0 };
+            }
+            ssSectorMap[id].count += 1;
+        });
+        const ssSectorCounts = Object.values(ssSectorMap).sort((a, b) => b.count - a.count);
+
+        const osStatusFilter = osFiltersOverride?.statusId;
+        let osSectorDataList = osDataList;
+        if (osStatusFilter) {
+            const statusIdNum = Array.isArray(osStatusFilter) ? Number(osStatusFilter[0]) : Number(osStatusFilter);
+            if (!Number.isNaN(statusIdNum)) {
+                osSectorDataList = osDataList.filter((o: any) => o.status_id === statusIdNum);
+            }
+        }
+
+        const osSectorMap: Record<string, { id: string, label: string, count: number }> = {};
+        osSectorDataList.forEach((o: any) => {
+            const id = o.asset_tag_id ? o.asset_tag_id.toString() : 'null';
+            const label = o.asset_tag_description || 'Sem Setor';
+            if (!osSectorMap[id]) {
+                osSectorMap[id] = { id, label, count: 0 };
+            }
+            osSectorMap[id].count += 1;
+        });
+        const osSectorCounts = Object.values(osSectorMap).sort((a, b) => b.count - a.count);
+
+        return { ssCounts, osCounts, ssSectorCounts, osSectorCounts };
     },
 
 
@@ -7284,6 +7337,7 @@ export const dataService = {
                 clientId: item.client_id?.toString(),
                 departmentId: item.department_id?.toString(),
                 unitAssetTagId: item.unit_asset_tag_id?.toString(),
+                assetTagId: item.asset_tag_id?.toString(),
                 systemId: item.system_id?.toString(),
                 teamId: item.team_id?.toString(),
                 // Display fields
@@ -7330,6 +7384,135 @@ export const dataService = {
                 unitLongitude: item.unit_longitude,
                 teamLeaderLatitude: item.team_leader_latitude,
                 teamLeaderLongitude: item.team_leader_longitude,
+                assetTagDescription: item.asset_tag_description,
+                unitAssetTagDescription: item.asset_tag_description,
+                assetTagSubDescription: item.asset_tag_sub_description,
+                unitAssetTagSubDescription: item.asset_tag_sub_description,
+                teamCode: item.team_code,
+                teamDescription: item.team_description,
+                team: item.team_code || item.team_description,
+                systemDescription: item.system_description,
+                system: item.system_description,
+                statusId: item.status_id ? Number(item.status_id) : 1,
+                parentId: item.parent_id ? Number(item.parent_id) : null,
+                ovCounter: item.ov_counter
+            } as Order;
+        });
+    },
+
+    async getOpenOS(filters?: OrderFilters): Promise<Order[]> {
+        let query = supabase
+            .from('v_orders')
+            .select('*')
+            .not('status_id', 'in', '(7,8)')
+            .not('parent_id', 'is', null);
+
+        if (filters) {
+            const applyFilter = (column: string, val: any) => {
+                if (!val) return;
+                if (Array.isArray(val)) {
+                    if (val.length > 0) query = query.in(column, val);
+                } else {
+                    query = query.eq(column, val);
+                }
+            };
+
+            applyFilter('system_parent_id', filters.systemParentId);
+            applyFilter('system_id', filters.systemId);
+            applyFilter('unit_type_parent_id', filters.unitTypeParentId);
+            applyFilter('unit_type_id', filters.unitTypeId);
+            applyFilter('unit_id', filters.unitId);
+            applyFilter('asset_tag_id', filters.assetTagId);
+            applyFilter('object_id', filters.orderObjectId);
+            applyFilter('type_id', filters.orderTypeId);
+            applyFilter('type_sub_id', filters.orderTypeSubId);
+            applyFilter('contract_id', filters.contractId);
+            applyFilter('plan_id', filters.orderPlanId);
+            applyFilter('team_id', filters.orderTeamId);
+            applyFilter('priority_id', filters.priorityId);
+            applyFilter('status_id', filters.statusId);
+
+            if (filters.search) {
+                const s = `%${filters.search}%`;
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+            }
+        }
+
+        const { data, error } = await query.order('requested_at', { ascending: false });
+        if (error) {
+            console.error('Error fetching open OS:', error);
+            return [];
+        }
+
+        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companyMap = new Map((companies || []).map((c: any) => [c.id?.toString(), c]));
+
+        return (data || []).map((item: any) => {
+            const providerCompanyIdStr = item.provider_company_id?.toString();
+            const company = providerCompanyIdStr ? companyMap.get(providerCompanyIdStr) : null;
+
+            return {
+                id: item.id.toString(),
+                orderMask: item.order_mask,
+                typeId: item.type_id?.toString(),
+                typeSubId: item.type_sub_id?.toString(),
+                objectId: item.object_id?.toString(),
+                contractId: item.contract_id?.toString(),
+                planId: item.plan_id?.toString(),
+                unitId: item.unit_id?.toString(),
+                clientId: item.client_id?.toString(),
+                departmentId: item.department_id?.toString(),
+                unitAssetTagId: item.unit_asset_tag_id?.toString(),
+                assetTagId: item.asset_tag_id?.toString(),
+                systemId: item.system_id?.toString(),
+                teamId: item.team_id?.toString(),
+                typeCode: item.type_code,
+                typeSubCode: item.type_sub_code,
+                objectCode: item.object_code,
+                unitDescription: item.unit_description,
+                title: item.unit_description,
+                requestedServices: item.requested_services,
+                requestedAt: item.requested_at,
+                createdAt: item.created_at,
+                statusAt: item.status_at,
+                statusDescription: item.status_description,
+                statusIcon: item.status_icon,
+                iconColor: item.icon_color,
+                statusBackgroundColor: item.background_color,
+                statusColor: item.status_color,
+                priorityId: item.priority_id?.toString(),
+                priorityDescription: item.priority_description,
+                priorityCode: item.priority_code,
+                priorityColor: item.priority_color,
+                typeDescription: item.type_description,
+                typeName: item.type_description,
+                typeIcon: item.type_icon,
+                typeColor: item.type_color,
+                requesterName: item.requester_name,
+                requesterNameShort: item.requester_name_short,
+                requesterTeamCode: item.requester_team_code,
+                requesterPhone: item.requester_phone,
+                phone: item.requester_phone,
+                clientName: item.client_name,
+                contractDescription: item.contract_description,
+                planDescription: item.plan_description,
+                progress: item.progress?.toString(),
+                imgFilePath: item.img_file_path,
+                imgFileName: item.img_file_name,
+                imgFilesNames: item.img_files_names,
+                companyId: item.company_id?.toString(),
+                causeReasonDescription: item.cause_reason_description,
+                providerCompanyName: item.provider_company_description || item.provider_company_name || company?.description,
+                providerLogo: this.getPublicImageUrl(
+                    item.provider_company_img_file_path || item.provider_company_img_path || company?.img_file_path,
+                    item.provider_company_img_file_name || item.provider_company_img_name || company?.img_file_name,
+                    { width: 100, height: 100, resize: 'contain' }
+                ),
+                unitLatitude: item.unit_latitude,
+                unitLongitude: item.unit_longitude,
+                teamLeaderLatitude: item.team_leader_latitude,
+                teamLeaderLongitude: item.team_leader_longitude,
+                teamLeaderNameShort: item.team_leader_name_short,
                 assetTagDescription: item.asset_tag_description,
                 unitAssetTagDescription: item.asset_tag_description,
                 assetTagSubDescription: item.asset_tag_sub_description,
