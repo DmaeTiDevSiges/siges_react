@@ -37,11 +37,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 3,
+        marginBottom: 5,
     },
-    title: { fontSize: 13, fontWeight: 'bold', color: C.primary },
-    subtitle: { fontSize: 7, color: C.textMuted, marginTop: 1 },
-    logo: { width: 28, height: 28 },
+    title: { fontSize: 16, fontWeight: 'bold', color: C.primary },
+    subtitle: { fontSize: 10, color: C.textMuted, marginTop: 4 },
+    logo: { width: 50, height: 50 },
     headerLine: {
         borderBottomWidth: 2,
         borderBottomColor: C.primary,
@@ -143,8 +143,7 @@ export const UnitsListDocument = ({
                         <View>
                             <Text style={styles.title}>Relatório de Unidades</Text>
                             <Text style={styles.subtitle}>
-                                {units.length} unidade(s)
-                                {searchQuery ? ` • Filtro: "${searchQuery}"` : ''}
+                                Siges - Sistema de Gestão {searchQuery ? ` • Filtro: "${searchQuery}"` : ` • ${units.length} unidade(s)`}
                             </Text>
                         </View>
                         {logoBase64 ? <Image src={logoBase64} style={styles.logo} /> : null}
