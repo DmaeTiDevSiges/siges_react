@@ -681,29 +681,29 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     useEffect(() => {
         if (currentFilters) {
-            const currentStr = JSON.stringify(advancedFilters);
-            const propStr = JSON.stringify(currentFilters);
-            if (currentStr !== propStr) {
-                setAdvancedFilters(currentFilters);
-            }
+            setAdvancedFilters(prev => {
+                if (JSON.stringify(prev) !== JSON.stringify(currentFilters)) {
+                    return currentFilters;
+                }
+                return prev;
+            });
         }
-    }, [currentFilters, advancedFilters]);
+    }, [currentFilters]);
 
     useEffect(() => {
         if (appliedFiltersProp) {
-            const currentStr = JSON.stringify(appliedFilters);
-            const propStr = JSON.stringify(appliedFiltersProp);
-            if (currentStr !== propStr) {
-                setAppliedFilters(appliedFiltersProp);
-            }
+            setAppliedFilters(prev => {
+                if (JSON.stringify(prev) !== JSON.stringify(appliedFiltersProp)) {
+                    return appliedFiltersProp;
+                }
+                return prev;
+            });
         }
-    }, [appliedFiltersProp, appliedFilters]);
+    }, [appliedFiltersProp]);
 
     useEffect(() => {
-        if (onFiltersChange) {
-            const currentStr = JSON.stringify(advancedFilters);
-            const propStr = JSON.stringify(currentFilters);
-            if (currentStr !== propStr) {
+        if (onFiltersChange && currentFilters) {
+            if (JSON.stringify(advancedFilters) !== JSON.stringify(currentFilters)) {
                 onFiltersChange(advancedFilters);
             }
         }
@@ -711,10 +711,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     }, [advancedFilters, currentFilters, onFiltersChange]);
 
     useEffect(() => {
-        if (onAppliedFiltersChange) {
-            const currentStr = JSON.stringify(appliedFilters);
-            const propStr = JSON.stringify(appliedFiltersProp);
-            if (currentStr !== propStr) {
+        if (onAppliedFiltersChange && appliedFiltersProp) {
+            if (JSON.stringify(appliedFilters) !== JSON.stringify(appliedFiltersProp)) {
                 onAppliedFiltersChange(appliedFilters);
             }
         }
@@ -1480,21 +1478,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             </div>
 
                             <div className="flex items-center gap-3">
-                                {(Object.values(advancedFilters).some(v => Array.isArray(v) && v.length > 0)) && (
-                                    <button
-                                        onClick={() => {
-                                            const defaultContractIds = filterOptions.contracts.map((c: any) => String(c.id));
-                                            setAdvancedFilters({ contractId: defaultContractIds });
-                                            setUnitSubTypes([]);
-                                            setOrderSubTypes([]);
-                                        }}
-                                        className="flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all duration-200 group active:scale-95"
-                                        title="Limpar todos os filtros"
-                                    >
-                                        <span className="material-symbols-outlined text-xl group-hover:rotate-[-10deg]">filter_alt_off</span>
-                                        <span className="text-[11px] font-bold uppercase tracking-wider">Limpar Filtros</span>
-                                    </button>
-                                )}
                                 <button
                                     onClick={() => {
                                         const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];
@@ -1505,11 +1488,28 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                         setAppliedFilters({ ...advancedFilters });
                                         loadData(true);
                                     }}
-                                    className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 group"
+                                    disabled={loading}
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none group"
                                 >
-                                    <span className="material-symbols-outlined text-xl">filter_list</span>
-                                    <span className="text-[13px] uppercase tracking-wide">FILTRAR</span>
+                                    <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${loading ? 'animate-spin' : 'group-hover:rotate-12'}`}>
+                                        {loading ? 'progress_activity' : 'filter_list'}
+                                    </span>
+                                    <span className="text-[13px] uppercase tracking-wide">{loading ? 'Filtrando...' : 'Filtrar'}</span>
                                 </button>
+                                {Object.values(advancedFilters).some(v => Array.isArray(v) && v.length > 0) && (
+                                    <button
+                                        onClick={() => {
+                                            const defaultContractIds = filterOptions.contracts.map((c: any) => String(c.id));
+                                            setAdvancedFilters({ contractId: defaultContractIds });
+                                            setUnitSubTypes([]);
+                                            setOrderSubTypes([]);
+                                        }}
+                                        className="flex items-center justify-center w-10 h-10 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all duration-200 group active:scale-95"
+                                        title="Limpar todos os filtros"
+                                    >
+                                        <span className="material-symbols-outlined text-[22px] group-hover:rotate-[-10deg]">filter_alt_off</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

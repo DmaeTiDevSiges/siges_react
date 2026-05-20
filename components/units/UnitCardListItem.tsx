@@ -11,6 +11,14 @@ interface UnitCardProps {
     showChevron?: boolean; // Optional, default true for list
 }
 
+const getStatusType = (statusId: string, statusName?: string): 'active' | 'inactive' | 'pending' => {
+    const name = statusName?.toLowerCase() || '';
+    if (name.includes('ativo') || statusId === '3') return 'active';
+    if (name.includes('desat') || name.includes('inativo') || statusId === '4') return 'inactive';
+    if (name.includes('obra') || name.includes('projeto') || statusId === '1' || statusId === '2') return 'pending';
+    return 'inactive';
+};
+
 export const UnitCardListItem: React.FC<UnitCardProps> = ({ unit, onClick, showChevron = true }) => {
     return (
         <div
@@ -72,7 +80,11 @@ export const UnitCardListItem: React.FC<UnitCardProps> = ({ unit, onClick, showC
                         ) : (
                             <div />
                         )}
-                        <StatusBadge status={unit.statusId === '1' ? 'active' : 'inactive'} size="sm" />
+                        <StatusBadge 
+                            status={getStatusType(unit.statusId, unit.statusName)} 
+                            label={unit.statusName}
+                            size="sm" 
+                        />
                     </div>
                 </div>
 

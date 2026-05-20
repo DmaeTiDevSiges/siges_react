@@ -2989,18 +2989,21 @@ export const dataService = {
             throw unitsError;
         }
 
-        // 2. Fetch Reference Data (Types and Systems) in parallel
+        // 2. Fetch Reference Data (Types, Systems, and Statuses) in parallel
         const [
             { data: unitTypes },
-            { data: systems }
+            { data: systems },
+            { data: statuses }
         ] = await Promise.all([
             supabase.from('cfg_units_types').select('id, description'),
-            supabase.from('cfg_systems').select('id, description')
+            supabase.from('cfg_systems').select('id, description'),
+            supabase.from('v_units_statuses').select('id, description')
         ]);
 
         // Helper Map functions
         const typesMap = new Map(unitTypes?.map(t => [t.id, t.description]));
         const systemsMap = new Map(systems?.map(s => [s.id, s.description]));
+        const statusesMap = new Map(statuses?.map(st => [st.id, st.description]));
 
         return (units || []).map((item: any) => {
             return {
@@ -3023,6 +3026,7 @@ export const dataService = {
                 imgFilePath: item.img_file_path,
                 imgFileName: item.img_file_name,
                 statusId: item.status_id?.toString() || '1',
+                statusName: statusesMap.get(item.status_id),
                 logoUrl: this.getPublicImageUrl(item.img_file_path, item.img_file_name, {
                     width: 400,
                     height: 400,
@@ -3053,17 +3057,20 @@ export const dataService = {
             throw unitsError;
         }
 
-        // Fetch Reference Data (Types and Systems) in parallel
+        // Fetch Reference Data (Types, Systems, and Statuses) in parallel
         const [
             { data: unitTypes },
-            { data: systems }
+            { data: systems },
+            { data: statuses }
         ] = await Promise.all([
             supabase.from('cfg_units_types').select('id, description'),
-            supabase.from('cfg_systems').select('id, description')
+            supabase.from('cfg_systems').select('id, description'),
+            supabase.from('v_units_statuses').select('id, description')
         ]);
 
         const typesMap = new Map(unitTypes?.map(t => [t.id, t.description]));
         const systemsMap = new Map(systems?.map(s => [s.id, s.description]));
+        const statusesMap = new Map(statuses?.map(st => [st.id, st.description]));
 
         return (units || []).map((item: any) => ({
             id: item.id.toString(),
@@ -3085,6 +3092,7 @@ export const dataService = {
             imgFilePath: item.img_file_path,
             imgFileName: item.img_file_name,
             statusId: item.status_id?.toString() || '1',
+            statusName: statusesMap.get(item.status_id),
             logoUrl: this.getPublicImageUrl(item.img_file_path, item.img_file_name, {
                 width: 400,
                 height: 400,
@@ -6444,6 +6452,18 @@ export const dataService = {
         })) as UnitType[];
     },
 
+    async getUnitsStatuses(): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('v_units_statuses')
+            .select('*')
+            .order('description');
+        if (error) {
+            console.error('Error fetching unit statuses:', error);
+            return [];
+        }
+        return data || [];
+    },
+
     async getUnits(filter: 'all' | 'active' | 'inactive' = 'active', search: string = ''): Promise<any[]> {
         let query = supabase.from('units').select('*').order('description_full');
 
@@ -6665,7 +6685,12 @@ export const dataService = {
             const applyFilter = (column: string, val: any) => {
                 if (!val) return;
                 if (Array.isArray(val)) {
-                    if (val.length > 0) query = query.in(column, val);
+                    const filteredVal = val.filter((v: any) =>
+                        v !== null && v !== undefined && v !== '' &&
+                        String(v).toLowerCase() !== 'null' &&
+                        String(v).toLowerCase() !== 'undefined'
+                    );
+                    if (filteredVal.length > 0) query = query.in(column, filteredVal);
                 } else {
                     query = query.eq(column, val);
                 }
@@ -7120,7 +7145,17 @@ export const dataService = {
             const applyFilter = (column: string, val: any) => {
                 if (!val) return;
                 if (Array.isArray(val)) {
-                    if (val.length > 0) query = query.in(column, val);
+                    // Exclude JS null/undefined AND the strings "null"/"undefined" that can
+                    // arrive from serialized/stale filters — Supabase sends them as-is to
+                    // PostgreSQL which then fails with '22P02 invalid input syntax for bigint'
+                    const filteredVal = val.filter((v: any) =>
+                        v !== null &&
+                        v !== undefined &&
+                        v !== '' &&
+                        String(v).toLowerCase() !== 'null' &&
+                        String(v).toLowerCase() !== 'undefined'
+                    );
+                    if (filteredVal.length > 0) query = query.in(column, filteredVal);
                 } else {
                     query = query.eq(column, val);
                 }
@@ -7218,16 +7253,16 @@ export const dataService = {
         const ssSectorCounts = Object.values(ssSectorMap).sort((a, b) => b.count - a.count);
 
         const osStatusFilter = osFiltersOverride?.statusId;
-        let osSectorDataList = osDataList;
+        let osSectorCountSource = osDataList;
         if (osStatusFilter) {
             const statusIdNum = Array.isArray(osStatusFilter) ? Number(osStatusFilter[0]) : Number(osStatusFilter);
             if (!Number.isNaN(statusIdNum)) {
-                osSectorDataList = osDataList.filter((o: any) => o.status_id === statusIdNum);
+                osSectorCountSource = osDataList.filter((o: any) => o.status_id === statusIdNum);
             }
         }
 
         const osSectorMap: Record<string, { id: string, label: string, count: number }> = {};
-        osSectorDataList.forEach((o: any) => {
+        osSectorCountSource.forEach((o: any) => {
             const id = o.asset_tag_id ? o.asset_tag_id.toString() : 'null';
             const label = o.asset_tag_description || 'Sem Setor';
             if (!osSectorMap[id]) {
@@ -7252,7 +7287,12 @@ export const dataService = {
             const applyFilter = (column: string, val: any) => {
                 if (!val) return;
                 if (Array.isArray(val)) {
-                    if (val.length > 0) query = query.in(column, val);
+                    const filteredVal = val.filter((v: any) =>
+                        v !== null && v !== undefined && v !== '' &&
+                        String(v).toLowerCase() !== 'null' &&
+                        String(v).toLowerCase() !== 'undefined'
+                    );
+                    if (filteredVal.length > 0) query = query.in(column, filteredVal);
                 } else {
                     query = query.eq(column, val);
                 }
@@ -7411,7 +7451,17 @@ export const dataService = {
             const applyFilter = (column: string, val: any) => {
                 if (!val) return;
                 if (Array.isArray(val)) {
-                    if (val.length > 0) query = query.in(column, val);
+                    // Exclude JS null/undefined AND the strings "null"/"undefined" that can
+                    // arrive from serialized/stale filters — Supabase sends them as-is to
+                    // PostgreSQL which then fails with '22P02 invalid input syntax for bigint'
+                    const filteredVal = val.filter((v: any) =>
+                        v !== null &&
+                        v !== undefined &&
+                        v !== '' &&
+                        String(v).toLowerCase() !== 'null' &&
+                        String(v).toLowerCase() !== 'undefined'
+                    );
+                    if (filteredVal.length > 0) query = query.in(column, filteredVal);
                 } else {
                     query = query.eq(column, val);
                 }

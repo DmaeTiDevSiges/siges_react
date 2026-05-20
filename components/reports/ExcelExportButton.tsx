@@ -92,7 +92,7 @@ export const ExcelExportButton = ({
             ) : (
                 <RiFileExcel2Fill size={14} />
             )}
-            <span>{isExporting ? 'Processando...' : `${title} ${totalCount ? `(${totalCount})` : ''}`}</span>
+            <span>{isExporting ? 'Processando...' : `${title} ${totalCount !== undefined ? `(${totalCount})` : ''}`}</span>
         </button>
     );
 };

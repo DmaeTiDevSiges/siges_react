@@ -81,7 +81,7 @@ export const RequestsListPDFButton = ({
             ) : (
                 <>
                     <FaFilePdf size={12} className="text-red-500" />
-                    <span>PDF {totalCount ? `(${totalCount})` : ''}</span>
+                    <span>PDF {totalCount !== undefined ? `(${totalCount})` : ''}</span>
                 </>
             )}
         </button>

@@ -90,6 +90,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         return saved ? saved === 'true' : true;
     });
     const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [isFiltering, setIsFiltering] = useState(false);
     const [totalOrders, setTotalOrders] = useState(() => {
         return Number(localStorage.getItem('cachedTotalOrders_v2')) || 0;
     });
@@ -428,6 +429,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                  unitTypeId: ordersListFilters.unitTypeId,
                  unitId: ordersListFilters.unitId,
                  period: periodFromOverride ?? undefined,
+                 search: searchQuery || undefined,
              };
 
              const unscheduledSSFilters = {
@@ -435,17 +437,28 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                  assetTagId: ssAssetTagFromOverride,
              };
 
-             const restrictedOSFilters = {
+             // statsOSFilters: WITHOUT assetTagId so sector counts always show ALL sectors
+             const statsOSFilters = {
                  systemParentId: ordersListFilters.systemParentId,
                  systemId: ordersListFilters.systemId,
                  unitTypeParentId: ordersListFilters.unitTypeParentId,
                  unitTypeId: ordersListFilters.unitTypeId,
                  unitId: ordersListFilters.unitId,
+                 orderObjectId: ordersListFilters.orderObjectId,
+                 orderTypeId: ordersListFilters.orderTypeId,
+                 orderTypeSubId: ordersListFilters.orderTypeSubId,
+                 contractId: ordersListFilters.contractId,
+                 orderPlanId: ordersListFilters.orderPlanId,
+                 orderTeamId: ordersListFilters.orderTeamId,
+                 priorityId: ordersListFilters.priorityId,
                  statusId: statusIdFromOverride ?? undefined,
+                 // assetTagId intentionally omitted — sector cards must always show all sectors
+                 search: searchQuery || undefined,
              };
 
+             // openOSFilters: WITH assetTagId to filter the carousel by selected sector(s)
              const openOSFilters = {
-                 ...restrictedOSFilters,
+                 ...statsOSFilters,
                  assetTagId: osAssetTagFromOverride?.length ? osAssetTagFromOverride : undefined,
              };
  
@@ -469,7 +482,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                      dataService.getDashboardStats(
                          { search: searchQuery, ...appliedFilters },
                          restrictedSSFilters,
-                         restrictedOSFilters
+                         statsOSFilters   // uses filters WITHOUT assetTagId → all sectors always visible
                      ),
                      dataService.getUnscheduledSS(unscheduledSSFilters),
                      dataService.getOpenOS(openOSFilters)
@@ -489,7 +502,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 const newItems = orders.filter(item => !existingIds.has(item.id));
 
                 if (newItems.length > 0) {
-                    setRecentRequests(prev => [...prev, ...newItems]);
+                    setRecentRequests((prev: any[]) => [...prev, ...newItems]);
                     setCurrentPage(pageToFetch);
                     setHasMore(moreAvailable);
                 } else {
@@ -538,6 +551,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         } finally {
             setIsLoading(false);
             setIsLoadingMore(false);
+            setIsFiltering(false);
             isLoadingMoreRef.current = false;
         }
     }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length]);
@@ -566,7 +580,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
                 const contracts = getVal(results[5], 'contracts');
 
-                setFilterOptions(prev => ({
+                setFilterOptions((prev: any) => ({
                     ...prev,
                     systems: getVal(results[0], 'systems'),
                     unitTypes: getVal(results[1], 'unitTypes'),
@@ -581,12 +595,12 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 // Pré-selecionar todos os contratos gerenciados se o usuário não definiu nenhum
                 if (contracts.length > 0) {
                     const defaultContractIds = contracts.map((c: any) => String(c.id));
-                    setAdvancedOrdersFilters(prev => {
+                    setAdvancedOrdersFilters((prev: OrderFilters) => {
                         const hasContracts = Array.isArray(prev.contractId) && prev.contractId.length > 0;
                         if (!hasContracts) return { ...prev, contractId: defaultContractIds };
                         return prev;
                     });
-                    setAppliedFilters(prev => {
+                    setAppliedFilters((prev: OrderFilters) => {
                         const hasContracts = Array.isArray(prev.contractId) && prev.contractId.length > 0;
                         if (!hasContracts) return { ...prev, contractId: defaultContractIds };
                         return prev;
@@ -685,7 +699,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     : [advancedOrdersFilters.systemParentId];
                 if (ids.length > 0) {
                     const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
-                    setFilterOptions(prev => ({ ...prev, subSystems: results.flat() }));
+                    setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
                 }
             }
             if (advancedOrdersFilters.orderTypeId) {
@@ -718,13 +732,13 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     }, [hasMore, isLoadingMore, isLoading]);
 
     const handleSystemChange = async (systemId: string | string[]) => {
-        setAdvancedOrdersFilters(prev => ({ ...prev, systemParentId: systemId, systemId: [] }));
+        setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, systemParentId: systemId, systemId: [] }));
         if (systemId && (Array.isArray(systemId) ? systemId.length > 0 : true)) {
             const ids = Array.isArray(systemId) ? systemId : [systemId];
             const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
-            setFilterOptions(prev => ({ ...prev, subSystems: results.flat() }));
+                    setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
         } else {
-            setFilterOptions(prev => ({ ...prev, subSystems: [] }));
+            setFilterOptions((prev: any) => ({ ...prev, subSystems: [] }));
         }
     };
 
@@ -732,7 +746,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
 
     const handleOrderTypeChange = async (id: string | string[]) => {
-        setAdvancedOrdersFilters(prev => ({ ...prev, orderTypeId: id, orderTypeSubId: [] }));
+        setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTypeId: id, orderTypeSubId: [] }));
         if (id && (Array.isArray(id) ? id.length > 0 : true)) {
             const ids = Array.isArray(id) ? id : [id];
             const results = await Promise.all(ids.map(id => dataService.getOrderSubTypesByType(id)));
@@ -743,7 +757,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     };
 
     const handleParentUnitTypeChange = async (id: string | string[]) => {
-        setAdvancedOrdersFilters(prev => ({ ...prev, unitTypeParentId: id, unitTypeId: [], unitId: [] }));
+        setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, unitTypeParentId: id, unitTypeId: [], unitId: [] }));
         if (id && (Array.isArray(id) ? id.length > 0 : true)) {
             const ids = Array.isArray(id) ? id : [id];
             const results = await Promise.all(ids.map(id => dataService.getUnitTypes(id)));
@@ -779,9 +793,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         } else if (key === 'orderTypeId') {
             handleOrderTypeChange(finalValue as string | string[]);
         } else {
-            setAdvancedOrdersFilters(prev => ({ ...prev, [key]: finalValue }));
+            setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, [key]: finalValue }));
         }
-        setSelectionModal(prev => ({ ...prev, isOpen: false }));
+        setSelectionModal((prev: any) => ({ ...prev, isOpen: false }));
     };
 
     const handleQuickSearch = async (e?: React.FormEvent) => {
@@ -849,7 +863,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         label="SUB-SISTEMA"
                                         value={advancedOrdersFilters.systemId || []}
                                         onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, systemId: [] }))}
+                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, systemId: [] }))}
                                         disabled={!advancedOrdersFilters.systemParentId || (Array.isArray(advancedOrdersFilters.systemParentId) && advancedOrdersFilters.systemParentId.length === 0)}
                                     />
                                     <FilterSelect
@@ -862,20 +876,20 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         label="SUB-TIPO UNIDADE"
                                         value={advancedOrdersFilters.unitTypeId || []}
                                         onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, unitTypeId: [] }))}
+                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, unitTypeId: [] }))}
                                         disabled={!advancedOrdersFilters.unitTypeParentId || (Array.isArray(advancedOrdersFilters.unitTypeParentId) && advancedOrdersFilters.unitTypeParentId.length === 0)}
                                     />
                                     <FilterSelect
                                         label="UNIDADES"
                                         value={advancedOrdersFilters.unitId || []}
                                         onClick={() => openSelectionModal('unitId', 'UNIDADES', filterOptions.units.map(opt => ({ value: String(opt.id), label: opt.description_full || opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, unitId: [] }))}
+                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, unitId: [] }))}
                                     />
                                     <FilterSelect
                                         label="FINALIDADE"
                                         value={advancedOrdersFilters.orderObjectId || []}
                                         onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterOptions.orderObjects.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, orderObjectId: [] }))}
+                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderObjectId: [] }))}
                                     />
                                     <FilterSelect
                                         label="TIPO OS"
@@ -887,27 +901,27 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         label="SUB-TIPO OS"
                                         value={advancedOrdersFilters.orderTypeSubId || []}
                                         onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, orderTypeSubId: [] }))}
+                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTypeSubId: [] }))}
                                         disabled={!advancedOrdersFilters.orderTypeId || (Array.isArray(advancedOrdersFilters.orderTypeId) && advancedOrdersFilters.orderTypeId.length === 0)}
                                     />
                                     <FilterSelect
                                         label="CONTRATO"
                                         value={advancedOrdersFilters.contractId || []}
                                         onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts.map(opt => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))}
-                                        onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, contractId: [] }))}
+                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, contractId: [] }))}
                                         required
                                     />
                                     <FilterSelect
                                         label="PLANO"
                                         value={advancedOrdersFilters.orderPlanId || []}
                                         onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterOptions.plans.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, orderPlanId: [] }))}
+                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderPlanId: [] }))}
                                     />
                                     <FilterSelect
                                         label="EQUIPE"
                                         value={advancedOrdersFilters.orderTeamId || []}
                                         onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterOptions.teams.map(opt => ({ value: String(opt.id), label: opt.name || opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters(prev => ({ ...prev, orderTeamId: [] }))}
+                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTeamId: [] }))}
                                     />
                                 </div>
                             </div>
@@ -946,26 +960,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </div>
 
                                 <div className="flex items-center gap-3">
-                                    {/* Clear all shortcut - restaura contratos padrão */}
-                                    {Object.values(advancedOrdersFilters).some(v => Array.isArray(v) && v.length > 0) && (
-                                        <button
-                                            onClick={() => {
-                                                const defaultContractIds = filterOptions.contracts.map((c: any) => String(c.id));
-                                                const resetFilters = { contractId: defaultContractIds };
-                                                setAdvancedOrdersFilters(resetFilters);
-                                                setAppliedFilters(resetFilters);
-                                                setUnitSubTypes([]);
-                                                setOrderSubTypes([]);
-                                                setHasAppliedFilters(false);
-                                            }}
-                                            className="flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all duration-200 group active:scale-95"
-                                            title="Limpar todos os filtros"
-                                        >
-                                            <span className="material-symbols-outlined text-xl group-hover:rotate-[-10deg]">filter_alt_off</span>
-                                            <span className="text-[11px] font-bold uppercase tracking-wider">Limpar Filtros</span>
-                                        </button>
-                                    )}
-
                                     <button
                                         onClick={() => {
                                             // Validação: contrato é obrigatório
@@ -977,6 +971,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             const newFilters = { ...advancedOrdersFilters };
                                             setAppliedFilters(newFilters);
                                             setHasAppliedFilters(true);
+                                            setIsFiltering(true);
                                             fetchData(false, true, newFilters);
                                         }}
                                         disabled={isLoading}
@@ -987,10 +982,62 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         </span>
                                         <span className="text-[13px] uppercase tracking-wide">{isLoading ? 'Filtrando...' : 'Filtrar'}</span>
                                     </button>
+
+                                    {Object.values(advancedOrdersFilters).some(v => Array.isArray(v) && v.length > 0) && (
+                                        <button
+                                            onClick={() => {
+                                                const defaultContractIds = filterOptions.contracts.map((c: any) => String(c.id));
+                                                const resetFilters = { contractId: defaultContractIds };
+                                                setAdvancedOrdersFilters(resetFilters);
+                                                setAppliedFilters(resetFilters);
+                                                setUnitSubTypes([]);
+                                                setOrderSubTypes([]);
+                                                setHasAppliedFilters(false);
+                                            }}
+                                            className="inline-flex items-center justify-center w-10 h-10 text-slate-500 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all duration-200 active:scale-95"
+                                            title="Limpar todos os filtros"
+                                        >
+                                            <span className="material-symbols-outlined text-xl">filter_alt_off</span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    {/* ── Filtering overlay ── */}
+                    {isFiltering && (
+                        <div className="absolute inset-0 z-40 pointer-events-none flex flex-col">
+                            {/* Top progress bar */}
+                            <div className="h-[3px] w-full shrink-0 overflow-hidden bg-primary/10">
+                                <div
+                                    className="h-full w-[40%]"
+                                    style={{
+                                        animation: 'loading-bar 1.5s infinite linear',
+                                        background: 'linear-gradient(90deg, transparent, var(--color-primary), transparent)'
+                                    }}
+                                />
+                            </div>
+                            {/* Content dimming + centered banner */}
+                            <div className="flex-1 bg-slate-900/10 dark:bg-black/20 backdrop-blur-[1px] flex items-center justify-center">
+                                <div className="flex items-center gap-3 px-5 py-3 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700">
+                                    <div className="relative flex items-center justify-center w-10 h-10">
+                                        <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping" />
+                                        <img
+                                            src="/siges_logo.png"
+                                            alt="SIGES"
+                                            className="w-10 h-10 object-contain animate-spin"
+                                            style={{ animationDuration: '1.2s', animationTimingFunction: 'linear' }}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[13px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Atualizando dados</span>
+                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wide">Aplicando filtros selecionados...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-4 pb-20 md:pb-6">
                         <section className="px-4 pt-4 pb-0">
@@ -1017,7 +1064,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     />
                                 </div>
                             </div>
-                            <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto">
+                            <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto">
                                 {stats.unscheduled.map((item, idx) => (
                                     <div key={idx} onClick={() => {
                                         // Period cards are exclusive selectors (no toggle/deselect to null).
@@ -1025,8 +1072,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         // Clicking the already-active period just clears the sector filter.
                                         const clickedPeriod = item.label;
                                         setSelectedPeriod(clickedPeriod);
-                                        setAdvancedOrdersFilters(prev => ({ ...prev, assetTagId: [] }));
-                                        setAppliedFilters(prev => ({ ...prev, assetTagId: [] }));
+                                        setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
+                                        setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
                                         fetchData(false, true, { ...appliedFilters, period: clickedPeriod, assetTagId: [] });
                                     }}
                                         className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-[110px] cursor-pointer
@@ -1042,21 +1089,26 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             </div>
 
                             {stats.ssSectorCounts && stats.ssSectorCounts.length > 0 && (
-                                <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                     ref={ssSectorScroll.ref}
                                     onMouseDown={ssSectorScroll.onMouseDown}
                                     onTouchStart={ssSectorScroll.onTouchStart}
                                     onClickCapture={ssSectorScroll.onClickCapture}>
                                     {stats.ssSectorCounts.map((item, idx) => {
-                                        const isSelected = Array.isArray(advancedOrdersFilters.assetTagId)
-                                            ? advancedOrdersFilters.assetTagId.includes(item.id)
-                                            : advancedOrdersFilters.assetTagId === item.id;
+                                        const currentAssetTagIds = Array.isArray(advancedOrdersFilters.assetTagId)
+                                            ? advancedOrdersFilters.assetTagId
+                                            : advancedOrdersFilters.assetTagId
+                                                ? [advancedOrdersFilters.assetTagId]
+                                                : [];
+                                        const isSelected = currentAssetTagIds.includes(item.id);
                                         
                                         return (
                                             <div key={idx} onClick={() => {
-                                                const newAssetTagId = isSelected ? [] : [item.id];
-                                                setAdvancedOrdersFilters(prev => ({ ...prev, assetTagId: newAssetTagId }));
-                                                setAppliedFilters(prev => ({ ...prev, assetTagId: newAssetTagId }));
+                                                const newAssetTagId = isSelected
+                                                    ? currentAssetTagIds.filter((id) => id !== item.id)
+                                                    : [...currentAssetTagIds, item.id];
+                                                setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: newAssetTagId }));
+                                                setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: newAssetTagId }));
                                                 // Pass period explicitly so it is not lost in the override merge
                                                 fetchData(false, true, { ...appliedFilters, period: selectedPeriod, assetTagId: newAssetTagId });
                                             }}
@@ -1079,7 +1131,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         {displayedUnscheduledSS.length > 0 && (
                             <section className="px-4 py-0">
 
-                                <div className="flex gap-4 overflow-x-auto no-scrollbar pt-0 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                <div className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                     ref={unscheduledSSScroll.ref}
                                     onMouseDown={unscheduledSSScroll.onMouseDown}
                                     onTouchStart={unscheduledSSScroll.onTouchStart}
@@ -1098,103 +1150,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             </section>
                         )}
 
-                        <section className="px-4 py-0 mt-0">
-                            <div className="flex items-center justify-between mb-0.5">
-                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">OS's Abertas</h2>
-                                {stats.openOS.reduce((acc, curr) => acc + curr.count, 0) === 0 && (
-                                    <span className="text-[11px] font-bold text-slate-400 cursor-default select-none">Sem registros</span>
-                                )}
-                            </div>
-                            <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                ref={openOSScroll.ref}
-                                onMouseDown={openOSScroll.onMouseDown}
-                                onTouchStart={openOSScroll.onTouchStart}
-                                onClickCapture={openOSScroll.onClickCapture}>
-
-                                {stats.openOS.map((item, idx) => (
-                                    <div key={idx} onClick={() => {
-                                        const newStatusId = selectedStatusId === item.id ? null : item.id;
-                                        setSelectedStatusId(newStatusId);
-                                        setOsAssetTagId([]);
-                                        fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
-                                    }}
-                                        className={`backdrop-blur-sm p-3.5 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-[140px] md:w-[160px] cursor-pointer
-                                ${selectedStatusId === item.id ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
-                            `}>
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className={`w-9 h-9 ${item.bgColor} rounded-xl flex items-center justify-center transition-transform group-hover:scale-110`}>
-                                                <span className={`material-symbols-outlined text-[20px] ${item.color}`}>{item.icon}</span>
-                                            </div>
-                                            <span className="text-xl font-black text-slate-900 dark:text-white">{item.count}</span>
-                                        </div>
-                                        <p className={`text-[13px] font-bold ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-500 dark:text-slate-300'}`}>{item.label}</p>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {stats.osSectorCounts && stats.osSectorCounts.length > 0 && (
-                                <div
-                                    className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                    ref={osSectorScroll.ref}
-                                    onMouseDown={osSectorScroll.onMouseDown}
-                                    onTouchStart={osSectorScroll.onTouchStart}
-                                    onClickCapture={osSectorScroll.onClickCapture}
-                                >
-                                    {stats.osSectorCounts.map((item, idx) => {
-                                        const isSelected = osAssetTagId.includes(item.id);
-                                        return (
-                                            <div
-                                                key={idx}
-                                                onClick={() => {
-                                                    const newOsAssetTagId = isSelected ? [] : [item.id];
-                                                    setOsAssetTagId(newOsAssetTagId);
-                                                    fetchData(false, true, {
-                                                        ...appliedFilters,
-                                                        statusId: selectedStatusId,
-                                                        osAssetTagId: newOsAssetTagId,
-                                                    });
-                                                }}
-                                                className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer
-                                                    ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
-                                                `}
-                                            >
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <p className={`text-[11px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
-                                                        {item.label}
-                                                    </p>
-                                                    <span className="text-[16px] font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </section>
-
-                        {displayedOpenOS.length > 0 && (
-                            <section className="px-4 py-0">
-                                <div
-                                    className="flex gap-4 overflow-x-auto no-scrollbar pt-0 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                    ref={openOSCarouselScroll.ref}
-                                    onMouseDown={openOSCarouselScroll.onMouseDown}
-                                    onTouchStart={openOSCarouselScroll.onTouchStart}
-                                    onClickCapture={openOSCarouselScroll.onClickCapture}
-                                >
-                                    {displayedOpenOS.map((os) => (
-                                        <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0">
-                                            <OrderRequestCardListItem
-                                                order={os}
-                                                onClick={() => onSelectOrder?.(os)}
-                                                onSuccess={() => fetchData(false, true)}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-
                         <section className="px-4 py-1.5">
-                            <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                            <div
+                                className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                 ref={leadersScroll.ref}
                                 onMouseDown={leadersScroll.onMouseDown}
                                 onTouchStart={leadersScroll.onTouchStart}
@@ -1210,7 +1168,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    console.log('Rastrear clicked for:', group.companyId);
                                                     onTrackUsers?.({
                                                         id: group.companyId,
                                                         name: group.companyName,
@@ -1254,89 +1211,144 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             </div>
                         </section>
 
-                        <section className="px-4 py-4 mb-4">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">Ordens de Serviços</h2>
-                                <div className="flex items-center gap-2">
-                                    <OrdersListPDFButton
-                                        filters={effectiveFilters}
-                                        searchQuery={searchQuery}
-                                        totalCount={
-                                            selectedStatusId
-                                                ? (stats.openOS.find(s => s.id === selectedStatusId)?.count || 0)
-                                                : selectedPeriod
-                                                    ? (stats.unscheduled.find(p => p.label === selectedPeriod)?.count || 0)
-                                                    : totalOrders
-                                        }
-                                    />
-                                    <ExcelExportButton
-                                        filters={effectiveFilters}
-                                        searchQuery={searchQuery}
-                                        filename="relatorio-os"
-                                        title="EXCEL"
-                                        totalCount={
-                                            selectedStatusId
-                                                ? (stats.openOS.find(s => s.id === selectedStatusId)?.count || 0)
-                                                : selectedPeriod
-                                                    ? (stats.unscheduled.find(p => p.label === selectedPeriod)?.count || 0)
-                                                    : totalOrders
-                                        }
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-4">
-                                {isLoading ? (
-                                    <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                        <Loading size="md" />
-                                        <p className="text-slate-400 font-medium">Carregando solicitações...</p>
-                                    </div>
-                                ) : filteredOrders.length > 0 ? (
-                                    filteredOrders.map((req) => (
-                                        <OrderRequestCardListItem
-                                            key={req.id}
-                                            order={req}
-                                            onClick={() => onSelectOrder?.(req)}
-                                            onSuccess={() => fetchData(false, true)}
-                                        />
-                                    ))
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-                                        <span className="material-symbols-outlined text-6xl text-slate-200">order_approve</span>
-                                        <div className="flex flex-col gap-1">
-                                            <p className="text-slate-600 dark:text-slate-300 font-bold text-lg">Nenhuma solicitação encontrada</p>
-                                            <p className="text-slate-400 text-sm">Tente ajustar sua busca ou filtros.</p>
+                        <section className="px-4 py-0 mt-0">
+                            {(() => {
+                                // Priority: selected sectors > selected status > total
+                                // osSectorCounts is fetched with statusId but WITHOUT assetTagId,
+                                // so sector counts already reflect the active status filter.
+                                const osTotalCount = osAssetTagId.length > 0
+                                    ? stats.osSectorCounts
+                                        .filter(s => osAssetTagId.includes(s.id))
+                                        .reduce((acc, s) => acc + s.count, 0)
+                                    : selectedStatusId
+                                        ? (stats.openOS.find(s => s.id === selectedStatusId)?.count || 0)
+                                        : stats.openOS.reduce((acc, curr) => acc + curr.count, 0);
+
+                                return (
+                                    <div className="flex items-center justify-between mb-0.5">
+                                        <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">OS's Abertas</h2>
+                                        <div className="flex items-center gap-2">
+                                            <OrdersListPDFButton
+                                                filters={osEffectiveFilters}
+                                                searchQuery={searchQuery}
+                                                totalCount={osTotalCount}
+                                            />
+                                            <ExcelExportButton
+                                                filters={osEffectiveFilters}
+                                                searchQuery={searchQuery}
+                                                filename="relatorio-os"
+                                                title="EXCEL"
+                                                totalCount={osTotalCount}
+                                            />
                                         </div>
                                     </div>
-                                )}
+                                );
+                            })()}
+                            <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                ref={openOSScroll.ref}
+                                onMouseDown={openOSScroll.onMouseDown}
+                                onTouchStart={openOSScroll.onTouchStart}
+                                onClickCapture={openOSScroll.onClickCapture}>
 
-                                {!isLoading && recentRequests.length > 0 && <div ref={sentinelRef} className="h-4" />}
-                                {isLoadingMore && (
-                                    <div className="flex flex-col items-center justify-center py-8 gap-3">
-                                        <Loading size="sm" />
-                                        <p className="text-slate-400 text-sm font-medium">Carregando mais solicitações...</p>
+                                {stats.openOS.map((item, idx) => (
+                                    <div key={idx} onClick={() => {
+                                        const newStatusId = selectedStatusId === item.id ? null : item.id;
+                                        setSelectedStatusId(newStatusId);
+                                        setOsAssetTagId([]);
+                                        fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
+                                    }}
+                                        className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-[110px] cursor-pointer
+                                ${selectedStatusId === item.id ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                            `}>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-lg font-black text-slate-900 dark:text-white">{item.count}</span>
+                                            <span className={`material-symbols-outlined text-slate-400 text-[18px] ${item.color}`}>{item.icon}</span>
+                                        </div>
+                                        <p className={`text-[10px] font-bold ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-500 dark:text-slate-300'}`}>{item.label}</p>
                                     </div>
-                                )}
-                                {!isLoading && !isLoadingMore && !hasMore && filteredOrders.length > 0 && (
-                                    <div className="flex flex-col items-center justify-center py-8 gap-2">
-                                        <span className="material-symbols-outlined text-3xl text-slate-300">check_circle</span>
-                                        <p className="text-slate-400 text-sm font-medium">Todas as solicitações foram carregadas</p>
-                                        <p className="text-slate-300 text-xs">
-                                            Total: {filteredOrders.length} de {
-                                                (selectedStatusId || selectedPeriod)
-                                                    ? filteredOrders.length
-                                                    : totalOrders
-                                            }
-                                        </p>
-                                    </div>
-                                )}
+                                ))}
                             </div>
+
+                            {stats.osSectorCounts && stats.osSectorCounts.length > 0 && (
+                                <div
+                                    className="flex gap-3 overflow-x-auto no-scrollbar py-1 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                    ref={osSectorScroll.ref}
+                                    onMouseDown={osSectorScroll.onMouseDown}
+                                    onTouchStart={osSectorScroll.onTouchStart}
+                                    onClickCapture={osSectorScroll.onClickCapture}
+                                >
+                                    {stats.osSectorCounts.map((item, idx) => {
+                                        const isSelected = osAssetTagId.includes(item.id);
+                                        return (
+                                            <div
+                                                key={idx}
+                                                onClick={() => {
+                                                    const newOsAssetTagId = isSelected
+                                                        ? osAssetTagId.filter((id) => id !== item.id)
+                                                        : [...osAssetTagId, item.id];
+                                                    setOsAssetTagId(newOsAssetTagId);
+                                                    fetchData(false, true, {
+                                                        ...appliedFilters,
+                                                        statusId: selectedStatusId,
+                                                        osAssetTagId: newOsAssetTagId,
+                                                    });
+                                                }}
+                                                        className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[110px] max-w-[200px] cursor-pointer
+                                                    ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                `}
+                                            >
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <p className={`text-[11px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
+                                                        {item.label}
+                                                    </p>
+                                                    <span className="text-[16px] font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </section>
+
+                        {displayedOpenOS.length > 0 && (
+                            <section className="px-4 py-0">
+                                <div
+                                    className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                    ref={openOSCarouselScroll.ref}
+                                    onMouseDown={openOSCarouselScroll.onMouseDown}
+                                    onTouchStart={openOSCarouselScroll.onTouchStart}
+                                    onClickCapture={openOSCarouselScroll.onClickCapture}
+                                >
+                                    {displayedOpenOS.length > 0 ? (
+                                        displayedOpenOS.map((os) => (
+                                            <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                                <OrderRequestCardListItem
+                                                    order={os}
+                                                    onClick={() => onSelectOrder?.(os)}
+                                                    onSuccess={() => fetchData(false, true)}
+                                                />
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="w-full flex items-center justify-center py-10">
+                                            <div className="flex flex-col items-center">
+                                                <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">inventory_2</span>
+                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma Ordem de Serviço encontrada</h3>
+                                                <p className="text-slate-400">Tente ajustar sua busca ou filtros.</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
+                        )}
+
+                        
                     </div>
 
 
 
                     {/* Selection Modal for Filters */}
-                    <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
+                    <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal((prev: any) => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
                         <div className="flex flex-col gap-4">
                             <div className="relative">
                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
@@ -1370,7 +1382,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                         const newVal = isSelected
                                                             ? selectionModal.currentValue.filter(v => v !== opt.value)
                                                             : [...selectionModal.currentValue, opt.value];
-                                                        setSelectionModal(prev => ({ ...prev, currentValue: newVal }));
+                                                        setSelectionModal((prev: any) => ({ ...prev, currentValue: newVal }));
                                                     }}
                                                 />
                                                 <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{opt.label}</span>
@@ -1387,7 +1399,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
                             <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                                 <button
-                                    onClick={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))}
+                                    onClick={() => setSelectionModal((prev: any) => ({ ...prev, isOpen: false }))}
                                     className="flex-1 py-3 items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm"
                                 >
                                     Cancelar

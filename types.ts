@@ -295,6 +295,7 @@ export interface Unit {
   imgFilePath?: string;
   imgFileName?: string;
   statusId: string;
+  statusName?: string;
   logoUrl?: string;
   descriptionFull?: string;
   clientName?: string;
