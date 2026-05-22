@@ -33,6 +33,7 @@ interface ModalProps {
     confirmLoading?: boolean;
     confirmLoadingLabel?: string;
     draggable?: boolean;
+    hideCancelButton?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -52,6 +53,7 @@ export const Modal: React.FC<ModalProps> = ({
     confirmLoading = false,
     confirmLoadingLabel,
     draggable = false,
+    hideCancelButton = false,
 }) => {
     // Body scroll lock
     useEffect(() => {
@@ -359,12 +361,14 @@ export const Modal: React.FC<ModalProps> = ({
                                     ) : (confirmLabel || 'Confirmar')}
                                 </button>
                             )}
-                            <button
-                                onClick={onClose}
-                                className="w-full py-3.5 rounded-2xl text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            >
-                                {(onConfirm && confirmLabel) ? cancelLabel : 'Fechar'}
-                            </button>
+                            {!hideCancelButton && (
+                                <button
+                                    onClick={onClose}
+                                    className="w-full py-3.5 rounded-2xl text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    {(onConfirm && confirmLabel) ? cancelLabel : 'Fechar'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}

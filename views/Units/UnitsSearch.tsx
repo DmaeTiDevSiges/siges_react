@@ -28,19 +28,33 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
     const hasSearchPermission = canSearch('units');
     // ... hook logic ...
     const [search, setSearch] = useState(() => localStorage.getItem('units_search') || '');
-    const [debouncedSearch, setDebouncedSearch] = useState(search);
+    const [appliedSearch, setAppliedSearch] = useState(search);
     const [units, setUnits] = useState<(Unit & { clientName?: string })[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(false);
     const [visibleCount, setVisibleCount] = useState(20);
     const PAGE_SIZE = 20;
 
-    const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({
+    const defaultFilters: SelectedFilters = {
         systemParentId: [],
         systemId: [],
         unitTypeParentId: [],
         unitTypeId: [],
         statusId: ['3']
+    };
+
+    const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>(() => {
+        try {
+            const saved = sessionStorage.getItem('units_selected_filters');
+            return saved ? JSON.parse(saved) : defaultFilters;
+        } catch { return defaultFilters; }
+    });
+
+    const [appliedFilters, setAppliedFilters] = useState<SelectedFilters>(() => {
+        try {
+            const saved = sessionStorage.getItem('units_applied_filters');
+            return saved ? JSON.parse(saved) : defaultFilters;
+        } catch { return defaultFilters; }
     });
 
     const [filterOptions, setFilterOptions] = useState<{
@@ -92,6 +106,13 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         };
         loadInitialFilterOptions();
     }, []);
+
+    // Persist filters to sessionStorage so they survive navigation
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('units_selected_filters', JSON.stringify(selectedFilters));
+        } catch { /* ignore */ }
+    }, [selectedFilters]);
 
     const handleSystemParentChange = useCallback(async (systemParentId: string | string[]) => {
         setSelectedFilters(prev => ({ ...prev, systemParentId, systemId: [] }));
@@ -159,7 +180,11 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
     }, [selectionModal.filterKey, handleSystemParentChange, handleUnitTypeParentChange]);
 
     const handleSearch = () => {
-        setDebouncedSearch(search);
+        setAppliedSearch(search);
+        setAppliedFilters(selectedFilters);
+        try {
+            sessionStorage.setItem('units_applied_filters', JSON.stringify(selectedFilters));
+        } catch { /* ignore */ }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -178,7 +203,17 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         );
     }, [selectedFilters]);
 
-    const selectedFiltersKey = JSON.stringify(selectedFilters);
+    const hasActiveAppliedFilters = useMemo(() => {
+        return (
+            (appliedFilters.systemParentId && appliedFilters.systemParentId.length > 0) ||
+            (appliedFilters.systemId && appliedFilters.systemId.length > 0) ||
+            (appliedFilters.unitTypeParentId && appliedFilters.unitTypeParentId.length > 0) ||
+            (appliedFilters.unitTypeId && appliedFilters.unitTypeId.length > 0) ||
+            (appliedFilters.statusId && (appliedFilters.statusId.length !== 1 || !appliedFilters.statusId.includes('3')))
+        );
+    }, [appliedFilters]);
+
+    const appliedFiltersKey = JSON.stringify(appliedFilters);
 
     useEffect(() => {
         const mapRawUnit = (item: any): Unit => {
@@ -198,10 +233,15 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                 longitude: item.longitude,
                 unitTypeParentId: (item.unit_type_parent_id || item.unitTypeParentId)?.toString(),
                 unitTypeId: (item.unit_type_id || item.unitTypeId)?.toString(),
+                typeName: item.typeName || item.type_name,
+                subTypeName: item.subTypeName || item.sub_type_name,
                 systemParentId: (item.system_parent_id || item.systemParentId)?.toString(),
                 systemId: (item.system_id || item.systemId)?.toString(),
+                systemParentName: item.systemParentName || item.system_parent_name,
+                systemName: item.systemName || item.system_name,
                 imgFilePath: item.img_file_path || item.imgFilePath,
                 imgFileName: item.img_file_name || item.imgFileName,
+                logoUrl: item.logoUrl,
                 statusId: rawId?.toString() || '3',
                 statusName: statusName,
                 descriptionFull: item.description_full || item.descriptionFull
@@ -209,7 +249,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         };
 
         const fetchData = async () => {
-            const shouldFetch = (debouncedSearch && debouncedSearch.trim().length > 0) || hasActiveFilters;
+            const shouldFetch = (appliedSearch && appliedSearch.trim().length > 0) || hasActiveAppliedFilters;
 
             if (!shouldFetch) {
                 setUnits([]);
@@ -229,11 +269,11 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
 
                 const allUnitsMap = new Map();
 
-                if (debouncedSearch && debouncedSearch.trim().length > 0) {
-                    const searchNorm = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                if (appliedSearch && appliedSearch.trim().length > 0) {
+                    const searchNorm = appliedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
                     // 1. Search Units directly (Server-Side)
-                    const textSearchResults = await dataService.searchUnits(debouncedSearch);
+                    const textSearchResults = await dataService.searchUnits(appliedSearch);
 
                     // 2. Search Units by Client Name (Server-Side via getUnitsByClient for matching clients)
                     const matchingClients = currentClients.filter(c =>
@@ -256,9 +296,9 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                 } else {
                     // No text search, but filters are active -> Fetch units based on status filter
                     let statusParam: 'all' | 'active' | 'inactive' = 'active';
-                    if (selectedFilters.statusId && selectedFilters.statusId.length > 0) {
-                        const hasActive = selectedFilters.statusId.includes('3');
-                        const hasInactive = selectedFilters.statusId.includes('4');
+                    if (appliedFilters.statusId && appliedFilters.statusId.length > 0) {
+                        const hasActive = appliedFilters.statusId.includes('3');
+                        const hasInactive = appliedFilters.statusId.includes('4');
                         if (hasActive && hasInactive) {
                             statusParam = 'all';
                         } else if (hasActive) {
@@ -287,49 +327,49 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             }
         };
         fetchData();
-    }, [debouncedSearch, selectedFiltersKey, hasActiveFilters]);
+    }, [appliedSearch, appliedFiltersKey, hasActiveAppliedFilters]);
 
     // Apply filters client-side and sort alphabetically by description
     const filteredUnits = useMemo(() => {
         const filtered = units.filter(unit => {
             // Filter by systemParentId (SISTEMA)
-            if (selectedFilters.systemParentId && selectedFilters.systemParentId.length > 0) {
+            if (appliedFilters.systemParentId && appliedFilters.systemParentId.length > 0) {
                 const parentIdStr = String(unit.systemParentId);
-                const matches = Array.isArray(selectedFilters.systemParentId)
-                    ? selectedFilters.systemParentId.includes(parentIdStr)
-                    : selectedFilters.systemParentId === parentIdStr;
+                const matches = Array.isArray(appliedFilters.systemParentId)
+                    ? appliedFilters.systemParentId.includes(parentIdStr)
+                    : appliedFilters.systemParentId === parentIdStr;
                 if (!matches) return false;
             }
             // Filter by systemId (SUB-SISTEMA)
-            if (selectedFilters.systemId && selectedFilters.systemId.length > 0) {
+            if (appliedFilters.systemId && appliedFilters.systemId.length > 0) {
                 const idStr = String(unit.systemId);
-                const matches = Array.isArray(selectedFilters.systemId)
-                    ? selectedFilters.systemId.includes(idStr)
-                    : selectedFilters.systemId === idStr;
+                const matches = Array.isArray(appliedFilters.systemId)
+                    ? appliedFilters.systemId.includes(idStr)
+                    : appliedFilters.systemId === idStr;
                 if (!matches) return false;
             }
             // Filter by unitTypeParentId (TIPO UNIDADE)
-            if (selectedFilters.unitTypeParentId && selectedFilters.unitTypeParentId.length > 0) {
+            if (appliedFilters.unitTypeParentId && appliedFilters.unitTypeParentId.length > 0) {
                 const parentIdStr = String(unit.unitTypeParentId);
-                const matches = Array.isArray(selectedFilters.unitTypeParentId)
-                    ? selectedFilters.unitTypeParentId.includes(parentIdStr)
-                    : selectedFilters.unitTypeParentId === parentIdStr;
+                const matches = Array.isArray(appliedFilters.unitTypeParentId)
+                    ? appliedFilters.unitTypeParentId.includes(parentIdStr)
+                    : appliedFilters.unitTypeParentId === parentIdStr;
                 if (!matches) return false;
             }
             // Filter by unitTypeId (SUB-TIPO UNIDADE)
-            if (selectedFilters.unitTypeId && selectedFilters.unitTypeId.length > 0) {
+            if (appliedFilters.unitTypeId && appliedFilters.unitTypeId.length > 0) {
                 const idStr = String(unit.unitTypeId);
-                const matches = Array.isArray(selectedFilters.unitTypeId)
-                    ? selectedFilters.unitTypeId.includes(idStr)
-                    : selectedFilters.unitTypeId === idStr;
+                const matches = Array.isArray(appliedFilters.unitTypeId)
+                    ? appliedFilters.unitTypeId.includes(idStr)
+                    : appliedFilters.unitTypeId === idStr;
                 if (!matches) return false;
             }
             // Filter by statusId (SITUAÇÃO)
-            if (selectedFilters.statusId && selectedFilters.statusId.length > 0) {
+            if (appliedFilters.statusId && appliedFilters.statusId.length > 0) {
                 const statusStr = String(unit.statusId);
-                const matches = Array.isArray(selectedFilters.statusId)
-                    ? selectedFilters.statusId.includes(statusStr)
-                    : selectedFilters.statusId === statusStr;
+                const matches = Array.isArray(appliedFilters.statusId)
+                    ? appliedFilters.statusId.includes(statusStr)
+                    : appliedFilters.statusId === statusStr;
                 if (!matches) return false;
             }
             return true;
@@ -341,7 +381,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             const descB = b.descriptionFull || b.description || '';
             return descA.localeCompare(descB, 'pt-BR', { sensitivity: 'base' });
         });
-    }, [units, selectedFiltersKey]);
+    }, [units, appliedFiltersKey]);
 
     const visibleUnits = useMemo(() => filteredUnits.slice(0, visibleCount), [filteredUnits, visibleCount]);
     const hasMore = visibleCount < filteredUnits.length;
@@ -448,7 +488,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                             onKeyDown={handleKeyDown}
                             onClear={() => {
                                 setSearch('');
-                                setDebouncedSearch('');
+                                setAppliedSearch('');
                                 localStorage.setItem('units_search', '');
                             }}
                         />
@@ -470,7 +510,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                     </span>
                     <UnitsListPDFButton
                         units={filteredUnits}
-                        searchQuery={debouncedSearch}
+                        searchQuery={appliedSearch}
                     />
                 </div>
             )}

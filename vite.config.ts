@@ -6,16 +6,16 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   
-  // Try to read version from version.json
+  // Try to read version from app_version.txt
   let buildId = new Date().getTime().toString();
   try {
-    const versionPath = path.resolve(__dirname, 'public/version.txt');
+    const versionPath = path.resolve(__dirname, 'public/app_version.txt');
     if (fs.existsSync(versionPath)) {
       const data = JSON.parse(fs.readFileSync(versionPath, 'utf-8'));
       buildId = data.version;
     }
   } catch (e) {
-    console.warn('Could not read version.txt, using current timestamp');
+    console.warn('Could not read app_version.txt, using current timestamp');
   }
 
   return {

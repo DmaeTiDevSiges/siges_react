@@ -1,5 +1,22 @@
 apply plugin: 'com.android.application'
 
+// ─── Hook: executa npm run build + cap sync antes de qualquer build Android ───
+// Isso garante que o app_version.txt e os assets do React sejam sempre atualizados.
+task npmBuildAndSync(type: Exec) {
+    description = 'Roda npm run build e npx cap sync antes de gerar o APK'
+    workingDir '../../'  // raiz do projeto React
+
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+    if (isWindows) {
+        commandLine 'cmd', '/c', 'npm run build && npx cap sync'
+    } else {
+        commandLine 'bash', '-c', 'npm run build && npx cap sync'
+    }
+}
+
+preBuild.dependsOn npmBuildAndSync
+// ─────────────────────────────────────────────────────────────────────────────
+
 android {
     namespace = "com.ag.siges"
     compileSdk = rootProject.ext.compileSdkVersion

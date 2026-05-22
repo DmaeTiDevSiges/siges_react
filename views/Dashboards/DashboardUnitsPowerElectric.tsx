@@ -433,11 +433,11 @@ const FilterSelect = React.memo(({ label, value, onClick, onClear, disabled, req
             <div className={`flex items-stretch h-full w-full bg-white dark:bg-slate-800 border rounded-xl shadow-sm overflow-hidden transition-all ${count > 0 ? 'border-primary ring-1 ring-primary/20' : (required ? 'border-red-200 dark:border-red-900/50 hover:border-red-300' : 'border-slate-200 dark:border-slate-700')}`}>
                 <div
                     onClick={onClick}
-                    className="flex-1 px-3 flex flex-col justify-center border-r border-slate-100 dark:border-slate-700/50 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors min-w-0"
+                    className="flex-1 px-3 flex flex-col justify-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
-                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none mb-0.5">{label} {required && <span className="text-red-500">*</span>}</span>
+                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none mb-0.5 whitespace-nowrap">{label} {required && <span className="text-red-500">*</span>}</span>
                     <div className="flex items-center gap-1.5">
-                        <span className={`text-[11px] font-bold ${count > 0 ? 'text-primary' : (required ? 'text-red-500' : 'text-slate-500 dark:text-slate-400')}`}>
+                        <span className={`text-[11px] font-bold whitespace-nowrap ${count > 0 ? 'text-primary' : (required ? 'text-red-500' : 'text-slate-500 dark:text-slate-400')}`}>
                             {count > 0 ? `${count} ${count === 1 ? 'Item' : 'Itens'}` : (required ? 'Obrigatório' : 'Todos')}
                         </span>
                     </div>
@@ -1115,7 +1115,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                 endDate: dateRange.end
             });
 
-            const mappedVisits: OrderVisitExtended[] = (data || []).map((row: any) => ({
+            const mappedVisits: OrderVisitExtended[] = (Array.isArray(data) ? data : (data?.data || [])).map((row: any) => ({
                 id: row.id.toString(),
                 oId: row.o_id?.toString(),
                 ovMask: row.ov_mask,

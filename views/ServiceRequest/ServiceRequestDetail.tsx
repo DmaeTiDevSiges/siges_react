@@ -9,6 +9,7 @@ import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCard
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
 import { formatCurrency } from '../../utils/formatters';
 import { Loading } from '../../components/ui/Loading';
+import { CloneServiceRequestModal } from '../../components/serviceRequests/modals/CloneServiceRequestModal';
 
 
 interface ServiceRequestDetailProps {
@@ -17,6 +18,7 @@ interface ServiceRequestDetailProps {
     onEdit?: () => void;
     onGenerateOS?: () => void;
     onCancelSS?: () => void;
+    onCloneSS?: (clonedData: Partial<Order>) => void;
     activeTab?: string;
     onTabChange?: (tab: string) => void;
     onSelectOrder?: (order: Order) => void;
@@ -30,6 +32,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
     onEdit,
     onGenerateOS,
     onCancelSS,
+    onCloneSS,
     activeTab: externalActiveTab,
     onTabChange,
     onSelectOrder,
@@ -37,6 +40,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
     onRefreshOrder
 }) => {
     const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+    const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
 
     React.useEffect(() => {
         dataService.getCurrentUser().then(user => {
@@ -150,6 +154,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                         onEdit={onEdit}
                         onGenerateOS={onGenerateOS}
                         onCancelSS={onCancelSS}
+                        onClone={() => setIsCloneModalOpen(true)}
                         currentUser={currentUser}
                         isFollowed={order.id ? isOrderFollowed(order.id) : false}
                         onToggleFollow={async (e) => {
@@ -388,6 +393,28 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Clone Service Request Modal */}
+            {isCloneModalOpen && (
+                <CloneServiceRequestModal
+                    isOpen={true}
+                    onClose={() => setIsCloneModalOpen(false)}
+                    order={order}
+                    onConfirm={(unitId, clientId) => {
+                        setIsCloneModalOpen(false);
+                        if (onCloneSS) {
+                            const clonedData: Partial<Order> = {
+                                clientId: clientId,
+                                unitId: unitId,
+                                typeId: order.typeId,
+                                priorityId: order.priorityId?.toString(),
+                                requestedServices: order.requestedServices,
+                            };
+                            onCloneSS(clonedData);
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 };

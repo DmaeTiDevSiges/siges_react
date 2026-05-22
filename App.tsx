@@ -1930,6 +1930,10 @@ const App: React.FC = () => {
             onBack={() => setCurrentScreen('orders-dashboard')}
             onEdit={() => setCurrentScreen('service-request-create')}
             onGenerateOS={() => setCurrentScreen('order-create')}
+            onCloneSS={(clonedData) => {
+              setSelectedOrder(clonedData as any);
+              setCurrentScreen('service-request-create');
+            }}
             onCancelSS={async () => {
               if (selectedOrder && currentUser) {
                 try {

@@ -13,7 +13,7 @@ export const FilterSelect: React.FC<{
     const showRequiredError = required && isEmpty;
 
     return (
-        <div className={`relative flex items-center flex-1 min-w-[110px] h-[42px] transition-opacity ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`relative flex items-center w-auto shrink-0 min-w-[110px] h-[42px] transition-opacity ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
             <div className={`flex items-stretch h-full w-full bg-white dark:bg-slate-800 border rounded-xl shadow-sm overflow-hidden transition-all ${
                 showRequiredError
                     ? 'border-red-400 ring-1 ring-red-400/30'
@@ -23,14 +23,14 @@ export const FilterSelect: React.FC<{
             }`}>
                 <div
                     onClick={onClick}
-                    className="flex-1 px-3 flex flex-col justify-center border-r border-slate-100 dark:border-slate-700/50 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors min-w-0"
+                    className="flex-1 px-3 flex flex-col justify-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
                     <div className="flex items-center gap-1 mb-0.5">
-                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none">{label}</span>
+                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none whitespace-nowrap">{label}</span>
                         {required && <span className="text-red-500 text-[10px] font-black leading-none">*</span>}
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span className={`text-[11px] font-bold ${
+                        <span className={`text-[11px] font-bold whitespace-nowrap ${
                             showRequiredError
                                 ? 'text-red-400'
                                 : count > 0

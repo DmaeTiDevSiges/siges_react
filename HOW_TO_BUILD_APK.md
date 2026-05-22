@@ -9,34 +9,55 @@ Para gerar o APK final, você precisa ter o ambiente de desenvolvimento Android 
 - **Variável de Ambiente JAVA_HOME**: `C:\Program Files\Android\Android Studio\jbr`
 - **Variável de Ambiente ANDROID_HOME**: `C:\Users\Edukmattos\AppData\Local\Android\Sdk`
 
-## Passos para gerar o APK
+> ✅ **Automático:** O `app_version.txt` (usado pelo sistema de atualizações) é gerado automaticamente durante o `npm run build`. O hook no Gradle garante que isso sempre aconteça antes de qualquer build Android.
 
-### Opção 1: Usando o Android Studio (Recomendado)
-1.  Abra o Android Studio.
-2.  Selecione **Open** e navegue até a pasta `d:\AG\Siges\android`.
-3.  Aguarde o Android Studio sincronizar o projeto e baixar as dependências do Gradle.
-4.  No menu superior, vá em **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
-5.  O APK gerado estará em `android/app/build/outputs/apk/debug/app-debug.apk`.
+---
 
-### Opção 2: Via Linha de Comando
-Se você já tiver o Java e o Android SDK configurados no seu terminal:
+## Opção 1: Tudo em um comando (Recomendado)
 
-1.  Navegue até a pasta android:
-    ```powershell
-    cd android
-    ```
-2.  Execute o comando de build:
-    ```powershell
-    ./gradlew assembleDebug
-    ```
-    *(Se falhar com erro de JAVA_HOME, verifique sua instalação do Java)*
-
-## Atualizando o App
-Sempre que fizer alterações no código React (`src`), execute os seguintes comandos para atualizar o projeto Android:
+Roda `npm run build` + `npx cap sync` + `gradlew assembleDebug` automaticamente:
 
 ```powershell
-npm run build
-npx cap sync
+npm run apk
 ```
 
-Em seguida, gere o APK novamente.
+O APK gerado estará em `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+---
+
+## Opção 2: Somente sincronizar (sem gerar APK via linha de comando)
+
+Prepara o projeto para build no Android Studio (build + sync):
+
+```powershell
+npm run build:android
+```
+
+Depois abra o Android Studio e clique em **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
+
+> 🔒 O hook no `android/app/build.gradle` garante que `npm run build` + `npx cap sync` também rodem automaticamente quando o build é iniciado **pelo Android Studio**.
+
+---
+
+## Opção 3: Passo a passo manual
+
+```powershell
+# 1. Gera o app_version.txt e faz o build do React
+npm run build
+
+# 2. Sincroniza os assets com o projeto Android
+npx cap sync
+
+# 3. Gera o APK via Gradle
+cd android
+./gradlew assembleDebug
+```
+
+---
+
+## Onde encontrar o APK gerado
+
+```
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+

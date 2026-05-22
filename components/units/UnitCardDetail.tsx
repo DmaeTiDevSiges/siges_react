@@ -8,6 +8,14 @@ interface UnitCardDetailProps {
     unit: Unit;
 }
 
+const getStatusType = (statusId: string, statusName?: string): 'active' | 'inactive' | 'pending' => {
+    const name = statusName?.toLowerCase() || '';
+    if (name.includes('ativo') || statusId === '3') return 'active';
+    if (name.includes('desat') || name.includes('inativo') || statusId === '4') return 'inactive';
+    if (name.includes('obra') || name.includes('projeto') || statusId === '1' || statusId === '2') return 'pending';
+    return 'inactive';
+};
+
 export const UnitCardDetail: React.FC<UnitCardDetailProps> = ({ unit }) => {
     return (
         <div className="group relative bg-white dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xl dark:shadow-2xl/20 mt-[-90px] z-10 mx-1 overflow-hidden">
@@ -68,7 +76,11 @@ export const UnitCardDetail: React.FC<UnitCardDetailProps> = ({ unit }) => {
                         ) : (
                             <div />
                         )}
-                        <StatusBadge status={unit.statusId === '1' ? 'active' : 'inactive'} size="sm" />
+                        <StatusBadge 
+                            status={getStatusType(unit.statusId, unit.statusName)} 
+                            label={unit.statusName}
+                            size="sm" 
+                        />
                     </div>
                 </div>
 

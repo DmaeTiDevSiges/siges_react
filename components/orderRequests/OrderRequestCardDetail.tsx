@@ -25,6 +25,13 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, on
     const [viewerIndex, setViewerIndex] = useState(0);
     const statusCfg = getStatusConfig(req.statusId);
 
+    const progressValue = useMemo(() => {
+        if (req.progress === null || req.progress === undefined) return 0;
+        const num = Number(String(req.progress).replace('%', ''));
+        if (isNaN(num)) return 0;
+        return num * 100;
+    }, [req.progress]);
+
     const imageUrls = useMemo(() => {
         // Robust handling of image filenames: handles camelCase, snake_case, and string or array formats
         let files = req.imgFilesNames || (req as any).img_files_names || req.images;
@@ -136,11 +143,11 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, on
                 <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                         className={`h-full transition-all duration-500 ${statusCfg.barColor}`}
-                        style={{ width: req.progress || '0%' }}
+                        style={{ width: `${Math.min(100, Math.max(0, progressValue))}%` }}
                     />
                 </div>
                 <span className="text-[10px] font-black text-slate-900 dark:text-white leading-none">
-                    {req.progress || '0%'}
+                    {Math.round(progressValue)}%
                 </span>
             </div>
 

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/generate-version.js && vite build",
+    "build:android": "npm run build && npx cap sync",
+    "apk": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
     "preview": "vite preview --host 0.0.0.0 --port 3000",
     "start": "vite preview --host 0.0.0.0 --port 3000",
     "lint": "tsc --noEmit",

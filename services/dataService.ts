@@ -69,6 +69,23 @@ const metadataCache = {
 let currentUserPromise: Promise<User | null> | null = null;
 
 export const dataService = {
+    async getAppConfig() {
+        try {
+            const { data, error } = await supabase
+                .from('cfg_app')
+                .select('*')
+                .limit(1)
+                .single();
+            if (error) {
+                console.error('Error fetching cfg_app:', error);
+                return null;
+            }
+            return data;
+        } catch (error) {
+            console.error('Exception fetching cfg_app:', error);
+            return null;
+        }
+    },
     async getProcessingConfigurations() {
         const { data, error } = await supabase
             .from('cfg_orders_visits_processing')
@@ -3123,12 +3140,13 @@ export const dataService = {
         });
 
         // 2. Fetch auxiliary data separately to avoid PGRST200 (Join cache issues)
-        const [clientRes, typeParentRes, typeSubRes, sysParentRes, sysSubRes] = await Promise.all([
+        const [clientRes, typeParentRes, typeSubRes, sysParentRes, sysSubRes, statusRes] = await Promise.all([
             unitData.client_id ? supabase.from('clients').select('name').eq('id', unitData.client_id).single() : Promise.resolve({ data: null }),
             unitData.unit_type_parent_id ? supabase.from('cfg_units_types').select('description').eq('id', unitData.unit_type_parent_id).single() : Promise.resolve({ data: null }),
             unitData.unit_type_id ? supabase.from('cfg_units_types').select('description').eq('id', unitData.unit_type_id).single() : Promise.resolve({ data: null }),
             unitData.system_parent_id ? supabase.from('cfg_systems').select('description').eq('id', unitData.system_parent_id).single() : Promise.resolve({ data: null }),
-            unitData.system_id ? supabase.from('cfg_systems').select('description').eq('id', unitData.system_id).single() : Promise.resolve({ data: null })
+            unitData.system_id ? supabase.from('cfg_systems').select('description').eq('id', unitData.system_id).single() : Promise.resolve({ data: null }),
+            unitData.status_id ? supabase.from('v_units_statuses').select('description').eq('id', unitData.status_id).single() : Promise.resolve({ data: null })
         ]);
 
         const logoUrl = this.getPublicImageUrl(unitData.img_file_path, unitData.img_file_name, {
@@ -3159,6 +3177,7 @@ export const dataService = {
             imgFilePath: unitData.img_file_path,
             imgFileName: unitData.img_file_name,
             statusId: unitData.status_id?.toString() || '1',
+            statusName: statusRes.data?.description,
             logoUrl: logoUrl,
             descriptionFull: unitData.description_full
         };
@@ -3724,6 +3743,7 @@ export const dataService = {
             requestedAt: data.requested_at,
             requestedServices: data.requested_services,
             statusId: data.status_id,
+            statusAt: data.status_at,
             statusDescription: data.status_description,
             statusColor: data.status_color,
             statusIcon: data.status_icon,
@@ -6477,12 +6497,40 @@ export const dataService = {
             });
         }
 
-        const { data, error } = await query;
+        const { data: units, error } = await query;
         if (error) {
             console.error('Error fetching units:', error);
             return [];
         }
-        return data || [];
+
+        // Fetch Reference Data (Types, Systems, and Statuses) in parallel
+        const [
+            { data: unitTypes },
+            { data: systems },
+            { data: statuses }
+        ] = await Promise.all([
+            supabase.from('cfg_units_types').select('id, description'),
+            supabase.from('cfg_systems').select('id, description'),
+            supabase.from('v_units_statuses').select('id, description')
+        ]);
+
+        const typesMap = new Map(unitTypes?.map((t: any) => [t.id, t.description]));
+        const systemsMap = new Map(systems?.map((s: any) => [s.id, s.description]));
+        const statusesMap = new Map(statuses?.map((st: any) => [st.id, st.description]));
+
+        return (units || []).map((item: any) => ({
+            ...item,
+            typeName: typesMap.get(item.unit_type_parent_id),
+            subTypeName: typesMap.get(item.unit_type_id),
+            systemParentName: systemsMap.get(item.system_parent_id),
+            systemName: systemsMap.get(item.system_id),
+            statusName: statusesMap.get(item.status_id),
+            logoUrl: this.getPublicImageUrl(item.img_file_path, item.img_file_name, {
+                width: 400,
+                height: 400,
+                resize: 'cover'
+            }),
+        }));
     },
 
     async getUnitsByIds(ids: string[]): Promise<{ data: any[] | null, error: any }> {

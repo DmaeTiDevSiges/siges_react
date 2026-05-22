@@ -48,6 +48,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
     const [clients, setClients] = useState<Client[]>([]);
     const [unitTypes, setUnitTypes] = useState<UnitType[]>([]);
     const [systems, setSystems] = useState<System[]>([]);
+    const [statuses, setStatuses] = useState<any[]>([]);
     const mapRef = useRef<L.Map | null>(null);
     const markerRef = useRef<L.Marker | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -124,14 +125,16 @@ export const UnitForm: React.FC<UnitFormProps> = ({
     useEffect(() => {
         const loadMetaData = async () => {
             try {
-                const [clientsData, utData, sysData] = await Promise.all([
+                const [clientsData, utData, sysData, statusesData] = await Promise.all([
                     dataService.getClients(),
                     dataService.getUnitTypes(),
-                    dataService.getSystems()
+                    dataService.getSystems(),
+                    dataService.getUnitsStatuses()
                 ]);
                 setClients(clientsData.filter(c => c.status === 'active'));
                 setUnitTypes(utData);
                 setSystems(sysData);
+                setStatuses(statusesData || []);
             } catch (error) {
                 console.error('Failed to load metadata', error);
             }
@@ -549,8 +552,11 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                     value={form.statusId}
                     onChange={(e) => setForm({ ...form, statusId: e.target.value })}
                 >
-                    <option value="1">Ativo</option>
-                    <option value="2">Inativo</option>
+                    {statuses.map(status => (
+                        <option key={status.id} value={status.id}>
+                            {status.description}
+                        </option>
+                    ))}
                 </Select>
             </form>
 

@@ -37,7 +37,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         clientId: initialData?.clientId || '',
         unitId: initialData?.unitId || '',
         unitAssetTagId: initialData?.unitAssetTagId || '',
-        orderTypeId: initialData?.orderTypeId || initialData?.typeId || '',
+        orderTypeId: initialData?.typeId || '',
         priorityId: initialData?.priorityId?.toString() || '',
         requestedServices: initialData?.requestedServices || ''
     });
