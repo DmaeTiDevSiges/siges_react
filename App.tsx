@@ -70,6 +70,8 @@ import { UnitAssetTagAvailableDetails } from './views/Units/UnitAssetTagAvailabl
 import { AssetsSearch } from './views/Assets/AssetsSearch';
 import { AssetDetails } from './views/Assets/AssetView';
 import { AssetForm } from './views/Assets/AssetForm';
+import { AssetsAlerts } from './views/Assets/AssetsAlerts';
+import { AssetsAlertsHeaderWidget } from './components/assets/AssetsAlertsHeaderWidget';
 import { OrdersRequestsDashboardAdmin } from './views/OrderRequest/OrdersRequestsDashboardAdmin';
 import { NotificationsList } from './views/Notifications/NotificationsList';
 import { ServiceRequestDetail } from './views/ServiceRequest/ServiceRequestDetail';
@@ -99,7 +101,7 @@ import { AIKnowledgeAdmin } from './views/Settings/AIKnowledgeAdmin';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import { MaintenancePlansScreen } from './views/Settings/MaintenancePlans/MaintenancePlansScreen';
 
-type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
+type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today';
 
 import { ActionIcon } from './components/ui/ActionIcon';
@@ -879,6 +881,8 @@ const App: React.FC = () => {
       setCurrentScreen('order-plans');
     } else if (currentScreen === 'order-object-form' || currentScreen === 'order-object-edit') {
       setCurrentScreen('order-objects');
+    } else if (currentScreen === 'assets-alerts') {
+      setCurrentScreen('assets-search');
     } else if (currentScreen === 'asset-details') {
       setCurrentScreen(lastAssetSource);
     } else if (currentScreen === 'asset-form' || currentScreen === 'asset-edit' || currentScreen === 'asset-duplicate') {
@@ -1892,6 +1896,16 @@ const App: React.FC = () => {
         return <UnitForm clientId="" onSave={handleSaveUnit} onCancel={() => setCurrentScreen('units-search')} />;
       case 'assets-search':
         return <AssetsSearch currentUser={currentUser!} onSelectAsset={handleAssetSelect} onAdd={() => setCurrentScreen('asset-form')} />;
+      case 'assets-alerts':
+        return <AssetsAlerts onSelectAsset={(assetId) => {
+          const goToAsset = async () => {
+            try {
+              const asset = await dataService.getAssetById(assetId);
+              if (asset) handleAssetSelect(asset);
+            } catch (e) { console.error(e); }
+          };
+          goToAsset();
+        }} />;
       case 'asset-details':
         return selectedAsset ? (
           <AssetDetails
@@ -2215,6 +2229,7 @@ const App: React.FC = () => {
       case 'contract-edit': return 'Editar Contrato';
       case 'units-search': return 'Unidades';
       case 'assets-search': return 'Ativos';
+      case 'assets-alerts': return 'Alertas de Ativos';
       case 'asset-details': return 'Ativo';
       case 'asset-form': return 'Novo Ativo';
       case 'asset-duplicate': return 'Duplicar Ativo';
@@ -2433,6 +2448,11 @@ const App: React.FC = () => {
                 sidebar={!hideMainNavigation ? sidebarContent : undefined}
                 onMenuClick={undefined}
                 tabNavigation={getTabNavigation()}
+                titleRightElement={
+                  (currentScreen as string) === 'assets-search'
+                    ? <AssetsAlertsHeaderWidget onNavigate={(screen) => setCurrentScreen(screen as any)} />
+                    : undefined
+                }
               >
                 {renderContent()}
               </Layout>

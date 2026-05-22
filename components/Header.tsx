@@ -22,6 +22,7 @@ interface HeaderProps {
     rightAction?: React.ReactNode;
     tabNavigation?: React.ReactNode;
     hideBorder?: boolean;
+    titleRightElement?: React.ReactNode;
 }
 
 type UserStatus = 'available' | 'unavailable' | 'busy';
@@ -38,7 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
     subtitle,
     rightAction,
     tabNavigation,
-    hideBorder
+    hideBorder,
+    titleRightElement
 }) => {
 
     // Determinar status atual baseado em isAvailable e isOvInProgress
@@ -80,9 +82,12 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="flex flex-col flex-1 min-w-0">
                     {!tabNavigation ? (
                         <>
-                            <h1 className="text-slate-900 dark:text-white text-2xl font-bold leading-tight tracking-tight truncate">
-                                {title}
-                            </h1>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-slate-900 dark:text-white text-2xl font-bold leading-tight tracking-tight truncate">
+                                    {title}
+                                </h1>
+                                {titleRightElement}
+                            </div>
                             {subtitle && (
                                 <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-0.5">
                                     {subtitle}

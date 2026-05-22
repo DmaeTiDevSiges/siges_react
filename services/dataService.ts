@@ -1706,6 +1706,108 @@ export const dataService = {
         })) as AssetAlert[];
     },
 
+    async getAllActiveAssetAlerts(): Promise<AssetAlert[]> {
+        // 1. Fetch active alerts
+        const { data: alertsData, error: alertsError } = await supabase
+            .from('assets_alerts')
+            .select(`
+                *,
+                cfg_orders_types ( description ),
+                cfg_orders_priorities ( description, color )
+            `)
+            .eq('is_done', false)
+            .eq('is_deleted', false)
+            .order('created_at', { ascending: false });
+
+        if (alertsError) {
+            console.error('Error fetching active asset alerts:', alertsError);
+            throw alertsError;
+        }
+
+        if (!alertsData || alertsData.length === 0) {
+            return [];
+        }
+
+        // 2. Extract unique asset IDs
+        const assetIds = [...new Set(alertsData.map((d: any) => d.asset_id).filter(Boolean))];
+
+        // 3. Fetch asset details if there are any alerts
+        let assetsMap = new Map<string, any>();
+        let unitsMap = new Map<string, string>();
+        let clientsMap = new Map<string, string>();
+        let unitTagsMap = new Map<string, string>();
+
+        if (assetIds.length > 0) {
+            const { data: assetsDataList, error: assetsError } = await supabase
+                .from('assets')
+                .select('*')
+                .in('id', assetIds);
+
+            if (assetsError) {
+                console.error('Error fetching assets for alerts:', assetsError);
+            } else if (assetsDataList && assetsDataList.length > 0) {
+                assetsMap = new Map(assetsDataList.map((a: any) => [a.id.toString(), a]));
+
+                const unitIds = [...new Set(assetsDataList.map((a: any) => a.unit_id).filter(Boolean))];
+                const clientIds = [...new Set(assetsDataList.map((a: any) => a.client_id).filter(Boolean))];
+                const unitAssetTagIds = [...new Set(assetsDataList.map((a: any) => a.unit_asset_tag_id).filter(Boolean))];
+
+                const promises: any[] = [];
+
+                if (unitIds.length > 0)
+                    promises.push(supabase.from('units').select('id, description_full').in('id', unitIds));
+                else
+                    promises.push(Promise.resolve({ data: [] }));
+
+                if (clientIds.length > 0)
+                    promises.push(supabase.from('clients').select('id, name').in('id', clientIds));
+                else
+                    promises.push(Promise.resolve({ data: [] }));
+
+                if (unitAssetTagIds.length > 0)
+                    promises.push(supabase.from('cfg_units_assets_tags').select('id, asset_tag_tag_sub_description').in('id', unitAssetTagIds));
+                else
+                    promises.push(Promise.resolve({ data: [] }));
+
+                const [unitsRes, clientsRes, unitTagsRes] = await Promise.all(promises);
+
+                unitsMap = new Map((unitsRes.data || []).map((u: any) => [u.id.toString(), u.description_full]));
+                clientsMap = new Map((clientsRes.data || []).map((c: any) => [c.id.toString(), c.name]));
+                unitTagsMap = new Map((unitTagsRes.data || []).map((t: any) => [t.id.toString(), t.asset_tag_tag_sub_description]));
+            }
+        }
+
+        // 4. Map everything together
+        return alertsData.map((d: any) => {
+            const assetIdStr = d.asset_id?.toString();
+            const asset = assetIdStr ? assetsMap.get(assetIdStr) : null;
+            const unitIdStr = asset?.unit_id?.toString();
+            const clientIdStr = asset?.client_id?.toString();
+            const unitAssetTagIdStr = asset?.unit_asset_tag_id?.toString();
+
+            return {
+                id: d.id.toString(),
+                assetId: d.asset_id?.toString(),
+                assetDescription: asset?.description,
+                assetCode: asset?.code,
+                clientName: clientIdStr ? clientsMap.get(clientIdStr) : '',
+                unitDescription: unitIdStr ? unitsMap.get(unitIdStr) : '',
+                tagName: unitAssetTagIdStr ? unitTagsMap.get(unitAssetTagIdStr) : '',
+                tagSubName: '',
+                oTypeId: d.o_type_id?.toString(),
+                orderTypeName: d.cfg_orders_types?.description,
+                priorityId: d.priority_id?.toString(),
+                priorityName: d.cfg_orders_priorities?.description,
+                priorityColor: d.cfg_orders_priorities?.color,
+                description: d.description,
+                isDone: d.is_done,
+                ovId: d.ov_id?.toString(),
+                createdAt: d.created_at,
+                createdUserId: d.created_user_id?.toString()
+            };
+        }) as AssetAlert[];
+    },
+
     async createAssetAlert(alert: Partial<AssetAlert>): Promise<AssetAlert> {
         const dbData = {
             asset_id: alert.assetId ? parseInt(alert.assetId) : null,

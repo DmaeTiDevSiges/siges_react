@@ -23,6 +23,7 @@ interface LayoutProps {
   isDashboard?: boolean;
   loading?: boolean;
   loadingText?: string;
+  titleRightElement?: React.ReactNode;
 }
 
 export const Layout: React.FC<LayoutProps> = ({
@@ -43,7 +44,8 @@ export const Layout: React.FC<LayoutProps> = ({
   hideHeaderBorder,
   isDashboard = false,
   loading = false,
-  loadingText
+  loadingText,
+  titleRightElement
 }) => {
   const mainRef = React.useRef<HTMLElement>(null);
 
@@ -73,6 +75,7 @@ export const Layout: React.FC<LayoutProps> = ({
               rightAction={rightAction}
               tabNavigation={tabNavigation}
               hideBorder={hideHeaderBorder}
+              titleRightElement={titleRightElement}
             />
           </div>
         </div>

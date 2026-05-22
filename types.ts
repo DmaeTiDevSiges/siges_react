@@ -582,6 +582,12 @@ export interface AssetAlert {
   orderTypeName?: string;
   priorityName?: string;
   priorityColor?: string;
+  assetDescription?: string;
+  assetCode?: string;
+  clientName?: string;
+  unitDescription?: string;
+  tagName?: string;
+  tagSubName?: string;
 }
 
 export interface Asset {
