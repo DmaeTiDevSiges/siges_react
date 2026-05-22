@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Asset, User } from '../../types';
 import { dataService } from '../../services/dataService';
 import { SearchInput } from '../../components/ui/SearchInput';
@@ -10,6 +10,10 @@ import { IconButton } from '../../components/ui/IconButton';
 import { BarcodeScannerModal } from '../../components/ui/BarcodeScannerModal';
 import { AssetCard } from '../../components/assets/AssetCard';
 import { Loading } from '../../components/ui/Loading';
+import { FilterSelect } from '../../components/ui/FilterSelect';
+import { Modal } from '../../components/ui/Modal';
+import { AssetsSearchPDFButton } from '../../components/reports/AssetsSearchPDFButton';
+import { AssetsSearchExcelButton } from '../../components/reports/AssetsSearchExcelButton';
 
 interface AssetsSearchProps {
     currentUser?: User;
@@ -124,12 +128,125 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         }
     };
 
+    const [advancedFilters, setAdvancedFilters] = useState<any>({
+        systemParentId: [],
+        systemId: [],
+        unitTypeParentId: [],
+        unitTypeId: [],
+        unitId: [],
+        tagId: [],
+        tagSubId: [],
+        statusId: []
+    });
+
+    const [filterSelectOptions, setFilterSelectOptions] = useState<any>({
+        systems: [],
+        subSystems: [],
+        unitTypes: [],
+        unitSubTypes: [],
+        units: [],
+        tags: [],
+        tagSubs: [],
+        statuses: []
+    });
+
+    const [selectionModal, setSelectionModal] = useState<{
+        isOpen: boolean;
+        field: string;
+        label: string;
+        options: { value: string; label: string }[];
+        currentValue: string[];
+    }>({
+        isOpen: false,
+        field: '',
+        label: '',
+        options: [],
+        currentValue: []
+    });
+
+    const initializedDefaults = useRef(false);
+
+    useEffect(() => {
+        if (!hasSearchPermission) return;
+        
+        const fetchFilters = async () => {
+            try {
+                const [systems, subSystems, unitTypes, unitSubTypes, units, tags, tagSubs, statuses] = await Promise.all([
+                    dataService.getSystemsParent(),
+                    dataService.getSystems(),
+                    dataService.getUnitTypesParent(),
+                    dataService.getUnitTypes(),
+                    dataService.getUnits('active'),
+                    dataService.getAssetsTags(),
+                    dataService.getAssetTagSubs(),
+                    dataService.getAssetStatuses()
+                ]);
+
+                setFilterSelectOptions({
+                    systems,
+                    subSystems,
+                    unitTypes,
+                    unitSubTypes,
+                    units,
+                    tags,
+                    tagSubs,
+                    statuses
+                });
+
+                if (!initializedDefaults.current) {
+                     const usoStatus = statuses.find((s: any) => s.description?.toUpperCase() === 'USO' || s.description?.toUpperCase() === 'EM USO' || s.code?.toUpperCase() === 'USO');
+                     if (usoStatus) {
+                         setAdvancedFilters((prev: any) => ({ ...prev, statusId: [usoStatus.id] }));
+                     }
+                     initializedDefaults.current = true;
+                }
+            } catch (err) {
+                console.error("Error loading filters", err);
+            }
+        };
+
+        fetchFilters();
+    }, [hasSearchPermission]);
+
+    const openSelectionModal = (field: string, label: string, options: { value: string; label: string }[]) => {
+        setSelectionModal({
+            isOpen: true,
+            field,
+            label,
+            options,
+            currentValue: advancedFilters[field] || []
+        });
+    };
+
+    const handleModalConfirm = (value: string[]) => {
+        setAdvancedFilters((prev: any) => ({ ...prev, [selectionModal.field]: value }));
+        setSelectionModal(prev => ({ ...prev, isOpen: false }));
+    };
+
+    const handleSystemChange = (value: string[]) => {
+        setAdvancedFilters((prev: any) => ({
+            ...prev,
+            systemParentId: value,
+            systemId: [] // clear child when parent changes
+        }));
+    };
+
+    const handleParentUnitTypeChange = (value: string[]) => {
+        setAdvancedFilters((prev: any) => ({
+            ...prev,
+            unitTypeParentId: value,
+            unitTypeId: [] // clear child when parent changes
+        }));
+    };
+
     useEffect(() => {
         if (!hasSearchPermission) return;
         setVisibleCount(PAGE_SIZE);
 
         const fetchData = async () => {
-            if (!activeSearch.trim()) {
+            const hasAdvancedFilters = Object.values(advancedFilters).some((v: any) => Array.isArray(v) ? v.length > 0 : !!v);
+
+            if (!activeSearch.trim() && !hasAdvancedFilters) {
                 setAssets([]);
                 setLoading(false);
                 setError(null);
@@ -139,7 +256,10 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
             try {
                 setLoading(true);
                 setError(null);
-                const data = await dataService.getAssets('all', activeSearch);
+                const data = await dataService.getFilteredAssets({
+                    search: activeSearch,
+                    ...advancedFilters
+                });
                 setAssets(data);
             } catch (err: any) {
                 console.error('AssetsSearch: ERRO no fetchData:', err);
@@ -150,7 +270,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         };
 
         fetchData();
-    }, [activeSearch, hasSearchPermission]);
+    }, [activeSearch, advancedFilters, hasSearchPermission]);
 
     // Use server-side filtered assets directly
     const filteredAssets = assets;
@@ -176,6 +296,18 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
             {/* Header Section */}
             <div className="px-4 pt-4 pb-3 bg-linear-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary/20 dark:via-primary/10 border-b border-primary/10 dark:border-primary/20">
+                {/* Advanced Filters */}
+                <div className="mb-3 flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1">
+                    <FilterSelect label="SISTEMA" value={advancedFilters.systemParentId || []} onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterSelectOptions.systems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSystemChange([])} />
+                    <FilterSelect label="SUB-SISTEMA" value={advancedFilters.systemId || []} onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterSelectOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, systemId: [] }))} disabled={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)} />
+                    <FilterSelect label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} />
+                    <FilterSelect label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', filterSelectOptions.unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitTypeId: [] }))} disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
+                    <FilterSelect label="UNIDADES" value={advancedFilters.unitId || []} onClick={() => openSelectionModal('unitId', 'UNIDADES', filterSelectOptions.units.map((opt: any) => ({ value: String(opt.id), label: opt.description_full || opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitId: [] }))} />
+                    <FilterSelect label="SETOR" value={advancedFilters.tagId || []} onClick={() => openSelectionModal('tagId', 'SETOR', filterSelectOptions.tags.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, tagId: [] }))} />
+                    <FilterSelect label="POSIÇÃO" value={advancedFilters.tagSubId || []} onClick={() => openSelectionModal('tagSubId', 'POSIÇÃO', filterSelectOptions.tagSubs.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, tagSubId: [] }))} />
+                    <FilterSelect label="SITUAÇÃO" value={advancedFilters.statusId || []} onClick={() => openSelectionModal('statusId', 'SITUAÇÃO', filterSelectOptions.statuses.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, statusId: [] }))} />
+                </div>
+
                 <div className="flex gap-2">
                     <div className="flex-1">
                         <SearchInput
@@ -223,11 +355,28 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                 </div>
             </div>
 
+            <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
+                <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} />
+            </Modal>
+
             <BarcodeScannerModal
                 isOpen={isScannerOpen}
                 onClose={() => setIsScannerOpen(false)}
                 onScan={handleScanResult}
             />
+
+            {/* Actions Bar (PDF/XLS Export) */}
+            {filteredAssets.length > 0 && !loading && !error && (
+                <div className="px-4 py-2 flex justify-between items-center bg-slate-50 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {filteredAssets.length} ativo(s) encontrado(s)
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <AssetsSearchExcelButton assets={filteredAssets} searchQuery={activeSearch} />
+                        <AssetsSearchPDFButton assets={filteredAssets} searchQuery={activeSearch} />
+                    </div>
+                </div>
+            )}
 
             {/* Assets List */}
             <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 pb-24 space-y-4">
@@ -289,6 +438,104 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                     <span className="material-symbols-outlined text-3xl font-bold">add</span>
                 </button>
             )}
+        </div>
+    );
+};
+
+// Memoized Item for Filter Selection List
+const FilterOptionItem = React.memo(({ 
+    opt, 
+    isSelected, 
+    onToggle 
+}: { 
+    opt: { value: string; label: string }; 
+    isSelected: boolean; 
+    onToggle: (value: string) => void;
+}) => {
+    return (
+        <label
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5' : ''}`}
+        >
+            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
+                {isSelected && <span className="material-symbols-outlined text-white text-[16px] font-bold">check</span>}
+            </div>
+            <input
+                type="checkbox"
+                className="hidden"
+                checked={isSelected}
+                onChange={() => onToggle(opt.value)}
+            />
+            <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{opt.label}</span>
+        </label>
+    );
+});
+
+// Modal Content Component for Filters
+const FilterSelectionContent: React.FC<{
+    label: string;
+    options: { value: string; label: string }[];
+    initialValue: string[];
+    onConfirm: (value: string[]) => void;
+}> = ({ label, options, initialValue, onConfirm }) => {
+    const [selectionSearch, setSelectionSearch] = useState('');
+    const [currentValue, setCurrentValue] = useState<string[]>(initialValue);
+
+    const filteredOptions = useMemo(() => {
+        const query = selectionSearch.toLowerCase().trim();
+        if (!query) return options;
+        return options.filter(opt => opt.label.toLowerCase().includes(query));
+    }, [options, selectionSearch]);
+
+    const selectedSet = useMemo(() => new Set(currentValue), [currentValue]);
+
+    const handleToggle = useCallback((value: string) => {
+        setCurrentValue(prev => 
+            prev.includes(value) 
+                ? prev.filter(v => v !== value) 
+                : [...prev, value]
+        );
+    }, []);
+
+    return (
+        <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100">
+            <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                <input
+                    type="text"
+                    placeholder={`Pesquisar ${label}...`}
+                    value={selectionSearch}
+                    onChange={(e) => setSelectionSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                    autoFocus
+                />
+            </div>
+
+            <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
+                {filteredOptions.length > 0 ? (
+                    filteredOptions.map(opt => (
+                        <FilterOptionItem
+                            key={opt.value}
+                            opt={opt}
+                            isSelected={selectedSet.has(opt.value)}
+                            onToggle={handleToggle}
+                        />
+                    ))
+                ) : (
+                    <div className="py-10 text-center flex flex-col items-center gap-2">
+                        <span className="material-symbols-outlined text-slate-300 text-4xl">search_off</span>
+                        <p className="text-slate-400 text-sm font-medium">Nenhum resultado encontrado</p>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                    onClick={() => onConfirm(currentValue)}
+                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all"
+                >
+                    Confirmar Seleção ({currentValue.length})
+                </button>
+            </div>
         </div>
     );
 };

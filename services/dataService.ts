@@ -4760,6 +4760,162 @@ export const dataService = {
         }
     },
 
+    async getFilteredAssets(filters: {
+        systemParentId?: string | string[];
+        systemId?: string | string[];
+        unitTypeParentId?: string | string[];
+        unitTypeId?: string | string[];
+        unitId?: string | string[];
+        tagId?: string | string[];
+        tagSubId?: string | string[];
+        statusId?: string | string[];
+        search?: string;
+    }): Promise<Asset[]> {
+        try {
+            let unitIdsToFilter: string[] | null = null;
+            
+            // Se houver filtros de unidade (que não sejam apenas unitId), busca as unidades primeiro
+            if (
+                (filters.systemParentId && (Array.isArray(filters.systemParentId) ? filters.systemParentId.length > 0 : true)) ||
+                (filters.systemId && (Array.isArray(filters.systemId) ? filters.systemId.length > 0 : true)) ||
+                (filters.unitTypeParentId && (Array.isArray(filters.unitTypeParentId) ? filters.unitTypeParentId.length > 0 : true)) ||
+                (filters.unitTypeId && (Array.isArray(filters.unitTypeId) ? filters.unitTypeId.length > 0 : true))
+            ) {
+                const units = await this.getFilteredUnits({
+                    systemParentId: filters.systemParentId,
+                    systemId: filters.systemId,
+                    unitTypeParentId: filters.unitTypeParentId,
+                    unitTypeId: filters.unitTypeId,
+                });
+                
+                unitIdsToFilter = units.map(u => u.id.toString());
+                
+                if (unitIdsToFilter.length === 0) {
+                    return []; // Nenhum match de unidade
+                }
+            }
+
+            let query = supabase
+                .from('assets')
+                .select('*')
+                .eq('is_deleted', 'false')
+                .order('description');
+
+            if (filters.search && filters.search.trim().length > 0) {
+                const terms = filters.search.trim().split(/\s+/);
+                terms.forEach(term => {
+                    query = query.ilike('searchable', `%${term}%`);
+                });
+            }
+
+            if (filters.unitId && (Array.isArray(filters.unitId) ? filters.unitId.length > 0 : true)) {
+                if (Array.isArray(filters.unitId)) query = query.in('unit_id', filters.unitId);
+                else query = query.eq('unit_id', filters.unitId);
+            } else if (unitIdsToFilter) {
+                query = query.in('unit_id', unitIdsToFilter);
+            }
+
+            if (filters.tagId && (Array.isArray(filters.tagId) ? filters.tagId.length > 0 : true)) {
+                if (Array.isArray(filters.tagId)) query = query.in('tag_id', filters.tagId);
+                else query = query.eq('tag_id', filters.tagId);
+            }
+
+            if (filters.tagSubId && (Array.isArray(filters.tagSubId) ? filters.tagSubId.length > 0 : true)) {
+                if (Array.isArray(filters.tagSubId)) query = query.in('tag_sub_id', filters.tagSubId);
+                else query = query.eq('tag_sub_id', filters.tagSubId);
+            }
+
+            if (filters.statusId && (Array.isArray(filters.statusId) ? filters.statusId.length > 0 : true)) {
+                if (Array.isArray(filters.statusId)) query = query.in('status_id', filters.statusId);
+                else query = query.eq('status_id', filters.statusId);
+            }
+
+            const { data: assetsData, error: assetsError } = await query.limit(5000);
+
+            if (assetsError) {
+                console.error('getFilteredAssets: ERRO:', assetsError);
+                throw assetsError;
+            }
+
+            if (!assetsData || assetsData.length === 0) {
+                return [];
+            }
+
+            // Mapeamento local dos relacionamentos (mesmo padrão do getAssets)
+            const unitIds = [...new Set(assetsData.map((a: any) => a.unit_id).filter(Boolean))];
+            const clientIds = [...new Set(assetsData.map((a: any) => a.client_id).filter(Boolean))];
+            const statusIds = [...new Set(assetsData.map((a: any) => a.status_id).filter(Boolean))];
+            const unitAssetTagIds = [...new Set(assetsData.map((a: any) => a.unit_asset_tag_id).filter(Boolean))];
+
+            const promises: any[] = [];
+            promises.push(unitIds.length > 0 ? supabase.from('units').select('id, description_full').in('id', unitIds) : Promise.resolve({ data: [] }));
+            promises.push(clientIds.length > 0 ? supabase.from('clients').select('id, name').in('id', clientIds) : Promise.resolve({ data: [] }));
+            promises.push(statusIds.length > 0 ? supabase.from('cfg_assets_statuses').select('id, code, color').in('id', statusIds) : Promise.resolve({ data: [] }));
+            promises.push(unitAssetTagIds.length > 0 ? supabase.from('cfg_units_assets_tags').select('id, asset_tag_tag_sub_description').in('id', unitAssetTagIds) : Promise.resolve({ data: [] }));
+
+            const [unitsRes, clientsRes, statusRes, unitTagsRes] = await Promise.all(promises);
+
+            const unitsMap = new Map((unitsRes.data || []).map((u: any) => [u.id.toString(), u.description_full]));
+            const clientsMap = new Map((clientsRes.data || []).map((c: any) => [c.id.toString(), c.name]));
+            const statusMap = new Map((statusRes.data || []).map((s: any) => [s.id.toString(), s.code]));
+            const statusColorMap = new Map((statusRes.data || []).map((s: any) => [s.id.toString(), s.color]));
+            const unitTagsMap = new Map((unitTagsRes.data || []).map((t: any) => [t.id.toString(), t.asset_tag_tag_sub_description]));
+
+            return assetsData.map((item: any) => ({
+                id: item.id.toString(),
+                code: item.code || '',
+                description: item.description || '',
+                clientId: item.client_id?.toString(),
+                clientName: clientsMap.get(item.client_id?.toString()) || '',
+                unitId: item.unit_id?.toString(),
+                unitDescriptionFull: unitsMap.get(item.unit_id?.toString()) || '',
+                statusId: item.status_id?.toString(),
+                statusCode: statusMap.get(item.status_id?.toString()) || '',
+                statusColor: statusColorMap.get(item.status_id?.toString()) || '#22c55e',
+                tagId: item.tag_id?.toString(),
+                tagName: unitTagsMap.get(item.unit_asset_tag_id?.toString()) || '',
+                tagSubId: item.tag_sub_id?.toString(),
+                tagSubName: '',
+                unitAssetTagId: item.unit_asset_tag_id?.toString(),
+                statusAt: item.status_at,
+                acquisitionAt: item.acquisition_at,
+                typeId: item.type_id?.toString(),
+                comments: item.comments,
+                brand: item.brand,
+                model: item.model,
+                serial: item.serial,
+                location: item.location,
+                power: item.power,
+                powerUnit: item.power_unit,
+                voltage: item.voltage,
+                voltageUnit: item.voltage_unit,
+                amperage: item.amperage,
+                poles: item.poles,
+                rotation: item.rotation,
+                rotationUnit: item.rotation_unit,
+                serviceFactor: item.service_factor,
+                rotorDiameter: item.rotor_diameter,
+                rotorDiameterUnit: item.rotor_diameter_unit,
+                flowRateMax: item.flow_rate_max,
+                flowRateMin: item.flow_rate_min,
+                flowRateOperation: item.flow_rate_operation,
+                flowRateUnit: item.flow_rate_unit,
+                pressureMax: item.pressure_max,
+                pressureMin: item.pressure_min,
+                pressureOperation: item.pressure_operation,
+                pressureUnit: item.pressure_unit,
+                weight: item.weight,
+                weightUnit: item.weight_unit,
+                imgFilePath: item.img_file_path,
+                imgFileName: item.img_file_name
+            })) as Asset[];
+
+        } catch (error) {
+            console.error('getFilteredAssets: ERRO CRÍTICO NA FUNÇÃO:', error);
+            throw error;
+        }
+    },
+
     async createAsset(asset: Partial<Asset>): Promise<Asset> {
         const dbData: any = {
             code: asset.code,
@@ -5146,6 +5302,12 @@ export const dataService = {
                 providerCompanyId: providerCompany?.id,
                 providerCompanyName: providerCompany?.name,
                 providerCompanyLogoUrl: providerCompany?.logoUrl,
+
+                // Financial
+                servicesValue: h.services_value,
+                materialsValue: h.materials_value,
+                vehiclesValue: h.vehicles_value,
+                totalValue: h.total_value !== undefined ? h.total_value : ((h.services_value || 0) + (h.materials_value || 0) + (h.vehicles_value || 0)),
 
             } as AssetHistoryItem;
         });

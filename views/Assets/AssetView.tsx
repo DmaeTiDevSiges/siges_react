@@ -7,7 +7,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { LoadMore } from '../../components/ui/LoadMore';
 import { toast } from 'sonner';
-import { formatDateTime } from '../../utils/formatters';
+import { formatDateTime, formatCurrency } from '../../utils/formatters';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
@@ -618,11 +618,40 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                         )}
 
                         {/* Recent History Timeline */}
-                        {activeTab === 'Histórico' && (
-                            <section className="relative">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Histórico Recente</h3>
-                                </div>
+                        {activeTab === 'Histórico' && (() => {
+                            const totalServices = history.reduce((sum, item) => sum + (item.servicesValue || 0), 0);
+                            const totalMaterials = history.reduce((sum, item) => sum + (item.materialsValue || 0), 0);
+                            const totalVehicles = history.reduce((sum, item) => sum + (item.vehiclesValue || 0), 0);
+                            const totalCosts = history.reduce((sum, item) => sum + (item.totalValue || 0), 0);
+                            
+                            return (
+                                <section className="relative">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Histórico</h3>
+                                        
+                                        {(totalCosts > 0 || totalServices > 0) && (
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <div className="flex flex-col gap-0.5 px-2.5 py-1.5 bg-blue-500/5 border border-blue-500/10 rounded-xl min-w-[70px]">
+                                                    <span className="text-[8px] font-black text-blue-500 dark:text-blue-400/70 uppercase leading-none">Serviços</span>
+                                                    <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 leading-none">{formatCurrency(totalServices)}</span>
+                                                </div>
+                                                <div className="flex flex-col gap-0.5 px-2.5 py-1.5 bg-amber-500/5 border border-amber-500/10 rounded-xl min-w-[70px]">
+                                                    <span className="text-[8px] font-black text-amber-500 dark:text-amber-400/70 uppercase leading-none">Materiais</span>
+                                                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 leading-none">{formatCurrency(totalMaterials)}</span>
+                                                </div>
+                                                <div className="flex flex-col gap-0.5 px-2.5 py-1.5 bg-purple-500/5 border border-purple-500/10 rounded-xl min-w-[70px]">
+                                                    <span className="text-[8px] font-black text-purple-500 dark:text-purple-400/70 uppercase leading-none">Transp.</span>
+                                                    <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 leading-none">{formatCurrency(totalVehicles)}</span>
+                                                </div>
+                                                <div className="flex flex-col gap-0.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl ml-auto">
+                                                    <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-500/70 uppercase leading-none">TOTAL</span>
+                                                    <span className="text-[13px] font-black text-emerald-600 dark:text-emerald-500 leading-none tracking-tight">
+                                                        {formatCurrency(totalCosts)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
 
                                 <div className="space-y-0 relative">
                                     {/* Vertical line is now per-item */}
@@ -725,6 +754,29 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                                     </div>
                                                                 </div>
                                                             )}
+
+                                                            {((item.totalValue != null && item.totalValue > 0) || (item.servicesValue != null && item.servicesValue > 0) || (item.materialsValue != null && item.materialsValue > 0) || (item.vehiclesValue != null && item.vehiclesValue > 0)) && (
+                                                                <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/30">
+                                                                    <div className="flex flex-col gap-0.5 px-2.5 py-1.5 bg-blue-500/5 border border-blue-500/10 rounded-xl min-w-[70px]">
+                                                                        <span className="text-[8px] font-black text-blue-500 dark:text-blue-400/70 uppercase leading-none">Serviços</span>
+                                                                        <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 leading-none">{formatCurrency(item.servicesValue || 0)}</span>
+                                                                    </div>
+                                                                    <div className="flex flex-col gap-0.5 px-2.5 py-1.5 bg-amber-500/5 border border-amber-500/10 rounded-xl min-w-[70px]">
+                                                                        <span className="text-[8px] font-black text-amber-500 dark:text-amber-400/70 uppercase leading-none">Materiais</span>
+                                                                        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 leading-none">{formatCurrency(item.materialsValue || 0)}</span>
+                                                                    </div>
+                                                                    <div className="flex flex-col gap-0.5 px-2.5 py-1.5 bg-purple-500/5 border border-purple-500/10 rounded-xl min-w-[70px]">
+                                                                        <span className="text-[8px] font-black text-purple-500 dark:text-purple-400/70 uppercase leading-none">Transp.</span>
+                                                                        <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 leading-none">{formatCurrency(item.vehiclesValue || 0)}</span>
+                                                                    </div>
+                                                                    <div className="flex flex-col gap-0.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl ml-auto">
+                                                                        <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-500/70 uppercase leading-none">TOTAL</span>
+                                                                        <span className="text-[13px] font-black text-emerald-600 dark:text-emerald-500 leading-none tracking-tight">
+                                                                            {formatCurrency(item.totalValue || 0)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -741,7 +793,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                     )}
                                 </div>
                             </section>
-                        )}
+                        );})()}
 
                         {/* Documentation Section */}
                         {activeTab === 'Docs' && (

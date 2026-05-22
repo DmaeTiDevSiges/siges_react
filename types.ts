@@ -1106,6 +1106,12 @@ export interface AssetHistoryItem {
   providerCompanyLogoUrl?: string;
 
   isMoved?: boolean;
+
+  // Financial
+  servicesValue?: number;
+  materialsValue?: number;
+  vehiclesValue?: number;
+  totalValue?: number;
 }
 
 export interface OrderFilters {
