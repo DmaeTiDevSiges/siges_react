@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { OrderRequestForm, OrderRequestFormRef } from './OrderRequestForm';
-import { Order, OrderVisit, SuspendedReason } from '../../types';
+import { CauseReason, Order, OrderVisit, SuspendedReason } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
@@ -16,6 +16,7 @@ interface OrderRequestApproveConfirmProps {
 export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProps> = ({ onBack, onSubmit, initialData, visit }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [suspendedReasons, setSuspendedReasons] = useState<SuspendedReason[]>([]);
+    const [causeReasons, setCauseReasons] = useState<CauseReason[]>([]);
 
     const [hasReadToBottom, setHasReadToBottom] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -25,16 +26,21 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
     const [formData, setFormData] = useState({
         statusId: visit?.ovOStatusId ? String(visit.ovOStatusId) : (initialData?.statusId ? String(initialData.statusId) : '8'),
         progress: visit?.progress !== undefined ? visit.progress : (initialData?.progress ? parseInt(String(initialData.progress).replace('%', '')) : 100),
-        suspendedReasonId: visit?.ovOSuspendedReasonId ? String(visit.ovOSuspendedReasonId) : (initialData?.causeReasonId ? String(initialData.causeReasonId) : '')
+        suspendedReasonId: visit?.ovOSuspendedReasonId ? String(visit.ovOSuspendedReasonId) : '',
+        causeReasonId: initialData?.causeReasonId ? String(initialData.causeReasonId) : ''
     });
 
     useEffect(() => {
         const loadReasons = async () => {
             try {
-                const reasons = await dataService.getSuspendedReasons();
+                const [reasons, causes] = await Promise.all([
+                    dataService.getSuspendedReasons(),
+                    dataService.getOrderCauseReasons()
+                ]);
                 setSuspendedReasons(reasons);
+                setCauseReasons(causes);
             } catch (err) {
-                console.error("Error loading suspension reasons", err);
+                console.error("Error loading approval reasons", err);
             }
         };
         loadReasons();
@@ -54,6 +60,11 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
     const handleConfirmApproval = async () => {
         if (formData.statusId === '6' && !formData.suspendedReasonId) {
             toast.error("Selecione o motivo da suspensão");
+            return;
+        }
+
+        if (!formData.causeReasonId) {
+            toast.error("Selecione a causa da OS");
             return;
         }
 
@@ -118,6 +129,15 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
                             { value: '8', label: 'Concluída' },
                             { value: '6', label: 'Suspensa' }
                         ]}
+                    />
+
+                    <Select
+                        label="Causa da OS"
+                        required
+                        value={formData.causeReasonId}
+                        onChange={(e) => setFormData(prev => ({ ...prev, causeReasonId: e.target.value }))}
+                        options={causeReasons.map(r => ({ value: String(r.id), label: r.description }))}
+                        placeholder="Selecione a causa..."
                     />
 
                     {formData.statusId === '6' && (

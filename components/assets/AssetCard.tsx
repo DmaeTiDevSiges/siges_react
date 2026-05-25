@@ -24,9 +24,9 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onClick, isFavorite
     return (
         <div
             onClick={onClick}
-            className="group relative w-full bg-white dark:bg-slate-900 rounded-[12px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all duration-200 hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30 active:scale-[0.98] cursor-pointer overflow-hidden p-4"
+            className="group relative w-full bg-white dark:bg-slate-900 rounded-[12px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all duration-200 hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30 active:scale-[0.98] cursor-pointer overflow-hidden p-4 border-l-4"
+            style={{ borderLeftColor: asset.statusColor || '#149185' }}
         >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary-dark to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
 
             <div className="relative z-10 flex flex-col gap-3">
                 <div className="flex items-stretch justify-between gap-3">

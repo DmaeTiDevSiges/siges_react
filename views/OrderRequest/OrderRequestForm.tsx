@@ -499,6 +499,16 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                     </>
                                 )}
 
+                                {hasContextInfo && (
+                                    <Select
+                                        label="Setor > Posição"
+                                        value={formData.unitAssetTagId}
+                                        disabled={!formData.unitId}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, unitAssetTagId: e.target.value }))}
+                                        options={assetTags.map(s => ({ value: s.id, label: s.description }))}
+                                    />
+                                )}
+
                                 <Select
                                     label="Tipo OS"
                                     required

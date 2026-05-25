@@ -9,7 +9,7 @@ import { usePermissions } from '../../contexts/PermissionsContext';
 
 interface AssetAlertFormProps {
     assetId: string;
-    ovId?: string;
+    ovaId?: string;
     initialAlert?: AssetAlert;
     onSave: (alert: Partial<AssetAlert>) => Promise<void>;
     onCancel: () => void;
@@ -17,7 +17,7 @@ interface AssetAlertFormProps {
 
 export const AssetAlertForm: React.FC<AssetAlertFormProps> = ({ 
     assetId, 
-    ovId, 
+    ovaId, 
     initialAlert, 
     onSave, 
     onCancel 
@@ -27,7 +27,7 @@ export const AssetAlertForm: React.FC<AssetAlertFormProps> = ({
     
     const [formData, setFormData] = useState<Partial<AssetAlert>>({
         assetId,
-        ovId,
+        ovaId,
         oTypeId: '',
         priorityId: '',
         description: '',
@@ -116,18 +116,6 @@ export const AssetAlertForm: React.FC<AssetAlertFormProps> = ({
                             placeholder="Descreva o problema ou a recomendação..."
                         />
 
-                        <div className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-white/5 rounded-2xl">
-                            <input
-                                type="checkbox"
-                                id="isDone"
-                                checked={formData.isDone}
-                                onChange={e => setFormData({ ...formData, isDone: e.target.checked })}
-                                className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"
-                            />
-                            <label htmlFor="isDone" className="text-sm font-bold text-slate-900 dark:text-slate-200">
-                                Alerta Resolvido / Concluído
-                            </label>
-                        </div>
                     </div>
                 </div>
             </div>

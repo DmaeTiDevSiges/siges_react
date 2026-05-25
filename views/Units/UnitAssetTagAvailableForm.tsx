@@ -42,7 +42,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [isImageSourceSheetOpen, setIsImageSourceSheetOpen] = useState(false);
     const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
-    const [unit, setUnit] = useState<{ latitude?: number; longitude?: number } | null>(null);
+    const [unit, setUnit] = useState<Unit | null>(null);
     const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
@@ -220,6 +220,11 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                 }
 
                 const reasonDescription = isAvailable === false ? reasons.find(r => String(r.id) === reasonId)?.description : '';
+                const unitIdentification = String(assetTag.unit_description ?? '').trim();
+                const assetTagDescription =
+                    assetTag.asset_tag_tag_sub_description ||
+                    assetTag.description ||
+                    'Setor / posiÃ§Ã£o nÃ£o identificado';
 
                 // Format reported_at as in the flow: dd/MM/yyyy HH:mmh
                 const now = new Date();
@@ -227,8 +232,8 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                     now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + 'h';
 
                 const message = `${msgHeader}` +
-                    `${assetTag.unit_description}\n` +
-                    `${assetTag.asset_tag_tag_sub_description}\n` +
+                    `${unitIdentification}\n` +
+                    `${assetTagDescription}\n` +
                     (reasonDescription ? `${reasonDescription}\n` : '') +
                     `${comments || 'Sem observações'}\n\n` +
                     `${currentUser.nameShort || currentUser.nameFull || currentUser.email}\n` +

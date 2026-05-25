@@ -153,6 +153,11 @@ export interface SuspendedReason {
   isAvailable?: boolean;
 }
 
+export interface CauseReason {
+  id: number;
+  description: string;
+}
+
 export interface User {
   id: string; // BigInt (Internal ID)
   uuid: string; // UUID (Auth ID)
@@ -569,7 +574,7 @@ export interface AssetAlert {
   priorityId?: string;
   description?: string;
   isDone: boolean;
-  ovId?: string;
+  ovaId?: string;
   createdUserId?: string;
   createdAt?: string;
   updatedUserId?: string;
@@ -582,6 +587,7 @@ export interface AssetAlert {
   orderTypeName?: string;
   priorityName?: string;
   priorityColor?: string;
+  resolvedAt?: string;
   assetDescription?: string;
   assetCode?: string;
   clientName?: string;

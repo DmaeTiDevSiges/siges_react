@@ -69,6 +69,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [profileId, setProfileId] = useState('');
     const [teamId, setTeamId] = useState('');
     const [companyId, setCompanyId] = useState('');
+    const [isTeamLeader, setIsTeamLeader] = useState(false);
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [companies, setCompanies] = useState<import('../../types').Company[]>([]);
     const [teams, setTeams] = useState<import('../../types').Team[]>([]);
@@ -137,6 +138,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             setProfileId(initialUser.profileId || '');
             setTeamId(initialUser.teamId || '');
             setCompanyId(initialUser.companyId || '');
+            setIsTeamLeader(!!initialUser.isTeamLeader);
             setShiftStart(initialUser.shiftStart?.slice(0, 5) || '08:00');
             setShiftEnd(initialUser.shiftEnd?.slice(0, 5) || '18:00');
 
@@ -167,6 +169,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         setAvatarUrl(currentUserToEdit.avatarUrl);
                         setProfileId(currentUserToEdit.profileId || '');
                         setTeamId(currentUserToEdit.teamId || '');
+                        setIsTeamLeader(!!currentUserToEdit.isTeamLeader);
                         setShiftStart(currentUserToEdit.shiftStart?.slice(0, 5) || '08:00');
                         setShiftEnd(currentUserToEdit.shiftEnd?.slice(0, 5) || '18:00');
 
@@ -290,6 +293,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 profileId: profileId || undefined,
                 teamId: teamId || undefined,
                 companyId: companyId || undefined,
+                isTeamLeader,
                 shiftStart: shiftStart,
                 shiftEnd: shiftEnd
             });
@@ -312,6 +316,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                     teamName: selectedTeam?.name || user.teamName,
                     companyId: companyId || undefined,
                     companyName: selectedCompany?.name || user.companyName,
+                    isTeamLeader,
                     shiftStart: shiftStart,
                     shiftEnd: shiftEnd
                 } as User);
@@ -898,6 +903,33 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                         className="border-none p-0! h-auto! shadow-none focus:ring-0"
                                         options={teams.map(t => ({ value: t.id, label: t.name }))}
                                     />
+                                </div>
+                            </div>
+
+                            {/* Team Leader Card */}
+                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-900/20 text-cyan-500 flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined">supervisor_account</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Líder</label>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-slate-900 dark:text-white font-medium text-sm">
+                                            {isTeamLeader ? 'Sim' : 'Não'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (isAdmin) setIsTeamLeader(prev => !prev);
+                                            }}
+                                            disabled={!isAdmin}
+                                            className={`relative h-7 w-12 rounded-full transition-colors ${isTeamLeader ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'} ${!isAdmin ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                            aria-pressed={isTeamLeader}
+                                            aria-label="Definir usuário como líder"
+                                        >
+                                            <span className={`absolute left-0 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${isTeamLeader ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 

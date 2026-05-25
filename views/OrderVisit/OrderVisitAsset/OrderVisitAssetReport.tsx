@@ -3,7 +3,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { dataService } from '../../../services/dataService';
-import { OrderVisitAssetActivity, OrderVisitAssetMaterial, OrderVisitAssetView, Asset } from '../../../types';
+import { OrderVisitAssetActivity, OrderVisitAssetMaterial, OrderVisitAssetView, Asset, AssetAlert, OrderVisit } from '../../../types';
 import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
 import { OrderVisitAssetCardListItem } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardListItem';
 import { toast } from 'sonner';
@@ -175,6 +175,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [isContractManager, setIsContractManager] = useState(false);
     const [maintenanceProgress, setMaintenanceProgress] = useState<number>(initialAsset?.maintenancePlanProgress || 0);
     const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
+    const [reportAssetAlerts, setReportAssetAlerts] = useState<AssetAlert[]>([]);
+    const [completedAlertIds, setCompletedAlertIds] = useState<string[]>([]);
 
     // Asset swap state
     const [showSwapPage, setShowSwapPage] = useState(false);
@@ -287,6 +289,43 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             loadPageData();
         }
     }, [assetId]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadOpenAssetAlerts = async () => {
+            if (!asset?.assetId) {
+                setReportAssetAlerts([]);
+                setCompletedAlertIds([]);
+                return;
+            }
+
+            try {
+                const orderVisitAssetId = asset.id;
+                const alerts = await dataService.getAssetAlerts(asset.assetId);
+                const visibleAlerts = alerts.filter(alert =>
+                    !alert.isDeleted && (!alert.isDone || alert.ovaId === orderVisitAssetId)
+                );
+
+                if (!isMounted) return;
+
+                setReportAssetAlerts(visibleAlerts);
+                setCompletedAlertIds(visibleAlerts.filter(alert => alert.isDone && alert.ovaId === orderVisitAssetId).map(alert => alert.id));
+            } catch (error) {
+                console.error('Error loading asset alerts:', error);
+                if (isMounted) {
+                    setReportAssetAlerts([]);
+                    setCompletedAlertIds([]);
+                }
+            }
+        };
+
+        loadOpenAssetAlerts();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [asset?.assetId]);
 
     useEffect(() => {
         if (isMoved) {
@@ -442,6 +481,63 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             return false;
         }
         return true;
+    };
+
+    const toggleCompletedAlert = async (alertId: string) => {
+        if (!asset?.id) return;
+
+        const alert = reportAssetAlerts.find(item => item.id === alertId);
+        if (!alert) return;
+
+        const shouldComplete = !completedAlertIds.includes(alertId);
+        setIsUpdatingStatus(true);
+
+        try {
+            await dataService.updateAssetAlert(alertId, {
+                isDone: shouldComplete,
+                updatedUserId: currentUserId,
+                ovaId: shouldComplete ? asset.id : null
+            });
+
+            setCompletedAlertIds(prev =>
+                prev.includes(alertId)
+                    ? prev.filter(id => id !== alertId)
+                    : [...prev, alertId]
+            );
+
+            setReportAssetAlerts(prev => prev.map(item =>
+                item.id === alertId
+                    ? { ...item, isDone: shouldComplete, ovaId: shouldComplete ? asset.id : null }
+                    : item
+            ));
+        } catch (error) {
+            console.error('Error updating alert status:', error);
+            toast.error('Erro ao atualizar status do alerta.');
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    const completeSelectedAlerts = async () => {
+        const orderVisitAssetId = asset?.id;
+
+        const updates = reportAssetAlerts
+            .filter(alert => completedAlertIds.includes(alert.id) !== (alert.isDone && alert.ovaId === orderVisitAssetId))
+            .map(alert => {
+                const shouldComplete = completedAlertIds.includes(alert.id);
+
+                return dataService.updateAssetAlert(alert.id, {
+                    isDone: shouldComplete,
+                    updatedUserId: currentUserId,
+                    ovaId: shouldComplete ? orderVisitAssetId : null
+                });
+            });
+
+        if (updates.length === 0) return;
+
+        await Promise.all(updates);
+
+        setReportAssetAlerts(prev => prev.filter(alert => completedAlertIds.includes(alert.id)));
     };
 
     const handleRemoveAsset = async () => {
@@ -1092,6 +1188,49 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
                 {/* Action Buttons */}
                 {!readOnly && (
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
+                        <SectionHeader icon="notifications" title="ALERTAS RESOLVIDOS" />
+
+                        {reportAssetAlerts.length > 0 ? (
+                            <div className="space-y-3">
+                                {reportAssetAlerts.map(alert => {
+                                    const checked = completedAlertIds.includes(alert.id);
+
+                                    return (
+                                        <label
+                                            key={alert.id}
+                                            className={`flex items-start justify-between gap-4 p-4 rounded-2xl border transition-all ${checked
+                                                ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30'
+                                                : 'bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-800'
+                                                }`}
+                                        >
+                                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-relaxed">
+                                                {alert.description || 'Alerta sem descricao.'}
+                                            </span>
+                                            <span className="flex shrink-0 items-center gap-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    disabled={isUpdatingStatus}
+                                                    onChange={() => toggleCompletedAlert(alert.id)}
+                                                    className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+                                                />
+                                            </span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="p-8 border-2 border-dashed border-slate-50 dark:border-slate-800/50 rounded-2xl text-center">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+                                    Nenhum alerta em aberto para este ativo.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!readOnly && (
                 <div className="flex flex-col gap-4 pb-12">
                     {/* 1) RASCUNHO (1), REVISADO (3) ou REJEITADO (4) actions */}
                     {([1, 3, 4].includes(Number(asset.processingId || 1))) && (
@@ -1600,6 +1739,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         setIsUpdatingStatus(true);
                         if (initialCondition) await handleUpdateComments('before', initialCondition);
                         if (finalCondition) await handleUpdateComments('after', finalCondition);
+                        await completeSelectedAlerts();
                         await dataService.reportedOrderVisitAsset(assetId, currentUserId);
                         toast.success('Relatório reportado com sucesso!');
                         onBack();

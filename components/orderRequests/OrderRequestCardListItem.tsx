@@ -25,7 +25,7 @@ export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> =
         if (req.progress === null || req.progress === undefined) return 0;
         const num = Number(String(req.progress).replace('%', ''));
         if (isNaN(num)) return 0;
-        return num * 100;
+        return num;
     }, [req.progress]);
 
     const imageUrls = useMemo(() => {

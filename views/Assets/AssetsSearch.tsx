@@ -128,15 +128,33 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         }
     };
 
-    const [advancedFilters, setAdvancedFilters] = useState<any>({
-        systemParentId: [],
-        systemId: [],
-        unitTypeParentId: [],
-        unitTypeId: [],
-        unitId: [],
-        tagId: [],
-        tagSubId: [],
-        statusId: []
+    const [advancedFilters, setAdvancedFilters] = useState<any>(() => {
+        try {
+            const saved = localStorage.getItem('assets_filters');
+            return saved ? JSON.parse(saved) : {
+                systemParentId: [],
+                systemId: [],
+                unitTypeParentId: [],
+                unitTypeId: [],
+                unitId: [],
+                tagId: [],
+                tagSubId: [],
+                typeId: [],
+                statusId: []
+            };
+        } catch {
+            return {
+                systemParentId: [],
+                systemId: [],
+                unitTypeParentId: [],
+                unitTypeId: [],
+                unitId: [],
+                tagId: [],
+                tagSubId: [],
+                typeId: [],
+                statusId: []
+            };
+        }
     });
 
     const [filterSelectOptions, setFilterSelectOptions] = useState<any>({
@@ -147,6 +165,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         units: [],
         tags: [],
         tagSubs: [],
+        assetTypes: [],
         statuses: []
     });
 
@@ -171,7 +190,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         
         const fetchFilters = async () => {
             try {
-                const [systems, subSystems, unitTypes, unitSubTypes, units, tags, tagSubs, statuses] = await Promise.all([
+                const [systems, subSystems, unitTypes, unitSubTypes, units, tags, tagSubs, assetTypes, statuses] = await Promise.all([
                     dataService.getSystemsParent(),
                     dataService.getSystems(),
                     dataService.getUnitTypesParent(),
@@ -179,6 +198,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                     dataService.getUnits('active'),
                     dataService.getAssetsTags(),
                     dataService.getAssetTagSubs(),
+                    dataService.getAssetTypes('all'),
                     dataService.getAssetStatuses()
                 ]);
 
@@ -190,13 +210,19 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                     units,
                     tags,
                     tagSubs,
+                    assetTypes,
                     statuses
                 });
 
                 if (!initializedDefaults.current) {
-                     const usoStatus = statuses.find((s: any) => s.description?.toUpperCase() === 'USO' || s.description?.toUpperCase() === 'EM USO' || s.code?.toUpperCase() === 'USO');
-                     if (usoStatus) {
-                         setAdvancedFilters((prev: any) => ({ ...prev, statusId: [usoStatus.id] }));
+                     // Only set default status if not already set from localStorage
+                     const hasStoredStatusId = advancedFilters.statusId && Array.isArray(advancedFilters.statusId) && advancedFilters.statusId.length > 0;
+                     
+                     if (!hasStoredStatusId) {
+                         const usoStatus = statuses.find((s: any) => s.description?.toUpperCase() === 'USO' || s.description?.toUpperCase() === 'EM USO' || s.code?.toUpperCase() === 'USO');
+                         if (usoStatus) {
+                             setAdvancedFilters((prev: any) => ({ ...prev, statusId: [usoStatus.id] }));
+                         }
                      }
                      initializedDefaults.current = true;
                 }
@@ -207,6 +233,11 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
         fetchFilters();
     }, [hasSearchPermission]);
+
+    // Persist filters to localStorage
+    useEffect(() => {
+        localStorage.setItem('assets_filters', JSON.stringify(advancedFilters));
+    }, [advancedFilters]);
 
     const openSelectionModal = (field: string, label: string, options: { value: string; label: string }[]) => {
         setSelectionModal({
@@ -305,6 +336,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                     <FilterSelect label="UNIDADES" value={advancedFilters.unitId || []} onClick={() => openSelectionModal('unitId', 'UNIDADES', filterSelectOptions.units.map((opt: any) => ({ value: String(opt.id), label: opt.description_full || opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitId: [] }))} />
                     <FilterSelect label="SETOR" value={advancedFilters.tagId || []} onClick={() => openSelectionModal('tagId', 'SETOR', filterSelectOptions.tags.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, tagId: [] }))} />
                     <FilterSelect label="POSIÇÃO" value={advancedFilters.tagSubId || []} onClick={() => openSelectionModal('tagSubId', 'POSIÇÃO', filterSelectOptions.tagSubs.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, tagSubId: [] }))} />
+                    <FilterSelect label="TIPO" value={advancedFilters.typeId || []} onClick={() => openSelectionModal('typeId', 'TIPO', filterSelectOptions.assetTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, typeId: [] }))} />
                     <FilterSelect label="SITUAÇÃO" value={advancedFilters.statusId || []} onClick={() => openSelectionModal('statusId', 'SITUAÇÃO', filterSelectOptions.statuses.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, statusId: [] }))} />
                 </div>
 

@@ -1913,6 +1913,12 @@ const App: React.FC = () => {
             onBack={handleBack}
             onEdit={() => setCurrentScreen('asset-edit')}
             onDuplicate={() => setCurrentScreen('asset-duplicate')}
+            onViewReport={(ovaId) => {
+              setSelectedOrderVisitAssetId(ovaId);
+              setSelectedOrderVisitAsset(null);
+              setSelectedVisitForAssetReport(null);
+              setCurrentScreen('order-visit-asset-report');
+            }}
           />
         ) : null;
       case 'asset-form':
@@ -2106,7 +2112,7 @@ const App: React.FC = () => {
                     statusId: parseInt(data.statusId),
                     statusAt: selectedVisitForApproval.ovEndedAt,
                     progress: data.progress,
-                    causeReasonId: data.suspendedReasonId ? parseInt(data.suspendedReasonId) : undefined
+                    causeReasonId: data.causeReasonId ? parseInt(data.causeReasonId) : undefined
                   });
                 }
 

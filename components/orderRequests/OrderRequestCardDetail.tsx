@@ -29,7 +29,7 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, on
         if (req.progress === null || req.progress === undefined) return 0;
         const num = Number(String(req.progress).replace('%', ''));
         if (isNaN(num)) return 0;
-        return num * 100;
+        return num;
     }, [req.progress]);
 
     const imageUrls = useMemo(() => {
@@ -154,7 +154,12 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, on
 
             <div className="pt-1">
                 <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{req.contractDescription}</span>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">{req.contractDescription}</span>
+                        <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wide truncate">
+                            {req.causeReasonDescription || (req as any).cause_reason_description || 'CAUSA N/I'}
+                        </span>
+                    </div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{req.planDescription === 'N/I' ? 'Plano N/I' : req.planDescription}</span>
                 </div>
 

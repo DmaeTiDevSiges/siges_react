@@ -14,6 +14,7 @@ import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { AssetAlertForm } from './AssetAlertForm';
 import { AssetAlert } from '../../types';
 import { AssetDetailsPDFButton } from '../../components/reports/AssetDetailsPDFButton';
+import { AssetAlertListItem } from './AssetAlertListItem';
 
 import QRCode from 'react-qr-code';
 import { Loading } from '../../components/ui/Loading';
@@ -24,6 +25,7 @@ interface AssetDetailsProps {
     onBack: () => void;
     onEdit?: () => void;
     onDuplicate?: () => void;
+    onViewReport?: (ovaId: string) => void;
 }
 
 const AssetCardDetail: React.FC<{ asset: Asset }> = ({ asset }) => {
@@ -37,9 +39,7 @@ const AssetCardDetail: React.FC<{ asset: Asset }> = ({ asset }) => {
         .join(' - ') || "Sem Tag";
 
     return (
-        <div className="group relative bg-white dark:bg-card-dark rounded-[12px] border border-slate-100 dark:border-slate-800 shadow-xl dark:shadow-2xl/20 mt-[-90px] z-10 mx-1 overflow-hidden p-4">
-            {/* Gradient Accent */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary-dark to-primary opacity-100" />
+        <div className="group relative bg-white dark:bg-card-dark rounded-[12px] border border-slate-100 dark:border-slate-800 shadow-xl dark:shadow-2xl/20 mt-[-90px] z-10 mx-1 overflow-hidden p-4 border-l-4" style={{ borderLeftColor: asset.statusColor || '#149185' }}>
 
             <div className="relative z-10 flex flex-col gap-3">
                 {/* Header Row */}
@@ -113,7 +113,7 @@ const AssetCardDetail: React.FC<{ asset: Asset }> = ({ asset }) => {
     );
 };
 
-export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdit, onDuplicate }) => {
+export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdit, onDuplicate, onViewReport }) => {
     const { canView, canCreate, canEdit, canDelete } = usePermissions();
     const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
     const [activeTab, setActiveTab] = useState('Dados');
@@ -126,6 +126,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const [alerts, setAlerts] = useState<AssetAlert[]>([]);
     const [isAddingAlert, setIsAddingAlert] = useState(false);
     const [editingAlert, setEditingAlert] = useState<AssetAlert | null>(null);
+    const [alertFilter, setAlertFilter] = useState<'abertos' | 'resolvidos' | 'todos'>('abertos');
 
     const tabs = ['Dados', 'Histórico', 'Docs', 'Componentes', 'Alertas', 'QR CODE'];
 
@@ -169,9 +170,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const handleAlertDelete = async (id: string) => {
         if (!window.confirm('Tem certeza que deseja excluir este alerta?')) return;
         try {
-            // Need user ID here. Assuming currentUser context exists or just use a dummy for now.
-            // Looking at other files, we might need to get it from a context.
-            await dataService.deleteAssetAlert(id, '1'); // FIXME: Use actual userId
+            await dataService.deleteAssetAlert(id);
             toast.success('Alerta excluído.');
             setAlerts(prev => prev.filter(a => a.id !== id));
         } catch (error) {
@@ -287,6 +286,12 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
         };
         loadDynamicData();
     }, [asset.id, asset.typeId]);
+
+    const filteredAlerts = alerts.filter(alert => {
+        if (alertFilter === 'abertos') return !alert.isDone;
+        if (alertFilter === 'resolvidos') return alert.isDone;
+        return true;
+    });
 
     return (
         <div className="flex flex-col h-full bg-background-light dark:bg-slate-950 text-slate-900 dark:text-white relative">
@@ -511,7 +516,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                 ) : (
                                     <>
                                         <div className="flex items-center justify-between mb-6">
-                                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Alertas Ativos</h3>
+                                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Alertas</h3>
                                             <button
                                                 className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-full transition-all active:scale-95 border-none cursor-pointer"
                                                 onClick={() => setIsAddingAlert(true)}
@@ -521,95 +526,65 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                             </button>
                                         </div>
 
-                                        {alerts.length === 0 ? (
+                                        {/* Filtros de Alertas */}
+                                        <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
+                                            {[
+                                                { value: 'abertos', label: 'Abertos', activeClass: 'bg-red-600 text-white shadow-md shadow-red-600/20' },
+                                                { value: 'resolvidos', label: 'Resolvidos', activeClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' },
+                                                { value: 'todos', label: 'Todos', activeClass: 'bg-blue-500 text-white shadow-md shadow-blue-500/10' }
+                                            ].map(f => (
+                                                <button
+                                                    key={f.value}
+                                                    onClick={() => setAlertFilter(f.value as 'abertos' | 'resolvidos' | 'todos')}
+                                                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border-none ${
+                                                        alertFilter === f.value
+                                                            ? f.activeClass
+                                                            : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
+                                                    }`}
+                                                >
+                                                    {f.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {filteredAlerts.length === 0 ? (
                                             <div className="flex flex-col items-center justify-center py-12 px-6 bg-slate-500/5 rounded-3xl border border-dashed border-slate-200 dark:border-white/10">
                                                 <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4">
                                                     <span className="material-symbols-outlined text-slate-400 text-3xl">notifications_off</span>
                                                 </div>
-                                                <p className="text-xs font-bold text-slate-900 dark:text-slate-200 mb-1">Sem alertas ativos</p>
+                                                <p className="text-xs font-bold text-slate-900 dark:text-slate-200 mb-1">
+                                                    {alertFilter === 'abertos' ? 'Sem alertas abertos' : alertFilter === 'resolvidos' ? 'Sem alertas resolvidos' : 'Sem alertas ativos'}
+                                                </p>
                                                 <p className="text-[11px] text-slate-500 text-center max-w-[240px] leading-relaxed">
-                                                    Não existem alertas de criticidade ou indisponibilidade registrados para este equipamento no momento.
+                                                    {alertFilter === 'abertos' 
+                                                        ? 'Não existem alertas pendentes de resolução para este equipamento.' 
+                                                        : alertFilter === 'resolvidos' 
+                                                            ? 'Não existem alertas resolvidos para este equipamento.' 
+                                                            : 'Não existem alertas de criticidade ou indisponibilidade registrados para este equipamento no momento.'}
                                                 </p>
                                             </div>
                                         ) : (
                                             <div className="grid grid-cols-1 gap-4">
-                                                {alerts.map(alert => (
-                                                    <div 
-                                                        key={alert.id} 
-                                                        className={`group relative p-5 rounded-3xl border border-slate-100 dark:border-white/5 bg-white dark:bg-card-dark shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 ${alert.isDone ? 'opacity-60 grayscale-[0.5]' : ''}`}
-                                                    >
-                                                        {/* Accent line based on priority color */}
-                                                        <div 
-                                                            className="absolute top-4 left-0 bottom-4 w-1 rounded-r-full transition-all group-hover:w-1.5" 
-                                                            style={{ backgroundColor: alert.priorityColor || '#64748b' }} 
+                                                {filteredAlerts.map(alert => {
+                                                    const enrichedAlert = {
+                                                        ...alert,
+                                                        assetCode: asset.code,
+                                                        assetDescription: asset.description,
+                                                        clientName: asset.clientName,
+                                                        unitDescription: asset.unitDescriptionFull || asset.location,
+                                                        tagName: asset.tagName,
+                                                        tagSubName: asset.tagSubName
+                                                    };
+                                                    return (
+                                                        <AssetAlertListItem
+                                                            key={alert.id}
+                                                            alert={enrichedAlert}
+                                                            onEdit={setEditingAlert}
+                                                            onDelete={handleAlertDelete}
+                                                            onViewReport={onViewReport}
                                                         />
-                                                        
-                                                        <div className="flex items-start justify-between gap-4 pl-2">
-                                                            <div className="flex-1 space-y-4">
-                                                                {/* Badges Row */}
-                                                                <div className="flex items-center gap-2">
-                                                                    <div 
-                                                                        className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-white shadow-lg/20"
-                                                                        style={{ backgroundColor: alert.priorityColor || '#64748b' }}
-                                                                    >
-                                                                        {alert.priorityName || 'Prioridade'}
-                                                                    </div>
-                                                                    {alert.orderTypeName && (
-                                                                        <div className="bg-slate-100 dark:bg-white/10 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-white/5">
-                                                                            {alert.orderTypeName}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Content Layer */}
-                                                                <div className="flex items-start gap-4">
-                                                                    <div className="w-10 h-10 rounded-2xl bg-slate-50 dark:bg-white/5 flex items-center justify-center shrink-0 border border-slate-100 dark:border-white/5">
-                                                                        <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px]">
-                                                                            {alert.orderTypeName?.includes('ELETRICA') ? 'bolt' : 
-                                                                            alert.orderTypeName?.includes('MECANICA') ? 'settings' : 
-                                                                            alert.orderTypeName?.includes('HIDRAULICA') ? 'water_drop' :
-                                                                            'warning'}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="space-y-1 py-1">
-                                                                        <p className="text-[14px] font-bold text-slate-800 dark:text-slate-100 leading-snug">
-                                                                            {alert.description}
-                                                                        </p>
-                                                                        <div className="flex items-center gap-4 pt-2">
-                                                                            <div className="flex items-center gap-1.5">
-                                                                                <span className="material-symbols-outlined text-[14px] text-slate-400">calendar_today</span>
-                                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                                                                    {alert.createdAt ? new Date(alert.createdAt).toLocaleDateString('pt-BR') : '--/--/----'}
-                                                                                </span>
-                                                                            </div>
-                                                                            {alert.isDone && (
-                                                                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                                                                                    <span className="material-symbols-outlined text-[12px] font-black">check_circle</span>
-                                                                                    <span className="text-[9px] font-black uppercase tracking-widest">Resolvido</span>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex flex-col gap-1 transition-all">
-                                                                <IconButton 
-                                                                    icon="edit" 
-                                                                    size="sm" 
-                                                                    onClick={() => setEditingAlert(alert)}
-                                                                    className="text-slate-300 hover:text-primary hover:bg-primary/10 transition-all rounded-xl grayscale group-hover:grayscale-0"
-                                                                />
-                                                                <IconButton 
-                                                                    icon="delete" 
-                                                                    size="sm" 
-                                                                    onClick={() => handleAlertDelete(alert.id)}
-                                                                    className="text-slate-300 hover:text-red-500 hover:bg-red-500/10 transition-all rounded-xl grayscale group-hover:grayscale-0"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </>

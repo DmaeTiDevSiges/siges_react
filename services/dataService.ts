@@ -1,7 +1,7 @@
 // Data Service for SIGES application
 import { supabase } from './supabase';
 import { r2Service } from './r2Service';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason } from '../types';
 
 
 
@@ -1685,6 +1685,27 @@ export const dataService = {
             throw error;
         }
 
+        // Buscar ov_ended_at da view para alertas resolvidos
+        const ovaIds = (data || [])
+            .filter((item: any) => item.ova_id)
+            .map((item: any) => item.ova_id);
+
+        let resolvedMap = new Map<string, string>();
+        if (ovaIds.length > 0) {
+            const { data: ovaData } = await supabase
+                .from('v_orders_visits_assets')
+                .select('id, ov_ended_at')
+                .in('id', ovaIds);
+
+            if (ovaData) {
+                ovaData.forEach((ova: any) => {
+                    if (ova.ov_ended_at) {
+                        resolvedMap.set(ova.id.toString(), ova.ov_ended_at);
+                    }
+                });
+            }
+        }
+
         return (data || []).map((item: any) => ({
             id: item.id.toString(),
             assetId: item.asset_id.toString(),
@@ -1692,7 +1713,7 @@ export const dataService = {
             priorityId: item.priority_id?.toString(),
             description: item.description,
             isDone: item.is_done,
-            ovId: item.ov_id?.toString(),
+            ovaId: item.ova_id?.toString(),
             createdUserId: item.created_user_id?.toString(),
             createdAt: item.created_at,
             updatedUserId: item.updated_user_id?.toString(),
@@ -1700,10 +1721,97 @@ export const dataService = {
             isDeleted: item.is_deleted,
             deletedUserId: item.deleted_user_id?.toString(),
             deletedAt: item.deleted_at,
+            resolvedAt: item.ova_id ? resolvedMap.get(item.ova_id.toString()) : undefined,
             orderTypeName: item.cfg_orders_types?.description,
             priorityName: item.cfg_orders_priorities?.description,
             priorityColor: item.cfg_orders_priorities?.color
         })) as AssetAlert[];
+    },
+    async getAllAssetAlerts(): Promise<AssetAlert[]> {
+        // 1. Fetch all alerts
+        const { data: alertsData, error: alertsError } = await supabase
+            .from('assets_alerts')
+            .select(`
+                *,
+                cfg_orders_types ( description ),
+                cfg_orders_priorities ( description, color )
+            `)
+            .eq('is_deleted', false)
+            .order('created_at', { ascending: false });
+
+        if (alertsError) {
+            console.error('Error fetching all asset alerts:', alertsError);
+            throw alertsError;
+        }
+
+        if (!alertsData || alertsData.length === 0) {
+            return [];
+        }
+
+        // 2. Extract unique asset IDs
+        const assetIds = [...new Set(alertsData.map((d: any) => d.asset_id).filter(Boolean))];
+
+        // 3. Fetch asset details from v_assets view (already has client, unit, tags joined)
+        let assetsMap = new Map<string, any>();
+
+        if (assetIds.length > 0) {
+            const { data: assetsDataList, error: assetsError } = await supabase
+                .from('v_assets')
+                .select('*')
+                .in('id', assetIds);
+
+            if (assetsError) {
+                console.error('Error fetching assets for alerts:', assetsError);
+            } else if (assetsDataList && assetsDataList.length > 0) {
+                assetsMap = new Map(assetsDataList.map((a: any) => [a.id.toString(), a]));
+            }
+        }
+
+        // Fetch ov_ended_at for resolved alerts (where ovaId is present)
+        const ovaIds = [...new Set(alertsData.filter((a: any) => a.is_done && a.ova_id).map((a: any) => a.ova_id))];
+        let resolvedMap = new Map<string, string>();
+        if (ovaIds.length > 0) {
+            const { data: ovaData } = await supabase
+                .from('v_orders_visits_assets')
+                .select('id, ov_ended_at')
+                .in('id', ovaIds);
+            
+            if (ovaData) {
+                resolvedMap = new Map(ovaData.map((o: any) => [o.id.toString(), o.ov_ended_at]));
+            }
+        }
+
+        return alertsData.map((item: any) => {
+            const assetData = assetsMap.get(item.asset_id?.toString());
+
+            const resolvedAt = (item.is_done && item.ova_id) ? resolvedMap.get(item.ova_id.toString()) : undefined;
+
+            return {
+                id: item.id.toString(),
+                assetId: item.asset_id?.toString(),
+                description: item.description,
+                isDone: item.is_done,
+                ovaId: item.ova_id?.toString(),
+                priorityId: item.priority_id,
+                orderTypeId: item.order_type_id,
+                createdAt: item.created_at,
+                updatedAt: item.updated_at,
+                createdUserId: item.created_user_id?.toString(),
+                updatedUserId: item.updated_user_id?.toString(),
+                isDeleted: item.is_deleted,
+
+                priorityName: item.cfg_orders_priorities?.description,
+                priorityColor: item.cfg_orders_priorities?.color,
+                orderTypeName: item.cfg_orders_types?.description,
+                assetCode: assetData?.code,
+                assetDescription: assetData?.description,
+                unitDescription: assetData?.unit_description_full,
+                clientName: assetData?.client_name,
+                tagName: assetData?.tag_name,
+                tagSubName: assetData?.tag_sub_name,
+                resolvedAt
+            } as AssetAlert;
+        });
     },
 
     async getAllActiveAssetAlerts(): Promise<AssetAlert[]> {
@@ -1731,15 +1839,12 @@ export const dataService = {
         // 2. Extract unique asset IDs
         const assetIds = [...new Set(alertsData.map((d: any) => d.asset_id).filter(Boolean))];
 
-        // 3. Fetch asset details if there are any alerts
+        // 3. Fetch asset details from v_assets view (already has client, unit, tags joined)
         let assetsMap = new Map<string, any>();
-        let unitsMap = new Map<string, string>();
-        let clientsMap = new Map<string, string>();
-        let unitTagsMap = new Map<string, string>();
 
         if (assetIds.length > 0) {
             const { data: assetsDataList, error: assetsError } = await supabase
-                .from('assets')
+                .from('v_assets')
                 .select('*')
                 .in('id', assetIds);
 
@@ -1747,33 +1852,6 @@ export const dataService = {
                 console.error('Error fetching assets for alerts:', assetsError);
             } else if (assetsDataList && assetsDataList.length > 0) {
                 assetsMap = new Map(assetsDataList.map((a: any) => [a.id.toString(), a]));
-
-                const unitIds = [...new Set(assetsDataList.map((a: any) => a.unit_id).filter(Boolean))];
-                const clientIds = [...new Set(assetsDataList.map((a: any) => a.client_id).filter(Boolean))];
-                const unitAssetTagIds = [...new Set(assetsDataList.map((a: any) => a.unit_asset_tag_id).filter(Boolean))];
-
-                const promises: any[] = [];
-
-                if (unitIds.length > 0)
-                    promises.push(supabase.from('units').select('id, description_full').in('id', unitIds));
-                else
-                    promises.push(Promise.resolve({ data: [] }));
-
-                if (clientIds.length > 0)
-                    promises.push(supabase.from('clients').select('id, name').in('id', clientIds));
-                else
-                    promises.push(Promise.resolve({ data: [] }));
-
-                if (unitAssetTagIds.length > 0)
-                    promises.push(supabase.from('cfg_units_assets_tags').select('id, asset_tag_tag_sub_description').in('id', unitAssetTagIds));
-                else
-                    promises.push(Promise.resolve({ data: [] }));
-
-                const [unitsRes, clientsRes, unitTagsRes] = await Promise.all(promises);
-
-                unitsMap = new Map((unitsRes.data || []).map((u: any) => [u.id.toString(), u.description_full]));
-                clientsMap = new Map((clientsRes.data || []).map((c: any) => [c.id.toString(), c.name]));
-                unitTagsMap = new Map((unitTagsRes.data || []).map((t: any) => [t.id.toString(), t.asset_tag_tag_sub_description]));
             }
         }
 
@@ -1781,19 +1859,16 @@ export const dataService = {
         return alertsData.map((d: any) => {
             const assetIdStr = d.asset_id?.toString();
             const asset = assetIdStr ? assetsMap.get(assetIdStr) : null;
-            const unitIdStr = asset?.unit_id?.toString();
-            const clientIdStr = asset?.client_id?.toString();
-            const unitAssetTagIdStr = asset?.unit_asset_tag_id?.toString();
 
             return {
                 id: d.id.toString(),
                 assetId: d.asset_id?.toString(),
                 assetDescription: asset?.description,
                 assetCode: asset?.code,
-                clientName: clientIdStr ? clientsMap.get(clientIdStr) : '',
-                unitDescription: unitIdStr ? unitsMap.get(unitIdStr) : '',
-                tagName: unitAssetTagIdStr ? unitTagsMap.get(unitAssetTagIdStr) : '',
-                tagSubName: '',
+                clientName: asset?.client_name || '',
+                unitDescription: asset?.unit_description_full || '',
+                tagName: asset?.tag_name || '',
+                tagSubName: asset?.tag_sub_name || '',
                 oTypeId: d.o_type_id?.toString(),
                 orderTypeName: d.cfg_orders_types?.description,
                 priorityId: d.priority_id?.toString(),
@@ -1801,7 +1876,7 @@ export const dataService = {
                 priorityColor: d.cfg_orders_priorities?.color,
                 description: d.description,
                 isDone: d.is_done,
-                ovId: d.ov_id?.toString(),
+                ovaId: d.ova_id?.toString(),
                 createdAt: d.created_at,
                 createdUserId: d.created_user_id?.toString()
             };
@@ -1809,16 +1884,21 @@ export const dataService = {
     },
 
     async createAssetAlert(alert: Partial<AssetAlert>): Promise<AssetAlert> {
-        const dbData = {
+        const currentUser = await this.getCurrentUser();
+
+        const dbData: any = {
             asset_id: alert.assetId ? parseInt(alert.assetId) : null,
             o_type_id: alert.oTypeId ? parseInt(alert.oTypeId) : null,
             priority_id: alert.priorityId ? parseInt(alert.priorityId) : null,
             description: alert.description,
             is_done: alert.isDone ?? false,
-            ov_id: alert.ovId ? parseInt(alert.ovId) : null,
-            created_user_id: alert.createdUserId ? parseInt(alert.createdUserId) : null,
+            created_user_id: currentUser ? parseInt(currentUser.id) : null,
             created_at: new Date().toISOString()
         };
+
+        if (alert.ovaId) {
+            dbData.ova_id = parseInt(alert.ovaId);
+        }
 
         const { data, error } = await supabase
             .from('assets_alerts')
@@ -1831,6 +1911,7 @@ export const dataService = {
         return {
             ...alert,
             id: data.id.toString(),
+            createdUserId: currentUser ? currentUser.id : undefined,
             createdAt: data.created_at
         } as AssetAlert;
     },
@@ -1843,7 +1924,7 @@ export const dataService = {
         if (alert.priorityId !== undefined) dbData.priority_id = alert.priorityId ? parseInt(alert.priorityId) : null;
         if (alert.description !== undefined) dbData.description = alert.description;
         if (alert.isDone !== undefined) dbData.is_done = alert.isDone;
-        if (alert.ovId !== undefined) dbData.ov_id = alert.ovId ? parseInt(alert.ovId) : null;
+        if (alert.ovaId !== undefined) dbData.ova_id = alert.ovaId ? parseInt(alert.ovaId) : null;
         if (alert.updatedUserId !== undefined) dbData.updated_user_id = alert.updatedUserId ? parseInt(alert.updatedUserId) : null;
 
         const { data, error } = await supabase
@@ -1862,12 +1943,14 @@ export const dataService = {
         } as AssetAlert;
     },
 
-    async deleteAssetAlert(id: string, userId: string): Promise<void> {
+    async deleteAssetAlert(id: string): Promise<void> {
+        const currentUser = await this.getCurrentUser();
+
         const { error } = await supabase
             .from('assets_alerts')
             .update({
                 is_deleted: true,
-                deleted_user_id: parseInt(userId),
+                deleted_user_id: currentUser ? parseInt(currentUser.id) : null,
                 deleted_at: new Date().toISOString()
             })
             .eq('id', id);
@@ -2628,6 +2711,7 @@ export const dataService = {
             notificationsAmount: data.notifications_amount || 0,
             createdAt: data.created_at,
             vehicleId: data.vehicle_id?.toString(),
+            isTeamLeader: data.is_team_leader,
             isAvailable: data.is_available,
             isOvInProgress: data.is_ov_in_progress,
             ovIdInProgress: data.ov_id_in_progress?.toString(),
@@ -2680,6 +2764,10 @@ export const dataService = {
             shift_start: user.shiftStart,
             shift_end: user.shiftEnd
         };
+
+        if (user.isTeamLeader !== undefined) {
+            updateData.is_team_leader = user.isTeamLeader;
+        }
 
         const { error: updateError } = await supabase
             .from('users')
@@ -3930,7 +4018,7 @@ export const dataService = {
                     requesterTeamCode: row.team_code,
                     requesterPhone: row.requester_phone,
                     requestedAt: row.requested_at,
-                    progress: row.progress,
+                    progress: row.progress ? `${Math.round(parseFloat(String(row.progress)) * 100)}%` : '0%',
                     providerCompanyName: row.provider_company_description || row.provider_company_name || providerCompany?.description,
                     providerLogo: providerLogoUrl,
                     unitDescription: row.unit_description,
@@ -4768,6 +4856,7 @@ export const dataService = {
         unitId?: string | string[];
         tagId?: string | string[];
         tagSubId?: string | string[];
+        typeId?: string | string[];
         statusId?: string | string[];
         search?: string;
     }): Promise<Asset[]> {
@@ -4828,6 +4917,11 @@ export const dataService = {
             if (filters.statusId && (Array.isArray(filters.statusId) ? filters.statusId.length > 0 : true)) {
                 if (Array.isArray(filters.statusId)) query = query.in('status_id', filters.statusId);
                 else query = query.eq('status_id', filters.statusId);
+            }
+
+            if (filters.typeId && (Array.isArray(filters.typeId) ? filters.typeId.length > 0 : true)) {
+                if (Array.isArray(filters.typeId)) query = query.in('type_id', filters.typeId);
+                else query = query.eq('type_id', filters.typeId);
             }
 
             const { data: assetsData, error: assetsError } = await query.limit(5000);
@@ -6905,6 +6999,21 @@ export const dataService = {
         return data || [];
     },
 
+    async getOrderCauseReasons(): Promise<CauseReason[]> {
+        const { data, error } = await supabase
+            .from('v_orders_causes_reasons')
+            .select('id, description')
+            .eq('is_availabe', true)
+            .order('description');
+
+        if (error) {
+            console.error('Error fetching order cause reasons:', error);
+            return [];
+        }
+
+        return data || [];
+    },
+
 
     async getTeamLeader(teamId: string): Promise<User | null> {
         const { data, error } = await supabase
@@ -7720,7 +7829,7 @@ export const dataService = {
                 clientName: item.client_name,
                 contractDescription: item.contract_description,
                 planDescription: item.plan_description,
-                progress: item.progress?.toString(),
+                progress: item.progress ? `${Math.round(parseFloat(String(item.progress)) * 100)}%` : '0%',
                 imgFilePath: item.img_file_path,
                 imgFileName: item.img_file_name,
                 imgFilesNames: item.img_files_names,
@@ -7858,7 +7967,7 @@ export const dataService = {
                 clientName: item.client_name,
                 contractDescription: item.contract_description,
                 planDescription: item.plan_description,
-                progress: item.progress?.toString(),
+                progress: item.progress ? `${Math.round(parseFloat(String(item.progress)) * 100)}%` : '0%',
                 imgFilePath: item.img_file_path,
                 imgFileName: item.img_file_name,
                 imgFilesNames: item.img_files_names,
@@ -7985,7 +8094,7 @@ export const dataService = {
                 statusIcon: row.status_icon,
                 iconColor: row.icon_color,
                 statusBackgroundColor: row.status_background_color,
-                progress: row.progress,
+                progress: row.progress ? `${Math.round(parseFloat(String(row.progress)) * 100)}%` : '0%',
                 unitDescription: row.unit_description,
                 unitDescriptionFull: row.unit_description_full,
                 typeDescription: row.type_description,
@@ -8068,7 +8177,7 @@ export const dataService = {
                 statusIcon: row.status_icon,
                 iconColor: row.icon_color,
                 statusBackgroundColor: row.status_background_color,
-                progress: row.progress,
+                progress: row.progress ? `${Math.round(parseFloat(String(row.progress)) * 100)}%` : '0%',
                 unitDescription: row.unit_description,
                 unitDescriptionFull: row.unit_description_full,
                 typeDescription: row.type_description,

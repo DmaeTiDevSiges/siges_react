@@ -107,6 +107,11 @@ export const UserViewScreen: React.FC<UserViewScreenProps> = ({ user, onBack, on
                             label="Perfil / Cargo"
                             value={user.profileName || 'N/A'}
                         />
+                        <InfoRow
+                            icon="supervisor_account"
+                            label="Líder"
+                            value={user.isTeamLeader ? 'Sim' : 'Não'}
+                        />
                     </div>
                 </section>
 
