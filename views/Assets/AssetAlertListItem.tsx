@@ -12,6 +12,7 @@ interface AssetAlertListItemProps {
     onEdit?: (alert: AssetAlert) => void;
     onDelete?: (id: string) => void;
     onViewReport?: (ovaId: string) => void;
+    hideAssetIdentification?: boolean;
 }
 
 export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
@@ -20,6 +21,7 @@ export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
     onEdit,
     onDelete,
     onViewReport
+    , hideAssetIdentification
 }) => {
     // Formatar datas com segurança
     const formatDate = (dateStr?: string, pattern: string = "dd/MM/yyyy HH:mm 'h'") => {
@@ -62,75 +64,65 @@ export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
             } ${alert.isDone ? 'opacity-80' : ''}`}
             style={{ borderLeftColor: priorityColor }}
         >
-            {/* ========================================================================= */}
-            {/* PARTE SUPERIOR: INFORMAÇÕES DO ATIVO (ESTILO IMAGEM 01)                    */}
-            {/* ========================================================================= */}
-            <div className="flex items-stretch justify-between gap-3 mb-4">
-                {/* Status Badge estilo Ativo */}
-                <div
-                    className="text-white rounded-[12px] px-3.5 py-1.5 flex items-center shadow-md shrink-0"
-                    style={{ backgroundColor: priorityColor }}
-                >
-                    <div className="flex flex-col leading-tight text-left">
-                        <span className="text-[12px] font-black tracking-tight uppercase leading-none mb-0.5">
-                            {alert.assetCode || 'N/A'}
-                        </span>
-                        <div className="flex items-center gap-2 mt-0.5 leading-none">
-                            <span className="text-[8px] font-black uppercase tracking-wider opacity-90">ATIVO</span>
-                            <span className="text-[8px] font-black uppercase tracking-wider opacity-90">
-                                {formatDate(alert.createdAt, 'dd/MM/yyyy')}
+            {!hideAssetIdentification && (
+                <>
+                    {/* ========================================================================= */}
+                    {/* PARTE SUPERIOR: INFORMAÇÕES DO ATIVO (ESTILO IMAGEM 01)                    */}
+                    {/* ========================================================================= */}
+                    <div className="flex items-stretch justify-between gap-3 mb-4">
+                        {/* Status Badge estilo Ativo */}
+                        <div
+                            className="text-white rounded-[12px] px-4 py-2.5 flex items-center shadow-md shrink-0"
+                            style={{ backgroundColor: alert.assetStatusColor || priorityColor }}
+                        >
+                            <div className="flex flex-col text-left justify-center">
+                                <span className="text-[16px] font-bold tracking-tight leading-none mb-1">
+                                    {alert.assetCode || 'N/A'}
+                                </span>
+                                <div className="flex items-center gap-1.5 leading-none text-[9.5px] font-bold opacity-95 tracking-wide">
+                                    <span>{alert.assetStatusName || 'N/A'}</span>
+                                    <span>{formatDate(alert.createdAt, "dd/MM/yyyy")}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Avatar do Ativo */}
+                        <Avatar
+                            src={dataService.getPublicImageUrl('', '', { width: 100, height: 100, resize: 'cover' })}
+                            alt={alert.assetDescription || 'Ativo'}
+                            size="sm"
+                            className="border border-slate-200 dark:border-slate-800 shrink-0"
+                        />
+                    </div>
+
+                    {/* Descrição do Ativo */}
+                    <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase leading-snug tracking-wide text-left mb-4">
+                        {alert.assetDescription || 'Sem descrição do ativo'}
+                    </h3>
+
+                    {/* Grade Técnica */}
+                    <div className="grid grid-cols-2 gap-4 text-left mb-2">
+                        {/* Unidade */}
+                        <div className="flex flex-col gap-[2px]">
+                            <span className="text-[8px] text-slate-400 dark:text-slate-500 font-extrabold uppercase leading-none">Unidade</span>
+                            <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase leading-tight">
+                                {alert.clientName || '(Sem cliente)'}
+                            </span>
+                            <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase leading-tight">
+                                {alert.unitDescription || '(Sem unidade)'}
+                            </span>
+                        </div>
+
+                        {/* Setor e Posição */}
+                        <div className="flex flex-col gap-[2px]">
+                            <span className="text-[8px] text-slate-400 dark:text-slate-500 font-extrabold uppercase leading-none">Setor - Posição</span>
+                            <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase leading-tight">
+                                {[alert.tagName, alert.tagSubName].filter(Boolean).join(' > ') || 'SEM TAG'}
                             </span>
                         </div>
                     </div>
-                </div>
-
-                {/* Avatar do Ativo */}
-                <Avatar
-                    src={dataService.getPublicImageUrl('', '', { width: 100, height: 100, resize: 'cover' })}
-                    alt={alert.assetDescription || 'Ativo'}
-                    size="sm"
-                    className="border border-slate-200 dark:border-slate-800 shrink-0"
-                />
-            </div>
-
-            {/* Descrição do Ativo */}
-            <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase leading-snug tracking-wide text-left mb-4">
-                {alert.assetDescription || 'Sem descrição do ativo'}
-            </h3>
-
-            {/* Grade Técnica */}
-            <div className="grid grid-cols-2 gap-4 text-left mb-2">
-                {/* Unidade */}
-                <div className="flex flex-col gap-[2px]">
-                    <span className="text-[8px] text-slate-400 dark:text-slate-500 font-extrabold uppercase leading-none">Unidade</span>
-                    <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase leading-tight">
-                        {alert.clientName || '(Sem cliente)'}
-                    </span>
-                    <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase leading-tight">
-                        {alert.unitDescription || '(Sem unidade)'}
-                    </span>
-                </div>
-
-                {/* Setor e Posição */}
-                <div className="flex flex-col gap-[2px]">
-                    <span className="text-[8px] text-slate-400 dark:text-slate-500 font-extrabold uppercase leading-none">Setor - Posição</span>
-                    <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase leading-tight">
-                        {[alert.tagName, alert.tagSubName].filter(Boolean).join(' > ') || 'SEM TAG'}
-                    </span>
-                </div>
-            </div>
-
-            {/* ========================================================================= */}
-            {/* DIVISÓRIA (ESTILO IMAGEM 01)                                              */}
-            {/* ========================================================================= */}
-            <div className="relative mt-2 mb-4 w-full">
-                <hr className="border-slate-200 dark:border-slate-800/80 w-full" />
-                {onClick && !alert.isDone && (
-                    <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                        arrow_forward_ios
-                    </span>
-                )}
-            </div>
+                </>
+            )}
 
             {/* ========================================================================= */}
             {/* PARTE INFERIOR: DETALHES DO ALERTA (ESTILO IMAGEM 02)                     */}
@@ -219,6 +211,11 @@ export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
                     )}
                 </div>
             </div>
+            {onClick && !alert.isDone && (
+                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-600 text-sm opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-x-1">
+                    arrow_forward_ios
+                </span>
+            )}
         </div>
     );
 };

@@ -101,10 +101,18 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
     React.useEffect(() => {
         if (!order.id) return;
 
-        // Subscribe to child orders changes
+        // Subscribe to child orders changes — recarrega a lista de OS filhas
+        // E chama onRefreshOrder para atualizar o card da SS quando qualquer OS filha mudar
         const orderSub = dataService.subscribeToOrders((payload) => {
-            if (payload.new && payload.new.parent_id?.toString() === order.id.toString()) {
-                dataService.getChildOrders(order.id).then(setChildOrders);
+            if (payload.new) {
+                if (payload.new.parent_id?.toString() === order.id.toString()) {
+                    // Uma OS filha mudou → recarregar lista + status da SS (via trigger no banco)
+                    dataService.getChildOrders(order.id).then(setChildOrders);
+                    if (onRefreshOrder) onRefreshOrder(); // Atualiza o card da SS no topo
+                } else if (payload.new.id.toString() === order.id.toString()) {
+                    // A própria SS mudou (ex: via trigger) → recarregar dados da SS
+                    if (onRefreshOrder) onRefreshOrder();
+                }
             }
         });
 
@@ -118,7 +126,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
             orderSub.unsubscribe();
             visitSub.unsubscribe();
         };
-    }, [order.id]);
+    }, [order.id, onRefreshOrder]);
 
     const handleTabChange = (tab: string) => {
         if (onTabChange) {

@@ -1764,6 +1764,19 @@ export const dataService = {
                 console.error('Error fetching assets for alerts:', assetsError);
             } else if (assetsDataList && assetsDataList.length > 0) {
                 assetsMap = new Map(assetsDataList.map((a: any) => [a.id.toString(), a]));
+                const unitIds = [...new Set(assetsDataList.map((a: any) => a.unit_id).filter(Boolean))];
+                if (unitIds.length > 0) {
+                    const { data: unitsData } = await supabase.from('v_units').select('id, client_name').in('id', unitIds);
+                    if (unitsData) {
+                        unitsData.forEach((u: any) => {
+                            for (const a of assetsDataList) {
+                                if (a.unit_id?.toString() === u.id?.toString()) {
+                                    a.injected_client_name = u.client_name;
+                                }
+                            }
+                        });
+                    }
+                }
             }
         }
 
@@ -1779,6 +1792,13 @@ export const dataService = {
             if (ovaData) {
                 resolvedMap = new Map(ovaData.map((o: any) => [o.id.toString(), o.ov_ended_at]));
             }
+        }
+
+        // Build lookup maps for extras
+        const clientByAssetId = new Map<string, string>();
+        for (const [assetId, assetObj] of assetsMap) {
+            const raw = assetObj as any;
+            if (raw.injected_client_name) clientByAssetId.set(assetId, raw.injected_client_name);
         }
 
         return alertsData.map((item: any) => {
@@ -1804,11 +1824,13 @@ export const dataService = {
                 priorityColor: item.cfg_orders_priorities?.color,
                 orderTypeName: item.cfg_orders_types?.description,
                 assetCode: assetData?.code,
+                assetStatusName: assetData?.status_code || '',
+                assetStatusColor: assetData?.status_color || '',
                 assetDescription: assetData?.description,
-                unitDescription: assetData?.unit_description_full,
-                clientName: assetData?.client_name,
-                tagName: assetData?.tag_name,
-                tagSubName: assetData?.tag_sub_name,
+                unitDescription: assetData?.unit_description_full || assetData?.unit_description || assetData?.description_full,
+                clientName: clientByAssetId.get(item.asset_id?.toString()) || assetData?.client_name || assetData?.client_description,
+                tagName: assetData?.tag_name || assetData?.tag_description || assetData?.asset_tag_description || assetData?.unit_asset_tag_description,
+                tagSubName: assetData?.tag_sub_name || assetData?.tag_sub_description || assetData?.asset_tag_sub_description || assetData?.unit_asset_tag_sub_description,
                 resolvedAt
             } as AssetAlert;
         });
@@ -1852,7 +1874,27 @@ export const dataService = {
                 console.error('Error fetching assets for alerts:', assetsError);
             } else if (assetsDataList && assetsDataList.length > 0) {
                 assetsMap = new Map(assetsDataList.map((a: any) => [a.id.toString(), a]));
+                const unitIds = [...new Set(assetsDataList.map((a: any) => a.unit_id).filter(Boolean))];
+                if (unitIds.length > 0) {
+                    const { data: unitsData } = await supabase.from('v_units').select('id, client_name').in('id', unitIds);
+                    if (unitsData) {
+                        unitsData.forEach((u: any) => {
+                            for (const a of assetsDataList) {
+                                if (a.unit_id?.toString() === u.id?.toString()) {
+                                    a.injected_client_name = u.client_name;
+                                }
+                            }
+                        });
+                    }
+                }
             }
+        }
+
+        // Build lookup maps for extras
+        const clientByAssetId = new Map<string, string>();
+        for (const [assetId, assetObj] of assetsMap) {
+            const raw = assetObj as any;
+            if (raw.injected_client_name) clientByAssetId.set(assetId, raw.injected_client_name);
         }
 
         // 4. Map everything together
@@ -1865,10 +1907,12 @@ export const dataService = {
                 assetId: d.asset_id?.toString(),
                 assetDescription: asset?.description,
                 assetCode: asset?.code,
-                clientName: asset?.client_name || '',
-                unitDescription: asset?.unit_description_full || '',
-                tagName: asset?.tag_name || '',
-                tagSubName: asset?.tag_sub_name || '',
+                assetStatusName: asset?.status_code || '',
+                assetStatusColor: asset?.status_color || '',
+                clientName: clientByAssetId.get(assetIdStr || '') || asset?.client_name || asset?.client_description || '',
+                unitDescription: asset?.unit_description_full || asset?.unit_description || asset?.description_full || '',
+                tagName: asset?.tag_name || asset?.tag_description || asset?.asset_tag_description || asset?.unit_asset_tag_description || '',
+                tagSubName: asset?.tag_sub_name || asset?.tag_sub_description || asset?.asset_tag_sub_description || asset?.unit_asset_tag_sub_description || '',
                 oTypeId: d.o_type_id?.toString(),
                 orderTypeName: d.cfg_orders_types?.description,
                 priorityId: d.priority_id?.toString(),

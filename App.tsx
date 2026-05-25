@@ -2122,6 +2122,15 @@ const App: React.FC = () => {
                   progress: data.progress,
                   suspendedReasonId: data.suspendedReasonId ? parseInt(data.suspendedReasonId) : null
                 });
+
+                // 3. Recarregar a OS para refletir o status atual (inclusive mudanças
+                //    propagadas pelo trigger trg_order_status_inheritance na SS pai).
+                //    Sem isso, selectedOrder fica com dados stale ao retornar para order-detail.
+                if (selectedOrder?.id) {
+                  const refreshedOrder = await dataService.getOrderById(selectedOrder.id);
+                  if (refreshedOrder) setSelectedOrder(refreshedOrder);
+                }
+
                 setVisitRefreshKey(k => k + 1);
                 setCurrentScreen('order-visit-execute');
               };

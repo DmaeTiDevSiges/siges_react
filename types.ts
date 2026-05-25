@@ -590,6 +590,8 @@ export interface AssetAlert {
   resolvedAt?: string;
   assetDescription?: string;
   assetCode?: string;
+  assetStatusName?: string;
+  assetStatusColor?: string;
   clientName?: string;
   unitDescription?: string;
   tagName?: string;

@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS public.v_assets (
     img_file_name text,
     img_file_name_thumb text,
     version_mode character varying(255),
+    status_color character varying(255),
     PRIMARY KEY (id)
 );
 

@@ -269,7 +269,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
         };
     }, [order.id]);
 
-    // Realtime order update
+    // Realtime order update (OS atual)
     useEffect(() => {
         const subscription = dataService.subscribeToOrders((payload) => {
             if (payload.new && payload.new.id.toString() === order.id) {
@@ -281,6 +281,28 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
             subscription.unsubscribe();
         };
     }, [order.id, onRefreshOrder]);
+
+    // Realtime update para a SS pai — o trigger trg_order_status_inheritance
+    // atualiza a SS quando o status de uma OS filha muda. Escutamos aqui para
+    // garantir que o card da SS exibido na aba "SS" reflita o status correto
+    // sem que o usuário precise sair e voltar à tela.
+    useEffect(() => {
+        if (!order.parentId) return;
+
+        const parentSubscription = dataService.subscribeToOrders((payload) => {
+            if (payload.new && payload.new.id.toString() === order.parentId) {
+                dataService.getParentOrder(order.parentId!)
+                    .then(parent => {
+                        if (parent) setParentOrder(parent);
+                    })
+                    .catch(err => console.error('Error refreshing parent order:', err));
+            }
+        });
+
+        return () => {
+            parentSubscription.unsubscribe();
+        };
+    }, [order.parentId]);
 
     const handleToggleParentFollow = async (e: React.MouseEvent) => {
         e.stopPropagation();

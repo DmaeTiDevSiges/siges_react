@@ -582,6 +582,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                             onEdit={setEditingAlert}
                                                             onDelete={handleAlertDelete}
                                                             onViewReport={onViewReport}
+                                                            hideAssetIdentification={true}
                                                         />
                                                     );
                                                 })}
