@@ -9,6 +9,8 @@ import {
 } from '../utils/updateAppVersionReminder';
 
 const CHECK_INTERVAL = 1000 * 60 * 5; // 5 minutes
+const BANNER_AUTO_HIDE_MS = 1000 * 60 * 5; // 5 minutes auto-hide
+const REMINDER_STORAGE_KEY = 'update_reminder_count';
 
 interface AppConfig {
     version_app: string;
@@ -20,10 +22,28 @@ const UpdateNotifier: React.FC = () => {
     const [config, setConfig] = useState<AppConfig | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [isMandatory, setIsMandatory] = useState(false);
+    const [showBanner, setShowBanner] = useState(false);
+    const [reminderCount, setReminderCount] = useState<number>(() => {
+        try {
+            const v = localStorage.getItem(REMINDER_STORAGE_KEY);
+            return v ? Number(v) : 0;
+        } catch (e) {
+            return 0;
+        }
+    });
 
     useEffect(() => {
         // Only run in production
         if (import.meta.env.DEV) return;
+
+        // Register a lightweight service worker for PWA update flows (non-blocking)
+        if ('serviceWorker' in navigator) {
+            try {
+                navigator.serviceWorker.register('/sw-update.js').catch(() => {});
+            } catch (e) {
+                // ignore
+            }
+        }
 
         const checkVersion = async () => {
             try {
@@ -42,9 +62,17 @@ const UpdateNotifier: React.FC = () => {
                 
                 if (show) {
                     setIsMandatory(mandatory);
-                    setShowModal(true);
+                    // Native: show the blocking modal. Web: show a small banner.
+                    if (Capacitor.isNativePlatform()) {
+                        setShowModal(true);
+                        setShowBanner(false);
+                    } else {
+                        setShowBanner(true);
+                        setShowModal(false);
+                    }
                 } else {
                     setShowModal(false);
+                    setShowBanner(false);
                 }
             } catch (error) {
                 console.warn('Failed to check for updates:', error);
@@ -63,6 +91,32 @@ const UpdateNotifier: React.FC = () => {
         };
     }, []);
 
+    // Auto-hide banner and increment reminder counter
+    useEffect(() => {
+        if (!showBanner) return;
+        const t = setTimeout(() => {
+            setShowBanner(false);
+            try {
+                const current = Number(localStorage.getItem(REMINDER_STORAGE_KEY) || '0') || 0;
+                const next = current + 1;
+                localStorage.setItem(REMINDER_STORAGE_KEY, String(next));
+                setReminderCount(next);
+            } catch (e) {
+                // ignore
+            }
+        }, BANNER_AUTO_HIDE_MS);
+
+        return () => clearTimeout(t);
+    }, [showBanner]);
+
+    const showBannerFromReminder = () => {
+        setShowBanner(true);
+        try {
+            localStorage.setItem(REMINDER_STORAGE_KEY, '0');
+        } catch (e) {}
+        setReminderCount(0);
+    };
+
     const handleUpdate = () => {
         if (Capacitor.isNativePlatform()) {
             if (config?.apk_url) {
@@ -70,10 +124,46 @@ const UpdateNotifier: React.FC = () => {
             } else {
                 console.warn('No APK URL available in config');
             }
-        } else {
-            // For web, just reload to fetch the new version
+            return;
+        }
+
+        // Web flow: try Service Worker handshake first, else fallback to cache-bypass reload
+        const doReload = () => {
             resetUpdateAttempts();
-            window.location.reload();
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('t', Date.now().toString());
+                window.location.href = url.toString();
+            } catch (e) {
+                window.location.href = window.location.pathname + '?t=' + Date.now();
+            }
+        };
+
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            const onMessage = (ev: MessageEvent) => {
+                if (ev?.data?.type === 'SW_ACTIVATED') {
+                    navigator.serviceWorker.removeEventListener('message', onMessage as any);
+                    // New service worker activated: reload forcing cache bypass
+                    doReload();
+                }
+            };
+            navigator.serviceWorker.addEventListener('message', onMessage as any);
+
+            try {
+                // send skip waiting to waiting worker if exists
+                navigator.serviceWorker.getRegistration().then(reg => {
+                    if (reg && reg.waiting) {
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    } else {
+                        // fallback: just reload with cache bypass
+                        doReload();
+                    }
+                }).catch(() => doReload());
+            } catch (e) {
+                doReload();
+            }
+        } else {
+            doReload();
         }
     };
 
@@ -81,27 +171,56 @@ const UpdateNotifier: React.FC = () => {
         if (!config?.version_app) return;
         recordUpdateAttempt(config.version_app);
         setShowModal(false);
+        setShowBanner(false);
     };
 
     const versionLabel = config?.version_app_mask || config?.version_app || '';
     const versionSuffix = versionLabel ? ` (v${versionLabel})` : '';
 
     return (
-        <Modal
-            isOpen={showModal}
-            onClose={isMandatory ? () => {} : handleLater} // Block closing if mandatory
-            title={`Nova versão disponível${versionSuffix}!`}
-            message={isMandatory 
-                ? `Uma atualização importante e obrigatória${versionSuffix} está disponível. Para continuar usando o aplicativo, é necessário baixar e instalar a nova versão agora.`
-                : `Uma atualização${versionSuffix} foi detectada. Deseja atualizar agora para ter acesso às melhorias mais recentes?`}
-            confirmLabel={Capacitor.isNativePlatform() ? "Baixar e instalar" : "Atualizar agora"}
-            cancelLabel={isMandatory ? undefined : "Depois"}
-            onConfirm={handleUpdate}
-            type="info"
-            hideHeader={isMandatory} // Hide header (including 'X' button) if mandatory
-            hideCancelButton={isMandatory} // Hide the "Depois" / "Fechar" button if mandatory
-            draggable={!isMandatory} // Allow dragging/swiping only if not mandatory
-        />
+        <>
+            <Modal
+                isOpen={showModal}
+                onClose={isMandatory ? () => {} : handleLater} // Block closing if mandatory
+                title={`Nova versão disponível${versionSuffix}!`}
+                message={isMandatory 
+                    ? `Uma atualização importante e obrigatória${versionSuffix} está disponível. Para continuar usando o aplicativo, é necessário baixar e instalar a nova versão agora.`
+                    : `Uma atualização${versionSuffix} foi detectada. Deseja atualizar agora para ter acesso às melhorias mais recentes?`}
+                confirmLabel={Capacitor.isNativePlatform() ? "Baixar e instalar" : "Atualizar agora"}
+                cancelLabel={isMandatory ? undefined : "Depois"}
+                onConfirm={handleUpdate}
+                type="info"
+                hideHeader={isMandatory} // Hide header (including 'X' button) if mandatory
+                hideCancelButton={isMandatory} // Hide the "Depois" / "Fechar" button if mandatory
+                draggable={!isMandatory} // Allow dragging/swiping only if not mandatory
+            />
+
+            {showBanner && (
+                <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-slate-900/95 text-white rounded-lg shadow-lg border border-white/10 p-4">
+                    <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                            <div className="font-black">Nova versão disponível{versionSuffix}!</div>
+                            <div className="text-sm text-slate-200 mt-1">Uma atualização foi detectada. Deseja atualizar agora?</div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <button onClick={handleUpdate} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-md font-semibold">Atualizar</button>
+                            {!isMandatory && (
+                                <button onClick={handleLater} className="text-slate-300 hover:text-white text-sm">Depois</button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {!showBanner && reminderCount > 0 && (
+                <button
+                    onClick={showBannerFromReminder}
+                    className="fixed bottom-6 right-6 z-60 w-12 h-12 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center font-bold"
+                    title={`Você tem ${reminderCount} lembretes de atualização`}
+                >
+                    {reminderCount}
+                </button>
+            )}
+        </>
     );
 };
 
