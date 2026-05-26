@@ -1130,6 +1130,7 @@ export interface OrderFilters {
   unitTypeId?: string | string[];
   unitId?: string | string[];
   assetTagId?: string | string[];
+  assetTagSubId?: string | string[];
   orderObjectId?: string | string[];
   orderTypeId?: string | string[];
   orderTypeSubId?: string | string[];

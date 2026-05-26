@@ -58,7 +58,9 @@ const FilterBarSection = React.memo(({
     handleSystemChange,
     handleParentUnitTypeChange,
     handleOrderTypeChange,
+    handleSectorChange,
     unitSubTypes,
+    assetTagSubOptions,
     orderSubTypes
 }: { 
     advancedFilters: OrderFilters;
@@ -67,7 +69,9 @@ const FilterBarSection = React.memo(({
     handleSystemChange: (id: string | string[]) => void;
     handleParentUnitTypeChange: (id: string | string[]) => void;
     handleOrderTypeChange: (id: string | string[]) => void;
+    handleSectorChange: (id: string | string[]) => void;
     unitSubTypes: any[];
+    assetTagSubOptions: any[];
     orderSubTypes: any[];
 }) => {
     const [selectionModal, setSelectionModal] = useState<{
@@ -120,6 +124,8 @@ const FilterBarSection = React.memo(({
             <FilterSelect label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} />
             <FilterSelect label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, unitTypeId: [] }))} disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
             <FilterSelect label="UNIDADES" value={advancedFilters.unitId || []} onClick={() => openSelectionModal('unitId', 'UNIDADES', filterSelectOptions.units.map((opt: any) => ({ value: String(opt.id), label: opt.description_full || opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, unitId: [] }))} />
+            <FilterSelect label="SETORES" value={advancedFilters.assetTagId || []} onClick={() => openSelectionModal('assetTagId', 'SETORES', filterSelectOptions.sectors.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSectorChange([])} />
+            <FilterSelect label="POSIÇÕES" value={advancedFilters.assetTagSubId || []} onClick={() => openSelectionModal('assetTagSubId', 'POSIÇÕES', assetTagSubOptions.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, assetTagSubId: [] }))} disabled={!advancedFilters.assetTagId || (Array.isArray(advancedFilters.assetTagId) && advancedFilters.assetTagId.length === 0)} />
             <FilterSelect label="FINALIDADE" value={advancedFilters.orderObjectId || []} onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterSelectOptions.orderObjects.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderObjectId: [] }))} />
             <FilterSelect label="TIPO OS" value={advancedFilters.orderTypeId || []} onClick={() => openSelectionModal('orderTypeId', 'TIPO OS', filterSelectOptions.orderTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleOrderTypeChange([])} />
             <FilterSelect label="SUB-TIPO OS" value={advancedFilters.orderTypeSubId || []} onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))} disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)} />
@@ -825,9 +831,11 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         orderTypes: [] as any[],
         contracts: [] as any[],
         plans: [] as any[],
-        teams: [] as any[]
+        teams: [] as any[],
+        sectors: [] as any[]
     });
     const [unitSubTypes, setUnitSubTypes] = useState<any[]>([]);
+    const [assetTagSubOptions, setAssetTagSubOptions] = useState<any[]>([]);
     const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
 
     const loadFilterOptions = React.useCallback(async () => {
@@ -840,7 +848,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 dataService.getPlans(),
                 dataService.getManagedContracts(currentUser.id.toString()),
                 dataService.getTeams(),
-                dataService.getUnits('active')
+                dataService.getUnits('active'),
+                dataService.getAssetTags('active')
             ]);
 
             const getVal = (res: any) => (res.status === 'fulfilled' ? res.value : []);
@@ -856,8 +865,11 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 plans: getVal(results[4]),
                 contracts,
                 teams: getVal(results[6]),
-                units: getVal(results[7])
+                units: getVal(results[7]),
+                sectors: getVal(results[8])
             }));
+
+            setAssetTagSubOptions(await dataService.getAssetTagSubs(undefined, 'active'));
 
             if (contracts.length > 0) {
                 const defaultContractIds = contracts.map((c: any) => String(c.id));
@@ -1104,6 +1116,17 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             setUnitSubTypes(results.flat());
         } else {
             setUnitSubTypes([]);
+        }
+    };
+
+    const handleSectorChange = async (id: string | string[]) => {
+        setAdvancedFilters(prev => ({ ...prev, assetTagId: id, assetTagSubId: [] }));
+        if (id && (Array.isArray(id) ? id.length > 0 : true)) {
+            const ids = Array.isArray(id) ? id : [id];
+            const results = await Promise.all(ids.map(id => dataService.getAssetTagSubs(id, 'active')));
+            setAssetTagSubOptions(results.flat());
+        } else {
+            setAssetTagSubOptions(await dataService.getAssetTagSubs(undefined, 'active'));
         }
     };
 
@@ -1451,7 +1474,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             handleSystemChange={handleSystemChange}
                             handleParentUnitTypeChange={handleParentUnitTypeChange}
                             handleOrderTypeChange={handleOrderTypeChange}
+                            handleSectorChange={handleSectorChange}
                             unitSubTypes={unitSubTypes}
+                            assetTagSubOptions={assetTagSubOptions}
                             orderSubTypes={orderSubTypes}
                         />
                         <div className="flex items-center justify-between gap-3 pb-1 pt-0 mt-0">

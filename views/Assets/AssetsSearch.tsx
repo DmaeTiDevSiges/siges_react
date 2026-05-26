@@ -197,7 +197,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                     dataService.getUnitTypes(),
                     dataService.getUnits('active'),
                     dataService.getAssetsTags(),
-                    dataService.getAssetTagSubs(),
+                    dataService.getAssetTagSubs(undefined, 'active'),
                     dataService.getAssetTypes('all'),
                     dataService.getAssetStatuses()
                 ]);
@@ -270,6 +270,41 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         }));
     };
 
+    const handleTagChange = (value: string[]) => {
+        setAdvancedFilters((prev: any) => ({
+            ...prev,
+            tagId: value,
+            tagSubId: [] // clear position when sector changes
+        }));
+    };
+
+    useEffect(() => {
+        if (!hasSearchPermission) return;
+        const loadSubTags = async () => {
+            try {
+                if (advancedFilters.tagId && Array.isArray(advancedFilters.tagId) && advancedFilters.tagId.length > 0) {
+                    const results = await Promise.all(
+                        advancedFilters.tagId.map((tagId: string) => dataService.getAssetTagSubs(tagId, 'active'))
+                    );
+                    setFilterSelectOptions((prev: any) => ({
+                        ...prev,
+                        tagSubs: results.flat()
+                    }));
+                } else {
+                    const tagSubs = await dataService.getAssetTagSubs(undefined, 'active');
+                    setFilterSelectOptions((prev: any) => ({
+                        ...prev,
+                        tagSubs
+                    }));
+                }
+            } catch (err) {
+                console.error('Error loading active tag subs:', err);
+            }
+        };
+
+        loadSubTags();
+    }, [advancedFilters.tagId, hasSearchPermission]);
+
     useEffect(() => {
         if (!hasSearchPermission) return;
         setVisibleCount(PAGE_SIZE);
@@ -334,8 +369,8 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                     <FilterSelect label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} />
                     <FilterSelect label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', filterSelectOptions.unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitTypeId: [] }))} disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
                     <FilterSelect label="UNIDADES" value={advancedFilters.unitId || []} onClick={() => openSelectionModal('unitId', 'UNIDADES', filterSelectOptions.units.map((opt: any) => ({ value: String(opt.id), label: opt.description_full || opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitId: [] }))} />
-                    <FilterSelect label="SETOR" value={advancedFilters.tagId || []} onClick={() => openSelectionModal('tagId', 'SETOR', filterSelectOptions.tags.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, tagId: [] }))} />
-                    <FilterSelect label="POSIÇÃO" value={advancedFilters.tagSubId || []} onClick={() => openSelectionModal('tagSubId', 'POSIÇÃO', filterSelectOptions.tagSubs.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, tagSubId: [] }))} />
+                    <FilterSelect label="SETOR" value={advancedFilters.tagId || []} onClick={() => openSelectionModal('tagId', 'SETOR', filterSelectOptions.tags.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleTagChange([])} />
+                    <FilterSelect label="POSIÇÃO" value={advancedFilters.tagSubId || []} onClick={() => openSelectionModal('tagSubId', 'POSIÇÃO', filterSelectOptions.tagSubs.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, tagSubId: [] }))} disabled={!advancedFilters.tagId || (Array.isArray(advancedFilters.tagId) && advancedFilters.tagId.length === 0)} />
                     <FilterSelect label="TIPO" value={advancedFilters.typeId || []} onClick={() => openSelectionModal('typeId', 'TIPO', filterSelectOptions.assetTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, typeId: [] }))} />
                     <FilterSelect label="SITUAÇÃO" value={advancedFilters.statusId || []} onClick={() => openSelectionModal('statusId', 'SITUAÇÃO', filterSelectOptions.statuses.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, statusId: [] }))} />
                 </div>

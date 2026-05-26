@@ -361,6 +361,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             unitTypeParentId: appliedFilters.unitTypeParentId,
             unitTypeId: appliedFilters.unitTypeId,
             unitId: appliedFilters.unitId,
+            assetTagId: appliedFilters.assetTagId,
+            assetTagSubId: appliedFilters.assetTagSubId,
             period: selectedPeriod || appliedFilters.period,
         };
     }, [appliedFilters, selectedPeriod]);
@@ -373,7 +375,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             unitTypeId: appliedFilters.unitTypeId,
             unitId: appliedFilters.unitId,
             statusId: selectedStatusId ?? undefined,
-            assetTagId: osAssetTagId.length > 0 ? osAssetTagId : undefined,
+            assetTagId: osAssetTagId.length > 0 ? osAssetTagId : appliedFilters.assetTagId,
+            assetTagSubId: appliedFilters.assetTagSubId,
         };
     }, [appliedFilters, selectedStatusId, osAssetTagId]);
 
@@ -435,9 +438,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
              const unscheduledSSFilters = {
                  ...restrictedSSFilters,
                  assetTagId: ssAssetTagFromOverride,
+                 assetTagSubId: ordersListFilters.assetTagSubId,
              };
 
-             // statsOSFilters: WITHOUT assetTagId so sector counts always show ALL sectors
+             // statsOSFilters: WITHOUT assetTagId so sector cards always show all sectors
              const statsOSFilters = {
                  systemParentId: ordersListFilters.systemParentId,
                  systemId: ordersListFilters.systemId,
@@ -456,10 +460,11 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                  search: searchQuery || undefined,
              };
 
-             // openOSFilters: WITH assetTagId to filter the carousel by selected sector(s)
+             // openOSFilters: WITH assetTagId and assetTagSubId to filter the carousel by selected sector/position
              const openOSFilters = {
                  ...statsOSFilters,
-                 assetTagId: osAssetTagFromOverride?.length ? osAssetTagFromOverride : undefined,
+                 assetTagId: osAssetTagFromOverride?.length ? osAssetTagFromOverride : ordersListFilters.assetTagId,
+                 assetTagSubId: ordersListFilters.assetTagSubId,
              };
  
              if (loadMore) {
@@ -567,7 +572,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     dataService.getPlans(),
                     currentUser ? dataService.getManagedContracts(currentUser.id.toString()) : dataService.getContracts(),
                     dataService.getTeams(),
-                    dataService.getUnits('active')
+                    dataService.getUnits('active'),
+                    dataService.getAssetTags('active')
                 ]);
 
                 const getVal = (res: any, name: string) => {
@@ -589,7 +595,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     plans: getVal(results[4], 'plans'),
                     contracts,
                     teams: getVal(results[6], 'teams'),
-                    units: getVal(results[7], 'units')
+                    units: getVal(results[7], 'units'),
+                    sectors: getVal(results[8], 'sectors')
                 }));
 
                 // Pré-selecionar todos os contratos gerenciados se o usuário não definiu nenhum
@@ -744,6 +751,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     const [unitSubTypes, setUnitSubTypes] = useState<any[]>([]);
     const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
+    const [assetTagSubs, setAssetTagSubs] = useState<any[]>([]);
 
     const handleOrderTypeChange = async (id: string | string[]) => {
         setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTypeId: id, orderTypeSubId: [] }));
@@ -753,6 +761,17 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             setOrderSubTypes(results.flat());
         } else {
             setOrderSubTypes([]);
+        }
+    };
+
+    const handleAssetTagChange = async (id: string | string[]) => {
+        setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: id, assetTagSubId: [] }));
+        if (id && (Array.isArray(id) ? id.length > 0 : true)) {
+            const ids = Array.isArray(id) ? id : [id];
+            const results = await Promise.all(ids.map((tagId) => dataService.getAssetTagSubs(tagId, 'active')));
+            setAssetTagSubs(results.flat());
+        } else {
+            setAssetTagSubs([]);
         }
     };
 
@@ -792,6 +811,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             handleParentUnitTypeChange(finalValue as string | string[]);
         } else if (key === 'orderTypeId') {
             handleOrderTypeChange(finalValue as string | string[]);
+        } else if (key === 'assetTagId') {
+            handleAssetTagChange(finalValue as string | string[]);
         } else {
             setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, [key]: finalValue }));
         }
@@ -884,6 +905,21 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         value={advancedOrdersFilters.unitId || []}
                                         onClick={() => openSelectionModal('unitId', 'UNIDADES', filterOptions.units.map(opt => ({ value: String(opt.id), label: opt.description_full || opt.description })))}
                                         onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, unitId: [] }))}
+                                    />
+                                    <FilterSelect
+                                        label="SETORES"
+                                        value={advancedOrdersFilters.assetTagId || []}
+                                        onClick={() => openSelectionModal('assetTagId', 'SETORES', filterOptions.sectors.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                        onClear={() => {
+                                            handleAssetTagChange([]);
+                                        }}
+                                    />
+                                    <FilterSelect
+                                        label="POSIÇÕES"
+                                        value={advancedOrdersFilters.assetTagSubId || []}
+                                        onClick={() => openSelectionModal('assetTagSubId', 'POSIÇÕES', assetTagSubs.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagSubId: [] }))}
+                                        disabled={!advancedOrdersFilters.assetTagId || (Array.isArray(advancedOrdersFilters.assetTagId) && advancedOrdersFilters.assetTagId.length === 0)}
                                     />
                                     <FilterSelect
                                         label="FINALIDADE"

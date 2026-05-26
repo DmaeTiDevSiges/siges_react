@@ -30,6 +30,7 @@ import { DashboardOrdersVisitsAdminScreen } from "./views/Dashboards/DashboardOr
 import { DashboardOrdersVisitsTodayScreen } from "./views/Dashboards/DashboardOrdersVisitsTodayScreen";
 import { DashboardUnitsPowerElectric } from "./views/Dashboards/DashboardUnitsPowerElectric";
 import { DashboardUnitsAssetsTags } from "./views/Dashboards/DashboardUnitsAssetsTags";
+import { DashboardOrdersAdminCalendarScreen } from "./views/Dashboards/DashboardOrdersAdminCalendarScreen";
 import { SystemsList } from './views/Settings/Systems/SystemsList';
 import { SystemForm } from './views/Settings/Systems/SystemForm';
 import { UnitTypesList } from './views/Settings/UnitTypes/UnitTypesList';
@@ -102,7 +103,7 @@ import { PermissionsProvider } from './contexts/PermissionsContext';
 import { MaintenancePlansScreen } from './views/Settings/MaintenancePlans/MaintenancePlansScreen';
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
- | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today';
+ | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'dashboard-orders-admin-calendar';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { AIAssistantBubble } from './components/ai/AIAssistantBubble';
@@ -366,7 +367,8 @@ const App: React.FC = () => {
     const isDashboardScreen = currentScreen === 'orders-dashboard' || 
                              currentScreen === 'visits-dashboard' || 
                              currentScreen === 'dashboard-units-power-electric' || 
-                             currentScreen === 'dashboard-units-assets-tags';
+                             currentScreen === 'dashboard-units-assets-tags' ||
+                             currentScreen === 'dashboard-orders-admin-calendar';
 
     if (!isDashboardScreen) return null;
 
@@ -408,6 +410,15 @@ const App: React.FC = () => {
               Energia
             </button>
           )}
+          {hasVisits && (
+            <button
+              onClick={() => setCurrentScreen('dashboard-orders-admin-calendar')}
+              className={`pb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'dashboard-orders-admin-calendar' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+            >
+              <span className="material-symbols-outlined text-[14px]">calendar_view_week</span>
+              Calendário
+            </button>
+          )}
         </div>
       </div>
     );
@@ -417,7 +428,8 @@ const App: React.FC = () => {
     const isDashboardScreen = currentScreen === 'orders-dashboard' || 
                              currentScreen === 'visits-dashboard' || 
                              currentScreen === 'dashboard-units-power-electric' || 
-                             currentScreen === 'dashboard-units-assets-tags';
+                             currentScreen === 'dashboard-units-assets-tags' ||
+                             currentScreen === 'dashboard-orders-admin-calendar';
 
     if (!isDashboardScreen) return undefined;
     return <DashboardTabs />;
@@ -1520,6 +1532,13 @@ const App: React.FC = () => {
           <DashboardOrdersVisitsTodayScreen
             company={selectedCompany!}
             onBack={() => setCurrentScreen('orders-dashboard')}
+          />
+        );
+      case 'dashboard-orders-admin-calendar':
+        return (
+          <DashboardOrdersAdminCalendarScreen
+            currentUser={currentUser!}
+            onSelectVisit={handleVisitSelect}
           />
         );
       case 'dashboard-units-power-electric':

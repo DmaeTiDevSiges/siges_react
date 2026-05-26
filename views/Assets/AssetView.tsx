@@ -237,6 +237,13 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const [historyPage, setHistoryPage] = useState(0);
     const HISTORY_PAGE_SIZE = 10;
 
+    const assetImageUrl = dataService.getPublicImageUrl(asset.imgFilePath, asset.imgFileName);
+    const handleOpenImageViewer = () => {
+        if (assetImageUrl) {
+            setExpandedImage(assetImageUrl);
+        }
+    };
+
     const loadHistory = async (page: number, append: boolean = false) => {
         setIsLoadingHistory(true);
         try {
@@ -339,12 +346,12 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                 {/* Hero Cover Image */}
                 <div
-                    onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}
-                    className={`w-full relative border-b border-slate-100 dark:border-slate-800 overflow-hidden transition-all duration-700 ease-in-out cursor-pointer group ${isHeaderExpanded ? 'h-[75vh] md:h-[85vh]' : 'aspect-video md:aspect-auto md:h-[350px]'
+                    onClick={assetImageUrl ? handleOpenImageViewer : undefined}
+                    className={`w-full relative border-b border-slate-100 dark:border-slate-800 overflow-hidden transition-all duration-700 ease-in-out ${assetImageUrl ? 'cursor-pointer' : ''} group ${isHeaderExpanded ? 'h-[75vh] md:h-[85vh]' : 'aspect-video md:aspect-auto md:h-[350px]'
                         }`}
                 >
                     <OptimizedImage
-                        src={dataService.getPublicImageUrl(asset.imgFilePath, asset.imgFileName) || ''}
+                        src={assetImageUrl || ''}
                         alt={asset.description}
                         preset="large"
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -354,20 +361,22 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                     <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
 
                     {/* Expand Indicator */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setIsHeaderExpanded(prev => !prev); }}
+                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
                         <div className="bg-black/20 backdrop-blur-md rounded-full p-4 border border-white/20">
                             <span className="material-symbols-outlined text-white text-3xl">
                                 {isHeaderExpanded ? 'close_fullscreen' : 'expand_content'}
                             </span>
                         </div>
-                    </div>
+                    </button>
 
-
-
-                    {/* Expand/Collapse Label */}
+                    {/* Viewer Hint Label */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 opacity-0 group-hover:opacity-100">
                         <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">
-                            {isHeaderExpanded ? 'Toque para fechar' : 'Toque para expandir'}
+                            Toque para visualizar e baixar
                         </span>
                     </div>
                 </div>

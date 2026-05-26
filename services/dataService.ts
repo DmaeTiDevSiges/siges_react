@@ -916,6 +916,8 @@ export const dataService = {
         orderObjectId?: string | string[];
         orderTypeId?: string | string[];
         orderTypeSubId?: string | string[];
+        assetTagId?: string | string[];
+        assetTagSubId?: string | string[];
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
         searchQuery?: string;
@@ -962,6 +964,8 @@ export const dataService = {
         applyFilter('o_object_id', filters?.orderObjectId);
         applyFilter('o_type_id', filters?.orderTypeId);
         applyFilter('o_type_sub_id', filters?.orderTypeSubId);
+        applyFilter('o_asset_tag_id', filters?.assetTagId);
+        applyFilter('o_asset_tag_sub_id', filters?.assetTagSubId);
         applyFilter('o_plan_id', filters?.orderPlanId);
         applyFilter('o_team_id', filters?.orderTeamId);
 
