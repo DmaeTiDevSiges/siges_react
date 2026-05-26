@@ -2911,13 +2911,16 @@ export const dataService = {
         return statusData?.description || 'Desconhecido';
     },
 
-    async updateUserAvailability(userId: string, isAvailable: boolean, ovIdInProgress: string): Promise<void> {
+    async updateUserAvailability(userId: string, isAvailable: boolean, ovIdInProgress: string | null | undefined): Promise<void> {
+        const parsedOvId = ovIdInProgress ? Number(ovIdInProgress) : null;
+        const payload: { is_available: boolean; ov_id_in_progress: number | null } = {
+            is_available: isAvailable,
+            ov_id_in_progress: Number.isInteger(parsedOvId) && parsedOvId! > 0 ? parsedOvId : null
+        };
+
         const { error } = await supabase
             .from('users')
-            .update({
-                is_available: isAvailable,
-                ov_id_in_progress: ovIdInProgress
-            })
+            .update(payload)
             .eq('id', userId);
 
         if (error) {

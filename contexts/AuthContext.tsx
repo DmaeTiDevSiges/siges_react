@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     /**
      * Update user status
      */
-    const updateUserStatus = async (isAvailable: boolean, ovIdInProgress: string) => {
+    const updateUserStatus = async (isAvailable: boolean, ovIdInProgress: string | null) => {
         if (!currentUser) return;
 
         try {
@@ -92,8 +92,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setCurrentUser(prev => prev ? {
                 ...prev,
                 isAvailable,
-                ovIdInProgress,
-                isOvInProgress: Number(ovIdInProgress) > 0
+                ovIdInProgress: ovIdInProgress ?? undefined,
+                isOvInProgress: ovIdInProgress ? Number(ovIdInProgress) > 0 : false
             } : null);
         } catch (error) {
             console.error('Error updating user status:', error);

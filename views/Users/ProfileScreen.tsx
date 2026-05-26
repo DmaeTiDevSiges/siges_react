@@ -561,10 +561,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
         setIsUpdatingStatus(true);
         try {
             const isAvailable = newStatus === 'available';
-            await onStatusChange(isAvailable, user.ovIdInProgress || '');
+            await onStatusChange(isAvailable, user.ovIdInProgress || null);
 
             // Update local user state
-            setUser(prev => prev ? { ...prev, isAvailable, ovIdInProgress: user.ovIdInProgress || '' } : null);
+            setUser(prev => prev ? { ...prev, isAvailable, ovIdInProgress: user.ovIdInProgress || undefined } : null);
 
             setShowStatusModal(false);
             setModal({

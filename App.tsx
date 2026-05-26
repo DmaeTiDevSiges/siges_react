@@ -2368,22 +2368,22 @@ const App: React.FC = () => {
     );
   }
 
-  const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: string) => {
-    if (!currentUser) return;
+const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: string | null) => {
+        if (!currentUser) return;
 
-    if (!isAvailable && currentUser.isOvInProgress) {
-        toast.error("Você não pode ficar Indisponível enquanto possui uma visita em aberto.");
-        return;
-    }
+        if (!isAvailable && currentUser.isOvInProgress) {
+            toast.error("Você não pode ficar Indisponível enquanto possui uma visita em aberto.");
+            return;
+        }
 
-    try {
-      await dataService.updateUserAvailability(currentUser.id, isAvailable, ovIdInProgress);
+        try {
+          await dataService.updateUserAvailability(currentUser.id, isAvailable, ovIdInProgress);
 
-      // Atualizar o estado local do usuário
-      setCurrentUser({
-        ...currentUser,
-        isAvailable,
-        ovIdInProgress
+          // Atualizar o estado local do usuário
+          setCurrentUser({
+            ...currentUser,
+            isAvailable,
+            ovIdInProgress: ovIdInProgress ?? undefined
       });
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
@@ -2539,7 +2539,7 @@ const App: React.FC = () => {
                      return;
                  }
                  try {
-                     await handleUserStatusChange(showShiftAlert.type === 'START', currentUser?.ovIdInProgress || '');
+                     await handleUserStatusChange(showShiftAlert.type === 'START', currentUser?.ovIdInProgress || null);
                      dismissAlert(showShiftAlert.type);
                      toast.success(showShiftAlert.type === 'START' ? 'Você está online!' : 'Check-out realizado com sucesso.');
                  } catch(e) {

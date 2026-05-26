@@ -92,7 +92,7 @@ export const UserProfileHeader: React.FC<UserProfileHeaderProps> = ({
             // Se o usuário clicar em "Disponível", a intenção é ficar livre para ovId=0?
             // Por segurança, vamos apenas alternar o isAvailable. O sistema gerencia o ovId.
 
-            await onStatusChange(isAvailable, currentUser.ovIdInProgress || '');
+            await onStatusChange(isAvailable, currentUser.ovIdInProgress || null);
             setShowStatusModal(false);
         } catch (error) {
             console.error('Erro ao atualizar status:', error);
