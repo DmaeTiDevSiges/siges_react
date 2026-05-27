@@ -7149,13 +7149,15 @@ export const dataService = {
         // If not using general view, filter for "Open" orders (status NOT terminal: 7 or 8)
         if (!filters?.useGeneralView) {
             query = query.not('status_id', 'in', '(7,8)');
-            // Filtrar apenas OSs (parent_id > 0), excluindo SSs
-            query = query.not('parent_id', 'is', null);
         }
 
         if (filters) {
             const applyFilter = (column: string, val: any) => {
-                if (!val) return;
+                if (val === null) {
+                    query = query.is(column, null);
+                    return;
+                }
+                if (val === undefined || val === '') return;
                 if (Array.isArray(val)) {
                     const filteredVal = val.filter((v: any) =>
                         v !== null && v !== undefined && v !== '' &&
@@ -7175,7 +7177,9 @@ export const dataService = {
             applyFilter('unit_type_parent_id', filters.unitTypeParentId);
             applyFilter('unit_type_id', filters.unitTypeId);
             applyFilter('unit_id', filters.unitId);
+            applyFilter('unit_asset_tag_id', filters.unitAssetTagId);
             applyFilter('asset_tag_id', filters.assetTagId);
+            applyFilter('asset_tag_sub_id', filters.assetTagSubId);
             applyFilter('object_id', filters.orderObjectId);
             applyFilter('type_id', filters.orderTypeId);
             applyFilter('type_sub_id', filters.orderTypeSubId);
@@ -7183,7 +7187,13 @@ export const dataService = {
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
-            applyFilter('parent_id', filters.parentId);
+            if (filters.parentId !== undefined) {
+                if (filters.parentId === null) {
+                    query = query.or('parent_id.eq.0,parent_id.is.null');
+                } else {
+                    applyFilter('parent_id', filters.parentId);
+                }
+            }
 
             if (filters.search) {
                 const s = `%${filters.search}%`;

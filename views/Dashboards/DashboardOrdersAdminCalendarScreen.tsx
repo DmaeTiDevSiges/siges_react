@@ -38,6 +38,8 @@ interface CalendarVisit {
     processingIcon?: string;
     processingIconColor?: string;
     processingBgColor?: string;
+    ovOStatusId?: number;
+    ovOStatusDescription?: string;
 }
 
 interface WeekDay {
@@ -71,6 +73,46 @@ const STATUS_CONFIG: Record<number, { label: string; color: string; bg: string; 
 const getStatusConfig = (id: number) =>
     STATUS_CONFIG[id] ?? { label: 'Indefinido', color: 'text-slate-500', bg: 'bg-slate-100 border-slate-200 dark:border-slate-700/50', dot: 'bg-slate-400' };
 
+const getOStatusIcon = (statusId: number): { icon: string; bgColor: string; textColor: string; title: string } => {
+    switch (statusId) {
+        case 4: // Agendada
+            return {
+                icon: 'calendar_today',
+                bgColor: 'bg-blue-50 dark:bg-blue-900/30',
+                textColor: 'text-blue-500 dark:text-blue-400',
+                title: 'Agendada'
+            };
+        case 5: // Execução
+            return {
+                icon: 'play_arrow',
+                bgColor: 'bg-emerald-50 dark:bg-emerald-900/30',
+                textColor: 'text-emerald-500 dark:text-emerald-400',
+                title: 'Execução'
+            };
+        case 6: // Suspensa
+            return {
+                icon: 'pause',
+                bgColor: 'bg-amber-50 dark:bg-amber-900/30',
+                textColor: 'text-amber-500 dark:text-amber-400',
+                title: 'Suspensa'
+            };
+        case 8: // Concluída
+            return {
+                icon: 'stop_circle',
+                bgColor: 'bg-slate-50 dark:bg-slate-900/30',
+                textColor: 'text-slate-500 dark:text-slate-400',
+                title: 'Concluída'
+            };
+        default:
+            return {
+                icon: 'circle',
+                bgColor: 'bg-slate-50 dark:bg-slate-900/30',
+                textColor: 'text-slate-500 dark:text-slate-400',
+                title: 'Status desconhecido'
+            };
+    }
+};
+
 // ─── Sub-components ─────────────────────────────────────────────────────────────
 
 const VisitCard: React.FC<{
@@ -79,6 +121,7 @@ const VisitCard: React.FC<{
     isSelected: boolean;
 }> = ({ visit, onClick, isSelected }) => {
     const cfg = getStatusConfig(visit.ovStatusId);
+    const osStatus = visit.ovOStatusId ? getOStatusIcon(visit.ovOStatusId) : null;
 
     return (
         <div
@@ -94,12 +137,23 @@ const VisitCard: React.FC<{
                 ${cfg.bg}
             `}
         >
-            {/* Status dot */}
-            <div className="flex items-start justify-between gap-1 mb-1.5">
-                <div className={`w-2 h-2 rounded-full shrink-0 mt-1 ${cfg.dot}`} />
-                <span className={`text-[8px] font-black uppercase tracking-widest truncate flex-1 ${cfg.color}`}>
+            {/* Status icon or dot */}
+            <div className="flex items-start justify-between gap-1.5 mb-1.5">
+                <span className={`text-[11px] font-black uppercase tracking-widest truncate flex-1 ${cfg.color}`}>
                     {visit.ovMask}
                 </span>
+                {osStatus ? (
+                    <div
+                        className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 transition-all ${osStatus.bgColor}`}
+                        title={osStatus.title}
+                    >
+                        <span className={`material-symbols-outlined text-[14px] ${osStatus.textColor}`}>
+                            {osStatus.icon}
+                        </span>
+                    </div>
+                ) : (
+                    <div className={`w-2 h-2 rounded-full shrink-0 mt-1 ${cfg.dot}`} />
+                )}
             </div>
 
             {/* Unit */}
@@ -533,6 +587,8 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                 processingIcon: row.processing_icon || '',
                 processingIconColor: row.processing_icon_color || '',
                 processingBgColor: row.processing_bg_color || '',
+                ovOStatusId: row.ov_o_status_id || undefined,
+                ovOStatusDescription: row.ov_o_status_description || '',
             }));
 
             setVisits(mapped);

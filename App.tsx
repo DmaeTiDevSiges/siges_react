@@ -1992,6 +1992,7 @@ const App: React.FC = () => {
             onBack={() => setCurrentScreen('orders-dashboard')}
             onSubmit={(data) => handleOrderSelect(data)}
             initialData={selectedOrder || undefined}
+            onSelectOrder={(order) => handleOrderSelect(order)}
           />
         );
       case 'order-create':

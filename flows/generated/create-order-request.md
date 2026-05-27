@@ -71,6 +71,8 @@ Este fluxo é executado quando um usuário autenticado cria uma nova Ordem de Se
 - orders.unit_id = SS.unit_id
 - orders.client_id = SS.client_id
 - orders.unit_asset_tag_id = SS.unit_asset_tag_id
+- orders.asset_tag_id = cfg_units_assets_tags.asset_tag_id (derivado de `SS.unit_asset_tag_id` via `cfg_units_assets_tags.id`)
+- orders.asset_tag_sub_id = cfg_units_assets_tags.asset_tag_sub_id (derivado de `SS.unit_asset_tag_id` — NÃO pode ser NULL)
 - orders.system_id = SS.system_id
 - orders.year = SS.year
 - Abortar a operação

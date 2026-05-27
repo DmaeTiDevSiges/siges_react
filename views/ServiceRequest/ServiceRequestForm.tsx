@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Client, Unit, OrderType, AssetTag, Order, Priority } from '../../types';
+import { Client, Unit, OrderType, AssetTag, Order, Priority, User } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
@@ -10,6 +10,7 @@ import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
+import { DuplicateServiceRequestWarning } from '../../components/serviceRequests/DuplicateServiceRequestWarning';
 
 interface ServiceRequestFormProps {
     onBack: () => void;
@@ -21,9 +22,10 @@ interface ServiceRequestFormProps {
         assetTagDescription?: string;
         companyLogo?: string | null;
     };
+    onSelectOrder?: (order: Order) => void;
 }
 
-export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, onSubmit, initialData, initialContext }) => {
+export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, onSubmit, initialData, initialContext, onSelectOrder }) => {
     // State
     const [step, setStep] = useState(initialContext ? 2 : 1);
     const [clients, setClients] = useState<Client[]>([]);
@@ -31,6 +33,8 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     const [assetTags, setAssetTags] = useState<AssetTag[]>([]);
     const [orderTypes, setOrderTypes] = useState<OrderType[]>([]);
     const [priorities, setPriorities] = useState<Priority[]>([]);
+    const [loadingDuplicates, setLoadingDuplicates] = useState(false);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -74,16 +78,18 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     useEffect(() => {
         const loadLists = async () => {
             try {
-                const [clientsList, typesList, prioritiesList] = await Promise.all([
+                const [clientsList, typesList, prioritiesList, user] = await Promise.all([
                     dataService.getClients(),
                     dataService.getOrderTypes('active'),
-                    dataService.getPriorities('active')
+                    dataService.getPriorities('active'),
+                    dataService.getCurrentUser()
                 ]);
 
                 // Filter clients: only show those with company_id = 0 or null
                 setClients(clientsList.filter(c => c.status === 'active' && (!c.companyId || c.companyId === '0')));
                 setOrderTypes(typesList);
                 setPriorities(prioritiesList);
+                if (user) setCurrentUser(user);
             } catch (err) {
                 console.error("Error loading lists", err);
                 toast.error("Erro ao carregar listas");
@@ -276,10 +282,38 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     const isStep1Valid = !!(formData.clientId && formData.unitId);
     const isStep2Valid = !!(formData.orderTypeId && formData.requestedServices && formData.requestedServices.trim().length >= 10);
 
-    const handleNext = () => {
-        if (step === 1 && isStep1Valid) setStep(2);
-        else if (step === 2 && isStep2Valid) setStep(3);
-        else toast.error("Preencha os campos obrigatórios");
+    const handleNext = async () => {
+        if (step === 1 && isStep1Valid) {
+            setStep(2);
+        } else if (step === 2 && isStep2Valid) {
+            setLoadingDuplicates(true);
+            try {
+                const selectedAssetTag = assetTags.find(a => a.id === formData.unitAssetTagId);
+                const selectedAssetTagId = selectedAssetTag?.asset_tag_id?.toString() || '';
+                const selectedAssetTagSubId = selectedAssetTag?.asset_tag_sub_id?.toString() || null;
+
+                const result = await dataService.getOrdersFilters({
+                    parentId: null,
+                    unitId: formData.unitId,
+                    unitAssetTagId: formData.unitAssetTagId,
+                    orderTypeId: formData.orderTypeId,
+                    assetTagId: selectedAssetTagId,
+                    assetTagSubId: selectedAssetTagSubId,
+                    useGeneralView: false,
+                    pageSize: 1
+                });
+                setStep(result.data.length > 0 ? 3 : 4);
+            } catch (error) {
+                console.error('Erro ao verificar duplicatas:', error);
+                setStep(4);
+            } finally {
+                setLoadingDuplicates(false);
+            }
+        } else if (step === 3) {
+            setStep(4);
+        } else {
+            toast.error("Preencha os campos obrigatórios");
+        }
     };
 
     const handlePrev = () => {
@@ -303,7 +337,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
 
                     <div className="relative h-48 w-full shrink-0 overflow-hidden">
                         <div className="absolute inset-0 bg-slate-900/60 z-10 transition-colors duration-500"
-                            style={{ backgroundColor: step === 1 ? 'rgba(15, 23, 42, 0.6)' : step === 2 ? 'rgba(15, 23, 42, 0.7)' : 'rgba(15, 23, 42, 0.8)' }}
+                            style={{ backgroundColor: step === 1 ? 'rgba(15, 23, 42, 0.6)' : step === 2 ? 'rgba(15, 23, 42, 0.7)' : step === 3 ? 'rgba(15, 23, 42, 0.75)' : 'rgba(15, 23, 42, 0.8)' }}
                         ></div>
                         <img
                             src="/hero-bg.png"
@@ -343,17 +377,20 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                 </div>
                             )}
 
-                            <span className="text-[10px] font-black tracking-widest text-white uppercase mb-1 flex items-center gap-2">
+                            <span className="text-[10px] font-black tracking-widest text-white uppercase mb-1 flex items-center gap-1.5">
                                 <span className={`px-1.5 py-0.5 rounded ${step >= 1 ? 'bg-blue-500 text-white' : 'bg-white/10'}`}>1</span>
-                                <div className={`w-4 h-0.5 rounded ${step >= 2 ? 'bg-blue-500' : 'bg-white/20'}`} />
+                                <div className={`w-3 h-0.5 rounded ${step >= 2 ? 'bg-blue-500' : 'bg-white/20'}`} />
                                 <span className={`px-1.5 py-0.5 rounded ${step >= 2 ? 'bg-blue-500 text-white' : 'bg-white/10'}`}>2</span>
-                                <div className={`w-4 h-0.5 rounded ${step >= 3 ? 'bg-blue-500' : 'bg-white/20'}`} />
+                                <div className={`w-3 h-0.5 rounded ${step >= 3 ? 'bg-blue-500' : 'bg-white/20'}`} />
                                 <span className={`px-1.5 py-0.5 rounded ${step >= 3 ? 'bg-blue-500 text-white' : 'bg-white/10'}`}>3</span>
+                                <div className={`w-3 h-0.5 rounded ${step >= 4 ? 'bg-blue-500' : 'bg-white/20'}`} />
+                                <span className={`px-1.5 py-0.5 rounded ${step >= 4 ? 'bg-blue-500 text-white' : 'bg-white/10'}`}>4</span>
                             </span>
                             <h2 className="text-2xl font-black text-white leading-none mt-2">
                                 {step === 1 && "Localização"}
                                 {step === 2 && "Detalhes do Serviço"}
-                                {step === 3 && "Evidências"}
+                                {step === 3 && "Verificação"}
+                                {step === 4 && "Evidências"}
                             </h2>
                         </div>
                     </div>
@@ -449,23 +486,37 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         variant="secondary"
                                         onClick={handlePrev}
                                         className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm min-h-[52px] rounded-2xl"
-                                        disabled={isLoading}
+                                        disabled={isLoading || loadingDuplicates}
                                     >
                                         Cancelar
                                     </Button>
 
                                     <Button
                                         onClick={handleNext}
-                                        className={`flex-1 min-h-[52px] rounded-2xl ${!isStep2Valid ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        disabled={!isStep2Valid}
+                                        className={`flex-1 min-h-[52px] rounded-2xl ${!isStep2Valid || loadingDuplicates ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={!isStep2Valid || loadingDuplicates}
                                     >
-                                        Próximo
+                                        {loadingDuplicates ? 'Verificando...' : 'Próximo'}
                                     </Button>
                                 </div>
                             </section>
                         )}
 
                         {step === 3 && (
+                            <DuplicateServiceRequestWarning
+                                unitId={formData.unitId}
+                                unitAssetTagId={formData.unitAssetTagId}
+                                typeId={formData.orderTypeId}
+                                assetTagId={assetTags.find(a => a.id === formData.unitAssetTagId)?.asset_tag_id?.toString() || ''}
+                                assetTagSubId={assetTags.find(a => a.id === formData.unitAssetTagId)?.asset_tag_sub_id?.toString() || null}
+                                onContinue={() => setStep(4)}
+                                onCancel={() => setStep(2)}
+                                onSelectOrder={onSelectOrder}
+                                currentUser={currentUser}
+                            />
+                        )}
+
+                        {step === 4 && (
                             <section className="space-y-3">
                                 <div className="flex flex-col gap-2 mb-4">
                                     <p className="text-sm text-slate-600 dark:text-slate-300">

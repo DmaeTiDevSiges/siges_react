@@ -1129,6 +1129,7 @@ export interface OrderFilters {
   unitTypeParentId?: string | string[];
   unitTypeId?: string | string[];
   unitId?: string | string[];
+  unitAssetTagId?: string | string[];
   assetTagId?: string | string[];
   assetTagSubId?: string | string[];
   orderObjectId?: string | string[];

@@ -12,41 +12,56 @@ interface DashboardOrdersVisitsAdminListItemProps {
     onClick?: () => void;
 }
 
-const CircularProgress: React.FC<{ progress: number }> = ({ progress }) => {
-    const size = 36;
-    const strokeWidth = 3;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = radius * 2 * Math.PI;
-    const offset = circumference - (progress / 100) * circumference;
+const getStatusIcon = (statusId: number): { icon: string; bgColor: string; textColor: string; title: string } => {
+    switch (statusId) {
+        case 4: // Agendada
+            return {
+                icon: 'calendar_today',
+                bgColor: 'bg-blue-50 dark:bg-blue-900/30',
+                textColor: 'text-blue-500 dark:text-blue-400',
+                title: 'Agendada'
+            };
+        case 5: // Execução
+            return {
+                icon: 'play_arrow',
+                bgColor: 'bg-emerald-50 dark:bg-emerald-900/30',
+                textColor: 'text-emerald-500 dark:text-emerald-400',
+                title: 'Execução'
+            };
+        case 6: // Suspensa
+            return {
+                icon: 'pause',
+                bgColor: 'bg-amber-50 dark:bg-amber-900/30',
+                textColor: 'text-amber-500 dark:text-amber-400',
+                title: 'Suspensa'
+            };
+        case 8: // Concluída
+            return {
+                icon: 'stop_circle',
+                bgColor: 'bg-slate-50 dark:bg-slate-900/30',
+                textColor: 'text-slate-500 dark:text-slate-400',
+                title: 'Concluída'
+            };
+        default:
+            return {
+                icon: 'circle',
+                bgColor: 'bg-slate-50 dark:bg-slate-900/30',
+                textColor: 'text-slate-500 dark:text-slate-400',
+                title: 'Status desconhecido'
+            };
+    }
+};
 
+const StatusIcon: React.FC<{ statusId: number }> = ({ statusId }) => {
+    const status = getStatusIcon(statusId);
     return (
-        <div className="relative inline-flex items-center justify-center">
-            <svg width={size} height={size} className="transform -rotate-90">
-                {/* Background Circle */}
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    stroke="currentColor"
-                    strokeWidth={strokeWidth}
-                    fill="transparent"
-                    className="text-slate-700/50"
-                />
-                {/* Progress Circle */}
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    stroke="currentColor"
-                    strokeWidth={strokeWidth}
-                    fill="transparent"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    strokeLinecap="round"
-                    className="text-emerald-500 transition-all duration-500"
-                />
-            </svg>
-            <span className="absolute text-[9px] font-black text-slate-900 dark:text-white">{progress}%</span>
+        <div
+            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-sm ${status.bgColor}`}
+            title={status.title}
+        >
+            <span className={`material-symbols-outlined text-[20px] ${status.textColor}`}>
+                {status.icon}
+            </span>
         </div>
     );
 };
@@ -70,7 +85,7 @@ const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminLis
                         className="relative flex flex-col gap-0.5 px-4 py-3 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white overflow-hidden"
                         style={{ backgroundColor: getPriorityColor(visit.priorityColor || visit.priorityCode || 'AT') }}
                     >
-                        <span className="text-[18px] font-black leading-none tracking-tight">{visit.ovMask}</span>
+                        <span className="text-[20px] font-black leading-none tracking-tight">{visit.ovMask}</span>
                         <div className="flex justify-between items-center w-full mt-1">
                             <span className="text-[9px] font-bold opacity-90 uppercase tracking-tighter">
                                 {visit.processingDescription || 'OS ELE/COR/SRV'}
@@ -102,7 +117,7 @@ const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminLis
                         </div>
                     )}
 
-                    <CircularProgress progress={visit.progress || 0} />
+                    {visit.ovOStatusId && <StatusIcon statusId={visit.ovOStatusId} />}
                     <button
                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${visit.ovProcessingId === 1 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400' :
                             visit.ovProcessingId === 2 ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500' :

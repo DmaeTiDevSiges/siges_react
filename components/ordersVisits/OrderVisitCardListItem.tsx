@@ -19,7 +19,7 @@ export const OrderVisitCardListItem: React.FC<OrderVisitCardListItemProps> = ({ 
         >
             <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0 space-y-1">
-                    <span className="text-sm font-black text-slate-900 dark:text-white tracking-tight leading-none block">
+                    <span className="text-[18px] font-black text-slate-900 dark:text-white tracking-tight leading-none block">
                         {visit.ovMask}
                     </span>
 
