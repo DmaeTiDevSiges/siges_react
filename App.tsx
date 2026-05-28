@@ -913,12 +913,7 @@ const App: React.FC = () => {
     } else if (currentScreen === 'service-request-detail') {
       setCurrentScreen(lastOrderSource);
     } else if (currentScreen === 'order-create' || currentScreen === 'service-request-create') {
-      if (selectedOrder) {
-        const isOS = selectedOrder.type === 'OS' || (selectedOrder.parentId && Number(selectedOrder.parentId) > 0);
-        setCurrentScreen(isOS ? 'order-detail' : 'service-request-detail');
-      } else {
-        setCurrentScreen('orders-dashboard');
-      }
+      setCurrentScreen('orders-dashboard');
     } else if (currentScreen === 'order-visit-execute') {
       setSelectedVisit(null);
       setCurrentScreen(selectedOrder ? 'order-detail' : (['orders', 'visits', 'dashboard-orders-admin'].includes(activeTab) ? 'orders-dashboard' : 'dashboard'));
