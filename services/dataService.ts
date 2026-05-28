@@ -984,6 +984,70 @@ export const dataService = {
         return { data: data ?? [], count: count ?? 0 };
     },
 
+    async getOrdersForCalendar(filters?: {
+        startDate?: string;
+        endDate?: string;
+        contractId?: string | string[];
+        systemParentId?: string | string[];
+        systemId?: string | string[];
+        unitTypeParentId?: string | string[];
+        unitTypeId?: string | string[];
+        unitId?: string | string[];
+        orderObjectId?: string | string[];
+        orderTypeId?: string | string[];
+        orderPlanId?: string | string[];
+        orderTeamId?: string | string[];
+        searchQuery?: string;
+    }): Promise<any[]> {
+        const d = new Date();
+        const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+        const startDate = filters?.startDate || todayStr;
+        const endDate = filters?.endDate || todayStr;
+        const startStr = startDate.includes('T') || startDate.includes(' ') ? startDate : `${startDate} 00:00:00`;
+        const endStr = endDate.includes('T') || endDate.includes(' ') ? endDate : `${endDate} 23:59:59`;
+
+        let query = supabase
+            .from('v_orders')
+            .select('id, order_mask, status_id, status_description, requested_at, unit_description, client_name, plan_description, contract_id, system_parent_id, system_id, unit_type_parent_id, unit_type_id, unit_id, type_id, plan_id, team_id, type_code, type_sub_code')
+            .gte('requested_at', startStr)
+            .lte('requested_at', endStr)
+            .not('parent_id', 'is', null)  // apenas OSs (não SSs)
+            .order('requested_at', { ascending: true });
+
+        const applyFilter = (col: string, val?: string | string[]) => {
+            if (!val) return;
+            if (Array.isArray(val)) {
+                if (val.length > 0) query = query.in(col, val);
+            } else {
+                query = query.eq(col, val);
+            }
+        };
+
+        applyFilter('contract_id', filters?.contractId);
+        applyFilter('system_parent_id', filters?.systemParentId);
+        applyFilter('system_id', filters?.systemId);
+        applyFilter('unit_type_parent_id', filters?.unitTypeParentId);
+        applyFilter('unit_type_id', filters?.unitTypeId);
+        applyFilter('unit_id', filters?.unitId);
+        applyFilter('object_id', filters?.orderObjectId);
+        applyFilter('type_id', filters?.orderTypeId);
+        applyFilter('plan_id', filters?.orderPlanId);
+        applyFilter('team_id', filters?.orderTeamId);
+
+        if (filters?.searchQuery) {
+            const search = `%${filters.searchQuery}%`;
+            query = query.or(`order_mask.ilike.${search},unit_description.ilike.${search},client_name.ilike.${search}`);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+            console.error('Error fetching orders for calendar:', error);
+            return [];
+        }
+        return data ?? [];
+    },
+
     async deleteCompany(id: string): Promise<void> {
         const { error } = await supabase
             .from('cfg_companies')

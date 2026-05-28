@@ -257,6 +257,7 @@ const App: React.FC = () => {
   const [selectedAssetTagSub, setSelectedAssetTagSub] = useState<AssetTagSub | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [lastAssetSource, setLastAssetSource] = useState<Screen>('assets-search');
+  const [lastOrderSource, setLastOrderSource] = useState<Screen>('orders-dashboard');
   const [selectedOrderVisitAsset, setSelectedOrderVisitAsset] = useState<OrderVisitAssetView | null>(null);
   const [selectedVisitForAssetReport, setSelectedVisitForAssetReport] = useState<OrderVisit | null>(null);
   const [selectedOrderVisitAssetId, setSelectedOrderVisitAssetId] = useState<string | null>(null);
@@ -656,6 +657,10 @@ const App: React.FC = () => {
     setSelectedOrder(order);
     const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
 
+    if (currentScreen !== 'order-detail' && currentScreen !== 'service-request-detail') {
+      setLastOrderSource(currentScreen);
+    }
+
     if (isOS) {
       setOrderDetailActiveTab('SS');
       setCurrentScreen('order-detail');
@@ -903,10 +908,10 @@ const App: React.FC = () => {
       if (selectedOrder?.id === currentUser?.oIdInProgress) {
         setCurrentScreen('order-visit-execute');
       } else {
-        setCurrentScreen(activeTab === 'dashboard' ? 'dashboard' : 'orders-dashboard');
+        setCurrentScreen(lastOrderSource);
       }
     } else if (currentScreen === 'service-request-detail') {
-      setCurrentScreen(activeTab === 'dashboard' ? 'dashboard' : 'orders-dashboard');
+      setCurrentScreen(lastOrderSource);
     } else if (currentScreen === 'order-create' || currentScreen === 'service-request-create') {
       if (selectedOrder) {
         const isOS = selectedOrder.type === 'OS' || (selectedOrder.parentId && Number(selectedOrder.parentId) > 0);
@@ -1539,6 +1544,7 @@ const App: React.FC = () => {
           <DashboardOrdersAdminCalendarScreen
             currentUser={currentUser!}
             onSelectVisit={handleVisitSelect}
+            onOrderSelect={handleOrderSelect}
           />
         );
       case 'dashboard-units-power-electric':

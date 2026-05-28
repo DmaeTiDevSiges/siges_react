@@ -34,6 +34,7 @@ interface ModalProps {
     confirmLoadingLabel?: string;
     draggable?: boolean;
     hideCancelButton?: boolean;
+    className?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -54,6 +55,7 @@ export const Modal: React.FC<ModalProps> = ({
     confirmLoadingLabel,
     draggable = false,
     hideCancelButton = false,
+    className,
 }) => {
     // Body scroll lock
     useEffect(() => {
@@ -225,10 +227,10 @@ export const Modal: React.FC<ModalProps> = ({
             {/* Modal Container */}
             <div
                 ref={modalRef}
-                className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white dark:bg-card-dark 
-                    ${fullScreenMobile ? 'h-auto max-h-[92vh]' : 'max-h-[90vh]'} rounded-2xl
+                className={`relative w-full ${maxWidthClasses[maxWidth]} 
+                    ${fullScreenMobile ? 'h-auto max-h-[92vh]' : 'max-h-[90vh]'} 
                     shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300
-                    ${draggable ? 'select-none' : ''}`}
+                    ${draggable ? 'select-none' : ''} ${className || 'bg-white dark:bg-card-dark rounded-2xl'}`}
                 style={draggableStyle}
                 onPointerMove={onDragMove}
                 onPointerUp={onDragEnd}

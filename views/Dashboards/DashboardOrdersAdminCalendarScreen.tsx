@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { User, OrderVisit } from '../../types';
+import { User, OrderVisit, OrderVisitTeam, Order } from '../../types';
 import { dataService } from '../../services/dataService';
+import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
+import { OrderRequestCardListItem } from '../../components/orderRequests/OrderRequestCardListItem';
 import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';
 import { getInitials, formatCurrency } from '../../utils/formatters';
@@ -12,6 +14,7 @@ import { OrderFilters } from '../../types';
 interface DashboardOrdersAdminCalendarScreenProps {
     currentUser: User;
     onSelectVisit?: (visit: OrderVisit) => void;
+    onOrderSelect?: (order: Order) => void;
 }
 
 interface CalendarVisit {
@@ -32,7 +35,14 @@ interface CalendarVisit {
     systemParentId?: string;
     unitTypeParentId?: string;
     orderTypeId?: string;
+    typeCode?: string;
+    typeSubCode?: string;
     planDescription?: string;
+    ovEndedAt?: string;
+    ovServicesValue?: number;
+    ovMaterialsValue?: number;
+    ovVehiclesValue?: number;
+    teamNamesShort?: string;
     ovProcessingId: number;
     processingDescription?: string;
     processingIcon?: string;
@@ -40,6 +50,9 @@ interface CalendarVisit {
     processingBgColor?: string;
     ovOStatusId?: number;
     ovOStatusDescription?: string;
+    teamCode?: string;
+    ovDurationHours?: number;
+    isOsCard?: boolean;
 }
 
 interface WeekDay {
@@ -60,8 +73,10 @@ const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
 const toDateStr = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const getVisitDate = (visit: CalendarVisit): string =>
-    (visit.ovStartedAt || visit.ovCreatedAt || '').split('T')[0];
+const getVisitDate = (visit: CalendarVisit): string => {
+    const val = visit.ovStartedAt || visit.ovCreatedAt || '';
+    return val.split('T')[0].split(' ')[0];
+};
 
 const STATUS_CONFIG: Record<number, { label: string; color: string; bg: string; dot: string }> = {
     1: { label: 'Em Aberto',    color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500/10 border-orange-200 dark:border-orange-500/20', dot: 'bg-orange-500' },
@@ -119,13 +134,51 @@ const VisitCard: React.FC<{
     visit: CalendarVisit;
     onClick: () => void;
     isSelected: boolean;
-}> = ({ visit, onClick, isSelected }) => {
+    hoveredOsMask: string | null;
+    onHoverEnter: (osMask: string) => void;
+    onHoverLeave: () => void;
+}> = ({ visit, onClick, isSelected, hoveredOsMask, onHoverEnter, onHoverLeave }) => {
     const cfg = getStatusConfig(visit.ovStatusId);
     const osStatus = visit.ovOStatusId ? getOStatusIcon(visit.ovOStatusId) : null;
+    const isOs = !!visit.isOsCard;
+
+    if (isOs) {
+        return (
+            <div
+                data-visit-card-id={visit.id}
+                data-os-mask={visit.orderMask}
+                className={`relative w-full rounded-xl border border-dashed p-3 shadow-sm transition-all duration-200 
+                border-purple-300 dark:border-purple-500/50 bg-purple-50 dark:bg-purple-900/10 hover:shadow-md hover:-translate-y-0.5 cursor-pointer`}
+                onMouseEnter={() => onHoverEnter && visit.orderMask && onHoverEnter(visit.orderMask)}
+                onMouseLeave={() => onHoverLeave && onHoverLeave()}
+                onClick={onClick}
+            >
+                <div className="flex flex-col gap-1">
+                    <span className="text-sm font-black text-slate-800 dark:text-slate-200">
+                        {visit.orderMask || 'S/N'}
+                    </span>
+                    {visit.typeCode && visit.typeSubCode && (
+                        <p className="text-[9px] uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mt-0.5 mb-1">
+                            {`${visit.typeCode}/${visit.typeSubCode}`}
+                        </p>
+                    )}
+                    {visit.planDescription && (
+                        <span className="text-[10px] font-bold text-slate-500 line-clamp-2 leading-tight">
+                            {visit.planDescription}
+                        </span>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div
             onClick={onClick}
+            onMouseEnter={() => visit.orderMask && onHoverEnter(visit.orderMask)}
+            onMouseLeave={onHoverLeave}
+            data-visit-card-id={visit.id}
+            data-os-mask={visit.orderMask}
             className={`
                 relative group rounded-xl border p-2.5 cursor-pointer
                 transition-all duration-200 select-none
@@ -135,6 +188,7 @@ const VisitCard: React.FC<{
                     : 'hover:border-slate-300 dark:hover:border-slate-600'
                 }
                 ${cfg.bg}
+                ${hoveredOsMask && visit.orderMask !== hoveredOsMask ? 'opacity-35 scale-[0.98]' : 'opacity-100'}
             `}
         >
             {/* Status icon or dot */}
@@ -156,21 +210,15 @@ const VisitCard: React.FC<{
                 )}
             </div>
 
-            {/* Unit */}
-            <p className="text-[10px] font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 mb-1">
-                {visit.unitDescription || visit.clientName}
-            </p>
+            {visit.typeCode && visit.typeSubCode && (
+                <p className="text-[9px] uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mt-0.5 mb-1">
+                    {`${visit.typeCode}/${visit.typeSubCode}`}
+                </p>
+            )}
 
             {/* Leader */}
-            <div className="flex items-center gap-1">
-                <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
-                    <span className="text-[7px] font-black text-slate-500 uppercase">
-                        {getInitials(visit.teamLeaderName || 'NI')}
-                    </span>
-                </div>
-                <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 truncate">
-                    {visit.teamLeaderName}
-                </span>
+            <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate mb-1">
+                {visit.teamLeaderName}
             </div>
 
             {/* Progress bar (only for in-execution) */}
@@ -197,129 +245,128 @@ const VisitDetailPanel: React.FC<{
     if (!visit) return null;
 
     const cfg = getStatusConfig(visit.ovStatusId);
+    const members = (visit.teamNamesShort || visit.teamLeaderName || '')
+        .split(',')
+        .map(name => name.trim())
+        .filter(Boolean);
+
+    const formatVisitDate = (date?: string) =>
+        date
+            ? new Date(date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+            : '—';
 
     return (
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
-            {/* Header */}
-            <div className={`p-5 border-b border-slate-100 dark:border-slate-800 ${cfg.bg}`}>
-                <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                        <div className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${cfg.color}`}>
-                            {cfg.label}
-                        </span>
+            <div className="rounded-[32px] border border-white/10 bg-slate-950 shadow-2xl overflow-hidden">
+                <div className="relative bg-slate-900 px-5 pb-5 pt-6">
+                    <div className="absolute right-4 top-4 flex items-center gap-2">
+                        <button className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-slate-800 transition">
+                            <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+                        </button>
+                        <button className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-slate-800 transition">
+                            <span className="material-symbols-outlined text-[18px]">radio_button_unchecked</span>
+                        </button>
+                        <button className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-slate-800 transition">
+                            <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                        </button>
+                        <button 
+                            onClick={onClose}
+                            className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-red-950/80 hover:text-red-400 transition"
+                            title="Fechar"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">close</span>
+                        </button>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="w-7 h-7 rounded-lg bg-white/60 dark:bg-slate-800/60 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">close</span>
-                    </button>
-                </div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white leading-snug">
-                    {visit.unitDescription}
-                </h3>
-                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1">
-                    {visit.clientName}
-                </p>
-            </div>
 
-            {/* Content */}
-            <div className="flex flex-col gap-3 p-4">
-                {/* Masks */}
-                <div className="flex gap-2">
-                    <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Visita</p>
-                        <p className="text-sm font-black text-primary">{visit.ovMask}</p>
-                    </div>
-                    <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">OS</p>
-                        <p className="text-sm font-black text-slate-700 dark:text-slate-200">{visit.orderMask}</p>
-                    </div>
-                </div>
-
-                {/* Leader */}
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Líder</p>
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                            <span className="text-xs font-black text-slate-500 uppercase">
-                                {getInitials(visit.teamLeaderName || 'NI')}
-                            </span>
+                    <div className="flex flex-col gap-5">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                                <div className="inline-flex flex-col rounded-[24px] bg-rose-500 px-4 py-3 text-white shadow-lg shadow-rose-500/20">
+                                    <span className="text-xl font-black tracking-tight">{visit.ovMask}</span>
+                                    <span className="text-[10px] uppercase tracking-[0.26em] font-black text-white/90 mt-1">
+                                        {visit.typeSubCode || visit.typeCode || 'AT'}
+                                    </span>
+                                </div>
+                                <div className="mt-3 space-y-1">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">{visit.ovOStatusDescription || cfg.label}</p>
+                                </div>
+                            </div>
+                            <div className="space-y-2 text-right">
+                                <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">OS</p>
+                                <div className="text-xl font-black text-white">{visit.orderMask || '—'}</div>
+                            </div>
                         </div>
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{visit.teamLeaderName}</span>
-                    </div>
-                </div>
 
-                {/* Services */}
-                {visit.requestedServices && (
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Serviços</p>
-                        <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-4">
-                            {visit.requestedServices}
-                        </p>
-                    </div>
-                )}
-
-                {/* Dates */}
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Iniciada</p>
-                        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                            {visit.ovStartedAt
-                                ? new Date(visit.ovStartedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-                                : '—'}
-                        </p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Plano</p>
-                        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 line-clamp-2">
-                            {visit.planDescription || '—'}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Value */}
-                {visit.totalValue !== undefined && visit.totalValue > 0 && (
-                    <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 border border-emerald-100 dark:border-emerald-500/20">
-                        <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Valor Total</p>
-                        <p className="text-base font-black text-emerald-700 dark:text-emerald-300 font-mono">
-                            {formatCurrency(visit.totalValue)}
-                        </p>
-                    </div>
-                )}
-
-                {/* Progress */}
-                {visit.progress !== undefined && (
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                        <div className="flex justify-between items-center mb-2">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Progresso</p>
-                            <span className="text-[11px] font-black text-primary">{visit.progress}%</span>
-                        </div>
-                        <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-primary rounded-full transition-all duration-700"
-                                style={{ width: `${visit.progress}%` }}
-                            />
+                        <div className="space-y-4">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">{visit.clientName || 'DMAE PLUVIAL'}</p>
+                            <h3 className="text-3xl font-black text-white leading-tight">{visit.unitDescription || 'Unidade não informada'}</h3>
+                            {visit.processingDescription && (
+                                <p className="text-sm uppercase tracking-[0.18em] text-slate-400">{visit.processingDescription}</p>
+                            )}
+                            <p className="text-sm leading-6 text-slate-300">{visit.requestedServices || 'Sem descrição do serviço'}</p>
                         </div>
                     </div>
-                )}
 
-                {/* Abrir Visita Button */}
-                {onOpenVisit && (
-                    <button
-                        onClick={onOpenVisit}
-                        disabled={isOpenLoading}
-                        className="mt-4 w-full py-2.5 px-4 bg-primary hover:bg-primary/95 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md shadow-primary/25 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                        {isOpenLoading ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                        )}
-                        {isOpenLoading ? 'Carregando...' : 'Abrir Visita'}
-                    </button>
-                )}
+                    <div className="mt-6 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] items-start">
+                        <div className="flex flex-wrap gap-3">
+                            {members.length > 0 ? members.slice(0, 3).map((member, index) => (
+                                <div key={`${member}-${index}`} className="flex flex-col items-center gap-2">
+                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-800 text-sm font-black uppercase text-white border border-white/10">
+                                        {getInitials(member)}
+                                    </div>
+                                    <p className="text-[10px] uppercase tracking-[0.22em] text-slate-300 text-center truncate max-w-[80px]">
+                                        {member}
+                                    </p>
+                                </div>
+                            )) : (
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-800 text-sm font-black uppercase text-white border border-white/10">
+                                        {getInitials(visit.teamLeaderName || 'NI')}
+                                    </div>
+                                    <p className="text-[10px] uppercase tracking-[0.22em] text-slate-300 text-center">{visit.teamLeaderName || 'Líder'}</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-4 text-right">
+                            <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{visit.teamCode ? visit.teamCode.toUpperCase() : 'MAN IND PLUVIAL'}</p>
+                            <p className="mt-2 text-sm font-black text-white">{visit.teamCode ? visit.teamCode : 'MAN IND PLUVIAL'}</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-4">
+                            <p className="text-[9px] uppercase tracking-[0.24em] text-slate-400">Início</p>
+                            <p className="mt-2 text-sm font-black text-white">{formatVisitDate(visit.ovStartedAt)}</p>
+                        </div>
+                        <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-4 text-center">
+                            <p className="text-[9px] uppercase tracking-[0.24em] text-slate-400">Duração</p>
+                            <p className="mt-2 text-sm font-black text-white">{visit.ovDurationHours !== undefined ? `${visit.ovDurationHours.toFixed(1)} h` : '—'}</p>
+                        </div>
+                        <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-4 text-right">
+                            <p className="text-[9px] uppercase tracking-[0.24em] text-slate-400">Término</p>
+                            <p className="mt-2 text-sm font-black text-white">{formatVisitDate(visit.ovEndedAt || visit.ovCreatedAt)}</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-4">
+                        <div className="rounded-3xl bg-slate-900/80 px-4 py-3 text-center">
+                            <p className="text-[9px] uppercase tracking-[0.24em] text-slate-400">Serviços</p>
+                            <p className="mt-2 text-sm font-black text-white">{visit.ovServicesValue !== undefined ? formatCurrency(visit.ovServicesValue) : 'R$ 0,00'}</p>
+                        </div>
+                        <div className="rounded-3xl bg-slate-900/80 px-4 py-3 text-center">
+                            <p className="text-[9px] uppercase tracking-[0.24em] text-slate-400">Materiais</p>
+                            <p className="mt-2 text-sm font-black text-white">{visit.ovMaterialsValue !== undefined ? formatCurrency(visit.ovMaterialsValue) : 'R$ 0,00'}</p>
+                        </div>
+                        <div className="rounded-3xl bg-slate-900/80 px-4 py-3 text-center">
+                            <p className="text-[9px] uppercase tracking-[0.24em] text-slate-400">Transp.</p>
+                            <p className="mt-2 text-sm font-black text-white">{visit.ovVehiclesValue !== undefined ? formatCurrency(visit.ovVehiclesValue) : 'R$ 0,00'}</p>
+                        </div>
+                        <div className="rounded-3xl bg-emerald-950/80 border border-emerald-500/10 px-4 py-3 text-center">
+                            <p className="text-[9px] uppercase tracking-[0.24em] text-emerald-300">Total</p>
+                            <p className="mt-2 text-sm font-black text-emerald-300">{visit.totalValue !== undefined ? formatCurrency(visit.totalValue) : 'R$ 0,00'}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -329,7 +376,8 @@ const VisitDetailPanel: React.FC<{
 
 export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCalendarScreenProps> = ({
     currentUser,
-    onSelectVisit
+    onSelectVisit,
+    onOrderSelect
 }) => {
     const [visits, setVisits] = useState<CalendarVisit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -338,6 +386,16 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
     const [selectedStatusIds, setSelectedStatusIds] = useState<Set<number>>(new Set());
     const [isOpenLoading, setIsOpenLoading] = useState(false);
     const [hasOsFilters, setHasOsFilters] = useState(false);
+    const [selectedFullVisit, setSelectedFullVisit] = useState<OrderVisit | null>(null);
+    const [selectedFullOrder, setSelectedFullOrder] = useState<Order | null>(null);
+    const [selectedVisitTeam, setSelectedVisitTeam] = useState<OrderVisitTeam[]>([]);
+    const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+    // Refs e Estados para Conexão de Visitas de mesma OS
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [hoveredOsMask, setHoveredOsMask] = useState<string | null>(null);
+    const [connections, setConnections] = useState<{ osMask: string; path: string; color: string }[]>([]);
+    const [svgDimensions, setSvgDimensions] = useState({ width: 0, height: 0 });
 
     // Draggable scroll for horizontal filter bar
     const filtersScroll = useDraggableScroll();
@@ -543,10 +601,9 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
     const fetchVisits = useCallback(async () => {
         setIsLoading(true);
         try {
-            const raw = await dataService.getOrdersVisitsView({
+            const sharedFilters = {
                 startDate: weekStart,
                 endDate: weekEnd,
-                pageSize: 1000,
                 contractId: appliedFilters.contractId,
                 systemParentId: appliedFilters.systemParentId,
                 systemId: appliedFilters.systemId,
@@ -555,14 +612,23 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                 unitId: appliedFilters.unitId,
                 orderObjectId: appliedFilters.orderObjectId,
                 orderTypeId: appliedFilters.orderTypeId,
-                orderTypeSubId: appliedFilters.orderTypeSubId,
-                assetTagId: appliedFilters.assetTagId,
-                assetTagSubId: appliedFilters.assetTagSubId,
                 orderPlanId: appliedFilters.orderPlanId,
                 orderTeamId: appliedFilters.orderTeamId,
-            });
+            };
 
-            const visitsList = Array.isArray(raw) ? raw : (raw?.data || []);
+            // Busca visitas e OSs em paralelo
+            const [rawVisits, rawOrders] = await Promise.all([
+                dataService.getOrdersVisitsView({
+                    ...sharedFilters,
+                    pageSize: 1000,
+                    orderTypeSubId: appliedFilters.orderTypeSubId,
+                    assetTagId: appliedFilters.assetTagId,
+                    assetTagSubId: appliedFilters.assetTagSubId,
+                }),
+                dataService.getOrdersForCalendar(sharedFilters),
+            ]);
+
+            const visitsList = Array.isArray(rawVisits) ? rawVisits : (rawVisits?.data || []);
             const mapped: CalendarVisit[] = visitsList.map((row: any) => ({
                 id: row.id?.toString(),
                 ovMask: row.ov_mask || '',
@@ -570,17 +636,23 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                 statusDescription: row.ov_status_description || '',
                 unitDescription: row.unit_description || row.o_unit_description || '',
                 clientName: row.client_name || row.o_client_name || '',
-                teamLeaderName: row.team_leader_name_short || row.team_leader_name || '',
-                teamLeaderId: row.team_leader_id?.toString() || '',
+                teamLeaderName: row.team_leader_name_short || row.team_leader_name || row.ov_team_leader_name_short || row.ov_team_leader_name || '',
+                teamLeaderId: row.team_leader_id?.toString() || row.ov_team_leader_id?.toString() || '',
                 ovStartedAt: row.ov_started_at || undefined,
+                ovEndedAt: row.ov_ended_at || undefined,
                 ovCreatedAt: row.ov_created_at || row.o_requested_at || '',
                 orderMask: row.order_mask || row.o_mask || '',
                 totalValue: row.ov_total_value ? parseFloat(row.ov_total_value) : undefined,
-                progress: row.ov_progress !== undefined ? row.ov_progress : undefined,
+                ovServicesValue: row.ov_services_value !== undefined ? parseFloat(row.ov_services_value) : 0,
+                ovMaterialsValue: row.ov_materials_value !== undefined ? parseFloat(row.ov_materials_value) : 0,
+                ovVehiclesValue: row.ov_vehicles_value !== undefined ? parseFloat(row.ov_vehicles_value) : 0,
                 requestedServices: row.requested_services || '',
+                teamNamesShort: row.ov_team_names_short || row.o_team_names_short || '',
                 systemParentId: row.o_system_parent_id?.toString(),
                 unitTypeParentId: row.o_unit_type_parent_id?.toString(),
                 orderTypeId: row.o_type_id?.toString(),
+                typeCode: row.o_type_code || row.type_code || '',
+                typeSubCode: row.o_type_sub_code || row.type_sub_code || '',
                 planDescription: row.o_plan_description || row.plan_description || '',
                 ovProcessingId: row.ov_processing_id || 0,
                 processingDescription: row.processing_description || '',
@@ -589,9 +661,31 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                 processingBgColor: row.processing_bg_color || '',
                 ovOStatusId: row.ov_o_status_id || undefined,
                 ovOStatusDescription: row.ov_o_status_description || '',
+                teamCode: row.o_team_code || row.team_code || '',
+                ovDurationHours: row.ov_duration_hours ? parseFloat(row.ov_duration_hours) : 0,
             }));
 
-            setVisits(mapped);
+            // Mapear OSs vindas diretamente da v_orders
+            const osCards: CalendarVisit[] = (rawOrders || []).map((row: any) => ({
+                id: `os-${row.id}`,
+                ovMask: '',
+                isOsCard: true,
+                ovStatusId: row.status_id ? Number(row.status_id) : 1,
+                statusDescription: row.status_description || 'OS',
+                unitDescription: row.unit_description || '',
+                clientName: row.client_name || '',
+                teamLeaderName: '',
+                teamLeaderId: '',
+                ovCreatedAt: row.requested_at || '',
+                ovStartedAt: row.requested_at || '', // usa requested_at para posicionamento no calendário
+                orderMask: row.order_mask || '',
+                typeCode: row.type_code || '',
+                typeSubCode: row.type_sub_code || '',
+                planDescription: row.plan_description || '',
+                ovProcessingId: 0,
+            } as CalendarVisit));
+
+            setVisits([...mapped, ...osCards]);
         } catch (err) {
             console.error('Error fetching calendar visits:', err);
         } finally {
@@ -742,12 +836,92 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
 
     // ── Filter ────────────────────────────────────────────────────────────────
     const filteredVisits = useMemo(() => {
-        return visits.filter(v => {
+        const filtered = visits.filter(v => {
             if (selectedLeaderId && v.teamLeaderId !== selectedLeaderId) return false;
             if (selectedStatusIds.size > 0 && !selectedStatusIds.has(v.ovStatusId)) return false;
             return true;
         });
+
+        return filtered.sort((a, b) => {
+            const valA = a.ovStartedAt || '';
+            const valB = b.ovStartedAt || '';
+            if (!valA && !valB) return 0;
+            if (!valA) return 1;
+            if (!valB) return -1;
+            return valA.localeCompare(valB);
+        });
     }, [visits, selectedLeaderId, selectedStatusIds]);
+
+    // Função para calcular conexões ortogonais entre visitas da mesma OS
+    const calculateConnections = useCallback(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        // Dimensões totais do conteúdo rolável
+        setSvgDimensions({
+            width: container.scrollWidth,
+            height: container.scrollHeight
+        });
+
+        const cards = container.querySelectorAll<HTMLElement>('[data-visit-card-id]');
+        if (cards.length === 0) { setConnections([]); return; }
+
+        // Rect do container na viewport (ponto de referência)
+        const containerRect = container.getBoundingClientRect();
+
+        // Agrupa elementos DOM por osMask
+        const osGroups: Record<string, HTMLElement[]> = {};
+        cards.forEach(el => {
+            const osMask = el.getAttribute('data-os-mask');
+            if (osMask) {
+                if (!osGroups[osMask]) osGroups[osMask] = [];
+                osGroups[osMask].push(el);
+            }
+        });
+
+        const newConnections: { osMask: string; path: string; color: string }[] = [];
+
+        Object.entries(osGroups).forEach(([osMask, elements]) => {
+            if (elements.length < 2) return;
+
+            // Centro do card em coordenadas absolutas do conteúdo rolável do container
+            const points = elements.map(el => {
+                const r = el.getBoundingClientRect();
+                return {
+                    // posição relativa à borda esquerda visível do container + scroll acumulado
+                    x: r.left - containerRect.left + container.scrollLeft + r.width / 2,
+                    y: r.top  - containerRect.top  + container.scrollTop  + r.height / 2
+                };
+            });
+
+            // Ordena da esquerda para a direita (ordem cronológica)
+            points.sort((a, b) => a.x - b.x);
+
+            // Gera path SVG ortogonal em "L" com ponto médio entre pares consecutivos
+            let path = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+            for (let i = 1; i < points.length; i++) {
+                const midX = ((points[i - 1].x + points[i].x) / 2).toFixed(1);
+                path += ` H ${midX} V ${points[i].y.toFixed(1)} H ${points[i].x.toFixed(1)}`;
+            }
+
+            // Cor consistente via hash do osMask
+            const hash = osMask.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+            const hue = hash % 360;
+            newConnections.push({ osMask, path, color: `hsl(${hue}, 75%, 55%)` });
+        });
+
+        setConnections(newConnections);
+    }, [filteredVisits]);
+
+    // Recalcula conexões após render e em resize
+    useEffect(() => {
+        const timer = setTimeout(() => calculateConnections(), 200);
+        window.addEventListener('resize', calculateConnections);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('resize', calculateConnections);
+        };
+    }, [filteredVisits, calculateConnections]);
 
     // ── Visits by day ─────────────────────────────────────────────────────────
     const visitsByDay = useMemo(() => {
@@ -793,8 +967,139 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
         });
     };
 
-    const handleVisitClick = (visit: CalendarVisit) => {
-        setSelectedVisit(prev => prev?.id === visit.id ? null : visit);
+    // Mapeia os dados snake_case retornados pela view v_orders_visits para o formato
+    // camelCase esperado pelo componente DashboardOrdersVisitsAdminListItem
+    const mapRawToOrderVisit = (raw: any): OrderVisit => ({
+        id: raw.id?.toString() ?? '',
+        oId: raw.o_id?.toString() ?? '',
+        ovMask: raw.ov_mask ?? '',
+        ovStatusId: raw.ov_status_id ?? 1,
+        ovStatusAt: raw.ov_status_at,
+        ovCreatedAt: raw.ov_created_at ?? '',
+        ovCreatedUserId: raw.ov_created_user_id?.toString() ?? '',
+        ovUpdatedAt: raw.ov_updated_at,
+        ovUpdatedUserId: raw.ov_updated_user_id?.toString(),
+        ovStartedAt: raw.ov_started_at,
+        ovEndedAt: raw.ov_ended_at,
+        ovTeamLeadId: raw.ov_team_lead_id?.toString() ?? '',
+        ovComments: raw.ov_comments,
+        ovProcessingId: raw.ov_processing_id ?? 0,
+        ovOStatusId: raw.ov_o_status_id,
+        ovOStatusDescription: raw.ov_o_status_description,
+        ovOSuspendedReasonId: raw.ov_o_suspended_reason_id,
+        ovOSuspendedReasonDescription: raw.ov_o_suspended_reason_description,
+        processingIcon: raw.processing_icon,
+        processingIconColor: raw.processing_icon_color,
+        processingBgColor: raw.processing_bg_color,
+        orderMask: raw.order_mask ?? raw.o_mask,
+        statusDescription: raw.ov_status_description,
+        processingDescription: raw.processing_description,
+        teamLeaderName: raw.ov_team_leader_name_short ?? raw.ov_team_leader_name ?? raw.team_leader_name,
+        teamLeadAvatarUrl: raw.team_lead_avatar_url,
+        unitDescription: raw.unit_description ?? raw.o_unit_description,
+        unitId: raw.unit_id?.toString() ?? raw.o_unit_id?.toString(),
+        systemDescription: raw.system_description ?? raw.o_system_description,
+        clientName: raw.client_name ?? raw.o_client_name,
+        assetTagDescription: raw.asset_tag_description ?? raw.o_asset_tag_description,
+        assetTagSubDescription: raw.asset_tag_sub_description ?? raw.o_asset_tag_sub_description,
+        requestedServices: raw.requested_services ?? raw.o_requested_services,
+        progress: raw.ov_progress ? parseFloat(raw.ov_progress) : undefined,
+        ovDurationHours: raw.ov_duration_hours ? parseFloat(raw.ov_duration_hours) : undefined,
+        contractId: raw.contract_id?.toString() ?? raw.o_contract_id?.toString(),
+        servicesValue: raw.ov_services_value !== undefined ? parseFloat(raw.ov_services_value) : 0,
+        materialsValue: raw.ov_materials_value !== undefined ? parseFloat(raw.ov_materials_value) : 0,
+        vehiclesValue: raw.ov_vehicles_value !== undefined ? parseFloat(raw.ov_vehicles_value) : 0,
+        totalValue: raw.ov_total_value !== undefined ? parseFloat(raw.ov_total_value) : undefined,
+        companyId: raw.company_id?.toString(),
+        providerCompanyId: raw.provider_company_id?.toString(),
+        isFiled: raw.is_filed,
+        teamCode: raw.o_team_code ?? raw.team_code,
+        priorityId: raw.o_priority_id?.toString() ?? raw.priority_id?.toString(),
+        priorityCode: raw.o_priority_code ?? raw.priority_code,
+        priorityColor: raw.o_priority_color ?? raw.priority_color,
+        priorityDescription: raw.o_priority_description ?? raw.priority_description,
+        oRequesterName: raw.o_requester_name,
+        oRequesterPhone: raw.o_requester_phone,
+        contractDescription: raw.contract_description,
+        planDescription: raw.plan_description ?? raw.o_plan_description,
+        oReasonDescription: raw.o_reason_description,
+        oCauseDescription: raw.o_cause_description,
+        ovAssetsAmount: raw.ov_assets_amount,
+        ovAssetsReportedAmount: raw.ov_assets_reported_amount,
+        ovAssetsDraftAmount: raw.ov_assets_draft_amount,
+        ovAssetsRevisedAmount: raw.ov_assets_revised_amount,
+        ovAssetsDisapprovedAmount: raw.ov_assets_disapproved_amount,
+        ovAssetsApprovedNoFiledAmount: raw.ov_assets_approved_no_filed_amount,
+        ovAssetsApprovedFiledAmount: raw.ov_assets_approved_filed_amount,
+        ovAssetsApprovedAmount: raw.ov_assets_approved_amount,
+        reportedAt: raw.reported_at,
+        reportedUserId: raw.reported_user_id?.toString(),
+        reportedUserNameShort: raw.reported_user_name_short,
+        revisedAt: raw.revised_at,
+        revisedUserId: raw.revised_user_id?.toString(),
+        revisedUserNameShort: raw.revised_user_name_short,
+        disapprovedAt: raw.disapproved_at,
+        disapprovedUserId: raw.disapproved_user_id?.toString(),
+        disapprovedUserNameShort: raw.disapproved_user_name_short,
+        approvedAt: raw.approved_at,
+        approvedUserId: raw.approved_user_id?.toString(),
+        approvedUserNameShort: raw.approved_user_name_short,
+        approvedFiledAt: raw.approved_filed_at,
+        approvedFiledUserId: raw.approved_filed_user_id?.toString(),
+        approvedFiledUserNameShort: raw.approved_filed_user_name_short,
+        ovSignatureLeaderPath: raw.ov_signature_leader_path,
+        ovSignatureLeaderName: raw.ov_signature_leader_name,
+        ovSignatureLeaderAt: raw.ov_signature_leader_at,
+        ovSignatureRequesterPath: raw.ov_signature_requester_path,
+        ovSignatureRequesterName: raw.ov_signature_requester_name,
+        ovSignatureRequesterAt: raw.ov_signature_requester_at,
+    });
+
+    const handleVisitClick = async (visit: CalendarVisit) => {
+        if (selectedVisit?.id === visit.id) {
+            setSelectedVisit(null);
+            setSelectedFullVisit(null);
+            setSelectedVisitTeam([]);
+            return;
+        }
+
+        setSelectedVisit(visit);
+        setIsDetailLoading(true);
+        setSelectedFullVisit(null);
+        setSelectedFullOrder(null);
+        setSelectedVisitTeam([]);
+        try {
+            if (visit.ovProcessingId === 0) {
+                // OS Card
+                const realOrderId = visit.id.toString().replace('os-', '');
+                const rawOrder = await dataService.getOrderById(realOrderId);
+                if (rawOrder) {
+                    setSelectedFullOrder(rawOrder);
+                } else {
+                    setSelectedFullOrder({ error: `Ordem ${visit.id} não retornada pelo getOrderById.` } as any);
+                }
+            } else {
+                // Visit Card
+                const [rawVisit, teamResult] = await Promise.all([
+                    dataService.getOrderVisitById(visit.id),
+                    dataService.getOrdersVisitsTeamsBulk([visit.id])
+                ]);
+                if (rawVisit) {
+                    // Mapeia snake_case da view para camelCase do componente
+                    const mapped = mapRawToOrderVisit(rawVisit as any);
+                    setSelectedFullVisit(mapped);
+                }
+                if (teamResult && teamResult[visit.id]) {
+                    setSelectedVisitTeam(teamResult[visit.id]);
+                }
+            }
+        } catch (err: any) {
+            console.error('Error loading full visit details for modal:', err);
+            // Salvar erro no state
+            setSelectedFullOrder({ error: err?.message || 'Erro desconhecido' } as any);
+        } finally {
+            setIsDetailLoading(false);
+        }
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1083,7 +1388,42 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                             </div>
 
                             {/* Table Body Rows */}
-                            <div className="flex-1 divide-y divide-slate-100 dark:divide-slate-800/80 overflow-y-auto no-scrollbar">
+                            <div ref={containerRef} className="flex-1 divide-y divide-slate-100 dark:divide-slate-800/80 overflow-y-auto no-scrollbar relative">
+                                {/* SVG de Conexões - posicionado absolutamente dentro do scroll container */}
+                                {connections.length > 0 && (
+                                    <svg
+                                        className="pointer-events-none"
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: svgDimensions.width || '100%',
+                                            height: svgDimensions.height || '100%',
+                                            zIndex: 2,
+                                            overflow: 'visible',
+                                        }}
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        {connections.map(conn => {
+                                            const isHighlighted = hoveredOsMask === conn.osMask;
+                                            const isAnyHovered = hoveredOsMask !== null;
+                                            return (
+                                                <path
+                                                    key={conn.osMask}
+                                                    d={conn.path}
+                                                    fill="none"
+                                                    stroke={conn.color}
+                                                    strokeWidth={isHighlighted ? 3 : 1.5}
+                                                    strokeDasharray={isHighlighted ? '0' : '5 4'}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    opacity={isAnyHovered ? (isHighlighted ? 1 : 0.08) : 0.4}
+                                                    style={{ transition: 'opacity 0.25s, stroke-width 0.2s' }}
+                                                />
+                                            );
+                                        })}
+                                    </svg>
+                                )}
                                 {activeUnits.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-full min-h-[300px] opacity-40">
                                         <span className="material-symbols-outlined text-slate-400 text-4xl mb-2">event_busy</span>
@@ -1111,7 +1451,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                                                 return (
                                                     <div
                                                         key={day.dateStr}
-                                                        className={`flex-1 min-w-[120px] p-2.5 border-r border-slate-100 dark:border-slate-800/50 last:border-r-0 flex flex-col gap-2 justify-center ${
+                                                        className={`relative z-[3] flex-1 min-w-[120px] p-2.5 border-r border-slate-100 dark:border-slate-800/50 last:border-r-0 flex flex-col gap-2 justify-start ${
                                                             day.isToday ? 'bg-primary/5 dark:bg-primary/10' : ''
                                                         }`}
                                                     >
@@ -1126,6 +1466,9 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                                                                     visit={visit}
                                                                     isSelected={selectedVisit?.id === visit.id}
                                                                     onClick={() => handleVisitClick(visit)}
+                                                                    hoveredOsMask={hoveredOsMask}
+                                                                    onHoverEnter={setHoveredOsMask}
+                                                                    onHoverLeave={() => setHoveredOsMask(null)}
                                                                 />
                                                             ))
                                                         )}
@@ -1140,19 +1483,58 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                     )}
                 </div>
 
-                {/* ── Detail Panel ─────────────────────────────────────────── */}
-                <div className={`
-                    flex-shrink-0 border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900
-                    transition-all duration-300 ease-in-out overflow-hidden
-                    ${selectedVisit ? 'w-72' : 'w-0'}
-                `}>
-                    <VisitDetailPanel
-                        visit={selectedVisit}
-                        onClose={() => setSelectedVisit(null)}
-                        onOpenVisit={onSelectVisit ? () => handleOpenVisit(selectedVisit!) : undefined}
-                        isOpenLoading={isOpenLoading}
-                    />
-                </div>
+                {/* ── Detail Panel Modal ─────────────────────────────────────── */}
+                <Modal
+                    isOpen={!!selectedVisit}
+                    onClose={() => {
+                        setSelectedVisit(null);
+                        setSelectedFullVisit(null);
+                        setSelectedFullOrder(null);
+                        setSelectedVisitTeam([]);
+                    }}
+                    title={selectedVisit?.ovProcessingId === 0 ? "DETALHE DA OS" : "DETALHE DA VISITA"}
+                    maxWidth="xl"
+                    noPadding
+                    draggable
+                >
+                    {isDetailLoading ? (
+                        <div className="flex items-center justify-center p-8">
+                            <Loading size="md" text="Carregando detalhes..." />
+                        </div>
+                    ) : selectedFullVisit ? (
+                        <div className="p-4">
+                            <DashboardOrdersVisitsAdminListItem
+                                visit={selectedFullVisit}
+                                teamMembers={selectedVisitTeam}
+                                onClick={onSelectVisit ? () => {
+                                    onSelectVisit(selectedFullVisit);
+                                    setSelectedVisit(null);
+                                    setSelectedFullVisit(null);
+                                    setSelectedFullOrder(null);
+                                    setSelectedVisitTeam([]);
+                                } : undefined}
+                            />
+                        </div>
+                    ) : selectedFullOrder ? (
+                        <div className="p-4">
+                            {(selectedFullOrder as any).error ? (
+                                <div className="text-red-500 text-center py-4">Erro: {(selectedFullOrder as any).error}</div>
+                            ) : (
+                                <OrderRequestCardListItem
+                                    order={selectedFullOrder}
+                                    onClick={() => onOrderSelect && onOrderSelect(selectedFullOrder as any)}
+                                    noBorder
+                                    noShadow
+                                />
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center gap-3 p-8 text-slate-400">
+                            <span className="material-symbols-outlined text-4xl opacity-40">event_busy</span>
+                            <p className="text-sm">Nenhum detalhe disponível</p>
+                        </div>
+                    )}
+                </Modal>
             </div>
 
             {/* Selection Modal for Filters */}
