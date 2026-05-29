@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { OrderVisit, OrderVisitTeam, User, Order } from '../../types';
+import { OrderVisit, OrderVisitTeam, User, Order, OrderVisitAssetView } from '../../types';
 import { dataService } from '../../services/dataService';
 import { OrderVisitCardDetail } from '../../components/ordersVisits/OrderVisitCardDetail';
 import { Header } from '../../components/Header';
@@ -35,6 +35,7 @@ import { SignatureSection } from '../../components/ordersVisits/SignatureSection
 import { Modal } from '../../components/ui/Modal';
 import { OrderRequestForm } from '../OrderRequest/OrderRequestForm';
 import { Loading } from '../../components/ui/Loading';
+import { OrderVisitChatTab } from './OrderVisitChat/OrderVisitChatTab';
 
 
 
@@ -426,6 +427,8 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                         <OrderVisitFinancialDetail visit={visit} />
                     </div>
                 );
+            case 'chat':
+                return <OrderVisitChatTab visitId={visitId} />;
             default:
                 return null;
         }
@@ -434,9 +437,15 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
 
-            <KeyboardAwareScrollView className="p-4 pb-32 md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
-                {renderTabContent()}
-            </KeyboardAwareScrollView>
+            {activeTab === 'chat' ? (
+                <div className="flex-1 overflow-hidden">
+                    {renderTabContent()}
+                </div>
+            ) : (
+                <KeyboardAwareScrollView className="p-4 pb-32 md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
+                    {renderTabContent()}
+                </KeyboardAwareScrollView>
+            )}
 
             {/* Modal de Reporte */}
             <Modal

@@ -1149,3 +1149,37 @@ export interface OrderFilters {
   /** Filtro de setor exclusivo do carrossel de OS abertas (dashboard admin). */
   osAssetTagId?: string | string[];
 }
+
+export interface OrderVisitChatMessage {
+  id: string;
+  ovId: string;
+  userId: string;
+  message: string;
+  isActionItem: boolean;
+  isResolved: boolean;
+  infoRequested: boolean;
+  createdAt: string;
+
+  // UI Helpers
+  userName?: string;
+  userAvatarUrl?: string;
+  readBy?: {
+    userId: string;
+    userName: string;
+    userAvatarUrl?: string;
+    readAt: string;
+  }[];
+}
+
+export interface OrderVisitChatParticipant {
+  id: string;
+  ovId: string;
+  userId: string;
+  createdAt: string;
+
+  // UI Helpers
+  userName?: string;
+  userAvatarUrl?: string;
+  userEmail?: string;
+}
+

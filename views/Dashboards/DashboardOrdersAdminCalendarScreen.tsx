@@ -1262,29 +1262,8 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                     </div>
                 </div>
 
-                {/* Row 2: Status pills + Leader filter + Stats */}
+                {/* Row 2: Leader filter + Stats */}
                 <div className="flex flex-wrap items-center gap-2">
-                    {/* Status filters */}
-                    {[
-                        { id: 1, label: 'Em Aberto',   dotColor: 'bg-orange-500',  activeBg: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-500/30' },
-                        { id: 2, label: 'Em Execução', dotColor: 'bg-blue-500',    activeBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-500/30' },
-                        { id: 3, label: 'Concluída',   dotColor: 'bg-emerald-500', activeBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30' },
-                    ].map(s => (
-                        <button
-                            key={s.id}
-                            onClick={() => toggleStatus(s.id)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
-                                selectedStatusIds.has(s.id)
-                                    ? s.activeBg
-                                    : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600'
-                            }`}
-                        >
-                            <div className={`w-2 h-2 rounded-full ${s.dotColor}`} />
-                            {s.label}
-                        </button>
-                    ))}
-
-                    <div className="h-5 w-px bg-slate-200 dark:bg-slate-700" />
 
                     {/* Leaders filter */}
                     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">

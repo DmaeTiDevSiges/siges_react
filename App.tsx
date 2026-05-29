@@ -2452,6 +2452,7 @@ const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: stri
                   (currentScreen as string) !== 'visits-dashboard' &&
                   (currentScreen as string) !== 'dashboard-units-power-electric' &&
                   (currentScreen as string) !== 'dashboard-units-assets-tags' &&
+                  (currentScreen as string) !== 'dashboard-orders-admin-calendar' &&
                   (currentScreen as string) !== 'companies' &&
                   (currentScreen as string) !== 'units-search' &&
                   (currentScreen as string) !== 'assets-search' &&

@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
-export type VisitTab = 'home' | 'transport' | 'assets' | 'services' | 'costs';
+export type VisitTab = 'home' | 'transport' | 'assets' | 'services' | 'costs' | 'chat';
 
 interface OrderVisitBottomNavProps {
     activeTab: VisitTab;
@@ -18,6 +17,7 @@ export const OrderVisitBottomNav: React.FC<OrderVisitBottomNavProps> = ({ active
         { id: 'assets', label: 'Ativos', icon: 'inventory_2' },
         { id: 'services', label: 'Serviços', icon: 'construction', permission: 'orders_visits_services' },
         { id: 'costs', label: 'Custos', icon: 'payments', permission: 'orders_visits_costs' },
+        { id: 'chat', label: 'Chat', icon: 'forum' },
     ];
 
     const tabs = allTabs.filter(tab => !tab.permission || canView(tab.permission as any));
