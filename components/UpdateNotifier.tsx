@@ -5,12 +5,12 @@ import { dataService } from '../services/dataService';
 import {
     getUpdateModalState,
     recordUpdateAttempt,
-    resetUpdateAttempts
+    resetUpdateAttempts,
+    getUpdateAttemptCount
 } from '../utils/updateAppVersionReminder';
 
 const CHECK_INTERVAL = 1000 * 60 * 5; // 5 minutes
 const BANNER_AUTO_HIDE_MS = 1000 * 60 * 5; // 5 minutes auto-hide
-const REMINDER_STORAGE_KEY = 'update_reminder_count';
 
 interface AppConfig {
     version_app: string;
@@ -23,14 +23,44 @@ const UpdateNotifier: React.FC = () => {
     const [showModal, setShowModal] = useState(false);
     const [isMandatory, setIsMandatory] = useState(false);
     const [showBanner, setShowBanner] = useState(false);
-    const [reminderCount, setReminderCount] = useState<number>(() => {
-        try {
-            const v = localStorage.getItem(REMINDER_STORAGE_KEY);
-            return v ? Number(v) : 0;
-        } catch (e) {
-            return 0;
+    const [reminderCount, setReminderCount] = useState<number>(() => getUpdateAttemptCount());
+
+    const forceRefresh = async () => {
+        resetUpdateAttempts();
+        
+        // 1. Desregistrar Service Workers
+        if ('serviceWorker' in navigator) {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.unregister();
+                }
+            } catch (e) {
+                console.error('Failed to unregister service workers:', e);
+            }
         }
-    });
+        
+        // 2. Limpar cache storage do navegador
+        if ('caches' in window) {
+            try {
+                const keys = await caches.keys();
+                for (const key of keys) {
+                    await caches.delete(key);
+                }
+            } catch (e) {
+                console.error('Failed to clear cache storage:', e);
+            }
+        }
+        
+        // 3. Recarregar a página com timestamp para forçar cache bypass de CDNs como Cloudflare
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('t', Date.now().toString());
+            window.location.href = url.toString();
+        } catch (e) {
+            window.location.href = window.location.pathname + '?t=' + Date.now();
+        }
+    };
 
     useEffect(() => {
         // Only run in production
@@ -62,17 +92,25 @@ const UpdateNotifier: React.FC = () => {
                 
                 if (show) {
                     setIsMandatory(mandatory);
-                    // Native: show the blocking modal. Web: show a small banner.
+                    // Native: show the blocking modal. Web: show a small banner or force refresh.
                     if (Capacitor.isNativePlatform()) {
                         setShowModal(true);
                         setShowBanner(false);
                     } else {
+                        if (mandatory) {
+                            // Se atingiu o limite de 3 negativas, na 4ª vez forçar o refresh
+                            await forceRefresh();
+                            return;
+                        }
                         setShowBanner(true);
                         setShowModal(false);
                     }
                 } else {
                     setShowModal(false);
                     setShowBanner(false);
+                    // Se a versão atual for igual ou mais nova, limpa todos os contadores
+                    resetUpdateAttempts();
+                    setReminderCount(0);
                 }
             } catch (error) {
                 console.warn('Failed to check for updates:', error);
@@ -93,28 +131,36 @@ const UpdateNotifier: React.FC = () => {
 
     // Auto-hide banner and increment reminder counter
     useEffect(() => {
-        if (!showBanner) return;
+        if (!showBanner || !config?.version_app) return;
         const t = setTimeout(() => {
             setShowBanner(false);
             try {
-                const current = Number(localStorage.getItem(REMINDER_STORAGE_KEY) || '0') || 0;
-                const next = current + 1;
-                localStorage.setItem(REMINDER_STORAGE_KEY, String(next));
-                setReminderCount(next);
+                recordUpdateAttempt(config.version_app);
+                setReminderCount(getUpdateAttemptCount());
             } catch (e) {
                 // ignore
             }
         }, BANNER_AUTO_HIDE_MS);
 
         return () => clearTimeout(t);
-    }, [showBanner]);
+    }, [showBanner, config]);
 
-    const showBannerFromReminder = () => {
+    const showBannerFromReminder = async () => {
         setShowBanner(true);
-        try {
-            localStorage.setItem(REMINDER_STORAGE_KEY, '0');
-        } catch (e) {}
-        setReminderCount(0);
+        if (!config) {
+            try {
+                const remoteConfig = await dataService.getAppConfig();
+                if (remoteConfig && remoteConfig.version_app) {
+                    setConfig({
+                        version_app: remoteConfig.version_app,
+                        version_app_mask: remoteConfig.version_app_mask ?? null,
+                        apk_url: remoteConfig.apk_url
+                    });
+                }
+            } catch (e) {
+                console.warn('Failed to load config on reminder click:', e);
+            }
+        }
     };
 
     const handleUpdate = () => {
@@ -127,49 +173,14 @@ const UpdateNotifier: React.FC = () => {
             return;
         }
 
-        // Web flow: try Service Worker handshake first, else fallback to cache-bypass reload
-        const doReload = () => {
-            resetUpdateAttempts();
-            try {
-                const url = new URL(window.location.href);
-                url.searchParams.set('t', Date.now().toString());
-                window.location.href = url.toString();
-            } catch (e) {
-                window.location.href = window.location.pathname + '?t=' + Date.now();
-            }
-        };
-
-        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-            const onMessage = (ev: MessageEvent) => {
-                if (ev?.data?.type === 'SW_ACTIVATED') {
-                    navigator.serviceWorker.removeEventListener('message', onMessage as any);
-                    // New service worker activated: reload forcing cache bypass
-                    doReload();
-                }
-            };
-            navigator.serviceWorker.addEventListener('message', onMessage as any);
-
-            try {
-                // send skip waiting to waiting worker if exists
-                navigator.serviceWorker.getRegistration().then(reg => {
-                    if (reg && reg.waiting) {
-                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    } else {
-                        // fallback: just reload with cache bypass
-                        doReload();
-                    }
-                }).catch(() => doReload());
-            } catch (e) {
-                doReload();
-            }
-        } else {
-            doReload();
-        }
+        // Web flow: force clean refresh
+        forceRefresh();
     };
 
     const handleLater = () => {
         if (!config?.version_app) return;
         recordUpdateAttempt(config.version_app);
+        setReminderCount(getUpdateAttemptCount());
         setShowModal(false);
         setShowBanner(false);
     };

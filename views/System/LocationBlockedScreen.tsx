@@ -22,7 +22,7 @@ export const LocationBlockedScreen: React.FC<LocationBlockedScreenProps> = ({ on
     };
 
     return (
-        <div className="fixed inset-0 z-10000 flex flex-col items-center justify-center bg-background-light dark:bg-background-dark p-6">
+        <div className="fixed inset-0 z-10000 flex flex-col items-center justify-center bg-background-light dark:bg-background-dark p-6 safe-area-top safe-area-bottom">
             <div className="bg-white dark:bg-card-dark rounded-3xl shadow-2xl p-8 max-w-sm w-full flex flex-col items-center text-center border border-gray-100 dark:border-gray-800">
                 <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6 animate-pulse">
                     <MdGpsFixed className="text-red-500 text-4xl" />

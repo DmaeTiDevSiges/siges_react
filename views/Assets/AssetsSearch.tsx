@@ -27,9 +27,41 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
     const [search, setSearch] = useState(() => localStorage.getItem('assets_search') || '');
     const [activeSearch, setActiveSearch] = useState(search);
+    // activeFilters: snapshot dos filtros aplicados ao clicar em Buscar
+    const [activeFilters, setActiveFilters] = useState<any>(() => {
+        try {
+            const saved = localStorage.getItem('assets_filters');
+            return saved ? JSON.parse(saved) : {
+                systemParentId: [], systemId: [], unitTypeParentId: [], unitTypeId: [],
+                unitId: [], tagId: [], tagSubId: [], typeId: [], statusId: []
+            };
+        } catch {
+            return { systemParentId: [], systemId: [], unitTypeParentId: [], unitTypeId: [],
+                unitId: [], tagId: [], tagSubId: [], typeId: [], statusId: [] };
+        }
+    });
+    const [hasSearched, setHasSearched] = useState(false);
+    const [inputError, setInputError] = useState<string | null>(null);
+
+    /**
+     * Verifica se há algum filtro avançado diferente de statusId preenchido.
+     * Se sim, o input de texto não é obrigatório.
+     */
+    const hasNonStatusFilter = (filters: any): boolean => {
+        const nonStatusKeys = ['systemParentId', 'systemId', 'unitTypeParentId', 'unitTypeId', 'unitId', 'tagId', 'tagSubId', 'typeId'];
+        return nonStatusKeys.some(key => Array.isArray(filters[key]) ? filters[key].length > 0 : !!filters[key]);
+    };
 
     const handleSearch = () => {
+        // Validação: input obrigatório se somente statusId estiver preenchido
+        if (!search.trim() && !hasNonStatusFilter(advancedFilters)) {
+            setInputError('Informe um termo de busca ou selecione um filtro além de Situação.');
+            return;
+        }
+        setInputError(null);
         setActiveSearch(search);
+        setActiveFilters({ ...advancedFilters });
+        setHasSearched(true);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -47,8 +79,13 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
     const handleScanResult = async (result: string) => {
         setSearch(result);
-        setActiveSearch(result);
+        setInputError(null);
         localStorage.setItem('assets_search', result);
+
+        // Dispara busca automática após scan (sem necessidade de clicar em Buscar)
+        setActiveSearch(result);
+        setActiveFilters({ ...advancedFilters });
+        setHasSearched(true);
 
         try {
             // Try to find exact match immediately
@@ -307,10 +344,13 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
     useEffect(() => {
         if (!hasSearchPermission) return;
+        // Só executa a busca se o usuário clicou em "Buscar"
+        if (!hasSearched) return;
+
         setVisibleCount(PAGE_SIZE);
 
         const fetchData = async () => {
-            const hasAdvancedFilters = Object.values(advancedFilters).some((v: any) => Array.isArray(v) ? v.length > 0 : !!v);
+            const hasAdvancedFilters = Object.values(activeFilters).some((v: any) => Array.isArray(v) ? v.length > 0 : !!v);
 
             if (!activeSearch.trim() && !hasAdvancedFilters) {
                 setAssets([]);
@@ -324,7 +364,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                 setError(null);
                 const data = await dataService.getFilteredAssets({
                     search: activeSearch,
-                    ...advancedFilters
+                    ...activeFilters
                 });
                 setAssets(data);
             } catch (err: any) {
@@ -336,7 +376,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         };
 
         fetchData();
-    }, [activeSearch, advancedFilters, hasSearchPermission]);
+    }, [activeSearch, activeFilters, hasSearched, hasSearchPermission]);
 
     // Use server-side filtered assets directly
     const filteredAssets = assets;
@@ -383,13 +423,15 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                             onChange={(e) => {
                                 const val = e.target.value;
                                 setSearch(val);
+                                setInputError(null);
                                 localStorage.setItem('assets_search', val);
                             }}
                             onKeyDown={handleKeyDown}
                             onClear={() => {
                                 setSearch('');
-                                setActiveSearch('');
+                                setInputError(null);
                                 localStorage.setItem('assets_search', '');
+                                // Não dispara busca automática ao limpar
                             }}
                             rightAction={
                                 <IconButton
@@ -420,6 +462,14 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                         Buscar
                     </button>
                 </div>
+
+                {/* Mensagem de validação do input */}
+                {inputError && (
+                    <div className="mt-2 flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                        <span className="material-symbols-outlined text-[16px]">warning</span>
+                        {inputError}
+                    </div>
+                )}
             </div>
 
             <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">

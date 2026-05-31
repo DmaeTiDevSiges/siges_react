@@ -44,7 +44,7 @@ export const useShiftMonitor = (currentUser: User | null) => {
             setShowShiftAlert({
                 show: true,
                 type: 'START',
-                message: 'Seu turno de trabalho começou. Deseja ficar "Disponível" para receber ordens?'
+                message: 'Seu turno de trabalho começou. Deseja ficar "Disponível" para receber ordens de serviços ?'
             });
         } else {
              setShowShiftAlert(prev => prev.show ? prev : { show: false, type: 'START', message: '' });

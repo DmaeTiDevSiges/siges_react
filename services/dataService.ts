@@ -44,13 +44,17 @@ export const getBrazilTimestamp = (dateInput?: string | Date | null) => {
 export const getBrazilTime = getBrazilTimestamp;
 
 
+let processingConfigurationsCache: any[] | null = null;
 const getProcessingConfigurations = async () => {
+    if (processingConfigurationsCache) return processingConfigurationsCache;
+    
     const { data, error } = await supabase
         .from('cfg_orders_visits_processing')
         .select('*');
 
     if (error || !data) return [];
 
+    processingConfigurationsCache = data;
     return data as { id: number, icon: string, icon_color: string, bg_color: string }[];
 };
 
@@ -6698,7 +6702,7 @@ export const dataService = {
                 unitId: item.unit_id?.toString(),
                 imgUrl: item.img_url,
                 orderId: item.o_id?.toString(),
-                vehicleId: item.v_id?.toString(),
+                ovId: item.ov_id?.toString(),
                 activityId: item.activity_id?.toString(),
                 companyId: item.company_id?.toString(),
                 tokenFcm: item.token_fcm,
@@ -6728,6 +6732,44 @@ export const dataService = {
                 read_at: new Date().toISOString()
             })
             .eq('id', numericId);
+
+        if (error) throw error;
+    },
+
+    async deleteNotification(id: string): Promise<void> {
+        // Ensure we are sending a number to match the bigint column
+        const numericId = parseInt(id, 10);
+        if (isNaN(numericId)) throw new Error('Invalid notification ID');
+
+        const { error } = await supabase
+            .from('users_notifications')
+            .delete()
+            .eq('id', numericId);
+
+        if (error) throw error;
+    },
+
+    async deleteVisitChatNotifications(ovId: string): Promise<void> {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) return;
+
+        const { data: userData } = await supabase
+            .from('users')
+            .select('id')
+            .eq('uuid', authUser.id)
+            .single();
+
+        if (!userData) return;
+
+        const numericOvId = parseInt(ovId, 10);
+        if (isNaN(numericOvId)) return;
+
+        const { error } = await supabase
+            .from('users_notifications')
+            .delete()
+            .eq('type', 'visit_chat')
+            .eq('ov_id', numericOvId)
+            .eq('user_id_to', userData.id);
 
         if (error) throw error;
     },
@@ -8763,62 +8805,55 @@ export const dataService = {
     },
 
     async getActiveOrderVisit(id: string): Promise<OrderVisit | null> {
-        // Ensure counters are synced when accessing the visit page
-        // This handles legacy data or any missed syncs
-        try {
-            await this.syncOrderVisitAssetsProcessing(id);
-        } catch (e) {
-            console.warn('[dataService] Failed to pre-sync visit assets:', e);
-        }
+        // Fire and forget the sync to update DB in the background without blocking the UI
+        this.syncOrderVisitAssetsProcessing(id).catch(e => console.warn('[dataService] Failed to pre-sync visit assets:', e));
 
-        // Fetch visit data and configurations in parallel
-        const [visitResult, configs] = await Promise.all([
-            supabase
-                .from('v_orders_visits')
-                .select('*')
-                .eq('id', id)
-                .single(),
-            getProcessingConfigurations()
+        // Fetch visit data, configs, and assets in parallel
+        const [visitResult, configs, assetsResult] = await Promise.all([
+            supabase.from('v_orders_visits').select('*').eq('id', id).single(),
+            getProcessingConfigurations(),
+            supabase.from('orders_visits_assets').select('processing_id, is_filed').eq('ov_id', parseInt(id))
         ]);
 
         const { data, error } = visitResult;
 
         if (error || !data) return null;
 
-        // Fetch additional data directly from orders_visits table to ensure we have the latest counters
-        // and avoid issues if they are missing from the view
-        const { data: tableData } = await supabase
-            .from('orders_visits')
-            .select(`
-                ov_assets_amount,
-                ov_assets_reported_amount,
-                ov_assets_draft_amount,
-                ov_assets_revised_amount,
-                ov_assets_disapproved_amount,
-                ov_assets_approved_no_filed_amount,
-                ov_assets_approved_filed_amount
-            `)
-            .eq('id', parseInt(id))
-            .single();
-
-        const { data: orderData } = await supabase
-            .from('v_orders')
-            .select('contract_id, provider_department_id')
-            .eq('id', data.o_id)
-            .single();
+        // Compute stats dynamically to ensure accurate UI state without waiting for DB updates
+        const assets = assetsResult.data || [];
+        const stats = {
+            ov_assets_amount: assets.length,
+            ov_assets_draft_amount: assets.filter(a => Number(a.processing_id) === 1).length,
+            ov_assets_reported_amount: assets.filter(a => Number(a.processing_id) === 2).length,
+            ov_assets_revised_amount: assets.filter(a => Number(a.processing_id) === 3).length,
+            ov_assets_disapproved_amount: assets.filter(a => Number(a.processing_id) === 4).length,
+            ov_assets_approved_no_filed_amount: assets.filter(a => Number(a.processing_id) === 5 && !a.is_filed).length,
+            ov_assets_approved_filed_amount: assets.filter(a => Number(a.processing_id) === 5 && !!a.is_filed).length,
+        };
 
         // Find matching config for this visit's processing ID
         const config = configs.find(c => c.id === data.ov_processing_id);
 
-        let contractObject = null;
-        const cId = orderData?.contract_id || data.o_contract_id;
+        let orderData: any = null;
+        let contractObject: any = null;
+        const fetchPromises: PromiseLike<any>[] = [];
+
+        const cId = data.o_contract_id;
+
+        const p1 = supabase.from('v_orders').select('contract_id, provider_department_id').eq('id', data.o_id).single().then(res => { orderData = res.data; });
+        fetchPromises.push(p1);
+
         if (cId) {
-            const { data: contractData } = await supabase
-                .from('contracts')
-                .select('object')
-                .eq('id', cId)
-                .single();
-            contractObject = contractData?.object;
+            const p2 = supabase.from('contracts').select('object').eq('id', cId).single().then(res => { contractObject = res.data?.object; });
+            fetchPromises.push(p2);
+        }
+
+        await Promise.all(fetchPromises);
+        
+        // Fallback in case o_contract_id was missing but v_orders has it
+        if (!cId && orderData?.contract_id) {
+            const res = await supabase.from('contracts').select('object').eq('id', orderData.contract_id).single();
+            contractObject = res.data?.object;
         }
 
         return {
@@ -8875,15 +8910,14 @@ export const dataService = {
             oReasonDescription: data.o_reason_description,
             oCauseDescription: data.o_cause_description,
             observation: data.o_comments || data.ov_comments,
-            ovAssetsAmount: tableData?.ov_assets_amount ?? data.ov_assets_amount,
-            ovAssetsReportedAmount: tableData?.ov_assets_reported_amount ?? data.ov_assets_reported_amount,
-            ovAssetsDraftAmount: tableData?.ov_assets_draft_amount ?? data.ov_assets_draft_amount,
-            ovAssetsRevisedAmount: tableData?.ov_assets_revised_amount ?? data.ov_assets_revised_amount,
-            ovAssetsDisapprovedAmount: tableData?.ov_assets_disapproved_amount ?? data.ov_assets_disapproved_amount,
-            ovAssetsApprovedNoFiledAmount: tableData?.ov_assets_approved_no_filed_amount ?? data.ov_assets_approved_no_filed_amount,
-            ovAssetsApprovedFiledAmount: tableData?.ov_assets_approved_filed_amount ?? data.ov_assets_approved_filed_amount,
-            ovAssetsApprovedAmount: (tableData?.ov_assets_approved_no_filed_amount ?? data.ov_assets_approved_no_filed_amount ?? 0) +
-                (tableData?.ov_assets_approved_filed_amount ?? data.ov_assets_approved_filed_amount ?? 0),
+            ovAssetsAmount: stats.ov_assets_amount,
+            ovAssetsReportedAmount: stats.ov_assets_reported_amount,
+            ovAssetsDraftAmount: stats.ov_assets_draft_amount,
+            ovAssetsRevisedAmount: stats.ov_assets_revised_amount,
+            ovAssetsDisapprovedAmount: stats.ov_assets_disapproved_amount,
+            ovAssetsApprovedNoFiledAmount: stats.ov_assets_approved_no_filed_amount,
+            ovAssetsApprovedFiledAmount: stats.ov_assets_approved_filed_amount,
+            ovAssetsApprovedAmount: stats.ov_assets_approved_no_filed_amount + stats.ov_assets_approved_filed_amount,
             // Approval audit trail
             reportedAt: data.ov_reported_at,
             reportedUserId: data.ov_reported_user_id?.toString(),
@@ -9533,9 +9567,14 @@ export const dataService = {
             beforeTagSubDescription: item.before_tag_sub_description,
             afterUnitAssetTagDescription: item.after_unit_asset_tag_description,
             beforeStatusAt: item.before_status_at,
+            afterStatusAt: item.after_status_at,
             createdAt: item.reported_at,
             beforeStatusColor: item.status_color || item.before_status_color,
+            afterStatusColor: item.after_status_color,
             clientName: item.client_name,
+            beforeClientName: item.before_client_name,
+            afterClientName: item.after_client_name,
+            afterLocation: item.after_location,
             processingId: item.processing_id,
             oTeamLeaderNameShort: item.o_team_leader_name_short,
             ovMask: item.ov_mask,
@@ -9813,9 +9852,12 @@ export const dataService = {
                     .eq('id', ovaData.ov_id)
                     .single();
                     
+                const finalStatusAt = vVisit?.ov_ended_at || new Date().toISOString();
+                updates.after_status_at = finalStatusAt;
+                    
                 assetUpdates = {
                     status_id: ovaData.after_status_id,
-                    status_at: vVisit?.ov_ended_at || new Date().toISOString(),
+                    status_at: finalStatusAt,
                     unit_id: ovaData.after_unit_id,
                     tag_id: ovaData.after_tag_id,
                     tag_sub_id: ovaData.after_tag_sub_id,
@@ -11132,7 +11174,7 @@ export const dataService = {
         if (!ovIds.length) return [];
         const { data, error } = await supabase
             .from('v_orders_visits_assets')
-            .select('id, is_moved, asset_id, asset_type_id, asset_type_description')
+            .select('*')
             .in('ov_id', ovIds)
             .eq('is_moved', true);
 
@@ -11141,12 +11183,62 @@ export const dataService = {
             return [];
         }
 
-        return (data || []).map((item: any) => ({
-            id: item.id,
-            isMoved: item.is_moved,
-            assetTypeId: item.asset_type_id,
-            assetTypeDescription: item.asset_type_description || 'N/A'
-        }));
+        const ensureArray = (val: any): string[] => {
+            if (Array.isArray(val)) return val;
+            if (typeof val === 'string' && val.trim()) {
+                if (val.startsWith('{') && val.endsWith('}')) {
+                    return val.substring(1, val.length - 1).split(',').map(s => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
+                }
+                try {
+                    const parsed = JSON.parse(val);
+                    if (Array.isArray(parsed)) return parsed;
+                } catch (e) {
+                    return [val];
+                }
+            }
+            return [];
+        };
+
+        return (data || []).map((item: any) => {
+            const beforeFiles = ensureArray(item.before_img_files_names || item.before_img_file_name);
+            const afterFiles = ensureArray(item.after_img_files_names || item.after_img_file_name);
+            const oCompanyId = item.o_company_id || item.company_id || '0';
+            const assetId = item.asset_id || '0';
+
+            return {
+                id: item.id,
+                isMoved: item.is_moved,
+                assetTypeId: item.asset_type_id,
+                assetTypeDescription: item.asset_type_description || 'N/A',
+                code: item.code || '',
+                description: item.description || '',
+                brand: item.brand,
+                model: item.model,
+                serial: item.serial,
+                beforeUnitDescription: item.before_unit_description || '',
+                afterUnitDescription: item.after_unit_description || '',
+                beforeTagDescription: item.before_tag_description || '',
+                afterTagDescription: item.after_tag_description || '',
+                beforeTagSubDescription: item.before_tag_sub_description || '',
+                afterTagSubDescription: item.after_tag_sub_description || '',
+                beforeStatusDescription: item.before_status_description || '',
+                afterStatusDescription: item.after_status_description || '',
+                beforeStatusAt: item.before_status_at,
+                afterStatusAt: item.after_status_at,
+                // status_color é o campo confirmado na view (veja getOrderVisitAssets linha 9479)
+                beforeStatusColor: item.status_color || item.before_status_color || '',
+                afterStatusColor: item.after_status_color || '',
+                beforeClientName: item.before_client_name || '',
+                afterClientName: item.after_client_name || '',
+                movedComments: item.moved_comments || '',
+                ovMask: item.ov_mask || '',
+                orderMask: item.o_mask || item.order_mask || '',
+                imgUrl: beforeFiles.length > 0 ?
+                    this.getPublicImageUrl(item.before_img_file_path || `companies/${oCompanyId}/assets/${assetId}`, beforeFiles[0]) : undefined,
+                afterImgUrl: afterFiles.length > 0 ?
+                    this.getPublicImageUrl(item.after_img_file_path || `companies/${oCompanyId}/assets/${assetId}`, afterFiles[0]) : undefined,
+            };
+        });
     },
 
     /**
@@ -12328,7 +12420,7 @@ export const dataService = {
         });
     },
 
-    async sendVisitChatMessage(messageData: Partial<OrderVisitChatMessage>): Promise<OrderVisitChatMessage | null> {
+    async sendVisitChatMessage(messageData: Partial<OrderVisitChatMessage> & { activeUserIds?: string[] }): Promise<OrderVisitChatMessage | null> {
         const { data, error } = await supabase
             .from('orders_visits_chat')
             .insert({
@@ -12362,7 +12454,8 @@ export const dataService = {
                 messageData.ovId!,
                 messageData.message!,
                 messageData.userId!,
-                messageData.isActionItem ? 'action' : (messageData.infoRequested ? 'info' : 'normal')
+                messageData.isActionItem ? 'action' : (messageData.infoRequested ? 'info' : 'normal'),
+                messageData.activeUserIds || []
             );
         } catch (notifErr) {
             console.error('Failed to send chat notifications:', notifErr);
@@ -12461,7 +12554,13 @@ export const dataService = {
         }
     },
 
-    async sendChatNotifications(visitId: string, message: string, senderId: string, type: 'action' | 'info' | 'normal'): Promise<void> {
+    async sendChatNotifications(
+        visitId: string,
+        message: string,
+        senderId: string,
+        type: 'action' | 'info' | 'normal',
+        activeUserIds: string[] = []
+    ): Promise<void> {
         // 1. Get sender name
         const { data: senderData } = await supabase
             .from('users')
@@ -12491,10 +12590,10 @@ export const dataService = {
 
         if (partError || !participants) return;
 
-        // 4. Collect user IDs to notify, excluding the sender
+        // 4. Collect user IDs to notify, excluding the sender and users active in the chat
         const userIdsToNotify = participants
             .map((p: any) => p.user_id.toString())
-            .filter((uid: string) => uid !== senderId.toString());
+            .filter((uid: string) => uid !== senderId.toString() && !activeUserIds.includes(uid));
 
         if (userIdsToNotify.length === 0) return;
 
@@ -12506,12 +12605,12 @@ export const dataService = {
         const notifications = userIdsToNotify.map((uid: string) => ({
             user_id_to: parseInt(uid),
             user_id_from: parseInt(senderId),
-            title: `Novo chat na Visita ${ovMask || visitId}`,
+            title: `Nova mensagem na Visita ${ovMask || visitId}`,
             body: `${prefix}${senderName}: ${message}`,
             type: 'visit_chat',
             is_read: false,
             created_at: getBrazilTimestamp(),
-            v_id: parseInt(visitId),
+            ov_id: parseInt(visitId),
             o_id: orderId ? parseInt(orderId) : null,
             company_id: companyId ? parseInt(companyId) : null,
             unit_id: unitId ? parseInt(unitId) : null,

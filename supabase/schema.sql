@@ -2654,6 +2654,14 @@ create index IF not exists idx_orders_visits_status on public.orders_visits usin
 
 create index IF not exists idx_orders_visits_is_filed on public.orders_visits using btree (ov_is_filed) TABLESPACE pg_default;
 
+-- Performance Indexes for Related Tables (Visit Details Page)
+create index IF not exists idx_orders_visits_assets_ov_id on public.orders_visits_assets using btree (ov_id) TABLESPACE pg_default;
+create index IF not exists idx_orders_visits_teams_ov_id on public.orders_visits_teams using btree (ov_id) TABLESPACE pg_default;
+create index IF not exists idx_orders_visits_services_ov_id on public.orders_visits_services using btree (ov_id) TABLESPACE pg_default;
+create index IF not exists idx_orders_visits_vehicles_ov_id on public.orders_visits_vehicles using btree (ov_id) TABLESPACE pg_default;
+create index IF not exists idx_orders_visits_assets_processing_id on public.orders_visits_assets using btree (processing_id) TABLESPACE pg_default;
+create index IF not exists idx_orders_visits_assets_asset_id on public.orders_visits_assets using btree (asset_id) TABLESPACE pg_default;
+
 -- Triggers
 create trigger trg_set_ov_started_date_parts BEFORE INSERT
 or

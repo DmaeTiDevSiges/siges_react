@@ -9,6 +9,7 @@ import { dataService } from '../../../../services/dataService';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
 import { Modal } from '../../../../components/ui/Modal';
 import { AssetCard } from '../../../../components/assets/AssetCard';
+import { AssetMovementListItem } from '../../../../components/assets/AssetMovementListItem';
 import { AssetsListPDFButton } from '../../../../components/reports/AssetsListPDFButton';
 import { UnitAssetTagAvailableForm } from '../../../Units/UnitAssetTagAvailableForm';
 import { PhotoViewer } from '../../../../components/ui/PhotoViewer';
@@ -780,51 +781,13 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                     <p className="text-slate-500 font-bold">Nenhum ativo movido encontrado para este setor.</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 gap-4 max-h-[70vh] overflow-y-auto no-scrollbar pb-6">
+                                <div className="grid grid-cols-1 gap-4 max-h-[70vh] overflow-y-auto scrollbar-primary pb-6 pr-2">
                                     {movedAssets.map(ova => (
-                                        <div
+                                        <AssetMovementListItem
                                             key={ova.id}
+                                            asset={ova}
                                             onClick={() => handleMovedAssetClick(ova)}
-                                            className="group relative bg-white dark:bg-slate-900 rounded-[12px] border border-orange-200 dark:border-orange-900/40 shadow-sm overflow-hidden p-4 cursor-pointer active:scale-[0.98] transition-all hover:border-orange-400 dark:hover:border-orange-500"
-                                        >
-                                            <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-orange-400 to-orange-500" />
-                                            <div className="flex items-stretch justify-between gap-3 mb-3">
-                                                <div
-                                                    className="text-white rounded-[12px] px-4 py-2 flex items-center shadow-sm"
-                                                    style={{ backgroundColor: ova.beforeStatusColor || '#f97316' }}
-                                                >
-                                                    <div className="flex flex-col leading-tight">
-                                                        <span className="text-[14px] font-bold tracking-tight uppercase">{ova.code}</span>
-                                                        <div className="flex items-center gap-2.5 mt-[10px]">
-                                                            <span className="text-[9px] font-black uppercase tracking-wider">{ova.beforeStatusDescription || 'MOVIDO'}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-col items-end justify-center gap-1">
-                                                    <span className="inline-flex items-center gap-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full">
-                                                        <span className="material-symbols-outlined text-[11px]">swap_vert</span>
-                                                        MOVIDO
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight uppercase mb-2">{ova.description}</h3>
-                                            {ova.afterUnitDescription && (
-                                                <div className="flex flex-col gap-[2px]">
-                                                    <span className="text-[9px] text-orange-400 dark:text-orange-500 font-extrabold uppercase leading-none">Destino</span>
-                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase leading-tight">
-                                                        {ova.afterUnitDescription}
-                                                        {ova.afterUnitAssetTagDescription ? ` › ${ova.afterUnitAssetTagDescription}` : ''}
-                                                    </span>
-                                                </div>
-                                            )}
-                                            {ova.movedComments && (
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 italic">{ova.movedComments}</p>
-                                            )}
-                                            <div className="mt-3 pt-3 border-t border-orange-100 dark:border-orange-900/30 flex items-center justify-between">
-                                                <span className="text-[10px] text-slate-400 font-bold">{ova.ovMask || ova.orderMask || ''}</span>
-                                                <span className="text-[10px] text-slate-400 font-bold">{ova.oTeamLeaderNameShort || ''}</span>
-                                            </div>
-                                        </div>
+                                        />
                                     ))}
                                 </div>
                             )}

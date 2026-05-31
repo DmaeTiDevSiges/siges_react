@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 interface OrderVisitChatTabProps {
     visitId: string;
+    onChatEntered?: (visitId: string) => void;
 }
 
 // --- Read Receipt Indicator Component ---
@@ -111,7 +112,7 @@ const ReadReceiptIndicator: React.FC<{
 };
 
 // --- Main Chat Tab Component ---
-export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId }) => {
+export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, onChatEntered }) => {
     const [messages, setMessages] = useState<OrderVisitChatMessage[]>([]);
     const [participants, setParticipants] = useState<OrderVisitChatParticipant[]>([]);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -122,6 +123,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId })
     const [isActionItem, setIsActionItem] = useState(false);
     const [infoRequested, setInfoRequested] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
 
     // Participant Modal states
     const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
@@ -131,11 +133,16 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId })
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const currentUserRef = useRef<User | null>(null);
+    const participantsRef = useRef<OrderVisitChatParticipant[]>([]);
 
-    // Keep ref in sync for use in callbacks
+    // Keep refs in sync for use in callbacks
     useEffect(() => {
         currentUserRef.current = currentUser;
     }, [currentUser]);
+
+    useEffect(() => {
+        participantsRef.current = participants;
+    }, [participants]);
 
     const loadMessages = useCallback(async () => {
         try {
@@ -203,8 +210,10 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId })
     // Initial Load & Realtime subscriptions
     useEffect(() => {
         loadPageData();
+        // Notify parent that the user entered the chat so related notifications can be cleared
+        onChatEntered?.(visitId);
 
-        // Subscribe to changes in orders_visits_chat (new messages)
+        // Subscribe to changes in orders_visits_chat (new messages) and track presence
         const chatChannel = supabase
             .channel(`public:orders_visits_chat:ov_id=${visitId}`)
             .on(
@@ -215,12 +224,98 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId })
                     table: 'orders_visits_chat',
                     filter: `ov_id=eq.${visitId}`
                 },
-                async () => {
-                    const msgs = await loadMessages();
-                    markUnreadAsRead(msgs);
+                async (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        const newMsg = payload.new;
+                        const senderId = newMsg.user_id.toString();
+                        const user = currentUserRef.current;
+                        
+                        let userName = 'Usuário';
+                        let userAvatarUrl = '';
+
+                        if (user && String(senderId) === String(user.id)) {
+                            userName = user.nameShort || user.nameFull || 'Você';
+                            userAvatarUrl = user.avatarUrl || '';
+                        } else {
+                            const pList = participantsRef.current;
+                            const participant = pList.find(p => String(p.userId) === String(senderId));
+                            if (participant) {
+                                userName = participant.userName;
+                                userAvatarUrl = participant.userAvatarUrl || '';
+                            } else {
+                                // Fallback: busca rápida do Supabase
+                                const { data: userData } = await supabase
+                                    .from('users')
+                                    .select('name_short, name_full, img_file_path, img_file_name')
+                                    .eq('id', parseInt(senderId))
+                                    .maybeSingle();
+                                    
+                                if (userData) {
+                                    userName = userData.name_short || userData.name_full || 'Usuário';
+                                    userAvatarUrl = dataService.getPublicImageUrl(userData.img_file_path, userData.img_file_name, { width: 100, height: 100, resize: 'cover' });
+                                }
+                            }
+                        }
+
+                        const formattedMsg: OrderVisitChatMessage = {
+                            id: newMsg.id.toString(),
+                            ovId: newMsg.ov_id.toString(),
+                            userId: senderId,
+                            message: newMsg.message,
+                            isActionItem: newMsg.is_action_item,
+                            isResolved: newMsg.is_resolved,
+                            infoRequested: newMsg.info_requested,
+                            createdAt: newMsg.created_at,
+                            userName,
+                            userAvatarUrl,
+                            readBy: []
+                        };
+
+                        setMessages(prev => {
+                            if (prev.some(m => m.id === formattedMsg.id)) return prev;
+                            const updated = [...prev, formattedMsg];
+                            // Auto-marcar como lida se a mensagem não for nossa
+                            markUnreadAsRead(updated);
+                            return updated;
+                        });
+                    } else if (payload.eventType === 'UPDATE') {
+                        const updatedMsg = payload.new;
+                        setMessages(prev => prev.map(m => {
+                            if (m.id === updatedMsg.id.toString()) {
+                                return {
+                                    ...m,
+                                    isResolved: updatedMsg.is_resolved,
+                                    isActionItem: updatedMsg.is_action_item,
+                                    infoRequested: updatedMsg.info_requested,
+                                    message: updatedMsg.message
+                                };
+                            }
+                            return m;
+                        }));
+                    } else if (payload.eventType === 'DELETE') {
+                        const deletedMsg = payload.old;
+                        setMessages(prev => prev.filter(m => m.id !== deletedMsg.id.toString()));
+                    }
                 }
             )
-            .subscribe();
+            .on('presence', { event: 'sync' }, () => {
+                const presenceState = chatChannel.presenceState();
+                const ids = Object.values(presenceState)
+                    .flat()
+                    .map((p: any) => p.user_id?.toString())
+                    .filter(Boolean);
+                setActiveUserIds(ids);
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    const user = currentUserRef.current;
+                    if (user?.id) {
+                        await chatChannel.track({
+                            user_id: user.id
+                        });
+                    }
+                }
+            });
 
         // Subscribe to changes in orders_visits_chat_reads (read receipts updates)
         const readsChannel = supabase
@@ -232,9 +327,49 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId })
                     schema: 'public',
                     table: 'orders_visits_chat_reads'
                 },
-                () => {
-                    // Reload messages to refresh readBy data
-                    loadMessages();
+                (payload) => {
+                    const newRead = payload.new;
+                    const chatId = newRead.chat_id.toString();
+                    const readerId = newRead.user_id.toString();
+                    const user = currentUserRef.current;
+
+                    setMessages(prev => {
+                        return prev.map(msg => {
+                            if (msg.id === chatId) {
+                                const alreadyRead = (msg.readBy || []).some(r => String(r.userId) === String(readerId));
+                                if (alreadyRead) return msg;
+
+                                // Obter informações do leitor
+                                let rName = 'Usuário';
+                                let rAvatar = '';
+
+                                if (user && String(readerId) === String(user.id)) {
+                                    rName = user.nameShort || user.nameFull || 'Você';
+                                    rAvatar = user.avatarUrl || '';
+                                } else {
+                                    const pList = participantsRef.current;
+                                    const participant = pList.find(p => String(p.userId) === String(readerId));
+                                    if (participant) {
+                                        rName = participant.userName;
+                                        rAvatar = participant.userAvatarUrl || '';
+                                    }
+                                }
+
+                                const newReader = {
+                                    userId: readerId,
+                                    userName: rName,
+                                    userAvatarUrl: rAvatar || undefined,
+                                    readAt: newRead.read_at
+                                };
+
+                                return {
+                                    ...msg,
+                                    readBy: [...(msg.readBy || []), newReader]
+                                };
+                            }
+                            return msg;
+                        });
+                    });
                 }
             )
             .subscribe();
@@ -252,26 +387,44 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId })
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !currentUser) return;
+        const messageText = newMessage.trim();
+        if (!messageText || !currentUser || isSending) return;
+
+        if (participants.length === 0) {
+            toast.warning('Adicione pelo menos um usuário a ser notificado utilizando o botão "Notificar" antes de enviar uma mensagem.');
+            return;
+        }
 
         setIsSending(true);
+        
+        // Atualização otimista: limpa os inputs imediatamente para sensação instantânea
+        setNewMessage('');
+        setIsActionItem(false);
+        setInfoRequested(false);
+
         try {
-            await dataService.sendVisitChatMessage({
+            const sentMsg = await dataService.sendVisitChatMessage({
                 ovId: visitId,
                 userId: currentUser.id,
-                message: newMessage.trim(),
-                isActionItem,
+                message: messageText,
+                isActionItem: false,
                 isResolved: false,
-                infoRequested
+                infoRequested: false,
+                activeUserIds
             });
 
-            setNewMessage('');
-            setIsActionItem(false);
-            setInfoRequested(false);
-            loadMessages();
+            if (sentMsg) {
+                setMessages(prev => {
+                    if (prev.some(m => m.id === sentMsg.id)) return prev;
+                    const updated = [...prev, sentMsg];
+                    return updated;
+                });
+            }
         } catch (error) {
             console.error('Error sending message:', error);
             toast.error('Erro ao enviar mensagem');
+            // Restaura o texto digitado no input em caso de erro
+            setNewMessage(messageText);
         } finally {
             setIsSending(false);
         }
@@ -289,7 +442,15 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId })
         try {
             await dataService.toggleResolveChatAction(messageId, !currentStatus);
             toast.success(currentStatus ? 'Ação marcada como pendente' : 'Ação marcada como resolvida');
-            loadMessages();
+            setMessages(prev => prev.map(m => {
+                if (m.id === messageId) {
+                    return {
+                        ...m,
+                        isResolved: !currentStatus
+                    };
+                }
+                return m;
+            }));
         } catch (error) {
             console.error('Error toggling resolve action:', error);
             toast.error('Erro ao atualizar status da ação');
@@ -365,7 +526,11 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId })
                 </div>
                 <button
                     onClick={openParticipantModal}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm"
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm ${
+                        participants.length === 0
+                            ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-600 dark:text-amber-400 animate-pulse'
+                            : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
+                    }`}
                 >
                     <span className="material-symbols-outlined text-sm font-bold">group</span>
                     <span>Notificar ({participants.length})</span>
@@ -467,69 +632,23 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId })
             {/* Footer Form Input */}
             <form
                 onSubmit={handleSendMessage}
-                className="p-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-white/5 space-y-2.5"
+                className="p-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-white/5"
             >
-                {/* Options Selection Row */}
-                <div className="flex flex-wrap gap-4 px-2">
-                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={isActionItem}
-                            onChange={(e) => {
-                                setIsActionItem(e.target.checked);
-                                if (e.target.checked) setInfoRequested(false); // Mutually exclusive helper
-                            }}
-                            className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500"
-                        />
-                        <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm text-amber-500 font-bold">warning</span>
-                            Ação a ser tomada
-                        </span>
-                    </label>
-
-                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={infoRequested}
-                            onChange={(e) => {
-                                setInfoRequested(e.target.checked);
-                                if (e.target.checked) setIsActionItem(false); // Mutually exclusive helper
-                            }}
-                            className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500"
-                        />
-                        <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm text-sky-500 font-bold">help_center</span>
-                            Solicitar info detalhada
-                        </span>
-                    </label>
-                </div>
-
                 {/* Input text and Send button */}
                 <div className="flex gap-2">
                     <input
                         type="text"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder={
-                            isActionItem
-                                ? 'Escreva uma ação/TODO a ser tomada...'
-                                : infoRequested
-                                ? 'Escreva a informação que deseja solicitar...'
-                                : 'Escreva uma mensagem...'
-                        }
+                        placeholder="Escreva uma mensagem..."
                         className="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                        disabled={isSending}
                     />
                     <button
                         type="submit"
-                        disabled={isSending || !newMessage.trim()}
+                        disabled={!newMessage.trim()}
                         className="p-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-850 disabled:text-slate-400 text-white rounded-2xl flex items-center justify-center transition-all shadow-md active:scale-95 shrink-0"
                     >
-                        {isSending ? (
-                            <Loading size="xs" />
-                        ) : (
-                            <span className="material-symbols-outlined font-black">send</span>
-                        )}
+                        <span className="material-symbols-outlined font-black">send</span>
                     </button>
                 </div>
             </form>

@@ -80,7 +80,7 @@ export const Layout: React.FC<LayoutProps> = ({
           </div>
         </div>
 
-        <main ref={mainRef} className={`flex-1 overflow-y-auto no-scrollbar ${hidePadding ? 'pb-0' : 'pb-20'} md:pb-6 relative`}>
+        <main ref={mainRef} className={`flex-1 overflow-y-auto no-scrollbar ${hidePadding ? 'pb-0' : 'pb-[calc(5rem+env(safe-area-inset-bottom))]'} md:pb-6 relative`}>
           {loading && (
             <div className="absolute inset-0 z-[50] bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm flex items-center justify-center transition-all duration-300">
               <Loading size="md" text={loadingText} />

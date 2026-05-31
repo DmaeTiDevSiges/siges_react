@@ -3,5 +3,6 @@
     "allow": [
       "Bash(.\\gradlew.bat *)"
     ]
-  }
+  },
+  "$version": 3
 }

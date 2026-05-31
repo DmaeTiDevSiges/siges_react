@@ -16,7 +16,7 @@ export const SplashScreen: React.FC = () => {
 
     return (
         <div
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden safe-area-top safe-area-bottom"
             style={{
                 backgroundColor: '#050a10',
                 backgroundImage: `

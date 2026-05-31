@@ -279,7 +279,7 @@ const App: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderDetailActiveTab, setOrderDetailActiveTab] = useState<string>('SS');
   const [ssDetailActiveTab, setSsDetailActiveTab] = useState<string>('OS');
-  const [visitActiveTab, setVisitActiveTab] = useState<'home' | 'transport' | 'assets' | 'services' | 'costs'>('home');
+  const [visitActiveTab, setVisitActiveTab] = useState<'home' | 'transport' | 'assets' | 'services' | 'costs' | 'chat'>('home');
 
   const handleVisitTabChange = (tab: any) => {
     setVisitActiveTab(tab);
@@ -602,6 +602,44 @@ const App: React.FC = () => {
       }
       return newList;
     });
+  };
+
+  const handleNotificationClick = async (notification: UserNotification) => {
+    if (notification.type === 'visit_chat' && notification.ovId) {
+      setSelectedVisit({ id: notification.ovId } as any);
+      setVisitActiveTab('chat');
+      setCurrentScreen('order-visit-execute');
+
+      try {
+        await dataService.deleteNotification(notification.id);
+        setNotifications(prev => {
+          const newList = prev.filter(n => n.id !== notification.id);
+          if (currentUser) {
+            setCurrentUser({ ...currentUser, notificationsAmount: newList.length });
+          }
+          return newList;
+        });
+      } catch (error) {
+        console.error('Error deleting notification after click:', error);
+      }
+    }
+  };
+
+  const handleChatEntered = async (visitId: string) => {
+    // Remove from local state immediately (optimistic)
+    setNotifications(prev => {
+      const newList = prev.filter(n => !(n.type === 'visit_chat' && n.ovId === visitId));
+      if (currentUser && newList.length !== prev.length) {
+        setCurrentUser({ ...currentUser, notificationsAmount: newList.length });
+      }
+      return newList;
+    });
+    // Delete from DB in background (fire-and-forget)
+    try {
+      await dataService.deleteVisitChatNotifications(visitId);
+    } catch (error) {
+      console.error('Error deleting visit_chat notifications on chat enter:', error);
+    }
   };
 
   useEffect(() => {
@@ -1957,7 +1995,13 @@ const App: React.FC = () => {
           />
         ) : null;
       case 'notifications':
-        return <NotificationsList notifications={notifications} onNotificationRead={handleNotificationRead} />;
+        return (
+          <NotificationsList
+            notifications={notifications}
+            onNotificationRead={handleNotificationRead}
+            onNotificationClick={handleNotificationClick}
+          />
+        );
       case 'service-request-detail':
         return selectedOrder ? (
           <ServiceRequestDetail
@@ -2115,6 +2159,7 @@ const App: React.FC = () => {
               setSelectedOrder(order);
               setCurrentScreen('order-visit-approve');
             }}
+            onChatEntered={handleChatEntered}
           />
         ) : null;
       case 'order-visit-approve':
@@ -2523,7 +2568,7 @@ const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: stri
               message={showShiftAlert.message}
               type="info"
               confirmLabel={showShiftAlert.type === 'START' ? 'Ficar Disponível' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Ir para a Visita' : 'NÃO ESTOU MAIS DISPONÍVEL'}
-              cancelLabel="Ainda estou disponível"
+              cancelLabel="Ainda NÃO estou disponível"
               onConfirm={async () => {
                  if (showShiftAlert.type === 'END_WITH_VISIT') {
                      dismissAlert(showShiftAlert.type);

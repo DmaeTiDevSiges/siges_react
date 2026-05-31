@@ -20,6 +20,7 @@ interface OrderVisitPageProps {
     onTabChange?: (tab: VisitTab) => void;
     onAssetSelect?: (asset: OrderVisitAssetView, visit: OrderVisit) => void;
     onApproveVisitRequest?: (visit: OrderVisit, order: Order) => void;
+    onChatEntered?: (visitId: string) => void;
 }
 
 
@@ -47,7 +48,8 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     activeTab: externalActiveTab,
     onTabChange: onExternalTabChange,
     onAssetSelect,
-    onApproveVisitRequest
+    onApproveVisitRequest,
+    onChatEntered
 }) => {
 
     const [visit, setVisit] = useState<OrderVisit | null>(null);
@@ -86,8 +88,9 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 setVisit(visitData);
                 setTeam(teamData);
                 setCurrentUser(user);
+                setLoading(false); // Liberar a tela para o usuário imediatamente após o carregamento primário!
 
-                // Check if current user is a manager for this contract
+                // Check if current user is a manager for this contract silently in the background
                 if (visitData?.contractId && user?.id) {
                     try {
                         const managers = await dataService.getContractManagers(visitData.contractId);
@@ -103,8 +106,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
             } catch (error) {
                 console.error('Error loading visit page data:', error);
                 toast.error('Erro ao carregar dados da visita');
-            } finally {
-                setLoading(false);
+                setLoading(false); // Em caso de erro, removemos o loading também
             }
         };
 
@@ -428,7 +430,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                     </div>
                 );
             case 'chat':
-                return <OrderVisitChatTab visitId={visitId} />;
+                return <OrderVisitChatTab visitId={visitId} onChatEntered={onChatEntered} />;
             default:
                 return null;
         }
@@ -442,7 +444,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                     {renderTabContent()}
                 </div>
             ) : (
-                <KeyboardAwareScrollView className="p-4 pb-32 md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
+                <KeyboardAwareScrollView className="p-4 pb-[calc(8rem+env(safe-area-inset-bottom))] md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
                     {renderTabContent()}
                 </KeyboardAwareScrollView>
             )}

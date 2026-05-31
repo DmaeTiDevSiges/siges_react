@@ -681,7 +681,7 @@ export interface UserNotification {
   unitId?: string;
   imgUrl?: string;
   orderId?: string; // o_id
-  vehicleId?: string; // v_id
+  ovId?: string; // ov_id
   activityId?: string;
   companyId?: string;
   tokenFcm?: string;

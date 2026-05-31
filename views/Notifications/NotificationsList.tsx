@@ -10,11 +10,13 @@ import { Loading } from '../../components/ui/Loading';
 interface NotificationsListProps {
     notifications: UserNotification[];
     onNotificationRead: (id: string) => void;
+    onNotificationClick?: (notification: UserNotification) => void;
 }
 
 export const NotificationsList: React.FC<NotificationsListProps> = ({
     notifications: initialNotifications,
-    onNotificationRead
+    onNotificationRead,
+    onNotificationClick
 }) => {
     const [localNotifications, setLocalNotifications] = useState<UserNotification[]>([]);
     const [page, setPage] = useState(0);
@@ -194,7 +196,10 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
                                 return (
                                     <div
                                         key={notification.id}
-                                        className="group relative bg-white dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50 rounded-2xl overflow-hidden transition-all hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 active:scale-[0.995]"
+                                        onClick={() => onNotificationClick?.(notification)}
+                                        className={`group relative bg-white dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50 rounded-2xl overflow-hidden transition-all hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 active:scale-[0.995] ${
+                                            onNotificationClick ? 'cursor-pointer' : ''
+                                        }`}
                                     >
                                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${styles.strip} opacity-70`} />
 
@@ -234,7 +239,10 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
 
                                             <div className="flex items-center">
                                                 <button
-                                                    onClick={() => handleRead(notification.id)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleRead(notification.id);
+                                                    }}
                                                     disabled={loadingId === notification.id}
                                                     className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${loadingId === notification.id
                                                         ? 'bg-slate-100 dark:bg-slate-800 animate-spin'

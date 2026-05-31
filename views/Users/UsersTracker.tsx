@@ -452,7 +452,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
 
 
             {/* Footer section with Horizontal Visits List - Overlay Layer */}
-            <div className="absolute bottom-4 left-4 right-4 bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border border-white/30 dark:border-slate-700/30 p-3 z-10 shadow-[0_8px_32px_rgba(0,0,0,0.15)] rounded-2xl transition-all">
+            <div className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 right-4 bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border border-white/30 dark:border-slate-700/30 p-3 z-10 shadow-[0_8px_32px_rgba(0,0,0,0.15)] rounded-2xl transition-all">
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-800 dark:text-white">Visitas de Hoje</span>

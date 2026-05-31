@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { dataService } from '../../services/dataService';
 import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
+import { AssetMovementListItem } from '../../components/assets/AssetMovementListItem';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 import { toast } from 'sonner';
 import { Loading } from '../../components/ui/Loading';
@@ -10,6 +11,14 @@ import { Calendar } from '../../components/ui/Calendar';
 import { VisitsListPDFButton } from '../../components/reports/VisitsListPDFButton';
 import { FilterSelect } from '../../components/ui/FilterSelect';
 import { BatchVisitReportPDFButton } from '../../components/reports/BatchVisitReportPDFButton';
+import { ExcelExportUtils } from '../../utils/ExcelExportUtils';
+import { FileUtils } from '../../utils/FileUtils';
+import { getLogoBase64 } from '../../utils/PdfImageUtils';
+import { AssetsListDocument } from '../../components/reports/AssetsListDocument';
+import { AssetMovementsDocument } from '../../components/reports/AssetMovementsDocument';
+import { pdf } from '@react-pdf/renderer';
+import { RiFileExcel2Fill } from 'react-icons/ri';
+import { FaFilePdf } from 'react-icons/fa';
 
 interface DashboardOrdersVisitsAdminScreenProps {
     currentUser: User;
@@ -61,7 +70,10 @@ const FilterBarSection = React.memo(({
     handleSectorChange,
     unitSubTypes,
     assetTagSubOptions,
-    orderSubTypes
+    orderSubTypes,
+    isMovementsModalOpen,
+    setIsMovementsModalOpen,
+    appropriationData
 }: { 
     advancedFilters: OrderFilters;
     setAdvancedFilters: React.Dispatch<React.SetStateAction<OrderFilters>>;
@@ -73,6 +85,9 @@ const FilterBarSection = React.memo(({
     unitSubTypes: any[];
     assetTagSubOptions: any[];
     orderSubTypes: any[];
+    isMovementsModalOpen: boolean;
+    setIsMovementsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    appropriationData: any;
 }) => {
     const [selectionModal, setSelectionModal] = useState<{
         isOpen: boolean;
@@ -87,6 +102,110 @@ const FilterBarSection = React.memo(({
         options: [],
         currentValue: []
     });
+
+    const [isExportingExcel, setIsExportingExcel] = useState(false);
+    const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+    const handleExportExcel = async () => {
+        try {
+            const movedAssets = (appropriationData as any)?.movedAssets || [];
+            if (movedAssets.length === 0) {
+                toast.error('Nenhuma movimentação para exportar.');
+                return;
+            }
+
+            setIsExportingExcel(true);
+            const toastId = toast.loading('Gerando Excel de Movimentações...');
+
+            const reportRows = movedAssets.map((a: any) => ({
+                code: a.code || '',
+                description: a.description || '',
+                beforeClientUnit: `${a.beforeClientName || ''} - ${a.beforeUnitDescription || ''}`,
+                beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
+                beforeStatus: a.beforeStatusDescription || '',
+                beforeDate: a.beforeStatusAt ? new Date(a.beforeStatusAt).toLocaleDateString('pt-BR') : '',
+                afterClientUnit: `${a.afterClientName || ''} - ${a.afterUnitDescription || ''}`,
+                afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
+                afterStatus: a.afterStatusDescription || '',
+                afterDate: a.afterStatusAt ? new Date(a.afterStatusAt).toLocaleDateString('pt-BR') : '',
+                comments: a.movedComments || ''
+            }));
+
+            const mapping = {
+                code: 'Código',
+                description: 'Descrição',
+                beforeClientUnit: 'Origem (Cliente - Unidade)',
+                beforeSector: 'Origem (Setor > Posição)',
+                beforeStatus: 'Origem (Situação)',
+                beforeDate: 'Origem (Data)',
+                afterClientUnit: 'Destino (Cliente - Unidade)',
+                afterSector: 'Destino (Setor > Posição)',
+                afterStatus: 'Destino (Situação)',
+                afterDate: 'Destino (Data)',
+                comments: 'Observações'
+            };
+
+            const formattedData = ExcelExportUtils.formatDataForExport(reportRows, mapping);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const filename = `movimentacoes_ativos_${timestamp}`;
+
+            await ExcelExportUtils.exportToExcel(formattedData, filename, 'Movimentações');
+            toast.success('Excel exportado com sucesso!', { id: toastId });
+        } catch (error) {
+            console.error('Erro ao exportar Excel:', error);
+            toast.error('Ocorreu um erro ao exportar o Excel.');
+        } finally {
+            setIsExportingExcel(false);
+        }
+    };
+
+    const handleExportPDF = async () => {
+        try {
+            const movedAssets = (appropriationData as any)?.movedAssets || [];
+            if (movedAssets.length === 0) {
+                toast.error('Nenhuma movimentação para exportar.');
+                return;
+            }
+
+            setIsExportingPDF(true);
+            const toastId = toast.loading('Gerando PDF de Movimentações...');
+
+            const reportRows = movedAssets.map((a: any) => ({
+                code: a.code || '',
+                description: a.description || '',
+                beforeClientName: a.beforeClientName || '',
+                beforeUnitDescription: a.beforeUnitDescription || '',
+                beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
+                beforeStatus: a.beforeStatusDescription || '',
+                beforeDate: a.beforeStatusAt ? new Date(a.beforeStatusAt).toLocaleDateString('pt-BR') : '',
+                afterClientName: a.afterClientName || '',
+                afterUnitDescription: a.afterUnitDescription || '',
+                afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
+                afterStatus: a.afterStatusDescription || '',
+                afterDate: a.afterStatusAt ? new Date(a.afterStatusAt).toLocaleDateString('pt-BR') : ''
+            }));
+
+            const logoBase64 = await getLogoBase64();
+            const doc = (
+                <AssetMovementsDocument 
+                    assets={reportRows} 
+                    logoBase64={logoBase64} 
+                    generatedAt={new Date().toLocaleString('pt-BR')}
+                />
+            );
+            const blob = await pdf(doc).toBlob();
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const filename = `movimentacoes_ativos_${timestamp}.pdf`;
+
+            await FileUtils.downloadFile(blob, filename);
+            toast.success('PDF gerado com sucesso!', { id: toastId });
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            toast.error('Ocorreu um erro ao gerar o PDF.');
+        } finally {
+            setIsExportingPDF(false);
+        }
+    };
 
     const openSelectionModal = useCallback((key: keyof OrderFilters, label: string, options: { value: string; label: string }[]) => {
         const value = advancedFilters[key];
@@ -136,6 +255,72 @@ const FilterBarSection = React.memo(({
             <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
                 <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} />
             </Modal>
+            <Modal
+                isOpen={isMovementsModalOpen}
+                onClose={() => setIsMovementsModalOpen(false)}
+                title="MOVIMENTAÇÕES ATIVOS"
+                maxWidth="lg"
+                draggable
+            >
+                <div className="flex flex-col gap-4">
+                    <div className="flex justify-end items-center px-1">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleExportExcel}
+                                disabled={isExportingExcel}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 dark:bg-green-500/20 border border-green-500/30 text-green-500 hover:bg-green-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs"
+                                title="Exportar Movimentações para Excel"
+                            >
+                                {isExportingExcel ? (
+                                    <Loading size="xs" />
+                                ) : (
+                                    <RiFileExcel2Fill className="text-[14px]" />
+                                )}
+                                <span>XLS ({(appropriationData as any)?.movedAssets?.length || 0})</span>
+                            </button>
+                            <button
+                                onClick={handleExportPDF}
+                                disabled={isExportingPDF}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs"
+                                title="Exportar Movimentações para PDF"
+                            >
+                                {isExportingPDF ? (
+                                    <Loading size="xs" />
+                                ) : (
+                                    <FaFilePdf className="text-[14px]" />
+                                )}
+                                <span>PDF ({(appropriationData as any)?.movedAssets?.length || 0})</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="max-h-[60vh] overflow-y-auto p-1 no-scrollbar">
+                        <div className="flex flex-col gap-6">
+                            {((appropriationData as any)?.movedAssets || []).length === 0 ? (
+                                <div className="text-sm text-slate-500">Nenhuma movimentação encontrada</div>
+                            ) : (
+                                (appropriationData as any)?.movedAssets?.map((item: any, i: number) => (
+                                    <AssetMovementListItem key={i} asset={item} />
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center p-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {(appropriationData as any)?.movedAssets?.length || 0} MOVIMENTAÇÕES ENCONTRADAS
+                        </span>
+                        <button
+                            onClick={() => setIsMovementsModalOpen(false)}
+                            className="px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs uppercase hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-['Inter']"
+                        >
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            
         </div>
     );
 });
@@ -776,6 +961,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [activeDateInput, setActiveDateInput] = useState<'start' | 'end'>('start');
 
     const [isAllUnitsModalOpen, setIsAllUnitsModalOpen] = useState(false);
+    const [isMovementsModalOpen, setIsMovementsModalOpen] = useState(false);
 
     useEffect(() => {
         if (isDateModalOpen) {
@@ -1478,6 +1664,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             unitSubTypes={unitSubTypes}
                             assetTagSubOptions={assetTagSubOptions}
                             orderSubTypes={orderSubTypes}
+                            isMovementsModalOpen={isMovementsModalOpen}
+                            setIsMovementsModalOpen={setIsMovementsModalOpen}
+                            appropriationData={appropriationData}
                         />
                         <div className="flex items-center justify-between gap-3 pb-1 pt-0 mt-0">
                             <div
@@ -1633,6 +1822,13 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             <div className="flex-1">
                                 <InsightsMovementsBar data={insightData.movements} />
                             </div>
+                            <button
+                                onClick={() => setIsMovementsModalOpen(true)}
+                                className="mt-auto pt-6 text-[10px] font-black text-primary hover:text-primary-dark uppercase tracking-widest flex items-center justify-center gap-1 group/btn border-t border-slate-100 dark:border-slate-800/50"
+                            >
+                                VER DETALHES
+                                <span className="material-symbols-outlined text-[14px] group-hover/btn:translate-x-1 transition-transform">chevron_right</span>
+                            </button>
                         </div>
                     </div>
 
