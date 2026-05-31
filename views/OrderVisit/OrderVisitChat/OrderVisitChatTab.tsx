@@ -12,6 +12,12 @@ interface OrderVisitChatTabProps {
     onChatEntered?: (visitId: string) => void;
 }
 
+type TypingUser = {
+    userId: string;
+    userName: string;
+    userAvatarUrl?: string;
+};
+
 // --- Read Receipt Indicator Component ---
 const ReadReceiptIndicator: React.FC<{
     message: OrderVisitChatMessage;
@@ -124,6 +130,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     const [infoRequested, setInfoRequested] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
+    const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
     const activeUserIdsRef = useRef<string[]>([]);
 
     // Participant Modal states
@@ -137,6 +144,8 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     const participantsRef = useRef<OrderVisitChatParticipant[]>([]);
     const chatChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
     const isChannelSubscribedRef = useRef(false);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const remoteTypingTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
     // Keep refs in sync for use in callbacks
     useEffect(() => {
@@ -146,6 +155,25 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     useEffect(() => {
         participantsRef.current = participants;
     }, [participants]);
+
+    const buildPresencePayload = useCallback((user: User, isTyping = false) => ({
+        user_id: user.id,
+        user_name: user.nameShort || user.nameFull || 'Usuario',
+        user_avatar_url: user.avatarUrl || '',
+        typing: isTyping
+    }), []);
+
+    const publishTypingStatus = useCallback((isTyping: boolean) => {
+        const user = currentUserRef.current;
+        const channel = chatChannelRef.current;
+        if (!user?.id || !channel) return;
+
+        void channel.send({
+            type: 'broadcast',
+            event: 'typing',
+            payload: buildPresencePayload(user, isTyping)
+        });
+    }, [buildPresencePayload]);
 
     const loadMessages = useCallback(async () => {
         try {
@@ -201,7 +229,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             // Registrar presença se o canal de presence já estiver pronto
             // (resolve a race condition: user carrega depois do subscribe)
             if (chatChannelRef.current && user?.id) {
-                chatChannelRef.current.track({ user_id: user.id });
+                chatChannelRef.current.track(buildPresencePayload(user));
             }
 
             const [msgs] = await Promise.all([loadMessages(), loadParticipants()]);
@@ -320,10 +348,42 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
         // ─── Canal 2: Presence (DEDICADO, sem postgres_changes) ───
         const presenceChannel = supabase
             .channel(`chat_presence_${visitId}`)
+            .on('broadcast', { event: 'typing' }, ({ payload }) => {
+                const userId = payload?.user_id?.toString();
+                const user = currentUserRef.current;
+                if (!userId || String(userId) === String(user?.id)) return;
+
+                if (remoteTypingTimeoutsRef.current[userId]) {
+                    clearTimeout(remoteTypingTimeoutsRef.current[userId]);
+                    delete remoteTypingTimeoutsRef.current[userId];
+                }
+
+                if (!payload.typing) {
+                    setTypingUsers(prev => prev.filter(item => item.userId !== userId));
+                    return;
+                }
+
+                const participant = participantsRef.current.find(item => String(item.userId) === userId);
+                const typingUser: TypingUser = {
+                    userId,
+                    userName: payload.user_name || participant?.userName || 'Usuario',
+                    userAvatarUrl: payload.user_avatar_url || participant?.userAvatarUrl || undefined
+                };
+
+                setTypingUsers(prev => {
+                    const withoutCurrent = prev.filter(item => item.userId !== userId);
+                    return [...withoutCurrent, typingUser];
+                });
+
+                remoteTypingTimeoutsRef.current[userId] = setTimeout(() => {
+                    setTypingUsers(prev => prev.filter(item => item.userId !== userId));
+                    delete remoteTypingTimeoutsRef.current[userId];
+                }, 2500);
+            })
             .on('presence', { event: 'sync' }, () => {
                 const presenceState = presenceChannel.presenceState();
-                const ids = Object.values(presenceState)
-                    .flat()
+                const presences = Object.values(presenceState).flat() as any[];
+                const ids = presences
                     .map((p: any) => p.user_id?.toString())
                     .filter(Boolean);
                 setActiveUserIds(ids);
@@ -335,7 +395,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                     // Registrar presença assim que o canal estiver pronto
                     const user = currentUserRef.current;
                     if (user?.id) {
-                        await presenceChannel.track({ user_id: user.id });
+                        await presenceChannel.track(buildPresencePayload(user));
                     }
                 }
             });
@@ -413,6 +473,12 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
         return () => {
             isChannelSubscribedRef.current = false;
             chatChannelRef.current = null;
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
+            }
+            Object.values(remoteTypingTimeoutsRef.current).forEach(clearTimeout);
+            remoteTypingTimeoutsRef.current = {};
             clearInterval(pollInterval);
             messagesChannel.unsubscribe();
             presenceChannel.unsubscribe();
@@ -423,7 +489,23 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     // Scroll to bottom on new messages
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, typingUsers.length]);
+
+    const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setNewMessage(value);
+
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        publishTypingStatus(value.trim().length > 0);
+
+        typingTimeoutRef.current = setTimeout(() => {
+            publishTypingStatus(false);
+            typingTimeoutRef.current = null;
+        }, 1800);
+    };
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -436,6 +518,11 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
         }
 
         setIsSending(true);
+        publishTypingStatus(false);
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+        }
         
         // Atualização otimista: limpa os inputs imediatamente para sensação instantânea
         setNewMessage('');
@@ -685,6 +772,29 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                         );
                     })
                 )}
+                {typingUsers.length > 0 && (
+                    <div className="flex gap-3 max-w-[85%] mr-auto text-left">
+                        <div className="shrink-0">
+                            <UserAvatar
+                                src={typingUsers[0].userAvatarUrl}
+                                name={typingUsers[0].userName}
+                                size="sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 px-1">
+                                {typingUsers.length === 1
+                                    ? `${typingUsers[0].userName} esta digitando`
+                                    : `${typingUsers.length} pessoas estao digitando`}
+                            </div>
+                            <div className="inline-flex items-center gap-1 rounded-2xl rounded-tl-none p-3.5 shadow-md border bg-white dark:bg-slate-900 border-slate-100 dark:border-white/5">
+                                <span className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" />
+                                <span className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce [animation-delay:120ms]" />
+                                <span className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce [animation-delay:240ms]" />
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <div ref={messagesEndRef} />
             </div>
 
@@ -698,7 +808,8 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                     <input
                         type="text"
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        onChange={handleMessageChange}
+                        onBlur={() => publishTypingStatus(false)}
                         placeholder="Escreva uma mensagem..."
                         className="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                     />

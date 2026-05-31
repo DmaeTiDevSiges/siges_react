@@ -598,7 +598,11 @@ const App: React.FC = () => {
         newNotif?.ov_id?.toString() === activeVisitId &&
         visitActiveTabRef.current === 'chat';
 
-      if (!isActiveChatNotif) {
+      if (isActiveChatNotif && newNotif?.id) {
+        dataService.deleteNotification(newNotif.id.toString()).catch((error) => {
+          console.error('Error deleting active visit_chat notification:', error);
+        });
+      } else {
         loadNotifications();
       }
 

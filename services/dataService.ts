@@ -12605,10 +12605,12 @@ export const dataService = {
 
         if (partError || !participants) return;
 
-        // 4. Collect user IDs to notify, excluding the sender and users active in the chat
-        const userIdsToNotify = participants
+        const activeUserIdSet = new Set(activeUserIds.map(uid => uid.toString()));
+
+        // 4. Collect user IDs to notify, excluding the sender and users active in this visit chat
+        const userIdsToNotify = [...new Set(participants
             .map((p: any) => p.user_id.toString())
-            .filter((uid: string) => uid !== senderId.toString() && !activeUserIds.includes(uid));
+            .filter((uid: string) => uid !== senderId.toString() && !activeUserIdSet.has(uid)))];
 
         if (userIdsToNotify.length === 0) return;
 
