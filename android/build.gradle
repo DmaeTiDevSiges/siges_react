@@ -33,6 +33,14 @@ allprojects {
                 }
             }
         }
+
+        project.tasks.matching { it.name.endsWith('Kotlin') }.configureEach { task ->
+            if (task.hasProperty('kotlinOptions')) {
+                task.kotlinOptions {
+                    jvmTarget = '17'
+                }
+            }
+        }
     }
 }
 

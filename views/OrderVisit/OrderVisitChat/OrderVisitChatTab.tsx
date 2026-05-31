@@ -661,7 +661,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-170px)] bg-slate-50 dark:bg-slate-950 overflow-hidden">
+        <div className="flex flex-col h-full min-h-0 bg-slate-50 dark:bg-slate-950 overflow-hidden">
             {/* Header: Chat Participants Manager */}
             <div className="px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -684,7 +684,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             </div>
 
             {/* Chat Messages Panel */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 no-scrollbar">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 py-12">
                         <span className="material-symbols-outlined text-5xl mb-2">chat_bubble_outline</span>
@@ -801,7 +801,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             {/* Footer Form Input */}
             <form
                 onSubmit={handleSendMessage}
-                className="p-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-white/5"
+                className="shrink-0 p-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-white/5"
             >
                 {/* Input text and Send button */}
                 <div className="flex gap-2">

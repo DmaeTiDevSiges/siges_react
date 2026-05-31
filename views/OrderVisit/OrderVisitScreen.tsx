@@ -440,7 +440,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
 
             {activeTab === 'chat' ? (
-                <div className="flex-1 overflow-hidden">
+                <div className={`flex-1 min-h-0 overflow-hidden ${isKeyboardVisible ? '' : 'pb-[calc(5.75rem+env(safe-area-inset-bottom))]'}`}>
                     {renderTabContent()}
                 </div>
             ) : (
