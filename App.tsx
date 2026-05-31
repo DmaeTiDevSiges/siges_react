@@ -103,7 +103,7 @@ import { PermissionsProvider } from './contexts/PermissionsContext';
 import { MaintenancePlansScreen } from './views/Settings/MaintenancePlans/MaintenancePlansScreen';
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
- | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'dashboard-orders-admin-calendar';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'dashboard-orders-admin-calendar';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { AIAssistantBubble } from './components/ai/AIAssistantBubble';
@@ -195,9 +195,9 @@ const App: React.FC = () => {
   const isRecoveryFlow = (() => {
     const params = new URLSearchParams(window.location.search);
     return window.location.hash.includes('type=recovery') ||
-           params.get('type') === 'recovery' ||
-           params.has('token_hash') ||
-           params.has('code'); // In this app, ?code= only comes from GoTrue recovery redirects (no OAuth)
+      params.get('type') === 'recovery' ||
+      params.has('token_hash') ||
+      params.has('code'); // In this app, ?code= only comes from GoTrue recovery redirects (no OAuth)
   })();
 
   const [authScreen, setAuthScreen] = useState<'login' | 'forgot-password' | 'reset-password'>(() => {
@@ -298,6 +298,8 @@ const App: React.FC = () => {
 
   const selectedOrderRef = React.useRef<Order | null>(null);
   const currentUserRef = React.useRef<User | null>(null);
+  const selectedVisitRef = React.useRef<import('./types').OrderVisit | null>(null);
+  const visitActiveTabRef = React.useRef<'home' | 'transport' | 'assets' | 'services' | 'costs' | 'chat'>('home');
 
   useEffect(() => {
     selectedOrderRef.current = selectedOrder;
@@ -306,6 +308,14 @@ const App: React.FC = () => {
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
+
+  useEffect(() => {
+    selectedVisitRef.current = selectedVisit;
+  }, [selectedVisit]);
+
+  useEffect(() => {
+    visitActiveTabRef.current = visitActiveTab;
+  }, [visitActiveTab]);
 
   const [dashboardInitialTab, setDashboardInitialTab] = useState<'services' | 'visits'>(() => {
     return (localStorage.getItem('dashboardInitialTab') as 'services' | 'visits') || 'services';
@@ -357,7 +367,7 @@ const App: React.FC = () => {
   // Subcomponent for dashboard tabs that respects permissions
   const DashboardTabs = () => {
     const { canView } = usePermissions();
-    
+
     // Check permissions for each tab
     const hasOrders = canView('dashboard_orders');
     const hasVisits = canView('dashboard_orders_visits');
@@ -365,11 +375,11 @@ const App: React.FC = () => {
     const hasPower = canView('dashboard_units_power_electric');
 
     // Only show tabs if on the Admin Dashboard or specialized Dashboards
-    const isDashboardScreen = currentScreen === 'orders-dashboard' || 
-                             currentScreen === 'visits-dashboard' || 
-                             currentScreen === 'dashboard-units-power-electric' || 
-                             currentScreen === 'dashboard-units-assets-tags' ||
-                             currentScreen === 'dashboard-orders-admin-calendar';
+    const isDashboardScreen = currentScreen === 'orders-dashboard' ||
+      currentScreen === 'visits-dashboard' ||
+      currentScreen === 'dashboard-units-power-electric' ||
+      currentScreen === 'dashboard-units-assets-tags' ||
+      currentScreen === 'dashboard-orders-admin-calendar';
 
     if (!isDashboardScreen) return null;
 
@@ -426,11 +436,11 @@ const App: React.FC = () => {
   };
 
   const getTabNavigation = () => {
-    const isDashboardScreen = currentScreen === 'orders-dashboard' || 
-                             currentScreen === 'visits-dashboard' || 
-                             currentScreen === 'dashboard-units-power-electric' || 
-                             currentScreen === 'dashboard-units-assets-tags' ||
-                             currentScreen === 'dashboard-orders-admin-calendar';
+    const isDashboardScreen = currentScreen === 'orders-dashboard' ||
+      currentScreen === 'visits-dashboard' ||
+      currentScreen === 'dashboard-units-power-electric' ||
+      currentScreen === 'dashboard-units-assets-tags' ||
+      currentScreen === 'dashboard-orders-admin-calendar';
 
     if (!isDashboardScreen) return undefined;
     return <DashboardTabs />;
@@ -579,9 +589,21 @@ const App: React.FC = () => {
     loadNotifications();
 
     const subscription = dataService.subscribeToNotifications(currentUser.id, (payload) => {
-      loadNotifications();
+      // Ignorar notificações de chat da visita que está sendo visualizada no momento
+      // Usar refs para evitar closure stale (o useEffect não re-executa quando visitActiveTab/selectedVisit mudam)
+      const newNotif = payload?.new;
+      const activeVisitId = selectedVisitRef.current?.id?.toString() || currentUserRef.current?.ovIdInProgress?.toString();
+      const isActiveChatNotif =
+        newNotif?.type === 'visit_chat' &&
+        newNotif?.ov_id?.toString() === activeVisitId &&
+        visitActiveTabRef.current === 'chat';
+
+      if (!isActiveChatNotif) {
+        loadNotifications();
+      }
+
       // Se receber uma notificação de OS Autorizada, dispara um evento para atualizar o painel
-      if (payload?.new?.type === 'OS Autorizada') {
+      if (newNotif?.type === 'OS Autorizada') {
         window.dispatchEvent(new CustomEvent('refresh_dashboard'));
       }
     });
@@ -1247,9 +1269,9 @@ const App: React.FC = () => {
 
   const handleSaveUnit = async (unit: Partial<import('./types').Unit>, file?: File | null) => {
     try {
-      console.log('💾 Saving unit:', { 
-        unit, 
-        hasFile: !!file, 
+      console.log('💾 Saving unit:', {
+        unit,
+        hasFile: !!file,
         fileName: file?.name,
         statusId: unit.statusId,
         isEdit: selectedUnit?.id && currentScreen === 'client-unit-edit'
@@ -2389,11 +2411,11 @@ const App: React.FC = () => {
       return <ForgotPasswordScreen onBack={() => setAuthScreen('login')} />;
     }
     return (
-      <LoginScreen 
-        onLoginSuccess={() => window.location.reload()} 
+      <LoginScreen
+        onLoginSuccess={() => window.location.reload()}
         onForgotPassword={() => setAuthScreen('forgot-password')}
-        isDarkMode={theme === 'dark'} 
-        onThemeToggle={toggleTheme} 
+        isDarkMode={theme === 'dark'}
+        onThemeToggle={toggleTheme}
       />
     );
   }
@@ -2404,8 +2426,8 @@ const App: React.FC = () => {
     return (
       <PermissionsProvider currentUser={currentUser}>
         <div className="fixed inset-0 bg-slate-50 dark:bg-slate-900 overflow-hidden">
-          <DashboardUnitsAssetsTags 
-            currentUser={currentUser!} 
+          <DashboardUnitsAssetsTags
+            currentUser={currentUser!}
             onSelectVisit={handleVisitSelect}
             isFullscreenMapMode={true}
           />
@@ -2415,22 +2437,22 @@ const App: React.FC = () => {
     );
   }
 
-const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: string | null) => {
-        if (!currentUser) return;
+  const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: string | null) => {
+    if (!currentUser) return;
 
-        if (!isAvailable && currentUser.isOvInProgress) {
-            toast.error("Você não pode ficar Indisponível enquanto possui uma visita em aberto.");
-            return;
-        }
+    if (!isAvailable && currentUser.isOvInProgress) {
+      toast.error("Você não pode ficar Indisponível enquanto possui uma visita em aberto.");
+      return;
+    }
 
-        try {
-          await dataService.updateUserAvailability(currentUser.id, isAvailable, ovIdInProgress);
+    try {
+      await dataService.updateUserAvailability(currentUser.id, isAvailable, ovIdInProgress);
 
-          // Atualizar o estado local do usuário
-          setCurrentUser({
-            ...currentUser,
-            isAvailable,
-            ovIdInProgress: ovIdInProgress ?? undefined
+      // Atualizar o estado local do usuário
+      setCurrentUser({
+        ...currentUser,
+        isAvailable,
+        ovIdInProgress: ovIdInProgress ?? undefined
       });
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
@@ -2479,127 +2501,127 @@ const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: stri
       {showSplash && <SplashScreen />}
       <PermissionsProvider currentUser={currentUser}>
         <div className={`flex min-h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden ${showSplash ? 'hidden' : ''}`}>
-            {currentScreen === 'profile' ? (
-              <div className="flex-1 flex overflow-hidden">
-                <div className="hidden md:block">
-                  {sidebarContent}
-                </div>
-                <div className="flex-1 overflow-auto">
-                  {renderContent()}
-                </div>
+          {currentScreen === 'profile' ? (
+            <div className="flex-1 flex overflow-hidden">
+              <div className="hidden md:block">
+                {sidebarContent}
               </div>
-            ) : (
-              <Layout
-                title={getTitle()}
-                showBackButton={
-                  (currentScreen as string) !== 'dashboard' &&
-                  (currentScreen as string) !== 'orders-dashboard' &&
-                  (currentScreen as string) !== 'visits-dashboard' &&
-                  (currentScreen as string) !== 'dashboard-units-power-electric' &&
-                  (currentScreen as string) !== 'dashboard-units-assets-tags' &&
-                  (currentScreen as string) !== 'dashboard-orders-admin-calendar' &&
-                  (currentScreen as string) !== 'companies' &&
-                  (currentScreen as string) !== 'units-search' &&
-                  (currentScreen as string) !== 'assets-search' &&
-                  (currentScreen as string) !== 'settings' &&
-                  (currentScreen as string) !== 'profile-permissions' &&
-                  (currentScreen as string) !== 'notifications'
-                }
-                onBackClick={handleBack}
-                currentUser={currentUser}
-                showUserHeader={currentScreen !== 'settings'}
-                hidePadding={hideMainNavigation}
-                hideHeaderBorder={currentScreen === 'order-visit-approve'}
-                isDashboard={
-                  (currentScreen as string) === 'dashboard' ||
-                  (currentScreen as string) === 'orders-dashboard' ||
-                  (currentScreen as string) === 'visits-dashboard' ||
-                  (currentScreen as string) === 'dashboard-units-power-electric' ||
-                  (currentScreen as string) === 'dashboard-units-assets-tags' ||
-                  (currentScreen as string) === 'users-tracker'
-                }
-                onProfileClick={() => {
-                  localStorage.setItem('last_main_tab', activeTab);
-                  setCurrentScreen('profile');
-                  setActiveTab('profile');
-                }}
-                onNotificationsClick={() => {
-                  setCurrentScreen('notifications');
-                }}
-                onStatusChange={handleUserStatusChange}
-                sidebar={!hideMainNavigation ? sidebarContent : undefined}
-                onMenuClick={undefined}
-                tabNavigation={getTabNavigation()}
-                titleRightElement={
-                  (currentScreen as string) === 'assets-search'
-                    ? <AssetsAlertsHeaderWidget onNavigate={(screen) => setCurrentScreen(screen as any)} />
-                    : undefined
-                }
-              >
+              <div className="flex-1 overflow-auto">
                 {renderContent()}
-              </Layout>
-            )}
-
-
-            {!hideMainNavigation && !isKeyboardVisible && (
-              <div className="md:hidden fixed bottom-0 left-0 right-0 z-30">
-                <BottomNav
-                  activeTab={activeTab}
-                  isAdminSuper={currentUser?.isAdminSuper}
-                  currentUser={currentUser}
-                  setActiveTab={(tab) => {
-                    if (tab === 'profile') setSelectedUser(null);
-                    handleMainTabChange(tab);
-                  }}
-                />
               </div>
-            )}
-
-            {/* OrderVisitBottomNav has been moved to OrderVisitScreen component */}
-
-            {isLocationBlocked && (
-              <LocationBlockedScreen onRetry={() => setRetryLocation(prev => prev + 1)} />
-            )}
-
-            <Modal
-              isOpen={showShiftAlert.show}
-              onClose={() => dismissAlert(showShiftAlert.type)}
-              title={showShiftAlert.type === 'START' ? 'Início de Turno' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Visita em Andamento' : 'Fim de Expediente'}
-              message={showShiftAlert.message}
-              type="info"
-              confirmLabel={showShiftAlert.type === 'START' ? 'Ficar Disponível' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Ir para a Visita' : 'NÃO ESTOU MAIS DISPONÍVEL'}
-              cancelLabel="Ainda NÃO estou disponível"
-              onConfirm={async () => {
-                 if (showShiftAlert.type === 'END_WITH_VISIT') {
-                     dismissAlert(showShiftAlert.type);
-                     if (currentUser?.ovIdInProgress) {
-                         try {
-                             const visit = await dataService.getOrderVisitById(currentUser.ovIdInProgress);
-                             if (visit) {
-                                 handleVisitSelect(visit);
-                             } else {
-                                 toast.error("Visita não encontrada.");
-                             }
-                         } catch(e) {
-                             toast.error("Erro ao carregar visita em andamento.");
-                         }
-                     }
-                     return;
-                 }
-                 try {
-                     await handleUserStatusChange(showShiftAlert.type === 'START', currentUser?.ovIdInProgress || null);
-                     dismissAlert(showShiftAlert.type);
-                     toast.success(showShiftAlert.type === 'START' ? 'Você está online!' : 'Check-out realizado com sucesso.');
-                 } catch(e) {
-                     toast.error('Erro ao atualizar status.');
-                 }
+            </div>
+          ) : (
+            <Layout
+              title={getTitle()}
+              showBackButton={
+                (currentScreen as string) !== 'dashboard' &&
+                (currentScreen as string) !== 'orders-dashboard' &&
+                (currentScreen as string) !== 'visits-dashboard' &&
+                (currentScreen as string) !== 'dashboard-units-power-electric' &&
+                (currentScreen as string) !== 'dashboard-units-assets-tags' &&
+                (currentScreen as string) !== 'dashboard-orders-admin-calendar' &&
+                (currentScreen as string) !== 'companies' &&
+                (currentScreen as string) !== 'units-search' &&
+                (currentScreen as string) !== 'assets-search' &&
+                (currentScreen as string) !== 'settings' &&
+                (currentScreen as string) !== 'profile-permissions' &&
+                (currentScreen as string) !== 'notifications'
+              }
+              onBackClick={handleBack}
+              currentUser={currentUser}
+              showUserHeader={currentScreen !== 'settings'}
+              hidePadding={hideMainNavigation}
+              hideHeaderBorder={currentScreen === 'order-visit-approve'}
+              isDashboard={
+                (currentScreen as string) === 'dashboard' ||
+                (currentScreen as string) === 'orders-dashboard' ||
+                (currentScreen as string) === 'visits-dashboard' ||
+                (currentScreen as string) === 'dashboard-units-power-electric' ||
+                (currentScreen as string) === 'dashboard-units-assets-tags' ||
+                (currentScreen as string) === 'users-tracker'
+              }
+              onProfileClick={() => {
+                localStorage.setItem('last_main_tab', activeTab);
+                setCurrentScreen('profile');
+                setActiveTab('profile');
               }}
-            />
+              onNotificationsClick={() => {
+                setCurrentScreen('notifications');
+              }}
+              onStatusChange={handleUserStatusChange}
+              sidebar={!hideMainNavigation ? sidebarContent : undefined}
+              onMenuClick={undefined}
+              tabNavigation={getTabNavigation()}
+              titleRightElement={
+                (currentScreen as string) === 'assets-search'
+                  ? <AssetsAlertsHeaderWidget onNavigate={(screen) => setCurrentScreen(screen as any)} />
+                  : undefined
+              }
+            >
+              {renderContent()}
+            </Layout>
+          )}
 
-            <Toaster position="top-right" richColors closeButton style={{ top: '96px', position: 'fixed' }} />
-            <UpdateNotifier />
-          </div>
-        </PermissionsProvider>
+
+          {!hideMainNavigation && !isKeyboardVisible && (
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-30">
+              <BottomNav
+                activeTab={activeTab}
+                isAdminSuper={currentUser?.isAdminSuper}
+                currentUser={currentUser}
+                setActiveTab={(tab) => {
+                  if (tab === 'profile') setSelectedUser(null);
+                  handleMainTabChange(tab);
+                }}
+              />
+            </div>
+          )}
+
+          {/* OrderVisitBottomNav has been moved to OrderVisitScreen component */}
+
+          {isLocationBlocked && (
+            <LocationBlockedScreen onRetry={() => setRetryLocation(prev => prev + 1)} />
+          )}
+
+          <Modal
+            isOpen={showShiftAlert.show}
+            onClose={() => dismissAlert(showShiftAlert.type)}
+            title={showShiftAlert.type === 'START' ? 'Início de Turno' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Visita em Andamento' : 'Fim de Expediente'}
+            message={showShiftAlert.message}
+            type="info"
+            confirmLabel={showShiftAlert.type === 'START' ? 'Ficar Disponível' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Ir para a Visita' : 'NÃO ESTOU MAIS DISPONÍVEL'}
+            cancelLabel="Ainda estou disponível"
+            onConfirm={async () => {
+              if (showShiftAlert.type === 'END_WITH_VISIT') {
+                dismissAlert(showShiftAlert.type);
+                if (currentUser?.ovIdInProgress) {
+                  try {
+                    const visit = await dataService.getOrderVisitById(currentUser.ovIdInProgress);
+                    if (visit) {
+                      handleVisitSelect(visit);
+                    } else {
+                      toast.error("Visita não encontrada.");
+                    }
+                  } catch (e) {
+                    toast.error("Erro ao carregar visita em andamento.");
+                  }
+                }
+                return;
+              }
+              try {
+                await handleUserStatusChange(showShiftAlert.type === 'START', currentUser?.ovIdInProgress || null);
+                dismissAlert(showShiftAlert.type);
+                toast.success(showShiftAlert.type === 'START' ? 'Você está online!' : 'Check-out realizado com sucesso.');
+              } catch (e) {
+                toast.error('Erro ao atualizar status.');
+              }
+            }}
+          />
+
+          <Toaster position="top-right" richColors closeButton style={{ top: '96px', position: 'fixed' }} />
+          <UpdateNotifier />
+        </div>
+      </PermissionsProvider>
     </>
   );
 };

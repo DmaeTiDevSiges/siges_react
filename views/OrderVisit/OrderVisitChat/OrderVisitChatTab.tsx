@@ -124,6 +124,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     const [infoRequested, setInfoRequested] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
+    const activeUserIdsRef = useRef<string[]>([]);
 
     // Participant Modal states
     const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
@@ -134,6 +135,8 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const currentUserRef = useRef<User | null>(null);
     const participantsRef = useRef<OrderVisitChatParticipant[]>([]);
+    const chatChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+    const isChannelSubscribedRef = useRef(false);
 
     // Keep refs in sync for use in callbacks
     useEffect(() => {
@@ -194,6 +197,13 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             const user = await dataService.getCurrentUser();
             setCurrentUser(user);
             currentUserRef.current = user;
+
+            // Registrar presença se o canal de presence já estiver pronto
+            // (resolve a race condition: user carrega depois do subscribe)
+            if (chatChannelRef.current && user?.id) {
+                chatChannelRef.current.track({ user_id: user.id });
+            }
+
             const [msgs] = await Promise.all([loadMessages(), loadParticipants()]);
             // Auto-mark as read after initial load
             if (msgs.length > 0) {
@@ -213,9 +223,10 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
         // Notify parent that the user entered the chat so related notifications can be cleared
         onChatEntered?.(visitId);
 
-        // Subscribe to changes in orders_visits_chat (new messages) and track presence
-        const chatChannel = supabase
-            .channel(`public:orders_visits_chat:ov_id=${visitId}`)
+        // ─── Canal 1: postgres_changes para mensagens (DEDICADO, sem presence) ───
+        isChannelSubscribedRef.current = false;
+        const messagesChannel = supabase
+            .channel(`chat_msgs_${visitId}_${Date.now()}`)
             .on(
                 'postgres_changes',
                 {
@@ -298,28 +309,40 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                     }
                 }
             )
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    isChannelSubscribedRef.current = true;
+                } else {
+                    isChannelSubscribedRef.current = false;
+                }
+            });
+
+        // ─── Canal 2: Presence (DEDICADO, sem postgres_changes) ───
+        const presenceChannel = supabase
+            .channel(`chat_presence_${visitId}`)
             .on('presence', { event: 'sync' }, () => {
-                const presenceState = chatChannel.presenceState();
+                const presenceState = presenceChannel.presenceState();
                 const ids = Object.values(presenceState)
                     .flat()
                     .map((p: any) => p.user_id?.toString())
                     .filter(Boolean);
                 setActiveUserIds(ids);
+                activeUserIdsRef.current = ids;
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
+                    chatChannelRef.current = presenceChannel;
+                    // Registrar presença assim que o canal estiver pronto
                     const user = currentUserRef.current;
                     if (user?.id) {
-                        await chatChannel.track({
-                            user_id: user.id
-                        });
+                        await presenceChannel.track({ user_id: user.id });
                     }
                 }
             });
 
-        // Subscribe to changes in orders_visits_chat_reads (read receipts updates)
+        // ─── Canal 3: postgres_changes para read receipts ───
         const readsChannel = supabase
-            .channel(`public:orders_visits_chat_reads:visit_${visitId}`)
+            .channel(`chat_reads_${visitId}_${Date.now()}`)
             .on(
                 'postgres_changes',
                 {
@@ -374,8 +397,25 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             )
             .subscribe();
 
+        // ─── Polling de fallback (5s) — garante atualização mesmo se realtime falhar ───
+        const pollInterval = setInterval(async () => {
+            const data = await dataService.getVisitChatMessages(visitId);
+            setMessages(prev => {
+                // Só atualiza se houver mensagens novas (evita re-render desnecessário)
+                if (data.length !== prev.length) {
+                    markUnreadAsRead(data);
+                    return data;
+                }
+                return prev;
+            });
+        }, 5000);
+
         return () => {
-            chatChannel.unsubscribe();
+            isChannelSubscribedRef.current = false;
+            chatChannelRef.current = null;
+            clearInterval(pollInterval);
+            messagesChannel.unsubscribe();
+            presenceChannel.unsubscribe();
             readsChannel.unsubscribe();
         };
     }, [visitId]);
@@ -403,6 +443,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
         setInfoRequested(false);
 
         try {
+            const currentActiveUserIds = activeUserIdsRef.current;
             const sentMsg = await dataService.sendVisitChatMessage({
                 ovId: visitId,
                 userId: currentUser.id,
@@ -410,7 +451,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                 isActionItem: false,
                 isResolved: false,
                 infoRequested: false,
-                activeUserIds
+                activeUserIds: [...new Set([...currentActiveUserIds, currentUser.id.toString()])]
             });
 
             if (sentMsg) {
@@ -476,11 +517,24 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
         const isParticipant = participants.some(p => String(p.userId) === String(userId));
         try {
             if (isParticipant) {
+                // Não permitir remover o próprio usuário logado da lista
+                if (currentUser && String(userId) === String(currentUser.id)) {
+                    toast.warning('Você não pode se remover do chat.');
+                    return;
+                }
                 await dataService.removeVisitChatParticipant(visitId, userId);
                 toast.success('Participante removido do chat');
             } else {
                 await dataService.addVisitChatParticipant(visitId, userId);
                 toast.success('Participante adicionado ao chat');
+
+                // Garantir que o usuário logado também seja participante (upsert ignora duplicata)
+                if (currentUser && String(userId) !== String(currentUser.id)) {
+                    const isSelfParticipant = participants.some(p => String(p.userId) === String(currentUser.id));
+                    if (!isSelfParticipant) {
+                        await dataService.addVisitChatParticipant(visitId, currentUser.id);
+                    }
+                }
             }
             await loadParticipants();
         } catch (error) {
@@ -492,6 +546,11 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     };
 
     const filteredUsers = allUsers.filter(u => {
+        // Exclui o próprio usuário logado da lista e exige que o status do usuário seja 2 (ativo)
+        if (String(u.id) === String(currentUser?.id) || u.statusId !== 2) {
+            return false;
+        }
+
         const query = searchQuery.toLowerCase();
         return (
             (u.nameShort || '').toLowerCase().includes(query) ||
@@ -527,13 +586,13 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                 <button
                     onClick={openParticipantModal}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm ${
-                        participants.length === 0
+                        participants.length <= 1
                             ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-600 dark:text-amber-400 animate-pulse'
                             : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
                     }`}
                 >
                     <span className="material-symbols-outlined text-sm font-bold">group</span>
-                    <span>Notificar ({participants.length})</span>
+                    <span>Notificar ({Math.max(0, participants.length - 1)})</span>
                 </button>
             </div>
 
@@ -645,10 +704,40 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                     />
                     <button
                         type="submit"
-                        disabled={!newMessage.trim()}
-                        className="p-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-850 disabled:text-slate-400 text-white rounded-2xl flex items-center justify-center transition-all shadow-md active:scale-95 shrink-0"
+                        disabled={!newMessage.trim() || isSending}
+                        className={`relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all shadow-md shrink-0 overflow-hidden
+                            ${isSending
+                                ? 'bg-indigo-500 cursor-not-allowed scale-95'
+                                : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:shadow-none disabled:text-slate-400'
+                            }`}
                     >
-                        <span className="material-symbols-outlined font-black">send</span>
+                        {isSending ? (
+                            <>
+                                {/* Anel giratório */}
+                                <svg
+                                    className="animate-spin w-5 h-5 text-white/90"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12" cy="12" r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="3"
+                                    />
+                                    <path
+                                        className="opacity-90"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                    />
+                                </svg>
+                                {/* Halo pulsante */}
+                                <span className="absolute inset-0 rounded-2xl animate-ping bg-indigo-400/30 pointer-events-none" />
+                            </>
+                        ) : (
+                            <span className="material-symbols-outlined font-black text-[20px] text-white">send</span>
+                        )}
                     </button>
                 </div>
             </form>

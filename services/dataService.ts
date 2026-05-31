@@ -2881,6 +2881,10 @@ export const dataService = {
             shift_end: user.shiftEnd
         };
 
+        if (user.statusId !== undefined) {
+            updateData.status_id = user.statusId;
+        }
+
         if (user.isTeamLeader !== undefined) {
             updateData.is_team_leader = user.isTeamLeader;
         }
@@ -2977,6 +2981,20 @@ export const dataService = {
             .single();
 
         return statusData?.description || 'Desconhecido';
+    },
+
+    async getUserStatuses(): Promise<UserStatus[]> {
+        const { data, error } = await supabase
+            .from('cfg_users_statuses')
+            .select('*')
+            .order('description');
+            
+        if (error) {
+            console.error('Error fetching user statuses:', error);
+            throw error;
+        }
+        
+        return data as UserStatus[];
     },
 
     async updateUserAvailability(userId: string, isAvailable: boolean, ovIdInProgress: string | null | undefined): Promise<void> {
@@ -6727,10 +6745,7 @@ export const dataService = {
 
         const { error } = await supabase
             .from('users_notifications')
-            .update({
-                is_read: true,
-                read_at: new Date().toISOString()
-            })
+            .delete()
             .eq('id', numericId);
 
         if (error) throw error;
@@ -6788,10 +6803,7 @@ export const dataService = {
 
         const { error } = await supabase
             .from('users_notifications')
-            .update({
-                is_read: true,
-                read_at: new Date().toISOString()
-            })
+            .delete()
             .eq('user_id_to', userData.id)
             .eq('is_read', false);
 
@@ -12529,11 +12541,14 @@ export const dataService = {
     async addVisitChatParticipant(visitId: string, userId: string): Promise<void> {
         const { error } = await supabase
             .from('orders_visits_chat_participants')
-            .insert({
-                ov_id: parseInt(visitId),
-                user_id: parseInt(userId),
-                created_at: getBrazilTimestamp()
-            });
+            .upsert(
+                {
+                    ov_id: parseInt(visitId),
+                    user_id: parseInt(userId),
+                    created_at: getBrazilTimestamp()
+                },
+                { onConflict: 'ov_id,user_id', ignoreDuplicates: true }
+            );
 
         if (error) {
             console.error('Error adding chat participant:', error);

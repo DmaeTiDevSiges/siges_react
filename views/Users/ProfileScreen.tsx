@@ -4,7 +4,7 @@ import { Layout } from '../../components/Layout';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { dataService } from '../../services/dataService';
-import { User, Profile, Permission, Vehicle, Company, Team } from '../../types';
+import { User, Profile, Permission, Vehicle, Company, Team, UserStatus as OrganizationStatus } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import { FaceDetectionCamera } from '../../components/ui/FaceDetectionCamera';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
@@ -75,6 +75,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [teams, setTeams] = useState<import('../../types').Team[]>([]);
     const [shiftStart, setShiftStart] = useState('08:00');
     const [shiftEnd, setShiftEnd] = useState('18:00');
+    const [statusId, setStatusId] = useState<string>('');
+    const [userStatuses, setUserStatuses] = useState<OrganizationStatus[]>([]);
     const [currentUser, setCurrentLoggedUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
@@ -121,6 +123,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         if (comp) setCompanies([comp]);
                     }
                 }
+
+                dataService.getUserStatuses().then(setUserStatuses).catch(console.error);
             } catch (error) {
                 console.error("Error loading logged user permissions", error);
             }
@@ -141,6 +145,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             setIsTeamLeader(!!initialUser.isTeamLeader);
             setShiftStart(initialUser.shiftStart?.slice(0, 5) || '08:00');
             setShiftEnd(initialUser.shiftEnd?.slice(0, 5) || '18:00');
+            setStatusId(initialUser.statusId?.toString() || '');
 
             // Load profiles and teams for current user's company
             if (initialUser.companyId) {
@@ -172,6 +177,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         setIsTeamLeader(!!currentUserToEdit.isTeamLeader);
                         setShiftStart(currentUserToEdit.shiftStart?.slice(0, 5) || '08:00');
                         setShiftEnd(currentUserToEdit.shiftEnd?.slice(0, 5) || '18:00');
+                        setStatusId(currentUserToEdit.statusId?.toString() || '');
 
                         if (currentUserToEdit.companyId) {
                             setCompanyId(currentUserToEdit.companyId);
@@ -295,13 +301,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 companyId: companyId || undefined,
                 isTeamLeader,
                 shiftStart: shiftStart,
-                shiftEnd: shiftEnd
+                shiftEnd: shiftEnd,
+                statusId: statusId ? parseInt(statusId) : undefined
             });
 
             if (onUserUpdate) {
                 const selectedProfile = profiles.find(p => p.id.toString() === profileId);
                 const selectedTeam = teams.find(t => t.id.toString() === teamId);
                 const selectedCompany = companies.find(c => c.id.toString() === companyId);
+                const selectedStatus = userStatuses.find(s => s.id.toString() === statusId);
 
                 onUserUpdate({
                     ...user,
@@ -318,7 +326,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                     companyName: selectedCompany?.name || user.companyName,
                     isTeamLeader,
                     shiftStart: shiftStart,
-                    shiftEnd: shiftEnd
+                    shiftEnd: shiftEnd,
+                    statusId: statusId ? parseInt(statusId) : undefined,
+                    statusName: selectedStatus?.description || user.statusName
                 } as User);
             }
 
@@ -1141,6 +1151,23 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                         disabled={!isAdmin}
                                         className="border-none p-0! h-auto! shadow-none focus:ring-0"
                                         options={profiles.map(p => ({ value: p.id, label: p.description }))}
+                                    />
+                                </div>
+                            </div>
+                            
+                            {/* Status Card */}
+                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined">toggle_on</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Situação</label>
+                                    <Select
+                                        value={statusId}
+                                        onChange={(e) => setStatusId(e.target.value)}
+                                        disabled={!isAdmin}
+                                        className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                        options={userStatuses.map(s => ({ value: s.id.toString(), label: s.description }))}
                                     />
                                 </div>
                             </div>
