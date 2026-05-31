@@ -27,8 +27,15 @@ const UpdateNotifier: React.FC = () => {
 
     const forceRefresh = async () => {
         resetUpdateAttempts();
-        
-        // 1. Desregistrar Service Workers
+
+        // 1. Limpar completamente o localStorage
+        try {
+            localStorage.clear();
+        } catch (e) {
+            console.error('Failed to clear localStorage:', e);
+        }
+
+        // 2. Desregistrar Service Workers
         if ('serviceWorker' in navigator) {
             try {
                 const registrations = await navigator.serviceWorker.getRegistrations();
@@ -39,8 +46,8 @@ const UpdateNotifier: React.FC = () => {
                 console.error('Failed to unregister service workers:', e);
             }
         }
-        
-        // 2. Limpar cache storage do navegador
+
+        // 3. Limpar cache storage do navegador
         if ('caches' in window) {
             try {
                 const keys = await caches.keys();
@@ -51,20 +58,31 @@ const UpdateNotifier: React.FC = () => {
                 console.error('Failed to clear cache storage:', e);
             }
         }
-        
-        // 3. Recarregar a página com timestamp para forçar cache bypass de CDNs como Cloudflare
+
+        // 4. Recarregar a página com timestamp para forçar cache bypass de CDNs como Cloudflare
         try {
             const url = new URL(window.location.href);
             url.searchParams.set('t', Date.now().toString());
+            url.searchParams.set('skipUpdateCheck', 'true');
             window.location.href = url.toString();
         } catch (e) {
-            window.location.href = window.location.pathname + '?t=' + Date.now();
+            window.location.href = window.location.pathname + '?t=' + Date.now() + '&skipUpdateCheck=true';
         }
     };
 
     useEffect(() => {
         // Only run in production
         if (import.meta.env.DEV) return;
+
+        // Verificar se o usuário quer pular a verificação de atualizações (após refresh)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('skipUpdateCheck') === 'true') {
+            // Limpar o parâmetro de URL para evitar comportamento estranho em navegações futuras
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('skipUpdateCheck');
+            window.history.replaceState({}, '', newUrl);
+            return;
+        }
 
         // Register a lightweight service worker for PWA update flows (non-blocking)
         if ('serviceWorker' in navigator) {
@@ -146,6 +164,9 @@ const UpdateNotifier: React.FC = () => {
     }, [showBanner, config]);
 
     const showBannerFromReminder = async () => {
+        // Limpar os contadores quando o usuário clicar no lembrete
+        resetUpdateAttempts();
+        setReminderCount(0);
         setShowBanner(true);
         if (!config) {
             try {
@@ -173,7 +194,8 @@ const UpdateNotifier: React.FC = () => {
             return;
         }
 
-        // Web flow: force clean refresh
+        // Web flow: force clean refresh e limpar contadores antes
+        resetUpdateAttempts();
         forceRefresh();
     };
 

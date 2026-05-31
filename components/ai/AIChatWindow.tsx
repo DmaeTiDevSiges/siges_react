@@ -69,7 +69,7 @@ export const AIChatWindow: React.FC<{ isOpen: boolean; onClose: () => void }> = 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-6 left-6 w-[400px] h-[600px] bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl flex flex-col overflow-hidden z-9999 animate-in slide-in-from-left-5 duration-300">
+    <div className="fixed bottom-6 left-6 w-[400px] h-[599px] bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl flex flex-col overflow-hidden z-9999 animate-in slide-in-from-left-5 duration-300" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}>
       {/* Header */}
       <div className="p-4 bg-slate-800 border-b border-slate-700 flex items-center justify-between">
         <div className="flex items-center gap-3">
