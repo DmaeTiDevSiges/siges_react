@@ -1195,7 +1195,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 onClickCapture={leadersScroll.onClickCapture}>
 
                                 {leadersByCompany.map((group) => (
-                                    <div key={group.companyId} className="flex flex-col gap-2 shrink-0 p-3 bg-white dark:bg-slate-800/40 rounded-[12px] border border-slate-100 dark:border-white/5 shadow-sm min-w-[200px] max-w-[calc(100vw-32px)] md:max-w-[600px]">
+                                    <div key={group.companyId} className="flex flex-col gap-2 shrink-0 p-3 bg-white dark:bg-slate-800/40 rounded-[12px] border border-slate-100 dark:border-white/5 shadow-sm min-w-[200px] w-max max-w-none">
                                         <div className="flex items-center gap-2 border-b border-slate-50 dark:border-white/5 pb-1.5 relative">
                                             <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="xs" className="scale-75 -ml-1 text-[10px]" />
                                             <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter truncate flex-1 leading-tight pr-6">
@@ -1226,7 +1226,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                 <span className="material-symbols-outlined text-[18px]">location_on</span>
                                             </button>
                                         </div>
-                                        <div className="flex gap-4 overflow-x-auto no-scrollbar py-1 px-1">
+                                        <div className="flex gap-4 overflow-visible py-1 px-1">
                                             {group.leaders.map((leader) => (
                                                 <div key={leader.id} className="flex flex-col items-center gap-1 group cursor-default shrink-0">
                                                     <UserAvatar
