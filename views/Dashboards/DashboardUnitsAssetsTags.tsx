@@ -26,6 +26,24 @@ import { CircularGauge } from '../../components/ui/CircularGauge';
 
 
 
+const formatDashboardRelativeTime = (dateValue: string | Date) => {
+    const diffMs = Math.max(0, new Date().getTime() - new Date(dateValue).getTime());
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHrs = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHrs / 24);
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
+
+    if (diffYears > 0) return `há ${diffYears} ${diffYears === 1 ? 'ano' : 'anos'}`;
+    if (diffMonths > 0) return `há ${diffMonths} ${diffMonths === 1 ? 'mês' : 'meses'}`;
+    if (diffWeeks > 0) return `há ${diffWeeks} ${diffWeeks === 1 ? 'semana' : 'semanas'}`;
+    if (diffDays > 0) return `há ${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`;
+    if (diffHrs > 0) return `há ${diffHrs} h`;
+
+    return `há ${diffMins} min`;
+};
+
 // Scrollable row of asset cards with drag-to-scroll support
 const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => void; }> = ({ assets, onAssetClick }) => {
     const { ref, dragHandlers } = useDragToScroll<HTMLDivElement>();
@@ -543,15 +561,15 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
             const unit = rows[uid];
 
-            if (row.last_reported_at && (!unit.lastReportedAt || new Date(row.last_reported_at) > new Date(unit.lastReportedAt))) {
-                unit.lastReportedAt = row.last_reported_at;
-                unit.lastUser = row.last_reported_user_name_short || row.last_created_user_name_short;
-                unit.lastAvatar = row.last_user_avatar_url;
-                unit.lastReportedImage = row.last_reported_image;
-            }
-
             // Only add assets if they belong to the selected sector name
             if ((row.tag_description || 'Geral') === selectedSectorName) {
+                if (row.last_reported_at && (!unit.lastReportedAt || new Date(row.last_reported_at) > new Date(unit.lastReportedAt))) {
+                    unit.lastReportedAt = row.last_reported_at;
+                    unit.lastUser = row.last_reported_user_name_short || row.last_created_user_name_short;
+                    unit.lastAvatar = row.last_user_avatar_url;
+                    unit.lastReportedImage = row.last_reported_image;
+                }
+
                 // Sum the custom available rate for the selected sector
                 unit.totalRate += (Number(row.last_asset_available_rate) || 0);
 
@@ -815,11 +833,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                     <div className="flex items-center gap-1 sm:gap-1.5 ml-1 sm:ml-2 pl-2 sm:pl-3 border-l border-slate-200 dark:border-slate-700">
                                         <span className="material-symbols-outlined text-[12px] sm:text-[14px] text-primary/60">schedule</span>
                                         <p className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-tighter">
-                                            {(() => {
-                                                const diffHrs = Math.floor((new Date().getTime() - new Date(systemSummary.lastReportedAt).getTime()) / (1000 * 60 * 60));
-                                                const diffMins = Math.floor((new Date().getTime() - new Date(systemSummary.lastReportedAt).getTime()) / (1000 * 60));
-                                                return diffHrs > 0 ? `há ${diffHrs} h` : `há ${diffMins} min`;
-                                            })()}
+                                            {formatDashboardRelativeTime(systemSummary.lastReportedAt)}
                                         </p>
                                     </div>
                                 </div>
@@ -924,12 +938,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                                 <h3 className="text-[11px] sm:text-[12px] font-black text-slate-800 dark:text-white uppercase leading-tight pr-2 truncate">{unit.description}</h3>
                                                                 {unit.lastReportedAt ? (
                                                                     <p className="text-[8px] sm:text-[9px] font-black text-primary mt-0.5 uppercase tracking-tight">
-                                                                        {(() => {
-                                                                            const diffMs = new Date().getTime() - new Date(unit.lastReportedAt).getTime();
-                                                                            const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                                                                            const diffMins = Math.floor(diffMs / (1000 * 60));
-                                                                            return `há ${diffHrs > 0 ? `${diffHrs} h` : `${diffMins} min`}`;
-                                                                        })()}
+                                                                        {formatDashboardRelativeTime(unit.lastReportedAt)}
                                                                     </p>
                                                                 ) : (
                                                                     <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 mt-0.5 uppercase">Sem registros</p>
