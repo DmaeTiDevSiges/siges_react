@@ -11,9 +11,10 @@ interface DashboardScreenProps {
     currentUser: User | null;
     onSelectOrder?: (order: Order) => void;
     onResumeVisit?: (visitId: string) => void;
+    onEdit?: (order: Order) => void;
 }
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onEdit }) => {
     // Persistence keys
     const STORAGE_KEYS = {
         TAB: 'dashboard_admin_active_tab',
@@ -203,6 +204,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                             order={order}
                                             onClick={() => onSelectOrder?.(order)}
                                             onSuccess={fetchOrders}
+                                            onEdit={onEdit}
                                         />
                                     ))}
                                 </div>

@@ -25,6 +25,28 @@ interface ServiceRequestFormProps {
     onSelectOrder?: (order: Order) => void;
 }
 
+type InitialOrderData = Partial<Order> & Record<string, any>;
+
+const toFormValue = (value: unknown) => value == null ? '' : String(value);
+
+const getInitialFormData = (initialData?: InitialOrderData) => ({
+    clientId: toFormValue(initialData?.clientId ?? initialData?.client_id),
+    unitId: toFormValue(initialData?.unitId ?? initialData?.unit_id),
+    unitAssetTagId: toFormValue(initialData?.unitAssetTagId ?? initialData?.unit_asset_tag_id),
+    orderTypeId: toFormValue(initialData?.typeId ?? initialData?.type_id ?? initialData?.orderTypeId ?? initialData?.order_type_id),
+    priorityId: toFormValue(initialData?.priorityId ?? initialData?.priority_id),
+    requestedServices: toFormValue(initialData?.requestedServices ?? initialData?.requested_services)
+});
+
+const withSelectedOption = (
+    options: { value: string; label: string }[],
+    value?: string,
+    fallbackLabel?: string
+) => {
+    if (!value || options.some(option => option.value === value)) return options;
+    return [{ value, label: fallbackLabel || value }, ...options];
+};
+
 export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, onSubmit, initialData, initialContext, onSelectOrder }) => {
     // State
     const [step, setStep] = useState(initialContext ? 2 : 1);
@@ -37,14 +59,12 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     // Form State
-    const [formData, setFormData] = useState({
-        clientId: initialData?.clientId || '',
-        unitId: initialData?.unitId || '',
-        unitAssetTagId: initialData?.unitAssetTagId || '',
-        orderTypeId: initialData?.typeId || '',
-        priorityId: initialData?.priorityId?.toString() || '',
-        requestedServices: initialData?.requestedServices || ''
-    });
+    const [formData, setFormData] = useState(() => getInitialFormData(initialData as InitialOrderData | undefined));
+
+    useEffect(() => {
+        setFormData(getInitialFormData(initialData as InitialOrderData | undefined));
+        setStep(initialContext ? 2 : 1);
+    }, [initialData?.id, initialContext]);
 
     type PhotoItem = { file: File | null; url: string; filename: string | null };
     const [photos, setPhotos] = useState<PhotoItem[]>(() => {
@@ -286,6 +306,11 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         if (step === 1 && isStep1Valid) {
             setStep(2);
         } else if (step === 2 && isStep2Valid) {
+            if (initialData?.id) {
+                // Edit mode - skip duplicate check (step 3)
+                setStep(4);
+                return;
+            }
             setLoadingDuplicates(true);
             try {
                 const selectedAssetTag = assetTags.find(a => a.id === formData.unitAssetTagId);
@@ -317,12 +342,44 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     };
 
     const handlePrev = () => {
-        if (step > 1 && !initialContext) setStep(step - 1);
-        else if (step > 2 && initialContext) setStep(step - 1);
+        if (step > 1 && !initialContext) {
+            if (initialData?.id && step === 4) {
+                // Edit mode - skip step 3 when going back
+                setStep(2);
+            } else {
+                setStep(step - 1);
+            }
+        } else if (step > 2 && initialContext) setStep(step - 1);
         else onBack();
     };
 
     const isUnitDisabled = !formData.clientId;
+    const initialOrder = initialData as InitialOrderData | undefined;
+    const clientOptions = withSelectedOption(
+        clients.map(c => ({ value: c.id, label: c.name })),
+        formData.clientId,
+        initialOrder?.clientName ?? initialOrder?.client_name
+    );
+    const unitOptions = withSelectedOption(
+        units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })),
+        formData.unitId,
+        initialOrder?.unitDescriptionFull ?? initialOrder?.description_full ?? initialOrder?.unitDescription ?? initialOrder?.unit_description
+    );
+    const assetTagOptions = withSelectedOption(
+        assetTags.map(s => ({ value: s.id, label: s.description })),
+        formData.unitAssetTagId,
+        initialOrder?.unitAssetTagDescription ?? initialOrder?.unit_asset_tag_description ?? initialOrder?.assetTagDescription ?? initialOrder?.asset_tag_description
+    );
+    const orderTypeOptions = withSelectedOption(
+        orderTypes.map(t => ({ value: t.id, label: t.description })),
+        formData.orderTypeId,
+        initialOrder?.typeDescription ?? initialOrder?.type_description
+    );
+    const priorityOptions = withSelectedOption(
+        priorities.map(p => ({ value: p.id, label: p.description })),
+        formData.priorityId,
+        initialOrder?.priorityDescription ?? initialOrder?.priority_description
+    );
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f172a] relative">
@@ -404,7 +461,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         required
                                         value={formData.clientId}
                                         onChange={(e) => setFormData(prev => ({ ...prev, clientId: e.target.value, unitId: '', unitAssetTagId: '' }))}
-                                        options={clients.map(c => ({ value: c.id, label: c.name }))}
+                                        options={clientOptions}
                                         placeholder="Selecione o Cliente"
                                     />
                                     <Select
@@ -413,7 +470,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         value={formData.unitId}
                                         disabled={isUnitDisabled}
                                         onChange={(e) => setFormData(prev => ({ ...prev, unitId: e.target.value, unitAssetTagId: '' }))}
-                                        options={units.map(u => ({ value: u.id, label: u.descriptionFull || u.description }))}
+                                        options={unitOptions}
                                         placeholder={isUnitDisabled ? "Selecione o Cliente Primeiro" : "Selecione a Unidade"}
                                     />
                                     {(() => {
@@ -424,7 +481,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                                 value={formData.unitAssetTagId}
                                                 disabled={isSectorDisabled}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, unitAssetTagId: e.target.value }))}
-                                                options={assetTags.map(s => ({ value: s.id, label: s.description }))}
+                                                options={assetTagOptions}
                                                 placeholder={isSectorDisabled ? "Selecione a Unidade Primeiro" : "Selecione o Setor > Posição"}
                                             />
                                         );
@@ -460,14 +517,14 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         required
                                         value={formData.orderTypeId}
                                         onChange={(e) => setFormData(prev => ({ ...prev, orderTypeId: e.target.value }))}
-                                        options={orderTypes.map(t => ({ value: t.id, label: t.description }))}
+                                        options={orderTypeOptions}
                                         placeholder="Selecione o Tipo"
                                     />
                                     <Select
                                         label="Prioridade"
                                         value={formData.priorityId}
                                         onChange={(e) => setFormData(prev => ({ ...prev, priorityId: e.target.value }))}
-                                        options={priorities.map(p => ({ value: p.id, label: p.description }))}
+                                        options={priorityOptions}
                                         placeholder="Selecione a Prioridade"
                                     />
                                     <Textarea

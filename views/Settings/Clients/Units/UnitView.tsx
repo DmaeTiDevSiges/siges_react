@@ -11,6 +11,7 @@ import { Modal } from '../../../../components/ui/Modal';
 import { AssetCard } from '../../../../components/assets/AssetCard';
 import { AssetMovementListItem } from '../../../../components/assets/AssetMovementListItem';
 import { AssetsListPDFButton } from '../../../../components/reports/AssetsListPDFButton';
+import { AssetsListExcelButton } from '../../../../components/reports/AssetsListExcelButton';
 import { UnitAssetTagAvailableForm } from '../../../Units/UnitAssetTagAvailableForm';
 import { PhotoViewer } from '../../../../components/ui/PhotoViewer';
 import { toast } from 'sonner';
@@ -503,10 +504,21 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                     <div className="space-y-4 pt-2">
                         <div className="flex items-center justify-between px-1">
                             <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Disponibilidade</h3>
-                            {canCreate('units_assets_tags_create') && (
-                                <button className="w-10 h-10 flex items-center justify-center bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-transform">
-                                    <span className="material-symbols-outlined text-[24px]">description</span>
-                                </button>
+                            {selectedSector && canView('units_assets_tags_assets') && (
+                                <div className="flex items-center gap-2">
+                                    <AssetsListExcelButton
+                                        unitId={unit.id}
+                                        unitName={unit.description}
+                                        assetTagId={selectedSector}
+                                        assetTagName={sectors.find(sector => String(sector.id) === String(selectedSector))?.name}
+                                    />
+                                    <AssetsListPDFButton
+                                        unitId={unit.id}
+                                        unitName={unit.description}
+                                        assetTagId={selectedSector}
+                                        assetTagName={sectors.find(sector => String(sector.id) === String(selectedSector))?.name}
+                                    />
+                                </div>
                             )}
                         </div>
 

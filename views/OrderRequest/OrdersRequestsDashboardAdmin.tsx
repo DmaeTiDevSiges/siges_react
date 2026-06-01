@@ -33,10 +33,11 @@ interface OrdersRequestsDashboardAdminProps {
     onTrackUsers?: (company: Company) => void;
     onCreateServiceRequest?: () => void;
     onNavigate?: (path: string) => void;
+    onEdit?: (order: Order) => void;
     activeTab?: 'OS' | 'VISITAS';
 }
 
-export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, activeTab = 'OS' }) => {
+export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onEdit, activeTab = 'OS' }) => {
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
     const filtersScroll = useDraggableScroll();
@@ -1362,6 +1363,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                     order={os}
                                                     onClick={() => onSelectOrder?.(os)}
                                                     onSuccess={() => fetchData(false, true)}
+                                                    onEdit={onEdit}
                                                 />
                                             </div>
                                         ))

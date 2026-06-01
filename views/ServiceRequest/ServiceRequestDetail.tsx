@@ -211,6 +211,9 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                                                     onClick={() => {
                                                         onSelectOrder?.(childOrder);
                                                     }}
+                                                    onEdit={(order) => {
+                                                        onSelectOrder?.(order);
+                                                    }}
                                                 />
                                             ))}
                                         </div>

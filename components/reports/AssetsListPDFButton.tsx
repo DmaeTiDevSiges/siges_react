@@ -12,13 +12,19 @@ import { Loading } from '../ui/Loading';
 interface AssetsListPDFButtonProps {
     unitId: string;
     unitName: string;
+    assetTagId?: string | null;
+    assetTagName?: string;
     totalCount?: number;
+    className?: string;
 }
 
 export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
     unitId,
     unitName,
-    totalCount
+    assetTagId,
+    assetTagName,
+    totalCount,
+    className = ''
 }) => {
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -29,12 +35,13 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
         const toastId = toast.loading('Gerando PDF de Ativos...');
 
         try {
-            // 1. Fetch all assets for the unit
-            // We use 'all' filter and empty search, passing unitId
             const assetsRaw = await dataService.getAssets('all', '', unitId);
+            const assets = assetTagId
+                ? assetsRaw.filter(a => String((a as any).tagId || '') === String(assetTagId))
+                : assetsRaw;
 
-            if (!assetsRaw || assetsRaw.length === 0) {
-                toast.error('Nenhum ativo encontrado para esta unidade.', { id: toastId });
+            if (!assets || assets.length === 0) {
+                toast.error(assetTagName ? 'Nenhum ativo encontrado para este setor.' : 'Nenhum ativo encontrado para esta unidade.', { id: toastId });
                 setIsGenerating(false);
                 return;
             }
@@ -44,7 +51,7 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
             const typeMap = new Map(types.map(t => [t.id.toString(), t.description]));
 
             // 3. Map to report rows
-            const reportRows: AssetListRow[] = assetsRaw.map(a => ({
+            const reportRows: AssetListRow[] = assets.map(a => ({
                 unitDescriptionFull: a.unitDescriptionFull || unitName,
                 tagName: a.tagName,
                 code: a.code,
@@ -61,7 +68,8 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
 
             // 5. Save the file
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const filename = `ativos_${unitName.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.pdf`;
+            const scope = assetTagName || unitName;
+            const filename = `ativos_${scope.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.pdf`;
             await FileUtils.downloadFile(blob, filename);
 
             toast.success('Relatório de Ativos gerado com sucesso!', { id: toastId });
@@ -77,17 +85,15 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
         <button
             onClick={generatePDF}
             disabled={isGenerating}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border border-blue-500/30 text-blue-500 hover:bg-blue-500/10 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-wait ${isGenerating ? 'animate-pulse' : ''}`}
+            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${isGenerating ? 'animate-pulse' : ''} ${className}`}
             title="Exportar Ativos para PDF"
         >
             {isGenerating ? (
                 <Loading size="xs" />
             ) : (
-                <FaFilePdf className="text-lg" />
+                <FaFilePdf className="text-[14px]" />
             )}
-            <span className="text-[11px] font-black uppercase tracking-wider">
-                PDF {totalCount !== undefined ? `(${totalCount})` : ''}
-            </span>
+            <span>PDF {totalCount !== undefined ? `(${totalCount})` : ''}</span>
         </button>
     );
 };

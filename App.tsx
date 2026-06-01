@@ -721,7 +721,7 @@ const App: React.FC = () => {
     setSelectedOrder(order);
     const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
 
-    if (currentScreen !== 'order-detail' && currentScreen !== 'service-request-detail') {
+    if (currentScreen !== 'order-detail' && currentScreen !== 'service-request-detail' && currentScreen !== 'order-create' && currentScreen !== 'service-request-create') {
       setLastOrderSource(currentScreen);
     }
 
@@ -1559,6 +1559,10 @@ const App: React.FC = () => {
               setDashboardInitialTab(tab);
               localStorage.setItem('dashboardInitialTab', tab);
             }}
+            onEdit={(order) => {
+              setSelectedOrder(order);
+              setCurrentScreen('order-create');
+            }}
           />
         );
       case 'orders-dashboard':
@@ -1573,6 +1577,10 @@ const App: React.FC = () => {
               setCurrentScreen('service-request-create');
             }}
             onNavigate={handleNavigate}
+            onEdit={(order) => {
+              setSelectedOrder(order);
+              setCurrentScreen('order-create');
+            }}
             activeTab={ordersDashboardTab}
           />
         );
@@ -1588,6 +1596,10 @@ const App: React.FC = () => {
               setCurrentScreen('service-request-create');
             }}
             onNavigate={handleNavigate}
+            onEdit={(order) => {
+              setSelectedOrder(order);
+              setCurrentScreen('order-create');
+            }}
             activeTab="VISITAS"
           />
         );
@@ -1604,6 +1616,10 @@ const App: React.FC = () => {
             currentUser={currentUser!}
             onSelectVisit={handleVisitSelect}
             onOrderSelect={handleOrderSelect}
+            onEdit={(order) => {
+              setSelectedOrder(order);
+              setCurrentScreen('order-create');
+            }}
           />
         );
       case 'dashboard-units-power-electric':
@@ -2373,8 +2389,8 @@ const App: React.FC = () => {
       case 'asset-tag-sub-edit': return 'Editar Posição';
       case 'notifications': return 'Notificações';
       case 'service-request-detail': return 'Detalhes da SS';
-      case 'service-request-create': return selectedOrder?.id ? 'Editar SS' : 'Nova SS';
-      case 'order-create': return 'Nova OS';
+      case 'service-request-create': return selectedOrder?.id ? 'Edição SS' : 'Nova SS';
+      case 'order-create': return selectedOrder?.id ? 'Edição OS' : 'Nova OS';
       case 'order-detail': return 'Detalhes da OS';
       case 'order-visit-execute': return 'Visita';
       case 'order-visit-asset-report': return 'Relatório de Ativo';

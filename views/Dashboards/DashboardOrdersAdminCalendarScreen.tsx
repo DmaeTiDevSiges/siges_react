@@ -15,6 +15,7 @@ interface DashboardOrdersAdminCalendarScreenProps {
     currentUser: User;
     onSelectVisit?: (visit: OrderVisit) => void;
     onOrderSelect?: (order: Order) => void;
+    onEdit?: (order: Order) => void;
 }
 
 interface CalendarVisit {
@@ -377,7 +378,8 @@ const VisitDetailPanel: React.FC<{
 export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCalendarScreenProps> = ({
     currentUser,
     onSelectVisit,
-    onOrderSelect
+    onOrderSelect,
+    onEdit
 }) => {
     const [visits, setVisits] = useState<CalendarVisit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -1504,6 +1506,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                                     onClick={() => onOrderSelect && onOrderSelect(selectedFullOrder as any)}
                                     noBorder
                                     noShadow
+                                    onEdit={onEdit}
                                 />
                             )}
                         </div>

@@ -4041,6 +4041,9 @@ export const dataService = {
 
 
     async getParentOrder(parentId: string | number): Promise<Order | null> {
+        const fullOrder = await this.getOrderById(parentId);
+        if (fullOrder) return fullOrder;
+
         const { data, error } = await supabase
             .from('v_orders_parent')
             .select('*')
@@ -4055,10 +4058,21 @@ export const dataService = {
         return {
             id: data.id?.toString(),
             orderMask: data.order_mask,
+            clientId: data.client_id?.toString(),
             typeId: data.type_id?.toString(),
             typeCode: data.type_code,
+            typeSubId: data.type_sub_id?.toString(),
+            objectId: data.object_id?.toString(),
+            contractId: data.contract_id?.toString(),
+            planId: data.plan_id?.toString(),
+            priorityId: data.priority_id?.toString(),
             typeDescription: data.type_description,
             unitId: data.unit_id?.toString(),
+            unitAssetTagId: data.unit_asset_tag_id?.toString(),
+            assetTagId: data.asset_tag_id?.toString(),
+            assetTagSubId: data.asset_tag_sub_id?.toString(),
+            systemId: data.system_id?.toString(),
+            teamId: data.team_id?.toString(),
             unitDescription: data.unit_description,
             unitAssetTagDescription: data.asset_tag_description,
             assetTagDescription: data.asset_tag_description,

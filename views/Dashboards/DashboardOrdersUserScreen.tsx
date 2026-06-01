@@ -13,11 +13,12 @@ interface DashboardScreenProps {
     onSelectOrder?: (order: Order) => void;
     onResumeVisit?: (visitId: string) => void;
     onSelectVisit?: (visit: OrderVisit) => void;
+    onEdit?: (order: Order) => void;
     initialTab?: 'services' | 'visits';
     onTabChange?: (tab: 'services' | 'visits') => void;
 }
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onSelectVisit, initialTab = 'services', onTabChange }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onSelectVisit, onEdit, initialTab = 'services', onTabChange }) => {
     // Persistence keys
     const STORAGE_KEYS = {
         TAB: 'dashboard_active_tab',
@@ -219,6 +220,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                             order={order}
                                             onClick={() => onSelectOrder?.(order)}
                                             onSuccess={fetchOrders}
+                                            onEdit={onEdit}
                                         />
                                     ))}
                                 </div>

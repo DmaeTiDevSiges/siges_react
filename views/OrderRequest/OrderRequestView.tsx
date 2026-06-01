@@ -443,6 +443,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                     order={order}
                                     onStartVisit={canStartVisit ? () => setShowConfirmVisit(true) : undefined}
                                     onSuccess={onRefreshOrder}
+                                    onEdit={onEdit}
                                     isStartingVisit={isStartingVisit}
                                 />
                             </div>

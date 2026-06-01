@@ -15,12 +15,13 @@ interface OrderCardDetailProps {
     onClick?: () => void;
     onStartVisit?: () => void;
     onSuccess?: () => void;
+    onEdit?: (order: Order) => void;
     isStartingVisit?: boolean;
     noBorder?: boolean;
     noShadow?: boolean;
 }
 
-export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, onClick, onStartVisit, onSuccess, isStartingVisit, noBorder, noShadow }) => {
+export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, onClick, onStartVisit, onSuccess, onEdit, isStartingVisit, noBorder, noShadow }) => {
     const [showViewer, setShowViewer] = useState(false);
     const [viewerIndex, setViewerIndex] = useState(0);
     const statusCfg = getStatusConfig(req.statusId);
@@ -179,7 +180,7 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, on
                         <span className="text-[9px] font-bold text-slate-400">{formatDateTime(req.statusAt || (req as any).status_at)}</span>
                         <span className="text-[9px] font-black text-slate-500/70 dark:text-slate-400/50 uppercase tracking-tighter">{req.teamCode || (req as any).team_code || '---'} {(req.teamLeaderNameShort || (req as any).team_leader_name_short) && `| ${req.teamLeaderNameShort || (req as any).team_leader_name_short}`}</span>
                     </div>
-                    <OrderActionManager order={req} onSuccess={onSuccess} />
+                    <OrderActionManager order={req} onSuccess={onSuccess} onEdit={onEdit} />
                 </div>
             </div>
 
