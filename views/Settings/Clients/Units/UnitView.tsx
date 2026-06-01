@@ -272,7 +272,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
 
             const message =
                 `${statusLabel}\n` +
-                `${unit.description}\n` +
+                `${unit.descriptionFull}\n` +
                 `${item.name}\n` +
                 (item.unavailableReason ? `${item.unavailableReason}\n` : '') +
                 `${item.subtitle || 'Sem observações'}\n\n` +
