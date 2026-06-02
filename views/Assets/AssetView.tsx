@@ -676,7 +676,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                             </div>
                                                         </div>
 
-                                                        <div className="bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-xl p-4 shadow-sm relative group hover:border-slate-300 dark:hover:border-white/20 transition-all">
+                                                        <div className="bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-xl p-4 shadow-sm relative group hover:border-slate-300 dark:hover:border-white/20 transition-all cursor-pointer" onClick={() => onViewReport?.(item.id)}>
                                                             <div className="flex justify-between items-center gap-3 mb-4 pb-3 border-b border-slate-50 dark:border-white/5">
                                                                 <div className="flex flex-col gap-1.5">
                                                                     {item.team && (
@@ -702,7 +702,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                                         {item.beforeStatus && <div className="text-[10px] text-slate-500 mt-0.5 uppercase">{item.beforeStatus}</div>}
                                                                         <div className="flex items-start gap-3 mt-2">
                                                                             {item.beforeImg && (
-                                                                                <div className="w-16 h-16 rounded-md bg-slate-200 dark:bg-black overflow-hidden shrink-0 border border-slate-300 dark:border-white/10 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setExpandedImage(item.beforeImg!)}>
+                                                                                <div className="w-16 h-16 rounded-md bg-slate-200 dark:bg-black overflow-hidden shrink-0 border border-slate-300 dark:border-white/10 cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); setExpandedImage(item.beforeImg!); }}>
                                                                                     <OptimizedImage src={item.beforeImg!} className="w-full h-full object-cover" alt="Antes" preset="thumbnail" loading="lazy" />
                                                                                 </div>
                                                                             )}
@@ -721,7 +721,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                                         {item.afterStatus && <div className="text-[10px] text-slate-500 mt-0.5 uppercase">{item.afterStatus}</div>}
                                                                         <div className="flex items-start gap-3 mt-2">
                                                                             {item.afterImg && (
-                                                                                <div className="w-16 h-16 rounded-md bg-slate-200 dark:bg-black overflow-hidden shrink-0 border border-slate-300 dark:border-white/10 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setExpandedImage(item.afterImg!)}>
+                                                                                <div className="w-16 h-16 rounded-md bg-slate-200 dark:bg-black overflow-hidden shrink-0 border border-slate-300 dark:border-white/10 cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); setExpandedImage(item.afterImg!); }}>
                                                                                     <OptimizedImage src={item.afterImg!} className="w-full h-full object-cover" alt="Depois" preset="thumbnail" loading="lazy" />
                                                                                 </div>
                                                                             )}

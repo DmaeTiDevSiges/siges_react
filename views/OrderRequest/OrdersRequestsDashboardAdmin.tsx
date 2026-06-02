@@ -209,8 +209,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             unscheduled: [
                 { label: 'Hoje', count: 0 },
                 { label: 'Ontem', count: 0 },
-                { label: '< 7 dias', count: 0 },
-                { label: '< 15 dias', count: 0 },
+                { label: '2-7 dias', count: 0 },
+                { label: '8-15 dias', count: 0 },
+                { label: '16-30 dias', count: 0 },
+                { label: '> 30 dias', count: 0 },
             ],
             openOS: [
                 { id: 2, label: 'Avaliação', count: 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
@@ -308,6 +310,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         sevenDaysAgo.setDate(today.getDate() - 7);
         const fifteenDaysAgo = new Date(today);
         fifteenDaysAgo.setDate(today.getDate() - 15);
+        const sixteenDaysAgo = new Date(today);
+        sixteenDaysAgo.setDate(today.getDate() - 16);
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
 
         return recentRequests.filter(o => {
             // Apply Period filter (Mostly for SS's)
@@ -317,8 +323,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 if (!date) return false;
                 if (selectedPeriod === 'Hoje') return date >= today;
                 if (selectedPeriod === 'Ontem') return date >= yesterday && date < today;
-                if (selectedPeriod === '< 7 dias') return date >= sevenDaysAgo;
-                if (selectedPeriod === '< 15 dias') return date >= fifteenDaysAgo;
+                if (selectedPeriod === '2-7 dias') return date >= sevenDaysAgo && date < yesterday;
+                if (selectedPeriod === '8-15 dias') return date >= fifteenDaysAgo && date < sevenDaysAgo;
+                if (selectedPeriod === '16-30 dias') return date >= thirtyDaysAgo && date < fifteenDaysAgo;
+                if (selectedPeriod === '> 30 dias') return date < thirtyDaysAgo;
                 return true;
             }
             return true;
@@ -524,8 +532,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         unscheduled: [
                             { label: 'Hoje', count: statsResult.ssCounts.today },
                             { label: 'Ontem', count: statsResult.ssCounts.yesterday },
-                            { label: '< 7 dias', count: statsResult.ssCounts.sevenDays },
-                            { label: '< 15 dias', count: statsResult.ssCounts.fifteenDays },
+                            { label: '2-7 dias', count: statsResult.ssCounts.sevenDays },
+                            { label: '8-15 dias', count: statsResult.ssCounts.fifteenDays },
+                            { label: '16-30 dias', count: statsResult.ssCounts.between16And30 },
+                            { label: '> 30 dias', count: statsResult.ssCounts.moreThan30 },
                         ],
                         openOS: [
                             { id: 2, label: 'Avaliação', count: statsResult.osCounts[2] || 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },

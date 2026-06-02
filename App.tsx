@@ -263,6 +263,7 @@ const App: React.FC = () => {
   const [selectedOrderVisitAssetId, setSelectedOrderVisitAssetId] = useState<string | null>(null);
   const [selectedOrderTypeId, setSelectedOrderTypeId] = useState<string | null>(null);
   const [selectedUnitAssetTag, setSelectedUnitAssetTag] = useState<any>(null);
+  const [assetReportBackScreen, setAssetReportBackScreen] = useState<Screen>('order-visit-execute');
 
   const handleManageAvailability = (item: any) => {
     setSelectedUnitAssetTag(item);
@@ -273,6 +274,7 @@ const App: React.FC = () => {
     setSelectedOrderVisitAsset(asset);
     setSelectedOrderVisitAssetId(asset.id);
     setSelectedVisitForAssetReport(visit);
+    setAssetReportBackScreen('order-visit-execute');
     setCurrentScreen('order-visit-asset-report');
   };
 
@@ -982,7 +984,7 @@ const App: React.FC = () => {
       setSelectedVisit(null);
       setCurrentScreen(selectedOrder ? 'order-detail' : (['orders', 'visits', 'dashboard-orders-admin'].includes(activeTab) ? 'orders-dashboard' : 'dashboard'));
     } else if (currentScreen === 'order-visit-asset-report') {
-      setCurrentScreen('order-visit-execute');
+      setCurrentScreen(assetReportBackScreen);
     } else if (currentScreen === 'order-visit-asset-activities' || currentScreen === 'order-visit-asset-materials') {
       setCurrentScreen('order-visit-asset-report');
     } else if (currentScreen === 'order-visit-approve') {
@@ -2017,6 +2019,7 @@ const App: React.FC = () => {
               setSelectedOrderVisitAssetId(ovaId);
               setSelectedOrderVisitAsset(null);
               setSelectedVisitForAssetReport(null);
+              setAssetReportBackScreen('asset-details');
               setCurrentScreen('order-visit-asset-report');
             }}
           />
@@ -2260,7 +2263,7 @@ const App: React.FC = () => {
             assetId={selectedOrderVisitAssetId}
             initialAsset={selectedOrderVisitAsset || undefined}
             initialVisit={selectedVisitForAssetReport || undefined}
-            onBack={() => setCurrentScreen('order-visit-execute')}
+            onBack={() => setCurrentScreen(assetReportBackScreen)}
             onManageActivities={(orderTypeId) => {
               setSelectedOrderTypeId(orderTypeId);
               setCurrentScreen('order-visit-asset-activities');

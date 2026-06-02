@@ -7356,15 +7356,21 @@ export const dataService = {
                 sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
                 const fifteenDaysAgo = new Date(today);
                 fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+                const thirtyDaysAgo = new Date(today);
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
                 if (filters.period === 'Hoje') {
                     query = query.gte('requested_at', today.toISOString());
                 } else if (filters.period === 'Ontem') {
                     query = query.gte('requested_at', yesterday.toISOString()).lt('requested_at', today.toISOString());
-                } else if (filters.period === '< 7 dias') {
-                    query = query.gte('requested_at', sevenDaysAgo.toISOString());
-                } else if (filters.period === '< 15 dias') {
-                    query = query.gte('requested_at', fifteenDaysAgo.toISOString());
+                } else if (filters.period === '2-7 dias') {
+                    query = query.gte('requested_at', sevenDaysAgo.toISOString()).lt('requested_at', yesterday.toISOString());
+                } else if (filters.period === '8-15 dias') {
+                    query = query.gte('requested_at', fifteenDaysAgo.toISOString()).lt('requested_at', sevenDaysAgo.toISOString());
+                } else if (filters.period === '16-30 dias') {
+                    query = query.gte('requested_at', thirtyDaysAgo.toISOString()).lt('requested_at', fifteenDaysAgo.toISOString());
+                } else if (filters.period === '> 30 dias') {
+                    query = query.lt('requested_at', thirtyDaysAgo.toISOString());
                 }
             }
         }
@@ -7739,7 +7745,7 @@ export const dataService = {
          ssFiltersOverride?: OrderFilters,
          osFiltersOverride?: OrderFilters
      ): Promise<{
-         ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number };
+         ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number; between16And30: number; moreThan30: number };
          osCounts: Record<number, number>;
          ssSectorCounts?: Array<{ id: string, label: string, count: number }>;
          osSectorCounts?: Array<{ id: string, label: string, count: number }>;
@@ -7822,14 +7828,20 @@ export const dataService = {
         sevenDaysAgo.setDate(today.getDate() - 7);
         const fifteenDaysAgo = new Date(today);
         fifteenDaysAgo.setDate(today.getDate() - 15);
+        const sixteenDaysAgo = new Date(today);
+        sixteenDaysAgo.setDate(today.getDate() - 16);
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
 
         const parseDate = (d: string) => d ? new Date(d) : null;
 
         const ssCounts = {
             today: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= today; }).length,
             yesterday: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= yesterday && d < today; }).length,
-            sevenDays: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= sevenDaysAgo; }).length,
-            fifteenDays: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= fifteenDaysAgo; }).length
+            sevenDays: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= sevenDaysAgo && d < yesterday; }).length,
+            fifteenDays: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= fifteenDaysAgo && d < sevenDaysAgo; }).length,
+            between16And30: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= thirtyDaysAgo && d < fifteenDaysAgo; }).length,
+            moreThan30: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d < thirtyDaysAgo; }).length
         };
 
         const osCounts: Record<number, number> = {};
@@ -7850,8 +7862,10 @@ export const dataService = {
                 if (!d) return false;
                 if (periodFilter === 'Hoje') return d >= today;
                 if (periodFilter === 'Ontem') return d >= yesterday && d < today;
-                if (periodFilter === '< 7 dias') return d >= sevenDaysAgo;
-                if (periodFilter === '< 15 dias') return d >= fifteenDaysAgo;
+                if (periodFilter === '2-7 dias') return d >= sevenDaysAgo && d < yesterday;
+                if (periodFilter === '8-15 dias') return d >= fifteenDaysAgo && d < sevenDaysAgo;
+                if (periodFilter === '16-30 dias') return d >= thirtyDaysAgo && d < fifteenDaysAgo;
+                if (periodFilter === '> 30 dias') return d < thirtyDaysAgo;
                 return true;
             });
         }
@@ -7950,6 +7964,10 @@ export const dataService = {
             sevenDaysAgo.setDate(today.getDate() - 7);
             const fifteenDaysAgo = new Date(today);
             fifteenDaysAgo.setDate(today.getDate() - 15);
+            const sixteenDaysAgo = new Date(today);
+            sixteenDaysAgo.setDate(today.getDate() - 16);
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(today.getDate() - 30);
 
             const parseDate = (d: string) => d ? new Date(d) : null;
 
@@ -7961,10 +7979,14 @@ export const dataService = {
                     return itemDate >= today;
                 } else if (filters.period === 'Ontem') {
                     return itemDate >= yesterday && itemDate < today;
-                } else if (filters.period === '< 7 dias') {
-                    return itemDate >= sevenDaysAgo;
-                } else if (filters.period === '< 15 dias') {
-                    return itemDate >= fifteenDaysAgo;
+                } else if (filters.period === '2-7 dias') {
+                    return itemDate >= sevenDaysAgo && itemDate < yesterday;
+                } else if (filters.period === '8-15 dias') {
+                    return itemDate >= fifteenDaysAgo && itemDate < sevenDaysAgo;
+                } else if (filters.period === '16-30 dias') {
+                    return itemDate >= thirtyDaysAgo && itemDate < fifteenDaysAgo;
+                } else if (filters.period === '> 30 dias') {
+                    return itemDate < thirtyDaysAgo;
                 }
                 return true;
             });
