@@ -2,7 +2,6 @@
 .env
 .env.local
 *.local
-*.exe
 
 # Data files
 *.csv
@@ -41,4 +40,13 @@ builds/
 .env
 .env.*
 *.apk
+
+# Electron build output
+release/
+*.exe
+*.asar
+*.dmg
+*.deb
+*.AppImage
+*.snap
 
