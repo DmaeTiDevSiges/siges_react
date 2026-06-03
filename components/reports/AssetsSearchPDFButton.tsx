@@ -42,7 +42,7 @@ export const AssetsSearchPDFButton: React.FC<AssetsSearchPDFButtonProps> = ({
                 tagName: a.tagName || a.assetTagDescription || '',
                 code: a.code,
                 description: a.description,
-                statusCode: a.statusId,
+                statusCode: a.statusCode || a.statusId,
                 statusAt: a.statusAt,
                 typeDescription: a.typeId ? typeMap.get(a.typeId.toString()) : '—'
             }));

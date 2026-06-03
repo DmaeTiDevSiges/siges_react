@@ -383,6 +383,13 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             unitTypeParentId: appliedFilters.unitTypeParentId,
             unitTypeId: appliedFilters.unitTypeId,
             unitId: appliedFilters.unitId,
+            orderObjectId: appliedFilters.orderObjectId,
+            orderTypeId: appliedFilters.orderTypeId,
+            orderTypeSubId: appliedFilters.orderTypeSubId,
+            contractId: appliedFilters.contractId,
+            orderPlanId: appliedFilters.orderPlanId,
+            orderTeamId: appliedFilters.orderTeamId,
+            priorityId: appliedFilters.priorityId,
             statusId: selectedStatusId ?? undefined,
             assetTagId: osAssetTagId.length > 0 ? osAssetTagId : appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
@@ -1093,6 +1100,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 <div className="flex items-center gap-2">
                                     <RequestsListPDFButton
                                         filters={ssEffectiveFilters}
+                                        searchQuery={searchQuery}
                                         totalCount={
                                             selectedPeriod
                                                 ? (stats.unscheduled.find(p => p.label === selectedPeriod)?.count || 0)
@@ -1101,6 +1109,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     />
                                     <RequestsExcelExportButton
                                         filters={ssEffectiveFilters}
+                                        searchQuery={searchQuery}
                                         filename="relatorio-ss"
                                         title="EXCEL"
                                         totalCount={

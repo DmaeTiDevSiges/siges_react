@@ -2,9 +2,12 @@ import path from 'path';
 import fs from 'fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import electron from 'vite-plugin-electron';
+import renderer from 'vite-plugin-electron-renderer';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, '.', '');
+  const isDev = command === 'serve';
   
   // Try to read version from app_version.txt
   let buildId = new Date().getTime().toString();
@@ -16,6 +19,42 @@ export default defineConfig(({ mode }) => {
     }
   } catch (e) {
     console.warn('Could not read app_version.txt, using current timestamp');
+  }
+
+  // Only use Electron plugins for build, not for dev
+  const plugins = [react()];
+  
+  if (!isDev) {
+    plugins.push(
+      electron([
+        {
+          entry: 'electron/main.ts',
+          vite: {
+            build: {
+              outDir: 'dist-electron',
+              rollupOptions: {
+                external: ['electron'],
+              },
+            },
+          },
+        },
+        {
+          entry: 'electron/preload.ts',
+          onstart(options) {
+            options.reload();
+          },
+          vite: {
+            build: {
+              outDir: 'dist-electron',
+              rollupOptions: {
+                external: ['electron'],
+              },
+            },
+          },
+        },
+      ])
+    );
+    plugins.push(renderer());
   }
 
   return {
@@ -39,7 +78,7 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       allowedHosts: true
     },
-    plugins: [react()],
+    plugins,
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),

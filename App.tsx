@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
+import { NetworkProvider } from './contexts/NetworkContext';
+import { useNetworkStatus, useNetworkAndQuality, useQualityNotifications } from './hooks/useNetworkStatus';
+import { useNetworkAndQuality as useCombinedNetwork } from './hooks/useNetworkAndQuality';
 import { Layout } from './components/Layout';
 import { BottomNav } from './components/BottomNav';
 import { Button } from './components/ui/Button';
@@ -103,7 +106,7 @@ import { PermissionsProvider } from './contexts/PermissionsContext';
 import { MaintenancePlansScreen } from './views/Settings/MaintenancePlans/MaintenancePlansScreen';
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'dashboard-orders-admin-calendar';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today'   | 'dashboard-orders-admin-calendar';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { AIAssistantBubble } from './components/ai/AIAssistantBubble';
@@ -111,11 +114,93 @@ import { imgproxyService } from './services/imgproxyService';
 import { Loading } from './components/ui/Loading';
 
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [minTimePassed, setMinTimePassed] = useState(false);
   const [selectedCompanyForTracker, setSelectedCompanyForTracker] = useState<Company | null>(null);
   const [retryLocation, setRetryLocation] = useState(0);
   const isKeyboardVisible = useKeyboard();
+
+  // Monitor network connectivity and show notifications
+  const { isConnected, connectionType } = useNetworkStatus();
+  const { dataQualityStatus, isDataQualityMonitoring } = useCombinedNetwork();
+  const { shouldShowQualityWarning, shouldShowStabilityWarning, shouldShowLatencyWarning } = useQualityNotifications();
+  const networkStatusRef = React.useRef<{ isConnected: boolean; connectionType: string | null }>({ isConnected: true, connectionType: null });
+  const dataQualityRef = React.useRef(dataQualityStatus);
+
+  useEffect(() => {
+    const prevConnected = networkStatusRef.current.isConnected;
+    networkStatusRef.current = { isConnected, connectionType: connectionType || null };
+
+    console.log('[AppContent] Network status:', { prevConnected, isConnected, connectionType });
+
+    if (!isConnected && prevConnected) {
+      // Transitioned from connected to disconnected
+      console.log('[AppContent] Showing disconnect toast');
+      toast.error('⚠️ Sem conexão de internet', {
+        description: 'Verifique sua conexão WiFi ou dados móveis',
+        duration: 5000,
+      });
+    } else if (isConnected && !prevConnected) {
+      // Transitioned from disconnected to connected
+      console.log('[AppContent] Showing reconnect toast');
+      const connTypeLabel = connectionType ? ` via ${connectionType.toUpperCase()}` : '';
+      toast.success('✅ Conectado novamente' + connTypeLabel, {
+        duration: 3000,
+      });
+    }
+  }, [isConnected, connectionType]);
+
+  // Monitor data quality and show notifications
+  useEffect(() => {
+    const prevQuality = dataQualityRef.current.overallScore;
+    const currentQuality = dataQualityStatus.overallScore;
+    dataQualityRef.current = dataQualityStatus;
+
+    console.log('[AppContent] Data quality status:', { prevQuality, currentQuality, monitoring: isDataQualityMonitoring });
+
+    // Notifica sobre qualidade de dados ruim
+    if (shouldShowQualityWarning && currentQuality < 40) {
+      console.log('[AppContent] Showing quality warning toast');
+      toast.error('⚠️ Qualidade de conexão baixa', {
+        description: `A qualidade de conexão está em ${currentQuality}%. Algumas funções podem ser afetadas.`,
+        duration: 4000,
+        action: {
+          label: 'Detalhes',
+          onClick: () => {
+            // Navegar para tela de configurações ou mostrar mais detalhes
+            console.log('User clicked details for quality warning');
+          }
+        }
+      });
+    }
+
+    // Notifica sobre instabilidade
+    if (shouldShowStabilityWarning && dataQualityStatus.stabilityScore < 50) {
+      console.log('[AppContent] Showing stability warning toast');
+      toast.warning('🔄 Conexão instável detectada', {
+        description: 'A conexão está oscilando. Pode afetar o desempenho.',
+        duration: 3000,
+      });
+    }
+
+    // Notifica sobre latência alta
+    if (shouldShowLatencyWarning && dataQualityStatus.currentMetrics.latency > 1000) {
+      console.log('[AppContent] Showing latency warning toast');
+      toast.warning('⏱️ Latência alta detectada', {
+        description: `${dataQualityStatus.currentMetrics.latency.toFixed(0)}ms de latência detectada.`,
+        duration: 3000,
+      });
+    }
+
+    // Notifica sobre melhoria na qualidade
+    if (prevQuality < 40 && currentQuality >= 60 && prevQuality !== 0) {
+      console.log('[AppContent] Showing quality improvement toast');
+      toast.success('✅ Qualidade de conexão melhorada', {
+        description: 'A conexão agora está em boas condições.',
+        duration: 3000,
+      });
+    }
+  }, [dataQualityStatus, isDataQualityMonitoring, shouldShowQualityWarning, shouldShowStabilityWarning, shouldShowLatencyWarning]);
 
   // Splash screen minimum timer
   useEffect(() => {
@@ -2613,7 +2698,7 @@ const App: React.FC = () => {
             message={showShiftAlert.message}
             type="info"
             confirmLabel={showShiftAlert.type === 'START' ? 'Ficar Disponível' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Ir para a Visita' : 'NÃO ESTOU MAIS DISPONÍVEL'}
-            cancelLabel="Ainda estou disponível"
+            cancelLabel="Ainda NÃO estou disponível"
             onConfirm={async () => {
               if (showShiftAlert.type === 'END_WITH_VISIT') {
                 dismissAlert(showShiftAlert.type);
@@ -2646,6 +2731,17 @@ const App: React.FC = () => {
         </div>
       </PermissionsProvider>
     </>
+  );
+};
+
+/**
+ * App wrapper that provides NetworkProvider context
+ */
+const App: React.FC = () => {
+  return (
+    <NetworkProvider>
+      <AppContent />
+    </NetworkProvider>
   );
 };
 

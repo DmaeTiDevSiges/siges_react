@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Avatar } from './ui/Avatar';
 import { CompanyAvatar } from './ui/CompanyAvatar';
 import { UserAvatar } from './ui/UserAvatar';
+import { DataQualityIndicator } from './ui/DataQualityIndicator';
 
 interface HeaderProps {
     title: string;
@@ -136,6 +137,13 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
 
                 {rightAction}
+
+                {/* Indicador de qualidade de dados */}
+                <DataQualityIndicator
+                    size="small"
+                    showDetails={false}
+                    className="mr-2"
+                />
 
                 {onMenuClick && (
                     <IconButton
