@@ -30,6 +30,21 @@ export interface UploadResult {
     publicUrl: string;
 }
 
+const COMPRESSIBLE_TYPES = new Set([
+    'application/pdf',
+    'application/json',
+    'application/xml',
+]);
+
+export const maybeCompress = async (file: File): Promise<{ body: Uint8Array; contentEncoding?: string }> => {
+    const isCompressible = COMPRESSIBLE_TYPES.has(file.type) || file.type.startsWith('text/');
+    const raw = new Uint8Array(await file.arrayBuffer());
+    if (!isCompressible) return { body: raw };
+    const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'));
+    const gzipped = new Uint8Array(await new Response(stream).arrayBuffer());
+    return { body: gzipped, contentEncoding: 'gzip' };
+};
+
 /**
  * Faz upload de um arquivo para o Cloudflare R2
  * @param file - Arquivo a ser enviado
@@ -46,15 +61,14 @@ export const uploadFile = async (file: File, path: string): Promise<UploadResult
     try {
         const client = getR2Client();
 
-        // Converter File para ArrayBuffer
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = new Uint8Array(arrayBuffer);
+        const { body, contentEncoding } = await maybeCompress(file);
 
         const command = new PutObjectCommand({
             Bucket: bucketName,
             Key: path,
-            Body: buffer,
+            Body: body,
             ContentType: file.type,
+            ...(contentEncoding && { ContentEncoding: contentEncoding }),
             // Headers de cache para CDN
             CacheControl: 'public, max-age=31536000, immutable',
         });
