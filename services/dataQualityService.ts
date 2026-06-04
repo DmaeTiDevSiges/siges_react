@@ -31,7 +31,7 @@ class DataQualityServiceImpl {
   private metricsHistory: DataQualityMetrics[] = [];
   private monitoringInterval: ReturnType<typeof setInterval> | null = null;
   private isMonitoring = false;
-  private testEndpoint = 'https://api.siges.app/health'; // Endpoint para teste de latência
+  private testEndpoint = 'https://cloudflare.com/cdn-cgi/trace'; // Endpoint ultrarrápido para teste de latência e banda
 
   constructor() {
     this.currentStatus = this.getInitialStatus();
@@ -148,6 +148,7 @@ class DataQualityServiceImpl {
       // Faz requisição ao endpoint de health check
       const response = await fetch(this.testEndpoint, {
         method: 'HEAD',
+        mode: 'no-cors',
         cache: 'no-cache',
         signal: AbortSignal.timeout(5000) // Timeout de 5 segundos
       });
@@ -201,8 +202,9 @@ class DataQualityServiceImpl {
       // Envia dados de teste
       const response = await fetch(this.testEndpoint, {
         method: 'POST',
+        mode: 'no-cors',
         headers: {
-          'Content-Type': 'application/octet-stream',
+          'Content-Type': 'text/plain',
         },
         body: testData,
         signal: AbortSignal.timeout(10000)

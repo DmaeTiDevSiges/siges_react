@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { AuthProvider } from './contexts/AuthContext';
 import { NetworkProvider } from './contexts/NetworkContext';
 import { useNetworkStatus, useNetworkAndQuality, useQualityNotifications } from './hooks/useNetworkStatus';
 import { useNetworkAndQuality as useCombinedNetwork } from './hooks/useNetworkAndQuality';
@@ -556,9 +555,18 @@ const AppContent: React.FC = () => {
   };
 
   useEffect(() => {
+    const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T | null> => {
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const timeout = new Promise<null>((resolve) => {
+        timeoutId = setTimeout(() => resolve(null), ms);
+      });
+
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+    };
+
     const loadUser = async () => {
       try {
-        const user = await dataService.getCurrentUser();
+        const user = await withTimeout(dataService.getCurrentUser(), 8000);
         // Avoid setting state if the core user data (excluding location) hasn't changed.
         // This prevents visual refreshes / flicker when only latitude/longitude updates.
         if (user && currentUserRef.current) {

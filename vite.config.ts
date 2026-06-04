@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron';
 import renderer from 'vite-plugin-electron-renderer';
@@ -8,6 +8,7 @@ import renderer from 'vite-plugin-electron-renderer';
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, '.', '');
   const isDev = command === 'serve';
+  const isElectronBuild = mode === 'electron' || process.env.BUILD_TARGET === 'electron';
   
   // Try to read version from app_version.txt
   let buildId = new Date().getTime().toString();
@@ -21,10 +22,10 @@ export default defineConfig(({ mode, command }) => {
     console.warn('Could not read app_version.txt, using current timestamp');
   }
 
-  // Only use Electron plugins for build, not for dev
-  const plugins = [react()];
+  // Only use Electron plugins for explicit Electron builds.
+  const plugins: PluginOption[] = [react()];
   
-  if (!isDev) {
+  if (!isDev && isElectronBuild) {
     plugins.push(
       electron([
         {
@@ -58,6 +59,7 @@ export default defineConfig(({ mode, command }) => {
   }
 
   return {
+    base: mode === 'android' ? './' : '/',
     server: {
       port: 3000,
       host: '0.0.0.0',

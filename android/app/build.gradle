@@ -8,9 +8,9 @@ task npmBuildAndSync(type: Exec) {
 
     def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
     if (isWindows) {
-        commandLine 'cmd', '/c', 'npm run build && npx cap sync'
+        commandLine 'cmd', '/c', 'npm run build:android'
     } else {
-        commandLine 'bash', '-c', 'npm run build && npx cap sync'
+        commandLine 'bash', '-c', 'npm run build:android'
     }
 }
 
