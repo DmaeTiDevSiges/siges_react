@@ -2706,7 +2706,7 @@ const AppContent: React.FC = () => {
             message={showShiftAlert.message}
             type="info"
             confirmLabel={showShiftAlert.type === 'START' ? 'Ficar Disponível' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Ir para a Visita' : 'NÃO ESTOU MAIS DISPONÍVEL'}
-            cancelLabel="Ainda NÃO estou disponível"
+            cancelLabel="Ainda estou disponível"
             onConfirm={async () => {
               if (showShiftAlert.type === 'END_WITH_VISIT') {
                 dismissAlert(showShiftAlert.type);

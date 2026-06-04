@@ -5,12 +5,14 @@ interface DataQualityIndicatorProps {
   size?: 'small' | 'medium' | 'large';
   showDetails?: boolean;
   className?: string;
+  isConnected?: boolean;
 }
 
 export const DataQualityIndicator: React.FC<DataQualityIndicatorProps> = ({
   size = 'medium',
   showDetails = false,
-  className = ''
+  className = '',
+  isConnected = false
 }) => {
   const [status, setStatus] = useState<DataQualityStatus>(dataQualityService.getStatus());
   const [isExpanded, setIsExpanded] = useState(false);
@@ -19,6 +21,58 @@ export const DataQualityIndicator: React.FC<DataQualityIndicatorProps> = ({
     const unsubscribe = dataQualityService.subscribe(setStatus);
     return () => unsubscribe();
   }, []);
+
+  // Se não há conexão, exibir estado de desconectado
+  if (!isConnected) {
+    const sizes = {
+      small: {
+        dot: 'w-2 h-2',
+        text: 'text-[10px]',
+        barWidth: 'w-[3px]',
+        bar1: 'h-[4px]',
+        bar2: 'h-[7px]',
+        bar3: 'h-[10px]',
+        barGap: 'gap-[2px]',
+      },
+      medium: {
+        dot: 'w-2.5 h-2.5',
+        text: 'text-xs',
+        barWidth: 'w-[4px]',
+        bar1: 'h-[5px]',
+        bar2: 'h-[9px]',
+        bar3: 'h-[13px]',
+        barGap: 'gap-[2px]',
+      },
+      large: {
+        dot: 'w-3 h-3',
+        text: 'text-sm',
+        barWidth: 'w-[5px]',
+        bar1: 'h-[6px]',
+        bar2: 'h-[11px]',
+        bar3: 'h-[16px]',
+        barGap: 'gap-[3px]',
+      },
+    };
+
+    const currentSize = sizes[size];
+    const disconnectedColor = 'bg-slate-400 dark:bg-slate-600';
+
+    return (
+      <div
+        className={`inline-flex flex-col items-center justify-end ${className}`}
+        title="Sem conexão de internet"
+      >
+        <span className={`${currentSize.text} font-black leading-none text-slate-400 dark:text-slate-500 mb-0.5`}>
+          0
+        </span>
+        <div className={`flex items-end ${currentSize.barGap}`}>
+          <span className={`${currentSize.barWidth} ${currentSize.bar1} rounded-sm ${disconnectedColor}`} />
+          <span className={`${currentSize.barWidth} ${currentSize.bar2} rounded-sm ${disconnectedColor}`} />
+          <span className={`${currentSize.barWidth} ${currentSize.bar3} rounded-sm ${disconnectedColor}`} />
+        </div>
+      </div>
+    );
+  }
 
   const qualityLevel = getQualityLevel(status.overallScore);
   const qualityColor = getQualityColor(qualityLevel);

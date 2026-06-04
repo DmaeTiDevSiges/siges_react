@@ -9,6 +9,7 @@ import { Avatar } from './ui/Avatar';
 import { CompanyAvatar } from './ui/CompanyAvatar';
 import { UserAvatar } from './ui/UserAvatar';
 import { DataQualityIndicator } from './ui/DataQualityIndicator';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 interface HeaderProps {
     title: string;
@@ -43,6 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
     hideBorder,
     titleRightElement
 }) => {
+    const { isConnected } = useNetworkStatus();
 
     // Determinar status atual baseado em isAvailable e isOvInProgress
     const getCurrentStatus = (): UserStatus => {
@@ -143,6 +145,7 @@ export const Header: React.FC<HeaderProps> = ({
                     size="small"
                     showDetails={false}
                     className="mr-2"
+                    isConnected={isConnected}
                 />
 
                 {onMenuClick && (
