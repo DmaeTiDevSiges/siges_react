@@ -7,6 +7,21 @@ import 'leaflet/dist/leaflet.css';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { getInitials } from '../../utils/formatters';
 
+// Retorna tempo relativo da última localização (ex: "há 3 min", "há 2 h")
+const getRelativeTime = (isoString?: string): string => {
+    if (!isoString) return 'Localização desconhecida';
+    const diff = Date.now() - new Date(isoString).getTime();
+    if (isNaN(diff) || diff < 0) return 'Agora';
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 60) return `há ${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `há ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `há ${hours} h`;
+    const days = Math.floor(hours / 24);
+    return `há ${days} dia${days > 1 ? 's' : ''}`;
+};
+
 interface UsersTrackerProps {
     company: Company;
     onBack?: () => void;
@@ -283,7 +298,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                 } else {
                     const marker = L.marker([lat, lng], { icon })
                         .addTo(map)
-                        .bindTooltip(user.nameShort || user.nameFull || '', {
+                        .bindTooltip(getRelativeTime(user.trackerAt), {
                             direction: 'top',
                             className: 'leaflet-tooltip-premium',
                             offset: [0, -15],
@@ -539,6 +554,8 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                                 
                                                 const borderColor = statusBorderColors[userStatus as keyof typeof statusBorderColors];
 
+                                                const trackerLabel = getRelativeTime(currentUser?.trackerAt);
+
                                                 return (
                                                     <div className="relative group/leader">
                                                         {leaderTeam.userAvatarUrl ? (
@@ -556,6 +573,12 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                                                 {getInitials(leaderTeam.userName || 'L')}
                                                             </div>
                                                         )}
+                                                        {/* Tooltip: tempo relativo da última localização */}
+                                                        <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-slate-800 dark:bg-slate-700 px-2 py-1 text-[9px] font-semibold text-white shadow-lg opacity-0 group-hover/leader:opacity-100 transition-opacity duration-200 z-50">
+                                                            <span className="material-symbols-outlined text-[9px] align-middle mr-0.5">location_on</span>
+                                                            {trackerLabel}
+                                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-slate-700" />
+                                                        </div>
                                                     </div>
                                                 );
                                             })()}

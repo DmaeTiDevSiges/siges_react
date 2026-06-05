@@ -68,16 +68,20 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 
         const loadFromBlob = (blob: Blob) => {
             if (cancelled) return;
-            objectUrl = URL.createObjectURL(blob);
+            const currentObjectUrl = URL.createObjectURL(blob);
             const img = new Image();
             img.onload = () => {
+                URL.revokeObjectURL(currentObjectUrl);
                 if (!cancelled) {
                     setImage(img);
                     resetView(img);
                 }
             };
-            img.onerror = (err) => console.error("Editor: failed to load image from blob", err);
-            img.src = objectUrl;
+            img.onerror = (err) => {
+                URL.revokeObjectURL(currentObjectUrl);
+                console.error("Editor: failed to load image from blob", err);
+            };
+            img.src = currentObjectUrl;
         };
 
         if (typeof imageFile === 'string') {
@@ -110,7 +114,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 
         return () => {
             cancelled = true;
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [isOpen, imageFile]);
 

@@ -45,11 +45,11 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
                 dataService.resetPassword(fullEmail),
                 new Promise(resolve => setTimeout(resolve, 5000))
             ]);
-            
+
             setSuccess(true);
         } catch (err: any) {
             console.error('Reset request error:', err);
-            
+
             // Caso ocorra o 504 rapidamente, também interpretamos como sucesso visual
             if (err?.name === 'AuthRetryableFetchError' || String(err).includes('504') || String(err).includes('Gateway Timeout')) {
                 setSuccess(true);
@@ -113,7 +113,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
                         leftIcon={<span className="material-symbols-outlined text-[22px]">business</span>}
                         required
                     >
-                        <option value="" className="bg-white dark:bg-[#0f172a] text-slate-900 dark:text-white">Código ou nome da empresa</option>
+                        <option value="" className="bg-white dark:bg-[#0f172a] text-slate-900 dark:text-white">Selecione a empresa</option>
                         {companies.map(c => (
                             <option key={c.id} value={c.id} className="bg-white dark:bg-[#0f172a] text-slate-900 dark:text-white">{c.name}</option>
                         ))}

@@ -1348,9 +1348,9 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                     <span className="text-[10px] font-black text-amber-800/60 dark:text-amber-400/60 uppercase tracking-tighter text-right">
                                                         {activeOrdersForModal[currentOrderIndex].status_description}
                                                     </span>
-                                                    {activeOrdersForModal[currentOrderIndex].statusAt && (
+                                                    {activeOrdersForModal[currentOrderIndex].status_at && (
                                                         <span className="text-[9px] font-bold text-amber-800/40 dark:text-amber-400/40 text-right">
-                                                            {new Date(activeOrdersForModal[currentOrderIndex].statusAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                            {new Date(activeOrdersForModal[currentOrderIndex].status_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '4-digit', hour: '2-digit', minute: '2-digit' })} h
                                                         </span>
                                                     )}
                                                 </div>

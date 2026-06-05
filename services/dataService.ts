@@ -1,7 +1,7 @@
 // Data Service for SIGES application
 import { supabase } from './supabase';
 import { r2Service } from './r2Service';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant } from '../types';
 
 
 
@@ -2417,6 +2417,7 @@ export const dataService = {
             email: item.email,
             latitude: item.latitude,
             longitude: item.longitude,
+            trackerAt: item.tracker_at,
             nameFull: item.name_full,
             nameShort: item.name_short,
             statusId: item.status_id,
@@ -3694,7 +3695,7 @@ export const dataService = {
             
             const { data, error } = await supabase
                 .from('v_orders')
-                .select('id, order_mask, status_id, status_description, requested_services, requested_at, unit_asset_tag_id, unit_asset_tag_has_order, parent_id')
+                .select('id, order_mask, status_id, status_description, status_at, requested_services, requested_at, unit_asset_tag_id, unit_asset_tag_has_order, parent_id')
                 .eq('unit_asset_tag_id', numericId)
                 .eq('unit_asset_tag_has_order', true)
                 .or('parent_id.eq.0,parent_id.is.null')
@@ -7832,7 +7833,7 @@ export const dataService = {
         if (ssUnscheduledRes.error || osRes.error) {
             console.error('Error fetching dashboard stats:', ssUnscheduledRes.error || osRes.error);
             return {
-                ssCounts: { today: 0, yesterday: 0, sevenDays: 0, fifteenDays: 0 },
+                ssCounts: { today: 0, yesterday: 0, sevenDays: 0, fifteenDays: 0, between16And30: 0, moreThan30: 0 },
                 osCounts: {}
             };
         }
@@ -8692,6 +8693,7 @@ export const dataService = {
             email: item.email,
             latitude: item.latitude,
             longitude: item.longitude,
+            trackerAt: item.tracker_at,
             nameFull: item.name_full,
             nameShort: item.name_short,
             statusId: item.status_id,
@@ -11536,6 +11538,99 @@ export const dataService = {
         if (updateError) {
             console.error('Error reporting visit:', updateError);
             throw new Error('Erro ao reportar visita');
+        }
+    },
+
+    /**
+     * Marca uma visita como REVISADA (3), validando que TODOS os seus ativos já estão REVISADOS.
+     * Visível/acionável quando: visita está REPORTADA (2) e ovAssetsAmount === ovAssetsRevisedAmount.
+     * @param visitId ID da visita
+     * @param userId ID do usuário que está marcando como revisada
+     */
+    async markOrderVisitAsRevised(visitId: string, userId: string): Promise<void> {
+        const visitIdNum = parseInt(visitId, 10);
+
+        // 1. Buscar a visita (apenas colunas reais da view; os contadores de ativos são computados abaixo)
+        const { data: visit, error: visitError } = await supabase
+            .from('v_orders_visits')
+            .select('id, o_id, ov_processing_id, ov_mask, ov_team_leader_id')
+            .eq('id', visitIdNum)
+            .single();
+
+        if (visitError || !visit) {
+            console.error('markOrderVisitAsRevised: visit not found', { visitId, visitError });
+            throw new Error('Visita não encontrada');
+        }
+
+        // 2. Só é possível revisar uma visita REPORTADA (2)
+        if (Number(visit.ov_processing_id) !== 2) {
+            throw new Error('Apenas visitas reportadas podem ser marcadas como revisadas');
+        }
+
+        // 3. Validar que TODOS os ativos estão com processing_id = 3 (REVISADA).
+        //    Os contadores ov_assets_amount / ov_assets_revised_amount NÃO são colunas
+        //    da view — são computados em JS a partir de orders_visits_assets.
+        const { data: assets, error: assetsError } = await supabase
+            .from('v_orders_visits_assets')
+            .select('processing_id')
+            .eq('ov_id', visitIdNum);
+
+        if (assetsError) {
+            console.error('markOrderVisitAsRevised: assets fetch error', assetsError);
+            throw new Error('Erro ao verificar ativos da visita');
+        }
+
+        const totalAssets = (assets || []).length;
+        const revisedAssets = (assets || []).filter((a: any) => Number(a.processing_id) === 3).length;
+
+        if (totalAssets === 0) {
+            throw new Error('A visita não possui ativos para revisar');
+        }
+        if (revisedAssets !== totalAssets) {
+            throw new Error(`Todos os ativos precisam estar revisados (${revisedAssets}/${totalAssets} revisados)`);
+        }
+
+        // 4. Atualizar a visita para processing_id = 3 (REVISADA)
+        const timestamp = getBrazilTimestamp();
+        const { error: updateError } = await supabase
+            .from('orders_visits')
+            .update({
+                ov_processing_id: 3,
+                ov_revised_user_id: Number(userId),
+                ov_revised_at: timestamp
+            })
+            .eq('id', visitIdNum);
+
+        if (updateError) {
+            console.error('Error marking visit as revised:', updateError);
+            throw new Error('Erro ao marcar visita como revisada');
+        }
+
+        // 5. Notificar o líder da equipe
+        try {
+            if (visit.ov_team_leader_id) {
+                const { data: currentUser } = await supabase
+                    .from('users')
+                    .select('name_short, name_full')
+                    .eq('id', userId)
+                    .single();
+
+                const reviewerName = currentUser?.name_short || currentUser?.name_full || 'Supervisor';
+                const visitMask = visit.ov_mask || 'N/A';
+
+                await supabase.from('users_notifications').insert({
+                    user_id_to: visit.ov_team_leader_id,
+                    user_id_from: Number(userId),
+                    title: 'Visita Revisada',
+                    body: `${reviewerName} revisou a visita ${visitMask}. Todos os ativos foram conferidos.`,
+                    type: 'Visita Revisada',
+                    created_at: timestamp,
+                    is_read: false,
+                    o_id: visit.o_id
+                });
+            }
+        } catch (notifErr) {
+            console.error('Error sending notification for visit revision:', notifErr);
         }
     },
 

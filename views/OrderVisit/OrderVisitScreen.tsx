@@ -66,6 +66,8 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isDisapproveModalOpen, setIsDisapproveModalOpen] = useState(false);
     const [isFileModalOpen, setIsFileModalOpen] = useState(false);
     const [isFiling, setIsFiling] = useState(false);
+    const [isRevising, setIsRevising] = useState(false);
+    const [isReviseModalOpen, setIsReviseModalOpen] = useState(false);
     const [fullOrderData, setFullOrderData] = useState<Order | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
     const isKeyboardVisible = useKeyboard();
@@ -282,6 +284,27 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         }
     };
 
+    const handleMarkAsRevised = () => {
+        setIsReviseModalOpen(true);
+    };
+
+    const handleConfirmReviseVisit = async () => {
+        if (!visit || !currentUser) return;
+
+        try {
+            setIsRevising(true);
+            await dataService.markOrderVisitAsRevised(visit.id, currentUser.id);
+            toast.success('Visita marcada como REVISADA!');
+            await refreshVisit();
+            setIsReviseModalOpen(false);
+        } catch (error) {
+            console.error('Error marking visit as revised:', error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao marcar visita como revisada');
+        } finally {
+            setIsRevising(false);
+        }
+    };
+
 
 
     if (loading) {
@@ -369,6 +392,15 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                                 (visit.ovAssetsAmount || 0) > 0 &&
                                 (visit.ovAssetsAmount || 0) === (visit.ovAssetsApprovedAmount || 0)
                             ) ? handleFileVisit : undefined}
+                            onMarkAsRevised={(
+                                canView('orders_visits_processing_review') &&
+                                visit.ovStatusId === 2 &&
+                                Number(visit.ovProcessingId || 1) === 2 &&
+                                !visit.isFiled &&
+                                (visit.ovAssetsAmount || 0) > 0 &&
+                                (visit.ovAssetsAmount || 0) === (visit.ovAssetsRevisedAmount || 0)
+                            ) ? handleMarkAsRevised : undefined}
+                            isRevising={isRevising}
                         />
 
                         <SignatureSection
@@ -530,6 +562,36 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50"
                         >
                             {isFiling ? 'ARQUIVANDO...' : 'Confirmar Arquivamento'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal de Marcar como Revisada */}
+            <Modal
+                isOpen={isReviseModalOpen}
+                onClose={() => setIsReviseModalOpen(false)}
+                title="Marcar Visita como REVISADA"
+                maxWidth="sm"
+            >
+                <div className="p-4 space-y-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Todos os <span className="font-black text-slate-700 dark:text-slate-200">{visit.ovAssetsAmount}</span> ativos desta visita já foram revisados.
+                        Confirme para marcar a visita como <span className="font-black text-blue-600">REVISADA</span>.
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setIsReviseModalOpen(false)}
+                            className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleConfirmReviseVisit}
+                            disabled={isRevising}
+                            className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50"
+                        >
+                            {isRevising ? 'REVISANDO...' : 'Confirmar Revisão'}
                         </button>
                     </div>
                 </div>

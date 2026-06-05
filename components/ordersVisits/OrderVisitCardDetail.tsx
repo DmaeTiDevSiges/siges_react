@@ -23,10 +23,12 @@ interface OrderVisitCardDetailProps {
     onApproveVisit?: () => void;
     onDisapproveVisit?: () => void;
     onFileVisit?: () => void;
+    onMarkAsRevised?: () => void;
     isReportLoading?: boolean;
     isApproveLoading?: boolean;
     isDisapproveLoading?: boolean;
     isFileLoading?: boolean;
+    isRevising?: boolean;
     hideHeaderActions?: boolean;
 }
 
@@ -42,10 +44,12 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
     onApproveVisit,
     onDisapproveVisit,
     onFileVisit,
+    onMarkAsRevised,
     isReportLoading = false,
     isApproveLoading = false,
     isDisapproveLoading = false,
     isFileLoading = false,
+    isRevising = false,
     hideHeaderActions = false
 }) => {
     // Determining colors
@@ -286,6 +290,22 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                         <span className="material-symbols-outlined">send</span>
                     )}
                     {isReportLoading ? 'CARREGANDO...' : 'Reportar Visita'}
+                </button>
+            )}
+
+            {/* Mark Visit as Revised Button — only when ALL assets are in REVISADA (3) */}
+            {onMarkAsRevised && !onDisapproveVisit && Number(visit.ovProcessingId || 1) === 2 && (
+                <button
+                    onClick={onMarkAsRevised}
+                    disabled={isRevising}
+                    className="w-full mt-4 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {isRevising ? (
+                        <Loading size="xs" />
+                    ) : (
+                        <span className="material-symbols-outlined">done_all</span>
+                    )}
+                    {isRevising ? 'REVISANDO...' : 'Marcar como REVISADA'}
                 </button>
             )}
 

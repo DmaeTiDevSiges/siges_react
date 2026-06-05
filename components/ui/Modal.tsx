@@ -227,7 +227,7 @@ export const Modal: React.FC<ModalProps> = ({
             {/* Modal Container */}
             <div
                 ref={modalRef}
-                className={`relative w-full ${maxWidthClasses[maxWidth]} 
+                className={`relative flex flex-col w-full ${maxWidthClasses[maxWidth]} 
                     ${fullScreenMobile ? 'h-auto max-h-[92vh]' : 'max-h-[90vh]'} 
                     shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300
                     ${draggable ? 'select-none' : ''} ${className || 'bg-white dark:bg-card-dark rounded-2xl'}`}
@@ -237,7 +237,7 @@ export const Modal: React.FC<ModalProps> = ({
                 onPointerLeave={onDragEnd}
             >
                 {children ? (
-                    <div className="flex flex-col h-full sm:h-auto">
+                    <div className="flex flex-col flex-1 min-h-0">
                         {!hideHeader && (
                             <div
                                 className={`border-b border-slate-100 dark:border-slate-800 flex flex-col shrink-0 ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}

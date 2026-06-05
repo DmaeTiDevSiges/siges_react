@@ -1304,8 +1304,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         </button>
                     )}
 
-                    {/* 2) REPORTADO -> Review / Approve actions (for users with permissions) */}
-                    {(Number(asset.processingId) === 2 || localEditMode) && (
+                    {/* 2) REPORTADO ou REVISADO -> Review / Approve actions (for users with permissions) */}
+                    {(Number(asset.processingId) === 2 || Number(asset.processingId) === 3 || localEditMode) && (
                         <div className="flex flex-col gap-3">
                             {!localEditMode ? (
                                 <>

@@ -68,13 +68,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         localStorage.setItem(STORAGE_KEYS.VISIT_STATUS, status);
     };
 
-    const fetchOrders = useCallback(async () => {
+    const loadDashboardData = useCallback(async (showLoading: boolean) => {
         if (!currentUser?.id) {
             setIsLoading(false);
             return;
         }
 
-        setIsLoading(true);
+        if (showLoading) setIsLoading(true);
         try {
             const [teamOrders, teamVisits] = await Promise.all([
                 dataService.getOrdersByLeader(currentUser.id.toString()),
@@ -85,25 +85,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         } catch (error) {
             console.error('Error fetching dashboard orders:', error);
         } finally {
-            setIsLoading(false);
+            if (showLoading) setIsLoading(false);
         }
     }, [currentUser?.id, currentUser?.teamId]);
 
     useEffect(() => {
-        fetchOrders();
-    }, [fetchOrders]);
+        loadDashboardData(true);
+    }, [loadDashboardData]);
 
     // Escuta evento global de refresh (ex: vindo de uma notificação em tempo real)
     useEffect(() => {
-        const handleRefresh = () => fetchOrders();
+        const handleRefresh = () => loadDashboardData(false);
         window.addEventListener('refresh_dashboard', handleRefresh);
 
-        // Realtime updates
+        // Realtime updates — refresh silencioso para não piscar a UI
         const orderSub = dataService.subscribeToOrders(() => {
-            fetchOrders();
+            loadDashboardData(false);
         });
         const visitSub = dataService.subscribeToVisits(() => {
-            fetchOrders();
+            loadDashboardData(false);
         });
 
         return () => {
@@ -112,7 +112,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
             if (orderSub) supabase.removeChannel(orderSub);
             if (visitSub) supabase.removeChannel(visitSub);
         };
-    }, [fetchOrders]);
+    }, [loadDashboardData]);
 
     // Grouping logic based on status IDs 3, 4 and 6
     const stats = useMemo(() => {
@@ -221,7 +221,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                             key={order.id}
                                             order={order}
                                             onClick={() => onSelectOrder?.(order)}
-                                            onSuccess={fetchOrders}
+                                            onSuccess={() => loadDashboardData(false)}
                                             onEdit={onEdit}
                                         />
                                     ))}
