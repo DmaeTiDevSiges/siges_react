@@ -7669,18 +7669,38 @@ export const dataService = {
 
      subscribeToOrders: (callback: (payload: any) => void) => {
          const channelId = `orders-changes-${Math.random().toString(36).substring(2)}`;
+         console.log('📡 [Meu Painel] Subscribing to orders realtime changes');
          return supabase
              .channel(channelId)
-             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => callback(payload))
-             .subscribe();
+             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+                 console.log('🔄 [Meu Painel] orders change received:', payload.eventType);
+                 callback(payload);
+             })
+             .subscribe((status, err) => {
+                 console.log('📡 [Meu Painel] orders subscription status:', status);
+                 if (err) console.error('❌ [Meu Painel] orders subscription error:', err);
+                 if (status === 'CHANNEL_ERROR') {
+                     console.warn('⚠️ [Meu Painel] Verifique se a tabela "orders" tem Realtime habilitado no Supabase (Database → Replication).');
+                 }
+             });
      },
 
      subscribeToVisits: (callback: (payload: any) => void) => {
          const channelId = `visits-changes-${Math.random().toString(36).substring(2)}`;
+         console.log('📡 [Meu Painel] Subscribing to orders_visits realtime changes');
          return supabase
              .channel(channelId)
-             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders_visits' }, (payload) => callback(payload))
-             .subscribe();
+             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders_visits' }, (payload) => {
+                 console.log('🔄 [Meu Painel] orders_visits change received:', payload.eventType);
+                 callback(payload);
+             })
+             .subscribe((status, err) => {
+                 console.log('📡 [Meu Painel] visits subscription status:', status);
+                 if (err) console.error('❌ [Meu Painel] visits subscription error:', err);
+                 if (status === 'CHANNEL_ERROR') {
+                     console.warn('⚠️ [Meu Painel] Verifique se a tabela "orders_visits" tem Realtime habilitado no Supabase (Database → Replication).');
+                 }
+             });
      },
 
     async getOrderById(id: string | number): Promise<Order | null> {

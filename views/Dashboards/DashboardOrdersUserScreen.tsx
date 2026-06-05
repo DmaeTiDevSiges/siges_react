@@ -3,6 +3,7 @@ import { User, Order, OrderVisit } from '../../types';
 import { UserServicesPanel } from '../../components/ui/UserServicesPanel';
 import { UserVisitsPanel } from '../../components/ui/UserVisitsPanel';
 import { dataService } from '../../services/dataService';
+import { supabase } from '../../services/supabase';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
 import { getProcessingStatus } from '../../components/ordersVisits/OrderVisitProcessingButton';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
@@ -107,8 +108,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
         return () => {
             window.removeEventListener('refresh_dashboard', handleRefresh);
-            orderSub.unsubscribe();
-            visitSub.unsubscribe();
+            // Supabase RealtimeChannel NÃO tem .unsubscribe() — usar removeChannel()
+            if (orderSub) supabase.removeChannel(orderSub);
+            if (visitSub) supabase.removeChannel(visitSub);
         };
     }, [fetchOrders]);
 
