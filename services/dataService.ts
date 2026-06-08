@@ -4612,51 +4612,33 @@ export const dataService = {
 
     // Contract Services
     async getContractServices(contractId: string): Promise<ContractService[]> {
-        // 1. Fetch linkage records
-        const { data: linkerData, error: linkerError } = await supabase
-            .from('contracts_services')
+        const { data, error } = await supabase
+            .from('v_contracts_services')
             .select('*')
             .eq('contract_id', contractId);
 
-        if (linkerError) {
-            console.error('Error fetching contract services:', linkerError);
-            throw linkerError;
+        if (error) {
+            console.error('Error fetching contract services:', error);
+            throw error;
         }
 
-        if (!linkerData || linkerData.length === 0) return [];
+        if (!data || data.length === 0) return [];
 
-        // 2. Fetch related service details to avoid join cache issues
-        const serviceIds = [...new Set(linkerData.map(item => item.service_id))];
-        const { data: servicesData, error: servicesError } = await supabase
-            .from('cfg_services')
-            .select('id, description, code, unit')
-            .in('id', serviceIds);
-
-        if (servicesError) {
-            console.error('Error fetching service details:', servicesError);
-            throw servicesError;
-        }
-
-        // 3. Map and join manually
-        return linkerData.map((item: any) => {
-            const service = servicesData?.find(s => s.id === item.service_id);
-
-            return {
-                id: item.id.toString(),
-                contractId: item.contract_id.toString(),
-                serviceId: item.service_id.toString(),
-                valueUnit: Number(item.value_unit),
-                discount: Number(item.discount),
-                amount: Number(item.amount),
-                valueTotal: Number(item.value_total),
-                isAvailable: item.is_available,
-                isDeleted: item.is_deleted,
-                versionMode: item.version_mode,
-                serviceDescription: service?.description,
-                serviceCode: service?.code,
-                serviceUnit: service?.unit
-            };
-        }) as ContractService[];
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            contractId: item.contract_id.toString(),
+            serviceId: item.service_id.toString(),
+            valueUnit: Number(item.value_unit),
+            discount: Number(item.discount),
+            amount: Number(item.amount),
+            valueTotal: Number(item.value_total),
+            isAvailable: item.is_available,
+            isDeleted: item.is_deleted,
+            versionMode: item.version_mode,
+            serviceDescription: item.description,
+            serviceCode: item.code,
+            serviceUnit: item.unit
+        })) as ContractService[];
     },
 
     async addContractService(item: Partial<ContractService>): Promise<void> {
@@ -10458,37 +10440,40 @@ export const dataService = {
         return (data || []).map((item: any) => ({
             id: item.id.toString(),
             ovId: item.ov_id.toString(),
+            serviceId: item.service_id?.toString(), // cfg_services.id — used for alreadyAdded filter
             amount: Number(item.amount),
             valueUnit: Number(item.value_unit),
             discount: Number(item.discount || 0),
             valueTotal: Number(item.value_total),
             versionMode: item.version_mode,
-            serviceDescription: item.description, // Mapped from 'description' in view
-            serviceCode: item.code,               // Mapped from 'code' in view
-            serviceUnit: item.unit                // Mapped from 'unit' in view
+            serviceDescription: item.description,
+            serviceCode: item.code,
+            serviceUnit: item.unit
         }));
     },
 
     async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1): Promise<void> {
-        // First get the contract service details to copy values (discount, value_unit)
+        // Fetch contract service details: value_unit, discount and the actual cfg_services.id (service_id)
         const { data: cs } = await supabase
             .from('contracts_services')
-            .select('value_unit, discount')
+            .select('value_unit, discount, service_id')
             .eq('id', contractServiceId)
             .single();
 
         const valueUnit = Number(cs?.value_unit || 0);
         const discount = Number(cs?.discount !== undefined ? cs.discount : 1);
+        // service_id must reference cfg_services.id so the view v_orders_visits_services resolves correctly
+        const serviceId = cs?.service_id ? parseInt(cs.service_id) : parseInt(contractServiceId);
 
         const { error } = await supabase
             .from('orders_visits_services')
             .insert({
                 ov_id: parseInt(visitId),
-                service_id: parseInt(contractServiceId), // service_id in ov_services maps to id in contracts_services
+                service_id: serviceId,
                 amount: amount,
                 value_unit: valueUnit,
                 discount: discount,
-                value_total: amount * valueUnit * (discount || 1), // Optional manual calc if DB doesn't have trigger
+                value_total: amount * valueUnit * (discount || 1),
                 created_user_id: parseInt(userId),
                 created_at: new Date().toISOString()
             });

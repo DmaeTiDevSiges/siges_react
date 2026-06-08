@@ -72,7 +72,8 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
     const filteredSearchResults = availableServices.filter(s => {
         const matchesSearch = s.serviceDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             s.serviceCode?.toLowerCase().includes(searchTerm.toLowerCase());
-        const alreadyAdded = visitServices.some(vs => vs.serviceId === s.id);
+        // Compare cfg_services.id stored in visit service (vs.serviceId) against cfg_services.id of the contract service (s.serviceId)
+        const alreadyAdded = visitServices.some(vs => vs.serviceId === s.serviceId);
         return matchesSearch && !alreadyAdded && searchTerm.length >= 1;
     });
 
@@ -93,8 +94,8 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
             // Removed premature close of adding mode to allow adding multiple services
             // setIsAdding(false); 
             // setSearchTerm('');
-            
-            loadVisitServices();
+
+            await loadVisitServices();
             if (onVisitRefresh) onVisitRefresh();
         } catch (error) {
             console.error('Error adding service:', error);

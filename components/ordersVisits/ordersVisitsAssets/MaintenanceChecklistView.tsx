@@ -473,13 +473,16 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
             });
 
             if (image.base64String) {
-                const fileExt = 'jpeg';
-                const base64Data = `data:image/jpeg;base64,${image.base64String}`;
-
-                // Convert base64 to File object
-                const res = await fetch(base64Data);
-                const blob = await res.blob();
-                const file = new File([blob], `photo.jpg`, { type: 'image/jpeg' });
+                // Convert base64 directly to Blob without fetch() to avoid CSP violations
+                // (connect-src does not allow data: URLs)
+                const byteString = atob(image.base64String);
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], { type: 'image/jpeg' });
+                const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
 
                 const uploadResult = await dataService.uploadChecklistImage(ovAssetId, activityId, file, companyId, assetId);
 
