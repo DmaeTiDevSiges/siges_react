@@ -30,7 +30,7 @@ L.Marker.prototype.options.icon = DefaultIcon;
 interface UnitFormProps {
     clientId: string;
     initialUnit?: Partial<Unit>;
-    onSave: (unit: Partial<Unit>, file?: File | null) => Promise<void> | void;
+    onSave: (unit: Partial<Unit>, file?: File | null, onProgress?: (progress: number) => void) => Promise<void> | void;
     onCancel: () => void;
 }
 
@@ -45,6 +45,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
     const hasPermission = isEdit ? canEdit('units') : canCreate('units');
 
     const [isSaving, setIsSaving] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [clients, setClients] = useState<Client[]>([]);
     const [unitTypes, setUnitTypes] = useState<UnitType[]>([]);
     const [systems, setSystems] = useState<System[]>([]);
@@ -304,13 +305,15 @@ export const UnitForm: React.FC<UnitFormProps> = ({
 
         try {
             setIsSaving(true);
-            // Artificial delay to ensure the premium loading effect is visible
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await onSave(form as Partial<Unit>, selectedFile);
+            setUploadProgress(0);
+            await onSave(form as Partial<Unit>, selectedFile, (progress) => {
+                setUploadProgress(progress);
+            });
         } catch (error) {
             console.error("❌ Error saving unit", error);
         } finally {
             setIsSaving(false);
+            setUploadProgress(0);
         }
     };
 
@@ -334,7 +337,10 @@ export const UnitForm: React.FC<UnitFormProps> = ({
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark relative">
             {isSaving && (
                 <div className="absolute top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-primary/20">
-                    <div className="h-full bg-primary animate-loading-bar w-[40%]" />
+                    <div 
+                        className={`h-full bg-primary ${uploadProgress === 0 ? 'animate-loading-bar w-[40%]' : 'transition-all duration-300 ease-out'}`}
+                        style={uploadProgress > 0 ? { width: `${uploadProgress}%` } : undefined}
+                    />
                 </div>
             )}
             <form onSubmit={handleSubmit} className="flex-1 p-4 space-y-6 overflow-y-auto pb-10">

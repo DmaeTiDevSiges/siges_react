@@ -174,7 +174,7 @@ export interface User {
   latitude?: number;
   longitude?: number;
   trackerIntervalSeconds?: number;
-  trackerAt?: string;
+  trackerHeartbeatAt?: string;
 
   // Organization
   statusId?: number;

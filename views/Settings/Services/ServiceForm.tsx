@@ -28,8 +28,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
 
         try {
             setIsSaving(true);
-            // Artificial delay for premium effect visibility
-            await new Promise(resolve => setTimeout(resolve, 1000));
             await onSave({ ...form, id: initialService?.id } as Partial<Service>);
         } catch (error) {
             console.error("Error saving service", error);

@@ -4,6 +4,7 @@
  */
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 
 // Configuração do cliente S3 para Cloudflare R2
 const getR2Client = () => {
@@ -36,7 +37,7 @@ const COMPRESSIBLE_TYPES = new Set([
     'application/xml',
 ]);
 
-export const maybeCompress = async (file: File): Promise<{ body: Uint8Array; contentEncoding?: string }> => {
+export const maybeCompress = async (file: File | Blob): Promise<{ body: Uint8Array; contentEncoding?: string }> => {
     const isCompressible = COMPRESSIBLE_TYPES.has(file.type) || file.type.startsWith('text/');
     const raw = new Uint8Array(await file.arrayBuffer());
     if (!isCompressible) return { body: raw };
@@ -49,9 +50,10 @@ export const maybeCompress = async (file: File): Promise<{ body: Uint8Array; con
  * Faz upload de um arquivo para o Cloudflare R2
  * @param file - Arquivo a ser enviado
  * @param path - Caminho completo no bucket (ex: companies/123/assets/456/image.jpg)
+ * @param onProgress - Função opcional de callback chamada durante o progresso do upload
  * @returns Objeto com path e URL pública
  */
-export const uploadFile = async (file: File, path: string): Promise<UploadResult> => {
+export const uploadFile = async (file: File | Blob, path: string, onProgress?: (progress: number) => void): Promise<UploadResult> => {
     const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
 
     if (!bucketName) {
@@ -63,17 +65,27 @@ export const uploadFile = async (file: File, path: string): Promise<UploadResult
 
         const { body, contentEncoding } = await maybeCompress(file);
 
-        const command = new PutObjectCommand({
-            Bucket: bucketName,
-            Key: path,
-            Body: body,
-            ContentType: file.type,
-            ...(contentEncoding && { ContentEncoding: contentEncoding }),
-            // Headers de cache para CDN
-            CacheControl: 'public, max-age=31536000, immutable',
+        const upload = new Upload({
+            client,
+            params: {
+                Bucket: bucketName,
+                Key: path,
+                Body: body,
+                ContentType: file.type,
+                ...(contentEncoding && { ContentEncoding: contentEncoding }),
+                // Headers de cache para CDN
+                CacheControl: 'public, max-age=31536000, immutable',
+            },
         });
 
-        await client.send(command);
+        upload.on('httpUploadProgress', (progress) => {
+            if (progress.loaded && progress.total && onProgress) {
+                const percentCompleted = Math.round((progress.loaded * 100) / progress.total);
+                onProgress(percentCompleted);
+            }
+        });
+
+        await upload.done();
 
         const publicUrl = getPublicUrl(path);
 

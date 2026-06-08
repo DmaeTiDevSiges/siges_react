@@ -1,8 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(.\\gradlew.bat *)"
+      "Bash(.\\gradlew.bat *)",
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)",
+      "Bash(npx *)"
     ]
   },
-  "$version": 3
+  "$version": 4
 }

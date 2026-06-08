@@ -98,8 +98,6 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
 
         try {
             setIsSaving(true);
-            // Artificial delay for premium effect visibility
-            await new Promise(resolve => setTimeout(resolve, 1000));
 
             await dataService.createUser({
                 email,

@@ -1095,7 +1095,8 @@ CREATE TABLE public.users (
     migrated_at timestamp without time zone,
     latitude double precision,
     longitude double precision,
-    tracker_at timestamp without time zone,
+    tracker_heartbeat_at timestamp without time zone,
+    tracker_accuracy double precision,
     ov_id_in_progress_mask character varying,
     tracker_interval_seconds integer DEFAULT 300
 );

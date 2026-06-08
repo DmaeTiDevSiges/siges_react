@@ -18,7 +18,7 @@ import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 interface AssetFormProps {
     initialAsset?: Asset;
     isDuplicate?: boolean;
-    onSave: (asset: Partial<Asset>, attributeValues: Record<string, string>, file?: File) => Promise<void>;
+    onSave: (asset: Partial<Asset>, attributeValues: Record<string, string>, file?: File, onProgress?: (progress: number) => void) => Promise<void>;
     onCancel: () => void;
 }
 
@@ -91,6 +91,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
     const [attributes, setAttributes] = useState<AssetAttribute[]>([]);
     const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
     const [isSaving, setIsSaving] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     useEffect(() => {
         if (initialAsset) {
@@ -529,9 +530,13 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                 }
             }
 
-            await onSave(formData, attributeValues, imageFile || undefined);
+            setUploadProgress(0);
+            await onSave(formData, attributeValues, imageFile || undefined, (progress) => {
+                setUploadProgress(progress);
+            });
         } finally {
             setIsSaving(false);
+            setUploadProgress(0);
         }
     };
 
@@ -567,7 +572,10 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
             {/* Top Loading Bar */}
             {isSaving && (
                 <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500/20 z-50 overflow-hidden">
-                    <div className="h-full bg-blue-500 animate-loading-bar shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                    <div 
+                        className={`h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] ${uploadProgress === 0 ? 'animate-loading-bar w-[40%]' : 'transition-all duration-300 ease-out'}`}
+                        style={uploadProgress > 0 ? { width: `${uploadProgress}%` } : undefined}
+                    />
                 </div>
             )}
 

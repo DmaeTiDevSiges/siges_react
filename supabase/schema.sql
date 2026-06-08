@@ -2059,7 +2059,8 @@ CREATE TABLE IF NOT EXISTS public.users (
     migrated_at timestamp without time zone DEFAULT now(),
     latitude numeric,
     longitude numeric,
-    tracker_at timestamp without time zone DEFAULT now(),
+    tracker_heartbeat_at timestamp without time zone DEFAULT now(),
+    tracker_accuracy double precision,
     ov_id_in_progress_mask text,
     PRIMARY KEY (id)
 );

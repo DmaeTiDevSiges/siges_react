@@ -1,0 +1,21 @@
+{
+	"appId": "com.ag.siges",
+	"appName": "Siges",
+	"webDir": "dist",
+	"plugins": {
+		"Keyboard": {
+			"resize": "body"
+		}
+	},
+	"packageClassList": [
+		"BarcodeScannerPlugin",
+		"CAPBrowserPlugin",
+		"CAPCameraPlugin",
+		"FilesystemPlugin",
+		"GeolocationPlugin",
+		"HapticsPlugin",
+		"KeyboardPlugin",
+		"CAPNetworkPlugin",
+		"SharePlugin"
+	]
+}

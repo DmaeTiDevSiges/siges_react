@@ -121,8 +121,6 @@ export const ContractForm: React.FC<ContractFormProps> = ({
 
         try {
             setIsSaving(true);
-            // Artificial delay for premium effect visibility
-            await new Promise(resolve => setTimeout(resolve, 1000));
             await onSave(formData);
         } catch (error) {
             console.error("Error saving contract", error);

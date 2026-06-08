@@ -70,8 +70,6 @@ export const OrderTypeForm: React.FC<OrderTypeFormProps> = ({
 
         try {
             setIsSaving(true);
-            // Artificial delay for premium effect visibility
-            await new Promise(resolve => setTimeout(resolve, 1000));
             await onSave({
                 ...form,
                 id: initialOrderType?.id

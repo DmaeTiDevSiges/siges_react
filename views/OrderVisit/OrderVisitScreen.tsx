@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { OrderVisit, OrderVisitTeam, User, Order, OrderVisitAssetView } from '../../types';
 import { dataService } from '../../services/dataService';
+import { supabase } from '../../services/supabase';
 import { OrderVisitCardDetail } from '../../components/ordersVisits/OrderVisitCardDetail';
 import { Header } from '../../components/Header';
 import { toast } from 'sonner';
@@ -70,10 +71,19 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isReviseModalOpen, setIsReviseModalOpen] = useState(false);
     const [fullOrderData, setFullOrderData] = useState<Order | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
+    const [unreadChatCount, setUnreadChatCount] = useState(0);
+    const [vehiclesCount, setVehiclesCount] = useState(0);
+    const [servicesCount, setServicesCount] = useState(0);
     const isKeyboardVisible = useKeyboard();
 
     const activeTab = externalActiveTab || internalActiveTab;
-    const setActiveTab = onExternalTabChange || setInternalActiveTab;
+    const setActiveTab = (tab: VisitTab) => {
+        if (onExternalTabChange) {
+            onExternalTabChange(tab);
+        } else {
+            setInternalActiveTab(tab);
+        }
+    };
     const { canView } = usePermissions();
 
 
@@ -115,14 +125,146 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         loadPageData();
     }, [visitId]);
 
+    // Busca o total inicial de mensagens do chat ao montar a tela
+    useEffect(() => {
+        const loadInitialChatCount = async () => {
+            const { count } = await supabase
+                .from('orders_visits_chat')
+                .select('*', { count: 'exact', head: true })
+                .eq('ov_id', parseInt(visitId));
+            if (count && count > 0) {
+                setUnreadChatCount(count);
+            }
+        };
+        loadInitialChatCount();
+    }, [visitId]);
+
+    // Realtime: incrementa o badge a cada nova mensagem (qualquer remetente)
+    useEffect(() => {
+        const unreadChannel = supabase
+            .channel(`screen_chat_msgs_${visitId}_${Date.now()}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'orders_visits_chat',
+                    filter: `ov_id=eq.${visitId}`
+                },
+                () => {
+                    setUnreadChatCount(prev => prev + 1);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            unreadChannel.unsubscribe();
+        };
+    }, [visitId]);
+
+    // Busca o total inicial de veículos e mantém sincronizado
+    useEffect(() => {
+        const loadInitialVehiclesCount = async () => {
+            const { count } = await supabase
+                .from('orders_visits_vehicles')
+                .select('*', { count: 'exact', head: true })
+                .eq('ov_id', parseInt(visitId));
+            if (count !== null) {
+                setVehiclesCount(count);
+            }
+        };
+        loadInitialVehiclesCount();
+
+        const vehiclesChannel = supabase
+            .channel(`screen_vehicles_${visitId}_${Date.now()}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'orders_visits_vehicles',
+                    filter: `ov_id=eq.${visitId}`
+                },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setVehiclesCount(prev => prev + 1);
+                    } else if (payload.eventType === 'DELETE') {
+                        setVehiclesCount(prev => Math.max(0, prev - 1));
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            vehiclesChannel.unsubscribe();
+        };
+    }, [visitId]);
+
+    // Busca o total inicial de serviços e mantém sincronizado
+    useEffect(() => {
+        const loadInitialServicesCount = async () => {
+            const { count } = await supabase
+                .from('orders_visits_services')
+                .select('*', { count: 'exact', head: true })
+                .eq('ov_id', parseInt(visitId));
+            if (count !== null) {
+                setServicesCount(count);
+            }
+        };
+        loadInitialServicesCount();
+
+        const servicesChannel = supabase
+            .channel(`screen_services_${visitId}_${Date.now()}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'orders_visits_services',
+                    filter: `ov_id=eq.${visitId}`
+                },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setServicesCount(prev => prev + 1);
+                    } else if (payload.eventType === 'DELETE') {
+                        setServicesCount(prev => Math.max(0, prev - 1));
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            servicesChannel.unsubscribe();
+        };
+    }, [visitId]);
+
     const refreshVisit = async () => {
         try {
             const visitData = await dataService.getActiveOrderVisit(visitId);
             if (visitData) setVisit(visitData);
+
+            // Fetch and update vehicles count
+            const { count: vCount } = await supabase
+                .from('orders_visits_vehicles')
+                .select('*', { count: 'exact', head: true })
+                .eq('ov_id', parseInt(visitId));
+            if (vCount !== null) {
+                setVehiclesCount(vCount);
+            }
+
+            // Fetch and update services count
+            const { count: sCount } = await supabase
+                .from('orders_visits_services')
+                .select('*', { count: 'exact', head: true })
+                .eq('ov_id', parseInt(visitId));
+            if (sCount !== null) {
+                setServicesCount(sCount);
+            }
         } catch (error) {
             console.error('Error refreshing visit data:', error);
         }
     };
+
 
     // Refresh visit data when switching to costs tab to ensure financial values are up to date
     useEffect(() => {
@@ -469,8 +611,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
-
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
             {activeTab === 'chat' ? (
                 <div className={`flex-1 min-h-0 overflow-hidden ${isKeyboardVisible ? '' : 'pb-[calc(5.75rem+env(safe-area-inset-bottom))]'}`}>
                     {renderTabContent()}
@@ -510,9 +651,6 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 </div>
             </Modal>
 
-            {/* Modal de Edição de OS para Aprovação (REMOVED: Now a page) */}
-
-
             {/* Modal de Fechamento */}
             <CloseVisitModal
                 isOpen={isCloseModalOpen}
@@ -528,9 +666,14 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                     <OrderVisitBottomNav
                         activeTab={activeTab}
                         onTabChange={setActiveTab}
+                        unreadChatCount={unreadChatCount}
+                        assetsCount={visit?.ovAssetsAmount || 0}
+                        vehiclesCount={vehiclesCount}
+                        servicesCount={servicesCount}
                     />
                 </div>
             )}
+
             <ConfirmDisapproveVisitModal
                 isOpen={isDisapproveModalOpen}
                 onClose={() => setIsDisapproveModalOpen(false)}
@@ -599,4 +742,3 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         </div>
     );
 };
-

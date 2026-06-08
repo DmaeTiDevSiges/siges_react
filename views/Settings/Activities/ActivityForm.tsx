@@ -74,8 +74,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 
         try {
             setIsSaving(true);
-            // Artificial delay for premium effect visibility
-            await new Promise(resolve => setTimeout(resolve, 1000));
             await onSave({ ...form, id: initialActivity?.id } as Partial<Activity>);
         } catch (error) {
             console.error("Error saving activity", error);

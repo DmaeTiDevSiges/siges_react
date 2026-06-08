@@ -60,6 +60,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
     const [isPhotoActionOpen, setIsPhotoActionOpen] = useState(false);
     const [editingImage, setEditingImage] = useState<{ url: string | File; index: number | null } | null>(null);
@@ -344,7 +345,11 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
             console.log('Order created/updated. Result:', { id: resultOrder.id, companyId: resultOrder.companyId, finalCompanyId });
 
             if (selectedFiles.length > 0 && resultOrder.id && finalCompanyId) {
-                const uploadPromises = selectedFiles.map(file => dataService.uploadOrderImage(finalCompanyId.toString(), resultOrder.id, file));
+                let progresses = new Array(selectedFiles.length).fill(0);
+                const uploadPromises = selectedFiles.map((file, idx) => dataService.uploadOrderImage(finalCompanyId.toString(), resultOrder.id, file, (progress) => {
+                    progresses[idx] = progress;
+                    setUploadProgress(progresses.reduce((a,b) => a+b, 0) / selectedFiles.length);
+                }));
                 const uploadResults = await Promise.all(uploadPromises);
                 const newFilenames = uploadResults.map(res => res.filename);
                 const allFilenames = [...existingImages, ...newFilenames];
@@ -406,7 +411,14 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
         <div className={`flex flex-col ${hideFooter ? '' : 'h-full'} bg-slate-50 dark:bg-[#0f172a] relative`}>
             {isLoading && (
                 <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500/20 z-50 overflow-hidden">
-                    <div className="h-full bg-blue-500 animate-loading-bar" />
+                    {uploadProgress > 0 ? (
+                        <div 
+                            className="h-full bg-blue-500 transition-all duration-300" 
+                            style={{ width: `${uploadProgress}%` }}
+                        />
+                    ) : (
+                        <div className="h-full bg-blue-500 animate-loading-bar" />
+                    )}
                 </div>
             )}
 

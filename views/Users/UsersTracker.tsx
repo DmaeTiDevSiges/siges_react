@@ -46,6 +46,8 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
     const routesCacheRef = useRef<Map<string, { geometry: [number, number][], lastPos: [number, number] }>>(new Map());
     const unitMarkersRef = useRef<Map<string, L.Marker>>(new Map());
     const isFirstLoadRef = useRef(true);
+    const prevSelectedVisitIdsRef = useRef<Set<string>>(new Set());
+    const prevSelectedLeaderIdRef = useRef<string | null>(null);
 
     // Paleta de cores para visitas selecionadas (cada visita ganha uma cor única)
     const VISIT_COLORS = [
@@ -298,7 +300,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                 } else {
                     const marker = L.marker([lat, lng], { icon })
                         .addTo(map)
-                        .bindTooltip(getRelativeTime(user.trackerAt), {
+                        .bindTooltip(getRelativeTime(user.trackerHeartbeatAt), {
                             direction: 'top',
                             className: 'leaflet-tooltip-premium',
                             offset: [0, -15],
@@ -353,13 +355,20 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
             }
         });
 
+        const selectionChanged = 
+            selectedLeaderId !== prevSelectedLeaderIdRef.current ||
+            selectedVisitIds.size !== prevSelectedVisitIdsRef.current.size ||
+            [...selectedVisitIds].some(id => !prevSelectedVisitIdsRef.current.has(id));
+
         // Only auto-fit bounds on the very first load, leader change, or SELECTION change
-        if ((hasHelpers || selectedVisitIds.size > 0) && (isFirstLoadRef.current || selectedLeaderId || selectedVisitIds.size > 0)) {
+        if ((hasHelpers || selectedVisitIds.size > 0) && (isFirstLoadRef.current || selectionChanged)) {
             map.fitBounds(bounds, { 
                 paddingTopLeft: [50, 220], 
                 paddingBottomRight: [50, 220] 
             });
             isFirstLoadRef.current = false;
+            prevSelectedLeaderIdRef.current = selectedLeaderId;
+            prevSelectedVisitIdsRef.current = new Set(selectedVisitIds);
         }
     }, [filteredUsers, selectedLeaderId, selectedVisitIds]);
 
@@ -554,7 +563,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                                 
                                                 const borderColor = statusBorderColors[userStatus as keyof typeof statusBorderColors];
 
-                                                const trackerLabel = getRelativeTime(currentUser?.trackerAt);
+                                                const trackerLabel = getRelativeTime(currentUser?.trackerHeartbeatAt);
 
                                                 return (
                                                     <div className="relative group/leader">

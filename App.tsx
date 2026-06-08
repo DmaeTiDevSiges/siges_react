@@ -108,7 +108,6 @@ type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard
   | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today'   | 'dashboard-orders-admin-calendar';
 
 import { ActionIcon } from './components/ui/ActionIcon';
-import { AIAssistantBubble } from './components/ai/AIAssistantBubble';
 import { imgproxyService } from './services/imgproxyService';
 import { Loading } from './components/ui/Loading';
 
@@ -155,51 +154,11 @@ const AppContent: React.FC = () => {
     const currentQuality = dataQualityStatus.overallScore;
     dataQualityRef.current = dataQualityStatus;
 
+    // As notificações visuais via toast foram removidas para tornar o monitoramento menos intrusivo
+    // O DataQualityIndicator (ícone) já mostra o status visualmente para o usuário
     console.log('[AppContent] Data quality status:', { prevQuality, currentQuality, monitoring: isDataQualityMonitoring });
 
-    // Notifica sobre qualidade de dados ruim
-    if (shouldShowQualityWarning && currentQuality < 40) {
-      console.log('[AppContent] Showing quality warning toast');
-      toast.error('⚠️ Qualidade de conexão baixa', {
-        description: `A qualidade de conexão está em ${currentQuality}%. Algumas funções podem ser afetadas.`,
-        duration: 4000,
-        action: {
-          label: 'Detalhes',
-          onClick: () => {
-            // Navegar para tela de configurações ou mostrar mais detalhes
-            console.log('User clicked details for quality warning');
-          }
-        }
-      });
-    }
-
-    // Notifica sobre instabilidade
-    if (shouldShowStabilityWarning && dataQualityStatus.stabilityScore < 50) {
-      console.log('[AppContent] Showing stability warning toast');
-      toast.warning('🔄 Conexão instável detectada', {
-        description: 'A conexão está oscilando. Pode afetar o desempenho.',
-        duration: 3000,
-      });
-    }
-
-    // Notifica sobre latência alta
-    if (shouldShowLatencyWarning && dataQualityStatus.currentMetrics.latency > 1000) {
-      console.log('[AppContent] Showing latency warning toast');
-      toast.warning('⏱️ Latência alta detectada', {
-        description: `${dataQualityStatus.currentMetrics.latency.toFixed(0)}ms de latência detectada.`,
-        duration: 3000,
-      });
-    }
-
-    // Notifica sobre melhoria na qualidade
-    if (prevQuality < 40 && currentQuality >= 60 && prevQuality !== 0) {
-      console.log('[AppContent] Showing quality improvement toast');
-      toast.success('✅ Qualidade de conexão melhorada', {
-        description: 'A conexão agora está em boas condições.',
-        duration: 3000,
-      });
-    }
-  }, [dataQualityStatus, isDataQualityMonitoring, shouldShowQualityWarning, shouldShowStabilityWarning, shouldShowLatencyWarning]);
+  }, [dataQualityStatus, isDataQualityMonitoring]);
 
   // Splash screen minimum timer
   useEffect(() => {
@@ -769,8 +728,8 @@ const AppContent: React.FC = () => {
     }
   }, [notifications.length, currentUser?.id]);
 
-  // Background location tracker — updates users.latitude, users.longitude and users.tracker_at
-  const { isLocationBlocked } = useLocationTracker(currentUser?.id, currentUser?.trackerIntervalSeconds, retryLocation);
+  // Background location tracker — updates users.latitude, users.longitude and users.tracker_heartbeat_at
+  const { isLocationBlocked, blockReason } = useLocationTracker(currentUser?.id, currentUser?.trackerIntervalSeconds, retryLocation);
 
   // Background shift monitor - alerts user to change availability status based on shift hours
   const { showShiftAlert, dismissAlert } = useShiftMonitor(currentUser);
@@ -1090,14 +1049,14 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleSaveCompany = async (company: Partial<Company>) => {
+  const handleSaveCompany = async (company: Partial<Company>, onProgress?: (progress: number) => void) => {
     try {
       if (selectedCompany?.id && currentScreen === 'company-edit') {
-        const updatedCompany = await dataService.updateCompany(selectedCompany.id, company);
+        const updatedCompany = await dataService.updateCompany(selectedCompany.id, company, onProgress);
         setSelectedCompany(updatedCompany);
         setCurrentScreen('company-details');
       } else {
-        await dataService.createCompany(company);
+        await dataService.createCompany(company, onProgress);
         setCurrentScreen('companies');
       }
     } catch (error: any) {
@@ -1125,14 +1084,14 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleSaveClient = async (client: Partial<Client>) => {
+  const handleSaveClient = async (client: Partial<Client>, onProgress?: (progress: number) => void) => {
     try {
       if (selectedClient?.id && currentScreen === 'client-edit') {
-        const updated = await dataService.updateClient(selectedClient.id, client);
+        const updated = await dataService.updateClient(selectedClient.id, client, onProgress);
         setSelectedClient(updated);
         setCurrentScreen('client-details');
       } else {
-        await dataService.createClient(client);
+        await dataService.createClient(client, onProgress);
         setCurrentScreen('clients');
       }
     } catch (error) {
@@ -1179,14 +1138,14 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleSaveAsset = async (asset: Partial<Asset>, attributeValues: Record<string, string>, file?: File) => {
+  const handleSaveAsset = async (asset: Partial<Asset>, attributeValues: Record<string, string>, file?: File, onProgress?: (progress: number) => void) => {
     try {
       let savedAsset: Asset;
       if (selectedAsset?.id && currentScreen === 'asset-edit') {
         savedAsset = await dataService.updateAsset(selectedAsset.id, asset);
 
         if (file) {
-          const { path, filename } = await dataService.uploadAssetImage(savedAsset.id, file);
+          const { path, filename } = await dataService.uploadAssetImage(savedAsset.id, file, onProgress);
           await dataService.updateAsset(savedAsset.id, { imgFilePath: path, imgFileName: filename });
           savedAsset = (await dataService.getAssetById(savedAsset.id)) || savedAsset;
         }
@@ -1201,7 +1160,7 @@ const AppContent: React.FC = () => {
         savedAsset = await dataService.createAsset(asset);
 
         if (file) {
-          const { path, filename } = await dataService.uploadAssetImage(savedAsset.id, file);
+          const { path, filename } = await dataService.uploadAssetImage(savedAsset.id, file, onProgress);
           await dataService.updateAsset(savedAsset.id, { imgFilePath: path, imgFileName: filename });
           savedAsset = (await dataService.getAssetById(savedAsset.id)) || savedAsset;
         }
@@ -1366,7 +1325,7 @@ const AppContent: React.FC = () => {
     setCurrentScreen('unit-details');
   };
 
-  const handleSaveUnit = async (unit: Partial<import('./types').Unit>, file?: File | null) => {
+  const handleSaveUnit = async (unit: Partial<import('./types').Unit>, file?: File | null, onProgress?: (progress: number) => void) => {
     try {
       console.log('💾 Saving unit:', {
         unit,
@@ -1394,7 +1353,7 @@ const AppContent: React.FC = () => {
 
         if (clientIdToUse) {
           try {
-            const { path, filename } = await dataService.uploadUnitImage(clientIdToUse, savedUnit.id, file);
+            const { path, filename } = await dataService.uploadUnitImage(clientIdToUse, savedUnit.id, file, onProgress);
             console.log('🖼️ Image uploaded, updating unit with:', { path, filename });
 
             const updatedWithImage = await dataService.updateUnit(savedUnit.id, {
@@ -2613,7 +2572,6 @@ const AppContent: React.FC = () => {
 
   return (
     <>
-      {currentUser?.isAdminSuper && <AIAssistantBubble />}
       {showSplash && <SplashScreen />}
       <PermissionsProvider currentUser={currentUser}>
         <div className={`flex min-h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden ${showSplash ? 'hidden' : ''}`}>
@@ -2696,7 +2654,10 @@ const AppContent: React.FC = () => {
           {/* OrderVisitBottomNav has been moved to OrderVisitScreen component */}
 
           {isLocationBlocked && (
-            <LocationBlockedScreen onRetry={() => setRetryLocation(prev => prev + 1)} />
+            <LocationBlockedScreen
+              blockReason={blockReason}
+              onRetry={() => setRetryLocation(prev => prev + 1)}
+            />
           )}
 
           <Modal

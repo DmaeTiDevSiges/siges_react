@@ -90,6 +90,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         })).filter(p => p.url !== '');
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
     const [isPhotoActionOpen, setIsPhotoActionOpen] = useState(false);
     const [editingImage, setEditingImage] = useState<{ url: string | File; index: number | null } | null>(null);
@@ -269,7 +270,11 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                 const newPhotos = photos.filter(p => p.file !== null);
                 const keptFilenames = photos.filter(p => p.filename !== null).map(p => p.filename as string);
 
-                const uploadPromises = newPhotos.map(p => dataService.uploadOrderImage(savedOrder.companyId!, savedOrder.id, p.file!));
+                let progresses = new Array(newPhotos.length).fill(0);
+                const uploadPromises = newPhotos.map((p, idx) => dataService.uploadOrderImage(savedOrder.companyId!, savedOrder.id, p.file!, (progress) => {
+                    progresses[idx] = progress;
+                    setUploadProgress(progresses.reduce((a,b) => a+b, 0) / newPhotos.length);
+                }));
                 const uploadResults = await Promise.all(uploadPromises);
 
                 const finalFilenames = [...keptFilenames, ...uploadResults.map(res => res.filename)];
@@ -385,7 +390,14 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f172a] relative">
             {isLoading && (
                 <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500/20 z-50 overflow-hidden">
-                    <div className="h-full bg-blue-500 animate-loading-bar" />
+                    {uploadProgress > 0 ? (
+                        <div 
+                            className="h-full bg-blue-500 transition-all duration-300" 
+                            style={{ width: `${uploadProgress}%` }}
+                        />
+                    ) : (
+                        <div className="h-full bg-blue-500 animate-loading-bar" />
+                    )}
                 </div>
             )}
 

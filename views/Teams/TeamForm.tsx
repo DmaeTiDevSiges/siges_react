@@ -56,8 +56,6 @@ export const TeamForm: React.FC<TeamFormProps> = ({
 
         try {
             setIsSaving(true);
-            // Artificial delay for premium effect visibility
-            await new Promise(resolve => setTimeout(resolve, 1000));
 
             // Determine companyId
             let selectedCompanyId = companyId || initialTeam?.companyId;

@@ -49,6 +49,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [user, setUser] = useState<User | null>(initialUser || null);
     const [loading, setLoading] = useState(!initialUser);
     const [saving, setSaving] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [modal, setModal] = useState<{
         isOpen: boolean;
         title: string;
@@ -290,6 +291,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 return;
             }
 
+            setUploadProgress(0);
             await dataService.updateProfile(user.uuid, {
                 nameFull: name,
                 nameShort: nameShort,
@@ -303,6 +305,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 shiftStart: shiftStart,
                 shiftEnd: shiftEnd,
                 statusId: statusId ? parseInt(statusId) : undefined
+            }, (progress) => {
+                setUploadProgress(progress);
             });
 
             if (onUserUpdate) {
@@ -640,6 +644,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             }
         >
             <div className="pb-32 space-y-8 relative">
+                {saving && (
+                    <div className="absolute top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-primary/20">
+                        <div 
+                            className={`h-full bg-primary ${uploadProgress === 0 ? 'animate-loading-bar w-[40%]' : 'transition-all duration-300 ease-out'}`}
+                            style={uploadProgress > 0 ? { width: `${uploadProgress}%` } : undefined}
+                        />
+                    </div>
+                )}
                 <div className="relative bg-white dark:bg-card-dark pb-8 pt-10 px-5 rounded-b-4xl shadow-sm border-b border-slate-200 dark:border-slate-800">
 
                     <div className="flex flex-col items-center text-center">
@@ -694,8 +706,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                             const imgData = reader.result as string;
                                             setAvatarUrl(imgData);
                                             
+                                            setUploadProgress(0);
                                             await dataService.updateProfile(user.uuid, {
                                                 avatarUrl: imgData
+                                            }, (progress) => {
+                                                setUploadProgress(progress);
                                             });
                                             
                                             if (onUserUpdate) {

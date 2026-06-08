@@ -72,8 +72,6 @@ export const OrderSubTypeForm: React.FC<OrderSubTypeFormProps> = ({
 
         try {
             setIsSaving(true);
-            // Artificial delay for premium effect visibility
-            await new Promise(resolve => setTimeout(resolve, 1000));
             await onSave({
                 ...form,
                 id: initialOrderSubType?.id,

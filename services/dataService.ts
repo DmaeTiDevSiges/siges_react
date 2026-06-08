@@ -230,7 +230,7 @@ export const dataService = {
         return this.getPublicImageUrl(path, name, { width: 600, height: 300, resize: 'fit' });
     },
 
-    async saveOrderVisitSignature(ovId: string, type: 'leader' | 'requester', base64: string): Promise<void> {
+    async saveOrderVisitSignature(ovId: string, type: 'leader' | 'requester', base64: string, onProgress?: (progress: number) => void): Promise<void> {
         // r2Service is now static
 
         const folderPath = `signatures/visits/${ovId}`;
@@ -241,7 +241,7 @@ export const dataService = {
         try {
             const res = await fetch(base64);
             const blob = await res.blob();
-            await r2Service.uploadFile(blob as any, fullPath);
+            await r2Service.uploadFile(blob as any, fullPath, onProgress);
 
             const updateData: any = {};
             if (type === 'leader') {
@@ -755,7 +755,7 @@ export const dataService = {
         };
     },
 
-    async createCompany(company: Partial<Company>): Promise<Company> {
+    async createCompany(company: Partial<Company>, onProgress?: (progress: number) => void): Promise<Company> {
         // 1. Insert initial data (without logo path for now if it's a file upload)
         const dbData = {
             description: company.name,
@@ -805,7 +805,7 @@ export const dataService = {
                 const res = await fetch(company.logoUrl);
                 const blob = await res.blob();
 
-                await r2Service.uploadFile(blob as any, fullPath);
+                await r2Service.uploadFile(blob as any, fullPath, onProgress);
 
                 // 3. Update company with new path and name
                 const { error: updateError } = await supabase
@@ -834,7 +834,7 @@ export const dataService = {
         } as Company;
     },
 
-    async updateCompany(id: string, company: Partial<Company>): Promise<Company> {
+    async updateCompany(id: string, company: Partial<Company>, onProgress?: (progress: number) => void): Promise<Company> {
         const dbData = {
             description: company.name,
             code: company.code,
@@ -874,15 +874,9 @@ export const dataService = {
                 const blob = await res.blob();
 
                 // 1. Upload new logo
-                const { error: uploadError } = await supabase.storage
-                    .from(bucketName)
-                    .upload(fullPath, blob, {
-                        contentType: blob.type,
-                        upsert: true
-                    });
+                await r2Service.uploadFile(blob as any, fullPath, onProgress);
 
-                if (!uploadError) {
-                    // 2. Update DB with new path
+                // 2. Update DB with new path
                     await supabase
                         .from('cfg_companies')
                         .update({
@@ -897,7 +891,6 @@ export const dataService = {
                             .from(bucketName)
                             .remove([oldLogoPath]);
                     }
-                }
             } catch (err) {
                 console.error("Failed to process new logo upload/old logo deletion", err);
             }
@@ -2417,7 +2410,7 @@ export const dataService = {
             email: item.email,
             latitude: item.latitude,
             longitude: item.longitude,
-            trackerAt: item.tracker_at,
+            trackerHeartbeatAt: item.tracker_heartbeat_at,
             nameFull: item.name_full,
             nameShort: item.name_short,
             statusId: item.status_id,
@@ -2868,7 +2861,7 @@ export const dataService = {
     return currentUserPromise;
 },
 
-    async updateProfile(userUuid: string, user: Partial<User>): Promise<void> {
+    async updateProfile(userUuid: string, user: Partial<User>, onProgress?: (progress: number) => void): Promise<void> {
         // 1. Update basic info first
         const updateData: any = {
             name_full: user.nameFull,
@@ -2934,7 +2927,7 @@ export const dataService = {
                 const blob = await res.blob();
 
                 // 1. Upload new image to R2 using helper
-                const { path, filename } = await this.uploadUserAvatar(userId, blob);
+                const { path, filename } = await this.uploadUserAvatar(userId, blob, onProgress);
 
                 // 2. Update database with new path
                 const { error: dbUpdateError } = await supabase
@@ -3188,7 +3181,7 @@ export const dataService = {
         })) as Client[];
     },
 
-    async createClient(client: Partial<Client>): Promise<Client> {
+    async createClient(client: Partial<Client>, onProgress?: (progress: number) => void): Promise<Client> {
         const currentUser = await this.getCurrentUser();
 
         const dbData = {
@@ -3224,7 +3217,7 @@ export const dataService = {
                 const res = await fetch(client.logoUrl);
                 const blob = await res.blob();
 
-                await r2Service.uploadFile(blob as any, fullPath);
+                await r2Service.uploadFile(blob as any, fullPath, onProgress);
 
                 await supabase
                     .from('clients')
@@ -3241,7 +3234,7 @@ export const dataService = {
         return { ...client, id: clientId.toString(), status: 'active' } as Client;
     },
 
-    async updateClient(id: string, client: Partial<Client>): Promise<Client> {
+    async updateClient(id: string, client: Partial<Client>, onProgress?: (progress: number) => void): Promise<Client> {
         const currentUser = await this.getCurrentUser();
 
         const dbData = {
@@ -3274,7 +3267,7 @@ export const dataService = {
                 const res = await fetch(client.logoUrl);
                 const blob = await res.blob();
 
-                await r2Service.uploadFile(blob as any, fullPath);
+                await r2Service.uploadFile(blob as any, fullPath, onProgress);
 
                 await supabase
                     .from('clients')
@@ -4387,7 +4380,7 @@ export const dataService = {
         }
     },
 
-    async uploadOrderImage(companyId: string, orderId: string, file: File): Promise<{ path: string; filename: string }> {
+    async uploadOrderImage(companyId: string, orderId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
         // r2Service is now static
 
         const fileExt = file.name.split('.').pop();
@@ -4397,7 +4390,7 @@ export const dataService = {
         const folderPath = `companies/${companyId}/orders/${orderId}/images`;
         const fullPath = `${folderPath}/${fileName}`;
 
-        await r2Service.uploadFile(file, fullPath);
+        await r2Service.uploadFile(file, fullPath, onProgress);
 
         return { path: folderPath, filename: fileName };
     },
@@ -5311,7 +5304,7 @@ export const dataService = {
         return (await this.getAssetById(id)) as Asset;
     },
 
-    async uploadAssetImage(assetId: string, file: File): Promise<{ path: string, filename: string }> {
+    async uploadAssetImage(assetId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
         // Importar r2Service dinamicamente
         // r2Service is now static
 
@@ -5325,7 +5318,7 @@ export const dataService = {
 
         // Upload to Cloudflare R2
         try {
-            await r2Service.uploadFile(file, fullPath);
+            await r2Service.uploadFile(file, fullPath, onProgress);
         } catch (uploadError) {
             console.error('Error uploading asset image to R2:', uploadError);
             throw uploadError;
@@ -6299,7 +6292,7 @@ export const dataService = {
             .eq('id', unitAssetTagId);
     },
 
-    async uploadAssetAvailableImageAfterInsert(assetAvailableId: number, unitId: number, file: File): Promise<{ path: string, filename: string }> {
+    async uploadAssetAvailableImageAfterInsert(assetAvailableId: number, unitId: number, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
         const fileExt = file.name.split('.').pop();
         const filename = `${assetAvailableId}.${fileExt}`;
         const path = `companies/1/units/${unitId}/assets_available`;
@@ -6340,7 +6333,7 @@ export const dataService = {
         }));
     },
 
-    async uploadUnitAssetTagImage(unitAssetTagId: string, file: File): Promise<{ path: string, filename: string }> {
+    async uploadUnitAssetTagImage(unitAssetTagId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
         const fileExt = file.name.split('.').pop();
         const filename = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
         const path = `units_assets_tags/${unitAssetTagId}/${filename}`;
@@ -6349,7 +6342,7 @@ export const dataService = {
             // r2Service is now static
 
             // Attempt R2 file upload primarily due to Supabase timeouts
-            await r2Service.uploadFile(file as any, path);
+            await r2Service.uploadFile(file as any, path, onProgress);
             
             return { path, filename };
         } catch (error) {
@@ -6590,7 +6583,7 @@ export const dataService = {
     // FILE UPLOAD HELPERS
     // -------------------------------------------------------------------------
 
-    async uploadUserAvatar(userId: string, file: File | Blob): Promise<{ path: string, filename: string }> {
+    async uploadUserAvatar(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
         // r2Service is now static
 
 
@@ -6603,7 +6596,7 @@ export const dataService = {
         console.log('👤 Uploading user avatar to R2:', { folderPath, fileName, fullPath });
 
         try {
-            await r2Service.uploadFile(file as any, fullPath);
+            await r2Service.uploadFile(file as any, fullPath, onProgress);
             return { path: folderPath, filename: fileName };
         } catch (uploadError) {
             console.error('❌ Error uploading user avatar to R2:', uploadError);
@@ -6611,7 +6604,7 @@ export const dataService = {
         }
     },
 
-    async uploadUnitImage(clientId: string, unitId: string, file: File): Promise<{ path: string, filename: string }> {
+    async uploadUnitImage(clientId: string, unitId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
         // Importar r2Service dinamicamente para evitar problemas de dependência circular se houver
         // r2Service is now static
 
@@ -6641,7 +6634,7 @@ export const dataService = {
         }
 
         try {
-            await r2Service.uploadFile(file, fullPath);
+            await r2Service.uploadFile(file, fullPath, onProgress);
             console.log('✅ Unit image uploaded successfully to R2:', { path: folderPath, filename: fileName });
             return { path: folderPath, filename: fileName };
         } catch (uploadError) {
@@ -8693,7 +8686,7 @@ export const dataService = {
             email: item.email,
             latitude: item.latitude,
             longitude: item.longitude,
-            trackerAt: item.tracker_at,
+            trackerHeartbeatAt: item.tracker_heartbeat_at,
             nameFull: item.name_full,
             nameShort: item.name_short,
             statusId: item.status_id,
@@ -9972,7 +9965,7 @@ export const dataService = {
         if (visitId) await this.syncOrderVisitAssetsProcessing(visitId);
     },
 
-    async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after'): Promise<{ path: string, filename: string }> {
+    async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after', onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
         // Importar r2Service dinamicamente
         // r2Service is now static
 
@@ -10030,7 +10023,7 @@ export const dataService = {
         try {
             // r2Service is now static
 
-            await r2Service.uploadFile(file, fullPath);
+            await r2Service.uploadFile(file, fullPath, onProgress);
         } catch (uploadError) {
             console.error('Error uploading to R2:', uploadError);
             throw uploadError;
@@ -11729,14 +11722,27 @@ export const dataService = {
         return data?.tracker_interval_seconds ?? null;
     },
 
-    async updateUserLocation(userId: string, latitude: number, longitude: number): Promise<void> {
+    async updateUserLocation(
+        userId: string,
+        latitude: number,
+        longitude: number,
+        accuracy: number | null = null
+    ): Promise<void> {
+        const now = getBrazilTimestamp();
+        const update: Record<string, unknown> = {
+            latitude,
+            longitude,
+            // Liveness signal: updated on every tick, even if the user is stationary.
+            // Lets the server distinguish "tracker alive, user idle" from "tracker dead".
+            tracker_heartbeat_at: now
+        };
+        if (accuracy !== null) {
+            update.tracker_accuracy = accuracy;
+        }
+
         const { error } = await supabase
             .from('users')
-            .update({
-                latitude,
-                longitude,
-                tracker_at: getBrazilTimestamp()
-            })
+            .update(update)
             .eq('id', userId);
 
         if (error) {
@@ -12239,7 +12245,7 @@ export const dataService = {
         }
     },
 
-    async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string): Promise<{ path: string; filename: string }> {
+    async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
         // r2Service is now static
 
         
@@ -12268,7 +12274,7 @@ export const dataService = {
         console.log('DEBUG: file.type (original):', file.type);
 
         // We use a new File object if we need to force the MIME type, but r2Service just needs the blob and path
-        await r2Service.uploadFile(file, fullPath);
+        await r2Service.uploadFile(file, fullPath, onProgress);
         return { path: folderPath, filename: fileName };
     },
 

@@ -14,7 +14,7 @@ declare global {
 
 interface ClientFormProps {
     initialClient?: Partial<Client>;
-    onSave: (client: Partial<Client>) => Promise<void> | void;
+    onSave: (client: Partial<Client>, onProgress?: (progress: number) => void) => Promise<void> | void;
     onCancel: () => void;
 }
 
@@ -47,6 +47,7 @@ const formatMobile = (value: string) => {
 
 export const ClientForm: React.FC<ClientFormProps> = ({ initialClient, onSave, onCancel }) => {
     const [isSaving, setIsSaving] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [form, setForm] = useState({
         name: initialClient?.name || '',
         code: initialClient?.code || '',
@@ -94,9 +95,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ initialClient, onSave, o
 
         try {
             setIsSaving(true);
-            // Artificial delay for premium effect visibility
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await onSave(form as Partial<Client>);
+            setUploadProgress(0);
+            await onSave(form as Partial<Client>, (progress) => {
+                setUploadProgress(progress);
+            });
         } catch (error) {
             console.error("Error saving client form", error);
             setModal({
@@ -107,6 +109,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ initialClient, onSave, o
             });
         } finally {
             setIsSaving(false);
+            setUploadProgress(0);
         }
     };
 
@@ -114,7 +117,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ initialClient, onSave, o
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark relative">
             {isSaving && (
                 <div className="absolute top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-primary/20">
-                    <div className="h-full bg-primary animate-loading-bar w-[40%]" />
+                    <div 
+                        className={`h-full bg-primary ${uploadProgress === 0 ? 'animate-loading-bar w-[40%]' : 'transition-all duration-300 ease-out'}`}
+                        style={uploadProgress > 0 ? { width: `${uploadProgress}%` } : undefined}
+                    />
                 </div>
             )}
 
