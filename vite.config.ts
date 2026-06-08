@@ -4,12 +4,12 @@ import { defineConfig, loadEnv, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron';
 import renderer from 'vite-plugin-electron-renderer';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, '.', '');
   const isDev = command === 'serve';
   const isElectronBuild = mode === 'electron' || process.env.BUILD_TARGET === 'electron';
-  
   // Try to read version from app_version.txt
   let buildId = new Date().getTime().toString();
   try {
@@ -23,7 +23,17 @@ export default defineConfig(({ mode, command }) => {
   }
 
   // Only use Electron plugins for explicit Electron builds.
-  const plugins: PluginOption[] = [react()];
+  const plugins: PluginOption[] = [
+    react(),
+    nodePolyfills({
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      },
+      protocolImports: true,
+    })
+  ];
   
   if (!isDev && isElectronBuild) {
     plugins.push(

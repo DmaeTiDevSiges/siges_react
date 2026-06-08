@@ -16,7 +16,12 @@ if (url && !url.startsWith('http')) {
     url = `https://${url}`;
 }
 
-export const supabase = createClient(
+// Use a global variable to persist the client across HMR reloads in development
+const globalForSupabase = globalThis as unknown as {
+    supabase: any
+};
+
+export const supabase = globalForSupabase.supabase ?? createClient(
     url,
     supabaseAnonKey || 'placeholder',
     {
@@ -44,3 +49,7 @@ export const supabase = createClient(
         }
     }
 );
+
+if (import.meta.env.DEV) {
+    globalForSupabase.supabase = supabase;
+}
