@@ -23,19 +23,32 @@ import { ImageEditorModal } from '../../../components/ui/ImageEditorModal';
 import { Loading } from '../../../components/ui/Loading';
 
 
-const Switch: React.FC<{ checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => (
-    <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${checked ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
-    >
-        <span
-            aria-hidden="true"
-            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`}
-        />
-    </button>
-);
+const Switch: React.FC<{ checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => {
+    const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+        if (disabled) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        onChange(!checked);
+    };
+
+    return (
+        <button
+            type="button"
+            disabled={disabled}
+            onClick={handleClick}
+            onTouchStart={disabled ? handleClick : undefined}
+            className={`relative inline-flex h-5 w-10 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} ${checked ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+        >
+            <span
+                aria-hidden="true"
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+            />
+        </button>
+    );
+};
+
 
 interface OrderVisitAssetReportProps {
     assetId: string;
@@ -178,6 +191,11 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [reportAssetAlerts, setReportAssetAlerts] = useState<AssetAlert[]>([]);
     const [completedAlertIds, setCompletedAlertIds] = useState<string[]>([]);
 
+    // Recorder state
+    const [hasRecorder, setHasRecorder] = useState(initialAsset?.hasRecorder || false);
+    const [beforeRecorder, setBeforeRecorder] = useState<string>(initialAsset?.beforeRecorder != null ? String(initialAsset.beforeRecorder) : '');
+    const [afterRecorder, setAfterRecorder] = useState<string>(initialAsset?.afterRecorder != null ? String(initialAsset.afterRecorder) : '');
+
     // Asset swap state
     const [showSwapPage, setShowSwapPage] = useState(false);
     const [swapSearchCode, setSwapSearchCode] = useState('');
@@ -211,7 +229,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const { canView } = usePermissions();
 
     const isReadOnly = readOnly || (asset ? (
-        ![1, 3, 4].includes(asset.processingId || 1) && !localEditMode
+        ![1, 4].includes(asset.processingId || 1) && !localEditMode
     ) : true);
 
     const loadPageData = async () => {
@@ -272,6 +290,9 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 }
                 setIsContractManager(isManager);
                 setMaintenanceProgress(data.maintenancePlanProgress ?? 0);
+                setHasRecorder(data.hasRecorder || false);
+                setBeforeRecorder(data.beforeRecorder != null ? String(data.beforeRecorder) : '');
+                setAfterRecorder(data.afterRecorder != null ? String(data.afterRecorder) : '');
             } else {
                 toast.error('Ativo da visita não encontrado');
                 onBack();
@@ -1184,6 +1205,95 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         editImage={handleEditImage}
                         setPhotoActionSection={setPhotoActionSection}
                     />
+                </div>
+
+                {/* Registrador */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
+                    <SectionHeader
+                        icon="speed"
+                        title="Registrador"
+                        action={
+                            <Switch
+                                checked={hasRecorder}
+                                disabled={isReadOnly}
+                                onChange={async (val) => {
+                                    setHasRecorder(val);
+                                    await handleUpdateField({ has_recorder: val });
+                                }}
+                            />
+                        }
+                    />
+                    {hasRecorder && (
+                        <div className="flex items-center gap-3 mt-2">
+                            {/* Campo ANTES */}
+                            <div className="flex-1 space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Antes</label>
+                                <input
+                                    type="number"
+                                    value={beforeRecorder}
+                                    onChange={(e) => setBeforeRecorder(e.target.value)}
+                                    onBlur={(e) => {
+                                        const val = e.target.value.trim();
+                                        handleUpdateField({ before_recorder: val !== '' ? parseFloat(val) : null });
+                                    }}
+                                    disabled={isReadOnly}
+                                    placeholder="0"
+                                    className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed text-center"
+                                />
+                            </div>
+
+                            {/* Botão de cópia ou diferença */}
+                            <div className="flex flex-col items-center justify-end pb-0.5 pt-5">
+                                {beforeRecorder !== '' && beforeRecorder != null && (afterRecorder === '' || afterRecorder == null) ? (
+                                    // Botão de copiar: beforeRecorder preenchido e afterRecorder vazio
+                                    <button
+                                        type="button"
+                                        disabled={isReadOnly}
+                                        onClick={async () => {
+                                            setAfterRecorder(beforeRecorder);
+                                            await handleUpdateField({ after_recorder: parseFloat(beforeRecorder) });
+                                        }}
+                                        title="Copiar valor de Antes para Depois"
+                                        className="w-9 h-9 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                                    </button>
+                                ) : beforeRecorder !== '' && beforeRecorder != null && afterRecorder !== '' && afterRecorder != null ? (
+                                    // Exibir diferença: ambos preenchidos
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dif.</span>
+                                        <span className={`text-xs font-black ${
+                                            parseFloat(afterRecorder) - parseFloat(beforeRecorder) >= 0
+                                                ? 'text-emerald-600 dark:text-emerald-400'
+                                                : 'text-red-500 dark:text-red-400'
+                                        }`}>
+                                            {parseFloat(afterRecorder) - parseFloat(beforeRecorder) >= 0 ? '+' : ''}{(parseFloat(afterRecorder) - parseFloat(beforeRecorder)).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    // Espaçador neutro quando nenhuma condição é satisfeita
+                                    <div className="w-9 h-9" />
+                                )}
+                            </div>
+
+                            {/* Campo DEPOIS */}
+                            <div className="flex-1 space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Depois</label>
+                                <input
+                                    type="number"
+                                    value={afterRecorder}
+                                    onChange={(e) => setAfterRecorder(e.target.value)}
+                                    onBlur={(e) => {
+                                        const val = e.target.value.trim();
+                                        handleUpdateField({ after_recorder: val !== '' ? parseFloat(val) : null });
+                                    }}
+                                    disabled={isReadOnly}
+                                    placeholder="0"
+                                    className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed text-center"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Action Buttons */}

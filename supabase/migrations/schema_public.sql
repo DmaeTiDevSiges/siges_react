@@ -1,4 +1,4 @@
-﻿--
+--
 -- PostgreSQL database dump
 --
 
@@ -1995,18 +1995,31 @@ DROP FUNCTION IF EXISTS public.fc_orders_visits_services_update_services_value()
 CREATE FUNCTION public.fc_orders_visits_services_update_services_value() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
+DECLARE
+    target_ov_id bigint;
 BEGIN
+    -- Identifica qual visita deve ser recalculada dependendo da operação
+    IF TG_OP = 'DELETE' THEN
+        target_ov_id := OLD.ov_id;
+    ELSE
+        target_ov_id := NEW.ov_id;
+    END IF;
+
     -- Atualiza o campo ov_services_value na tabela orders_visits
     UPDATE public.orders_visits
     SET ov_services_value = (
         SELECT COALESCE(SUM(value_total), 0)
         FROM public.orders_visits_services
-        WHERE ov_id = NEW.ov_id
+        WHERE ov_id = target_ov_id
         AND is_deleted = false
     )
-    WHERE id = NEW.ov_id;
+    WHERE id = target_ov_id;
 
-    RETURN NEW;
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    ELSE
+        RETURN NEW;
+    END IF;
 END;
 $$;
 

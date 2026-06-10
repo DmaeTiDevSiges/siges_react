@@ -1161,7 +1161,7 @@ export const dataService = {
 
         // Manually fetch companies to avoid potential Relation error if FK is missing
         const { data: companies } = await supabase.from('cfg_companies').select('id, description, code, img_file_path, img_file_name');
-        const companyMap = new Map((companies || []).map((c: any) => [c.id, {
+        const companyMap = new Map<any, { name: string; logoUrl: string | undefined }>((companies || []).map((c: any) => [c.id, {
             name: c.description,
             logoUrl: this.getPublicImageUrl(c.img_file_path, c.img_file_name, { width: 100, height: 100, resize: 'contain' })
         }]));
@@ -4097,7 +4097,7 @@ export const dataService = {
             const pid = typeof parentId === 'string' && !isNaN(Number(parentId)) ? Number(parentId) : parentId;
 
             const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
-            const companyMap = new Map((companies || []).map(c => [c.id, c]));
+            const companyMap = new Map<any, any>((companies || []).map((c: any) => [c.id, c]));
 
             const { data, error } = await supabase
                 .from('v_orders')
@@ -4711,7 +4711,7 @@ export const dataService = {
             throw usersError;
         }
 
-        const userMap = new Map(users.map(u => [u.id.toString(), u]));
+        const userMap = new Map<string, any>(users.map((u: any) => [u.id.toString(), u]));
 
         return relations.map(r => {
             const user = userMap.get(r.manager_id.toString());
@@ -7990,7 +7990,7 @@ export const dataService = {
 
         // Fetch companies to ensure we have logos even if view lacks them
         const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
-        const companyMap = new Map((companies || []).map((c: any) => [c.id?.toString(), c]));
+        const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         return filteredData.map((item: any) => {
             const providerCompanyIdStr = item.provider_company_id?.toString();
@@ -8127,7 +8127,7 @@ export const dataService = {
         }
 
         const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
-        const companyMap = new Map((companies || []).map((c: any) => [c.id?.toString(), c]));
+        const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         return (data || []).map((item: any) => {
             const providerCompanyIdStr = item.provider_company_id?.toString();
@@ -8247,7 +8247,7 @@ export const dataService = {
 
     async getOrdersByTeam(teamId: string): Promise<Order[]> {
         const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
-        const companyMap = new Map((companies || []).map((c: any) => [c.id?.toString(), c]));
+        const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         const { data, error } = await supabase
             .from('v_orders')
@@ -8330,7 +8330,7 @@ export const dataService = {
 
     async getOrdersByLeader(leaderId: string): Promise<Order[]> {
         const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
-        const companyMap = new Map((companies || []).map((c: any) => [c.id?.toString(), c]));
+        const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         const { data, error } = await supabase
             .from('v_orders')
@@ -9008,7 +9008,7 @@ export const dataService = {
         if (usersError || !users) return [];
 
         // 3. Merge Data
-        const userMap = new Map(users.map((u: any) => [u.id, u]));
+        const userMap = new Map<any, any>(users.map((u: any) => [u.id, u]));
 
         return teamLinks.map((item: any) => {
             const user = userMap.get(item.user_id);
@@ -9055,7 +9055,7 @@ export const dataService = {
         }
 
         // 3. Merge Data
-        const userMap = new Map(users.map((u: any) => [u.id, u]));
+        const userMap = new Map<any, any>(users.map((u: any) => [u.id, u]));
         const results: Record<string, OrderVisitTeam[]> = {};
 
         teamLinks.forEach((item: any) => {
@@ -9209,7 +9209,7 @@ export const dataService = {
 
         if (usersInfoError) throw usersInfoError;
 
-        const nameMap = new Map(usersInfo.map(u => [u.id, u.name_short]));
+        const nameMap = new Map<any, any>(usersInfo.map((u: any) => [u.id, u.name_short]));
         const sortedMembers = [...teamMembers].sort((a, b) => {
             const nameA = nameMap.get(a.user_id) || '';
             const nameB = nameMap.get(b.user_id) || '';
@@ -9491,7 +9491,7 @@ export const dataService = {
         }
 
         // Create a map of table data for easy merging
-        const tableDataMap = new Map((tableData || []).map((t: any) => [t.id.toString(), t]));
+        const tableDataMap = new Map<string, any>((tableData || []).map((t: any) => [t.id.toString(), t]));
 
         return (viewData || []).map((item: any) => {
             // Merge view data with table data (table data takes precedence for images)
@@ -9568,9 +9568,12 @@ export const dataService = {
                 maintenancePlanProgress: item.maintenance_plan_progress,
                 oContractId: item.o_contract_id?.toString(),
                 orderTypeId: item.o_type_id?.toString(),
-                imgUrl: initialPhotoUrls[0], 
+                imgUrl: initialPhotoUrls[0],
                 initialPhotoUrls,
-                finalPhotoUrls
+                finalPhotoUrls,
+                hasRecorder: item.has_recorder ?? false,
+                beforeRecorder: item.before_recorder ?? null,
+                afterRecorder: item.after_recorder ?? null,
             };
         });
     },
@@ -9649,7 +9652,7 @@ export const dataService = {
         // Fetch image arrays and paths directly from the table to avoid view sync lag/issues
         const { data: tableData, error: tableError } = await supabase
             .from('orders_visits_assets')
-            .select('processing_id, disapproved_notes, disapproved_user_id, disapproved_at, before_img_files_names, after_img_files_names, before_img_file_path, after_img_file_path')
+            .select('processing_id, disapproved_notes, disapproved_user_id, disapproved_at, before_img_files_names, after_img_files_names, before_img_file_path, after_img_file_path, has_recorder, before_recorder, after_recorder')
             .eq('id', parseInt(id))
             .single();
 
@@ -9788,7 +9791,10 @@ export const dataService = {
             clientId: data.client_id?.toString(),
             orderTypeId: orderTypeId,
             oContractId: contractId,
-            maintenancePlanId: data.maintenance_plan_id?.toString()
+            maintenancePlanId: data.maintenance_plan_id?.toString(),
+            hasRecorder: data.has_recorder ?? false,
+            beforeRecorder: data.before_recorder ?? null,
+            afterRecorder: data.after_recorder ?? null,
         };
 
 
@@ -9797,8 +9803,9 @@ export const dataService = {
     async updateOrderVisitAsset(id: string, updates: Partial<{
         before_comments: string;
         after_comments: string;
-        before_recorder: number;
-        after_recorder: number;
+        has_recorder: boolean;
+        before_recorder: number | null;
+        after_recorder: number | null;
         is_moved: boolean;
         after_status_id: string;
         after_unit_id: string;
@@ -10496,7 +10503,7 @@ export const dataService = {
         }
     },
 
-    async updateOrderVisitService(ovServiceId: string, updates: { amount?: number; discount?: number }): Promise<void> {
+    async updateOrderVisitService(ovServiceId: string, updates: { amount?: number; discount?: number; valueUnit?: number }): Promise<void> {
         // Fetch current values to update total
         const { data: current } = await supabase
             .from('orders_visits_services')
@@ -10508,19 +10515,26 @@ export const dataService = {
 
         const newAmount = updates.amount !== undefined ? updates.amount : Number(current.amount);
         const newDiscount = updates.discount !== undefined ? updates.discount : Number(current.discount);
+        const newValueUnit = updates.valueUnit !== undefined ? updates.valueUnit : Number(current.value_unit || 0);
 
         // Calculation: amount * value_unit * discount
-        const valueTotal = newAmount * (current.value_unit || 0) * (newDiscount || 1);
+        const valueTotal = newAmount * newValueUnit * (newDiscount || 1);
+
+        const dbUpdates: any = {
+            amount: newAmount,
+            discount: newDiscount,
+            value_total: valueTotal,
+            updated_at: new Date().toISOString(),
+            updated_user_id: undefined // Could be added if needed
+        };
+
+        if (updates.valueUnit !== undefined) {
+            dbUpdates.value_unit = newValueUnit;
+        }
 
         const { error } = await supabase
             .from('orders_visits_services')
-            .update({
-                amount: newAmount,
-                discount: newDiscount,
-                value_total: valueTotal,
-                updated_at: new Date().toISOString(),
-                updated_user_id: undefined // Could be added if needed
-            })
+            .update(dbUpdates)
             .eq('id', ovServiceId);
 
         if (error) {
@@ -10601,7 +10615,7 @@ export const dataService = {
             }));
         }
 
-        const activityMap = new Map(activitiesData.map(a => [a.id.toString(), a]));
+        const activityMap = new Map<string, any>(activitiesData.map((a: any) => [a.id.toString(), a]));
 
         return bridgeData.map((item: any) => {
             const activity = activityMap.get(item.activity_id.toString());
@@ -11688,6 +11702,52 @@ export const dataService = {
         } catch (notifErr) {
             console.error('Error sending notification for visit disapproval:', notifErr);
         }
+    },
+
+    async checkMovedAssetsForVisit(visitId: string): Promise<number> {
+        const { count, error } = await supabase
+            .from('orders_visits_assets')
+            .select('*', { count: 'exact', head: true })
+            .eq('ov_id', parseInt(visitId))
+            .eq('is_moved', true);
+
+        if (error) {
+            console.error('Error checking moved assets for visit:', error);
+            throw new Error('Erro ao verificar ativos movimentados');
+        }
+        return count || 0;
+    },
+
+    async reverseOrderVisitApproval(visitId: string): Promise<void> {
+        // 1. Update all assets to processing_id = 2 (Reported)
+        const { error: assetsError } = await supabase
+            .from('orders_visits_assets')
+            .update({ processing_id: 2 })
+            .eq('ov_id', parseInt(visitId));
+
+        if (assetsError) {
+            console.error('Error reversing assets approval:', assetsError);
+            throw new Error('Erro ao reverter aprovação dos ativos');
+        }
+
+        // 2. Update visit status to 2 (Reported) and clear approval audit fields
+        const { error: visitError } = await supabase
+            .from('orders_visits')
+            .update({
+                ov_processing_id: 2,
+                ov_assets_approved_no_filed_amount: 0,
+                ov_approved_at: null,
+                ov_approved_user_id: null
+            })
+            .eq('id', parseInt(visitId));
+
+        if (visitError) {
+            console.error('Error reversing visit approval:', visitError);
+            throw new Error('Erro ao reverter aprovação da visita');
+        }
+
+        // 3. Sync counters to be safe
+        await this.syncOrderVisitAssetsProcessing(visitId);
     },
 
     // ─── Location Tracker ────────────────────────────────────────────────────

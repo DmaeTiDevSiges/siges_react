@@ -24,11 +24,13 @@ interface OrderVisitCardDetailProps {
     onDisapproveVisit?: () => void;
     onFileVisit?: () => void;
     onMarkAsRevised?: () => void;
+    onReverseApproval?: () => void;
     isReportLoading?: boolean;
     isApproveLoading?: boolean;
     isDisapproveLoading?: boolean;
     isFileLoading?: boolean;
     isRevising?: boolean;
+    isReverseApprovalLoading?: boolean;
     hideHeaderActions?: boolean;
 }
 
@@ -45,11 +47,13 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
     onDisapproveVisit,
     onFileVisit,
     onMarkAsRevised,
+    onReverseApproval,
     isReportLoading = false,
     isApproveLoading = false,
     isDisapproveLoading = false,
     isFileLoading = false,
     isRevising = false,
+    isReverseApprovalLoading = false,
     hideHeaderActions = false
 }) => {
     // Determining colors
@@ -354,6 +358,22 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                         <span className="material-symbols-outlined">rebase_edit</span>
                     )}
                     {isDisapproveLoading ? 'REJEITANDO...' : 'REJEITAR VISITA (AJUSTAR)'}
+                </button>
+            )}
+
+            {/* Estornar Aprovação Button */}
+            {onReverseApproval && (
+                <button
+                    onClick={onReverseApproval}
+                    disabled={isReverseApprovalLoading}
+                    className="w-full mt-4 py-4 bg-slate-600 hover:bg-slate-700 text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-lg shadow-slate-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {isReverseApprovalLoading ? (
+                        <Loading size="xs" />
+                    ) : (
+                        <span className="material-symbols-outlined">undo</span>
+                    )}
+                    {isReverseApprovalLoading ? 'CARREGANDO...' : 'Estornar Aprovação'}
                 </button>
             )}
         </Card>

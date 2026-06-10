@@ -1021,6 +1021,9 @@ export interface OrderVisitAsset {
   createdAt?: string;
   maintenancePlanId?: string;
   maintenancePlanProgress?: number;
+  hasRecorder?: boolean;
+  beforeRecorder?: number | null;
+  afterRecorder?: number | null;
 }
 
 export interface OrderVisitAssetView extends OrderVisitAsset {

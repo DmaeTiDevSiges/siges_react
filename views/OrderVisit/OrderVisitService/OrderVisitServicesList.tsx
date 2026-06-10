@@ -8,6 +8,14 @@ import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
 import { toast } from 'sonner';
 import { Loading } from '../../../components/ui/Loading';
 
+const formatNumber = (val: number | undefined | null) => {
+    if (val === undefined || val === null) return '0,00';
+    return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(val);
+};
+
 
 interface OrderVisitServicesListProps {
     visitId: string;
@@ -131,7 +139,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
     // State to track raw input values during typing
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
 
-    const handleUpdateField = async (ovServiceId: string, field: 'amount' | 'discount', value: string) => {
+    const handleUpdateField = async (ovServiceId: string, field: 'amount' | 'discount' | 'valueUnit', value: string) => {
         // 1. MASK LOGIC: Sanitize input to allow only numbers and ONE decimal separator
         let sanitized = value.replace(/[^\d.,]/g, ''); // Remove anything not digit, dot or comma
         sanitized = sanitized.replace(',', '.'); // Normalize to dot for logic
@@ -143,7 +151,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
         }
 
         // Limit decimal places based on field
-        const maxDecimals = field === 'amount' ? 2 : 4;
+        const maxDecimals = field === 'amount' || field === 'valueUnit' ? 2 : 4;
         if (parts.length === 2 && parts[1].length > maxDecimals) {
             sanitized = parts[0] + '.' + parts[1].substring(0, maxDecimals);
         }
@@ -166,10 +174,11 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
             if (s.id === ovServiceId) {
                 const newAmount = field === 'amount' ? numValue : (s.amount || 0);
                 const newDiscount = field === 'discount' ? numValue : (s.discount || 0);
+                const newValueUnit = field === 'valueUnit' ? numValue : (s.valueUnit || 0);
                 return {
                     ...s,
                     [field]: numValue,
-                    valueTotal: newAmount * (s.valueUnit || 0) * (newDiscount || 1)
+                    valueTotal: newAmount * newValueUnit * (newDiscount || 1)
                 };
             }
             return s;
@@ -274,7 +283,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                                             {cs.serviceDescription}
                                         </p>
                                         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                            {cs.serviceCode} • {cs.serviceUnit} • R$ {cs.valueUnit?.toFixed(2)}
+                                            {cs.serviceCode} • {cs.serviceUnit} • R$ {formatNumber(cs.valueUnit)}
                                         </p>
                                     </div>
                                 </div>
@@ -318,7 +327,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                                         {vs.serviceDescription}
                                     </h4>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-1">
-                                        {vs.serviceCode} • R$ {vs.valueUnit?.toFixed(2)} / {vs.serviceUnit}
+                                        {vs.serviceCode} • R$ {formatNumber(vs.valueUnit)} / {vs.serviceUnit}
                                     </p>
                                 </div>
                             </div>
@@ -355,6 +364,28 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                                     </div>
                                 </div>
 
+                                <div className="w-28">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                        V. UNITÁRIO
+                                    </label>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs font-bold text-slate-400">R$</span>
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={rawInputs[`${vs.id}_valueUnit`] ?? (vs.valueUnit % 1 === 0 ? vs.valueUnit.toString() : vs.valueUnit.toFixed(2).replace('.', ','))}
+                                            disabled={!isEditable}
+                                            onChange={(e) => handleUpdateField(vs.id, 'valueUnit', e.target.value)}
+                                            onBlur={() => setRawInputs(prev => {
+                                                const news = { ...prev };
+                                                delete news[`${vs.id}_valueUnit`];
+                                                return news;
+                                            })}
+                                            className="w-full bg-slate-50 dark:bg-black/20 border-none rounded-lg text-sm font-bold text-slate-700 dark:text-white p-2 focus:ring-1 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div className="w-20">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                                         A / D
@@ -378,7 +409,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                             <div className="text-right">
                                 <span className="text-[10px] font-bold text-slate-400 block mb-1">TOTAL</span>
                                 <span className="text-lg font-black text-blue-500">
-                                    R$ {vs.valueTotal?.toFixed(2)}
+                                    R$ {formatNumber(vs.valueTotal)}
                                 </span>
                             </div>
                         </div>
@@ -391,7 +422,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                         <div className="text-right">
                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1">TOTAL SERVIÇOS</span>
                             <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                                R$ {visitServices.reduce((sum, vs) => sum + (vs.valueTotal || 0), 0).toFixed(2)}
+                                R$ {formatNumber(visitServices.reduce((sum, vs) => sum + (vs.valueTotal || 0), 0))}
                             </span>
                         </div>
                     </div>

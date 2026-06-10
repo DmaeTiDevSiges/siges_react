@@ -69,6 +69,9 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isFiling, setIsFiling] = useState(false);
     const [isRevising, setIsRevising] = useState(false);
     const [isReviseModalOpen, setIsReviseModalOpen] = useState(false);
+    const [isReverseConfirmModalOpen, setIsReverseConfirmModalOpen] = useState(false);
+    const [isReverseAlertModalOpen, setIsReverseAlertModalOpen] = useState(false);
+    const [isReversingApproval, setIsReversingApproval] = useState(false);
     const [fullOrderData, setFullOrderData] = useState<Order | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
     const [unreadChatCount, setUnreadChatCount] = useState(0);
@@ -447,6 +450,40 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         }
     };
 
+    const handleReverseApprovalClick = async () => {
+        if (!visit || !currentUser) return;
+        setIsReversingApproval(true);
+        try {
+            const movedCount = await dataService.checkMovedAssetsForVisit(visit.id);
+            if (movedCount > 0) {
+                setIsReverseAlertModalOpen(true);
+            } else {
+                setIsReverseConfirmModalOpen(true);
+            }
+        } catch (error) {
+            console.error('Error checking moved assets:', error);
+            toast.error('Erro ao verificar movimentações de ativos');
+        } finally {
+            setIsReversingApproval(false);
+        }
+    };
+
+    const handleConfirmReverseApproval = async () => {
+        if (!visit || !currentUser) return;
+        setIsReversingApproval(true);
+        try {
+            await dataService.reverseOrderVisitApproval(visit.id);
+            toast.success('Aprovação estornada com sucesso!');
+            setIsReverseConfirmModalOpen(false);
+            await refreshVisit();
+        } catch (error) {
+            console.error('Error reversing visit approval:', error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao estornar aprovação');
+        } finally {
+            setIsReversingApproval(false);
+        }
+    };
+
 
 
     if (loading) {
@@ -543,6 +580,12 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                                 (visit.ovAssetsAmount || 0) === (visit.ovAssetsRevisedAmount || 0)
                             ) ? handleMarkAsRevised : undefined}
                             isRevising={isRevising}
+                            onReverseApproval={(
+                                (isContractManager || currentUser?.isAdminSuper || currentUser?.isAdmin) &&
+                                (visit.ovProcessingId || 1) === 5 &&
+                                !visit.isFiled
+                            ) ? handleReverseApprovalClick : undefined}
+                            isReverseApprovalLoading={isReversingApproval}
                         />
 
                         <SignatureSection
@@ -735,6 +778,57 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50"
                         >
                             {isRevising ? 'REVISANDO...' : 'Confirmar Revisão'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal de Alerta - Movimentações de Ativos Impedindo Estorno */}
+            <Modal
+                isOpen={isReverseAlertModalOpen}
+                onClose={() => setIsReverseAlertModalOpen(false)}
+                title="Estorno de Aprovação Impedido"
+                maxWidth="sm"
+            >
+                <div className="p-4 space-y-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Existem Movimentações de Ativos impedindo o estorno da aprovação.
+                    </p>
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => setIsReverseAlertModalOpen(false)}
+                            className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-600/20 transition-all"
+                        >
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal de Confirmação de Estorno */}
+            <Modal
+                isOpen={isReverseConfirmModalOpen}
+                onClose={() => setIsReverseConfirmModalOpen(false)}
+                title="Confirmar Estorno"
+                maxWidth="sm"
+            >
+                <div className="p-4 space-y-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        A Visita e Ativos serão considerados como REPORTADOS. Deseja confirmar ?
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setIsReverseConfirmModalOpen(false)}
+                            className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleConfirmReverseApproval}
+                            disabled={isReversingApproval}
+                            className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-lg shadow-red-600/20 transition-all disabled:opacity-50"
+                        >
+                            {isReversingApproval ? 'ESTORNANDO...' : 'Confirmar'}
                         </button>
                     </div>
                 </div>
