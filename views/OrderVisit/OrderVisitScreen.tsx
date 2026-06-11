@@ -38,9 +38,7 @@ import { Modal } from '../../components/ui/Modal';
 import { OrderRequestForm } from '../OrderRequest/OrderRequestForm';
 import { Loading } from '../../components/ui/Loading';
 import { OrderVisitChatTab } from './OrderVisitChat/OrderVisitChatTab';
-
-
-
+import { AlertModal } from '../../components/ui/AlertModal';
 
 export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     visitId,
@@ -666,33 +664,28 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
             )}
 
             {/* Modal de Reporte */}
-            <Modal
+            <AlertModal
                 isOpen={isReportModalOpen}
                 onClose={() => setIsReportModalOpen(false)}
+                icon="send"
+                iconClassName="text-indigo-500"
+                iconBgClassName="bg-indigo-50 dark:bg-indigo-900/20"
+                iconRingClassName="ring-indigo-50/50 dark:ring-indigo-900/10"
                 title="Reportar Visita"
-                maxWidth="sm"
-            >
-                <div className="p-4 space-y-4">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Ao reportar a visita, ela será enviada para revisão pelo supervisor. Deseja continuar?
-                    </p>
-                    <div className="flex justify-end gap-3">
-                        <button
-                            onClick={() => setIsReportModalOpen(false)}
-                            className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleConfirmReportVisit}
-                            disabled={isReporting}
-                            className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50"
-                        >
-                            {isReporting ? 'REPORTANDO...' : 'Confirmar Reporte'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+                description="Ao reportar a visita, ela será enviada para revisão pelo supervisor. Deseja continuar?"
+                primaryAction={{
+                    label: isReporting ? 'REPORTANDO...' : 'Confirmar Reporte',
+                    icon: 'send',
+                    onClick: handleConfirmReportVisit,
+                    variant: 'primary',
+                    disabled: isReporting
+                }}
+                secondaryAction={{
+                    label: 'Cancelar',
+                    onClick: () => setIsReportModalOpen(false),
+                    variant: 'ghost'
+                }}
+            />
 
             {/* Modal de Fechamento */}
             <CloseVisitModal
@@ -725,114 +718,98 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
             />
 
             {/* Modal de Arquivamento */}
-            <Modal
+            <AlertModal
                 isOpen={isFileModalOpen}
                 onClose={() => setIsFileModalOpen(false)}
+                icon="inventory_2"
+                iconClassName="text-emerald-500"
+                iconBgClassName="bg-emerald-50 dark:bg-emerald-900/20"
+                iconRingClassName="ring-emerald-50/50 dark:ring-emerald-900/10"
                 title="Arquivar Visita"
-                maxWidth="sm"
-            >
-                <div className="p-4 space-y-4">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Deseja realmente arquivar esta visita? Esta ação registrará sua aprovação final e marcará a visita como arquivada.
-                    </p>
-                    <div className="flex justify-end gap-3">
-                        <button
-                            onClick={() => setIsFileModalOpen(false)}
-                            className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleConfirmFileVisit}
-                            disabled={isFiling}
-                            className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50"
-                        >
-                            {isFiling ? 'ARQUIVANDO...' : 'Confirmar Arquivamento'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+                description="Deseja realmente arquivar esta visita? Esta ação registrará sua aprovação final e marcará a visita como arquivada."
+                primaryAction={{
+                    label: isFiling ? 'ARQUIVANDO...' : 'Confirmar Arquivamento',
+                    icon: 'inventory_2',
+                    onClick: handleConfirmFileVisit,
+                    variant: 'success',
+                    disabled: isFiling
+                }}
+                secondaryAction={{
+                    label: 'Cancelar',
+                    onClick: () => setIsFileModalOpen(false),
+                    variant: 'ghost'
+                }}
+            />
 
             {/* Modal de Marcar como Revisada */}
-            <Modal
+            <AlertModal
                 isOpen={isReviseModalOpen}
                 onClose={() => setIsReviseModalOpen(false)}
+                icon="fact_check"
+                iconClassName="text-blue-500"
+                iconBgClassName="bg-blue-50 dark:bg-blue-900/20"
+                iconRingClassName="ring-blue-50/50 dark:ring-blue-900/10"
                 title="Marcar Visita como REVISADA"
-                maxWidth="sm"
-            >
-                <div className="p-4 space-y-4">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                description={
+                    <>
                         Todos os <span className="font-black text-slate-700 dark:text-slate-200">{visit.ovAssetsAmount}</span> ativos desta visita já foram revisados.
                         Confirme para marcar a visita como <span className="font-black text-blue-600">REVISADA</span>.
-                    </p>
-                    <div className="flex justify-end gap-3">
-                        <button
-                            onClick={() => setIsReviseModalOpen(false)}
-                            className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleConfirmReviseVisit}
-                            disabled={isRevising}
-                            className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50"
-                        >
-                            {isRevising ? 'REVISANDO...' : 'Confirmar Revisão'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+                    </>
+                }
+                primaryAction={{
+                    label: isRevising ? 'REVISANDO...' : 'Confirmar Revisão',
+                    icon: 'fact_check',
+                    onClick: handleConfirmReviseVisit,
+                    variant: 'primary',
+                    disabled: isRevising
+                }}
+                secondaryAction={{
+                    label: 'Cancelar',
+                    onClick: () => setIsReviseModalOpen(false),
+                    variant: 'ghost'
+                }}
+            />
 
             {/* Modal de Alerta - Movimentações de Ativos Impedindo Estorno */}
-            <Modal
+            <AlertModal
                 isOpen={isReverseAlertModalOpen}
                 onClose={() => setIsReverseAlertModalOpen(false)}
+                icon="error"
+                iconClassName="text-red-500"
+                iconBgClassName="bg-red-50 dark:bg-red-900/20"
+                iconRingClassName="ring-red-50/50 dark:ring-red-900/10"
                 title="Estorno de Aprovação Impedido"
-                maxWidth="sm"
-            >
-                <div className="p-4 space-y-4">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Existem Movimentações de Ativos impedindo o estorno da aprovação.
-                    </p>
-                    <div className="flex justify-end">
-                        <button
-                            onClick={() => setIsReverseAlertModalOpen(false)}
-                            className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-600/20 transition-all"
-                        >
-                            Fechar
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+                description="Existem Movimentações de Ativos impedindo o estorno da aprovação."
+                primaryAction={{
+                    label: 'Fechar',
+                    onClick: () => setIsReverseAlertModalOpen(false),
+                    variant: 'slate'
+                }}
+            />
 
             {/* Modal de Confirmação de Estorno */}
-            <Modal
+            <AlertModal
                 isOpen={isReverseConfirmModalOpen}
                 onClose={() => setIsReverseConfirmModalOpen(false)}
+                icon="undo"
+                iconClassName="text-amber-500"
+                iconBgClassName="bg-amber-50 dark:bg-amber-900/20"
+                iconRingClassName="ring-amber-50/50 dark:ring-amber-900/10"
                 title="Confirmar Estorno"
-                maxWidth="sm"
-            >
-                <div className="p-4 space-y-4">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                        A Visita e Ativos serão considerados como REPORTADOS. Deseja confirmar ?
-                    </p>
-                    <div className="flex justify-end gap-3">
-                        <button
-                            onClick={() => setIsReverseConfirmModalOpen(false)}
-                            className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleConfirmReverseApproval}
-                            disabled={isReversingApproval}
-                            className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-lg shadow-red-600/20 transition-all disabled:opacity-50"
-                        >
-                            {isReversingApproval ? 'ESTORNANDO...' : 'Confirmar'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+                description="A Visita e Ativos serão considerados como REPORTADOS. Deseja confirmar ?"
+                primaryAction={{
+                    label: isReversingApproval ? 'ESTORNANDO...' : 'Confirmar',
+                    icon: 'undo',
+                    onClick: handleConfirmReverseApproval,
+                    variant: 'danger',
+                    disabled: isReversingApproval
+                }}
+                secondaryAction={{
+                    label: 'Cancelar',
+                    onClick: () => setIsReverseConfirmModalOpen(false),
+                    variant: 'ghost'
+                }}
+            />
         </div>
     );
 };

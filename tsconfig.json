@@ -29,6 +29,8 @@
     "noEmit": true
   },
   "exclude": [
-    "workflows"
+    "workflows",
+    "dist",
+    "ios"
   ]
 }

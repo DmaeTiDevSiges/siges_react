@@ -1,27 +1,52 @@
 import { useEffect, useRef, useState } from 'react';
 import { registerPlugin, Capacitor } from '@capacitor/core';
-// TEMPORARILY DISABLED - background-geolocation plugin is not working
-// import type { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
-import { dataService } from '../services/dataService';
 import { permissionService } from '../services/permissionService';
 
-// TEMPORARILY DISABLED - background-geolocation plugin is not working
-// const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
-//     'BackgroundGeolocation'
-// );
+/**
+ * Plugin nativo Capacitor que controla o LocationForegroundService.java
+ * Funciona mesmo com app minimizado ou fechado (verdadeiro Foreground Service Android).
+ */
+const LocationService = registerPlugin<{
+    start(opts: {
+        userId: string;
+        supabaseUrl: string;
+        supabaseKey: string;
+        intervalSeconds: number;
+        distanceMeters: number;
+    }): Promise<void>;
+    stop(): Promise<void>;
+}>('LocationService');
+
 
 /** Minimum interval between Supabase writes for the liveness heartbeat, in seconds. */
 const HEARTBEAT_MIN_SECONDS = 30;
 /** How often we re-check that the watcher is alive (and re-create it if not), in ms. */
 const WATCHDOG_INTERVAL_MS = 60_000;
-/** Distance filter in meters — primary throttle for native (saves battery). */
-const NATIVE_DISTANCE_FILTER_M = 100;
+/** Distance filter in meters — triggers a location write if user moves this much. */
+const DISTANCE_FILTER_M = 50;
+
+/** URL base do Supabase (lida das variáveis de ambiente em build-time) */
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+/** Calculate distance between two coordinates in meters (Haversine formula) */
+function getDistanceFromLatLonInm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371e3;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
 
 type BlockReason = null | 'permission_denied' | 'location_services_disabled' | 'watcher_failed';
 
 /**
  * Hook that tracks user location in background (works even when app is minimized/screen locked).
- * Updates users.latitude, users.longitude, users.tracker_heartbeat_at and users.tracker_accuracy
+ * Updates users.latitude, users.longitude, users.tracker_heartbeat_at, users.tracked_at 
  * and users.tracker_accuracy on each accepted position update.
  *
  * On Android 10+ the permission flow is split into two steps:
@@ -45,6 +70,7 @@ export function useLocationTracker(
     const watcherIdRef = useRef<string | null>(null);
     const webWatchIdRef = useRef<number | null>(null);
     const lastWriteAtRef = useRef<number>(0);
+    const lastPosRef = useRef<{lat: number, lng: number} | null>(null);
     const heartbeatTimerRef = useRef<number | null>(null);
     const watchdogRef = useRef<number | null>(null);
     const [blockReason, setBlockReason] = useState<BlockReason>(null);
@@ -69,13 +95,12 @@ export function useLocationTracker(
         let cancelled = false;
 
         const stopAll = async () => {
-            // TEMPORARILY DISABLED - background-geolocation plugin is not working
-            if (watcherIdRef.current) {
+            if (watcherIdRef.current === 'native') {
                 try {
-                    // await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
-                    console.warn('[LocationTracker] BackgroundGeolocation watcher removal disabled');
+                    await LocationService.stop();
+                    console.log('[LocationTracker] Native Foreground Service stopped');
                 } catch (err) {
-                    console.warn('[LocationTracker] Failed to remove native watcher:', err);
+                    console.warn('[LocationTracker] Failed to stop native service:', err);
                 }
                 watcherIdRef.current = null;
             }
@@ -92,12 +117,14 @@ export function useLocationTracker(
         const persistLocation = async (
             latitude: number,
             longitude: number,
-            accuracy: number | null
+            accuracy: number | null,
+            triggerReason: 'time' | 'distance' | 'heartbeat' = 'time'
         ) => {
             await dataService.updateUserLocation(userId, latitude, longitude, accuracy);
             lastWriteAtRef.current = Date.now();
+            lastPosRef.current = { lat: latitude, lng: longitude };
             console.log(
-                `%c[LocationTracker] 📍 Location updated`,
+                `%c[LocationTracker] 📍 Location updated (${triggerReason})`,
                 'color: #22c55e; font-weight: bold',
                 `\nUser: ${userId}`,
                 `\nLat: ${latitude}`,
@@ -107,10 +134,29 @@ export function useLocationTracker(
             );
         };
 
-        const shouldWrite = () => {
+        const shouldWrite = (newLat: number, newLng: number): { write: boolean; reason: 'time' | 'distance' | null } => {
             const now = Date.now();
             const elapsed = (now - lastWriteAtRef.current) / 1000;
-            return lastWriteAtRef.current === 0 || elapsed >= intervalSeconds;
+            
+            // 1. Time-based: Se passou o tempo do intervalo (ex: 60s), devemos enviar
+            if (lastWriteAtRef.current === 0 || elapsed >= intervalSeconds) {
+                return { write: true, reason: 'time' };
+            }
+
+            // 2. Distance-based: Se o usuário andou mais que X metros, enviamos para manter a rota fiel
+            if (lastPosRef.current) {
+                const distance = getDistanceFromLatLonInm(
+                    lastPosRef.current.lat,
+                    lastPosRef.current.lng,
+                    newLat,
+                    newLng
+                );
+                if (distance >= DISTANCE_FILTER_M) {
+                    return { write: true, reason: 'distance' };
+                }
+            }
+
+            return { write: false, reason: null };
         };
 
         const startHeartbeat = () => {
@@ -119,16 +165,39 @@ export function useLocationTracker(
                 // Heartbeat: refresh tracker_heartbeat_at even without movement so the
                 // server can detect dead trackers. Only useful if we already have a fix,
                 // so we read the last known position from the last write.
-                if (lastWriteAtRef.current === 0) return;
-                if (Date.now() - lastWriteAtRef.current < intervalSeconds * 1000) return;
-                // No movement and not enough time elapsed → skip; will fire on next move.
+                if (lastWriteAtRef.current === 0 || !lastPosRef.current) return;
+                
+                const elapsed = (Date.now() - lastWriteAtRef.current) / 1000;
+                if (elapsed < intervalSeconds) return;
+
+                // Envia a última posição conhecida como heartbeat
+                await persistLocation(
+                    lastPosRef.current.lat,
+                    lastPosRef.current.lng,
+                    null,
+                    'heartbeat'
+                );
             }, intervalSeconds * 1000);
         };
 
         const startNativeWatcher = async () => {
-            // TEMPORARILY DISABLED - background-geolocation plugin is not working
-            console.warn('[LocationTracker] startNativeWatcher is temporarily disabled');
-            setBlockReason('watcher_failed');
+            try {
+                await LocationService.start({
+                    userId: userId!,
+                    supabaseUrl: SUPABASE_URL,
+                    supabaseKey: SUPABASE_KEY,
+                    intervalSeconds: intervalSeconds,
+                    distanceMeters: DISTANCE_FILTER_M,
+                });
+                // 'native' é usado como sentinela para saber que o serviço está ativo
+                watcherIdRef.current = 'native';
+                console.log('[LocationTracker] ✅ Native Foreground Service started');
+                // O heartbeat no lado JS é desabilitado no modo nativo —
+                // o Java envia heartbeat via HTTP diretamente quando o tempo esgota.
+            } catch (err: any) {
+                console.error('[LocationTracker] Failed to start native service:', err);
+                setBlockReason('watcher_failed');
+            }
         };
 
         const startWebWatcher = () => {
@@ -140,11 +209,15 @@ export function useLocationTracker(
                 async (pos) => {
                     if (cancelled) return;
                     setBlockReason(null);
-                    if (!shouldWrite()) return;
+                    
+                    const writeDecision = shouldWrite(pos.coords.latitude, pos.coords.longitude);
+                    if (!writeDecision.write) return;
+                    
                     await persistLocation(
                         pos.coords.latitude,
                         pos.coords.longitude,
-                        pos.coords.accuracy ?? null
+                        pos.coords.accuracy ?? null,
+                        writeDecision.reason as 'time' | 'distance'
                     );
                 },
                 (err) => {
@@ -187,13 +260,11 @@ export function useLocationTracker(
 
             setBlockReason(null);
 
-            // TEMPORARILY DISABLED - always use web watcher since background-geolocation plugin is not working
-            // if (Capacitor.isNativePlatform()) {
-            //     await startNativeWatcher();
-            // } else {
-            //     startWebWatcher();
-            // }
-            startWebWatcher();
+            if (Capacitor.isNativePlatform()) {
+                await startNativeWatcher();
+            } else {
+                startWebWatcher();
+            }
         };
 
         const watchdog = () => {

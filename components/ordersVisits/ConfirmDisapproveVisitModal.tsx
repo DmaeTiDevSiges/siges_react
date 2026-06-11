@@ -38,7 +38,7 @@ export const ConfirmDisapproveVisitModal: React.FC<ConfirmDisapproveVisitModalPr
                             </h2>
 
                             <p className="text-slate-500 dark:text-slate-400 font-bold text-sm max-w-[280px]">
-                                Esta visita possui <span className="text-rose-500">itens REJEITADOS</span>. Deseja confirmar a rejeição total da visita para ajustes?
+                                Esta visita possui <span className="text-rose-500">ATIVO(S) REJEITADO(S)</span>. Deseja confirmar a rejeição total da visita para ajustes?
                             </p>
 
                             <div className="w-full h-px bg-slate-100 dark:bg-slate-800 my-8" />

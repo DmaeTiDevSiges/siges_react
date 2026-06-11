@@ -87,7 +87,6 @@ export const permissionService = {
 
     /**
      * Request the Android 10+ "Allow all the time" background location permission.
-     * TEMPORARILY DISABLED - background-geolocation plugin is not working
      * MUST be called from a dedicated user action (e.g. tapping a button) — the
      * Android system will silently reject the prompt otherwise.
      *
@@ -95,9 +94,20 @@ export const permissionService = {
      * BackgroundGeolocation plugin's `addWatcher({ requestPermissions: true })`.
      */
     async requestBackgroundLocationPermission(): Promise<boolean> {
-        // TEMPORARILY DISABLED - background-geolocation plugin is not working
-        console.warn('requestBackgroundLocationPermission is temporarily disabled');
-        return false;
+        if (!Capacitor.isNativePlatform()) return true;
+
+        try {
+            // Note: @capacitor-community/background-geolocation doesn't expose a dedicated
+            // requestBackground permission in the same way, but on Android 10+ asking for
+            // 'location' again with background declared in manifest often triggers the
+            // background prompt if foreground is already granted.
+            // Alternatively, we just return true and let addWatcher request it.
+            const status = await Geolocation.requestPermissions({ permissions: ['location'] });
+            return status.location === 'granted';
+        } catch (error) {
+            console.error('Error requesting background location permission:', error);
+            return false;
+        }
     },
 
     /**
@@ -105,8 +115,9 @@ export const permissionService = {
      * Used by the "GPS Bloqueado" screen.
      */
     async openAppSettings(): Promise<void> {
-        // TEMPORARILY DISABLED - background-geolocation plugin is not working
-        console.warn('openAppSettings is temporarily disabled');
+        // Implementation typically relies on NativeSettings plugin, 
+        // fallback to just warning if not installed.
+        console.warn('openAppSettings requires NativeSettings plugin');
     },
 
     /**
@@ -116,8 +127,7 @@ export const permissionService = {
      * `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` silently.
      */
     async openBatteryOptimizationSettings(): Promise<void> {
-        // TEMPORARILY DISABLED - background-geolocation plugin is not working
-        console.warn('openBatteryOptimizationSettings is temporarily disabled');
+        console.warn('openBatteryOptimizationSettings requires NativeSettings plugin');
     },
 
     /**

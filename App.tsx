@@ -262,7 +262,7 @@ const AppContent: React.FC = () => {
     if (tokenHash && type === 'recovery') {
       window.history.replaceState({}, document.title, '/');
       import('./services/supabase').then(({ supabase }) => {
-        supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error }) => {
+        supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error }: { error: any }) => {
           if (error) {
             console.error('Token verification failed:', error);
             setAuthScreen('forgot-password');
@@ -2246,7 +2246,9 @@ const AppContent: React.FC = () => {
             }}
             onEndVisit={() => {
               setSelectedVisit(null);
-              setCurrentUser({ ...currentUser, isOvInProgress: false, ovIdInProgress: undefined });
+              if (currentUser) {
+                setCurrentUser({ ...currentUser, isOvInProgress: false, ovIdInProgress: undefined });
+              }
               setCurrentScreen('dashboard');
               toast.success('Visita encerrada com sucesso');
             }}

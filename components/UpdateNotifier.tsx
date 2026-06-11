@@ -1,4 +1,8 @@
+/// <reference types="vite/client" />
+
 import React, { useEffect, useState } from 'react';
+
+declare const __BUILD_ID__: string;
 import { Capacitor } from '@capacitor/core';
 import { Modal } from './ui/Modal';
 import { dataService } from '../services/dataService';
@@ -110,19 +114,9 @@ const UpdateNotifier: React.FC = () => {
                 
                 if (show) {
                     setIsMandatory(mandatory);
-                    // Native: show the blocking modal. Web: show a small banner or force refresh.
-                    if (Capacitor.isNativePlatform()) {
-                        setShowModal(true);
-                        setShowBanner(false);
-                    } else {
-                        if (mandatory) {
-                            // Se atingiu o limite de 3 negativas, na 4ª vez forçar o refresh
-                            await forceRefresh();
-                            return;
-                        }
-                        setShowBanner(true);
-                        setShowModal(false);
-                    }
+                    // Always show the modal for both native and web to ensure visibility
+                    setShowModal(true);
+                    setShowBanner(false);
                 } else {
                     setShowModal(false);
                     setShowBanner(false);
@@ -217,7 +211,7 @@ const UpdateNotifier: React.FC = () => {
                 onClose={isMandatory ? () => {} : handleLater} // Block closing if mandatory
                 title={`Nova versão disponível${versionSuffix}!`}
                 message={isMandatory 
-                    ? `Uma atualização importante e obrigatória${versionSuffix} está disponível. Para continuar usando o aplicativo, é necessário baixar e instalar a nova versão agora.`
+                    ? `Uma atualização importante e obrigatória${versionSuffix} está disponível. Para continuar usando o aplicativo, é necessário ${Capacitor.isNativePlatform() ? 'baixar e instalar a nova versão' : 'atualizar a página'} agora.`
                     : `Uma atualização${versionSuffix} foi detectada. Deseja atualizar agora para ter acesso às melhorias mais recentes?`}
                 confirmLabel={Capacitor.isNativePlatform() ? "Baixar e instalar" : "Atualizar agora"}
                 cancelLabel={isMandatory ? undefined : "Depois"}

@@ -192,7 +192,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [completedAlertIds, setCompletedAlertIds] = useState<string[]>([]);
 
     // Recorder state
-    const [hasRecorder, setHasRecorder] = useState(initialAsset?.hasRecorder || false);
+    const [hasRecorder, setHasRecorder] = useState(initialAsset?.hasRecorder ?? true);
     const [beforeRecorder, setBeforeRecorder] = useState<string>(initialAsset?.beforeRecorder != null ? String(initialAsset.beforeRecorder) : '');
     const [afterRecorder, setAfterRecorder] = useState<string>(initialAsset?.afterRecorder != null ? String(initialAsset.afterRecorder) : '');
 
@@ -290,7 +290,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 }
                 setIsContractManager(isManager);
                 setMaintenanceProgress(data.maintenancePlanProgress ?? 0);
-                setHasRecorder(data.hasRecorder || false);
+                setHasRecorder(data.hasRecorder ?? true);
                 setBeforeRecorder(data.beforeRecorder != null ? String(data.beforeRecorder) : '');
                 setAfterRecorder(data.afterRecorder != null ? String(data.afterRecorder) : '');
             } else {

@@ -11779,7 +11779,8 @@ export const dataService = {
             longitude,
             // Liveness signal: updated on every tick, even if the user is stationary.
             // Lets the server distinguish "tracker alive, user idle" from "tracker dead".
-            tracker_heartbeat_at: now
+            tracker_heartbeat_at: now,
+            tracked_at: now
         };
         if (accuracy !== null) {
             update.tracker_accuracy = accuracy;
