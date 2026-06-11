@@ -399,7 +399,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     const fetchData = useCallback(async (
         loadMore: boolean = false,
         isManual: boolean = false,
-        overrideFilters?: OrderFilters & { osAssetTagId?: string[] }
+        overrideFilters?: any
     ) => {
         const statusIdFromOverride = overrideFilters?.statusId !== undefined
             ? overrideFilters.statusId
@@ -414,7 +414,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             ? overrideFilters.osAssetTagId
             : osAssetTagId;
 
-        const ordersListFilters: OrderFilters = {
+        const ordersListFilters: any = {
             ...appliedFilters,
             ...overrideFilters,
             statusId: statusIdFromOverride ?? undefined,

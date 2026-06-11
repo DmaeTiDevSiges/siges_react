@@ -352,8 +352,8 @@ class DataQualityServiceImpl {
    * Obtém tipo de conexão atual
    */
   private getConnectionType(): string {
-    if (typeof navigator !== 'undefined' && navigator.connection) {
-      return navigator.connection.effectiveType || 'unknown';
+    if (typeof navigator !== 'undefined' && (navigator as any).connection) {
+      return (navigator as any).connection.effectiveType || 'unknown';
     }
     return 'unknown';
   }

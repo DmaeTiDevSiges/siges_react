@@ -238,7 +238,8 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 endDate: dateRange.end
             });
             // Filter by date range (naive filter for now as getOrdersVisitsView doesn't take params)
-            const filteredByDate = visitsData.filter(v => {
+            const actualVisitsData = (visitsData as any).data || visitsData;
+            const filteredByDate = actualVisitsData.filter((v: any) => {
                 const date = (v.ov_started_at || v.ov_created_at || '').split('T')[0];
                 return date >= dateRange.start && date <= dateRange.end;
             });

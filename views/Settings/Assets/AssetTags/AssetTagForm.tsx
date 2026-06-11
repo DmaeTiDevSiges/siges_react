@@ -7,7 +7,7 @@ import { Button } from '../../../../components/ui/Button';
 
 interface AssetTagFormProps {
     initialTag?: AssetTag;
-    onSave: (tag: Omit<AssetTag, 'id'>) => Promise<void>;
+    onSave: (tag: Partial<AssetTag>) => Promise<void>;
     onCancel: () => void;
 }
 

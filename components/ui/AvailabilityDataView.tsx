@@ -58,7 +58,7 @@ export const AvailabilityDataView: React.FC<AvailabilityDataViewProps> = ({
                     </span>
                 </div>
             }
-            maxWidth="6xl"
+            maxWidth="5xl"
         >
             <div className="flex flex-col h-[75vh]">
                 {/* Search Bar */}
@@ -67,7 +67,7 @@ export const AvailabilityDataView: React.FC<AvailabilityDataViewProps> = ({
                         placeholder="Filtrar dados (Setor, Responsável, Motivo...)"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        icon={<RiSearchLine className="text-slate-400" />}
+                        leftIcon={<RiSearchLine className="text-slate-400" />}
                         className="rounded-2xl!"
                     />
                 </div>

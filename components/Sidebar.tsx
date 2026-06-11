@@ -5,7 +5,7 @@ import { usePermissions } from '../contexts/PermissionsContext';
 interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
-    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags';
+    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;

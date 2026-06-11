@@ -194,7 +194,7 @@ export const MovementsListDocument = ({ movements, generatedAt, logoBase64 }: { 
                             <View style={{ width: COL.dataObs }}>
                                 <Text style={styles.tdBold}>{fmtDate(m.afterStatusAt || m.beforeStatusAt)}</Text>
                                 {m.movedComments ? (
-                                    <Text style={styles.labelMuted} numberOfLines={2}>
+                                    <Text style={styles.labelMuted}>
                                         {m.movedComments}
                                     </Text>
                                 ) : null}
