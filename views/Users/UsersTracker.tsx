@@ -738,34 +738,59 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                 onTouchMove={handlePullTouchMove}
                 onTouchEnd={handlePullTouchEnd}
             >
-                {/* Header row */}
-                <div className="flex items-center justify-between p-3 pb-2">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-800 dark:text-white">Visitas de Hoje</span>
-                        {!isFooterCollapsed && (
-                            <div className="flex gap-1">
-                                <button
-                                    onClick={() => setVisitStatusFilter('all')}
-                                    className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold transition-colors ${visitStatusFilter === 'all' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
-                                >Tudo ({filterCounts.all})</button>
-                                <button
-                                    onClick={() => setVisitStatusFilter('open')}
-                                    className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold transition-colors ${visitStatusFilter === 'open' ? 'bg-green-100 text-green-700 dark:bg-green-900/40' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
-                                >Em Aberto ({filterCounts.open})</button>
-                                <button
-                                    onClick={() => setVisitStatusFilter('closed')}
-                                    className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold transition-colors ${visitStatusFilter === 'closed' ? 'bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
-                                >Encerradas ({filterCounts.closed})</button>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-slate-400 font-medium">
+                {/* Header and Summary Row */}
+                <div className="flex items-center gap-3 p-2 overflow-x-auto no-scrollbar w-full">
+                    <span className="text-xs font-bold text-slate-800 dark:text-white shrink-0 ml-1">Visitas de Hoje</span>
+                    
+                    {/* Divisor */}
+                    <div className="w-px h-4 bg-slate-300 dark:bg-slate-600 shrink-0" />
+
+                    {!isFooterCollapsed ? (
+                        <div className="flex gap-1 shrink-0">
+                            <button
+                                onClick={() => setVisitStatusFilter('all')}
+                                className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold transition-colors ${visitStatusFilter === 'all' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
+                            >Tudo ({filterCounts.all})</button>
+                            <button
+                                onClick={() => setVisitStatusFilter('open')}
+                                className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold transition-colors ${visitStatusFilter === 'open' ? 'bg-green-100 text-green-700 dark:bg-green-900/40' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
+                            >Em Aberto ({filterCounts.open})</button>
+                            <button
+                                onClick={() => setVisitStatusFilter('closed')}
+                                className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold transition-colors ${visitStatusFilter === 'closed' ? 'bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
+                            >Encerradas ({filterCounts.closed})</button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 shrink-0">
+                            {filterCounts.open > 0 && (
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200/50 dark:border-green-800/30">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span className="text-[10px] font-bold text-green-700 dark:text-green-300">Em Aberto <span className="text-[11px] font-black text-green-600 dark:text-green-200">{filterCounts.open}</span></span>
+                                </div>
+                            )}
+                            {filterCounts.closed > 0 && (
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/50 border border-slate-200/50 dark:border-slate-600/30">
+                                    <div className="w-2 h-2 rounded-full bg-slate-400" />
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Encerradas <span className="text-[11px] font-black text-slate-600 dark:text-slate-300">{filterCounts.closed}</span></span>
+                                </div>
+                            )}
+                            {selectedVisitIds.size > 0 && (
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/50 dark:border-indigo-800/30">
+                                    <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300">Selecionadas <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-200">{selectedVisitIds.size}</span></span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex-1 min-w-[20px]" />
+
+                    <div className="flex items-center gap-2 shrink-0 pr-1">
+                        <span className="text-[10px] text-slate-400 font-medium shrink-0">
                             {filteredVisits.length} visita{filteredVisits.length !== 1 ? 's' : ''}
                         </span>
                         <button
                             onClick={() => setIsFooterCollapsed(prev => !prev)}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors shrink-0"
                         >
                             <span className="material-symbols-outlined text-[16px] text-slate-500 dark:text-slate-300">
                                 {isFooterCollapsed ? 'expand_less' : 'expand_more'}
@@ -773,32 +798,6 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                         </button>
                     </div>
                 </div>
-
-                {/* Collapsed summary */}
-                {isFooterCollapsed && (
-                    <div className="px-3 pb-3 flex items-center gap-2 flex-wrap">
-                        {filterCounts.open > 0 && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200/50 dark:border-green-800/30">
-                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                <span className="text-[10px] font-bold text-green-700 dark:text-green-300">Em Aberto</span>
-                                <span className="text-[11px] font-black text-green-600 dark:text-green-200">{filterCounts.open}</span>
-                            </div>
-                        )}
-                        {filterCounts.closed > 0 && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/50 border border-slate-200/50 dark:border-slate-600/30">
-                                <div className="w-2 h-2 rounded-full bg-slate-400" />
-                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Encerradas</span>
-                                <span className="text-[11px] font-black text-slate-600 dark:text-slate-300">{filterCounts.closed}</span>
-                            </div>
-                        )}
-                        {selectedVisitIds.size > 0 && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/50 dark:border-indigo-800/30">
-                                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300">Selecionadas</span>
-                                <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-200">{selectedVisitIds.size}</span>
-                            </div>
-                        )}
-                    </div>
-                )}
 
                 {/* Expanded cards list */}
                 {!isFooterCollapsed && (
