@@ -8684,22 +8684,13 @@ export const dataService = {
     },
 
     async getLeadersByCompany(companyId: string): Promise<User[]> {
-        // Step 1: Get team IDs for this company (users.team_id = cfg_teams.id)
-        const { data: teams, error: teamsError } = await supabase
-            .from('cfg_teams')
-            .select('id')
-            .eq('company_id', companyId);
-
-        if (teamsError || !teams || teams.length === 0) return [];
-
-        const teamIds = teams.map((t: any) => t.id);
-
-        // Step 2: Get leaders directly - users.team_id is a direct FK to cfg_teams
         const { data, error } = await supabase
             .from('users')
             .select('*, cfg_users_statuses(id, description), cfg_profiles(description)')
-            .in('team_id', teamIds)
-            .eq('is_team_leader', true);
+            .eq('company_id', companyId)
+            .eq('is_team_leader', true)
+            .eq('status_id', 2)
+            .order('name_short', { ascending: true });
 
         if (error) {
             console.error('Error fetching leaders by company:', error);
@@ -8723,6 +8714,7 @@ export const dataService = {
             phone: item.phone,
             isAvailable: item.is_available,
             ovIdInProgress: item.ov_id_in_progress,
+            companyId: item.company_id?.toString(),
             avatarUrl: this.getPublicImageUrl(item.img_file_path, item.img_file_name, { width: 100, height: 100, resize: 'cover' })
         })) as User[];
     },

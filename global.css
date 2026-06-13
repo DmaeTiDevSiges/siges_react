@@ -16,3 +16,33 @@ input, textarea, select {
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
+
+/* Pulse animation for live tracker markers */
+@keyframes tracker-pulse {
+    0% { box-shadow: 0 0 0 0 var(--pulse-color, #22C55E)55; }
+    70% { box-shadow: 0 0 0 8px var(--pulse-color, #22C55E)00; }
+    100% { box-shadow: 0 0 0 0 var(--pulse-color, #22C55E)00; }
+}
+
+.tracker-pulse-ring {
+    animation: tracker-pulse 2s ease-in-out infinite;
+}
+
+/* Pull-to-refresh indicator */
+@keyframes ptr-spin {
+    to { transform: rotate(360deg); }
+}
+
+.ptr-spinner {
+    animation: ptr-spin 0.8s linear infinite;
+}
+
+/* Smooth card selection transition */
+.visit-card-selected {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Map attribution override */
+.leaflet-control-attribution {
+    display: none !important;
+}

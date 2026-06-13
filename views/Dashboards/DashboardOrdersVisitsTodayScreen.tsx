@@ -289,12 +289,12 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 });
             }
 
-            // Load Leaders
-            const [usersData] = await Promise.all([
-                dataService.getUsers()
+            // Load Leaders - critério unificado: is_team_leader=true, status_id=2, company_id
+            const [usersData, leadersList] = await Promise.all([
+                dataService.getUsers(),
+                dataService.getLeadersByCompany(company.id)
             ]);
             setUsers(usersData);
-            const leadersList = usersData.filter(u => u.profileId === '3' || u.profileId === 'Líder'); // Adjust condition based on how profile is returned
             setLeaders(leadersList);
             // loadTeams(mappedVisits.map(v => v.id));
         } catch (error) {
