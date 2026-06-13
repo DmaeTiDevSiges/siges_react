@@ -206,7 +206,7 @@ export function useLocationTracker(
 
         const startWebWatcher = () => {
             if (!navigator.geolocation) {
-                setBlockReason('location_services_disabled');
+                console.warn('[LocationTracker] Web: geolocation not supported — tracking disabled');
                 return;
             }
             const id = navigator.geolocation.watchPosition(
@@ -225,14 +225,7 @@ export function useLocationTracker(
                     );
                 },
                 (err) => {
-                    console.warn('[LocationTracker] web geolocation error:', err.message);
-                    if (err.code === err.PERMISSION_DENIED) {
-                        setBlockReason('permission_denied');
-                    } else if (err.code === err.POSITION_UNAVAILABLE) {
-                        setBlockReason('location_services_disabled');
-                    } else {
-                        setBlockReason('watcher_failed');
-                    }
+                    console.warn('[LocationTracker] Web geolocation error (non-blocking):', err.message);
                 },
                 {
                     enableHighAccuracy: true,

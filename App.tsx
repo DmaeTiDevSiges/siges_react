@@ -96,6 +96,7 @@ import { UserViewScreen } from './views/Admin/UserViewScreen';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
 import { LocationBlockedScreen } from './views/System/LocationBlockedScreen';
+import { Capacitor } from '@capacitor/core';
 import { useShiftMonitor } from './hooks/useShiftMonitor';
 import { Modal } from './components/ui/Modal';
 
@@ -2661,7 +2662,7 @@ const AppContent: React.FC = () => {
 
           {/* OrderVisitBottomNav has been moved to OrderVisitScreen component */}
 
-          {isLocationBlocked && (
+          {isLocationBlocked && Capacitor.isNativePlatform() && (
             <LocationBlockedScreen
               blockReason={blockReason}
               onRetry={() => setRetryLocation(prev => prev + 1)}
