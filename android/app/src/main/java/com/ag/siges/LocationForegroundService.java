@@ -68,8 +68,10 @@ public class LocationForegroundService extends Service {
     private String supabaseKey;
     private int intervalSeconds  = 60;
     private float distanceMeters = 50f;
+    private boolean hasOpenVisit = false;
 
     // Throttle por distância e tempo
+    private static final long MIN_SEND_INTERVAL_MS = 60_000; // 60 segundos
     private Location lastSentLocation = null;
     private long     lastSentTimeMs   = 0;
 
@@ -96,8 +98,9 @@ public class LocationForegroundService extends Service {
         supabaseKey   = intent.getStringExtra(EXTRA_SUPABASE_KEY);
         intervalSeconds  = intent.getIntExtra(EXTRA_INTERVAL_SEC, 60);
         distanceMeters   = intent.getFloatExtra(EXTRA_DISTANCE_M, 50f);
+        hasOpenVisit  = intent.getBooleanExtra("hasOpenVisit", false);
 
-        Log.i(TAG, "START — userId=" + userId + " interval=" + intervalSeconds + "s dist=" + distanceMeters + "m");
+        Log.i(TAG, "START — userId=" + userId + " interval=" + intervalSeconds + "s dist=" + distanceMeters + "m hasOpenVisit=" + hasOpenVisit);
 
         // Promove o service para Foreground (mostra a notificação persistente)
         startForegroundWithNotification();
@@ -121,9 +124,12 @@ public class LocationForegroundService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
+        String title = "SIGES";
+        String text = hasOpenVisit ? "Você possui uma visita em ABERTO." : "Entre para verificar demandas";
+
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Siges está rastreando")
-                .setContentText("Acesso à localização ativo.")
+                .setContentTitle(title)
+                .setContentText(text)
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setOngoing(true)           // Não pode ser removida pelo usuário
                 .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -199,18 +205,38 @@ public class LocationForegroundService extends Service {
 
     /**
      * Decide se deve enviar a nova localização baseado em:
-     * 1. Distância percorrida desde a última posição enviada (50m padrão)
-     * 2. Tempo decorrido desde o último envio (intervalSeconds padrão)
+     * 1. Throttling temporal mínimo (MIN_SEND_INTERVAL_MS = 60s) para evitar consumo excessivo de bateria/rede
+     * 2. Distância percorrida desde a última posição enviada (com limite adaptativo baseado na velocidade)
+     * 3. Tempo limite total decorrido (heartbeat temporal)
      */
     private boolean shouldSend(Location newLocation) {
         if (lastSentLocation == null || lastSentTimeMs == 0) return true;
 
-        float distanceMoved = lastSentLocation.distanceTo(newLocation);
         long  elapsedMs     = System.currentTimeMillis() - lastSentTimeMs;
+
+        // 1. Throttling Temporal: Bloqueia envios muito frequentes para economizar rádio e bateria
+        if (elapsedMs < MIN_SEND_INTERVAL_MS) {
+            return false;
+        }
+
+        float distanceMoved = lastSentLocation.distanceTo(newLocation);
         long  elapsedSec    = elapsedMs / 1000;
 
-        if (distanceMoved >= distanceMeters) {
-            Log.d(TAG, "✅ Send triggered by DISTANCE (" + Math.round(distanceMoved) + "m)");
+        // 2. Filtro Adaptativo por Velocidade
+        float currentDistanceFilter = distanceMeters;
+        if (newLocation.hasSpeed()) {
+            float speedMps = newLocation.getSpeed(); // metros por segundo
+            float speedKmh = speedMps * 3.6f;        // converte para km/h
+            
+            if (speedKmh > 50f) {
+                currentDistanceFilter = distanceMeters * 5; // ex: 250m se base for 50m
+            } else if (speedKmh > 20f) {
+                currentDistanceFilter = distanceMeters * 3; // ex: 150m se base for 50m
+            }
+        }
+
+        if (distanceMoved >= currentDistanceFilter) {
+            Log.d(TAG, "✅ Send triggered by DISTANCE (" + Math.round(distanceMoved) + "m), adaptive threshold: " + Math.round(currentDistanceFilter) + "m");
             return true;
         }
         if (elapsedSec >= intervalSeconds) {

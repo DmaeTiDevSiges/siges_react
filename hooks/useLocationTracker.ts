@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { permissionService } from '../services/permissionService';
+import { dataService } from '../services/dataService';
 
 /**
  * Plugin nativo Capacitor que controla o LocationForegroundService.java
@@ -13,6 +14,7 @@ const LocationService = registerPlugin<{
         supabaseKey: string;
         intervalSeconds: number;
         distanceMeters: number;
+        hasOpenVisit: boolean;
     }): Promise<void>;
     stop(): Promise<void>;
 }>('LocationService');
@@ -65,7 +67,8 @@ type BlockReason = null | 'permission_denied' | 'location_services_disabled' | '
 export function useLocationTracker(
     userId: string | undefined,
     trackerIntervalSeconds: number | null | undefined,
-    retryCount: number = 0
+    retryCount: number = 0,
+    hasOpenVisit: boolean = false
 ) {
     const watcherIdRef = useRef<string | null>(null);
     const webWatchIdRef = useRef<number | null>(null);
@@ -188,10 +191,11 @@ export function useLocationTracker(
                     supabaseKey: SUPABASE_KEY,
                     intervalSeconds: intervalSeconds,
                     distanceMeters: DISTANCE_FILTER_M,
+                    hasOpenVisit: hasOpenVisit,
                 });
                 // 'native' é usado como sentinela para saber que o serviço está ativo
                 watcherIdRef.current = 'native';
-                console.log('[LocationTracker] ✅ Native Foreground Service started');
+                console.log('[LocationTracker] ✅ Native Foreground Service started (hasOpenVisit=' + hasOpenVisit + ')');
                 // O heartbeat no lado JS é desabilitado no modo nativo —
                 // o Java envia heartbeat via HTTP diretamente quando o tempo esgota.
             } catch (err: any) {
@@ -302,7 +306,7 @@ export function useLocationTracker(
             }
             stopAll();
         };
-    }, [userId, trackerIntervalSeconds, retryCount]);
+    }, [userId, trackerIntervalSeconds, retryCount, hasOpenVisit]);
 
     return {
         isLocationBlocked,

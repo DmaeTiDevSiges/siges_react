@@ -33,6 +33,7 @@ public class LocationServicePlugin extends Plugin {
         String supabaseKey   = call.getString("supabaseKey");
         int    intervalSec   = call.getInt("intervalSeconds", 60);
         float  distanceM     = call.getFloat("distanceMeters", 50f);
+        boolean hasOpenVisit = call.getBoolean("hasOpenVisit", false);
 
         if (userId == null || supabaseUrl == null || supabaseKey == null) {
             call.reject("userId, supabaseUrl and supabaseKey are required");
@@ -47,6 +48,7 @@ public class LocationServicePlugin extends Plugin {
         intent.putExtra(LocationForegroundService.EXTRA_SUPABASE_KEY, supabaseKey);
         intent.putExtra(LocationForegroundService.EXTRA_INTERVAL_SEC, intervalSec);
         intent.putExtra(LocationForegroundService.EXTRA_DISTANCE_M,   distanceM);
+        intent.putExtra("hasOpenVisit", hasOpenVisit);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             ctx.startForegroundService(intent);
@@ -54,7 +56,7 @@ public class LocationServicePlugin extends Plugin {
             ctx.startService(intent);
         }
 
-        Log.i(TAG, "LocationForegroundService started for user " + userId);
+        Log.i(TAG, "LocationForegroundService started for user " + userId + " (hasOpenVisit=" + hasOpenVisit + ")");
         call.resolve();
     }
 

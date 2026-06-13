@@ -116,6 +116,36 @@ export const dataService = {
         }
     },
 
+    // Atualização de localização do usuário (tracker)
+    async updateUserLocation(
+        userId: string,
+        latitude: number,
+        longitude: number,
+        accuracy: number | null = null
+    ): Promise<void> {
+        try {
+            const now = getBrazilTimestamp();
+            const updatePayload: Record<string, any> = {
+                latitude,
+                longitude,
+                tracker_heartbeat_at: now,
+                tracked_at: now,
+            };
+            if (accuracy !== null) {
+                updatePayload.tracker_accuracy = accuracy;
+            }
+            const { error } = await supabase
+                .from('users')
+                .update(updatePayload)
+                .eq('id', userId);
+            if (error) {
+                console.error('[dataService] Error updating user location:', error);
+            }
+        } catch (error) {
+            console.error('[dataService] Exception updating user location:', error);
+        }
+    },
+
     // Limpar cache de metadados (útil após updates de empresas/usuários/unidades)
     clearMetadataCache() {
         metadataCache.companies = null;
@@ -2715,13 +2745,27 @@ export const dataService = {
             try {
                 const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-        if (authError || !authUser) {
-            // If token is invalid (401/403), clear it to prevent repeated network errors
-            if (authError) {
-                await supabase.auth.signOut().catch(() => { });
-            }
-            return null;
-        }
+                if (authError || !authUser) {
+                    // If token is invalid (401/403), clear it to prevent repeated network errors
+                    if (authError) {
+                        const status = authError.status;
+                        const isNetworkError = !status || status === 0 || 
+                                               authError.message?.toLowerCase().includes('fetch') ||
+                                               authError.message?.toLowerCase().includes('network') ||
+                                               authError.message?.toLowerCase().includes('timeout') ||
+                                               authError.message?.toLowerCase().includes('load failed') ||
+                                               authError.message?.toLowerCase().includes('connection');
+
+                        if (isNetworkError) {
+                            console.warn('[getCurrentUser] Erro de rede/conexão detectado durante a validação da sessão. Ignorando signOut e propagando o erro:', authError);
+                            throw authError; // Lança o erro para que o estado do usuário na UI não seja alterado para nulo
+                        }
+
+                        console.error('[getCurrentUser] Erro definitivo de autenticação, limpando sessão local:', authError);
+                        await supabase.auth.signOut().catch(() => { });
+                    }
+                    return null;
+                }
 
         const { data, error } = await supabase
             .from('users')
@@ -11767,34 +11811,7 @@ export const dataService = {
         return data?.tracker_interval_seconds ?? null;
     },
 
-    async updateUserLocation(
-        userId: string,
-        latitude: number,
-        longitude: number,
-        accuracy: number | null = null
-    ): Promise<void> {
-        const now = getBrazilTimestamp();
-        const update: Record<string, unknown> = {
-            latitude,
-            longitude,
-            // Liveness signal: updated on every tick, even if the user is stationary.
-            // Lets the server distinguish "tracker alive, user idle" from "tracker dead".
-            tracker_heartbeat_at: now,
-            tracked_at: now
-        };
-        if (accuracy !== null) {
-            update.tracker_accuracy = accuracy;
-        }
 
-        const { error } = await supabase
-            .from('users')
-            .update(update)
-            .eq('id', userId);
-
-        if (error) {
-            console.error('Error updating user location:', error);
-        }
-    },
 
     // -------------------------------------------------------------------------
     // PREVENTIVE MAINTENANCE PLANS

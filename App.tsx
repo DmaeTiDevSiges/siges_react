@@ -729,7 +729,13 @@ const AppContent: React.FC = () => {
   }, [notifications.length, currentUser?.id]);
 
   // Background location tracker — updates users.latitude, users.longitude and users.tracker_heartbeat_at
-  const { isLocationBlocked, blockReason } = useLocationTracker(currentUser?.id, currentUser?.trackerIntervalSeconds, retryLocation);
+  const hasOpenVisit = !!currentUser?.isOvInProgress || (!!currentUser?.ovIdInProgress && Number(currentUser.ovIdInProgress) > 0);
+  const { isLocationBlocked, blockReason } = useLocationTracker(
+    currentUser?.id,
+    currentUser?.trackerIntervalSeconds,
+    retryLocation,
+    hasOpenVisit
+  );
 
   // Background shift monitor - alerts user to change availability status based on shift hours
   const { showShiftAlert, dismissAlert } = useShiftMonitor(currentUser);

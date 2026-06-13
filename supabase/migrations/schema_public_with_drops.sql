@@ -1095,10 +1095,14 @@ CREATE TABLE public.users (
     migrated_at timestamp without time zone,
     latitude double precision,
     longitude double precision,
-    tracker_heartbeat_at timestamp without time zone,
-    tracker_accuracy double precision,
+    tracked_at timestamp without time zone,
     ov_id_in_progress_mask character varying,
-    tracker_interval_seconds integer DEFAULT 300
+    tracker_interval_seconds bigint DEFAULT 300,
+    shift_start time without time zone DEFAULT '08:00:00'::time without time zone,
+    shift_end time without time zone DEFAULT '18:00:00'::time without time zone,
+    last_online timestamp with time zone,
+    tracker_heartbeat_at timestamp without time zone,
+    tracker_accuracy double precision
 );
 
 
