@@ -3,6 +3,18 @@ import { dataService } from '../services/dataService';
 import { Company, User } from '../types';
 import { getInitials } from '../utils/formatters';
 
+const getRelativeTimeShort = (isoString?: string): string => {
+    if (!isoString) return '·';
+    const diff = Date.now() - new Date(isoString).getTime();
+    if (isNaN(diff) || diff < 0) return 'agora';
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h`;
+};
+
 interface UsersTeamsLeadersByCompanyIdProps {
     companyId: string;
     onUserClick?: (userId: string) => void;
@@ -124,9 +136,14 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
                                         )}
                                     </div>
                                 </div>
-                                <span className="text-[7px] font-semibold text-white/70 truncate max-w-[36px]">
-                                    {(tech.nameShort || '').split(' ')[0]}
-                                </span>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[7px] font-semibold text-white/70 truncate max-w-[36px] leading-tight">
+                                        {(tech.nameShort || '').split(' ')[0]}
+                                    </span>
+                                    <span className="text-[6px] text-white/40 font-medium leading-none mt-0.5">
+                                        {getRelativeTimeShort(tech.trackerHeartbeatAt)}
+                                    </span>
+                                </div>
                             </button>
                         );
                     })

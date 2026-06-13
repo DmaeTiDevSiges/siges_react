@@ -476,6 +476,8 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                 ? `<div style="background-image: url('${tech.avatarUrl}'); width: 100%; height: 100%; background-size: cover; background-position: center;"></div>`
                 : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #f0f7ff; color: #5a7b9a; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 800; text-transform: uppercase;">${initials}</div>`;
 
+            const timeLabel = getRelativeTimeShort(tech.trackerHeartbeatAt);
+
             const iconHtml = `
                 <div style="display:flex;flex-direction:column;align-items:center;">
                     <div style="background:#6366F1;color:white;font-size:8px;font-weight:800;padding:2px 5px;border-radius:5px;white-space:nowrap;box-shadow:0 2px 8px #6366F144;font-family:'Inter',sans-serif;">
@@ -485,7 +487,9 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                         <div style="width:38px;height:38px;border-radius:50%;border:3.5px solid #6366F1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:white;box-shadow:0 3px 12px #6366F144;">
                             ${avatarContent}
                         </div>
-                        <div style="position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);width:10px;height:10px;background:#6366F1;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>
+                        <div style="position:absolute;bottom:-4px;right:-4px;background:#6366F1;color:white;font-size:8px;font-weight:800;padding:1px 4px;border-radius:6px;line-height:1.3;box-shadow:0 2px 6px #6366F155;font-family:'Inter',sans-serif;white-space:nowrap;">
+                            ${timeLabel}
+                        </div>
                     </div>
                 </div>
             `;
