@@ -129,7 +129,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
     const [leaders, setLeaders] = useState<User[]>([]);
     const [visits, setVisits] = useState<DashboardVisit[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
+    const [selectedLeaderIds, setSelectedLeaderIds] = useState<Set<string>>(new Set());
     const [selectedVisitIds, setSelectedVisitIds] = useState<Set<string>>(new Set());
     const [unitsData, setUnitsData] = useState<Record<string, { lat: number, lng: number, imageUrl?: string }>>({});
     const [visitsTeams, setVisitsTeams] = useState<Record<string, OrderVisitTeam[]>>({});
@@ -205,8 +205,8 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 if (!matchesSearch) return false;
             }
 
-            // Leader Filter
-            if (selectedLeaderId && visit.teamLeaderId !== selectedLeaderId) return false;
+            // Leader Filter (multi-select)
+            if (selectedLeaderIds.size > 0 && visit.teamLeaderId && !selectedLeaderIds.has(String(visit.teamLeaderId))) return false;
 
             // Advanced Filters
             if (filters.statusId?.length && !filters.statusId.includes(String(visit.ovStatusId))) return false;
@@ -216,7 +216,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
 
             return true;
         });
-    }, [visits, activeStatFilter, searchQuery, selectedLeaderId, filters]);
+    }, [visits, activeStatFilter, searchQuery, selectedLeaderIds, filters]);
 
     const stats = useMemo(() => {
         const base = visits;
@@ -231,21 +231,19 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
     // --- Data Loading ---
     const loadInitialData = async () => {
         setIsLoading(true);
+        let localMappedVisits: DashboardVisit[] = [];
         try {
-            // Load Visits using the new view and date range
             const visitsData = await dataService.getOrdersVisitsView({
                 startDate: dateRange.start,
                 endDate: dateRange.end
             });
-            // Filter by date range (naive filter for now as getOrdersVisitsView doesn't take params)
             const actualVisitsData = (visitsData as any).data || visitsData;
             const filteredByDate = actualVisitsData.filter((v: any) => {
                 const date = (v.ov_started_at || v.ov_created_at || '').split('T')[0];
                 return date >= dateRange.start && date <= dateRange.end;
             });
 
-            // Map visits to our structure
-            const mappedVisits: DashboardVisit[] = filteredByDate.map(row => ({
+            localMappedVisits = filteredByDate.map(row => ({
                 id: row.id.toString(),
                 ovMask: row.ov_mask,
                 ovStatusId: row.ov_status_id,
@@ -273,9 +271,8 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description
             }));
 
-            setVisits(mappedVisits);
+            setVisits(localMappedVisits);
 
-            // Load Metadata for filters if not already loaded
             if (filterOptions.systems.length === 0) {
                 const [systems, unitTypes, orderTypes] = await Promise.all([
                     dataService.getSystemsParent(),
@@ -289,14 +286,21 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 });
             }
 
-            // Load Leaders - critério unificado: is_team_leader=true, status_id=2, company_id
             const [usersData, leadersList] = await Promise.all([
                 dataService.getUsers(),
                 dataService.getLeadersByCompany(company.id)
             ]);
             setUsers(usersData);
             setLeaders(leadersList);
-            // loadTeams(mappedVisits.map(v => v.id));
+
+            // Pre-select leaders who have open visits
+            const leaderIdsWithOpenVisits = new Set<string>();
+            localMappedVisits.forEach(v => {
+                if (v.teamLeaderId) {
+                    leaderIdsWithOpenVisits.add(String(v.teamLeaderId));
+                }
+            });
+            setSelectedLeaderIds(leaderIdsWithOpenVisits);
         } catch (error) {
             console.error('Error loading analytics data:', error);
             toast.error('Erro ao carregar dados do dashboard');
@@ -557,9 +561,17 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                         {leaders.map(leader => (
                             <button
                                 key={leader.id}
-                                onClick={() => setSelectedLeaderId(selectedLeaderId === leader.id ? null : leader.id)}
+                                onClick={() => {
+                                    const lid = String(leader.id);
+                                    setSelectedLeaderIds(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(lid)) next.delete(lid);
+                                        else next.add(lid);
+                                        return next;
+                                    });
+                                }}
                                 className={`flex items-center gap-2 p-1 pr-3 rounded-full backdrop-blur-md transition-all border shrink-0 ${
-                                    selectedLeaderId === leader.id
+                                    selectedLeaderIds.has(String(leader.id))
                                         ? 'bg-primary border-primary text-white scale-105 shadow-lg ring-2 ring-primary/20'
                                         : 'bg-white/80 dark:bg-slate-800/80 border-white/50 dark:border-slate-700/50 text-slate-700 dark:text-slate-300'
                                 }`}

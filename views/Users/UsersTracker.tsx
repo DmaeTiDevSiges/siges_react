@@ -6,7 +6,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { getInitials } from '../../utils/formatters';
+import { haversineDistance, formatDistance } from '../../utils/geo';
 import { UsersTeamsLeadersByCompanyId } from '../../components/UsersTeamsLeadersByCompanyId';
+import { Capacitor } from '@capacitor/core';
 
 const getRelativeTime = (isoString?: string): string => {
     if (!isoString) return 'Sem dados';
@@ -34,19 +36,6 @@ const getRelativeTimeShort = (isoString?: string): string => {
     return `${hours}h`;
 };
 
-function formatDistance(meters: number): string {
-    if (meters < 1000) return `${Math.round(meters)}m`;
-    return `${(meters / 1000).toFixed(1)}km`;
-}
-
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371e3;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 interface UsersTrackerProps {
     company: Company;
     onBack?: () => void;
@@ -73,6 +62,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
     const unitMarkersRef = useRef<Map<string, L.Marker>>(new Map());
     const pinnedMarkersRef = useRef<Map<string, L.Marker>>(new Map());
     const isFirstLoadRef = useRef(true);
+    const preselectDoneRef = useRef(false);
     const prevSelectedVisitIdsRef = useRef<Set<string>>(new Set());
     const prevSelectedLeaderIdRef = useRef<string | null>(null);
     const prevPinnedTechIdsRef = useRef<Set<string>>(new Set());
@@ -120,6 +110,15 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
         setUsers(allUsers);
         setLeaders(allLeaders);
         setTodayVisits(visits);
+
+        // Pre-select open visits on first load so technicians appear selected by default
+        if (!preselectDoneRef.current) {
+            preselectDoneRef.current = true;
+            const openVisitIds = visits.filter(v => !v.ovEndedAt).map(v => v.id);
+            if (openVisitIds.length > 0) {
+                setSelectedVisitIds(new Set(openVisitIds));
+            }
+        }
 
         const visitIds = visits.map(v => v.id);
         if (visitIds.length > 0) {
@@ -223,6 +222,13 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
         }).addTo(mapInstance);
 
         L.control.zoom({ position: 'topright' }).addTo(mapInstance);
+
+        setTimeout(() => {
+            mapInstance.invalidateSize();
+            const container = mapInstance.getContainer();
+            container.style.border = 'none';
+            container.style.outline = 'none';
+        }, 0);
 
         leafletMapRef.current = mapInstance;
 
@@ -652,37 +658,9 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
     }, [selectedVisitIds, users, unitsData, todayVisits]);
 
     return (
-        <div className="relative h-full w-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+        <div className="absolute inset-0 w-full h-full">
             {/* Map Area */}
-            <div className="absolute inset-0 z-0">
-                <div ref={mapRef} className="h-full w-full rounded-[16px] overflow-hidden" />
-            </div>
-
-            {/* #9 Route Legend */}
-            {selectedVisitIds.size > 1 && (
-                <div className="absolute top-16 right-4 z-20 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl p-2.5 shadow-lg border border-white/20 dark:border-slate-700/30">
-                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-1.5">Rotas</span>
-                    <div className="flex flex-col gap-1">
-                        {[...selectedVisitIds].map(visitId => {
-                            const visit = todayVisits.find(v => v.id === visitId);
-                            if (!visit) return null;
-                            const color = getVisitColor(visitId, selectedVisitIds);
-                            const dist = routeDistances[visitId];
-                            return (
-                                <div key={visitId} className="flex items-center gap-1.5">
-                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                                    <span className="text-[8px] font-semibold text-slate-600 dark:text-slate-300 truncate max-w-[80px]">
-                                        {visit.unitDescription || `#${visit.id}`}
-                                    </span>
-                                    {dist && (
-                                        <span className="text-[8px] font-bold text-slate-400">{formatDistance(dist)}</span>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
+            <div ref={mapRef} className="absolute inset-0" style={{ border: 'none', outline: 'none' }} />
 
             {/* Technician avatars bar - all leaders with status border */}
             {(() => {
@@ -698,6 +676,22 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                         <UsersTeamsLeadersByCompanyId
                             companyId={company.id}
                             pinnedUserIds={combinedPinnedIds}
+                            titleContent={
+                                <>
+                                    {Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android' && onBack && (
+                                        <button
+                                            onClick={onBack}
+                                            className="mr-2 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                                        >
+                                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                    <img src="/siges_logo.png" alt="Siges" className="w-12 h-12 object-contain" />
+                                    <p className="text-xl font-black text-white select-none">Visitas em tempo real</p>
+                                </>
+                            }
                             onUserClick={(userId) => {
                                 // Técnico com visita aberta → seleciona/deseleciona a visita (igual ao card inferior)
                                 const openVisit = todayVisits.find(v => v.ovTeamLeadId === userId && !v.ovEndedAt);

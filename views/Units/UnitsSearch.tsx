@@ -8,6 +8,7 @@ import { Loading } from '../../components/ui/Loading';
 import { UnitsListPDFButton } from '../../components/reports/UnitsListPDFButton';
 import { FilterSelect } from '../../components/ui/FilterSelect';
 import { Modal } from '../../components/ui/Modal';
+import { haversineDistance, formatDistance } from '../../utils/geo';
 
 interface SelectedFilters {
     systemParentId?: string | string[];
@@ -85,6 +86,15 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         currentValue: []
     });
 
+    // Proximity filter state
+    const [nearbyEnabled, setNearbyEnabled] = useState(false);
+    const [nearbyRadius, setNearbyRadius] = useState<number>(5000); // meters
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [locationLoading, setLocationLoading] = useState(false);
+    const [unitDistances, setUnitDistances] = useState<Map<string, number>>(new Map());
+    const [searchTrigger, setSearchTrigger] = useState(0);
+    const [showRadiusModal, setShowRadiusModal] = useState(false);
+
     // Load parent options on mount
     useEffect(() => {
         const loadInitialFilterOptions = async () => {
@@ -113,6 +123,38 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             sessionStorage.setItem('units_selected_filters', JSON.stringify(selectedFilters));
         } catch { /* ignore */ }
     }, [selectedFilters]);
+
+    // Request user location when nearby filter is enabled
+    useEffect(() => {
+        if (!nearbyEnabled || userLocation) return;
+
+        // Try to use stored user location first (from tracker)
+        if (currentUser.latitude && currentUser.longitude) {
+            setUserLocation({
+                lat: currentUser.latitude,
+                lng: currentUser.longitude
+            });
+            return;
+        }
+
+        // Fallback: request GPS location
+        setLocationLoading(true);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setUserLocation({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                });
+                setLocationLoading(false);
+            },
+            (error) => {
+                console.warn('Geolocation error:', error.message);
+                setLocationLoading(false);
+                // Don't disable nearby — user can still see all units without distance
+            },
+            { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 }
+        );
+    }, [nearbyEnabled, userLocation, currentUser.latitude, currentUser.longitude]);
 
     const handleSystemParentChange = useCallback(async (systemParentId: string | string[]) => {
         setSelectedFilters(prev => ({ ...prev, systemParentId, systemId: [] }));
@@ -182,6 +224,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
     const handleSearch = () => {
         setAppliedSearch(search);
         setAppliedFilters(selectedFilters);
+        setSearchTrigger(prev => prev + 1);
         try {
             sessionStorage.setItem('units_applied_filters', JSON.stringify(selectedFilters));
         } catch { /* ignore */ }
@@ -249,7 +292,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         };
 
         const fetchData = async () => {
-            const shouldFetch = (appliedSearch && appliedSearch.trim().length > 0) || hasActiveAppliedFilters;
+            const shouldFetch = (appliedSearch && appliedSearch.trim().length > 0) || hasActiveAppliedFilters || nearbyEnabled;
 
             if (!shouldFetch) {
                 setUnits([]);
@@ -269,7 +312,39 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
 
                 const allUnitsMap = new Map();
 
-                if (appliedSearch && appliedSearch.trim().length > 0) {
+                if (nearbyEnabled && userLocation) {
+                    // Nearby mode: fetch all units with coordinates and calculate distances
+                    // (text search is applied client-side in filteredUnits)
+                    let statusParam: 'all' | 'active' | 'inactive' = 'active';
+                    if (appliedFilters.statusId && appliedFilters.statusId.length > 0) {
+                        const hasActive = appliedFilters.statusId.includes('3');
+                        const hasInactive = appliedFilters.statusId.includes('4');
+                        if (hasActive && hasInactive) statusParam = 'all';
+                        else if (hasActive) statusParam = 'active';
+                        else if (hasInactive) statusParam = 'inactive';
+                    } else {
+                        statusParam = 'all';
+                    }
+
+                    const dbUnits = await dataService.getUnitsWithCoordinates(statusParam);
+                    const distances = new Map<string, number>();
+
+                    dbUnits.forEach((u: any) => {
+                        const mapped = mapRawUnit(u);
+                        if (mapped.latitude && mapped.longitude) {
+                            const dist = haversineDistance(
+                                userLocation.lat,
+                                userLocation.lng,
+                                mapped.latitude,
+                                mapped.longitude
+                            );
+                            distances.set(mapped.id, dist);
+                        }
+                        allUnitsMap.set(mapped.id, mapped);
+                    });
+
+                    setUnitDistances(distances);
+                } else if (appliedSearch && appliedSearch.trim().length > 0) {
                     const searchNorm = appliedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
                     // 1. Search Units directly (Server-Side)
@@ -327,7 +402,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             }
         };
         fetchData();
-    }, [appliedSearch, appliedFiltersKey, hasActiveAppliedFilters]);
+    }, [appliedSearch, appliedFiltersKey, hasActiveAppliedFilters, nearbyEnabled, userLocation, searchTrigger]);
 
     // Apply filters client-side and sort alphabetically by description
     const filteredUnits = useMemo(() => {
@@ -375,13 +450,44 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             return true;
         });
 
-        // Sort alphabetically by description/name
+        // Apply text search filter when nearby is enabled (search is client-side in nearby mode)
+        const textFiltered = nearbyEnabled && appliedSearch && appliedSearch.trim().length > 0
+            ? (() => {
+                const searchNorm = appliedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const terms = searchNorm.split(/\s+/).filter(Boolean);
+                return filtered.filter(unit => {
+                    const desc = (unit.descriptionFull || unit.description || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const code = (unit.code || '').toLowerCase();
+                    const client = (unit.clientName || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    return terms.every(term => desc.includes(term) || code.includes(term) || client.includes(term));
+                });
+            })()
+            : filtered;
+
+        // Filter by proximity radius when nearby is enabled
+        const proximityFiltered = nearbyEnabled && userLocation
+            ? textFiltered.filter(unit => {
+                const dist = unitDistances.get(unit.id);
+                if (dist == null) return false; // Exclude units without coordinates
+                return dist <= nearbyRadius;
+            })
+            : textFiltered;
+
+        // Sort: by distance when nearby, alphabetically otherwise
+        if (nearbyEnabled && userLocation) {
+            return proximityFiltered.sort((a, b) => {
+                const distA = unitDistances.get(a.id) ?? Infinity;
+                const distB = unitDistances.get(b.id) ?? Infinity;
+                return distA - distB;
+            });
+        }
+
         return filtered.sort((a, b) => {
             const descA = a.descriptionFull || a.description || '';
             const descB = b.descriptionFull || b.description || '';
             return descA.localeCompare(descB, 'pt-BR', { sensitivity: 'base' });
         });
-    }, [units, appliedFiltersKey]);
+    }, [units, appliedFiltersKey, nearbyEnabled, userLocation, nearbyRadius, unitDistances, appliedSearch]);
 
     const visibleUnits = useMemo(() => filteredUnits.slice(0, visibleCount), [filteredUnits, visibleCount]);
     const hasMore = visibleCount < filteredUnits.length;
@@ -441,6 +547,54 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             <div className="px-4 pt-4 pb-3 bg-linear-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary/20 dark:via-primary/10 border-b border-primary/10 dark:border-primary/20 flex flex-col gap-3">
                 {/* Filter Select Bar */}
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1">
+                    {/* Nearby Button */}
+                    <div
+                        onClick={() => {
+                            if (nearbyEnabled) {
+                                setShowRadiusModal(true);
+                            } else {
+                                setNearbyEnabled(true);
+                                setShowRadiusModal(true);
+                            }
+                        }}
+                        className={`relative flex items-center w-auto shrink-0 min-w-[110px] h-[42px] cursor-pointer transition-opacity`}
+                    >
+                        <div className={`flex items-stretch h-full w-full bg-white dark:bg-slate-800 border rounded-xl shadow-sm overflow-hidden transition-all ${
+                            nearbyEnabled
+                                ? 'border-primary ring-1 ring-primary/20'
+                                : 'border-slate-200 dark:border-slate-700'
+                        }`}>
+                            <div className="flex-1 px-3 flex flex-col justify-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                <div className="flex items-center gap-1 mb-0.5">
+                                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none whitespace-nowrap">RAIO (KM)</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className={`text-[11px] font-bold whitespace-nowrap ${
+                                        nearbyEnabled ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
+                                    }`}>
+                                        {nearbyEnabled ? `${nearbyRadius >= 1000 ? `${nearbyRadius / 1000}km` : `${nearbyRadius}m`}` : 'Todos'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {nearbyEnabled && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setNearbyEnabled(false);
+                                        setUserLocation(null);
+                                        setUnitDistances(new Map());
+                                    }}
+                                    className="px-3 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors border-l border-slate-100 dark:border-slate-700/50"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">close</span>
+                                </button>
+                            )}
+                        </div>
+                        {locationLoading && (
+                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full animate-ping" />
+                        )}
+                    </div>
                     <FilterSelect
                         label="SISTEMA"
                         value={selectedFilters.systemParentId || []}
@@ -541,6 +695,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                                 <UnitCardListItem
                                     key={unit.id}
                                     unit={unit}
+                                    distance={unitDistances.get(unit.id)}
                                     onClick={(u) => onSelectUnit?.(u)}
                                 />
                             ))}
@@ -554,8 +709,8 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                                     className="px-6 py-3 bg-white dark:bg-card-dark border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-primary transition-all active:scale-95 shadow-sm"
                                 >
                                     Carregar mais ({filteredUnits.length - visibleCount} restantes)
-                                </button>
-                            </div>
+                    </button>
+                </div>
                         )}
                     </>
                 )}
@@ -583,6 +738,53 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                     initialValue={selectionModal.currentValue}
                     onConfirm={handleModalConfirm}
                 />
+            </Modal>
+
+            {/* Radius Selection Modal */}
+            <Modal
+                isOpen={showRadiusModal}
+                onClose={() => setShowRadiusModal(false)}
+                title="Selecionar Raio"
+                maxWidth="sm"
+            >
+                <div className="flex flex-col gap-3 p-2">
+                    {locationLoading && (
+                        <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+                            <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[18px]">location_searching</span>
+                            <span className="text-xs font-bold text-amber-700 dark:text-amber-300">Obtendo localização...</span>
+                        </div>
+                    )}
+                    {[
+                        { value: 1000, label: '1 km', desc: 'Muito próximo' },
+                        { value: 3000, label: '3 km', desc: 'Próximo' },
+                        { value: 5000, label: '5 km', desc: 'Padrão' },
+                        { value: 10000, label: '10 km', desc: 'Médio alcance' },
+                        { value: 25000, label: '25 km', desc: 'Longo alcance' },
+                    ].map(opt => (
+                        <button
+                            key={opt.value}
+                            onClick={() => {
+                                setNearbyRadius(opt.value);
+                                setShowRadiusModal(false);
+                            }}
+                            className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                                nearbyRadius === opt.value
+                                    ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                                    : 'border-slate-200 dark:border-slate-700 hover:border-primary/50 bg-white dark:bg-slate-800'
+                            }`}
+                        >
+                            <div className="flex flex-col items-start gap-0.5">
+                                <span className={`text-sm font-bold ${nearbyRadius === opt.value ? 'text-primary' : 'text-slate-900 dark:text-white'}`}>
+                                    {opt.label}
+                                </span>
+                                <span className="text-[11px] text-slate-400 dark:text-slate-500">{opt.desc}</span>
+                            </div>
+                            {nearbyRadius === opt.value && (
+                                <span className="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+                            )}
+                        </button>
+                    ))}
+                </div>
             </Modal>
         </div>
     );

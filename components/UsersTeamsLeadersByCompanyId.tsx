@@ -20,13 +20,15 @@ interface UsersTeamsLeadersByCompanyIdProps {
     onUserClick?: (userId: string) => void;
     pinnedUserIds?: Set<string>;
     className?: string;
+    titleContent?: React.ReactNode;
 }
 
 export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyIdProps> = ({ 
     companyId, 
     onUserClick, 
     pinnedUserIds = new Set(),
-    className = ''
+    className = '',
+    titleContent
 }) => {
     const [company, setCompany] = useState<Company | null>(null);
     const [leaders, setLeaders] = useState<User[]>([]);
@@ -74,6 +76,11 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
 
     return (
         <div className={`bg-slate-900/80 dark:bg-slate-950/80 backdrop-blur-md rounded-2xl px-3 shadow-lg border border-white/10 w-fit max-w-full ${className}`}>
+            {titleContent && (
+                <div className="flex items-center gap-2 py-1.5 px-0.5 select-none">
+                    {titleContent}
+                </div>
+            )}
             <div className="flex items-center gap-2 py-1 px-0.5 overflow-x-auto no-scrollbar">
                 {/* Avatar da empresa — quadrado, maior */}
                 <div

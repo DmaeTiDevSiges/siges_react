@@ -1503,6 +1503,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                             ) : (
                                 <OrderRequestCardListItem
                                     order={selectedFullOrder}
+                                    currentUser={currentUser}
                                     onClick={() => onOrderSelect && onOrderSelect(selectedFullOrder as any)}
                                     noBorder
                                     noShadow

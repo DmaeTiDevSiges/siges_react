@@ -29,9 +29,9 @@ class DataQualityServiceImpl {
   private listeners: Set<DataQualityChangeCallback> = new Set();
   private currentStatus: DataQualityStatus;
   private metricsHistory: DataQualityMetrics[] = [];
-  private monitoringInterval: ReturnType<typeof setInterval> | null = null;
+  private monitoringTimeout: ReturnType<typeof setTimeout> | null = null;
   private isMonitoring = false;
-  private testEndpoint = 'https://cloudflare.com/cdn-cgi/trace'; // Endpoint ultrarrápido para teste de latência e banda
+  private testEndpoint = 'https://cloudflare.com/cdn-cgi/trace'; // Endpoint rápido para teste de latência
 
   constructor() {
     this.currentStatus = this.getInitialStatus();
@@ -58,7 +58,7 @@ class DataQualityServiceImpl {
   /**
    * Inicia o monitoramento contínuo da qualidade dos dados
    */
-  async startMonitoring(intervalMs: number = 30000) {
+  async startMonitoring(intervalMs: number = 120000) {
     if (this.isMonitoring) return;
 
     this.isMonitoring = true;
@@ -66,23 +66,41 @@ class DataQualityServiceImpl {
     // Executa primeira medição imediatamente
     await this.performQualityTest();
     
-    // Inicia monitoramento contínuo
-    this.monitoringInterval = setInterval(async () => {
-      await this.performQualityTest();
-    }, intervalMs);
+    // Agenda próxima medição com setTimeout recursivo (evita acúmulo de execuções)
+    this.scheduleNextMonitoring(intervalMs);
 
     console.log('[DataQualityService] Monitoramento iniciado com intervalo de', intervalMs, 'ms');
+  }
+
+  /**
+   * Agenda a próxima medição com setTimeout recursivo
+   * Isso evita que múltiplas execuções se sobreponham (ao contrário do setInterval)
+   */
+  private scheduleNextMonitoring(intervalMs: number) {
+    if (!this.isMonitoring) return;
+
+    this.monitoringTimeout = setTimeout(async () => {
+      if (!this.isMonitoring) return;
+      
+      try {
+        await this.performQualityTest();
+      } catch (error) {
+        console.error('[DataQualityService] Erro na medição agendada:', error);
+      }
+      
+      this.scheduleNextMonitoring(intervalMs);
+    }, intervalMs);
   }
 
   /**
    * Para o monitoramento
    */
   stopMonitoring() {
-    if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
-      this.monitoringInterval = null;
-    }
     this.isMonitoring = false;
+    if (this.monitoringTimeout) {
+      clearTimeout(this.monitoringTimeout);
+      this.monitoringTimeout = null;
+    }
     console.log('[DataQualityService] Monitoramento parado');
   }
 
@@ -117,11 +135,11 @@ class DataQualityServiceImpl {
   private async collectMetrics(): Promise<DataQualityMetrics> {
     const startTime = Date.now();
     
-    // Teste de latência
+    // Teste de latência (requisição HEAD leve ao endpoint)
     const latency = await this.measureLatency();
     
-    // Teste de largura de banda
-    const bandwidth = await this.measureBandwidth();
+    // Teste de largura de banda (estimativa local, sem tráfego HTTP)
+    const bandwidth = await this.measureBandwidth(latency);
     
     // Estabilidade baseada no histórico
     const stability = this.calculateStability();
@@ -165,69 +183,42 @@ class DataQualityServiceImpl {
   }
 
   /**
-   * Método fallback para medição de latência
+   * Método fallback para medição de latência (sem requisição HTTP)
+   * Estima latência baseada no tipo de conexão — evita CORS e consumo de banda
    */
   private async measureLatencyFallback(): Promise<number> {
-    try {
-      const start = Date.now();
-      await fetch('https://www.google.com', {
-        method: 'HEAD',
-        cache: 'no-cache'
-      });
-      return Date.now() - start;
-    } catch {
-      // Se tudo falhar, retorna um estimativa baseada no tipo de conexão
-      const connectionType = this.getConnectionType();
-      switch (connectionType) {
-        case 'wifi': return 50;
-        case '5g': return 30;
-        case '4g': return 80;
-        case 'cellular': return 120;
-        default: return 100;
-      }
+    const connectionType = this.getConnectionType();
+    switch (connectionType) {
+      case 'wifi': return 50;
+      case '5g': return 30;
+      case '4g': return 80;
+      case 'cellular': return 120;
+      default: return 100;
     }
   }
 
   /**
-   * Mede largura de banda de forma aproximada
+   * Estima largura de banda com base no tipo de conexão e latência medida
+   * Sem requisição HTTP — evita consumo de dados e disputa por conexões
    */
-  private async measureBandwidth(): Promise<number> {
-    try {
-      // Cria um blob de teste de 1MB
-      const testSize = 1024 * 1024; // 1MB
-      const testData = new Uint8Array(testSize);
-      
-      const startTime = Date.now();
-      
-      // Envia dados de teste
-      const response = await fetch(this.testEndpoint, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: testData,
-        signal: AbortSignal.timeout(10000)
-      });
-      
-      const endTime = Date.now();
-      const duration = (endTime - startTime) / 1000; // segundos
-      
-      // Calcula largura de banda: tamanho / tempo (bits/segundo)
-      const bandwidth = (testSize * 8) / duration / 1024 / 1024; // Mbps
-      
-      return Math.max(0, bandwidth);
-    } catch (error) {
-      // Retorna estimativa baseada no tipo de conexão
-      const connectionType = this.getConnectionType();
-      switch (connectionType) {
-        case 'wifi': return 25;
-        case '5g': return 50;
-        case '4g': return 10;
-        case 'cellular': return 5;
-        default: return 8;
-      }
+  private async measureBandwidth(measuredLatency: number): Promise<number> {
+    const connectionType = this.getConnectionType();
+
+    // Estimativa base por tipo de conexão
+    let baseEstimate: number;
+    switch (connectionType) {
+      case 'wifi': baseEstimate = 25; break;
+      case '5g': baseEstimate = 50; break;
+      case '4g': baseEstimate = 10; break;
+      case 'cellular': baseEstimate = 5; break;
+      default: baseEstimate = 8;
     }
+
+    // Ajusta pela latência medida (latência alta = largura de banda menor)
+    if (measuredLatency > 0 && measuredLatency < 200) return baseEstimate;
+    if (measuredLatency >= 200 && measuredLatency < 500) return Math.round(baseEstimate * 0.7);
+    if (measuredLatency >= 500) return Math.round(baseEstimate * 0.4);
+    return baseEstimate;
   }
 
   /**

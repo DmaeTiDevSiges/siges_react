@@ -8,7 +8,7 @@ task npmBuildAndSync(type: Exec) {
 
     def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
     if (isWindows) {
-        commandLine 'cmd', '/c', 'npm run build:android'
+        commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-Command', 'npm run build:android'
     } else {
         commandLine 'bash', '-c', 'npm run build:android'
     }

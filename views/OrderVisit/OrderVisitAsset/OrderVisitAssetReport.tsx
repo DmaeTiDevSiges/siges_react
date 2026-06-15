@@ -1519,8 +1519,13 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 <div className="fixed inset-0 z-150 bg-slate-50 dark:bg-slate-950 animate-in slide-in-from-right duration-300 overflow-y-auto">
                     {/* Page Header */}
                     <div className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-100 dark:border-slate-800 p-4">
-                        <div className="max-w-md mx-auto flex items-center gap-4">
-
+                        <div className="max-w-md flex items-center gap-4">
+                            <button
+                                onClick={() => setShowSwapPage(false)}
+                                className="p-2 -ml-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                <span className="material-symbols-outlined">arrow_back</span>
+                            </button>
                             <h2 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Buscar Ativo</h2>
                         </div>
                     </div>

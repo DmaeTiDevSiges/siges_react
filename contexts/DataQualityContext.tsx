@@ -26,7 +26,7 @@ export const DataQualityProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     // Inicia monitoramento automático após 5 segundos
     const initDelay = setTimeout(() => {
-      startDataQualityMonitoring(30000); // 30 segundos de intervalo
+      startDataQualityMonitoring(120000); // 2 minutos de intervalo (reduzido de 30s para evitar sobrecarga)
     }, 5000);
 
     return () => {

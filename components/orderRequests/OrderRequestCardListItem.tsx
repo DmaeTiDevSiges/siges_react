@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Order } from '../../types';
+import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
 import { CompanyAvatar } from '../ui/CompanyAvatar';
 import { Avatar } from '../ui/Avatar';
@@ -10,6 +10,7 @@ import { PhotoViewer } from '../ui/PhotoViewer';
 
 interface OrderRequestCardListItemProps {
     order: Order;
+    currentUser?: User | null;
     onClick?: () => void;
     onSuccess?: () => void;
     onEdit?: (order: Order) => void;
@@ -17,7 +18,7 @@ interface OrderRequestCardListItemProps {
     noShadow?: boolean;
 }
 
-export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> = ({ order: req, onClick, onSuccess, onEdit, noBorder, noShadow }) => {
+export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> = ({ order: req, currentUser, onClick, onSuccess, onEdit, noBorder, noShadow }) => {
     const [showViewer, setShowViewer] = useState(false);
     const [viewerIndex, setViewerIndex] = useState(0);
     const statusCfg = getStatusConfig(req.statusId);
@@ -179,7 +180,7 @@ export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> =
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{req.causeReasonDescription || (req as any).cause_reason_description}</span>
                             </div>
                             <div onClick={(e) => e.stopPropagation()} className="relative z-10">
-                                <OrderActionManager order={req} onSuccess={onSuccess} onEdit={onEdit} />
+                                <OrderActionManager order={req} currentUser={currentUser ?? null} onSuccess={onSuccess} onEdit={onEdit} />
                             </div>
                         </div>
                     </div>

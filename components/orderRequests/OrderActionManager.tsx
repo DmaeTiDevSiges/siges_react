@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useOrderActions, OrderActionType } from '../../hooks/useOrderActions';
-import { Order } from '../../types';
+import { Order, User } from '../../types';
 import { AuthorizeOrderModal } from './modals/AuthorizeOrderModal';
 import { ScheduleOrderModal } from './modals/ScheduleOrderModal';
 import { CancelOrderModal } from './modals/CancelOrderModal';
 import { UpdateTeamModal } from './modals/UpdateTeamModal';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface OrderActionManagerProps {
     order: Order;
+    currentUser: User | null;
     onSuccess?: () => void;
     onEdit?: (order: Order) => void;
     className?: string;
@@ -26,11 +26,11 @@ const variantColors: Record<string, { bg: string; text: string }> = {
  */
 export const OrderActionManager: React.FC<OrderActionManagerProps> = ({
     order,
+    currentUser,
     onSuccess,
     onEdit,
     className
 }) => {
-    const { currentUser } = useAuth();
     const { actions } = useOrderActions(order, currentUser);
 
     const [showMenu, setShowMenu] = useState(false);
@@ -83,13 +83,20 @@ export const OrderActionManager: React.FC<OrderActionManagerProps> = ({
                     {/* Backdrop */}
                     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-300" />
 
-                    {/* Sheet */}
                     <div
-                        className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
+                        className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
                         onClick={(e) => e.stopPropagation()}
                     >
+                        {/* Close Icon Button - Top Right */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}
+                            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">close</span>
+                        </button>
+
                         {/* Drag Handle */}
-                        <div className="w-12 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full mx-auto mb-8" />
+                        <div className="w-12 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full mx-auto mb-14" />
 
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-3">
@@ -122,14 +129,6 @@ export const OrderActionManager: React.FC<OrderActionManagerProps> = ({
                                 );
                             })}
                         </div>
-
-                        {/* Close Button */}
-                        <button
-                            onClick={() => setShowMenu(false)}
-                            className="w-full mt-8 py-2 text-slate-400 font-bold uppercase tracking-widest text-[10px] hover:text-slate-600 transition-colors"
-                        >
-                            Fechar Menu
-                        </button>
                     </div>
                 </div>,
                 document.body

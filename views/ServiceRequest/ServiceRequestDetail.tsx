@@ -207,6 +207,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                                                 <OrderCardDetail
                                                     key={childOrder.id}
                                                     order={childOrder}
+                                                    currentUser={currentUser}
                                                     onSuccess={onRefreshOrder}
                                                     onClick={() => {
                                                         onSelectOrder?.(childOrder);

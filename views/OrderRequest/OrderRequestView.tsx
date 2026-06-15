@@ -335,10 +335,18 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                     <div className="fixed inset-0 z-100 flex items-end justify-center" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}>
                         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-300" />
                         <div
-                            className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
+                            className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="w-12 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full mx-auto mb-8" />
+                            {/* Close Icon Button - Top Right */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}
+                                className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">close</span>
+                            </button>
+
+                            <div className="w-12 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full mx-auto mb-14" />
 
                             <div className="flex flex-col gap-3">
                                 <button
@@ -371,13 +379,6 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                     </div>
                                 </button>
                             </div>
-
-                            <button
-                                onClick={() => setShowMenu(false)}
-                                className="w-full mt-8 py-2 text-slate-400 font-bold uppercase tracking-widest text-[10px] hover:text-slate-600 transition-colors"
-                            >
-                                Fechar Menu
-                            </button>
                         </div>
                     </div>,
                     document.body
@@ -441,6 +442,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                             <div className="z-10 mx-1">
                                 <OrderCardDetail
                                     order={order}
+                                    currentUser={currentUser}
                                     onStartVisit={canStartVisit ? () => setShowConfirmVisit(true) : undefined}
                                     onSuccess={onRefreshOrder}
                                     onEdit={onEdit}

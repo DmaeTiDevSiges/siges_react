@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Order } from '../../types';
+import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
 import { CompanyAvatar } from '../ui/CompanyAvatar';
 import { formatDateTime, getPriorityColor, getStatusConfig } from '../../utils/formatters';
@@ -12,6 +12,7 @@ import { Loading } from '../ui/Loading';
 
 interface OrderCardDetailProps {
     order: Order;
+    currentUser?: User | null;
     onClick?: () => void;
     onStartVisit?: () => void;
     onSuccess?: () => void;
@@ -21,7 +22,7 @@ interface OrderCardDetailProps {
     noShadow?: boolean;
 }
 
-export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, onClick, onStartVisit, onSuccess, onEdit, isStartingVisit, noBorder, noShadow }) => {
+export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, currentUser, onClick, onStartVisit, onSuccess, onEdit, isStartingVisit, noBorder, noShadow }) => {
     const [showViewer, setShowViewer] = useState(false);
     const [viewerIndex, setViewerIndex] = useState(0);
     const statusCfg = getStatusConfig(req.statusId);
@@ -180,7 +181,7 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, on
                         <span className="text-[9px] font-bold text-slate-400">{formatDateTime(req.statusAt || (req as any).status_at)}</span>
                         <span className="text-[9px] font-black text-slate-500/70 dark:text-slate-400/50 uppercase tracking-tighter">{req.teamCode || (req as any).team_code || '---'} {(req.teamLeaderNameShort || (req as any).team_leader_name_short) && `| ${req.teamLeaderNameShort || (req as any).team_leader_name_short}`}</span>
                     </div>
-                    <OrderActionManager order={req} onSuccess={onSuccess} onEdit={onEdit} />
+                    <OrderActionManager order={req} currentUser={currentUser ?? null} onSuccess={onSuccess} onEdit={onEdit} />
                 </div>
             </div>
 

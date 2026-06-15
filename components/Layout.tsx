@@ -24,6 +24,7 @@ interface LayoutProps {
   loading?: boolean;
   loadingText?: string;
   titleRightElement?: React.ReactNode;
+  hideHeader?: boolean;
 }
 
 export const Layout: React.FC<LayoutProps> = ({
@@ -45,7 +46,8 @@ export const Layout: React.FC<LayoutProps> = ({
   isDashboard = false,
   loading = false,
   loadingText,
-  titleRightElement
+  titleRightElement,
+  hideHeader = false
 }) => {
   const mainRef = React.useRef<HTMLElement>(null);
 
@@ -61,26 +63,28 @@ export const Layout: React.FC<LayoutProps> = ({
       {sidebar}
 
       <div className="flex flex-col flex-1 min-w-0">
-        <div className="safe-area-top bg-surface-light dark:bg-card-dark">
-          <div className="w-full">
-            <Header
-              title={title}
-              onMenuClick={onMenuClick}
-              showBackButton={showBackButton}
-              onBackClick={onBackClick}
-              currentUser={showUserHeader ? currentUser : null}
-              onStatusChange={onStatusChange}
-              onNotificationsClick={onNotificationsClick}
-              onProfileClick={onProfileClick}
-              rightAction={rightAction}
-              tabNavigation={tabNavigation}
-              hideBorder={hideHeaderBorder}
-              titleRightElement={titleRightElement}
-            />
-          </div>
+        {!hideHeader && (
+          <div className="safe-area-top bg-surface-light dark:bg-card-dark">
+            <div className="w-full">
+              <Header
+                title={title}
+                onMenuClick={onMenuClick}
+                showBackButton={showBackButton}
+                onBackClick={onBackClick}
+                currentUser={showUserHeader ? currentUser : null}
+                onStatusChange={onStatusChange}
+                onNotificationsClick={onNotificationsClick}
+                onProfileClick={onProfileClick}
+                rightAction={rightAction}
+                tabNavigation={tabNavigation}
+                hideBorder={hideHeaderBorder}
+                titleRightElement={titleRightElement}
+              />
+            </div>
         </div>
+        )}
 
-        <main ref={mainRef} className={`flex-1 overflow-y-auto no-scrollbar ${hidePadding ? 'pb-0' : 'pb-[calc(5rem+env(safe-area-inset-bottom))]'} md:pb-6 relative`}>
+        <main ref={mainRef} className={`flex-1 ${isDashboard ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar ${hidePadding || isDashboard ? 'pb-0 md:pb-0' : 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'} relative`}>
           {loading && (
             <div className="absolute inset-0 z-[50] bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm flex items-center justify-center transition-all duration-300">
               <Loading size="md" text={loadingText} />

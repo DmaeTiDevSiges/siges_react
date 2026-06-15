@@ -4322,7 +4322,7 @@ CREATE TABLE public.orders_visits_assets (
     after_priority_id smallint,
     is_moved boolean DEFAULT false,
     moved_comments text,
-    has_recorder boolean DEFAULT false,
+    has_recorder boolean null default true,
     before_recorder bigint,
     after_recorder bigint,
     processing_id bigint,

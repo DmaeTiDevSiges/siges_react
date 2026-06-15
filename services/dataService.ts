@@ -2761,8 +2761,9 @@ export const dataService = {
                             throw authError; // Lança o erro para que o estado do usuário na UI não seja alterado para nulo
                         }
 
-                        console.error('[getCurrentUser] Erro definitivo de autenticação, limpando sessão local:', authError);
-                        await supabase.auth.signOut().catch(() => { });
+                        // Non-network auth error (401/403/token expired) — return null without calling signOut.
+                        // The SIGNED_OUT debounce in App.tsx will handle the redirect if the session is truly invalid.
+                        console.warn('[getCurrentUser] Erro de autenticação (sessão pode estar expirada):', authError);
                     }
                     return null;
                 }
@@ -6669,14 +6670,18 @@ export const dataService = {
         }
     },
 
-    async getNotificationsCount(): Promise<number> {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (!authUser) return 0;
+    async getNotificationsCount(authUserId?: string): Promise<number> {
+        let userId = authUserId;
+        if (!userId) {
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (!authUser) return 0;
+            userId = authUser.id;
+        }
 
         const { data: userData } = await supabase
             .from('users')
             .select('id')
-            .eq('uuid', authUser.id)
+            .eq('uuid', userId)
             .single();
 
         if (!userData) return 0;
@@ -6695,14 +6700,18 @@ export const dataService = {
         return count || 0;
     },
 
-    async getNotifications(page = 0, pageSize = 20): Promise<UserNotification[]> {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (!authUser) return [];
+    async getNotifications(page = 0, pageSize = 20, authUserId?: string): Promise<UserNotification[]> {
+        let userId = authUserId;
+        if (!userId) {
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (!authUser) return [];
+            userId = authUser.id;
+        }
 
         const { data: userData } = await supabase
             .from('users')
             .select('id')
-            .eq('uuid', authUser.id)
+            .eq('uuid', userId)
             .single();
 
         if (!userData) return [];
@@ -7146,6 +7155,93 @@ export const dataService = {
             return [];
         }
         return data || [];
+    },
+
+    /**
+     * Get all units with coordinates for client-side proximity filtering.
+     * Returns units with latitude/longitude for distance calculation.
+     */
+    async getUnitsWithCoordinates(statusFilter?: 'all' | 'active' | 'inactive'): Promise<any[]> {
+        let query = supabase
+            .from('units')
+            .select('*')
+            .not('latitude', 'is', null)
+            .not('longitude', 'is', null)
+            .eq('is_deleted', 'false')
+            .order('description_full');
+
+        if (statusFilter === 'active') {
+            query = query.eq('is_available', true);
+        } else if (statusFilter === 'inactive') {
+            query = query.eq('is_available', false);
+        }
+
+        const { data: units, error } = await query;
+        if (error) {
+            console.error('Error fetching units with coordinates:', error);
+            return [];
+        }
+
+        if (!units || units.length === 0) return [];
+
+        // Fetch reference data separately (same pattern as getUnits)
+        const [
+            { data: unitTypes },
+            { data: systems },
+            { data: statuses }
+        ] = await Promise.all([
+            supabase.from('cfg_units_types').select('id, description'),
+            supabase.from('cfg_systems').select('id, description'),
+            supabase.from('v_units_statuses').select('id, description')
+        ]);
+
+        const typesMap = new Map(unitTypes?.map((t: any) => [t.id, t.description]));
+        const systemsMap = new Map(systems?.map((s: any) => [s.id, s.description]));
+        const statusesMap = new Map(statuses?.map((st: any) => [st.id, st.description]));
+
+        return units.map((item: any) => ({
+            ...item,
+            typeName: typesMap.get(item.unit_type_parent_id),
+            subTypeName: typesMap.get(item.unit_type_id),
+            systemParentName: systemsMap.get(item.system_parent_id),
+            systemName: systemsMap.get(item.system_id),
+            statusName: statusesMap.get(item.status_id),
+            logoUrl: this.getPublicImageUrl(item.img_file_path, item.img_file_name, {
+                width: 400,
+                height: 400,
+                resize: 'cover'
+            }),
+        }));
+    },
+
+    /**
+     * Get nearby units using Supabase RPC (server-side Haversine).
+     * Requires the nearby_units() function to be created in the database.
+     * Falls back to client-side filtering if RPC is not available.
+     */
+    async getNearbyUnits(
+        lat: number,
+        lng: number,
+        radiusMeters: number = 5000,
+        statusFilter: 'all' | 'active' | 'inactive' = 'all'
+    ): Promise<any[]> {
+        try {
+            const { data, error } = await supabase.rpc('nearby_units', {
+                user_lat: lat,
+                user_lng: lng,
+                radius_meters: radiusMeters,
+                status_filter: statusFilter
+            });
+
+            if (error) {
+                console.warn('RPC nearby_units not available, falling back to client-side:', error.message);
+                return [];
+            }
+            return data || [];
+        } catch (err) {
+            console.warn('RPC nearby_units failed:', err);
+            return [];
+        }
     },
 
     async getSubSystems(systemId?: string): Promise<any[]> {

@@ -96,6 +96,7 @@ import { UserViewScreen } from './views/Admin/UserViewScreen';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
 import { LocationBlockedScreen } from './views/System/LocationBlockedScreen';
+import { UserUnavailableScreen } from './views/System/UserUnavailableScreen';
 import { Capacitor } from '@capacitor/core';
 import { useShiftMonitor } from './hooks/useShiftMonitor';
 import { Modal } from './components/ui/Modal';
@@ -115,7 +116,16 @@ import { Loading } from './components/ui/Loading';
 
 const AppContent: React.FC = () => {
   const [minTimePassed, setMinTimePassed] = useState(false);
-  const [selectedCompanyForTracker, setSelectedCompanyForTracker] = useState<Company | null>(null);
+  const [selectedCompanyForTracker, setSelectedCompanyForTracker] = useState<Company | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('screen') === 'users-tracker') {
+      const stored = sessionStorage.getItem('tracker_company');
+      if (stored) {
+        try { return JSON.parse(stored); } catch {}
+      }
+    }
+    return null;
+  });
   const [retryLocation, setRetryLocation] = useState(0);
   const isKeyboardVisible = useKeyboard();
 
@@ -217,6 +227,12 @@ const AppContent: React.FC = () => {
     }
   };
   const [currentScreen, setCurrentScreen] = useState<Screen>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const screenParam = params.get('screen') as Screen | null;
+    if (screenParam && screenParam === 'users-tracker') {
+      const stored = sessionStorage.getItem('tracker_company');
+      if (stored) return 'users-tracker';
+    }
     const savedTab = localStorage.getItem('app_active_tab');
     if (savedTab === 'dashboard') return 'dashboard';
     if (savedTab === 'orders') return 'orders-dashboard';
@@ -272,6 +288,14 @@ const AppContent: React.FC = () => {
           }
         });
       });
+    }
+  }, []);
+
+  // Clean URL params after opening tracker in new tab
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('screen') === 'users-tracker') {
+      window.history.replaceState({}, document.title, '/');
     }
   }, []);
 
@@ -344,6 +368,7 @@ const AppContent: React.FC = () => {
 
   const selectedOrderRef = React.useRef<Order | null>(null);
   const currentUserRef = React.useRef<User | null>(null);
+  const loadUserRef = React.useRef<(() => Promise<void>) | null>(null);
   const selectedVisitRef = React.useRef<import('./types').OrderVisit | null>(null);
   const visitActiveTabRef = React.useRef<'home' | 'transport' | 'assets' | 'services' | 'costs' | 'chat'>('home');
 
@@ -524,9 +549,18 @@ const AppContent: React.FC = () => {
       return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
     };
 
+    let signedOutTimer: ReturnType<typeof setTimeout> | null = null;
+
     const loadUser = async () => {
       try {
         const user = await withTimeout(dataService.getCurrentUser(), 8000);
+
+        // If timeout returned null, don't reset user — keep current state
+        if (!user && currentUserRef.current) {
+          console.warn('[Auth] loadUser timeout or null result, keeping current user');
+          return;
+        }
+
         // Avoid setting state if the core user data (excluding location) hasn't changed.
         // This prevents visual refreshes / flicker when only latitude/longitude updates.
         if (user && currentUserRef.current) {
@@ -552,6 +586,7 @@ const AppContent: React.FC = () => {
         setAuthLoading(false);
       }
     };
+    loadUserRef.current = loadUser;
     loadUser();
 
     // Listen for auth state changes (especially for password recovery)
@@ -560,6 +595,11 @@ const AppContent: React.FC = () => {
         // Explicit recovery event — always show reset screen
         setAuthScreen('reset-password');
       } else if (event === 'SIGNED_IN') {
+        // Cancel any pending SIGNED_OUT (token refresh race condition)
+        if (signedOutTimer) {
+          clearTimeout(signedOutTimer);
+          signedOutTimer = null;
+        }
         if (isRecoveryFlow) {
           // SIGNED_IN can fire instead of (or after) PASSWORD_RECOVERY in PKCE flow.
           // If we loaded from a recovery URL, keep showing the reset screen.
@@ -568,8 +608,14 @@ const AppContent: React.FC = () => {
           loadUser();
         }
       } else if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-        setAuthScreen('login');
+        // Debounce SIGNED_OUT: Supabase can fire SIGNED_OUT briefly during token refresh
+        // on self-hosted instances. Wait 2s to see if SIGNED_IN follows.
+        signedOutTimer = setTimeout(() => {
+          console.warn('[Auth] SIGNED_OUT confirmed after debounce — redirecting to login');
+          setCurrentUser(null);
+          setAuthScreen('login');
+          signedOutTimer = null;
+        }, 2000);
       }
     });
 
@@ -591,6 +637,8 @@ const AppContent: React.FC = () => {
     });
 
     return () => {
+      if (signedOutTimer) clearTimeout(signedOutTimer);
+      authSubscription.unsubscribe();
       subscription.unsubscribe();
       orderSubscription.unsubscribe();
     }
@@ -628,8 +676,8 @@ const AppContent: React.FC = () => {
     const loadNotifications = async () => {
       try {
         const [count, data] = await Promise.all([
-          dataService.getNotificationsCount(),
-          dataService.getNotifications(0, 10) // Small initial set
+          dataService.getNotificationsCount(currentUser.uuid),
+          dataService.getNotifications(0, 10, currentUser.uuid)
         ]);
 
         setNotifications(data);
@@ -735,7 +783,8 @@ const AppContent: React.FC = () => {
     currentUser?.id,
     currentUser?.trackerIntervalSeconds,
     retryLocation,
-    hasOpenVisit
+    hasOpenVisit,
+    currentUser?.isAvailable ?? true
   );
 
   // Background shift monitor - alerts user to change availability status based on shift hours
@@ -1049,8 +1098,13 @@ const AppContent: React.FC = () => {
     } else if (currentScreen === 'order-visit-approve') {
       setCurrentScreen('order-visit-execute');
     } else if (currentScreen === 'users-tracker') {
-      setSelectedCompanyForTracker(null);
-      setCurrentScreen('orders-dashboard');
+      sessionStorage.removeItem('tracker_company');
+      if (window.opener) {
+        window.close();
+      } else {
+        setSelectedCompanyForTracker(null);
+        setCurrentScreen('orders-dashboard');
+      }
     } else if (currentScreen === 'maintenance-plan-details') {
       setCurrentScreen('maintenance-plans');
     }
@@ -1605,6 +1659,17 @@ const AppContent: React.FC = () => {
   };
 
   function renderContent() {
+    const isUserUnavailable = !(currentUser?.isAvailable ?? true) && !hasOpenVisit;
+    const allowedScreensWhenUnavailable: Screen[] = ['profile', 'settings'];
+
+    if (isUserUnavailable && !allowedScreensWhenUnavailable.includes(currentScreen)) {
+      return (
+        <UserUnavailableScreen
+          onBecomeAvailable={() => handleUserStatusChange(true, null)}
+        />
+      );
+    }
+
     switch (currentScreen) {
       case 'dashboard':
         return (
@@ -2364,8 +2429,13 @@ const AppContent: React.FC = () => {
   };
 
   const handleTrackUsers = (company: Company) => {
-    setSelectedCompanyForTracker(company);
-    setCurrentScreen('users-tracker');
+    if (Capacitor.isNativePlatform()) {
+      setSelectedCompanyForTracker(company);
+      setCurrentScreen('users-tracker');
+    } else {
+      sessionStorage.setItem('tracker_company', JSON.stringify(company));
+      window.open(window.location.pathname + '?screen=users-tracker', '_blank');
+    }
   };
 
   const getTitle = () => {
@@ -2496,7 +2566,13 @@ const AppContent: React.FC = () => {
     }
     return (
       <LoginScreen
-        onLoginSuccess={() => window.location.reload()}
+        onLoginSuccess={() => {
+          if (currentUserRef.current) {
+            return;
+          }
+          setAuthLoading(true);
+          loadUserRef.current?.();
+        }}
         onForgotPassword={() => setAuthScreen('forgot-password')}
         isDarkMode={theme === 'dark'}
         onThemeToggle={toggleTheme}
@@ -2583,6 +2659,11 @@ const AppContent: React.FC = () => {
     <>
       {showSplash && <SplashScreen />}
       <PermissionsProvider currentUser={currentUser}>
+        {currentScreen === 'users-tracker' ? (
+          <div className="w-full h-screen overflow-hidden relative">
+            {renderContent()}
+          </div>
+        ) : (
         <div className={`flex min-h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden ${showSplash ? 'hidden' : ''}`}>
           {currentScreen === 'profile' ? (
             <div className="flex-1 flex overflow-hidden">
@@ -2615,6 +2696,7 @@ const AppContent: React.FC = () => {
               showUserHeader={currentScreen !== 'settings'}
               hidePadding={hideMainNavigation}
               hideHeaderBorder={currentScreen === 'order-visit-approve'}
+              hideHeader={(currentScreen as string) === 'users-tracker'}
               isDashboard={
                 (currentScreen as string) === 'dashboard' ||
                 (currentScreen as string) === 'orders-dashboard' ||
@@ -2676,7 +2758,7 @@ const AppContent: React.FC = () => {
             message={showShiftAlert.message}
             type="info"
             confirmLabel={showShiftAlert.type === 'START' ? 'Ficar Disponível' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Ir para a Visita' : 'NÃO ESTOU MAIS DISPONÍVEL'}
-            cancelLabel="Ainda NÃO estou disponível"
+            cancelLabel={showShiftAlert.type === 'START' ? 'Manter Indisponível' : showShiftAlert.type === 'END_WITH_VISIT' ? 'Encerrar Turno' : 'Ainda estou disponível'}
             onConfirm={async () => {
               if (showShiftAlert.type === 'END_WITH_VISIT') {
                 dismissAlert(showShiftAlert.type);
@@ -2707,6 +2789,7 @@ const AppContent: React.FC = () => {
           <Toaster position="top-right" richColors closeButton style={{ top: '96px', position: 'fixed' }} />
           <UpdateNotifier />
         </div>
+        )}
       </PermissionsProvider>
     </>
   );

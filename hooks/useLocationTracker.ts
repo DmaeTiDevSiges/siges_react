@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { permissionService } from '../services/permissionService';
 import { dataService } from '../services/dataService';
+import { haversineDistance } from '../utils/geo';
 
 /**
  * Plugin nativo Capacitor que controla o LocationForegroundService.java
@@ -31,19 +32,6 @@ const DISTANCE_FILTER_M = 50;
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-/** Calculate distance between two coordinates in meters (Haversine formula) */
-function getDistanceFromLatLonInm(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371e3;
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
 type BlockReason = null | 'permission_denied' | 'location_services_disabled' | 'watcher_failed';
 
 /**
@@ -63,12 +51,15 @@ type BlockReason = null | 'permission_denied' | 'location_services_disabled' | '
  *   movement is controlled by NATIVE_DISTANCE_FILTER_M on native or watchPosition on web.
  * @param retryCount - Increment to force a re-check of the watcher (used by the
  *   "Tentar Novamente" button on LocationBlockedScreen).
+ * @param hasOpenVisit - Whether the user has an active visit (keeps tracking even if unavailable).
+ * @param isAvailable - Whether the user is available. When false and no open visit, tracking is paused.
  */
 export function useLocationTracker(
     userId: string | undefined,
     trackerIntervalSeconds: number | null | undefined,
     retryCount: number = 0,
-    hasOpenVisit: boolean = false
+    hasOpenVisit: boolean = false,
+    isAvailable: boolean = true
 ) {
     const watcherIdRef = useRef<string | null>(null);
     const webWatchIdRef = useRef<number | null>(null);
@@ -90,6 +81,11 @@ export function useLocationTracker(
 
         if (!trackerIntervalSeconds || trackerIntervalSeconds <= 0) {
             console.warn('[LocationTracker] Not started: trackerIntervalSeconds invalid →', trackerIntervalSeconds);
+            return;
+        }
+
+        if (!isAvailable && !hasOpenVisit) {
+            console.log('[LocationTracker] Not started: user unavailable and no open visit');
             return;
         }
 
@@ -148,7 +144,7 @@ export function useLocationTracker(
 
             // 2. Distance-based: Se o usuário andou mais que X metros, enviamos para manter a rota fiel
             if (lastPosRef.current) {
-                const distance = getDistanceFromLatLonInm(
+                const distance = haversineDistance(
                     lastPosRef.current.lat,
                     lastPosRef.current.lng,
                     newLat,
@@ -299,7 +295,7 @@ export function useLocationTracker(
             }
             stopAll();
         };
-    }, [userId, trackerIntervalSeconds, retryCount, hasOpenVisit]);
+    }, [userId, trackerIntervalSeconds, retryCount, hasOpenVisit, isAvailable]);
 
     return {
         isLocationBlocked,

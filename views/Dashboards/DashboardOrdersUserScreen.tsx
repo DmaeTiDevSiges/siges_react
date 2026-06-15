@@ -220,6 +220,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                         <OrderCardDetail
                                             key={order.id}
                                             order={order}
+                                            currentUser={currentUser}
                                             onClick={() => onSelectOrder?.(order)}
                                             onSuccess={() => loadDashboardData(false)}
                                             onEdit={onEdit}

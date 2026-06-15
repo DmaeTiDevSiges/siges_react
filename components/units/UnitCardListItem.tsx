@@ -4,11 +4,13 @@ import { StatusBadge } from '../ui/StatusBadge';
 import { Avatar } from '../ui/Avatar';
 import { Marker } from '../ui/Marker';
 import { CompanyAvatar } from '../ui/CompanyAvatar';
+import { formatDistance } from '../../utils/geo';
 
 interface UnitCardProps {
     unit: Unit;
     onClick?: (unit: Unit) => void;
     showChevron?: boolean; // Optional, default true for list
+    distance?: number; // Distance in meters from user location
 }
 
 const getStatusType = (statusId: string, statusName?: string): 'active' | 'inactive' | 'pending' => {
@@ -19,7 +21,7 @@ const getStatusType = (statusId: string, statusName?: string): 'active' | 'inact
     return 'inactive';
 };
 
-export const UnitCardListItem: React.FC<UnitCardProps> = ({ unit, onClick, showChevron = true }) => {
+export const UnitCardListItem: React.FC<UnitCardProps> = ({ unit, onClick, showChevron = true, distance }) => {
     return (
         <div
             onClick={() => onClick?.(unit)}
@@ -100,6 +102,14 @@ export const UnitCardListItem: React.FC<UnitCardProps> = ({ unit, onClick, showC
                             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed text-left">
                                 {unit.addressFull}
                             </p>
+                            {distance != null && (
+                                <div className="flex items-center gap-1 mt-1.5 w-fit">
+                                    <span className="material-symbols-outlined text-primary text-[14px]">near_me</span>
+                                    <span className="text-[11px] font-bold text-primary">
+                                        {formatDistance(distance)}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                         {showChevron && (
                             <div className="text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors shrink-0 self-center">

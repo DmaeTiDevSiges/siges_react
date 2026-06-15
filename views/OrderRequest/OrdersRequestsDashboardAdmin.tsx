@@ -1380,6 +1380,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
                                                 <OrderRequestCardListItem
                                                     order={os}
+                                                    currentUser={currentUser}
                                                     onClick={() => onSelectOrder?.(os)}
                                                     onSuccess={() => fetchData(false, true)}
                                                     onEdit={onEdit}
