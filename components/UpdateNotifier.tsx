@@ -63,14 +63,16 @@ const UpdateNotifier: React.FC = () => {
             }
         }
 
-        // 4. Recarregar a página com timestamp para forçar cache bypass de CDNs como Cloudflare
+        // 4. Navigate with cache-busting. Use replace() to avoid back-button loops.
+        //    index.html has Cache-Control: no-cache meta tags to prevent disk caching.
+        //    Vite hashed asset filenames ensure new JS/CSS chunks are fetched.
         try {
             const url = new URL(window.location.href);
             url.searchParams.set('t', Date.now().toString());
             url.searchParams.set('skipUpdateCheck', 'true');
-            window.location.href = url.toString();
+            window.location.replace(url.toString());
         } catch (e) {
-            window.location.href = window.location.pathname + '?t=' + Date.now() + '&skipUpdateCheck=true';
+            window.location.replace(window.location.pathname + '?t=' + Date.now() + '&skipUpdateCheck=true');
         }
     };
 
