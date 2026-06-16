@@ -64,7 +64,7 @@ public class TaskRemovedService extends Service {
         Notification notification = new NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentTitle("SIGES")
-                .setContentText("Você tem uma visita em andamento!")
+                .setContentText("Você tem uma visita em ABERTO !")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
