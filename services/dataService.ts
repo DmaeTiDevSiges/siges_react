@@ -6982,7 +6982,7 @@ export const dataService = {
     async getUnitsAssetsTagsDashboard(systemParentId: string): Promise<any[]> {
         const { data, error } = await supabase
             .from('v_units_assets_tags')
-            .select('*')
+            .select('*, units(latitude, longitude)')
             .eq('system_parent_id', systemParentId)
             .order('unit_description');
 

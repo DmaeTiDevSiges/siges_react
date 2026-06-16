@@ -553,8 +553,8 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     lastReportedAt: null,
                     totalRate: 0,
                     assets: [],
-                    latitude: row.unit_latitude,
-                    longitude: row.unit_longitude,
+                    latitude: row.unit_latitude ?? row.latitude ?? row.units?.latitude,
+                    longitude: row.unit_longitude ?? row.longitude ?? row.units?.longitude,
                     percentage: 0 // Placeholder
                 };
             }
@@ -657,11 +657,11 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
 
     return (
-        <div className="flex flex-col bg-background-light dark:bg-background-dark">
+        <div className="flex flex-col flex-1 h-full w-full overflow-y-auto no-scrollbar bg-background-light dark:bg-background-dark">
             {isFullscreenMapMode ? (
                 <div className="fixed inset-0 bg-background-light dark:bg-background-dark z-8000">
                     <UnitsAvailabilityMap
-                        units={unitsRows}
+                        units={unitsRows.filter((u: any) => u.assets.some((a: any) => a.isActive))}
                         unitTagDescription={selectedSectorName}
                         unitTagPercentage={sectorPercentage}
                         onUnitClick={(id) => {
@@ -978,7 +978,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                 ) : (
                                     <div className="relative w-full h-[600px] lg:h-[calc(100vh-380px)] min-h-[500px]">
                                         <UnitsAvailabilityMap
-                                            units={unitsRows}
+                                            units={unitsRows.filter((u: any) => u.assets.some((a: any) => a.isActive))}
                                             unitTagDescription={selectedSectorName}
                                             unitTagPercentage={sectorPercentage}
                                             onUnitClick={(id) => {

@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
+import { dataService } from '../services/dataService';
 
 export const useShiftMonitor = (currentUser: User | null) => {
   const [showShiftAlert, setShowShiftAlert] = useState<{
@@ -33,6 +36,12 @@ export const useShiftMonitor = (currentUser: User | null) => {
       if (currentTimeStr >= shiftStart && currentTimeStr < shiftEnd) {
         // We are inside the shift
         if (!isAvailable) {
+            if (!currentUser.isOvInProgress) {
+                // Torna disponível automaticamente se não houver visita pendente
+                dataService.updateUserAvailability(currentUser.id, true, currentUser.ovIdInProgress || null).catch(console.error);
+                return;
+            }
+
             const alertKey = `${todayStr}_START`;
             if (dismissedAlerts[alertKey]) {
                 // Compatibilidade com a versão antiga (booleano) ou timestamp (15 min)
@@ -103,6 +112,35 @@ export const useShiftMonitor = (currentUser: User | null) => {
       
       setShowShiftAlert(prev => ({ ...prev, show: false }));
   };
+
+  useEffect(() => {
+    if (!currentUser) return;
+    if (Capacitor.getPlatform() !== 'android') return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (currentUser.isOvInProgress) {
+        e.preventDefault();
+        e.returnValue = 'Você possui uma visita em andamento. Lembre-se de encerrá-la antes de fechar o aplicativo.';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentUser?.isOvInProgress]);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android') return;
+    const saveState = async () => {
+      const inProgressStr = currentUser?.isOvInProgress ? 'true' : 'false';
+      const isAvailableStr = currentUser?.isAvailable ? 'true' : 'false';
+      await Preferences.set({ key: 'isOvInProgress', value: inProgressStr });
+      await Preferences.set({ key: 'isAvailable', value: isAvailableStr });
+    };
+    saveState();
+  }, [currentUser?.isOvInProgress, currentUser?.isAvailable]);
 
   return {
     showShiftAlert,

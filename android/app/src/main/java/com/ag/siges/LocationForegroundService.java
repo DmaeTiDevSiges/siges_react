@@ -125,7 +125,7 @@ public class LocationForegroundService extends Service {
         );
 
         String title = "SIGES";
-        String text = hasOpenVisit ? "Você possui uma visita em ABERTO." : "Entre para verificar demandas";
+        String text = "Em execução.";
 
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(title)

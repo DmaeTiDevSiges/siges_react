@@ -37,6 +37,11 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- Service para detectar fechamento do app -->
+        <service
+            android:name=".TaskRemovedService"
+            android:stopWithTask="false" />
+
     </application>
 
     <!-- Permissions -->
