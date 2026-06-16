@@ -408,7 +408,6 @@
     height: 100% !important;
     width: 100% !important;
     z-index: 1 !important;
-    border-radius: 32px !important;
 }
 
 .leaflet-tile-pane {

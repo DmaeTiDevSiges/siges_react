@@ -788,7 +788,7 @@ const AppContent: React.FC = () => {
   );
 
   // Background shift monitor - alerts user to change availability status based on shift hours
-  const { showShiftAlert, dismissAlert } = useShiftMonitor(currentUser);
+  const { showShiftAlert, dismissAlert } = useShiftMonitor(currentUser, currentScreen === 'profile');
 
   // Heartbeat system (sends a ping every 3 minutes if active)
   useEffect(() => {

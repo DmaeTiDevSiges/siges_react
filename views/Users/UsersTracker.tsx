@@ -678,18 +678,20 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                             pinnedUserIds={combinedPinnedIds}
                             titleContent={
                                 <>
-                                    {Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android' && onBack && (
-                                        <button
-                                            onClick={onBack}
-                                            className="mr-2 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                                        >
-                                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-                                            </svg>
-                                        </button>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        {Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android' && onBack && (
+                                            <button
+                                                onClick={onBack}
+                                                className="mr-2 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 active:bg-white/40 active:scale-95 transition-all"
+                                            >
+                                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                        <p className="text-xl font-black text-white select-none">Visitas em tempo real</p>
+                                    </div>
                                     <img src="/siges_logo.png" alt="Siges" className="w-12 h-12 object-contain" />
-                                    <p className="text-xl font-black text-white select-none">Visitas em tempo real</p>
                                 </>
                             }
                             onUserClick={(userId) => {
