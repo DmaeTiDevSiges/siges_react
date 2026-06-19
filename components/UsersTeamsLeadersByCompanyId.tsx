@@ -82,21 +82,6 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
                 </div>
             )}
             <div className="flex items-center gap-2 py-1 px-0.5 overflow-x-auto no-scrollbar">
-                {/* Avatar da empresa — quadrado, maior */}
-                <div
-                    className="shrink-0 w-10 h-10 rounded-xl overflow-hidden bg-slate-700 border-2 border-white/30 shadow-sm"
-                    title={company.name}
-                >
-                    {company.logoUrl && !company.logoUrl.includes('placeholder') ? (
-                        <img src={company.logoUrl} alt={company.name} className="w-full h-full object-cover" />
-                    ) : (
-                        <span className="material-symbols-outlined text-white/70 text-[20px] flex items-center justify-center w-full h-full">apartment</span>
-                    )}
-                </div>
-
-                {/* Divisor vertical */}
-                <div className="w-px h-5 bg-white/20 shrink-0" />
-
                 {/* Avatares dos técnicos */}
                 {leaders.length === 0 ? (
                     <div className="text-[10px] text-white/50 italic px-1">Nenhum líder encontrado</div>

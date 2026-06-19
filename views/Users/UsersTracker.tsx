@@ -691,7 +691,14 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                         )}
                                         <p className="text-xl font-black text-white select-none">Visitas em tempo real</p>
                                     </div>
-                                    <img src="/siges_logo.png" alt="Siges" className="w-12 h-12 object-contain" />
+                                    {/* Avatar da empresa */}
+                                    {company.logoUrl && !company.logoUrl.includes('placeholder') ? (
+                                        <img src={company.logoUrl} alt={company.name} className="w-10 h-10 rounded-xl object-cover border-2 border-white/30" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-xl bg-slate-700 border-2 border-white/30 flex items-center justify-center">
+                                            <span className="material-symbols-outlined text-white/70 text-[20px]">apartment</span>
+                                        </div>
+                                    )}
                                 </>
                             }
                             onUserClick={(userId) => {
