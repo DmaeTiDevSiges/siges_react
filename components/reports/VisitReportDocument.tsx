@@ -180,7 +180,6 @@ const styles = StyleSheet.create({
         width: 75,
         height: 75,
         borderRadius: 4,
-        objectFit: 'cover' as any,
     },
     compareComments: {
         fontSize: 8.5,
@@ -331,7 +330,6 @@ const styles = StyleSheet.create({
         width: 80,
         height: 60,
         borderRadius: 2,
-        objectFit: 'cover',
     },
     
     badgeOk: {
@@ -380,7 +378,6 @@ const styles = StyleSheet.create({
         width: 140,
         height: 50,
         marginBottom: 5,
-        objectFit: 'contain',
     },
     signatureName: {
         fontSize: 9,
@@ -791,21 +788,6 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
                                             <View style={{ flexDirection: 'row', gap: 5 }}>
                                                 <Text style={styles.tdCell}>{fmt(asset.beforeStatusDescription)}</Text>
                                             </View>
-
-                                            <View style={styles.photoGrid}>
-                                                {(asset.initialPhotoUrls ?? []).filter(Boolean).slice(0, 3).map((url, pi) => (
-                                                    <View key={pi} style={styles.photoWrapper}>
-                                                        <Image src={url as string} style={styles.photo} />
-                                                    </View>
-                                                ))}
-                                                {!(asset.initialPhotoUrls?.filter(Boolean).length) ? (
-                                                    <View style={styles.photoWrapper}>
-                                                        {data.logoBase64 ? (
-                                                            <Image src={data.logoBase64} style={[styles.photo, { opacity: 0.1 }]} />
-                                                        ) : null}
-                                                    </View>
-                                                ) : null}
-                                            </View>
                                             {asset.beforeComments ? (
                                                 <Text style={styles.compareComments}>{asset.beforeComments}</Text>
                                             ) : null}
@@ -820,21 +802,6 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
                                             </View>
                                             <View style={{ flexDirection: 'row', gap: 5 }}>
                                                 <Text style={styles.tdCell}>{fmt(asset.afterStatusDescription)}</Text>
-                                            </View>
-
-                                            <View style={styles.photoGrid}>
-                                                {(asset.finalPhotoUrls ?? []).filter(Boolean).slice(0, 3).map((url, pi) => (
-                                                    <View key={pi} style={styles.photoWrapper}>
-                                                        <Image src={url as string} style={styles.photo} />
-                                                    </View>
-                                                ))}
-                                                {!(asset.finalPhotoUrls?.filter(Boolean).length) ? (
-                                                    <View style={styles.photoWrapper}>
-                                                        {data.logoBase64 ? (
-                                                            <Image src={data.logoBase64} style={[styles.photo, { opacity: 0.1 }]} />
-                                                        ) : null}
-                                                    </View>
-                                                ) : null}
                                             </View>
                                             {asset.afterComments ? (
                                                 <Text style={styles.compareComments}>{asset.afterComments}</Text>
@@ -895,7 +862,7 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
                                                             {act.photosBase64 && act.photosBase64.length > 0 && (
                                                                 <View style={styles.activityImages}>
                                                                     {act.photosBase64.map((img, imgIdx) => (
-                                                                        <Image key={imgIdx} src={img} style={styles.activityImage} />
+                                                                         <Image key={imgIdx} src={img} style={styles.activityImage} />
                                                                     ))}
                                                                 </View>
                                                             )}
@@ -946,6 +913,37 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
                                 </View>
                             );
                         })}
+
+                        {/* ── FOTOS AGRUPADAS ANTES / DEPOIS ──────────────────── */}
+                        {(() => {
+                            const allBefore = assets.flatMap(a => (a.initialPhotoUrls ?? []).filter(Boolean));
+                            const allAfter = assets.flatMap(a => (a.finalPhotoUrls ?? []).filter(Boolean));
+                            if (allBefore.length === 0 && allAfter.length === 0) return null;
+                            return (
+                                <View style={[styles.assetCompareRow, { marginTop: 10 }]}>
+                                    <View style={styles.compareCol}>
+                                        <Text style={styles.compareTitle}>ANTES</Text>
+                                        <View style={styles.photoGrid}>
+                                            {allBefore.slice(0, 6).map((url, pi) => (
+                                                <View key={pi} style={styles.photoWrapper}>
+                                                    <Image src={url as string} style={styles.photo} />
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </View>
+                                    <View style={styles.compareCol}>
+                                        <Text style={styles.compareTitle}>DEPOIS</Text>
+                                        <View style={styles.photoGrid}>
+                                            {allAfter.slice(0, 6).map((url, pi) => (
+                                                <View key={pi} style={styles.photoWrapper}>
+                                                    <Image src={url as string} style={styles.photo} />
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </View>
+                                </View>
+                            );
+                        })()}
                     </View>
                 ) : null}
 

@@ -239,6 +239,54 @@ export async function addWhiteBackgroundToImage(base64: string): Promise<string>
 }
 
 /**
+ * Recorta uma imagem base64 para dimensões exatas usando center-crop.
+ * Garante que todas as imagens tenham exatamente o tamanho especificado,
+ * eliminando distorção no PDF mesmo quando objectFit/fit não funciona.
+ */
+export async function cropToExactSize(base64: string, targetWidth: number, targetHeight: number): Promise<string> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { resolve(base64); return; }
+
+                const imgRatio = img.naturalWidth / img.naturalHeight;
+                const targetRatio = targetWidth / targetHeight;
+
+                let sx: number, sy: number, sw: number, sh: number;
+
+                if (imgRatio > targetRatio) {
+                    sh = img.naturalHeight;
+                    sw = sh * targetRatio;
+                    sx = (img.naturalWidth - sw) / 2;
+                    sy = 0;
+                } else {
+                    sw = img.naturalWidth;
+                    sh = sw / targetRatio;
+                    sx = 0;
+                    sy = (img.naturalHeight - sh) / 2;
+                }
+
+                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+
+                canvas.toBlob((blob) => {
+                    if (!blob) { resolve(base64); return; }
+                    blobToDataUri(blob).then(resolve).catch(() => resolve(base64));
+                }, 'image/jpeg', 0.92);
+            } catch {
+                resolve(base64);
+            }
+        };
+        img.onerror = () => resolve(base64);
+        img.src = base64;
+    });
+}
+
+/**
  * Retorna o logo da aplicação como base64 data URI.
  *
  * Tenta múltiplas estratégias de URL para compatibilidade com:

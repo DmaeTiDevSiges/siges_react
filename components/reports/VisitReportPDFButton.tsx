@@ -300,10 +300,10 @@ export const VisitReportPDFButton = ({
 
             const assetsWithBase64 = await Promise.all(
                 reportData.assets.map(async (a) => {
-                    const pdfImageOptions = { width: 800, height: 800, resize: 'fit' as const, format: 'jpeg' as const, quality: 90 };
-                    const thumbOptions = { width: 300, height: 300, resize: 'fit' as const, format: 'jpeg' as const, quality: 80 };
+                    const pdfImageOptions = { width: 75, height: 75, resize: 'fill' as const, format: 'jpeg' as const, quality: 90 };
+                    const thumbOptions = { width: 80, height: 60, resize: 'fill' as const, format: 'jpeg' as const, quality: 80 };
 
-                    // Asset main images
+                    // Asset main images — imgproxy 'fill' crops to exact 75x75
                     const initialProxied = (a.initialPhotoUrls ?? []).filter(Boolean).map(url => 
                         imgproxyService.generateUrl(url as string, pdfImageOptions)
                     );
@@ -311,7 +311,7 @@ export const VisitReportPDFButton = ({
                         imgproxyService.generateUrl(url as string, pdfImageOptions)
                     );
 
-                    // Activity images
+                    // Activity images — imgproxy 'fill' crops to exact 80x60
                     const activitiesWithImages = await Promise.all((a.activities || []).map(async (act: any) => {
                         if (!act.imgFilesNames || act.imgFilesNames.length === 0) return act;
                         

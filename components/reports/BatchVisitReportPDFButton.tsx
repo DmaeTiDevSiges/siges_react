@@ -194,7 +194,7 @@ export const BatchVisitReportPDFButton = ({
 
                 // Convert all images to Base64 (Essential for PDF rendering in batch)
                 const processedAssets = await Promise.all(reportData.assets.map(async (a) => {
-                    const photoOptions = { width: 400, height: 400, resize: 'fit' as const, format: 'jpeg' as const, quality: 70 };
+                    const photoOptions = { width: 75, height: 75, resize: 'fill' as const, format: 'jpeg' as const, quality: 90 };
                     
                     const initialPhotoUrls = await urlsToBase64((a.initialPhotoUrls ?? []).filter(Boolean).map(url => imgproxyService.generateUrl(url as string, photoOptions)));
                     const finalPhotoUrls = await urlsToBase64((a.finalPhotoUrls ?? []).filter(Boolean).map(url => imgproxyService.generateUrl(url as string, photoOptions)));
@@ -202,7 +202,7 @@ export const BatchVisitReportPDFButton = ({
                     const activities = await Promise.all((a.activities || []).map(async (act: any) => {
                         if (!act.imgFilesNames || act.imgFilesNames.length === 0) return act;
                         const folderPath = act.imgFilePath || `checklist/${a.id}/${act.activityId}`;
-                        const photoUrls = act.imgFilesNames.map((fileName: string) => imgproxyService.generateUrl(`s3://siges/${folderPath}/${fileName}`, { width: 200, height: 200, resize: 'fit' as const, format: 'jpeg' as const }));
+                        const photoUrls = act.imgFilesNames.map((fileName: string) => imgproxyService.generateUrl(`s3://siges/${folderPath}/${fileName}`, { width: 80, height: 60, resize: 'fill' as const, format: 'jpeg' as const, quality: 80 }));
                         const photosBase64 = await urlsToBase64(photoUrls);
                         return { ...act, photosBase64 };
                     }));

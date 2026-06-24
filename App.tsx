@@ -2397,6 +2397,15 @@ const AppContent: React.FC = () => {
             onManageMaterials={() => {
               setCurrentScreen('order-visit-asset-materials');
             }}
+            onViewAsset={async () => {
+              const assetId = selectedOrderVisitAsset?.assetId;
+              if (assetId) {
+                const fullAsset = await dataService.getAssetById(assetId);
+                if (fullAsset) {
+                  handleAssetSelect(fullAsset);
+                }
+              }
+            }}
           />
         ) : null;
       case 'order-visit-asset-activities':

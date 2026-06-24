@@ -70,7 +70,6 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 120,
         borderRadius: 4,
-        objectFit: 'cover',
     },
     footer: {
         position: 'absolute',

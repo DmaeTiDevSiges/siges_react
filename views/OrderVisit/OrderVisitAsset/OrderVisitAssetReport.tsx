@@ -55,6 +55,7 @@ interface OrderVisitAssetReportProps {
     onBack: () => void;
     onManageActivities?: (orderTypeId: string) => void;
     onManageMaterials?: () => void;
+    onViewAsset?: () => void;
     readOnly?: boolean;
     initialAsset?: OrderVisitAssetView;
     initialVisit?: OrderVisit;
@@ -161,7 +162,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpa
     );
 };
 
-export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials, readOnly, initialAsset, initialVisit }) => {
+export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials, onViewAsset, readOnly, initialAsset, initialVisit }) => {
     const [asset, setAsset] = useState<OrderVisitAssetView | null>(initialAsset || null);
     const [loading, setLoading] = useState(!initialAsset);
     const [initialCondition, setInitialCondition] = useState(initialAsset?.beforeComments || '');
@@ -938,7 +939,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 )}
 
                 {/* Asset Detail Card */}
-                {!readOnly && <OrderVisitAssetCardDetail asset={asset} />}
+                {!readOnly && <OrderVisitAssetCardDetail asset={asset} onClick={onViewAsset} />}
 
                 {/* Condição Antes */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
