@@ -6182,9 +6182,9 @@ export const dataService = {
         const item = viewData as any;
         if (!item) return null;
 
-        // Fetch unit lat/lon if needed for other parts of the app
+        // Fetch unit lat/lon and client_id if needed for other parts of the app
         const { data: unitData } = item.unit_id
-            ? await supabase.from('units').select('latitude, longitude').eq('id', item.unit_id).single()
+            ? await supabase.from('units').select('latitude, longitude, client_id').eq('id', item.unit_id).single()
             : { data: null };
 
         const companyLogoUrl = item.last_provider_company_file_path && item.last_provider_company_file_name
@@ -6194,6 +6194,7 @@ export const dataService = {
 
         return {
             ...item,
+            client_id: item.client_id ?? unitData?.client_id ?? null,
             isAvailable: item.last_is_available ?? null,
             last_reported_by_name: item.last_user_full_name || item.last_user_name,
             last_reported_user_name_short: item.last_reported_user_name_short,
@@ -9635,7 +9636,18 @@ export const dataService = {
 
             // Helper to ensure we have an array of strings
             const ensureArray = (val: any): string[] => {
-                if (Array.isArray(val)) return val;
+                if (Array.isArray(val)) {
+                    // Se o banco for text[] e salvamos um JSON string, ele retorna ["[\"img1\",\"img2\"]"]
+                    if (val.length === 1 && typeof val[0] === 'string' && val[0].startsWith('[')) {
+                        try {
+                            const parsed = JSON.parse(val[0]);
+                            if (Array.isArray(parsed)) return parsed;
+                        } catch (e) {
+                            // fallback
+                        }
+                    }
+                    return val;
+                }
                 if (typeof val === 'string' && val.trim()) {
                     // Handle postgres array format if necessary: {file1,file2}
                     if (val.startsWith('{') && val.endsWith('}')) {
@@ -9831,7 +9843,17 @@ export const dataService = {
         }
 
         const ensureArray = (val: any): string[] => {
-            if (Array.isArray(val)) return val;
+            if (Array.isArray(val)) {
+                if (val.length === 1 && typeof val[0] === 'string' && val[0].startsWith('[')) {
+                    try {
+                        const parsed = JSON.parse(val[0]);
+                        if (Array.isArray(parsed)) return parsed;
+                    } catch (e) {
+                        // fallback
+                    }
+                }
+                return val;
+            }
             if (typeof val === 'string' && val.trim()) {
                 if (val.startsWith('{') && val.endsWith('}')) {
                     return val.substring(1, val.length - 1).split(',').map(s => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
@@ -11378,7 +11400,17 @@ export const dataService = {
         }
 
         const ensureArray = (val: any): string[] => {
-            if (Array.isArray(val)) return val;
+            if (Array.isArray(val)) {
+                if (val.length === 1 && typeof val[0] === 'string' && val[0].startsWith('[')) {
+                    try {
+                        const parsed = JSON.parse(val[0]);
+                        if (Array.isArray(parsed)) return parsed;
+                    } catch (e) {
+                        // fallback
+                    }
+                }
+                return val;
+            }
             if (typeof val === 'string' && val.trim()) {
                 if (val.startsWith('{') && val.endsWith('}')) {
                     return val.substring(1, val.length - 1).split(',').map(s => s.trim().replace(/^"|"$/g, '')).filter(Boolean);

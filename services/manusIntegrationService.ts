@@ -4,6 +4,7 @@ import { ManusVisit, ManusService, ManusVehicle, ManusMaterial, ManusReport } fr
 import { getBrazilTimestamp } from './dataService';
 import { generateUrl as getProxyUrl } from './imgproxyService';
 
+
 export interface ManusImageClassification {
   reportIndex: number;
   imageIndex: number;
@@ -447,25 +448,59 @@ export class ManusIntegrationService {
           }
 
           try {
-            const proxyUrl = getProxyUrl(rawUrl, { format: 'webp' });
-            const imgResp = await fetch(proxyUrl);
-            
-            if (imgResp.ok) {
-              const blob = await imgResp.blob();
-              const file = new File([blob], fileName, { type: blob.type });
-              
-              const uploadSuccess = await r2Service.uploadFile(file, `${imgPath}/${fileName}`);
-              console.log(`[ImportImag] DEBUG: R2 Upload ${uploadSuccess ? 'OK' : 'FAIL'}: ${fileName}`);
+            // Tenta primeiro via imgproxy (formato webp otimizado)
+            // Se falhar, usa a URL original da imagem diretamente
+            let fetchedBlob: Blob | null = null;
 
-              if (isBefore) {
-                beforeFiles.push(fileName);
-                console.log(`[ImportImag] DEBUG: +ANTES. Array agora tem ${beforeFiles.length} itens.`);
-              } else if (isAfter) {
-                afterFiles.push(fileName);
-                console.log(`[ImportImag] DEBUG: +DEPOIS. Array agora tem ${afterFiles.length} itens.`);
+            try {
+              const proxyUrl = getProxyUrl(rawUrl, { format: 'webp' });
+              console.log(`[ImportImag] Tentando imgproxy R:${rIdx} I:${iIdx} → ${proxyUrl}`);
+              const imgResp = await fetch(proxyUrl);
+              if (imgResp.ok) {
+                fetchedBlob = await imgResp.blob();
+                console.log(`[ImportImag] Imgproxy OK R:${rIdx} I:${iIdx} - ${fetchedBlob.size} bytes`);
+              } else {
+                console.warn(`[ImportImag] Imgproxy falhou (${imgResp.status}) R:${rIdx} I:${iIdx} - tentando URL original`);
+              }
+            } catch (proxyErr) {
+              console.warn(`[ImportImag] Imgproxy exception R:${rIdx} I:${iIdx} - tentando URL original:`, proxyErr);
+            }
+
+            // Fallback: buscar da URL original do Manus se imgproxy falhou
+            if (!fetchedBlob) {
+              try {
+                console.log(`[ImportImag] Fallback URL original R:${rIdx} I:${iIdx} → ${rawUrl}`);
+                const origResp = await fetch(rawUrl);
+                if (origResp.ok) {
+                  fetchedBlob = await origResp.blob();
+                  console.log(`[ImportImag] URL original OK R:${rIdx} I:${iIdx} - ${fetchedBlob.size} bytes`);
+                } else {
+                  console.error(`[ImportImag] URL original falhou (${origResp.status}) R:${rIdx} I:${iIdx}`);
+                }
+              } catch (origErr) {
+                console.error(`[ImportImag] URL original exception R:${rIdx} I:${iIdx}:`, origErr);
+              }
+            }
+
+            if (fetchedBlob) {
+              const file = new File([fetchedBlob], fileName, { type: fetchedBlob.type || 'image/jpeg' });
+              
+              try {
+                await r2Service.uploadFile(file, `${imgPath}/${fileName}`);
+                console.log(`[ImportImag] R2 Upload OK R:${rIdx} I:${iIdx}: ${fileName}`);
+
+                if (isBefore) {
+                  beforeFiles.push(fileName);
+                  console.log(`[ImportImag] +ANTES (total: ${beforeFiles.length}): ${fileName}`);
+                } else if (isAfter) {
+                  afterFiles.push(fileName);
+                  console.log(`[ImportImag] +DEPOIS (total: ${afterFiles.length}): ${fileName}`);
+                }
+              } catch (uploadErr) {
+                console.error(`[ImportImag] R2 Upload FAIL R:${rIdx} I:${iIdx}:`, uploadErr);
               }
             } else {
-              console.error(`[ImportImag] ERROR R:${rIdx} I:${iIdx} - Status: ${imgResp.status}`);
+              console.error(`[ImportImag] Imagem não obtida (ignorada) R:${rIdx} I:${iIdx} - URL: ${rawUrl}`);
             }
           } catch (err) {
             console.error(`[ImportImag] FATAL R:${rIdx} I:${iIdx}:`, err);
@@ -489,7 +524,7 @@ export class ManusIntegrationService {
           before_img_file_name: null,
           before_priority_id: vAssetData.priority_id,
           before_unit_asset_tag_id: vAssetData.unit_asset_tag_id,
-          before_img_files_names: beforeFiles.length > 0 ? beforeFiles : null,
+          before_img_files_names: beforeFiles.length > 0 ? JSON.stringify(beforeFiles) : null,
           before_client_id: vAssetData.client_id,
 
           is_moved: false,
@@ -505,7 +540,7 @@ export class ManusIntegrationService {
           after_img_file_name: null,
           after_priority_id: vAssetData.priority_id,
           after_unit_asset_tag_id: vAssetData.unit_asset_tag_id,
-          after_img_files_names: afterFiles.length > 0 ? afterFiles : null,
+          after_img_files_names: afterFiles.length > 0 ? JSON.stringify(afterFiles) : null,
           after_client_id: vAssetData.client_id,
 
           processing_id: 2,

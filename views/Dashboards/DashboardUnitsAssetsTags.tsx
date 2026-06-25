@@ -1277,7 +1277,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         {ssFormStep < 4 ? (
                                             <button
                                                 onClick={handleSSFormNext}
-                                                disabled={(ssFormStep === 1 && !ssFormData.orderTypeId) || (ssFormStep === 3 && !ssFormData.requestedServices)}
+                                                disabled={(ssFormStep === 1 && !ssFormData.orderTypeId) || (ssFormStep === 2 && !ssFormData.priorityId) || (ssFormStep === 3 && !ssFormData.requestedServices)}
                                                 className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-white bg-primary hover:bg-primary/90 transition-all shadow-sm shadow-primary/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                                 Próximo

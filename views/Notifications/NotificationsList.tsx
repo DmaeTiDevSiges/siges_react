@@ -230,30 +230,27 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
                                                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed pr-6">
                                                     {notification.body}
                                                 </p>
-                                                <div className="flex justify-end mt-3">
+                                                <div className="flex justify-end items-center gap-2 mt-3">
                                                     <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 whitespace-nowrap uppercase tracking-wider bg-slate-100 dark:bg-slate-700/50 px-2 py-1 rounded-lg">
                                                         {formatDate(notification.createdAt)}
                                                     </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRead(notification.id);
+                                                        }}
+                                                        disabled={loadingId === notification.id}
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${loadingId === notification.id
+                                                            ? 'bg-slate-100 dark:bg-slate-800 animate-spin'
+                                                            : 'text-slate-300 hover:text-red-500 hover:bg-red-500/10 dark:text-slate-600 dark:hover:text-red-400 dark:hover:bg-red-400/10'
+                                                            }`}
+                                                        title="Excluir notificação"
+                                                    >
+                                                        <span className="material-symbols-outlined text-lg">
+                                                            {loadingId === notification.id ? 'sync' : 'delete'}
+                                                        </span>
+                                                    </button>
                                                 </div>
-                                            </div>
-
-                                            <div className="flex items-center">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleRead(notification.id);
-                                                    }}
-                                                    disabled={loadingId === notification.id}
-                                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${loadingId === notification.id
-                                                        ? 'bg-slate-100 dark:bg-slate-800 animate-spin'
-                                                        : 'text-slate-300 hover:text-green-500 hover:bg-green-500/10 dark:text-slate-600 dark:hover:text-green-400 dark:hover:bg-green-400/10'
-                                                        }`}
-                                                    title="Marcar como lida"
-                                                >
-                                                    <span className="material-symbols-outlined text-2xl">
-                                                        {loadingId === notification.id ? 'sync' : 'done'}
-                                                    </span>
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
