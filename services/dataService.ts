@@ -1207,6 +1207,7 @@ export const dataService = {
             profileId: item.profile_id?.toString(),
             profileName: item.cfg_profiles?.description,
             mobile: item.mobile,
+            mobileMask: item.mobile_mask,
             phone: item.phone,
             avatarUrl: this.getPublicImageUrl(item.img_file_path, item.img_file_name || 'noImageUser.png', { width: 70, height: 70, resize: 'cover' }),
 
@@ -2448,6 +2449,7 @@ export const dataService = {
             profileId: item.profile_id?.toString(),
             profileName: item.cfg_profiles?.description,
             mobile: item.mobile,
+            mobileMask: item.mobile_mask,
             phone: item.phone,
 
             // Avatar logic
@@ -2725,6 +2727,14 @@ export const dataService = {
             shift_end: '18:00:00'
         };
 
+        // Compute mobile fields from the clean mobile number
+        const mobileClean = user.mobile?.replace(/\D/g, '') || '';
+        if (mobileClean.length >= 10 && mobileClean.length <= 11) {
+            (updateData as any).mobile_full = '55' + mobileClean;
+            (updateData as any).mobile_mask = user.phone || user.mobile || null;
+            (updateData as any).mobile_whatsapp = ('55' + mobileClean).slice(0, 4) + ('55' + mobileClean).slice(5) + '@s.whatsapp.net';
+        }
+
         // We use the MAIN supabase client here because we need the Admin's (current user) permissions
         // to update the 'users' table, assuming there is an RLS policy allowing it.
         const { error: updateError } = await supabase
@@ -2907,6 +2917,19 @@ export const dataService = {
 },
 
     async updateProfile(userUuid: string, user: Partial<User>, onProgress?: (progress: number) => void): Promise<void> {
+        // Compute mobile fields from the clean mobile number
+        const mobileClean = user.mobile?.replace(/\D/g, '') || '';
+        let mobileFull: string | null = null;
+        let mobileMask: string | null = null;
+        let mobileWhatsapp: string | null = null;
+
+        if (mobileClean.length >= 10 && mobileClean.length <= 11) {
+            mobileFull = '55' + mobileClean;
+            mobileMask = user.phone || user.mobile || null;
+            // Remove the first 9 after DDD for WhatsApp format
+            mobileWhatsapp = mobileFull.slice(0, 4) + mobileFull.slice(5) + '@s.whatsapp.net';
+        }
+
         // 1. Update basic info first
         const updateData: any = {
             name_full: user.nameFull,
@@ -2919,6 +2942,12 @@ export const dataService = {
             shift_start: user.shiftStart,
             shift_end: user.shiftEnd
         };
+
+        if (mobileFull) updateData.mobile_full = mobileFull;
+        if (mobileMask) updateData.mobile_mask = mobileMask;
+        if (mobileWhatsapp) updateData.mobile_whatsapp = mobileWhatsapp;
+
+        console.log('[updateProfile] mobile:', user.mobile, 'phone:', user.phone, 'mobileClean:', mobileClean, 'mobileFull:', mobileFull, 'mobileMask:', mobileMask, 'mobileWhatsapp:', mobileWhatsapp);
 
         if (user.statusId !== undefined) {
             updateData.status_id = user.statusId;

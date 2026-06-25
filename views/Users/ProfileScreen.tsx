@@ -297,6 +297,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 nameShort: nameShort,
                 email: email,
                 mobile: mobileClean,
+                phone: mobile,
                 avatarUrl: avatarUrl,
                 profileId: profileId || undefined,
                 teamId: teamId || undefined,
@@ -342,6 +343,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 message: 'Perfil atualizado com sucesso!',
                 type: 'success'
             });
+            setTimeout(() => onBack(), 1500);
         } catch (error) {
             console.error("Error updating profile", error);
             setModal({

@@ -104,6 +104,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                 nameFull,
                 nameShort,
                 mobile: mobileClean,
+                phone: mobile,
                 teamId,
                 profileId,
                 companyId,

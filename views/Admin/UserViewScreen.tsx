@@ -82,7 +82,7 @@ export const UserViewScreen: React.FC<UserViewScreenProps> = ({ user, onBack, on
                         <InfoRow
                             icon="call"
                             label="Telefone"
-                            value={user.mobile || user.phone || 'Não informado'}
+                            value={user.mobileMask || user.mobile || user.phone || 'Não informado'}
                         />
                     </div>
                 </section>

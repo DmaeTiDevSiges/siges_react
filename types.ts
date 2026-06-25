@@ -168,6 +168,8 @@ export interface User {
   nameShort?: string;
   mobile?: string;
   mobileMask?: string;
+  mobileFull?: string;
+  mobileWhatsapp?: string;
   phone?: string;
   imgFilePath?: string;
   imgFileName?: string;
