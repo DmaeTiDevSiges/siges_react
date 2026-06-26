@@ -1651,6 +1651,62 @@ $$;
 
 
 --
+-- Name: tools; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tools (
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY,
+    code character varying(50),
+    brand character varying(255) NOT NULL,
+    model character varying(255) NOT NULL,
+    serial_number character varying(255) NOT NULL,
+    status character varying(50) DEFAULT 'DISPONIVEL'::character varying NOT NULL,
+    material_id bigint,
+    created_at timestamp without time zone DEFAULT now(),
+    created_user_id integer,
+    updated_at timestamp without time zone,
+    updated_user_id integer,
+    is_deleted boolean DEFAULT false NOT NULL,
+    deleted_at timestamp without time zone,
+    deleted_user_id integer,
+    CONSTRAINT tools_status_check CHECK (((status)::text = ANY (ARRAY['DISPONIVEL'::text, 'EM_USO'::text, 'MANUTENCAO'::text, 'BAIXADA'::text]))),
+    CONSTRAINT tools_serial_number_key UNIQUE (serial_number)
+);
+
+--
+-- Name: users_tools; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.users_tools (
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY,
+    user_id integer NOT NULL,
+    tool_id integer NOT NULL,
+    amount integer DEFAULT 1,
+    date_start timestamp without time zone DEFAULT now(),
+    date_end timestamp without time zone,
+    status character varying(50) DEFAULT 'USO'::character varying NOT NULL,
+    created_at timestamp without time zone DEFAULT now(),
+    created_user_id integer,
+    CONSTRAINT users_tools_status_check CHECK (((status)::text = ANY (ARRAY['USO'::text, 'BAIXADO'::text, 'TRANSFERIDO'::text])))
+);
+
+--
+-- Name: users_tools_movements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.users_tools_movements (
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY,
+    tool_id integer NOT NULL,
+    from_user_id integer,
+    to_user_id integer,
+    movement_type character varying(50) NOT NULL,
+    amount integer DEFAULT 1,
+    created_at timestamp without time zone DEFAULT now(),
+    created_user_id integer,
+    CONSTRAINT users_tools_movements_type_check CHECK (((movement_type)::text = ANY (ARRAY['INCLUSAO'::text, 'TRANSFERENCIA'::text, 'BAIXA'::text])))
+);
+
+--
 -- Name: materials; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7585,6 +7641,12 @@ ALTER TABLE ONLY public.users
 ALTER TABLE ONLY public.vehicles
     ADD CONSTRAINT vehicles_company_fkey FOREIGN KEY (company_id) REFERENCES public.cfg_companies(id) ON DELETE CASCADE;
 
+--
+-- Name: tools tools_material_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tools
+    ADD CONSTRAINT tools_material_id_fkey FOREIGN KEY (material_id) REFERENCES public.materials(id) ON DELETE SET NULL;
 
 --
 -- Name: assets Permissive; Type: POLICY; Schema: public; Owner: -
@@ -8070,6 +8132,24 @@ ALTER TABLE public.users_notifications ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: tools; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.tools ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: users_tools; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.users_tools ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: users_tools_movements; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.users_tools_movements ENABLE ROW LEVEL SECURITY;
 
 --
 -- PostgreSQL database dump complete

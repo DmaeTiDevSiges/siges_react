@@ -1188,3 +1188,73 @@ export interface OrderVisitChatParticipant {
   userEmail?: string;
 }
 
+// ----------------------------------------------------------------------------
+// Modulo de Ferramentas (Tools / Inventory / Movements)
+// ----------------------------------------------------------------------------
+
+export interface Tool {
+  id: number;
+  code: string;
+  brand: string;
+  model: string;
+  serial_number: string;
+  status: 'DISPONIVEL' | 'EM_USO' | 'MANUTENCAO' | 'BAIXADA';
+  created_at?: string;
+  created_user_id?: number;
+  material_id?: number;
+  material_code?: string;
+  material_description?: string;
+  material_unit?: string;
+  updated_at?: string;
+  updated_user_id?: number;
+  is_deleted?: boolean;
+  deleted_at?: string;
+  deleted_user_id?: number;
+}
+
+export interface UserTool {
+  id: number;
+  user_id: number;
+  tool_id: number;
+  amount: number;
+  date_start: string;
+  date_end?: string;
+  status: 'USO' | 'BAIXADO' | 'TRANSFERIDO';
+  created_at?: string;
+  created_user_id?: number;
+  
+  // UI Helpers
+  user_name?: string;
+  user_avatar?: string;
+  tool_code?: string;
+  tool_brand?: string;
+  tool_model?: string;
+  tool_serial?: string;
+  tool_material_code?: string;
+  tool_material_description?: string;
+  tool_material_unit?: string;
+}
+
+export interface ToolMovement {
+  id: number;
+  tool_id: number;
+  from_user_id?: number;
+  to_user_id?: number;
+  movement_type: 'INCLUSAO' | 'TRANSFERENCIA' | 'BAIXA';
+  amount: number;
+  created_at: string;
+  created_user_id?: number;
+  
+  // UI Helpers
+  tool_code?: string;
+  tool_serial?: string;
+  tool_brand?: string;
+  tool_model?: string;
+  tool_material_code?: string;
+  tool_material_description?: string;
+  tool_material_unit?: string;
+  from_user_name?: string;
+  from_user_avatar?: string;
+  to_user_name?: string;
+  to_user_avatar?: string;
+}

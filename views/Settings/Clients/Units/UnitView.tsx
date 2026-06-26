@@ -668,14 +668,17 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                             <button
                                                 onClick={(e) => { 
                                                     e.stopPropagation(); 
-                                                    onInformAvailability?.(item);
+                                                    if (item.isActive) {
+                                                        onInformAvailability?.(item);
+                                                    }
                                                 }}
-                                                className="w-full h-11 bg-white dark:bg-slate-900/60 hover:bg-emerald-500 hover:border-emerald-500 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-center gap-3 group-hover/action-row:shadow-lg group-hover/action-row:shadow-emerald-500/10 transition-all duration-300 active:scale-[0.98] cursor-pointer group/btn"
+                                                disabled={!item.isActive}
+                                                className={`w-full h-11 border rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 active:scale-[0.98] group/btn ${item.isActive ? 'bg-white dark:bg-slate-900/60 hover:bg-emerald-500 hover:border-emerald-500 border-slate-200 dark:border-slate-800 group-hover/action-row:shadow-lg group-hover/action-row:shadow-emerald-500/10 cursor-pointer' : 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-50'}`}
                                             >
-                                                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center group-hover/btn:bg-white/20 transition-colors">
-                                                    <span className="material-symbols-outlined text-[20px] text-emerald-500 dark:text-emerald-400 group-hover/btn:text-white transition-colors [font-variation-settings:'wght'_600]">assignment_turned_in</span>
+                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${item.isActive ? 'bg-emerald-500/10 dark:bg-emerald-500/20 group-hover/btn:bg-white/20' : 'bg-slate-200/50 dark:bg-slate-700/30'}`}>
+                                                    <span className={`material-symbols-outlined text-[20px] transition-colors [font-variation-settings:'wght'_600] ${item.isActive ? 'text-emerald-500 dark:text-emerald-400 group-hover/btn:text-white' : 'text-slate-400 dark:text-slate-500'}`}>assignment_turned_in</span>
                                                 </div>
-                                                <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 group-hover/btn:text-white uppercase tracking-widest transition-colors">
+                                                <span className={`text-[11px] font-black uppercase tracking-widest transition-colors ${item.isActive ? 'text-slate-700 dark:text-slate-300 group-hover/btn:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
                                                     Informar Disponibilidade
                                                 </span>
                                             </button>

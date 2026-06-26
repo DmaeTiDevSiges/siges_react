@@ -6192,6 +6192,7 @@ export const dataService = {
                 reportedImageOriginal: item.last_file_path && item.last_file_name
                     ? this.getPublicImageUrl(item.last_file_path, item.last_file_name, { format: 'origin' })
                     : null,
+                isActive: item.is_active === true || item.is_active === 'true',
                 originalData: item
             };
         });
