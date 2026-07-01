@@ -17,6 +17,7 @@ interface MaterialPurchaseListItemProps {
     authorized_at?: string;
     purchase_type?: string;
     purchase_type_id?: string;
+    purchase_code?: string;
     warehouse_id?: string;
     unit_price?: number;
     showActions?: boolean;
@@ -59,6 +60,7 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
     authorized_at,
     purchase_type,
     purchase_type_id,
+    purchase_code,
     warehouse_id,
     unit_price,
     showActions = false,
@@ -79,6 +81,12 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
                         <>
                             <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
                             <span className="text-xs text-slate-500 dark:text-slate-400">{purchase_type}</span>
+                        </>
+                    )}
+                    {purchase_code && (
+                        <>
+                            <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
+                            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{purchase_code}</span>
                         </>
                     )}
                 </div>

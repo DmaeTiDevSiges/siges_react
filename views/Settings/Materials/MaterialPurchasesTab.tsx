@@ -165,6 +165,7 @@ export const MaterialPurchasesTab: React.FC<MaterialPurchasesTabProps> = ({ mate
                             authorized_at={p.authorized_at}
                             purchase_type={p.purchase_type_description}
                             purchase_type_id={p.purchase_type_id}
+                            purchase_code={p.purchase_code}
                             warehouse_id={p.warehouse_id}
                             unit_price={p.unit_price}
                             showActions={true}
