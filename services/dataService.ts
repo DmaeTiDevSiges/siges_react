@@ -5383,6 +5383,19 @@ export const dataService = {
         return { path: folderPath, filename: fileName };
     },
 
+    async updateAssetPhotoFromReport(assetId: string, companyId: string, sourceFileName: string, sourceFolderPath: string): Promise<void> {
+        const { error } = await supabase
+            .from('assets')
+            .update({
+                img_file_path: sourceFolderPath,
+                img_file_name: sourceFileName,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', parseInt(assetId));
+
+        if (error) throw error;
+    },
+
     async getAssetById(id: string): Promise<Asset | null> {
         const { data, error } = await supabase
             .from('assets')
@@ -6791,7 +6804,8 @@ export const dataService = {
                 isRead: item.is_read,
                 createdAt: item.created_at,
                 readAt: item.read_at,
-                unitId: item.unit_id?.toString(),
+                tableId: item.table_id?.toString(),
+                materialId: item.material_id?.toString(),
                 imgUrl: item.img_url,
                 orderId: item.o_id?.toString(),
                 ovId: item.ov_id?.toString(),
@@ -10973,19 +10987,17 @@ export const dataService = {
     // ORDER VISIT ASSET MATERIALS (orders_visits_assets_materials)
     // -------------------------------------------------------------------------
     async getAvailableMaterials(search: string = '', page: number = 0, pageSize: number = 20, providerCompanyId?: string): Promise<Material[]> {
+        const currentUser = await this.getCurrentUser();
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
-        // Utilizamos a view v_materials para trazer os materiais já filtrados e estruturados
         let query = supabase
             .from('v_materials')
             .select('*')
+            .eq('provider_company_id', currentUser?.companyId ? parseInt(currentUser.companyId) : 0)
+            .eq('is_deleted', false)
             .order('description', { ascending: true })
             .range(from, to);
-
-        if (providerCompanyId) {
-            query = query.eq('provider_company_id', parseInt(providerCompanyId));
-        }
 
         if (search) {
             query = query.or(`description.ilike.%${search}%,code.ilike.%${search}%`);
@@ -11002,9 +11014,290 @@ export const dataService = {
             code: item.code,
             description: item.description,
             unit: item.unit,
-            defaultValue: item.price_unit || item.value_unit || 0,
-            isAvailable: true 
+            priceUnit: item.price_unit || item.value_unit || 0,
+            isAvailable: true,
+            statusDescription: item.status_description || 'Ativo'
         }));
+    },
+
+    async getMaterials(filter: number | 'all' = 'all', search: string = '', companyId?: string, page: number = 1, pageSize: number = 50): Promise<{ materials: Material[]; total: number }> {
+        const currentUser = await this.getCurrentUser();
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+
+        let query = supabase
+            .from('v_materials')
+            .select('id, code, description, unit, price_unit, company_id, balance, finger_print, is_deleted, status_id, status_description', { count: 'exact' })
+            .eq('provider_company_id', currentUser?.companyId ? parseInt(currentUser.companyId) : 0)
+            .order('description');
+
+        if (filter !== 'all') {
+            query = query.eq('status_id', filter);
+        }
+
+        if (companyId) {
+            query = query.eq('company_id', parseInt(companyId));
+        }
+
+        if (search) {
+            const terms = search.trim().split(/\s+/);
+            for (const term of terms) {
+                query = query.ilike('searchable', `%${term}%`);
+            }
+        }
+
+        query = query.range(from, to);
+
+        const { data, error, count } = await query;
+
+        if (error) {
+            console.error('Error fetching materials:', error);
+            throw error;
+        }
+
+        return {
+            materials: (data || []).map((item: any) => ({
+                id: item.id.toString(),
+                code: item.code || '',
+                description: item.description || '',
+                unit: item.unit || '',
+                priceUnit: item.price_unit || 0,
+                companyId: item.company_id?.toString(),
+                balance: item.balance || 0,
+                fingerPrint: item.finger_print,
+                isAvailable: !item.is_deleted,
+                statusId: item.status_id || 1,
+                statusDescription: item.status_description || (item.is_deleted ? 'Inativo' : 'Ativo')
+            })) as Material[],
+            total: count || 0
+        };
+    },
+
+    async checkMaterialCodeExists(code: string, excludeId?: string): Promise<boolean> {
+        let query = supabase
+            .from('materials')
+            .select('id')
+            .eq('code', code)
+            .eq('is_deleted', false);
+
+        if (excludeId) {
+            query = query.neq('id', parseInt(excludeId));
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error checking material code:', error);
+            return false;
+        }
+
+        return (data && data.length > 0);
+    },
+
+    async createMaterial(material: Partial<Material>): Promise<Material> {
+        const currentUser = await this.getCurrentUser();
+        const dbData: any = {
+            code: material.code,
+            description: material.description,
+            unit: material.unit,
+            price_unit: material.priceUnit || 0,
+            status_id: material.statusId || 1,
+            company_id: 1,
+            provider_company_id: currentUser?.companyId ? parseInt(currentUser.companyId) : null,
+            created_user_id: currentUser ? parseInt(currentUser.id) : null,
+            created_at: getBrazilTimestamp(),
+            is_deleted: false
+        };
+
+        const { data, error } = await supabase
+            .from('materials')
+            .insert(dbData)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        if (material.warehouseId) {
+            const wmData: any = {
+                warehouse_id: parseInt(material.warehouseId),
+                material_id: data.id,
+                quantity: material.initialQuantity || 0,
+                min_stock: material.minStock || 0,
+                cost_avg: material.costAvg || 0
+            };
+
+            const { error: wmError } = await supabase
+                .from('warehouses_materials')
+                .insert(wmData);
+
+            if (wmError) throw wmError;
+        }
+
+        return {
+            id: data.id.toString(),
+            code: data.code,
+            description: data.description || '',
+            unit: data.unit || '',
+            priceUnit: data.price_unit || 0,
+            companyId: data.company_id?.toString(),
+            balance: data.balance || 0,
+            fingerPrint: data.finger_print,
+            isAvailable: !data.is_deleted,
+            statusId: data.status_id || 1
+        } as Material;
+    },
+
+    async getWarehouses(): Promise<{ id: string; code: string; description: string }[]> {
+        const currentUser = await this.getCurrentUser();
+        let query = supabase
+            .from('warehouses')
+            .select('id, code, description')
+            .eq('is_available', true)
+            .eq('is_deleted', false)
+            .order('description');
+
+        if (currentUser?.companyId) {
+            query = query.eq('company_id', parseInt(currentUser.companyId));
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        if ((!data || data.length === 0) && currentUser?.companyId) {
+            const { data: allData } = await supabase
+                .from('warehouses')
+                .select('id, code, description')
+                .eq('is_available', true)
+                .eq('is_deleted', false)
+                .order('description');
+
+            return (allData || []).map((item: any) => ({
+                id: item.id.toString(),
+                code: item.code,
+                description: item.description
+            }));
+        }
+
+        return (data || []).map((item: any) => ({
+            id: item.id.toString(),
+            code: item.code,
+            description: item.description
+        }));
+    },
+
+    async getMaterialsStatuses(): Promise<{ id: number; code: string; description: string }[]> {
+        const { data, error } = await supabase
+            .from('cfg_materials_statuses')
+            .select('id, code, description')
+            .order('id');
+
+        if (error) {
+            console.error('Error fetching materials statuses:', error);
+            throw error;
+        }
+
+        console.log('cfg_materials_statuses result:', data);
+
+        return (data || []).map((item: any) => ({
+            id: item.id,
+            code: item.code,
+            description: item.description
+        }));
+    },
+
+    async getMaterialById(id: string): Promise<Material | null> {
+        const { data, error } = await supabase
+            .from('v_materials')
+            .select('*')
+            .eq('id', parseInt(id))
+            .single();
+
+        if (error || !data) {
+            console.error('Error fetching material:', error);
+            return null;
+        }
+
+        return data as Material;
+    },
+
+    async getWarehouseMaterials(materialId: string): Promise<{ warehouse_id: string; warehouse_code: string; warehouse_description: string; quantity: number; min_stock: number; cost_avg: number }[]> {
+        const { data, error } = await supabase
+            .from('warehouses_materials')
+            .select('warehouse_id, quantity, min_stock, cost_avg, warehouses(id, code, description)')
+            .eq('material_id', parseInt(materialId));
+
+        if (error) throw error;
+
+        return (data || []).map((item: any) => ({
+            warehouse_id: item.warehouse_id?.toString() || '',
+            warehouse_code: item.warehouses?.code || '',
+            warehouse_description: item.warehouses?.description || '',
+            quantity: item.quantity || 0,
+            min_stock: item.min_stock || 0,
+            cost_avg: item.cost_avg || 0
+        }));
+    },
+
+    async createWarehouseMaterial(data: { warehouseId: string; materialId: string; quantity: number; minStock: number; priceUnit?: number }): Promise<void> {
+        const currentUser = await this.getCurrentUser();
+
+        const dbData: any = {
+            warehouse_id: parseInt(data.warehouseId),
+            material_id: parseInt(data.materialId),
+            quantity: data.quantity,
+            min_stock: data.minStock,
+            cost_avg: data.priceUnit ?? 0
+        };
+
+        const { error } = await supabase
+            .from('warehouses_materials')
+            .insert(dbData);
+
+        if (error) throw error;
+
+        if (data.priceUnit !== undefined) {
+            await supabase
+                .from('materials')
+                .update({ price_unit: data.priceUnit })
+                .eq('id', parseInt(data.materialId));
+        }
+    },
+
+    async updateMaterial(id: string, material: Partial<Material>): Promise<Material> {
+        const dbData: any = {};
+        if (material.code !== undefined) dbData.code = material.code;
+        if (material.description !== undefined) dbData.description = material.description;
+        if (material.unit !== undefined) dbData.unit = material.unit;
+        if (material.priceUnit !== undefined) dbData.price_unit = material.priceUnit;
+        if (material.statusId !== undefined) dbData.status_id = material.statusId;
+        if (material.companyId !== undefined) dbData.company_id = material.companyId ? parseInt(material.companyId) : null;
+        if (material.isAvailable !== undefined) dbData.is_deleted = !material.isAvailable;
+
+        const { data, error } = await supabase
+            .from('materials')
+            .update(dbData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        const { data: statusRow } = await supabase.from('cfg_materials_statuses').select('description').eq('id', data.status_id).single();
+
+        return {
+            id: data.id.toString(),
+            code: data.code,
+            description: data.description || '',
+            unit: data.unit || '',
+            priceUnit: data.price_unit || 0,
+            companyId: data.company_id?.toString(),
+            balance: data.balance || 0,
+            fingerPrint: data.finger_print,
+            isAvailable: !data.is_deleted,
+            statusId: data.status_id || 1,
+            statusDescription: statusRow?.description || (data.is_deleted ? 'Inativo' : 'Ativo')
+        } as Material;
     },
 
     async getOrderVisitAssetMaterials(ovAssetId: string): Promise<OrderVisitAssetMaterial[]> {
@@ -13000,7 +13293,7 @@ export const dataService = {
             ov_id: parseInt(visitId),
             o_id: orderId ? parseInt(orderId) : null,
             company_id: companyId ? parseInt(companyId) : null,
-            unit_id: unitId ? parseInt(unitId) : null,
+            table_id: unitId ? parseInt(unitId) : null,
             user_from_name_short: senderName,
             page_target: 'visit'
         }));
@@ -13031,6 +13324,413 @@ export const dataService = {
         if (error) {
             console.error('Error marking chat messages as read:', error);
         }
+    },
+
+    // -------------------------------------------------------------------------
+    // MATERIAL PURCHASES (materials_purchases)
+    // -------------------------------------------------------------------------
+
+    async createMaterialPurchase(data: { materialId: string; purchaseTypeId?: string; warehouseId?: string; quantity: number; unitPrice: number; justification: string; code?: string }): Promise<any> {
+        const currentUser = await this.getCurrentUser();
+        const totalPrice = data.quantity * data.unitPrice;
+
+        const insertData: any = {
+            material_id: parseInt(data.materialId),
+            quantity: data.quantity,
+            unit_price: data.unitPrice,
+            total_price: totalPrice,
+            justification: data.justification,
+            status_id: 1,
+            requester_id: currentUser?.id ? parseInt(currentUser.id) : 0,
+            created_user_id: currentUser?.id ? parseInt(currentUser.id) : undefined
+        };
+
+        if (data.purchaseTypeId) {
+            insertData.purchase_type_id = parseInt(data.purchaseTypeId);
+        }
+
+        if (data.warehouseId) {
+            insertData.warehouse_id = parseInt(data.warehouseId);
+        }
+
+        if (data.code) {
+            insertData.code = data.code;
+        }
+
+        const { data: result, error } = await supabase
+            .from('materials_purchases')
+            .insert(insertData)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating material purchase:', error);
+            throw error;
+        }
+        return result;
+    },
+
+    async getMaterialPurchases(materialId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('v_materials_purchases')
+            .select('*')
+            .eq('material_id', parseInt(materialId))
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching material purchases:', error);
+            return [];
+        }
+        return data || [];
+    },
+
+    async getMaterialPurchasesDashboard(): Promise<{ pending: number; authorized: number; completed: number; cancelled: number; pending_value: number; authorized_value: number }> {
+        const { data, error } = await supabase
+            .from('materials_purchases')
+            .select('status_id, total_price')
+            .eq('is_deleted', false);
+
+        if (error) {
+            console.error('Error fetching purchases dashboard:', error);
+            return { pending: 0, authorized: 0, completed: 0, cancelled: 0, pending_value: 0, authorized_value: 0 };
+        }
+
+        const counts = { pending: 0, authorized: 0, completed: 0, cancelled: 0, pending_value: 0, authorized_value: 0 };
+        for (const row of data || []) {
+            const statusId = (row as any).status_id;
+            const totalPrice = (row as any).total_price || 0;
+            if (statusId === 1) { counts.pending++; counts.pending_value += totalPrice; }
+            else if (statusId === 2) { counts.authorized++; counts.authorized_value += totalPrice; }
+            else if (statusId === 3) counts.completed++;
+            else if (statusId === 4) counts.cancelled++;
+        }
+        return counts;
+    },
+
+    async getMaterialPurchasesAll(): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('v_materials_purchases')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching all material purchases:', error);
+            return [];
+        }
+        return data || [];
+    },
+
+    async authorizeMaterialPurchase(id: string, data: { code: string; purchaseTypeId: string; warehouseId: string; quantity: number; unitPrice: number; justification: string }): Promise<void> {
+        const currentUser = await this.getCurrentUser();
+
+        const { data: purchase, error: fetchError } = await supabase
+            .from('materials_purchases')
+            .select('material_id, requester_id')
+            .eq('id', parseInt(id))
+            .single();
+
+        if (fetchError || !purchase) {
+            console.error('Error fetching purchase:', fetchError);
+            throw fetchError;
+        }
+
+        const { data: materialData } = await supabase
+            .from('materials')
+            .select('description, code')
+            .eq('id', purchase.material_id)
+            .single();
+
+        const totalPrice = data.quantity * data.unitPrice;
+
+        const updateData: any = {
+            status_id: 2,
+            code: data.code,
+            purchase_type_id: parseInt(data.purchaseTypeId),
+            warehouse_id: parseInt(data.warehouseId),
+            quantity: data.quantity,
+            unit_price: data.unitPrice,
+            total_price: totalPrice,
+            justification: data.justification,
+            authorizer_id: currentUser?.id ? parseInt(currentUser.id) : undefined,
+            authorized_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase
+            .from('materials_purchases')
+            .update(updateData)
+            .eq('id', parseInt(id));
+
+        if (error) {
+            console.error('Error authorizing purchase:', error);
+            throw error;
+        }
+
+        try {
+            const materialDesc = materialData?.description || 'Material';
+            const materialCode = materialData?.code || '';
+            const totalPriceFormatted = totalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const timestamp = new Date().toISOString();
+
+            await supabase.from('users_notifications').insert({
+                user_id_to: purchase.requester_id,
+                user_id_from: currentUser?.id ? parseInt(currentUser.id) : null,
+                title: 'Compra Aprovada',
+                body: `Sua solicitação de compra do material ${materialCode ? materialCode + ' - ' : ''}${materialDesc} foi aprovada.\nQuantidade: ${data.quantity}\nValor Total: ${totalPriceFormatted}`,
+                type: 'Compra Aprovada',
+                material_id: purchase.material_id,
+                created_at: timestamp,
+                is_read: false
+            });
+        } catch (notifErr) {
+            console.error('Error sending purchase authorization notification:', notifErr);
+        }
+    },
+
+    async cancelMaterialPurchase(id: string, cancelReason: string): Promise<void> {
+        const currentUser = await this.getCurrentUser();
+
+        const { data: purchase, error: fetchError } = await supabase
+            .from('materials_purchases')
+            .select('material_id, requester_id')
+            .eq('id', parseInt(id))
+            .single();
+
+        if (fetchError || !purchase) {
+            console.error('Error fetching purchase:', fetchError);
+            throw fetchError;
+        }
+
+        const { data: materialData } = await supabase
+            .from('materials')
+            .select('description, code')
+            .eq('id', purchase.material_id)
+            .single();
+
+        const { error } = await supabase
+            .from('materials_purchases')
+            .update({
+                status_id: 4,
+                cancel_reason: cancelReason,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', parseInt(id));
+
+        if (error) {
+            console.error('Error cancelling purchase:', error);
+            throw error;
+        }
+
+        try {
+            const materialDesc = materialData?.description || 'Material';
+            const materialCode = materialData?.code || '';
+            const cancellerName = currentUser?.name_short || currentUser?.name_full || 'Administrador';
+            const timestamp = new Date().toISOString();
+
+            await supabase.from('users_notifications').insert({
+                user_id_to: purchase.requester_id,
+                user_id_from: currentUser?.id ? parseInt(currentUser.id) : null,
+                title: 'Compra Cancelada',
+                body: `Sua solicitação de compra do material ${materialCode ? materialCode + ' - ' : ''}${materialDesc} foi cancelada por ${cancellerName}.\nMotivo: ${cancelReason}`,
+                type: 'Compra Cancelada',
+                material_id: purchase.material_id,
+                created_at: timestamp,
+                is_read: false
+            });
+        } catch (notifErr) {
+            console.error('Error sending purchase cancellation notification:', notifErr);
+        }
+    },
+
+    async completeMaterialPurchase(id: string): Promise<void> {
+        const currentUser = await this.getCurrentUser();
+
+        const { data: purchase, error: fetchError } = await supabase
+            .from('materials_purchases')
+            .select('material_id, quantity, unit_price, requester_id')
+            .eq('id', parseInt(id))
+            .single();
+
+        if (fetchError || !purchase) {
+            console.error('Error fetching purchase:', fetchError);
+            throw fetchError;
+        }
+
+        const { data: materialData } = await supabase
+            .from('materials')
+            .select('description, code')
+            .eq('id', (purchase as any).material_id)
+            .single();
+
+        const { error: updateError } = await supabase
+            .from('materials_purchases')
+            .update({
+                status_id: 3,
+                concluded_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', parseInt(id));
+
+        if (updateError) {
+            console.error('Error completing purchase:', updateError);
+            throw updateError;
+        }
+
+        const materialId = (purchase as any).material_id;
+        const quantity = (purchase as any).quantity;
+        const unitPrice = (purchase as any).unit_price;
+
+        const { data: existing } = await supabase
+            .from('warehouses_materials')
+            .select('id, quantity')
+            .eq('material_id', materialId)
+            .limit(1)
+            .maybeSingle();
+
+        if (existing) {
+            await supabase
+                .from('warehouses_materials')
+                .update({
+                    quantity: existing.quantity + quantity,
+                    cost_avg: unitPrice,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existing.id);
+        }
+
+        await supabase
+            .from('materials')
+            .update({ price_unit: unitPrice })
+            .eq('id', materialId);
+
+        try {
+            const materialDesc = materialData?.description || 'Material';
+            const materialCode = materialData?.code || '';
+            const completerName = currentUser?.name_short || currentUser?.name_full || 'Administrador';
+            const totalPrice = quantity * unitPrice;
+            const totalPriceFormatted = totalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const timestamp = new Date().toISOString();
+
+            await supabase.from('users_notifications').insert({
+                user_id_to: purchase.requester_id,
+                user_id_from: currentUser?.id ? parseInt(currentUser.id) : null,
+                title: 'Compra Concluída',
+                body: `Sua solicitação de compra do material ${materialCode ? materialCode + ' - ' : ''}${materialDesc} foi concluída por ${completerName}.\nQuantidade: ${quantity}\nValor Total: ${totalPriceFormatted}`,
+                type: 'Compra Concluída',
+                material_id: purchase.material_id,
+                created_at: timestamp,
+                is_read: false
+            });
+        } catch (notifErr) {
+            console.error('Error sending purchase completion notification:', notifErr);
+        }
+    },
+
+    async getMaterialsBelowMinStock(): Promise<{
+        material_id: number;
+        material_code: string;
+        material_description: string;
+        material_unit: string;
+        warehouse_id: string;
+        warehouse_description: string;
+        quantity: number;
+        min_stock: number;
+        cost_avg: number;
+        deficit: number;
+        deficit_value: number;
+    }[]> {
+        const { data, error } = await supabase
+            .from('warehouses_materials')
+            .select('quantity, min_stock, cost_avg, material_id, warehouse_id, materials(id, code, description, unit), warehouses(id, description)')
+            .eq('is_deleted', false);
+
+        if (error) {
+            console.error('Error fetching materials below min stock:', error);
+            return [];
+        }
+
+        const results: any[] = [];
+        for (const row of data || []) {
+            const mat = (row as any).materials;
+            const wh = (row as any).warehouses;
+            const qty = row.quantity || 0;
+            const minStock = row.min_stock || 0;
+            if (minStock > 0 && qty < minStock) {
+                const deficit = minStock - qty;
+                results.push({
+                    material_id: row.material_id,
+                    material_code: mat?.code || '',
+                    material_description: mat?.description || '',
+                    material_unit: mat?.unit || '',
+                    warehouse_id: row.warehouse_id,
+                    warehouse_description: wh?.description || '',
+                    quantity: qty,
+                    min_stock: minStock,
+                    cost_avg: row.cost_avg || 0,
+                    deficit,
+                    deficit_value: deficit * (row.cost_avg || 0),
+                });
+            }
+        }
+
+        return results.sort((a, b) => b.deficit_value - a.deficit_value);
+    },
+
+    async getMaterialsStockSummary(): Promise<{
+        total_stock_value: number;
+        total_materials: number;
+        materials_without_stock: number;
+        materials_below_min: number;
+    }> {
+        const { data, error } = await supabase
+            .from('warehouses_materials')
+            .select('quantity, min_stock, cost_avg, materials(id, is_deleted)')
+            .eq('is_deleted', false);
+
+        if (error) {
+            console.error('Error fetching stock summary:', error);
+            return { total_stock_value: 0, total_materials: 0, materials_without_stock: 0, materials_below_min: 0 };
+        }
+
+        let totalStockValue = 0;
+        let totalMaterials = 0;
+        let materialsWithoutStock = 0;
+        let materialsBelowMin = 0;
+        const seenMaterials = new Set<number>();
+
+        for (const row of data || []) {
+            const mat = (row as any).materials;
+            if (mat?.is_deleted) continue;
+
+            const matId = row.material_id;
+            if (!seenMaterials.has(matId)) {
+                seenMaterials.add(matId);
+                totalMaterials++;
+            }
+
+            const qty = row.quantity || 0;
+            const costAvg = row.cost_avg || 0;
+            totalStockValue += qty * costAvg;
+
+            if (qty === 0) materialsWithoutStock++;
+            if (row.min_stock > 0 && qty < row.min_stock) materialsBelowMin++;
+        }
+
+        return { total_stock_value: totalStockValue, total_materials: totalMaterials, materials_without_stock: materialsWithoutStock, materials_below_min: materialsBelowMin };
+    },
+
+    async getRecentPurchases(limit = 5): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('v_materials_purchases')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error('Error fetching recent purchases:', error);
+            return [];
+        }
+        return data || [];
     }
 };
 

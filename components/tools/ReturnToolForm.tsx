@@ -64,7 +64,7 @@ export const ReturnToolForm: React.FC<ReturnToolFormProps> = ({ userTool, onSave
                     <div className="px-4 py-3">
                         <p className="font-bold text-primary text-sm truncate">{userTool.tool_code || '—'}</p>
                         {userTool.tool_material_code && (
-                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                                 <span className="font-semibold text-slate-500 dark:text-slate-400">{userTool.tool_material_code}</span>
                                 {userTool.tool_material_description && <span> — {userTool.tool_material_description}</span>}
                                 {userTool.tool_material_unit && <span className="ml-1 text-slate-400">({userTool.tool_material_unit})</span>}

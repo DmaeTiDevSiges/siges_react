@@ -260,7 +260,7 @@ export const Modal: React.FC<ModalProps> = ({
                                 )}
 
                                 {/* Title + Close row */}
-                                <div className="px-4 pb-3 pt-1 flex items-center justify-between gap-2">
+                                <div className="px-[24px] pb-[24px] pt-[24px] flex items-center justify-between gap-2">
                                     <h3 className="flex-1 flex items-center gap-2">
                                         {typeof title === 'string' ? (
                                             <span className="text-lg font-black text-slate-900 dark:text-white uppercase leading-none">{title}</span>
@@ -299,12 +299,12 @@ export const Modal: React.FC<ModalProps> = ({
                             </div>
                         )}
 
-                        <div className={`${noPadding ? 'p-0' : 'p-6'} flex-1 overflow-auto`}>
+                        <div className={`${noPadding ? 'p-0' : 'p-[24px]'} flex-1 overflow-auto`}>
                             {children}
                         </div>
 
                         {onConfirm && confirmLabel && (
-                            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 shrink-0">
+                            <div className="p-[24px] border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 shrink-0">
                                 <button
                                     onClick={() => {
                                         if (confirmLoading) return;

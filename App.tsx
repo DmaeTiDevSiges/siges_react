@@ -47,6 +47,11 @@ import { ContractForm } from './views/Contracts/ContractForm';
 import { ContractDetails } from './views/Contracts/ContractDetails';
 import { ServicesList } from './views/Settings/Services/ServicesList';
 import { ServiceForm } from './views/Settings/Services/ServiceForm';
+import { MaterialsList } from './views/Settings/Materials/MaterialsList';
+import { MaterialsSearch } from './views/Settings/Materials/MaterialsSearch';
+import { MaterialForm } from './views/Settings/Materials/MaterialForm';
+import { MaterialDetails } from './views/Settings/Materials/MaterialDetails';
+import { MaterialsDashboard } from './views/Settings/Materials/MaterialsDashboard';
 import { PrioritiesList } from './views/Settings/Orders/Priorities/OrderPrioritiesList';
 import { PriorityForm } from './views/Settings/Orders/Priorities/OrderPriorityForm';
 import { OrderTypesList } from './views/Settings/Orders/OrderTypes/OrderTypesList';
@@ -108,7 +113,7 @@ import { MaintenancePlansScreen } from './views/Settings/MaintenancePlans/Mainte
 import { ToolsMainView } from './views/Tools/ToolsMainView';
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/imgproxyService';
@@ -182,10 +187,11 @@ const AppContent: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials'>(() => {
     const saved = localStorage.getItem('app_active_tab');
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
+    if (saved === 'materials-search') return 'materials';
     return (saved as any) || 'dashboard';
   });
 
@@ -227,6 +233,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('maintenance-plans');
     } else if (normalizedTab === 'tools') {
       setCurrentScreen('tools');
+    } else if (normalizedTab === 'materials') {
+      setCurrentScreen('materials-search');
     }
   };
   const [currentScreen, setCurrentScreen] = useState<Screen>(() => {
@@ -248,6 +256,7 @@ const AppContent: React.FC = () => {
     if (savedTab === 'settings') return 'settings';
     if (savedTab === 'companies') return 'companies';
     if (savedTab === 'contracts') return 'contracts';
+    if (savedTab === 'materials' || savedTab === 'materials-search') return 'materials-search';
     return 'dashboard';
   });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -325,6 +334,8 @@ const AppContent: React.FC = () => {
   const [selectedOrderPlan, setSelectedOrderPlan] = useState<OrderPlan | null>(null);
   const [selectedOrderObject, setSelectedOrderObject] = useState<OrderObject | null>(null);
   const [selectedService, setSelectedService] = useState<import('./types').Service | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<import('./types').Material | null>(null);
+  const [materialDefaultTab, setMaterialDefaultTab] = useState<'almoxarifados' | 'compras'>('almoxarifados');
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [selectedAssetType, setSelectedAssetType] = useState<AssetType | null>(null);
   const [selectedAssetStatus, setSelectedAssetStatus] = useState<AssetStatus | null>(null);
@@ -423,6 +434,7 @@ const AppContent: React.FC = () => {
       setOrdersDashboardTab('VISITAS');
     }
     if (path === 'settings' || path === 'companies' || path === 'contracts') tab = path;
+    if (path === 'materials' || path === 'materials-search') tab = 'materials';
     if (path.startsWith('maintenance-plan')) tab = 'maintenance-plans';
 
     setActiveTab(tab);
@@ -431,6 +443,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('assets-search');
     } else if (path === 'units' || path === 'units-search') {
       setCurrentScreen('units-search');
+    } else if (path === 'materials' || path === 'materials-search') {
+      setCurrentScreen('materials-search');
     } else if (path === 'orders') {
       setCurrentScreen('orders-dashboard');
     } else if (path === 'visits') {
@@ -458,7 +472,8 @@ const AppContent: React.FC = () => {
       currentScreen === 'visits-dashboard' ||
       currentScreen === 'dashboard-units-power-electric' ||
       currentScreen === 'dashboard-units-assets-tags' ||
-      currentScreen === 'dashboard-orders-admin-calendar';
+      currentScreen === 'dashboard-orders-admin-calendar' ||
+      currentScreen === 'materials-dashboard';
 
     if (!isDashboardScreen) return null;
 
@@ -466,11 +481,11 @@ const AppContent: React.FC = () => {
       <div className="flex items-center gap-4 h-full mt-1">
         <h1 className="hidden md:block text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Gestão</h1>
         <div className="hidden md:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 overflow-x-auto no-scrollbar">
           {hasOrders && (
             <button
               onClick={() => { setOrdersDashboardTab('OS'); setCurrentScreen('orders-dashboard'); }}
-              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
             >
               OS's
             </button>
@@ -478,7 +493,7 @@ const AppContent: React.FC = () => {
           {hasVisits && (
             <button
               onClick={() => { setOrdersDashboardTab('VISITAS'); setCurrentScreen('visits-dashboard'); }}
-              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${(currentScreen === 'visits-dashboard' || (currentScreen === 'orders-dashboard' && ordersDashboardTab === 'VISITAS')) ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${(currentScreen === 'visits-dashboard' || (currentScreen === 'orders-dashboard' && ordersDashboardTab === 'VISITAS')) ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
             >
               Visitas
             </button>
@@ -486,27 +501,26 @@ const AppContent: React.FC = () => {
           {hasUnits && (
             <button
               onClick={() => { setCurrentScreen('dashboard-units-assets-tags'); setActiveTab('dashboard-units-assets-tags'); }}
-              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'dashboard-units-assets-tags' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${currentScreen === 'dashboard-units-assets-tags' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
             >
               Unidades
-            </button>
-          )}
-          {hasPower && (
-            <button
-              onClick={() => setCurrentScreen('dashboard-units-power-electric')}
-              className={`pb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'dashboard-units-power-electric' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-            >
-              <span className="material-symbols-outlined text-[14px]">bolt</span>
-              Energia
             </button>
           )}
           {hasVisits && (
             <button
               onClick={() => setCurrentScreen('dashboard-orders-admin-calendar')}
-              className={`pb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 ${currentScreen === 'dashboard-orders-admin-calendar' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+              className={`pb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${currentScreen === 'dashboard-orders-admin-calendar' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
             >
               <span className="material-symbols-outlined text-[14px]">calendar_view_week</span>
               Calendário
+            </button>
+          )}
+          {canView('dashboard_materials') && (
+            <button
+              onClick={() => setCurrentScreen('materials-dashboard')}
+              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${currentScreen === 'materials-dashboard' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
+            >
+              Materiais
             </button>
           )}
         </div>
@@ -519,7 +533,8 @@ const AppContent: React.FC = () => {
       currentScreen === 'visits-dashboard' ||
       currentScreen === 'dashboard-units-power-electric' ||
       currentScreen === 'dashboard-units-assets-tags' ||
-      currentScreen === 'dashboard-orders-admin-calendar';
+      currentScreen === 'dashboard-orders-admin-calendar' ||
+      currentScreen === 'materials-dashboard';
 
     if (!isDashboardScreen) return undefined;
     return <DashboardTabs />;
@@ -746,19 +761,33 @@ const AppContent: React.FC = () => {
       setSelectedVisit({ id: notification.ovId } as any);
       setVisitActiveTab('chat');
       setCurrentScreen('order-visit-execute');
-
+    } else if (
+      (notification.type === 'Compra Aprovada' || notification.type === 'Compra Cancelada' || notification.type === 'Compra Concluída') &&
+      notification.materialId
+    ) {
       try {
-        await dataService.deleteNotification(notification.id);
-        setNotifications(prev => {
-          const newList = prev.filter(n => n.id !== notification.id);
-          if (currentUser) {
-            setCurrentUser({ ...currentUser, notificationsAmount: newList.length });
-          }
-          return newList;
-        });
+        const material = await dataService.getMaterialById(notification.materialId);
+        if (material) {
+          setSelectedMaterial(material);
+          setMaterialDefaultTab('compras');
+          setCurrentScreen('material-details');
+        }
       } catch (error) {
-        console.error('Error deleting notification after click:', error);
+        console.error('Error loading material for notification:', error);
       }
+    }
+
+    try {
+      await dataService.deleteNotification(notification.id);
+      setNotifications(prev => {
+        const newList = prev.filter(n => n.id !== notification.id);
+        if (currentUser) {
+          setCurrentUser({ ...currentUser, notificationsAmount: newList.length });
+        }
+        return newList;
+      });
+    } catch (error) {
+      console.error('Error deleting notification after click:', error);
     }
   };
 
@@ -1040,6 +1069,16 @@ const AppContent: React.FC = () => {
       setCurrentScreen('settings');
     } else if (currentScreen === 'service-form' || currentScreen === 'service-edit') {
       setCurrentScreen('services');
+    } else if (currentScreen === 'materials-search') {
+      setCurrentScreen('dashboard');
+      setActiveTab('dashboard');
+      localStorage.setItem('app_active_tab', 'dashboard');
+    } else if (currentScreen === 'materials') {
+      setCurrentScreen('settings');
+    } else if (currentScreen === 'material-form' || currentScreen === 'material-edit') {
+      setCurrentScreen('materials-search');
+    } else if (currentScreen === 'material-details') {
+      setCurrentScreen('materials-search');
     } else if (currentScreen === 'priorities') {
       setCurrentScreen('settings');
     } else if (currentScreen === 'priority-form' || currentScreen === 'priority-edit') {
@@ -1538,6 +1577,27 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const handleMaterialSelect = (material: import('./types').Material) => {
+    setSelectedMaterial(material);
+    setCurrentScreen('material-details');
+  };
+
+  const handleSaveMaterial = async (material: Partial<import('./types').Material>) => {
+    try {
+      if (selectedMaterial?.id && currentScreen === 'material-edit') {
+        const updated = await dataService.updateMaterial(selectedMaterial.id, material);
+        setSelectedMaterial(updated);
+        setCurrentScreen('material-details');
+      } else {
+        await dataService.createMaterial(material);
+        setCurrentScreen('materials-search');
+      }
+    } catch (error) {
+      console.error("Error saving material", error);
+      toast.error("Erro ao salvar material");
+    }
+  };
+
   const handlePrioritySelect = (priority: Priority) => {
     setSelectedPriority(priority);
     setCurrentScreen('priority-edit');
@@ -2028,6 +2088,18 @@ const AppContent: React.FC = () => {
         return <ServiceForm onSave={handleSaveService} onCancel={handleBack} />;
       case 'service-edit':
         return selectedService ? <ServiceForm initialService={selectedService} onSave={handleSaveService} onCancel={handleBack} /> : null;
+      case 'materials-search':
+        return <MaterialsSearch currentUser={currentUser!} onSelectMaterial={handleMaterialSelect} onAdd={() => setCurrentScreen('material-form')} onDashboard={() => setCurrentScreen('materials-dashboard')} />;
+      case 'materials':
+        return <MaterialsList onAdd={() => setCurrentScreen('material-form')} onSelect={handleMaterialSelect} onDashboard={() => setCurrentScreen('materials-dashboard')} />;
+      case 'material-form':
+        return <MaterialForm onSave={handleSaveMaterial} onCancel={handleBack} />;
+      case 'material-edit':
+        return selectedMaterial ? <MaterialForm initialMaterial={selectedMaterial} onSave={handleSaveMaterial} onCancel={handleBack} /> : null;
+      case 'material-details':
+        return selectedMaterial ? <MaterialDetails material={selectedMaterial} onEdit={() => setCurrentScreen('material-edit')} onUpdate={(updated) => setSelectedMaterial(updated)} defaultTab={materialDefaultTab} /> : null;
+      case 'materials-dashboard':
+        return <MaterialsDashboard onBack={handleBack} onSelectMaterial={handleMaterialSelect} />;
       case 'activity-form':
         return <ActivityForm onSave={handleSaveActivity} onCancel={handleBack} />;
       case 'activity-edit':
@@ -2341,6 +2413,20 @@ const AppContent: React.FC = () => {
               setCurrentScreen('order-visit-approve');
             }}
             onChatEntered={handleChatEntered}
+            onViewOrder={async () => {
+              if (selectedVisit?.oId) {
+                try {
+                  const orderData = await dataService.getOrderById(selectedVisit.oId);
+                  if (orderData) {
+                    setSelectedOrder(orderData);
+                    setCurrentScreen('order-detail');
+                  }
+                } catch (error) {
+                  console.error('Error loading order:', error);
+                  toast.error('Erro ao carregar ordem de serviço');
+                }
+              }
+            }}
           />
         ) : null;
       case 'order-visit-approve':
@@ -2497,6 +2583,12 @@ const AppContent: React.FC = () => {
       case 'services': return 'Serviços';
       case 'service-form': return 'Novo Serviço';
       case 'service-edit': return 'Editar Serviço';
+      case 'materials': return 'Materiais';
+      case 'materials-search': return 'Materiais';
+      case 'material-form': return 'Novo Material';
+      case 'material-edit': return 'Editar Material';
+      case 'material-details': return 'Material';
+      case 'materials-dashboard': return 'Dashboard de Materiais';
       case 'activity-form': return 'Nova Atividade';
       case 'activity-edit': return 'Editar Atividade';
       case 'contracts': return 'Contratos';
@@ -2710,7 +2802,11 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) !== 'settings' &&
                 (currentScreen as string) !== 'profile-permissions' &&
                 (currentScreen as string) !== 'notifications' &&
-                (currentScreen as string) !== 'tools'
+                (currentScreen as string) !== 'tools' &&
+                (currentScreen as string) !== 'materials-search' &&
+                (currentScreen as string) !== 'materials-dashboard' &&
+                (currentScreen as string) !== 'material-form' &&
+                (currentScreen as string) !== 'material-edit'
               }
               onBackClick={handleBack}
               currentUser={currentUser}

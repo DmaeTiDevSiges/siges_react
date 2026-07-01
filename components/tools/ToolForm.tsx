@@ -58,7 +58,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
                     code: tool.material_code,
                     description: tool.material_description,
                     unit: tool.material_unit || '',
-                    defaultValue: 0,
+                    priceUnit: 0,
                     isAvailable: true,
                 });
                 setMaterialSearch(`${tool.material_code} - ${tool.material_description}`);
@@ -177,7 +177,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
 
     const handleSave = async () => {
         if (!code.trim() || !brand.trim() || !model.trim() || !serialNumber.trim()) {
-            setModal({ isOpen: true, title: 'Atenção', message: 'Preencha todos os campos obrigatórios: Código, Marca, Modelo e Número de Série.', type: 'warning' });
+            setModal({ isOpen: true, title: 'Atenção', message: 'Preencha todos os campos obrigatórios: Código, Marca, Modelo e Nr Série.', type: 'warning' });
             return;
         }
         if (!materialId) {
@@ -239,7 +239,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
                     {/* Linha 3: Serial + Status */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className={labelClass}>Número de Série / Patrimônio *</label>
+                            <label className={labelClass}>Nr Série *</label>
                             <input
                                 type="text"
                                 value={serialNumber}

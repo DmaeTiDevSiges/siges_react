@@ -974,7 +974,14 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [loading, setLoading] = useState(true);
     const initialLoadDone = React.useRef(false);
     const fetchIdRef = useRef(0);
-    const [activeFilter, setActiveFilter] = useState<string>('all');
+    const [activeOrderVisitProcessingIdSelected, setActiveOrderVisitProcessingIdSelected] = useState<string>(() => {
+        const saved = localStorage.getItem('visits_dashboard_processing_id');
+        return saved || 'all';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('visits_dashboard_processing_id', activeOrderVisitProcessingIdSelected);
+    }, [activeOrderVisitProcessingIdSelected]);
     const [visitTeams, setVisitTeams] = useState<Record<string, OrderVisitTeam[]>>({});
     const [appropriationData, setAppropriationData] = useState<{
         services: any[];
@@ -1423,8 +1430,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const filteredVisits = useMemo(() => {
         return baseFilteredVisits
             .filter(visit => {
-                if (activeFilter !== 'all') {
-                    if (visit.ovProcessingId !== parseInt(activeFilter)) return false;
+                if (activeOrderVisitProcessingIdSelected !== 'all') {
+                    if (visit.ovProcessingId !== parseInt(activeOrderVisitProcessingIdSelected)) return false;
                 }
                 return true;
             })
@@ -1438,7 +1445,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                     ? String(a.id).localeCompare(String(b.id), undefined, { numeric: true })
                     : String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
             });
-    }, [baseFilteredVisits, activeFilter, sortOrder]);
+    }, [baseFilteredVisits, activeOrderVisitProcessingIdSelected, sortOrder]);
 
     const financialTotals = useMemo(() => {
         return {
@@ -1612,7 +1619,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     useEffect(() => {
         setVisibleCount(50);
-    }, [activeFilter, searchQuery, advancedFilters, dateRange]);
+    }, [activeOrderVisitProcessingIdSelected, searchQuery, advancedFilters, dateRange]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -1737,8 +1744,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             count={baseFilteredVisits.length}
                             totalValue={baseFilteredVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0)}
                             color="text-slate-400"
-                            active={activeFilter === 'all'}
-                            onClick={() => setActiveFilter('all')}
+                            active={activeOrderVisitProcessingIdSelected === 'all'}
+                            onClick={() => setActiveOrderVisitProcessingIdSelected('all')}
                             visits={baseFilteredVisits}
                         />
                         {processingStages.map(stage => {
@@ -1753,8 +1760,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     totalValue={stats[stage.id]?.total || 0}
                                     color={!isHex ? stage.icon_color : ''}
                                     styleColor={isHex ? stage.icon_color : undefined}
-                                    active={activeFilter === String(stage.id)}
-                                    onClick={() => setActiveFilter(String(stage.id))}
+                                    active={activeOrderVisitProcessingIdSelected === String(stage.id)}
+                                    onClick={() => setActiveOrderVisitProcessingIdSelected(String(stage.id))}
                                     visits={stageVisits}
                                 />
                             );

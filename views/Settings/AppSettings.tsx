@@ -166,6 +166,13 @@ export const AppSettings: React.FC<{ onNavigate?: (screen: string) => void }> = 
                         subtitle="Gerenciar catálogo de serviços"
                         onClick={() => onNavigate?.('services')}
                     />
+                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                    <SettingItem
+                        icon="inventory_2"
+                        title="Materiais"
+                        subtitle="Gerenciar catálogo de materiais"
+                        onClick={() => onNavigate?.('materials')}
+                    />
                 </div>
             </div>
 

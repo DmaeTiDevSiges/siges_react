@@ -80,13 +80,15 @@ interface ImageGridProps {
     images: string[];
     type: 'initial' | 'final';
     isReadOnly: boolean;
+    isVisitFiled: boolean;
     setExpandedImage: (img: string) => void;
     removeImage: (type: 'initial' | 'final', index: number) => void;
     editImage: (type: 'initial' | 'final', index: number) => void;
     setPhotoActionSection: (section: 'initial' | 'final') => void;
+    onUseAsCover?: (imageUrl: string) => void;
 }
 
-const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpandedImage, removeImage, editImage, setPhotoActionSection }) => {
+const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, isVisitFiled, setExpandedImage, removeImage, editImage, setPhotoActionSection, onUseAsCover }) => {
     return (
         <div className="space-y-2 mt-3">
             <div className="grid grid-cols-3 gap-3">
@@ -94,34 +96,49 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, setExpa
                     const img = images[idx];
                     if (img) {
                         return (
-                            <div key={idx} className="relative rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer" style={{ height: '96px' }}>
-                                <OptimizedImage
-                                    src={img}
-                                    alt={`Foto ${idx + 1}`}
-                                    className="w-full h-full object-cover"
-                                    onClick={() => isReadOnly ? setExpandedImage(img) : editImage(type, idx)}
-                                    preset="medium"
-                                />
-                                {!isReadOnly && (
-                                    <>
-                                        {images.length > 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    removeImage(type, idx);
-                                                }}
-                                                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg z-20"
-                                            >
-                                                <span className="material-symbols-outlined text-[14px]">delete</span>
-                                            </button>
-                                        )}
+                            <div key={idx} className="flex flex-col gap-1">
+                                <div className="relative rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer" style={{ height: '96px' }}>
+                                    <OptimizedImage
+                                        src={img}
+                                        alt={`Foto ${idx + 1}`}
+                                        className="w-full h-full object-cover"
+                                        onClick={() => isReadOnly ? setExpandedImage(img) : editImage(type, idx)}
+                                        preset="medium"
+                                    />
+                                    {!isReadOnly && (
+                                        <>
+                                            {images.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        removeImage(type, idx);
+                                                    }}
+                                                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg z-20"
+                                                >
+                                                    <span className="material-symbols-outlined text-[14px]">delete</span>
+                                                </button>
+                                            )}
 
-                                    </>
-                                )}
-                                <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px] text-center">
-                                    <p className="text-[8px] text-white font-bold uppercase tracking-wider">Foto {idx + 1}</p>
+                                        </>
+                                    )}
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px] text-center">
+                                        <p className="text-[8px] text-white font-bold uppercase tracking-wider">Foto {idx + 1}</p>
+                                    </div>
                                 </div>
+                                {!isVisitFiled && onUseAsCover && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onUseAsCover(img);
+                                        }}
+                                        className="w-full py-1.5 px-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20 text-[8px] font-bold uppercase tracking-wider hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all flex items-center justify-center gap-1"
+                                    >
+                                        <span className="material-symbols-outlined text-[10px]">photo_camera</span>
+                                        Usar como capa
+                                    </button>
+                                )}
                             </div>
                         );
                     } else if (!isReadOnly) {
@@ -191,6 +208,11 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
     const [reportAssetAlerts, setReportAssetAlerts] = useState<AssetAlert[]>([]);
     const [completedAlertIds, setCompletedAlertIds] = useState<string[]>([]);
+
+    // Cover photo state
+    const [showCoverConfirmModal, setShowCoverConfirmModal] = useState(false);
+    const [selectedCoverUrl, setSelectedCoverUrl] = useState<string | null>(null);
+    const [isUpdatingCover, setIsUpdatingCover] = useState(false);
 
     // Recorder state
     const [hasRecorder, setHasRecorder] = useState(initialAsset?.hasRecorder ?? true);
@@ -365,7 +387,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
                     if (afterClientId) {
                         const units = await dataService.getUnitsByClient(afterClientId);
-                        setUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })));
+                        setUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })).sort((a: any, b: any) => a.label.localeCompare(b.label)));
                     }
 
                     if (afterUnitId) {
@@ -383,7 +405,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     useEffect(() => {
         if (isMoved && afterClientId) {
             dataService.getUnitsByClient(afterClientId).then(units => {
-                setUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })));
+                setUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })).sort((a: any, b: any) => a.label.localeCompare(b.label)));
             });
         } else {
             setUnitsList([]);
@@ -405,6 +427,40 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             await dataService.updateOrderVisitAsset(assetId, updates);
         } catch (error) {
             console.error('Error autosaving field:', error);
+        }
+    };
+
+    const handleUseAsCover = (imageUrl: string) => {
+        setSelectedCoverUrl(imageUrl);
+        setShowCoverConfirmModal(true);
+    };
+
+    const handleConfirmCoverPhoto = async () => {
+        if (!selectedCoverUrl || !asset?.assetId || !asset?.oCompanyId) return;
+
+        try {
+            setIsUpdatingCover(true);
+
+            const urlParts = selectedCoverUrl.split('/');
+            const fileName = urlParts[urlParts.length - 1].split('?')[0];
+            const pathParts = urlParts.slice(urlParts.indexOf('companies'), urlParts.length - 1);
+            const sourceFolderPath = pathParts.join('/');
+
+            await dataService.updateAssetPhotoFromReport(
+                asset.assetId,
+                asset.oCompanyId,
+                fileName,
+                sourceFolderPath
+            );
+
+            toast.success('Foto do ativo atualizada com sucesso!');
+            setShowCoverConfirmModal(false);
+            setSelectedCoverUrl(null);
+        } catch (error) {
+            console.error('Error updating asset cover photo:', error);
+            toast.error('Erro ao atualizar foto do ativo');
+        } finally {
+            setIsUpdatingCover(false);
         }
     };
 
@@ -613,7 +669,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
             if (initialClientId) {
                 const units = await dataService.getUnitsByClient(initialClientId);
-                setSwapUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })));
+                setSwapUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })).sort((a: any, b: any) => a.label.localeCompare(b.label)));
                 if (!swapSearchUnitId || swapSearchClientId !== initialClientId) {
                     setSwapSearchUnitId(asset?.unitId || '');
                 }
@@ -633,7 +689,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         if (clientId) {
             try {
                 const units = await dataService.getUnitsByClient(clientId);
-                setSwapUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })));
+                setSwapUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })).sort((a: any, b: any) => a.label.localeCompare(b.label)));
             } catch (error) {
                 console.error('Error loading units for client:', clientId, error);
             }
@@ -952,14 +1008,16 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         placeholder={isReadOnly ? "Sem comentários" : "Descreva como foi encontrado o ativo..."}
                         className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[100px] disabled:opacity-70 disabled:cursor-not-allowed"
                     />
-                    <ImageGrid 
-                        images={initialImages} 
-                        type="initial" 
+                    <ImageGrid
+                        images={initialImages}
+                        type="initial"
                         isReadOnly={isReadOnly}
+                        isVisitFiled={isVisitFiled}
                         setExpandedImage={setExpandedImage}
                         removeImage={removeImage}
                         editImage={handleEditImage}
                         setPhotoActionSection={setPhotoActionSection}
+                        onUseAsCover={handleUseAsCover}
                     />
                 </div>
 
@@ -1055,8 +1113,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                 ))}
                             </div>
                             {canView('orders_visits_costs') && (
-                                <div className="mt-4 flex flex-col items-end">
-                                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">
+                                <div className="mt-4 flex items-center justify-end gap-2">
+                                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                                         TOTAL
                                     </span>
                                     <span className="text-xl font-black text-blue-600 dark:text-blue-400">
@@ -1197,14 +1255,16 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         placeholder={isReadOnly ? "Sem comentários" : "Descreva a condição final (depois) do ativo..."}
                         className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[100px] disabled:opacity-70 disabled:cursor-not-allowed"
                     />
-                    <ImageGrid 
-                        images={finalImages} 
-                        type="final" 
+                    <ImageGrid
+                        images={finalImages}
+                        type="final"
                         isReadOnly={isReadOnly}
+                        isVisitFiled={isVisitFiled}
                         setExpandedImage={setExpandedImage}
                         removeImage={removeImage}
                         editImage={handleEditImage}
                         setPhotoActionSection={setPhotoActionSection}
+                        onUseAsCover={handleUseAsCover}
                     />
                 </div>
 
@@ -1802,6 +1862,23 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 confirmLoading={isUpdatingStatus}
                 confirmLoadingLabel="REMOVENDO..."
                 cancelLabel="Não, Manter"
+            />
+
+            {/* Cover Photo Confirmation Modal */}
+            <Modal
+                isOpen={showCoverConfirmModal}
+                onClose={() => {
+                    setShowCoverConfirmModal(false);
+                    setSelectedCoverUrl(null);
+                }}
+                onConfirm={handleConfirmCoverPhoto}
+                title="Usar como Foto de Capa"
+                message="Deseja definir esta imagem como foto principal do ativo?"
+                type="info"
+                confirmLabel="Sim, Definir como Capa"
+                confirmLoading={isUpdatingCover}
+                confirmLoadingLabel="ATUALIZANDO..."
+                cancelLabel="Cancelar"
             />
 
             {/* Approval with Movement Confirmation Modal */}

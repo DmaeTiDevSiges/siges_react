@@ -10,6 +10,7 @@ import { ReturnToolForm } from '../../components/tools/ReturnToolForm';
 import { TransferToolForm } from '../../components/tools/TransferToolForm';
 import { AssignToolForm } from '../../components/tools/AssignToolForm';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { ResponsibleToolsPDFButton } from '../../components/reports/ResponsibleToolsPDFButton';
 
 interface UserToolsViewProps {
     companyId: string;
@@ -48,7 +49,7 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [actionMode, setActionMode] = useState<ActionMode>(null);
-    const [historyModal, setHistoryModal] = useState<{ isOpen: boolean; toolId?: number; toolName?: string }>({ isOpen: false });
+    const [historyModal, setHistoryModal] = useState<{ isOpen: boolean; toolId?: number; toolName?: string; toolCode?: string; toolMaterial?: string; toolBrand?: string; toolModel?: string }>({ isOpen: false });
     const [movements, setMovements] = useState<ToolMovement[]>([]);
     const [movLoading, setMovLoading] = useState(false);
 
@@ -109,11 +110,21 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
 
     useEffect(() => { loadUserTools(); }, [loadUserTools]);
 
-    const openHistory = async (toolId: number, toolName: string) => {
-        setHistoryModal({ isOpen: true, toolId, toolName });
+    const openHistory = async (item: ListItem) => {
+        setHistoryModal({
+            isOpen: true,
+            toolId: item.tool_id,
+            toolName: `${item.tool_brand} ${item.tool_model}`,
+            toolCode: item.tool_code,
+            toolMaterial: item.tool_material_code && item.tool_material_description
+                ? `${item.tool_material_code} — ${item.tool_material_description}${item.tool_material_unit ? ` (${item.tool_material_unit})` : ''}`
+                : undefined,
+            toolBrand: item.tool_brand,
+            toolModel: item.tool_model,
+        });
         setMovLoading(true);
         try {
-            const data = await toolsService.getToolMovements(toolId);
+            const data = await toolsService.getToolMovements(item.tool_id);
             setMovements(data);
         } catch {
             toast.error('Erro ao carregar histórico');
@@ -169,6 +180,10 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
         return acc;
     }, {});
 
+    Object.values(grouped).forEach(g => {
+        g.items.sort((a, b) => (a.tool_material_description || '').localeCompare(b.tool_material_description || '', 'pt-BR'));
+    });
+
     const filteredGroups = Object.entries(grouped).filter(([, { userName, items }]) =>
         userName.toLowerCase().includes(search.toLowerCase()) ||
         items.some(i => `${i.tool_brand} ${i.tool_model} ${i.tool_serial}`.toLowerCase().includes(search.toLowerCase()))
@@ -213,7 +228,11 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
                                 </div>
                             )}
                             <p className="font-semibold text-slate-800 dark:text-white text-sm">{userName}</p>
-                            <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{items.length} ferramenta(s)</span>
+                            <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 mr-2">{items.length} ferramenta(s)</span>
+                            <ResponsibleToolsPDFButton
+                                userName={userName}
+                                items={items.filter(i => i.userTool).map(i => i.userTool!)}
+                            />
                         </div>
                         {/* Tool Items */}
                         {items.map(item => (
@@ -221,7 +240,7 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
                                 <div className="flex-1 min-w-0">
                                     <p className="font-bold text-primary text-sm truncate">{item.tool_code || '—'}</p>
                                     {item.tool_material_code && (
-                                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                                             <span className="font-semibold text-slate-500 dark:text-slate-400">{item.tool_material_code}</span>
                                             {item.tool_material_description && <span> — {item.tool_material_description}</span>}
                                             {item.tool_material_unit && <span className="ml-1 text-slate-400">({item.tool_material_unit})</span>}
@@ -240,7 +259,7 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
                                             <IconButton
                                                 icon="history"
                                                 title="Histórico"
-                                                onClick={() => openHistory(item.tool_id, `${item.tool_brand} ${item.tool_model}`)}
+                                                onClick={() => openHistory(item)}
                                             />
                                             <IconButton
                                                 icon="swap_horiz"
@@ -268,12 +287,18 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
             {historyModal.isOpen && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
-                        <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800">
-                            <div>
+                        <div className="relative p-5 border-b border-slate-100 dark:border-slate-800">
+                            <div className="pr-10">
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Rastreamento</p>
                                 <h3 className="font-bold text-slate-800 dark:text-white">{historyModal.toolName}</h3>
+                                {historyModal.toolCode && (
+                                    <p className="text-xs text-primary font-semibold mt-0.5">{historyModal.toolCode}</p>
+                                )}
+                                {historyModal.toolMaterial && (
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{historyModal.toolMaterial}</p>
+                                )}
                             </div>
-                            <button onClick={() => setHistoryModal({ isOpen: false })} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:opacity-80">
+                            <button onClick={() => setHistoryModal({ isOpen: false })} className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:opacity-80">
                                 <span className="material-symbols-outlined text-base">close</span>
                             </button>
                         </div>

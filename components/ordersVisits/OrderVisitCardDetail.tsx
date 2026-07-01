@@ -25,6 +25,7 @@ interface OrderVisitCardDetailProps {
     onFileVisit?: () => void;
     onMarkAsRevised?: () => void;
     onReverseApproval?: () => void;
+    onViewOrder?: () => void;
     isReportLoading?: boolean;
     isApproveLoading?: boolean;
     isDisapproveLoading?: boolean;
@@ -48,6 +49,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
     onFileVisit,
     onMarkAsRevised,
     onReverseApproval,
+    onViewOrder,
     isReportLoading = false,
     isApproveLoading = false,
     isDisapproveLoading = false,
@@ -115,7 +117,10 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
         >
             {/* Top Bar: Masks and Progress */}
             <div className="flex justify-between items-start mb-6">
-                <div className={`${badgeColor} text-white px-4 py-2 rounded-[16px] shadow-lg flex flex-col min-w-[120px]`}>
+                <div
+                    onClick={onViewOrder}
+                    className={`${badgeColor} text-white px-4 py-2 rounded-[16px] shadow-lg flex flex-col min-w-[120px] ${onViewOrder ? 'cursor-pointer hover:opacity-90 active:scale-95 transition-all' : ''}`}
+                >
                     <span className="text-[22px] font-black leading-none tracking-tight">{visit.ovMask || '??.??.????'}</span>
                     <div className="flex justify-between items-center mt-1">
                         <span className="text-[9px] font-bold opacity-90 uppercase tracking-tighter">OS ELE/COR/SRV</span>

@@ -4,6 +4,7 @@ import { toolsService } from '../../services/toolsService';
 import { toast } from 'sonner';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Loading } from '../../components/ui/Loading';
+import { ResponsibleToolsPDFButton } from '../../components/reports/ResponsibleToolsPDFButton';
 
 export const ResponsibleToolsView: React.FC = () => {
     const [userTools, setUserTools] = useState<UserTool[]>([]);
@@ -30,6 +31,10 @@ export const ResponsibleToolsView: React.FC = () => {
         acc[key].items.push(ut);
         return acc;
     }, {});
+
+    Object.values(grouped).forEach(g => {
+        g.items.sort((a, b) => (a.tool_material_description || '').localeCompare(b.tool_material_description || '', 'pt-BR'));
+    });
 
     const filteredGroups = Object.entries(grouped).filter(([, { userName, items }]) =>
         userName.toLowerCase().includes(search.toLowerCase()) ||
@@ -66,7 +71,8 @@ export const ResponsibleToolsView: React.FC = () => {
                                 </div>
                             )}
                             <p className="font-semibold text-slate-800 dark:text-white text-sm">{userName}</p>
-                            <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{items.length} ferramenta(s)</span>
+                            <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 mr-2">{items.length} ferramenta(s)</span>
+                            <ResponsibleToolsPDFButton userName={userName} items={items} />
                         </div>
                         {/* Tool Items */}
                         {items.map(ut => (
@@ -74,7 +80,7 @@ export const ResponsibleToolsView: React.FC = () => {
                                 <div className="flex-1 min-w-0">
                                     <p className="font-bold text-primary text-sm truncate">{ut.tool_code || '—'}</p>
                                     {ut.tool_material_code && (
-                                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                                             <span className="font-semibold text-slate-500 dark:text-slate-400">{ut.tool_material_code}</span>
                                             {ut.tool_material_description && <span> — {ut.tool_material_description}</span>}
                                             {ut.tool_material_unit && <span className="ml-1 text-slate-400">({ut.tool_material_unit})</span>}

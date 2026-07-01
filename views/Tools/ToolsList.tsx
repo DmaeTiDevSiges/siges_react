@@ -56,7 +56,7 @@ export const ToolsList: React.FC<ToolsListProps> = () => {
             t.serial_number.toLowerCase().includes(term) ||
             (t.material_code || '').toLowerCase().includes(term) ||
             (t.material_description || '').toLowerCase().includes(term);
-    });
+    }).sort((a, b) => (a.material_description || '').localeCompare(b.material_description || '', 'pt-BR'));
 
     if (editingTool !== null) {
         return (
@@ -81,7 +81,7 @@ export const ToolsList: React.FC<ToolsListProps> = () => {
                         onClick={() => setEditingTool('new')}
                         className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
                     >
-                        + Nova
+                        Nova
                     </button>
                 )}
             </div>
@@ -108,7 +108,7 @@ export const ToolsList: React.FC<ToolsListProps> = () => {
                                 <div className="flex-1 min-w-0">
                                     <p className="font-bold text-primary text-sm truncate">{tool.code || '—'}</p>
                                     {tool.material_code && (
-                                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                                             <span className="font-semibold text-slate-500 dark:text-slate-400">{tool.material_code}</span>
                                             {tool.material_description && <span> — {tool.material_description}</span>}
                                             {tool.material_unit && <span className="ml-1 text-slate-400">({tool.material_unit})</span>}

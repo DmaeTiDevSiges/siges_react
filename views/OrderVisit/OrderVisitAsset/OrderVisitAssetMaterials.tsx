@@ -104,7 +104,7 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
                 ovAssetId,
                 material.id,
                 1, // default 1
-                material.defaultValue || 0,
+                material.priceUnit || 0,
                 userId
             );
             
@@ -355,7 +355,7 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
                                     {m.materialDescription}
                                 </h4>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-1">
-                                    {m.materialCode} {canView('orders_visits_costs') && `• R$ ${m.valueUnit?.toFixed(2)}`} / {m.materialUnit}
+                                    {m.materialCode} {canView('orders_visits_costs') && `• ${m.valueUnit?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`} / {m.materialUnit}
                                 </p>
                             </div>
 
@@ -365,7 +365,7 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
                             />
                         </div>
 
-                        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 pl-2">
+                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 pl-2">
                             <div className="flex items-center gap-2 w-full pr-1">
                                 <div className="flex-1">
                                     <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 focus-within:text-indigo-500 text-center">
@@ -424,31 +424,21 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
                                                 className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm font-black text-slate-700 dark:text-slate-200 p-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-mono"
                                             />
                                         </div>
-
-                                        <div className="flex-[1.1] text-right flex flex-col items-end justify-center">
-                                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-0.5 mt-2">TOTAL</span>
-                                            <span className="text-[13px] sm:text-[15px] font-black text-indigo-600 dark:text-indigo-400 leading-none">
-                                                R$ {m.valueTotal?.toFixed(2)}
-                                            </span>
-                                        </div>
                                     </>
                                 )}
                             </div>
+
+                            {canView('orders_visits_costs') && (
+                                <div className="flex justify-end items-center gap-1 mt-1">
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">TOTAL</span>
+                                    <span className="text-[13px] sm:text-[15px] font-black text-indigo-600 dark:text-indigo-400 leading-none">
+                                        {m.valueTotal?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </Card>
                 ))}
-
-                {/* Total */}
-                {usedMaterials.length > 0 && canView('orders_visits_costs') && (
-                    <div className="mt-4 flex justify-end">
-                        <div className="text-right px-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">TOTAL MATERIAIS</span>
-                            <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
-                                R$ {usedMaterials.reduce((sum, m) => sum + (m.valueTotal || 0), 0).toFixed(2)}
-                            </span>
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* Back Button */}

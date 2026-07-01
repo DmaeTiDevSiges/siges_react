@@ -419,8 +419,17 @@ export interface Material {
   code: string;
   description: string;
   unit: string;
-  defaultValue: number;
+  priceUnit: number;
+  companyId?: string;
+  balance?: number;
+  fingerPrint?: string;
   isAvailable: boolean;
+  statusId?: number;
+  statusDescription?: string;
+  warehouseId?: string;
+  initialQuantity?: number;
+  minStock?: number;
+  costAvg?: number;
 }
 
 export interface OrderVisitAssetMaterial {
@@ -680,7 +689,8 @@ export interface UserNotification {
   isRead: boolean;
   createdAt: string;
   readAt?: string;
-  unitId?: string;
+  tableId?: string;
+  materialId?: string;
   imgUrl?: string;
   orderId?: string; // o_id
   ovId?: string; // ov_id

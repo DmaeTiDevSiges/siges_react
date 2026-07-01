@@ -340,7 +340,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-white/5">
+                        <div className="pt-3 border-t border-slate-100 dark:border-white/5">
                             <div className="flex items-center gap-4">
                                 <div className="w-24">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
@@ -406,8 +406,8 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                                 </div>
                             </div>
 
-                            <div className="text-right">
-                                <span className="text-[10px] font-bold text-slate-400 block mb-1">TOTAL</span>
+                            <div className="flex justify-end items-center gap-2 mt-2">
+                                <span className="text-[10px] font-bold text-slate-400">TOTAL</span>
                                 <span className="text-lg font-black text-blue-500">
                                     R$ {formatNumber(vs.valueTotal)}
                                 </span>

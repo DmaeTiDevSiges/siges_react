@@ -3,7 +3,7 @@ import React from 'react';
 import { usePermissions } from '../contexts/PermissionsContext';
 
 interface BottomNavProps {
-  activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'tools';
+  activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'tools' | 'materials';
   setActiveTab: (tab: any) => void;
   isAdminSuper?: boolean;
   currentUser?: any;
@@ -23,6 +23,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
   const showAssetsSearch = canSearch('assets');
   const showSettings = isAdminSuper; 
   const showTools = isAdminSuper || canView('tools_create_edit_delete');
+  const showMaterials = isAdminSuper || canView('materials_search');
+  const showMaintenancePlans = isAdminSuper || canView('maintenance_plans');
 
   return (
     <div className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 px-2 flex flex-row items-center overflow-x-auto rounded-t-[12px]" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}>
@@ -77,6 +79,30 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
             inventory_2
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest">Ativos</span>
+        </button>
+      )}
+
+      {showMaterials && (
+        <button
+          onClick={() => setActiveTab('materials')}
+          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'materials' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+        >
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'materials' ? '"FILL" 1' : '' }}>
+            inventory
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest">Materiais</span>
+        </button>
+      )}
+
+      {showMaintenancePlans && (
+        <button
+          onClick={() => setActiveTab('maintenance-plans')}
+          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'maintenance-plans' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+        >
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'maintenance-plans' ? '"FILL" 1' : '' }}>
+            checklist
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest">PMP</span>
         </button>
       )}
 

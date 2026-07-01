@@ -42,9 +42,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, classNa
             case 'inactive':
                 return <span className="w-2 h-2 rounded-full bg-slate-600" />;
             case 'expiring':
-                return <span className="material-symbols-outlined text-[14px]">warning</span>;
+                return <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse-slow" />;
             case 'pending':
-                return <span className="material-symbols-outlined text-[14px]">pending</span>;
+                return <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse-slow" />;
             default:
                 return null;
         }

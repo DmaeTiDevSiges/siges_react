@@ -3045,3 +3045,148 @@ CREATE POLICY "Enable all for authenticated" ON public.orders_visits_chat_reads
 ALTER PUBLICATION supabase_realtime ADD TABLE public.orders_visits_chat;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.orders_visits_chat_reads;
 
+-- ============================================================================
+-- COMPRAS DE MATERIAIS
+-- ============================================================================
+
+-- Tabela de configuração de tipos de compra
+CREATE TABLE IF NOT EXISTS public.cfg_materials_purchases_types (
+    id bigint NOT NULL,
+    code character varying(50) NOT NULL,
+    description character varying(100) NOT NULL,
+    is_available boolean DEFAULT true,
+    CONSTRAINT cfg_materials_purchases_types_pkey PRIMARY KEY (id),
+    CONSTRAINT cfg_materials_purchases_types_code_key UNIQUE (code)
+);
+
+INSERT INTO public.cfg_materials_purchases_types (id, code, description, is_available) VALUES
+    (1, 'standard',  'Compra Padrão', true),
+    (2, 'emergency', 'Compra Emergencial', true),
+    (3, 'service',   'Compra de Serviço', true),
+    (4, 'rental',    'Aluguel de Equipamento', true)
+ON CONFLICT (code) DO NOTHING;
+
+ALTER TABLE public.cfg_materials_purchases_types ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all authenticated read" ON public.cfg_materials_purchases_types
+    FOR SELECT TO authenticated USING (true);
+
+-- Tabela de configuração de status de compras
+CREATE TABLE IF NOT EXISTS public.cfg_materials_purchases_statuses (
+    id bigint NOT NULL,
+    code character varying(50) NOT NULL,
+    description character varying(100) NOT NULL,
+    CONSTRAINT cfg_materials_purchases_statuses_pkey PRIMARY KEY (id),
+    CONSTRAINT cfg_materials_purchases_statuses_code_key UNIQUE (code)
+);
+
+INSERT INTO public.cfg_materials_purchases_statuses (id, code, description) VALUES
+    (1, 'pending',    'A Autorizar'),
+    (2, 'authorized', 'Autorizada'),
+    (3, 'completed',  'Concluída'),
+    (4, 'cancelled',  'Cancelada')
+ON CONFLICT (code) DO NOTHING;
+
+ALTER TABLE public.cfg_materials_purchases_statuses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all authenticated read" ON public.cfg_materials_purchases_statuses
+    FOR SELECT TO authenticated USING (true);
+
+-- Tabela de requisições de compra de materiais
+CREATE TABLE IF NOT EXISTS public.materials_purchases (
+    id bigint NOT NULL,
+    code character varying(50) NULL,
+    material_id bigint NOT NULL,
+    purchase_type_id bigint NOT NULL,
+    quantity numeric NOT NULL,
+    unit_price numeric(12, 2) NOT NULL,
+    total_price numeric(12, 2) NOT NULL,
+    justification text NOT NULL,
+    status_id bigint NOT NULL,
+    requester_id bigint NOT NULL,
+    authorizer_id bigint NULL,
+    authorized_at timestamp without time zone NULL,
+    cancel_reason text NULL,
+    concluded_at timestamp without time zone NULL,
+    created_at timestamp without time zone NULL DEFAULT now(),
+    updated_at timestamp without time zone NULL,
+    is_deleted boolean NULL DEFAULT false,
+    warehouse_id bigint NULL,
+    created_user_id bigint NULL,
+    CONSTRAINT materials_purchases_pkey PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_materials_purchases_material ON public.materials_purchases USING btree (material_id);
+CREATE INDEX IF NOT EXISTS idx_materials_purchases_type ON public.materials_purchases USING btree (purchase_type_id);
+CREATE INDEX IF NOT EXISTS idx_materials_purchases_code ON public.materials_purchases USING btree (code);
+
+ALTER TABLE public.materials_purchases ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all authenticated" ON public.materials_purchases
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- View de compras com joins
+DROP VIEW IF EXISTS public.v_materials_purchases;
+
+CREATE OR REPLACE VIEW public.v_materials_purchases AS
+SELECT
+    mp.id,
+    mp.code AS purchase_code,
+    mp.material_id,
+    m.code AS material_code,
+    m.description AS material_description,
+    m.unit AS material_unit,
+    m.price_unit AS material_unit_price,
+    mp.purchase_type_id,
+    cpt.code AS purchase_type_code,
+    cpt.description AS purchase_type_description,
+    mp.warehouse_id,
+    w.code AS warehouse_code,
+    w.description AS warehouse_description,
+    mp.quantity,
+    mp.unit_price,
+    mp.total_price,
+    mp.justification,
+    mp.status_id,
+    cps.code AS status_code,
+    cps.description AS status_description,
+    mp.requester_id,
+    ru.name_full AS requester_name,
+    mp.authorizer_id,
+    au.name_full AS authorizer_name,
+    mp.authorized_at,
+    mp.cancel_reason,
+    mp.concluded_at,
+    mp.created_at,
+    mp.updated_at
+FROM public.materials_purchases mp
+LEFT JOIN public.materials m ON m.id = mp.material_id
+LEFT JOIN public.cfg_materials_purchases_types cpt ON cpt.id = mp.purchase_type_id
+LEFT JOIN public.warehouses w ON w.id = mp.warehouse_id
+LEFT JOIN public.cfg_materials_purchases_statuses cps ON cps.id = mp.status_id
+LEFT JOIN public.users ru ON ru.id = mp.requester_id
+LEFT JOIN public.users au ON au.id = mp.authorizer_id
+WHERE mp.is_deleted = false;
+
+-- Tabela de estoque por almoxarifado (warehouses_materials)
+CREATE TABLE IF NOT EXISTS public.warehouses_materials (
+    id SERIAL PRIMARY KEY,
+    warehouse_id INTEGER NOT NULL REFERENCES public.warehouses(id) ON DELETE CASCADE,
+    material_id BIGINT NOT NULL REFERENCES public.materials(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+    min_stock INTEGER NOT NULL DEFAULT 0,
+    cost_avg NUMERIC(15, 4) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP NULL,
+    updated_user_id INTEGER REFERENCES public.users(id) ON DELETE SET NULL,
+    is_deleted boolean NULL DEFAULT false,
+    deleted_at timestamp without time zone NULL,
+    deleted_user_id integer NULL REFERENCES public.users(id) ON DELETE SET NULL,
+    UNIQUE (warehouse_id, material_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wm_warehouse_id ON public.warehouses_materials(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_wm_material_id ON public.warehouses_materials(material_id);
+CREATE INDEX IF NOT EXISTS idx_wm_low_stock ON public.warehouses_materials(quantity, min_stock) WHERE quantity <= min_stock;
+CREATE INDEX IF NOT EXISTS idx_wm_is_deleted ON public.warehouses_materials(is_deleted);
+
+ALTER TABLE public.warehouses_materials ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all authenticated users full access to warehouses_materials" ON public.warehouses_materials FOR ALL TO authenticated USING (true);
+

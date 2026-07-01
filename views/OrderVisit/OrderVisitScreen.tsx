@@ -22,6 +22,7 @@ interface OrderVisitPageProps {
     onAssetSelect?: (asset: OrderVisitAssetView, visit: OrderVisit) => void;
     onApproveVisitRequest?: (visit: OrderVisit, order: Order) => void;
     onChatEntered?: (visitId: string) => void;
+    onViewOrder?: () => void;
 }
 
 
@@ -48,7 +49,8 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     onTabChange: onExternalTabChange,
     onAssetSelect,
     onApproveVisitRequest,
-    onChatEntered
+    onChatEntered,
+    onViewOrder
 }) => {
 
     const [visit, setVisit] = useState<OrderVisit | null>(null);
@@ -540,6 +542,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             isDisapproveLoading={isDisapproving}
                             isFileLoading={isFiling}
                             hideHeaderActions={true}
+                            onViewOrder={onViewOrder}
                             onReportVisit={(
                                 visit.ovStatusId === 2 &&
                                 [1, 4].includes(Number(visit.ovProcessingId || 1)) &&
