@@ -14,18 +14,13 @@ import { usePermissions } from '../../../../contexts/PermissionsContext';
 import { ImageUploadSheet } from '../../../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../../../components/ui/ImageEditorModal';
 
-// Fix for default marker icon in Leaflet + Vite
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+// Fix for default Leaflet marker icons in Vite/Capacitor
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
-
-L.Marker.prototype.options.icon = DefaultIcon;
 
 interface UnitFormProps {
     clientId: string;
@@ -143,12 +138,17 @@ export const UnitForm: React.FC<UnitFormProps> = ({
         loadMetaData();
     }, []);
 
-    // Initialize Map
+    // Initialize Map — no cleanup to avoid React 18 StrictMode double-mount issue with Leaflet
     useEffect(() => {
-        if (mapContainerRef.current && !mapRef.current) {
-            const initialPos: L.LatLngExpression = [form.latitude, form.longitude];
+        if (!mapContainerRef.current || mapRef.current) return;
 
-            const map = L.map(mapContainerRef.current).setView(initialPos, 13);
+        const container = mapContainerRef.current;
+
+        const initMap = () => {
+            if (mapRef.current || !container.isConnected) return;
+
+            const initialPos: L.LatLngExpression = [form.latitude, form.longitude];
+            const map = L.map(container).setView(initialPos, 13);
 
             const streetsLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap contributors'
@@ -171,14 +171,13 @@ export const UnitForm: React.FC<UnitFormProps> = ({
 
             mapRef.current = map;
             markerRef.current = marker;
-        }
 
-        return () => {
-            if (mapRef.current) {
-                mapRef.current.remove();
-                mapRef.current = null;
-            }
+            setTimeout(() => mapRef.current?.invalidateSize(), 100);
+            setTimeout(() => mapRef.current?.invalidateSize(), 500);
+            setTimeout(() => mapRef.current?.invalidateSize(), 1500);
         };
+
+        requestAnimationFrame(initMap);
     }, []);
 
     // Toggle Map Type
@@ -465,7 +464,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                         />
 
                         {/* Map Controls */}
-                        <div className="absolute top-3 right-3 z-1000 flex flex-col gap-2">
+                        <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-2">
                             <button
                                 type="button"
                                 title={mapType === 'streets' ? 'Satélite' : 'Mapa'}

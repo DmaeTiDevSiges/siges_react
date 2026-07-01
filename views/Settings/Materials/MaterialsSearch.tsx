@@ -1,10 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Material, User } from '../../../types';
 import { dataService } from '../../../services/dataService';
 import { SearchInput } from '../../../components/ui/SearchInput';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { LoadMore } from '../../../components/ui/LoadMore';
 import { usePermissions } from '../../../contexts/PermissionsContext';
+
+interface WarehouseStock {
+    warehouse_id: string;
+    warehouse_code: string;
+    warehouse_description: string;
+    quantity: number;
+    min_stock: number;
+    cost_avg: number;
+}
 
 interface MaterialsSearchProps {
     currentUser?: User;
@@ -37,9 +46,20 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
     const [error, setError] = useState<string | null>(null);
     const [hasSearched, setHasSearched] = useState(materialsSearchCache?.hasSearched || false);
     const [statuses, setStatuses] = useState<{ id: number; code: string; description: string }[]>([]);
+    const [warehouseStocks, setWarehouseStocks] = useState<Record<string, WarehouseStock[]>>({});
 
     useEffect(() => {
         dataService.getMaterialsStatuses().then(setStatuses).catch(console.error);
+    }, []);
+
+    const loadWarehouseStocks = useCallback(async (materialIds: string[]) => {
+        if (materialIds.length === 0) return;
+        try {
+            const result = await dataService.getWarehouseMaterialsByIds(materialIds);
+            setWarehouseStocks(prev => ({ ...prev, ...result }));
+        } catch (error) {
+            console.error('Failed to load warehouse stocks', error);
+        }
     }, []);
 
     const stateRef = useRef({ materials, total, search, statusFilter, hasSearched });
@@ -68,6 +88,7 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
                     const result = await dataService.getMaterials(statusFilter, search.trim(), currentUser?.companyId, 1, PAGE_SIZE);
                     setMaterials(result.materials);
                     setTotal(result.total);
+                    loadWarehouseStocks(result.materials.map(m => m.id));
                 } catch (error) {
                     console.error('Failed to refresh materials', error);
                 }
@@ -76,62 +97,55 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
         }
     }, []);
 
-    const handleSearch = async () => {
-        if (!search.trim()) return;
-
+    const doSearch = useCallback(async (filter: number | 'all', term: string) => {
         try {
             setLoading(true);
             setError(null);
-            const result = await dataService.getMaterials(statusFilter, search.trim(), currentUser?.companyId, 1, PAGE_SIZE);
+            const result = await dataService.getMaterials(filter, term, currentUser?.companyId, 1, PAGE_SIZE);
             setMaterials(result.materials);
             setTotal(result.total);
             setHasSearched(true);
+            loadWarehouseStocks(result.materials.map(m => m.id));
         } catch (error) {
             console.error('Failed to load materials', error);
             setError('Erro ao carregar materiais. Verifique sua conexão.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentUser?.companyId, loadWarehouseStocks]);
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleSearch = useCallback(() => {
+        if (!search.trim()) return;
+        doSearch(statusFilter, search.trim());
+    }, [search, statusFilter, doSearch]);
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             handleSearch();
         }
-    };
+    }, [handleSearch]);
 
-    const handleFilterChange = (filter: number | 'all') => {
+    const handleFilterChange = useCallback((filter: number | 'all') => {
         setStatusFilter(filter);
         if (hasSearched) {
-            const doSearch = async () => {
-                try {
-                    setLoading(true);
-                    const result = await dataService.getMaterials(filter, search.trim(), currentUser?.companyId, 1, PAGE_SIZE);
-                    setMaterials(result.materials);
-                    setTotal(result.total);
-                } catch (error) {
-                    console.error('Failed to load materials', error);
-                } finally {
-                    setLoading(false);
-                }
-            };
-            doSearch();
+            doSearch(filter, search.trim());
         }
-    };
+    }, [hasSearched, search, doSearch]);
 
-    const handleLoadMore = async () => {
+    const handleLoadMore = useCallback(async () => {
         const nextPage = Math.floor(materials.length / PAGE_SIZE) + 1;
         try {
             setLoadingMore(true);
             const result = await dataService.getMaterials(statusFilter, search.trim(), currentUser?.companyId, nextPage, PAGE_SIZE);
             setMaterials(prev => [...prev, ...result.materials]);
             setTotal(result.total);
+            loadWarehouseStocks(result.materials.map(m => m.id));
         } catch (error) {
             console.error('Failed to load more materials', error);
         } finally {
             setLoadingMore(false);
         }
-    };
+    }, [materials.length, statusFilter, search, currentUser?.companyId, loadWarehouseStocks]);
 
     if (!hasSearchPermission) {
         return (
@@ -224,33 +238,60 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
                     </div>
                 )}
 
-                {materials.map((material) => (
-                    <div
-                        key={material.id}
-                        onClick={() => onSelectMaterial?.(material)}
-                        className="bg-white dark:bg-surface-dark rounded-xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary dark:hover:border-primary transition-colors cursor-pointer flex items-center justify-between gap-4"
-                    >
-                        <div className="flex-1 min-w-0">
-                            <span className="font-bold text-slate-500 dark:text-slate-400">
-                                {material.code}
-                            </span>
-                            <h3 className="font-bold text-slate-900 dark:text-white mt-0.5">
-                                {material.description}
-                            </h3>
-                            {material.unit && (
-                                <span className="font-bold text-slate-500 dark:text-slate-400 mt-0.5 inline-block">
-                                    {material.unit}
-                                </span>
+                {materials.map((material) => {
+                    const stocks = warehouseStocks[material.id] || [];
+                    return (
+                        <div
+                            key={material.id}
+                            className="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-800 hover:border-primary dark:hover:border-primary transition-colors cursor-pointer"
+                        >
+                            <div
+                                onClick={() => onSelectMaterial?.(material)}
+                                className="p-4 flex items-center justify-between gap-4"
+                            >
+                                <div className="flex-1 min-w-0">
+                                    <span className="font-bold text-slate-500 dark:text-slate-400">
+                                        {material.code}
+                                    </span>
+                                    <h3 className="font-bold text-slate-900 dark:text-white mt-0.5">
+                                        {material.description}
+                                    </h3>
+                                    {material.unit && (
+                                        <span className="font-bold text-slate-500 dark:text-slate-400 mt-0.5 inline-block">
+                                            R$ {(material.priceUnit || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {material.unit}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <StatusBadge status={(material.statusDescription || '').toLowerCase().includes('ativo') && !(material.statusDescription || '').toLowerCase().includes('inativo') ? 'active' : 'inactive'} label={material.statusDescription || (material.isAvailable ? 'Ativo' : 'Inativo')} size="sm" />
+                                    <span className="material-symbols-outlined text-slate-400 dark:text-slate-600">
+                                        chevron_right
+                                    </span>
+                                </div>
+                            </div>
+                            {stocks.length > 0 && (
+                                <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-2.5">
+                                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                        {stocks.map((stock) => (
+                                            <div
+                                                key={stock.warehouse_id}
+                                                className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg px-2.5 py-1.5 flex-shrink-0"
+                                            >
+                                                <span className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                                    {stock.warehouse_code || stock.warehouse_description}
+                                                </span>
+                                                <span className="w-px h-3 bg-slate-300 dark:bg-slate-600"></span>
+                                                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                                    {stock.quantity}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                            <StatusBadge status={(material.statusDescription || '').toLowerCase().includes('ativo') && !(material.statusDescription || '').toLowerCase().includes('inativo') ? 'active' : 'inactive'} label={material.statusDescription || (material.isAvailable ? 'Ativo' : 'Inativo')} size="sm" />
-                            <span className="material-symbols-outlined text-slate-400 dark:text-slate-600">
-                                chevron_right
-                            </span>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
 
                 {materials.length > 0 && materials.length < total && (
                     <LoadMore

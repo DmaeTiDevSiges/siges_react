@@ -46,6 +46,8 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
     const [purchasesRefreshKey, setPurchasesRefreshKey] = useState(0);
 
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingStock, setEditingStock] = useState<WarehouseStock | null>(null);
     const [warehouses, setWarehouses] = useState<{ id: string; code: string; description: string }[]>([]);
     const [warehouseId, setWarehouseId] = useState('');
     const [quantity, setQuantity] = useState(0);
@@ -111,6 +113,34 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
         } catch (err) {
             console.error(err);
             toast.error('Erro ao cadastrar estoque');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleOpenEditModal = (stock: WarehouseStock) => {
+        setEditingStock(stock);
+        setQuantity(stock.quantity);
+        setMinStock(stock.min_stock);
+        setShowEditModal(true);
+    };
+
+    const handleUpdateStock = async () => {
+        if (!editingStock) return;
+        try {
+            setIsSaving(true);
+            await dataService.updateWarehouseMaterial(editingStock.warehouse_id, material.id, {
+                quantity,
+                minStock
+            });
+            toast.success('Estoque atualizado com sucesso!');
+            setShowEditModal(false);
+            setEditingStock(null);
+            onUpdate?.(material);
+            await loadStocks();
+        } catch (err) {
+            console.error(err);
+            toast.error('Erro ao atualizar estoque');
         } finally {
             setIsSaving(false);
         }
@@ -258,7 +288,18 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
                                             <span>Mín: <strong>{s.min_stock}</strong></span>
                                         </div>
                                     </div>
-                                    <p className={`text-lg font-black ${s.quantity < s.min_stock ? 'text-red-500' : 'text-primary'}`}>{s.quantity}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className={`text-lg font-black ${s.quantity < s.min_stock ? 'text-red-500' : 'text-primary'}`}>{s.quantity}</p>
+                                        {canEdit('materials_create_edit_delete') && (
+                                            <button
+                                                onClick={() => handleOpenEditModal(s)}
+                                                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors"
+                                                title="Editar estoque"
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]">edit</span>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -304,6 +345,43 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
 
                         <Input
                             label="Quantidade Inicial"
+                            type="number"
+                            placeholder="0"
+                            value={quantity.toString()}
+                            onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                        />
+
+                        <Input
+                            label="Estoque Mínimo"
+                            type="number"
+                            placeholder="0"
+                            value={minStock.toString()}
+                            onChange={(e) => setMinStock(parseInt(e.target.value) || 0)}
+                        />
+                    </div>
+                )}
+            </Modal>
+
+            <Modal
+                isOpen={showEditModal}
+                onClose={() => { setShowEditModal(false); setEditingStock(null); }}
+                onConfirm={handleUpdateStock}
+                title="Editar Estoque"
+                confirmLabel={isSaving ? 'Salvando...' : 'Salvar'}
+                cancelLabel="Cancelar"
+                type="info"
+                maxWidth="sm"
+                confirmLoading={isSaving}
+            >
+                {editingStock && (
+                    <div className="space-y-4">
+                        <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Almoxarifado</p>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">{editingStock.warehouse_description}</p>
+                        </div>
+
+                        <Input
+                            label="Quantidade"
                             type="number"
                             placeholder="0"
                             value={quantity.toString()}

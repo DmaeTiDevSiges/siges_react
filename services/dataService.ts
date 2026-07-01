@@ -11239,6 +11239,32 @@ export const dataService = {
         }));
     },
 
+    async getWarehouseMaterialsByIds(materialIds: string[]): Promise<Record<string, { warehouse_id: string; warehouse_code: string; warehouse_description: string; quantity: number; min_stock: number; cost_avg: number }[]>> {
+        if (materialIds.length === 0) return {};
+
+        const { data, error } = await supabase
+            .from('warehouses_materials')
+            .select('material_id, warehouse_id, quantity, min_stock, cost_avg, warehouses(id, code, description)')
+            .in('material_id', materialIds.map(id => parseInt(id)));
+
+        if (error) throw error;
+
+        const result: Record<string, any[]> = {};
+        for (const item of data || []) {
+            const matId = item.material_id?.toString() || '';
+            if (!result[matId]) result[matId] = [];
+            result[matId].push({
+                warehouse_id: item.warehouse_id?.toString() || '',
+                warehouse_code: item.warehouses?.code || '',
+                warehouse_description: item.warehouses?.description || '',
+                quantity: item.quantity || 0,
+                min_stock: item.min_stock || 0,
+                cost_avg: item.cost_avg || 0
+            });
+        }
+        return result;
+    },
+
     async createWarehouseMaterial(data: { warehouseId: string; materialId: string; quantity: number; minStock: number; priceUnit?: number }): Promise<void> {
         const currentUser = await this.getCurrentUser();
 
@@ -11262,6 +11288,21 @@ export const dataService = {
                 .update({ price_unit: data.priceUnit })
                 .eq('id', parseInt(data.materialId));
         }
+    },
+
+    async updateWarehouseMaterial(warehouseId: string, materialId: string, data: { quantity?: number; minStock?: number; costAvg?: number }): Promise<void> {
+        const dbData: any = { updated_at: new Date().toISOString() };
+        if (data.quantity !== undefined) dbData.quantity = data.quantity;
+        if (data.minStock !== undefined) dbData.min_stock = data.minStock;
+        if (data.costAvg !== undefined) dbData.cost_avg = data.costAvg;
+
+        const { error } = await supabase
+            .from('warehouses_materials')
+            .update(dbData)
+            .eq('warehouse_id', parseInt(warehouseId))
+            .eq('material_id', parseInt(materialId));
+
+        if (error) throw error;
     },
 
     async updateMaterial(id: string, material: Partial<Material>): Promise<Material> {
@@ -13420,6 +13461,24 @@ export const dataService = {
         return data || [];
     },
 
+    async getActivePurchasesMaterialIds(): Promise<Record<number, boolean>> {
+        const { data, error } = await supabase
+            .from('materials_purchases')
+            .select('material_id')
+            .in('status_id', [1, 2])
+            .eq('is_deleted', false);
+
+        if (error) {
+            console.error('Error fetching active purchases:', error);
+            return {};
+        }
+        const map: Record<number, boolean> = {};
+        for (const row of data || []) {
+            map[row.material_id] = true;
+        }
+        return map;
+    },
+
     async authorizeMaterialPurchase(id: string, data: { code: string; purchaseTypeId: string; warehouseId: string; quantity: number; unitPrice: number; justification: string }): Promise<void> {
         const currentUser = await this.getCurrentUser();
 
@@ -13641,8 +13700,7 @@ export const dataService = {
     }[]> {
         const { data, error } = await supabase
             .from('warehouses_materials')
-            .select('quantity, min_stock, cost_avg, material_id, warehouse_id, materials(id, code, description, unit), warehouses(id, description)')
-            .eq('is_deleted', false);
+            .select('quantity, min_stock, cost_avg, material_id, warehouse_id, materials(id, code, description, unit, is_deleted), warehouses(id, description)');
 
         if (error) {
             console.error('Error fetching materials below min stock:', error);
@@ -13652,10 +13710,11 @@ export const dataService = {
         const results: any[] = [];
         for (const row of data || []) {
             const mat = (row as any).materials;
+            if (mat?.is_deleted) continue;
             const wh = (row as any).warehouses;
             const qty = row.quantity || 0;
             const minStock = row.min_stock || 0;
-            if (minStock > 0 && qty < minStock) {
+            if (minStock > 0 && qty <= minStock) {
                 const deficit = minStock - qty;
                 results.push({
                     material_id: row.material_id,
@@ -13684,8 +13743,7 @@ export const dataService = {
     }> {
         const { data, error } = await supabase
             .from('warehouses_materials')
-            .select('quantity, min_stock, cost_avg, materials(id, is_deleted)')
-            .eq('is_deleted', false);
+            .select('quantity, min_stock, cost_avg, material_id, materials(id, is_deleted)');
 
         if (error) {
             console.error('Error fetching stock summary:', error);
@@ -13697,6 +13755,7 @@ export const dataService = {
         let materialsWithoutStock = 0;
         let materialsBelowMin = 0;
         const seenMaterials = new Set<number>();
+        const belowMinMats = new Set<number>();
 
         for (const row of data || []) {
             const mat = (row as any).materials;
@@ -13712,8 +13771,14 @@ export const dataService = {
             const costAvg = row.cost_avg || 0;
             totalStockValue += qty * costAvg;
 
-            if (qty === 0) materialsWithoutStock++;
-            if (row.min_stock > 0 && qty < row.min_stock) materialsBelowMin++;
+            if (qty === 0 && !seenMaterials.has(matId + '_nostock')) {
+                seenMaterials.add(matId + '_nostock');
+                materialsWithoutStock++;
+            }
+            if (row.min_stock > 0 && qty <= row.min_stock && !belowMinMats.has(matId)) {
+                belowMinMats.add(matId);
+                materialsBelowMin++;
+            }
         }
 
         return { total_stock_value: totalStockValue, total_materials: totalMaterials, materials_without_stock: materialsWithoutStock, materials_below_min: materialsBelowMin };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { dataService } from '../../../services/dataService';
 import { Loading } from '../../../components/ui/Loading';
 import { CancelPurchaseModal } from '../../../components/ui/CancelPurchaseModal';
@@ -39,6 +39,10 @@ interface MaterialBelowMin {
     deficit_value: number;
 }
 
+const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
 export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, onSelectMaterial }) => {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<DashboardStats>({ pending: 0, authorized: 0, completed: 0, cancelled: 0, pending_value: 0, authorized_value: 0 });
@@ -59,62 +63,66 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
         unit_price: number;
         justification: string;
     } | null>(null);
+    const [selectedAlerts, setSelectedAlerts] = useState(false);
+    const [activePurchases, setActivePurchases] = useState<Record<number, boolean>>({});
 
-    useEffect(() => {
-        loadDashboard();
-    }, []);
-
-    const loadDashboard = async () => {
+    const loadDashboard = useCallback(async () => {
         try {
             setLoading(true);
-            const [purchasesDash, stock, belowMin, recent] = await Promise.all([
+            const [purchasesDash, stock, belowMin, recent, activeMap] = await Promise.all([
                 dataService.getMaterialPurchasesDashboard(),
                 dataService.getMaterialsStockSummary(),
                 dataService.getMaterialsBelowMinStock(),
                 dataService.getRecentPurchases(20),
+                dataService.getActivePurchasesMaterialIds(),
             ]);
             setStats(purchasesDash);
             setStockSummary({ materials_without_stock: stock.materials_without_stock, materials_below_min: stock.materials_below_min });
             setBelowMinStock(belowMin);
             setAllPurchases(recent);
+            setActivePurchases(activeMap);
         } catch {
             console.error('Error loading materials dashboard');
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const handleOpenAuthorize = (id: string) => {
+    useEffect(() => {
+        loadDashboard();
+    }, [loadDashboard]);
+
+    const handleOpenAuthorize = useCallback((id: string) => {
         const purchase = allPurchases.find((p: any) => p.id === id);
         if (purchase) {
             setSelectedPurchaseId(id);
             setSelectedPurchase(purchase);
             setShowAuthorizeModal(true);
         }
-    };
+    }, [allPurchases]);
 
-    const handleAuthorize = async (data: { code: string; purchaseTypeId: string; warehouseId: string; quantity: number; unitPrice: number; justification: string }) => {
+    const handleAuthorize = useCallback(async (data: { code: string; purchaseTypeId: string; warehouseId: string; quantity: number; unitPrice: number; justification: string }) => {
         if (!selectedPurchaseId) return;
         await dataService.authorizeMaterialPurchase(selectedPurchaseId, data);
         toast.success('Compra autorizada!');
         setShowAuthorizeModal(false);
         await loadDashboard();
-    };
+    }, [selectedPurchaseId, loadDashboard]);
 
-    const handleOpenCancel = (id: string) => {
+    const handleOpenCancel = useCallback((id: string) => {
         setSelectedPurchaseId(id);
         setShowCancelModal(true);
-    };
+    }, []);
 
-    const handleCancel = async (reason: string) => {
+    const handleCancel = useCallback(async (reason: string) => {
         if (!selectedPurchaseId) return;
         await dataService.cancelMaterialPurchase(selectedPurchaseId, reason);
         toast.success('Compra cancelada');
         setShowCancelModal(false);
         await loadDashboard();
-    };
+    }, [selectedPurchaseId, loadDashboard]);
 
-    const handleOpenComplete = (id: string, data: {
+    const handleOpenComplete = useCallback((id: string, data: {
         purchase_type_id: string;
         warehouse_id: string;
         quantity: number;
@@ -123,9 +131,9 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
     }) => {
         setCompletePurchase({ id, ...data });
         setShowCompleteModal(true);
-    };
+    }, []);
 
-    const handleComplete = async (data: { warehouseId: string; quantity: number; unitPrice: number }) => {
+    const handleComplete = useCallback(async (data: { warehouseId: string; quantity: number; unitPrice: number }) => {
         if (!completePurchase) return;
         try {
             await dataService.completeMaterialPurchase(completePurchase.id);
@@ -136,20 +144,21 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
         } catch {
             toast.error('Erro ao concluir compra');
         }
-    };
+    }, [completePurchase, loadDashboard]);
 
-    const formatCurrency = (value: number) => {
-        return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    };
+    const filteredPurchases = useMemo(() => {
+        return selectedStatus !== null
+            ? allPurchases.filter(p => p.status_id === selectedStatus)
+            : [];
+    }, [allPurchases, selectedStatus]);
 
-    const formatDate = (date: string) => {
-        if (!date) return '—';
-        return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
-    };
+    const filteredTotal = useMemo(() => {
+        return filteredPurchases.reduce((sum: number, p: any) => sum + (p.total_price || 0), 0);
+    }, [filteredPurchases]);
 
-    const filteredPurchases = selectedStatus !== null
-        ? allPurchases.filter(p => p.status_id === selectedStatus)
-        : [];
+    const belowMinDeficitTotal = useMemo(() => {
+        return belowMinStock.reduce((sum, i) => sum + i.deficit_value, 0);
+    }, [belowMinStock]);
 
     if (loading) return <Loading />;
 
@@ -185,13 +194,17 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                         <p className="text-[10px] text-emerald-400 mt-1 font-medium">{formatCurrency(stats.authorized_value)}</p>
                     </button>
                     <button
-                        className="bg-white dark:bg-card-dark rounded-xl p-4 border border-slate-100 dark:border-slate-800 text-left"
+                        onClick={() => setSelectedAlerts(!selectedAlerts)}
+                        className={`bg-white dark:bg-card-dark rounded-xl p-4 border transition-all text-left ${
+                            selectedAlerts
+                                ? 'border-red-400 ring-2 ring-red-400/30'
+                                : 'border-slate-100 dark:border-slate-800 hover:border-red-300'
+                        }`}
                     >
                         <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Alertas</p>
-                        <p className="text-2xl font-bold text-red-500">{stockSummary.materials_below_min + stockSummary.materials_without_stock}</p>
+                        <p className="text-2xl font-bold text-red-500">{stockSummary.materials_below_min}</p>
                         <div className="flex gap-2 mt-1">
                             <span className="text-[10px] text-red-400">{stockSummary.materials_below_min} abaixo mínimo</span>
-                            <span className="text-[10px] text-red-500">{stockSummary.materials_without_stock} sem estoque</span>
                         </div>
                     </button>
                 </div>
@@ -203,7 +216,7 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                                 {selectedStatus === 1 ? 'Pendentes' : selectedStatus === 2 ? 'Autorizadas' : 'Canceladas'}
                             </h2>
                             <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                                {filteredPurchases.length} • {formatCurrency(filteredPurchases.reduce((sum: number, p: any) => sum + (p.total_price || 0), 0))}
+                                {filteredPurchases.length} • {formatCurrency(filteredTotal)}
                             </span>
                         </div>
                         {filteredPurchases.map((p: any) => (
@@ -242,14 +255,14 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                     </div>
                 )}
 
-                {belowMinStock.length > 0 && (
+                {selectedAlerts && belowMinStock.length > 0 && (
                     <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
                         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-red-50/50 dark:bg-red-900/10">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">Estoque Abaixo do Mínimo</h2>
                                 <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">{belowMinStock.length} itens</span>
                             </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Total a comprar: {formatCurrency(belowMinStock.reduce((sum, i) => sum + i.deficit_value, 0))}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Total a comprar: {formatCurrency(belowMinDeficitTotal)}</p>
                         </div>
                         <div className="divide-y divide-slate-100 dark:divide-slate-800">
                             {belowMinStock.map((item, idx) => (
@@ -259,7 +272,12 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                                     className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
                                 >
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{item.material_description}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{item.material_description}</p>
+                                            {activePurchases[item.material_id] && (
+                                                <span className="material-symbols-outlined text-amber-500 text-base" title="Compra em andamento">shopping_cart</span>
+                                            )}
+                                        </div>
                                         <p className="text-xs text-slate-500 dark:text-slate-400">{item.material_code} • {item.warehouse_description}</p>
                                     </div>
                                     <div className="text-right shrink-0 ml-3">
@@ -275,7 +293,14 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                     </div>
                 )}
 
-                {belowMinStock.length === 0 && selectedStatus === null && (
+                {selectedAlerts && belowMinStock.length === 0 && (
+                    <div className="text-center py-8 text-slate-400">
+                        <span className="material-symbols-outlined text-4xl mb-2 block">check_circle</span>
+                        <p className="text-sm">Nenhum alerta de estoque no momento.</p>
+                    </div>
+                )}
+
+                {!selectedAlerts && selectedStatus === null && belowMinStock.length === 0 && (
                     <div className="text-center py-12 text-slate-400">
                         <span className="material-symbols-outlined text-5xl mb-2 block">check_circle</span>
                         <p className="text-sm">Tudo em ordem! Nenhuma ação necessária.</p>
