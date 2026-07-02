@@ -20,6 +20,9 @@ interface MaterialPurchaseListItemProps {
     purchase_code?: string;
     warehouse_id?: string;
     unit_price?: number;
+    material_code?: string;
+    material_description?: string;
+    showMaterialInfo?: boolean;
     showActions?: boolean;
     onAuthorize?: (id: string) => void;
     onCancel?: (id: string) => void;
@@ -63,6 +66,9 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
     purchase_code,
     warehouse_id,
     unit_price,
+    material_code,
+    material_description,
+    showMaterialInfo = false,
     showActions = false,
     onAuthorize,
     onCancel,
@@ -96,6 +102,13 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
             <div className="px-4 py-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
+                        {showMaterialInfo && material_code && (
+                            <>
+                                <span className="text-xs text-slate-500">Material</span>
+                                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{material_code} - {material_description}</p>
+                            </>
+                        )}
+
                         <span className="text-xs text-slate-500">Solicitante</span>
                         <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{requester_name || '—'}</p>
 

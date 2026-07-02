@@ -18,6 +18,7 @@ interface MaterialPurchasesTabProps {
 interface Purchase {
     id: string;
     code: string;
+    purchase_code: string;
     material_id: string;
     material_code: string;
     material_description: string;
@@ -168,6 +169,7 @@ export const MaterialPurchasesTab: React.FC<MaterialPurchasesTabProps> = ({ mate
                             purchase_code={p.purchase_code}
                             warehouse_id={p.warehouse_id}
                             unit_price={p.unit_price}
+                            showMaterialInfo={false}
                             showActions={true}
                             onAuthorize={handleOpenAuthorize}
                             onCancel={handleOpenCancel}

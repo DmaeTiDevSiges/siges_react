@@ -11027,7 +11027,7 @@ export const dataService = {
 
         let query = supabase
             .from('v_materials')
-            .select('id, code, description, unit, price_unit, company_id, balance, finger_print, is_deleted, status_id, status_description', { count: 'exact' })
+            .select('id, code, description, unit, price_unit, company_id, balance, finger_print, is_deleted, status_id, status_description, type_id, type_description', { count: 'exact' })
             .eq('provider_company_id', currentUser?.companyId ? parseInt(currentUser.companyId) : 0)
             .order('description');
 
@@ -11055,8 +11055,7 @@ export const dataService = {
             throw error;
         }
 
-        return {
-            materials: (data || []).map((item: any) => ({
+        let materials = (data || []).map((item: any) => ({
                 id: item.id.toString(),
                 code: item.code || '',
                 description: item.description || '',
@@ -11067,8 +11066,44 @@ export const dataService = {
                 fingerPrint: item.finger_print,
                 isAvailable: !item.is_deleted,
                 statusId: item.status_id || 1,
-                statusDescription: item.status_description || (item.is_deleted ? 'Inativo' : 'Ativo')
-            })) as Material[],
+                statusDescription: item.status_description || (item.is_deleted ? 'Inativo' : 'Ativo'),
+                typeId: item.type_id || null,
+                typeDescription: item.type_description || null
+            })) as Material[];
+
+        // Enrich with type data from materials table (view may not have columns cached in PostgREST)
+        const missingTypes = materials.filter(m => !m.typeDescription && m.id);
+        if (missingTypes.length > 0) {
+            const ids = missingTypes.map(m => parseInt(m.id));
+            const { data: typeData } = await supabase
+                .from('materials')
+                .select('id, type_id')
+                .in('id', ids);
+
+            if (typeData && typeData.length > 0) {
+                const typeIds = [...new Set(typeData.map((t: any) => t.type_id).filter(Boolean))];
+                if (typeIds.length > 0) {
+                    const { data: typesData } = await supabase
+                        .from('cfg_materials_types')
+                        .select('id, description')
+                        .in('id', typeIds);
+
+                    const typesMap = new Map((typesData || []).map((t: any) => [t.id, t.description]));
+                    const materialTypesMap = new Map(typeData.filter((t: any) => t.type_id).map((t: any) => [t.id, t.type_id]));
+
+                    materials.forEach(m => {
+                        const typeId = materialTypesMap.get(parseInt(m.id));
+                        if (typeId) {
+                            m.typeId = typeId;
+                            m.typeDescription = typesMap.get(typeId) || null;
+                        }
+                    });
+                }
+            }
+        }
+
+        return {
+            materials,
             total: count || 0
         };
     },
@@ -11102,6 +11137,7 @@ export const dataService = {
             unit: material.unit,
             price_unit: material.priceUnit || 0,
             status_id: material.statusId || 1,
+            type_id: material.typeId || null,
             company_id: 1,
             provider_company_id: currentUser?.companyId ? parseInt(currentUser.companyId) : null,
             created_user_id: currentUser ? parseInt(currentUser.id) : null,
@@ -11206,6 +11242,24 @@ export const dataService = {
         }));
     },
 
+    async getMaterialsTypes(): Promise<{ id: number; code: string; description: string }[]> {
+        const { data, error } = await supabase
+            .from('cfg_materials_types')
+            .select('id, code, description')
+            .order('id');
+
+        if (error) {
+            console.error('Error fetching materials types:', error);
+            throw error;
+        }
+
+        return (data || []).map((item: any) => ({
+            id: item.id,
+            code: item.code,
+            description: item.description
+        }));
+    },
+
     async getMaterialById(id: string): Promise<Material | null> {
         const { data, error } = await supabase
             .from('v_materials')
@@ -11218,7 +11272,23 @@ export const dataService = {
             return null;
         }
 
-        return data as Material;
+        const material: Material = {
+            id: data.id?.toString(),
+            code: data.code || '',
+            description: data.description || '',
+            unit: data.unit || '',
+            priceUnit: data.price_unit || 0,
+            companyId: data.company_id?.toString(),
+            balance: data.balance || 0,
+            fingerPrint: data.finger_print,
+            isAvailable: !data.is_deleted,
+            statusId: data.status_id || 1,
+            statusDescription: data.status_description || (data.is_deleted ? 'Inativo' : 'Ativo'),
+            typeId: data.type_id || null,
+            typeDescription: data.type_description || null
+        };
+
+        return material;
     },
 
     async getWarehouseMaterials(materialId: string): Promise<{ warehouse_id: string; warehouse_code: string; warehouse_description: string; quantity: number; min_stock: number; cost_avg: number }[]> {
@@ -11312,6 +11382,7 @@ export const dataService = {
         if (material.unit !== undefined) dbData.unit = material.unit;
         if (material.priceUnit !== undefined) dbData.price_unit = material.priceUnit;
         if (material.statusId !== undefined) dbData.status_id = material.statusId;
+        if (material.typeId !== undefined) dbData.type_id = material.typeId;
         if (material.companyId !== undefined) dbData.company_id = material.companyId ? parseInt(material.companyId) : null;
         if (material.isAvailable !== undefined) dbData.is_deleted = !material.isAvailable;
 

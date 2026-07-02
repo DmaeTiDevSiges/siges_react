@@ -203,9 +203,16 @@ export const MaterialsList: React.FC<MaterialsListProps> = ({ onSelect, onAdd, o
                         className="bg-white dark:bg-surface-dark rounded-xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary dark:hover:border-primary transition-colors cursor-pointer flex items-center justify-between gap-4"
                     >
                         <div className="flex-1 min-w-0">
-                            <span className="font-bold text-slate-500 dark:text-slate-400">
-                                {material.code}
-                            </span>
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="font-bold text-slate-500 dark:text-slate-400">
+                                    {material.code}
+                                </span>
+                                {material.typeDescription && (
+                                    <span className="text-xs font-medium text-slate-400 dark:text-slate-500 truncate">
+                                        {material.typeDescription}
+                                    </span>
+                                )}
+                            </div>
                             <h3 className="font-bold text-slate-900 dark:text-white mt-0.5">
                                 {material.description}
                             </h3>

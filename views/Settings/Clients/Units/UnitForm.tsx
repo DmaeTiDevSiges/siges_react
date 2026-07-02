@@ -138,17 +138,28 @@ export const UnitForm: React.FC<UnitFormProps> = ({
         loadMetaData();
     }, []);
 
-    // Initialize Map — no cleanup to avoid React 18 StrictMode double-mount issue with Leaflet
+    // Initialize Map
     useEffect(() => {
-        if (!mapContainerRef.current || mapRef.current) return;
+        if (!mapContainerRef.current) return;
+
+        // Clean up any previous map instance
+        if (mapRef.current) {
+            mapRef.current.remove();
+            mapRef.current = null;
+            markerRef.current = null;
+            tileLayerRef.current = null;
+        }
+        // Clear any leftover Leaflet DOM from a previous mount
+        mapContainerRef.current.innerHTML = '';
 
         const container = mapContainerRef.current;
+        let cancelled = false;
 
         const initMap = () => {
-            if (mapRef.current || !container.isConnected) return;
+            if (cancelled || !container.isConnected) return;
 
             const initialPos: L.LatLngExpression = [form.latitude, form.longitude];
-            const map = L.map(container).setView(initialPos, 13);
+            const map = L.map(container, { zoomControl: false }).setView(initialPos, 13);
 
             const streetsLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap contributors'
@@ -172,12 +183,24 @@ export const UnitForm: React.FC<UnitFormProps> = ({
             mapRef.current = map;
             markerRef.current = marker;
 
-            setTimeout(() => mapRef.current?.invalidateSize(), 100);
-            setTimeout(() => mapRef.current?.invalidateSize(), 500);
-            setTimeout(() => mapRef.current?.invalidateSize(), 1500);
+            const invalidate = () => { if (!cancelled && mapRef.current) mapRef.current.invalidateSize(); };
+            setTimeout(invalidate, 200);
+            setTimeout(invalidate, 500);
+            setTimeout(invalidate, 1000);
+            setTimeout(invalidate, 2000);
         };
 
-        requestAnimationFrame(initMap);
+        setTimeout(initMap, 300);
+
+        return () => {
+            cancelled = true;
+            if (mapRef.current) {
+                mapRef.current.remove();
+                mapRef.current = null;
+                markerRef.current = null;
+                tileLayerRef.current = null;
+            }
+        };
     }, []);
 
     // Toggle Map Type
@@ -457,10 +480,10 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                 <div className="space-y-2">
                     <label className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 ml-1">Localização no Mapa</label>
                     <p className="text-xs text-slate-500 dark:text-slate-400">Arraste o marcador para ajustar a posição exata</p>
-                    <div className="relative group/map">
+                    <div className="relative group/map h-[512px] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner overflow-hidden">
                         <div
                             ref={mapContainerRef}
-                            className="h-64 md:h-[512px] w-full rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner z-0 overflow-hidden"
+                            className="w-full h-full"
                         />
 
                         {/* Map Controls */}

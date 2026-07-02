@@ -29,6 +29,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
         code: initialMaterial?.code || '',
         unit: initialMaterial?.unit || '',
         statusId: initialMaterial?.statusId ?? 1,
+        typeId: initialMaterial?.typeId ?? null,
         warehouseId: initialMaterial?.warehouseId || '',
         initialQuantity: initialMaterial?.initialQuantity || 0,
         minStock: initialMaterial?.minStock || 0,
@@ -37,12 +38,14 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
 
     const [duplicateModal, setDuplicateModal] = useState(false);
     const [statuses, setStatuses] = useState<{ id: number; code: string; description: string }[]>([]);
+    const [types, setTypes] = useState<{ id: number; code: string; description: string }[]>([]);
 
     useEffect(() => {
         if (isCreating) {
             dataService.getWarehouses().then(setWarehouses).catch(() => setWarehouses([]));
         }
         dataService.getMaterialsStatuses().then(setStatuses).catch((err) => { console.error('Error loading statuses:', err); setStatuses([]); });
+        dataService.getMaterialsTypes().then(setTypes).catch((err) => { console.error('Error loading types:', err); setTypes([]); });
     }, [isCreating]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -115,6 +118,18 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
                             <option key={s.id} value={s.id}>{s.description}</option>
                         ))
                     )}
+                </Select>
+
+                <Select
+                    label="Tipo"
+                    value={form.typeId?.toString() || ''}
+                    onChange={(e) => setForm({ ...form, typeId: e.target.value ? parseInt(e.target.value) : null })}
+                    disabled={!canSave}
+                >
+                    <option value="">Selecione o tipo</option>
+                    {types.map(t => (
+                        <option key={t.id} value={t.id}>{t.description}</option>
+                    ))}
                 </Select>
 
                 <CurrencyInput

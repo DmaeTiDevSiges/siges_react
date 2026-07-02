@@ -2034,6 +2034,7 @@ const AppContent: React.FC = () => {
 
         return (
           <UnitForm
+            key={`unit-form-${currentScreen === 'client-unit-edit' ? selectedUnit?.id || 'new' : 'new'}`}
             clientId={effectiveClientId || ''}
             initialUnit={currentScreen === 'client-unit-form' ? undefined : selectedUnit || undefined}
             onSave={handleSaveUnit}

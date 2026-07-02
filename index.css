@@ -422,6 +422,15 @@
     z-index: 1000 !important;
 }
 
+/* Neutralize Tailwind Preflight on Leaflet tiles */
+.leaflet-pane img {
+    max-width: none !important;
+}
+
+.leaflet-top, .leaflet-bottom {
+    z-index: 1000 !important;
+}
+
 /* Neutralize h-screen / min-h-screen inside inline report containers */
 .inline-report-wrapper > div {
     min-height: 0 !important;

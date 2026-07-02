@@ -262,11 +262,13 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                    {material.typeDescription && (
+                                        <span className="font-bold text-slate-500 dark:text-slate-400">
+                                            {material.typeDescription}
+                                        </span>
+                                    )}
                                     <StatusBadge status={(material.statusDescription || '').toLowerCase().includes('ativo') && !(material.statusDescription || '').toLowerCase().includes('inativo') ? 'active' : 'inactive'} label={material.statusDescription || (material.isAvailable ? 'Ativo' : 'Inativo')} size="sm" />
-                                    <span className="material-symbols-outlined text-slate-400 dark:text-slate-600">
-                                        chevron_right
-                                    </span>
                                 </div>
                             </div>
                             {stocks.length > 0 && (

@@ -426,6 +426,8 @@ export interface Material {
   isAvailable: boolean;
   statusId?: number;
   statusDescription?: string;
+  typeId?: number;
+  typeDescription?: string;
   warehouseId?: string;
   initialQuantity?: number;
   minStock?: number;
