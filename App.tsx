@@ -1589,8 +1589,9 @@ const AppContent: React.FC = () => {
         setSelectedMaterial(updated);
         setCurrentScreen('material-details');
       } else {
-        await dataService.createMaterial(material);
-        setCurrentScreen('materials-search');
+        const created = await dataService.createMaterial(material);
+        setSelectedMaterial(created);
+        setCurrentScreen('material-details');
       }
     } catch (error) {
       console.error("Error saving material", error);

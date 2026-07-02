@@ -8594,6 +8594,8 @@ SELECT
     m.description AS material_description,
     m.unit AS material_unit,
     m.price_unit AS material_unit_price,
+    m.type_id AS material_type_id,
+    cmt.description AS material_type_description,
     mp.purchase_type_id,
     cpt.code AS purchase_type_code,
     cpt.description AS purchase_type_description,
@@ -8618,6 +8620,7 @@ SELECT
     mp.updated_at
 FROM public.materials_purchases mp
 LEFT JOIN public.materials m ON m.id = mp.material_id
+LEFT JOIN public.cfg_materials_types cmt ON cmt.id = m.type_id
 LEFT JOIN public.cfg_materials_purchases_types cpt ON cpt.id = mp.purchase_type_id
 LEFT JOIN public.warehouses w ON w.id = mp.warehouse_id
 LEFT JOIN public.cfg_materials_purchases_statuses cps ON cps.id = mp.status_id

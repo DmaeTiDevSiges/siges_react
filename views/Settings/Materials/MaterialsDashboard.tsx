@@ -43,6 +43,73 @@ const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+interface TypeGroupProps {
+    type: string;
+    purchases: any[];
+    total: number;
+    onAuthorize: (id: string) => void;
+    onCancel: (id: string) => void;
+    onComplete: (id: string, data: any) => void;
+}
+
+const TypeGroup: React.FC<TypeGroupProps> = ({ type, purchases, total, onAuthorize, onCancel, onComplete }) => {
+    const [expanded, setExpanded] = useState(true);
+
+    return (
+        <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+            >
+                <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-slate-400 text-lg">
+                        {expanded ? 'expand_more' : 'chevron_right'}
+                    </span>
+                    <div className="text-left">
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{type}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{purchases.length} {purchases.length === 1 ? 'compra' : 'compras'}</p>
+                    </div>
+                </div>
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{formatCurrency(total)}</span>
+            </button>
+            {expanded && (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800 border-t border-slate-100 dark:border-slate-800">
+                    {purchases.map((p: any) => (
+                        <div key={p.id} className="cursor-pointer">
+                            <MaterialPurchaseListItem
+                                id={p.id}
+                                created_at={p.created_at}
+                                status_id={p.status_id}
+                                status_description={p.status_description}
+                                requester_name={p.requester_name}
+                                justification={p.justification}
+                                quantity={p.quantity}
+                                unit={p.material_unit || 'un'}
+                                total_price={p.total_price}
+                                cancel_reason={p.cancel_reason}
+                                authorizer_name={p.authorizer_name}
+                                authorized_at={p.authorized_at}
+                                purchase_type={p.purchase_type_description}
+                                purchase_type_id={p.purchase_type_id}
+                                purchase_code={p.purchase_code}
+                                warehouse_id={p.warehouse_id}
+                                unit_price={p.unit_price}
+                                material_code={p.material_code}
+                                material_description={p.material_description}
+                                showMaterialInfo={true}
+                                showActions={true}
+                                onAuthorize={onAuthorize}
+                                onCancel={onCancel}
+                                onComplete={onComplete}
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, onSelectMaterial }) => {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<DashboardStats>({ pending: 0, authorized: 0, completed: 0, cancelled: 0, pending_value: 0, authorized_value: 0 });
@@ -156,6 +223,19 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
         return filteredPurchases.reduce((sum: number, p: any) => sum + (p.total_price || 0), 0);
     }, [filteredPurchases]);
 
+    const purchasesByType = useMemo(() => {
+        const groups: Record<string, { type: string; purchases: any[]; total: number }> = {};
+        for (const p of filteredPurchases) {
+            const typeName = p.material_type_description || 'Sem Tipo';
+            if (!groups[typeName]) {
+                groups[typeName] = { type: typeName, purchases: [], total: 0 };
+            }
+            groups[typeName].purchases.push(p);
+            groups[typeName].total += p.total_price || 0;
+        }
+        return Object.values(groups).sort((a, b) => b.total - a.total);
+    }, [filteredPurchases]);
+
     const belowMinDeficitTotal = useMemo(() => {
         return belowMinStock.reduce((sum, i) => sum + i.deficit_value, 0);
     }, [belowMinStock]);
@@ -219,35 +299,16 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                                 {filteredPurchases.length} • {formatCurrency(filteredTotal)}
                             </span>
                         </div>
-                        {filteredPurchases.map((p: any) => (
-                            <div key={p.id} className="cursor-pointer">
-                                <MaterialPurchaseListItem
-                                    id={p.id}
-                                    created_at={p.created_at}
-                                    status_id={p.status_id}
-                                    status_description={p.status_description}
-                                    requester_name={p.requester_name}
-                                    justification={p.justification}
-                                    quantity={p.quantity}
-                                    unit={p.material_unit || 'un'}
-                                    total_price={p.total_price}
-                                    cancel_reason={p.cancel_reason}
-                                    authorizer_name={p.authorizer_name}
-                                    authorized_at={p.authorized_at}
-                                    purchase_type={p.purchase_type_description}
-                                    purchase_type_id={p.purchase_type_id}
-                                    purchase_code={p.purchase_code}
-                                    warehouse_id={p.warehouse_id}
-                                    unit_price={p.unit_price}
-                                    material_code={p.material_code}
-                                    material_description={p.material_description}
-                                    showMaterialInfo={true}
-                                    showActions={true}
-                                    onAuthorize={handleOpenAuthorize}
-                                    onCancel={handleOpenCancel}
-                                    onComplete={handleOpenComplete}
-                                />
-                            </div>
+                        {purchasesByType.map((group) => (
+                            <TypeGroup
+                                key={group.type}
+                                type={group.type}
+                                purchases={group.purchases}
+                                total={group.total}
+                                onAuthorize={handleOpenAuthorize}
+                                onCancel={handleOpenCancel}
+                                onComplete={handleOpenComplete}
+                            />
                         ))}
                     </div>
                 )}
