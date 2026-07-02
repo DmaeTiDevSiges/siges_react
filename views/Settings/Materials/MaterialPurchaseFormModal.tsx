@@ -7,24 +7,33 @@ import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { toast } from 'sonner';
 
+interface WarehouseOption {
+    id: string;
+    code: string;
+    description: string;
+}
+
 interface MaterialPurchaseFormModalProps {
     isOpen: boolean;
     onClose: () => void;
     material: Material;
     onCreated: () => void;
+    /** Almoxarifados já associados ao material. Se não fornecido, carrega do servidor. */
+    warehouseOptions?: WarehouseOption[];
 }
 
 export const MaterialPurchaseFormModal: React.FC<MaterialPurchaseFormModalProps> = ({
     isOpen,
     onClose,
     material,
-    onCreated
+    onCreated,
+    warehouseOptions
 }) => {
     const [quantity, setQuantity] = useState(1);
     const [unitPrice, setUnitPrice] = useState(material.priceUnit || 0);
     const [justification, setJustification] = useState('');
     const [warehouseId, setWarehouseId] = useState('');
-    const [warehouses, setWarehouses] = useState<{ id: string; code: string; description: string }[]>([]);
+    const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
     const [purchaseTypeId, setPurchaseTypeId] = useState('');
     const [purchaseTypes, setPurchaseTypes] = useState<{ id: string; code: string; description: string }[]>([]);
     const [saving, setSaving] = useState(false);
@@ -36,12 +45,22 @@ export const MaterialPurchaseFormModal: React.FC<MaterialPurchaseFormModalProps>
             loadWarehouses();
             loadPurchaseTypes();
         }
-    }, [isOpen]);
+    }, [isOpen, warehouseOptions]);
 
     const loadWarehouses = async () => {
+        // Se almoxarifados associados foram passados via prop, usa-os diretamente
+        if (warehouseOptions && warehouseOptions.length > 0) {
+            setWarehouses(warehouseOptions);
+            return;
+        }
+        // Caso contrário, carrega os almoxarifados associados ao material do servidor
         try {
-            const wh = await dataService.getWarehouses();
-            setWarehouses(wh);
+            const stocks = await dataService.getWarehouseMaterials(material.id);
+            setWarehouses(stocks.map(s => ({
+                id: s.warehouse_id,
+                code: s.warehouse_code,
+                description: s.warehouse_description
+            })));
         } catch {
             setWarehouses([]);
         }
@@ -136,12 +155,18 @@ export const MaterialPurchaseFormModal: React.FC<MaterialPurchaseFormModalProps>
                     value={warehouseId}
                     onChange={(e) => setWarehouseId(e.target.value)}
                     placeholder="Selecione o almoxarifado"
+                    disabled={warehouses.length === 0}
                 >
-                    <option value="">Selecione...</option>
+                    <option value="">{warehouses.length === 0 ? 'Nenhum almoxarifado associado' : 'Selecione...'}</option>
                     {warehouses.map(w => (
                         <option key={w.id} value={w.id}>{w.description}</option>
                     ))}
                 </Select>
+                {warehouses.length === 0 && (
+                    <p className="text-xs text-amber-500 dark:text-amber-400 -mt-2">
+                        Este material não está associado a nenhum almoxarifado. Cadastre-o na aba <strong>Almoxarifados</strong> primeiro.
+                    </p>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                     <Input

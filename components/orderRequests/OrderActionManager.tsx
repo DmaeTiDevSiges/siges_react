@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { useOrderActions, OrderActionType } from '../../hooks/useOrderActions';
 import { Order, User } from '../../types';
 import { AuthorizeOrderModal } from './modals/AuthorizeOrderModal';
@@ -55,7 +56,9 @@ export const OrderActionManager: React.FC<OrderActionManagerProps> = ({
         setActiveModal(null);
     };
 
-    if (actions.length === 0) return null;
+    const { canCreate } = usePermissions();
+
+    if (actions.length === 0 || !canCreate('orders_requests')) return null;
 
     return (
         <div className={className}>

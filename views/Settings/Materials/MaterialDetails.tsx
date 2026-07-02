@@ -404,6 +404,11 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
                 onClose={() => setShowPurchaseForm(false)}
                 material={material}
                 onCreated={() => setPurchasesRefreshKey(k => k + 1)}
+                warehouseOptions={stocks.map(s => ({
+                    id: s.warehouse_id,
+                    code: s.warehouse_code,
+                    description: s.warehouse_description
+                }))}
             />
         </div>
     );

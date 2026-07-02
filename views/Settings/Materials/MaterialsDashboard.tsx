@@ -12,15 +12,6 @@ interface MaterialsDashboardProps {
     onSelectMaterial?: (material: any) => void;
 }
 
-interface DashboardStats {
-    pending: number;
-    authorized: number;
-    completed: number;
-    cancelled: number;
-    pending_value: number;
-    authorized_value: number;
-}
-
 interface StockSummary {
     materials_without_stock: number;
     materials_below_min: number;
@@ -112,7 +103,6 @@ const TypeGroup: React.FC<TypeGroupProps> = ({ type, purchases, total, onAuthori
 
 export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, onSelectMaterial }) => {
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState<DashboardStats>({ pending: 0, authorized: 0, completed: 0, cancelled: 0, pending_value: 0, authorized_value: 0 });
     const [stockSummary, setStockSummary] = useState<StockSummary>({ materials_without_stock: 0, materials_below_min: 0 });
     const [belowMinStock, setBelowMinStock] = useState<MaterialBelowMin[]>([]);
     const [allPurchases, setAllPurchases] = useState<any[]>([]);
@@ -136,17 +126,15 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
     const loadDashboard = useCallback(async () => {
         try {
             setLoading(true);
-            const [purchasesDash, stock, belowMin, recent, activeMap] = await Promise.all([
-                dataService.getMaterialPurchasesDashboard(),
+            const [stock, belowMin, all, activeMap] = await Promise.all([
                 dataService.getMaterialsStockSummary(),
                 dataService.getMaterialsBelowMinStock(),
-                dataService.getRecentPurchases(20),
+                dataService.getMaterialPurchasesAll(),
                 dataService.getActivePurchasesMaterialIds(),
             ]);
-            setStats(purchasesDash);
             setStockSummary({ materials_without_stock: stock.materials_without_stock, materials_below_min: stock.materials_below_min });
             setBelowMinStock(belowMin);
-            setAllPurchases(recent);
+            setAllPurchases(all);
             setActivePurchases(activeMap);
         } catch {
             console.error('Error loading materials dashboard');
@@ -212,6 +200,18 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
             toast.error('Erro ao concluir compra');
         }
     }, [completePurchase, loadDashboard]);
+
+    const stats = useMemo(() => {
+        const counts = { pending: 0, authorized: 0, completed: 0, cancelled: 0, pending_value: 0, authorized_value: 0 };
+        for (const p of allPurchases) {
+            const totalPrice = p.total_price || 0;
+            if (p.status_id === 1) { counts.pending++; counts.pending_value += totalPrice; }
+            else if (p.status_id === 2) { counts.authorized++; counts.authorized_value += totalPrice; }
+            else if (p.status_id === 3) counts.completed++;
+            else if (p.status_id === 4) counts.cancelled++;
+        }
+        return counts;
+    }, [allPurchases]);
 
     const filteredPurchases = useMemo(() => {
         return selectedStatus !== null

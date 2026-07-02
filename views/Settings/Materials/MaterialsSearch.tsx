@@ -30,6 +30,7 @@ let materialsSearchCache: {
     search: string;
     statusFilter: number | 'all';
     hasSearched: boolean;
+    warehouseStocks?: Record<string, WarehouseStock[]>;
 } | null = null;
 
 export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, onSelectMaterial, onAdd, onDashboard }) => {
@@ -46,7 +47,8 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
     const [error, setError] = useState<string | null>(null);
     const [hasSearched, setHasSearched] = useState(materialsSearchCache?.hasSearched || false);
     const [statuses, setStatuses] = useState<{ id: number; code: string; description: string }[]>([]);
-    const [warehouseStocks, setWarehouseStocks] = useState<Record<string, WarehouseStock[]>>({});
+    const [warehouseStocks, setWarehouseStocks] = useState<Record<string, WarehouseStock[]>>(materialsSearchCache?.warehouseStocks || {});
+    const [activePurchases, setActivePurchases] = useState<Record<string, { hasPending: boolean; hasAuthorized: boolean }>>({});
 
     useEffect(() => {
         dataService.getMaterialsStatuses().then(setStatuses).catch(console.error);
@@ -56,7 +58,15 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
         if (materialIds.length === 0) return;
         try {
             const result = await dataService.getWarehouseMaterialsByIds(materialIds);
-            setWarehouseStocks(prev => ({ ...prev, ...result }));
+            const purchases = await dataService.getActivePurchasesMaterialIds();
+            setWarehouseStocks(prev => {
+                const updated = { ...prev, ...result };
+                if (materialsSearchCache) {
+                    materialsSearchCache.warehouseStocks = updated;
+                }
+                return updated;
+            });
+            setActivePurchases(purchases);
         } catch (error) {
             console.error('Failed to load warehouse stocks', error);
         }
@@ -271,9 +281,9 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
                                     <StatusBadge status={(material.statusDescription || '').toLowerCase().includes('ativo') && !(material.statusDescription || '').toLowerCase().includes('inativo') ? 'active' : 'inactive'} label={material.statusDescription || (material.isAvailable ? 'Ativo' : 'Inativo')} size="sm" />
                                 </div>
                             </div>
-                            {stocks.length > 0 && (
-                                <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-2.5">
-                                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                            {(stocks.length > 0 || activePurchases[material.id]?.hasPending || activePurchases[material.id]?.hasAuthorized) && (
+                                <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-2.5 flex items-center justify-between gap-4">
+                                    <div className="flex gap-2 overflow-x-auto no-scrollbar flex-1">
                                         {stocks.map((stock) => (
                                             <div
                                                 key={stock.warehouse_id}
@@ -289,6 +299,18 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
                                             </div>
                                         ))}
                                     </div>
+                                    
+                                    {/* Cart Icon in footer */}
+                                    {(activePurchases[material.id]?.hasPending || activePurchases[material.id]?.hasAuthorized) && (
+                                        <div 
+                                            className={`flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 ${
+                                                activePurchases[material.id]?.hasPending ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-500' : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-500'
+                                            }`}
+                                            title={activePurchases[material.id]?.hasPending ? "Compra Pendente" : "Compra Autorizada"}
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

@@ -8,6 +8,7 @@ import { Avatar } from '../ui/Avatar';
 import { IconButton } from '../ui/IconButton';
 import { getPriorityColor, getStatusConfig } from '../../utils/formatters';
 import { Modal } from '../ui/Modal';
+import { usePermissions } from '../../contexts/PermissionsContext';
 
 interface ServiceRequestCardDetailProps {
     order: Order;
@@ -22,6 +23,7 @@ interface ServiceRequestCardDetailProps {
 }
 
 export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> = ({ order: req, onClick, isFollowed, onToggleFollow, onEdit, onGenerateOS, onCancelSS, onClone, currentUser }) => {
+    const { canCreate } = usePermissions();
     const [showMenu, setShowMenu] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const statusCfg = getStatusConfig(req.statusId);
@@ -254,16 +256,18 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                     </div>
                 </div>
 
-                <div className="relative">
-                    <IconButton
-                        icon="more_vert"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowMenu(!showMenu);
-                        }}
-                        className={`transition-all duration-300 ${showMenu ? 'ring-4 ring-primary/20 bg-primary/10 text-primary' : ''}`}
-                    />
-                </div>
+                {canCreate('orders_requests') && (
+                    <div className="relative">
+                        <IconButton
+                            icon="more_vert"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowMenu(!showMenu);
+                            }}
+                            className={`transition-all duration-300 ${showMenu ? 'ring-4 ring-primary/20 bg-primary/10 text-primary' : ''}`}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Unified Bottom Sheet Menu for SS */}
@@ -272,10 +276,18 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                     <div className="fixed inset-0 z-100 flex items-end justify-center" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}>
                         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-300" />
                         <div
-                            className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
+                            className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="w-12 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full mx-auto mb-8" />
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="w-12 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full" />
+                                <button
+                                    onClick={() => setShowMenu(false)}
+                                    className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-white/20 transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-lg">close</span>
+                                </button>
+                            </div>
 
                             <div className="flex flex-col gap-3">
                                 {onClone && (
@@ -342,13 +354,6 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                                     </button>
                                 )}
                             </div>
-
-                            <button
-                                onClick={() => setShowMenu(false)}
-                                className="w-full mt-8 py-2 text-slate-400 font-bold uppercase tracking-widest text-[10px] hover:text-slate-600 transition-colors"
-                            >
-                                Fechar Menu
-                            </button>
                         </div>
                     </div>,
                     document.body

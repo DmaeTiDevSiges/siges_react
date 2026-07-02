@@ -13532,10 +13532,10 @@ export const dataService = {
         return data || [];
     },
 
-    async getActivePurchasesMaterialIds(): Promise<Record<number, boolean>> {
+    async getActivePurchasesMaterialIds(): Promise<Record<number, { hasPending: boolean; hasAuthorized: boolean }>> {
         const { data, error } = await supabase
             .from('materials_purchases')
-            .select('material_id')
+            .select('material_id, status_id')
             .in('status_id', [1, 2])
             .eq('is_deleted', false);
 
@@ -13543,9 +13543,13 @@ export const dataService = {
             console.error('Error fetching active purchases:', error);
             return {};
         }
-        const map: Record<number, boolean> = {};
+        const map: Record<number, { hasPending: boolean; hasAuthorized: boolean }> = {};
         for (const row of data || []) {
-            map[row.material_id] = true;
+            if (!map[row.material_id]) {
+                map[row.material_id] = { hasPending: false, hasAuthorized: false };
+            }
+            if (row.status_id === 1) map[row.material_id].hasPending = true;
+            if (row.status_id === 2) map[row.material_id].hasAuthorized = true;
         }
         return map;
     },

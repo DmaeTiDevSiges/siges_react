@@ -49,7 +49,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     activeTab: externalActiveTab,
     onTabChange
 }) => {
-    const { canView } = usePermissions();
+    const { canView, canCreate } = usePermissions();
     const [internalActiveTab, setInternalActiveTab] = useState('SS');
     const activeTab = externalActiveTab || internalActiveTab;
 

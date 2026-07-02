@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Order, User } from '../types';
+import { usePermissions } from '../contexts/PermissionsContext';
 
 export type OrderActionType =
     | 'GENERATE_OS'
@@ -23,6 +24,8 @@ export interface OrderAction {
  * Hook to determine available actions for an order based on current status and type
  */
 export const useOrderActions = (order: Order | undefined | null, currentUser: User | null) => {
+    const { canCreate } = usePermissions();
+
     const actions = useMemo(() => {
         if (!order || !currentUser) return [];
 
@@ -63,13 +66,13 @@ export const useOrderActions = (order: Order | undefined | null, currentUser: Us
 
         // Note: For statuses 5, 6, 7 e 8, no actions are available as per flow.
 
-        // Editar OS - available for super admins on OS items regardless of status
-        if (!isSS && currentUser.isAdminSuper) {
-            availableActions.push({ id: 'EDIT_OS', label: 'Editar OS', description: 'Alterar dados da ordem de serviço', icon: 'edit_square', variant: 'default' });
+        // Editar OS/SS - available for super admins or if canCreate('orders_requests')
+        if (currentUser.isAdminSuper || canCreate('orders_requests')) {
+            availableActions.push({ id: 'EDIT_OS', label: isSS ? 'Editar SS' : 'Editar OS', description: isSS ? 'Alterar dados da solicitação' : 'Alterar dados da ordem de serviço', icon: 'edit_square', variant: 'default' });
         }
 
         return availableActions;
-    }, [order, currentUser]);
+    }, [order, currentUser, canCreate]);
 
     return { actions };
 };
