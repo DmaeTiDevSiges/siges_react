@@ -880,59 +880,41 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         {activeTab === 'personal' && (
                             <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
                                 <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
-                                            Nome Completo <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            disabled={!isEditing}
-                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                                            placeholder="Nome completo"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
-                                            Nome Curto (Apelido)
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={nameShort}
-                                            onChange={(e) => setNameShort(e.target.value)}
-                                            disabled={!isEditing}
-                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                                            placeholder="Como prefere ser chamado"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
-                                            E-mail <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            disabled={!isEditing}
-                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                                            placeholder="email@exemplo.com"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
-                                            Telefone / Celular
-                                        </label>
-                                        <input
-                                            type="tel"
-                                            value={mobile}
-                                            onChange={handleMobileChange}
-                                            maxLength={15}
-                                            disabled={!isEditing}
-                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                                            placeholder="(00) 00000-0000"
-                                        />
-                                    </div>
+                                    <Input
+                                        label="Nome Completo"
+                                        required
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        disabled={!isEditing}
+                                        placeholder="Nome completo"
+                                    />
+                                    <Input
+                                        label="Nome Curto (Apelido)"
+                                        type="text"
+                                        value={nameShort}
+                                        onChange={(e) => setNameShort(e.target.value)}
+                                        disabled={!isEditing}
+                                        placeholder="Como prefere ser chamado"
+                                    />
+                                    <Input
+                                        label="E-mail"
+                                        required
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        disabled={!isEditing}
+                                        placeholder="email@exemplo.com"
+                                    />
+                                    <Input
+                                        label="Telefone / Celular"
+                                        type="tel"
+                                        value={mobile}
+                                        onChange={handleMobileChange}
+                                        maxLength={15}
+                                        disabled={!isEditing}
+                                        placeholder="(00) 00000-0000"
+                                    />
                                 </div>
                             </div>
                         )}
@@ -942,26 +924,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                             <div className="space-y-4">
                                 <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
                                     <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-                                        <div>
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Empresa</label>
-                                            <Select
-                                                value={companyId}
-                                                onChange={(e) => handleCompanyChange(e.target.value)}
-                                                disabled={!isEditing || !isAdmin}
-                                                className="border-none p-0! h-auto! shadow-none focus:ring-0"
-                                                options={companies.map(c => ({ value: c.id, label: c.name }))}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Equipe</label>
-                                            <Select
-                                                value={teamId}
-                                                onChange={(e) => setTeamId(e.target.value)}
-                                                disabled={!isEditing || !isAdmin}
-                                                className="border-none p-0! h-auto! shadow-none focus:ring-0"
-                                                options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                            />
-                                        </div>
+                                        <Select
+                                            label="Empresa"
+                                            value={companyId}
+                                            onChange={(e) => handleCompanyChange(e.target.value)}
+                                            disabled={!isEditing || !isAdmin}
+                                            options={companies.map(c => ({ value: c.id, label: c.name }))}
+                                        />
+                                        <Select
+                                            label="Equipe"
+                                            value={teamId}
+                                            onChange={(e) => setTeamId(e.target.value)}
+                                            disabled={!isEditing || !isAdmin}
+                                            options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                        />
                                         <div>
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Líder de Equipe</label>
                                             <div className="flex items-center justify-between h-10">
@@ -992,7 +968,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                         }
                                                     }}
                                                     onSearchChange={(val) => setSearchVehicleQuery(val)}
-                                                    className="border-none p-0! h-auto! shadow-none focus:ring-0"
                                                     placeholder="Selecione um veículo..."
                                                     options={[
                                                         { value: '', label: 'Nenhum / Remover veículo' },
@@ -1094,32 +1069,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         {activeTab === 'schedule' && (
                             <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
                                 <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1 mb-1.5">
-                                            <span className="material-symbols-outlined text-amber-500 text-[14px]">wb_twilight</span>
-                                            Início do Turno
-                                        </label>
-                                        <input
-                                            type="time"
-                                            value={shiftStart}
-                                            onChange={(e) => setShiftStart(e.target.value)}
-                                            disabled={!isOwner && !isAdmin}
-                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1 mb-1.5">
-                                            <span className="material-symbols-outlined text-indigo-500 text-[14px]">bedtime</span>
-                                            Término do Turno
-                                        </label>
-                                        <input
-                                            type="time"
-                                            value={shiftEnd}
-                                            onChange={(e) => setShiftEnd(e.target.value)}
-                                            disabled={!isOwner && !isAdmin}
-                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                                        />
-                                    </div>
+                                    <Input
+                                        label="Início do Turno"
+                                        type="time"
+                                        leftIcon={<span className="material-symbols-outlined text-amber-500 text-[20px]">wb_twilight</span>}
+                                        value={shiftStart}
+                                        onChange={(e) => setShiftStart(e.target.value)}
+                                        disabled={!isOwner && !isAdmin}
+                                    />
+                                    <Input
+                                        label="Término do Turno"
+                                        type="time"
+                                        leftIcon={<span className="material-symbols-outlined text-indigo-500 text-[20px]">bedtime</span>}
+                                        value={shiftEnd}
+                                        onChange={(e) => setShiftEnd(e.target.value)}
+                                        disabled={!isOwner && !isAdmin}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -1128,26 +1093,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         {activeTab === 'access' && (
                             <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
                                 <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Perfil de Acesso</label>
-                                        <Select
-                                            value={profileId}
-                                            onChange={(e) => setProfileId(e.target.value)}
-                                            disabled={!isAdmin}
-                                            className="border-none p-0! h-auto! shadow-none focus:ring-0"
-                                            options={profiles.map(p => ({ value: p.id, label: p.description }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Situação / Status</label>
-                                        <Select
-                                            value={statusId}
-                                            onChange={(e) => setStatusId(e.target.value)}
-                                            disabled={!isAdmin}
-                                            className="border-none p-0! h-auto! shadow-none focus:ring-0"
-                                            options={userStatuses.map(s => ({ value: s.id.toString(), label: s.description }))}
-                                        />
-                                    </div>
+                                    <Select
+                                        label="Perfil de Acesso"
+                                        value={profileId}
+                                        onChange={(e) => setProfileId(e.target.value)}
+                                        disabled={!isAdmin}
+                                        options={profiles.map(p => ({ value: p.id, label: p.description }))}
+                                    />
+                                    <Select
+                                        label="Situação"
+                                        value={statusId}
+                                        onChange={(e) => setStatusId(e.target.value)}
+                                        disabled={!isAdmin}
+                                        options={userStatuses.map(s => ({ value: s.id.toString(), label: s.description }))}
+                                    />
                                 </div>
                             </div>
                         )}
