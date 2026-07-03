@@ -121,7 +121,7 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
         justification: string;
     } | null>(null);
     const [selectedAlerts, setSelectedAlerts] = useState(false);
-    const [activePurchases, setActivePurchases] = useState<Record<number, boolean>>({});
+    const [activePurchases, setActivePurchases] = useState<Record<number, { hasPending: boolean; hasAuthorized: boolean }>>({});
 
     const loadDashboard = useCallback(async () => {
         try {

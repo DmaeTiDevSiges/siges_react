@@ -91,6 +91,33 @@ export default defineConfig(({ mode, command }) => {
       allowedHosts: true
     },
     plugins,
+    build: {
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('@react-pdf') || id.includes('pdfkit') || id.includes('blob-stream') || id.includes('fontkit')) {
+                return 'pdf-vendor';
+              }
+              if (id.includes('xlsx')) {
+                return 'excel-vendor';
+              }
+              if (id.includes('leaflet')) {
+                return 'maps-vendor';
+              }
+              if (id.includes('@supabase')) {
+                return 'supabase-vendor';
+              }
+              if (id.includes('react-icons')) {
+                return 'icons-vendor';
+              }
+              return 'vendor';
+            }
+          }
+        }
+      }
+    },
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),

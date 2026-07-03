@@ -23,6 +23,7 @@ interface WarehouseStock {
     warehouse_id: string;
     warehouse_code: string;
     warehouse_description: string;
+    warehouse_address?: string;
     quantity: number;
     min_stock: number;
     cost_avg: number;
@@ -48,7 +49,7 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingStock, setEditingStock] = useState<WarehouseStock | null>(null);
-    const [warehouses, setWarehouses] = useState<{ id: string; code: string; description: string }[]>([]);
+    const [warehouses, setWarehouses] = useState<{ id: string; code: string; description: string; address?: string }[]>([]);
     const [warehouseId, setWarehouseId] = useState('');
     const [quantity, setQuantity] = useState(0);
     const [minStock, setMinStock] = useState(0);
@@ -281,16 +282,19 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
                                 key={s.warehouse_id}
                                 className="bg-white dark:bg-card-dark rounded-xl p-4 border border-slate-100 dark:border-slate-800 mb-2"
                             >
-                                <div className="flex items-end justify-between">
-                                    <div className="flex flex-col gap-1">
-                                        <p className="text-sm font-bold text-slate-900 dark:text-white">{s.warehouse_description}</p>
-                                        <div className="flex gap-4 text-[11px] text-slate-500 dark:text-slate-400">
-                                            <span>Mín: <strong>{s.min_stock}</strong></span>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <p className={`text-lg font-black ${s.quantity < s.min_stock ? 'text-red-500' : 'text-primary'}`}>{s.quantity}</p>
-                                        {canEdit('materials_create_edit_delete') && (
+                                <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 gap-y-0.5">
+                                    {/* Linha 1 */}
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate min-w-0">
+                                        {s.warehouse_description}
+                                    </p>
+                                    
+                                    <p className={`text-lg font-black leading-tight text-right ${s.quantity < s.min_stock ? 'text-red-500' : 'text-primary'}`}>
+                                        {s.quantity}
+                                    </p>
+                                    
+                                    {/* Ícone de Edição (ocupa as duas linhas verticalmente) */}
+                                    <div className="row-span-2 pl-3 ml-2 border-l border-slate-100 dark:border-slate-800 flex items-center justify-center h-full">
+                                        {canEdit('materials_create_edit_delete') ? (
                                             <button
                                                 onClick={() => handleOpenEditModal(s)}
                                                 className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors"
@@ -298,8 +302,19 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
                                             >
                                                 <span className="material-symbols-outlined text-[18px]">edit</span>
                                             </button>
+                                        ) : (
+                                            <div className="w-[30px]" />
                                         )}
                                     </div>
+
+                                    {/* Linha 2 */}
+                                    <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate min-w-0">
+                                        {s.warehouse_address || '\u00A0'}
+                                    </p>
+
+                                    <span className="text-[11px] text-slate-500 dark:text-slate-400 text-right">
+                                        Mín: <strong>{s.min_stock}</strong>
+                                    </span>
                                 </div>
                             </div>
                         ))}

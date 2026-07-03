@@ -123,7 +123,7 @@ export const VisitReportPDFButton = ({
                 
                 // 1. Get current responses for this asset
                 const currentResponses = (allActivities || []).filter(a => a.orderVisitAssetId === assetId);
-                const responsesMap = new Map(currentResponses.map(r => [r.activityId, r]));
+                const responsesMap = new Map<string, any>(currentResponses.map(r => [r.activityId, r]));
 
                 // 2. Build the final activities array for this asset
                 if (planId && planFullStructureMap[planId]) {

@@ -45,7 +45,7 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
 
             // 2. Fetch types to map typeId to description
             const types = await dataService.getAssetTypes('all');
-            const typeMap = new Map(types.map(t => [t.id.toString(), t.description]));
+            const typeMap = new Map<string, string>(types.map(t => [t.id.toString(), t.description as string]));
 
             // 3. Map to report rows
             const reportRows: AssetListRow[] = assets.map(a => ({
@@ -55,7 +55,7 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
                 description: a.description,
                 statusCode: a.statusCode,
                 statusAt: a.statusAt,
-                typeDescription: a.typeId ? typeMap.get(a.typeId.toString()) : '—'
+                typeDescription: (a.typeId ? typeMap.get(a.typeId.toString()) : null) || '—'
             }));
 
             // 4. Generate the PDF

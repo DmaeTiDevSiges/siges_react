@@ -34,7 +34,7 @@ export const AssetsSearchPDFButton: React.FC<AssetsSearchPDFButtonProps> = ({
         try {
             // Fetch types to map typeId to description
             const types = await dataService.getAssetTypes('all');
-            const typeMap = new Map(types.map(t => [t.id.toString(), t.description]));
+            const typeMap = new Map<string, string>(types.map(t => [t.id.toString(), t.description || '']));
 
             // Map to report rows
             const reportRows: AssetListRow[] = assets.map(a => ({
@@ -44,7 +44,7 @@ export const AssetsSearchPDFButton: React.FC<AssetsSearchPDFButtonProps> = ({
                 description: a.description,
                 statusCode: a.statusCode || a.statusId,
                 statusAt: a.statusAt,
-                typeDescription: a.typeId ? typeMap.get(a.typeId.toString()) : '—'
+                typeDescription: a.typeId ? (typeMap.get(a.typeId.toString()) || '—') : '—'
             }));
 
             // Get company logo in base64

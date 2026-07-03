@@ -123,7 +123,7 @@ export const BatchVisitReportPDFButton = ({
                     const assetId = asset.id;
                     const planId = asset.maintenancePlanId;
                     const currentResponses = (allActivities || []).filter(a => a.orderVisitAssetId === assetId);
-                    const responsesMap = new Map(currentResponses.map(r => [r.activityId, r]));
+                    const responsesMap = new Map<string, any>(currentResponses.map(r => [r.activityId, r]));
 
                     if (planId && planFullStructureMap[planId]) {
                         activitiesByAssetId[assetId] = planFullStructureMap[planId].map(node => {

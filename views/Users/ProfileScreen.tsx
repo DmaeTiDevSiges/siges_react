@@ -4,7 +4,8 @@ import { Layout } from '../../components/Layout';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { dataService } from '../../services/dataService';
-import { User, Profile, Permission, Vehicle, Company, Team, UserStatus as OrganizationStatus } from '../../types';
+import { toolsService } from '../../services/toolsService';
+import { User, Profile, Permission, Vehicle, Company, Team, UserStatus as OrganizationStatus, UserTool } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import { FaceDetectionCamera } from '../../components/ui/FaceDetectionCamera';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
@@ -47,6 +48,7 @@ const statusConfig = {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser, onBack, onMenuClick, onThemeToggle, isDarkMode, onUserUpdate, onStatusChange }) => {
     const [user, setUser] = useState<User | null>(initialUser || null);
+    const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(!initialUser);
     const [saving, setSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -100,6 +102,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [currentVehicle, setCurrentVehicle] = useState<Vehicle | null>(null);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+    // Tab navigation state
+    const [activeTab, setActiveTab] = useState<'personal' | 'org' | 'schedule' | 'access' | 'tools'>('personal');
+    const [userTools, setUserTools] = useState<UserTool[]>([]);
+    const [toolsLoading, setToolsLoading] = useState(false);
+    const [toolsLoaded, setToolsLoaded] = useState(false);
+    const [showContextMenu, setShowContextMenu] = useState(false);
 
     useEffect(() => {
         const loadLoggedUserAndPermissions = async () => {
@@ -382,6 +391,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
         setSearchResults([]);
     };
 
+    const handleTabChange = (tab: 'personal' | 'org' | 'schedule' | 'access' | 'tools') => {
+        setActiveTab(tab);
+        if (tab === 'tools' && !toolsLoaded && user?.id) {
+            setToolsLoading(true);
+            toolsService.getUserTools(parseInt(user.id))
+                .then(tools => {
+                    setUserTools(tools.filter(t => t.status === 'USO'));
+                    setToolsLoaded(true);
+                })
+                .catch(console.error)
+                .finally(() => setToolsLoading(false));
+        }
+    };
+
 
 
     // UseEffect for debouncing vehicle search
@@ -645,7 +668,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 </div>
             }
         >
-            <div className="pb-32 space-y-8 relative">
+            <div className="pb-24 space-y-8 relative">
                 {saving && (
                     <div className="absolute top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-primary/20">
                         <div 
@@ -655,6 +678,38 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                     </div>
                 )}
                 <div className="relative bg-white dark:bg-card-dark pb-8 pt-10 px-5 rounded-b-4xl shadow-sm border-b border-slate-200 dark:border-slate-800">
+                    {(isOwner || isAdmin) && !isEditing && (
+                        <div className="absolute top-4 right-4 z-20">
+                            <button
+                                onClick={() => setShowContextMenu(!showContextMenu)}
+                                className="w-[34px] h-[34px] flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
+                                title="Opções"
+                            >
+                                <span className="material-symbols-outlined text-[24px]">more_vert</span>
+                            </button>
+
+                            {showContextMenu && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-10"
+                                        onClick={() => setShowContextMenu(false)}
+                                    />
+                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-card-dark rounded-xl shadow-lg border border-slate-100 dark:border-slate-800 z-20 py-1">
+                                        <button
+                                            onClick={() => {
+                                                setShowContextMenu(false);
+                                                setIsEditing(true);
+                                            }}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-center gap-2 transition-colors"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                                            Editar Perfil
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     <div className="flex flex-col items-center text-center">
                         <div className="relative mb-4">
@@ -667,13 +722,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                     className="w-full h-full"
                                 />
                             </div>
-                            <button
-                                onClick={() => setShowCamera(true)}
-                                className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-lg cursor-pointer hover:bg-primary-dark transition-colors border-2 border-white dark:border-card-dark"
-                                title="Capturar Selfie"
-                            >
-                                <span className="material-symbols-outlined text-sm">photo_camera</span>
-                            </button>
+                            {isEditing && (
+                                <button
+                                    onClick={() => setShowCamera(true)}
+                                    className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-lg cursor-pointer hover:bg-primary-dark transition-colors border-2 border-white dark:border-card-dark"
+                                    title="Capturar Selfie"
+                                >
+                                    <span className="material-symbols-outlined text-sm">photo_camera</span>
+                                </button>
+                            )}
                         </div>
 
                         {showCamera && (
@@ -788,419 +845,373 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 </div>
 
                 <div className="px-5 space-y-8">
-                    {/* Stats Row */}
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center">
-                            <span className="text-2xl font-bold text-slate-900 dark:text-white mb-1">142</span>
-                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Serviços</span>
-                        </div>
-                        <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center">
-                            <span className="text-2xl font-bold text-blue-500 mb-1">4.8</span>
-                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Avaliação</span>
-                        </div>
-                        <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center">
-                            <span className="text-2xl font-bold text-slate-900 dark:text-white mb-1">5</span>
-                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Anos</span>
-                        </div>
-                    </div>
 
-                    {/* Personal Info Section */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">
-                            Dados Pessoais
-                        </h3>
 
-                        {/* Name Card */}
-                        <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined">badge</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Nome Completo</label>
-                                <input
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    disabled={!isOwner && !isAdmin}
-                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    placeholder="Seu nome completo"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Short Name Card */}
-                        <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined">label</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Nome Curto (Apelido)</label>
-                                <input
-                                    type="text"
-                                    value={nameShort}
-                                    onChange={(e) => setNameShort(e.target.value)}
-                                    disabled={!isOwner && !isAdmin}
-                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    placeholder="Como prefere ser chamado"
-                                />
-                            </div>
+                    {/* Tab Navigation */}
+                    <div className="sticky top-0 z-10 -mx-5 px-5 bg-slate-50 dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800">
+                        <div className="flex overflow-x-auto gap-0" style={{ scrollbarWidth: 'none' }}>
+                            {([
+                                { id: 'personal' as const, icon: 'person', label: 'Dados' },
+                                { id: 'org' as const, icon: 'business', label: 'Organização' },
+                                { id: 'schedule' as const, icon: 'schedule', label: 'Jornada' },
+                                { id: 'access' as const, icon: 'shield_person', label: 'Acesso' },
+                                { id: 'tools' as const, icon: 'construction', label: 'Ferramentas' },
+                            ]).map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => handleTabChange(tab.id)}
+                                    className={`flex items-center gap-1.5 py-3.5 px-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-all flex-shrink-0 ${
+                                        activeTab === tab.id
+                                            ? 'border-primary text-primary'
+                                            : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                                    }`}
+                                >
+                                    <span className="material-symbols-outlined text-[17px]">{tab.icon}</span>
+                                    {tab.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Contact Info Section */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">
-                            Informações de Contato
-                        </h3>
+                    {/* Tab Content */}
+                    <div className="pt-2">
 
-                        {/* Email Card (Editable via simple input for now) */}
-                        <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined">mail</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">E-mail</label>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    disabled={!isOwner && !isAdmin}
-                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    placeholder="email@exemplo.com"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Phone Card */}
-                        <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-500 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined">call</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Telefone</label>
-                                <input
-                                    type="tel"
-                                    value={mobile}
-                                    onChange={handleMobileChange}
-                                    maxLength={15}
-                                    disabled={!isOwner && !isAdmin}
-                                    className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    placeholder="(00) 00000-0000"
-                                />
-                            </div>
-                        </div>
-
-
-                    </div>
-
-                    {/* Organization Section (Admin only or always informative) */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">
-                            Organização
-                        </h3>
-
-                        <div className="space-y-3">
-                            {/* Company Card */}
-                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined">business</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Empresa</label>
-                                    <Select
-                                        value={companyId}
-                                        onChange={(e) => handleCompanyChange(e.target.value)}
-                                        disabled={!isAdmin}
-                                        className="border-none p-0! h-auto! shadow-none focus:ring-0"
-                                        options={companies.map(c => ({ value: c.id, label: c.name }))}
-                                    />
-                                </div>
-                            </div>
-                            {/* Team Card */}
-                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-500 flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined">groups</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Equipe</label>
-                                    <Select
-                                        value={teamId}
-                                        onChange={(e) => setTeamId(e.target.value)}
-                                        disabled={!isAdmin}
-                                        className="border-none p-0! h-auto! shadow-none focus:ring-0"
-                                        options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Team Leader Card */}
-                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-900/20 text-cyan-500 flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined">supervisor_account</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Líder</label>
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="text-slate-900 dark:text-white font-medium text-sm">
-                                            {isTeamLeader ? 'Sim' : 'Não'}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (isAdmin) setIsTeamLeader(prev => !prev);
-                                            }}
-                                            disabled={!isAdmin}
-                                            className={`relative h-7 w-12 rounded-full transition-colors ${isTeamLeader ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'} ${!isAdmin ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                                            aria-pressed={isTeamLeader}
-                                            aria-label="Definir usuário como líder"
-                                        >
-                                            <span className={`absolute left-0 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${isTeamLeader ? 'translate-x-6' : 'translate-x-1'}`} />
-                                        </button>
+                        {/* ── Dados Pessoais ── */}
+                        {activeTab === 'personal' && (
+                            <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
+                                            Nome Completo <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            disabled={!isEditing}
+                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                            placeholder="Nome completo"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
+                                            Nome Curto (Apelido)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={nameShort}
+                                            onChange={(e) => setNameShort(e.target.value)}
+                                            disabled={!isEditing}
+                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                            placeholder="Como prefere ser chamado"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
+                                            E-mail <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            disabled={!isEditing}
+                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                            placeholder="email@exemplo.com"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
+                                            Telefone / Celular
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={mobile}
+                                            onChange={handleMobileChange}
+                                            maxLength={15}
+                                            disabled={!isEditing}
+                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                            placeholder="(00) 00000-0000"
+                                        />
                                     </div>
                                 </div>
                             </div>
+                        )}
 
-                            {/* Current Vehicle Card */}
-                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-slate-500 flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined">directions_car</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Veículo Atual</label>
-                                    {(isOwner || isAdmin) ? (
-                                        <Select
-                                            value={currentVehicle?.id || ''}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                if (val === '') {
-                                                    handleRemoveVehicle();
-                                                } else {
-                                                    const v = searchVehicleResults.find(vr => vr.id === val) || (currentVehicle?.id === val ? currentVehicle : null);
-                                                    if (v) handleSelectVehicle(v);
-                                                }
-                                            }}
-                                            onSearchChange={(val) => setSearchVehicleQuery(val)}
-                                            className="border-none p-0! h-auto! shadow-none focus:ring-0"
-                                            placeholder="Selecione um veículo..."
-                                            options={[
-                                                { value: '', label: 'Nenhum / Remover veículo' },
-                                                ...(currentVehicle && !searchVehicleResults.find(v => v.id === currentVehicle.id)
-                                                    ? [{ value: currentVehicle.id, label: `${currentVehicle.plates} - ${currentVehicle.description}` }]
-                                                    : []),
-                                                ...searchVehicleResults.map(v => ({ value: v.id, label: `${v.plates} - ${v.description}` }))
-                                            ]}
-                                        />
-                                    ) : (
-                                        <span className="text-slate-900 dark:text-white font-medium text-sm">
-                                            {currentVehicle ? `${currentVehicle.plates} - ${currentVehicle.description}` : 'Nenhum veículo'}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Team Members Card (Expandable) - only for owner or admin */}
-                            {(isOwner || isAdmin) && (
-                                <div className={`w-full bg-white dark:bg-card-dark rounded-2xl shadow-sm border transition-all ${isTeamExpanded ? 'border-primary ring-1 ring-primary' : 'border-slate-100 dark:border-slate-800'}`}>
-                                    <button
-                                        onClick={toggleTeamExpand}
-                                        className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
-                                    >
-                                        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
-                                            <span className="material-symbols-outlined">groups</span>
+                        {/* ── Organização ── */}
+                        {activeTab === 'org' && (
+                            <div className="space-y-4">
+                                <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                    <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Empresa</label>
+                                            <Select
+                                                value={companyId}
+                                                onChange={(e) => handleCompanyChange(e.target.value)}
+                                                disabled={!isEditing || !isAdmin}
+                                                className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                                options={companies.map(c => ({ value: c.id, label: c.name }))}
+                                            />
                                         </div>
-                                        <div className="flex-1 min-w-0 text-left">
-                                            <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">MINHA EQUIPE</label>
-                                            <div className="text-slate-900 dark:text-white font-bold text-sm truncate">
-                                                {teamMembers.length > 0
-                                                    ? teamMembers.map(m => m.nameShort || m.nameFull?.split(' ')[0]).join(', ')
-                                                    : 'Nenhum integrante'}
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Equipe</label>
+                                            <Select
+                                                value={teamId}
+                                                onChange={(e) => setTeamId(e.target.value)}
+                                                disabled={!isEditing || !isAdmin}
+                                                className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                                options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Líder de Equipe</label>
+                                            <div className="flex items-center justify-between h-10">
+                                                <span className="text-sm font-medium text-slate-900 dark:text-white">{isTeamLeader ? 'Sim' : 'Não'}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { if (isEditing && isAdmin) setIsTeamLeader(prev => !prev); }}
+                                                    disabled={!isEditing || !isAdmin}
+                                                    className={`relative h-7 w-12 rounded-full transition-colors ${isTeamLeader ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'} ${(!isEditing || !isAdmin) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                    aria-pressed={isTeamLeader}
+                                                    aria-label="Definir usuário como líder"
+                                                >
+                                                    <span className={`absolute left-0 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${isTeamLeader ? 'translate-x-6' : 'translate-x-1'}`} />
+                                                </button>
                                             </div>
                                         </div>
-                                        <span className={`material-symbols-outlined text-slate-300 transition-transform duration-300 ${isTeamExpanded ? 'rotate-180' : ''}`}>expand_more</span>
-                                    </button>
-
-                                    {/* Expanded Content */}
-                                    {isTeamExpanded && (
-                                        <div className="p-4 pt-0 space-y-4 border-t border-slate-100 dark:border-slate-800/50 animation-slide-down">
-
-                                            {/* Search Bar */}
-                                            <div className="relative mt-4">
-                                                <input
-                                                    type="text"
-                                                    value={searchTeamQuery}
-                                                    onChange={(e) => setSearchTeamQuery(e.target.value)}
-                                                    placeholder="Buscar usuário para adicionar..."
-                                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Veículo Atual</label>
+                                            {(isEditing && (isOwner || isAdmin)) ? (
+                                                <Select
+                                                    value={currentVehicle?.id || ''}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (val === '') { handleRemoveVehicle(); }
+                                                        else {
+                                                            const v = searchVehicleResults.find(vr => vr.id === val) || (currentVehicle?.id === val ? currentVehicle : null);
+                                                            if (v) handleSelectVehicle(v);
+                                                        }
+                                                    }}
+                                                    onSearchChange={(val) => setSearchVehicleQuery(val)}
+                                                    className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                                    placeholder="Selecione um veículo..."
+                                                    options={[
+                                                        { value: '', label: 'Nenhum / Remover veículo' },
+                                                        ...(currentVehicle && !searchVehicleResults.find(v => v.id === currentVehicle.id)
+                                                            ? [{ value: currentVehicle.id, label: `${currentVehicle.plates} - ${currentVehicle.description}` }]
+                                                            : []),
+                                                        ...searchVehicleResults.map(v => ({ value: v.id, label: `${v.plates} - ${v.description}` }))
+                                                    ]}
                                                 />
-                                                <span className="material-symbols-outlined absolute left-3 top-3 text-slate-400 text-[20px]">search</span>
-                                                {searchingTeam && (
-                                                    <Loading size="xs" />
-                                                )}
-                                            </div>
-
-                                            {/* Search Results */}
-                                            {searchResults.length > 0 && (
-                                                <div className="space-y-1">
-                                                    <div className="text-xs font-semibold text-slate-400 uppercase px-1">Resultados da Busca</div>
-                                                    {searchResults.map(result => (
-                                                        <div key={result.uuid} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30">
-                                                            <div className="flex items-center gap-3">
-                                                                <UserAvatar
-                                                                    src={result.avatarUrl}
-                                                                    name={result.nameFull || ''}
-                                                                    size="xs"
-                                                                    status={result.isAvailable ? (result.ovIdInProgress ? 'busy' : 'available') : 'unavailable'}
-                                                                    className="w-8 h-8 rounded-full"
-                                                                />
-                                                                <div className="text-sm">
-                                                                    <div className="font-bold text-slate-900 dark:text-white">{result.nameFull}</div>
-                                                                    <div className="text-xs text-slate-500">{result.email}</div>
-                                                                </div>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => handleAddMember(result)}
-                                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors"
-                                                                title="Adicionar à equipe"
-                                                            >
-                                                                <span className="material-symbols-outlined text-[18px]">add</span>
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                            ) : (
+                                                <span className="text-sm font-medium text-slate-900 dark:text-white">
+                                                    {currentVehicle ? `${currentVehicle.plates} - ${currentVehicle.description}` : 'Nenhum veículo'}
+                                                </span>
                                             )}
-
-                                            {/* Current Members List (Detailed) */}
-                                            <div className="space-y-1 pt-2">
-                                                <div className="text-xs font-semibold text-slate-400 uppercase px-1 pb-1">Membros Atuais</div>
-                                                {teamMembers.length === 0 ? (
-                                                    <div className="text-sm text-slate-500 italic px-2">Sua equipe está vazia.</div>
-                                                ) : (
-                                                    teamMembers.map(member => (
-                                                        <div key={member.uuid} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group/member">
-                                                            <div className="flex items-center gap-3">
-                                                                <UserAvatar
-                                                                    src={member.avatarUrl}
-                                                                    name={member.nameFull || member.nameShort || ''}
-                                                                    size="xs"
-                                                                    status={member.isAvailable ? (member.ovIdInProgress ? 'busy' : 'available') : 'unavailable'}
-                                                                    className="w-8 h-8 rounded-full shadow-sm"
-                                                                />
-                                                                <div className="text-sm">
-                                                                    <div className="font-medium text-slate-900 dark:text-white">{member.nameShort || member.nameFull}</div>
-                                                                </div>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => handleRemoveMember(member)}
-                                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500/10 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
-                                                                title="Remover da equipe"
-                                                            >
-                                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                            </button>
-                                                        </div>
-                                                    ))
-                                                )}
-                                            </div>
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* Shift Management Section */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">
-                            Turno de Trabalho
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Shift Start Card */}
-                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-500 flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined">wb_twilight</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Início</label>
-                                    <input
-                                        type="time"
-                                        value={shiftStart}
-                                        onChange={(e) => setShiftStart(e.target.value)}
-                                        disabled={!isOwner && !isAdmin}
-                                        className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    />
+                                {/* Team Members Expandable */}
+                                {(isOwner || isAdmin) && (
+                                    <div className={`w-full bg-white dark:bg-card-dark rounded-2xl shadow-sm border transition-all ${isTeamExpanded ? 'border-primary ring-1 ring-primary' : 'border-slate-100 dark:border-slate-800'}`}>
+                                        <button
+                                            onClick={toggleTeamExpand}
+                                            className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                                        >
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
+                                                <span className="material-symbols-outlined">groups</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0 text-left">
+                                                <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">MINHA EQUIPE</label>
+                                                <div className="text-slate-900 dark:text-white font-bold text-sm truncate">
+                                                    {teamMembers.length > 0
+                                                        ? teamMembers.map(m => m.nameShort || m.nameFull?.split(' ')[0]).join(', ')
+                                                        : 'Nenhum integrante'}
+                                                </div>
+                                            </div>
+                                            <span className={`material-symbols-outlined text-slate-300 transition-transform duration-300 ${isTeamExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                                        </button>
+                                        {isTeamExpanded && (
+                                            <div className="p-4 pt-0 space-y-4 border-t border-slate-100 dark:border-slate-800/50 animation-slide-down">
+                                                <div className="relative mt-4">
+                                                    <input
+                                                        type="text"
+                                                        value={searchTeamQuery}
+                                                        onChange={(e) => setSearchTeamQuery(e.target.value)}
+                                                        placeholder="Buscar usuário para adicionar..."
+                                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 outline-none text-slate-900 dark:text-white placeholder-slate-400"
+                                                    />
+                                                    <span className="material-symbols-outlined absolute left-3 top-3 text-slate-400 text-[20px]">search</span>
+                                                    {searchingTeam && <Loading size="xs" />}
+                                                </div>
+                                                {searchResults.length > 0 && (
+                                                    <div className="space-y-1">
+                                                        <div className="text-xs font-semibold text-slate-400 uppercase px-1">Resultados da Busca</div>
+                                                        {searchResults.map(result => (
+                                                            <div key={result.uuid} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30">
+                                                                <div className="flex items-center gap-3">
+                                                                    <UserAvatar src={result.avatarUrl} name={result.nameFull || ''} size="xs" status={result.isAvailable ? (result.ovIdInProgress ? 'busy' : 'available') : 'unavailable'} className="w-8 h-8 rounded-full" />
+                                                                    <div className="text-sm">
+                                                                        <div className="font-bold text-slate-900 dark:text-white">{result.nameFull}</div>
+                                                                        <div className="text-xs text-slate-500">{result.email}</div>
+                                                                    </div>
+                                                                </div>
+                                                                <button onClick={() => handleAddMember(result)} className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors" title="Adicionar à equipe">
+                                                                    <span className="material-symbols-outlined text-[18px]">add</span>
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <div className="space-y-1 pt-2">
+                                                    <div className="text-xs font-semibold text-slate-400 uppercase px-1 pb-1">Membros Atuais</div>
+                                                    {teamMembers.length === 0 ? (
+                                                        <div className="text-sm text-slate-500 italic px-2">Sua equipe está vazia.</div>
+                                                    ) : (
+                                                        teamMembers.map(member => (
+                                                            <div key={member.uuid} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                                                <div className="flex items-center gap-3">
+                                                                    <UserAvatar src={member.avatarUrl} name={member.nameFull || member.nameShort || ''} size="xs" status={member.isAvailable ? (member.ovIdInProgress ? 'busy' : 'available') : 'unavailable'} className="w-8 h-8 rounded-full shadow-sm" />
+                                                                    <div className="text-sm">
+                                                                        <div className="font-medium text-slate-900 dark:text-white">{member.nameShort || member.nameFull}</div>
+                                                                    </div>
+                                                                </div>
+                                                                <button onClick={() => handleRemoveMember(member)} className="w-8 h-8 flex items-center justify-center rounded-full border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Remover da equipe">
+                                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                                </button>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ── Jornada ── */}
+                        {activeTab === 'schedule' && (
+                            <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                                            <span className="material-symbols-outlined text-amber-500 text-[14px]">wb_twilight</span>
+                                            Início do Turno
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={shiftStart}
+                                            onChange={(e) => setShiftStart(e.target.value)}
+                                            disabled={!isOwner && !isAdmin}
+                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                                            <span className="material-symbols-outlined text-indigo-500 text-[14px]">bedtime</span>
+                                            Término do Turno
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={shiftEnd}
+                                            onChange={(e) => setShiftEnd(e.target.value)}
+                                            disabled={!isOwner && !isAdmin}
+                                            className="w-full bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                            {/* Shift End Card */}
-                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined">bedtime</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Término</label>
-                                    <input
-                                        type="time"
-                                        value={shiftEnd}
-                                        onChange={(e) => setShiftEnd(e.target.value)}
-                                        disabled={!isOwner && !isAdmin}
-                                        className="w-full bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    />
+                        )}
+
+                        {/* ── Acesso ── */}
+                        {activeTab === 'access' && (
+                            <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Perfil de Acesso</label>
+                                        <Select
+                                            value={profileId}
+                                            onChange={(e) => setProfileId(e.target.value)}
+                                            disabled={!isAdmin}
+                                            className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                            options={profiles.map(p => ({ value: p.id, label: p.description }))}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Situação / Status</label>
+                                        <Select
+                                            value={statusId}
+                                            onChange={(e) => setStatusId(e.target.value)}
+                                            disabled={!isAdmin}
+                                            className="border-none p-0! h-auto! shadow-none focus:ring-0"
+                                            options={userStatuses.map(s => ({ value: s.id.toString(), label: s.description }))}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                        )}
 
-                    {/* Access Section */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">
-                            Acesso
-                        </h3>
-
-                        <div className="space-y-3">
-                            {/* Profile Card */}
-                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-500 flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined">assignment_ind</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Perfil</label>
-                                    <Select
-                                        value={profileId}
-                                        onChange={(e) => setProfileId(e.target.value)}
-                                        disabled={!isAdmin}
-                                        className="border-none p-0! h-auto! shadow-none focus:ring-0"
-                                        options={profiles.map(p => ({ value: p.id, label: p.description }))}
-                                    />
-                                </div>
+                        {/* ── Ferramentas ── */}
+                        {activeTab === 'tools' && (
+                            <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                {toolsLoading ? (
+                                    <div className="flex items-center justify-center py-16">
+                                        <Loading size="sm" />
+                                    </div>
+                                ) : userTools.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-14 text-center px-6">
+                                        <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+                                            <span className="material-symbols-outlined text-3xl text-slate-400">construction</span>
+                                        </div>
+                                        <p className="font-semibold text-slate-700 dark:text-slate-300">Nenhuma ferramenta</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Este usuário não possui ferramentas sob responsabilidade.</p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col">
+                                        {userTools.map((tool) => (
+                                            <div key={tool.id} className="flex items-center gap-3 px-4 py-3 border-t border-slate-100 dark:border-slate-700/50 first:border-t-0">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-bold text-primary text-sm truncate">{tool.tool_code || '—'}</p>
+                                                    {tool.tool_material_code && (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                                                            <span className="font-semibold text-slate-500 dark:text-slate-400">{tool.tool_material_code}</span>
+                                                            {tool.tool_material_description && <span> — {tool.tool_material_description}</span>}
+                                                            {tool.tool_material_unit && <span className="ml-1 text-slate-400">({tool.tool_material_unit})</span>}
+                                                        </p>
+                                                    )}
+                                                    <p className="text-sm text-slate-600 dark:text-slate-300 truncate">
+                                                        {tool.tool_brand} {tool.tool_model} {tool.tool_serial}
+                                                    </p>
+                                                </div>
+                                                <div className="shrink-0 text-xs text-slate-400">
+                                                    {tool.date_start ? new Date(tool.date_start).toLocaleDateString('pt-BR') : '—'}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            
-                            {/* Status Card */}
-                            <div className="bg-white dark:bg-card-dark p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined">toggle_on</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-0.5">Situação</label>
-                                    <Select
-                                        value={statusId}
-                                        onChange={(e) => setStatusId(e.target.value)}
-                                        disabled={!isAdmin}
-                                        className="border-none p-0! h-auto! shadow-none focus:ring-0"
-                                        options={userStatuses.map(s => ({ value: s.id.toString(), label: s.description }))}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        )}
 
-                    <div className="pt-4 pb-12">
-                        <ButtonSave
-                            onSave={handleSave}
-                            onCancel={onBack}
-                            isSaving={saving}
-                            saveLabel="Salvar Perfil"
-                        />
                     </div>
                 </div>
             </div>
+
+            {/* Form Footer */}
+            {isEditing && (
+                <div className="mt-8 mb-8 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <ButtonSave
+                        onSave={async () => {
+                            await handleSave();
+                            setIsEditing(false);
+                        }}
+                        onCancel={() => setIsEditing(false)}
+                        isSaving={saving}
+                        saveLabel="Salvar Perfil"
+                    />
+                </div>
+            )}
 
             <Modal
                 isOpen={modal.isOpen}

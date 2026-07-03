@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
-import { dataService } from './dataService';
 import { Tool, UserTool, ToolMovement } from '../types';
+import { getPublicImageUrl } from './imageUtils';
 
 export const toolsService = {
   // ---------------------------------------------------------
@@ -123,7 +123,7 @@ export const toolsService = {
     return (data || []).map((item: any) => ({
       ...item,
       user_name: item.users?.name_full || item.users?.name_short,
-      user_avatar: dataService.getPublicImageUrl(item.users?.img_file_path, item.users?.img_file_name || 'noImageUser.png', { width: 70, height: 70, resize: 'cover' }),
+      user_avatar: getPublicImageUrl(item.users?.img_file_path, item.users?.img_file_name || 'noImageUser.png', { width: 70, height: 70, resize: 'cover' }),
       tool_code: item.tools?.code,
       tool_brand: item.tools?.brand,
       tool_model: item.tools?.model,
@@ -294,9 +294,9 @@ export const toolsService = {
       tool_material_description: item.tools?.materials?.description,
       tool_material_unit: item.tools?.materials?.unit,
       from_user_name: item.from_user?.name_full || item.from_user?.name_short,
-      from_user_avatar: dataService.getPublicImageUrl(item.from_user?.img_file_path, item.from_user?.img_file_name || 'noImageUser.png', { width: 70, height: 70, resize: 'cover' }),
+      from_user_avatar: getPublicImageUrl(item.from_user?.img_file_path, item.from_user?.img_file_name || 'noImageUser.png', { width: 70, height: 70, resize: 'cover' }),
       to_user_name: item.to_user?.name_full || item.to_user?.name_short,
-      to_user_avatar: dataService.getPublicImageUrl(item.to_user?.img_file_path, item.to_user?.img_file_name || 'noImageUser.png', { width: 70, height: 70, resize: 'cover' })
+      to_user_avatar: getPublicImageUrl(item.to_user?.img_file_path, item.to_user?.img_file_name || 'noImageUser.png', { width: 70, height: 70, resize: 'cover' })
     }));
   },
 
