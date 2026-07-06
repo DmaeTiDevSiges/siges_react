@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 
 interface Option {
     value: string;
-    label: string;
+    label: string | React.ReactNode;
 }
 
 interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'onChange'> {
@@ -54,10 +54,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         const selectedOption = selectedOptions[0];
 
         const filteredOptions = useMemo(() =>
-            options.filter(opt =>
-                opt.label.toLowerCase().includes(search.toLowerCase()) ||
-                opt.value === "" // Keep empty/placeholder option
-            ),
+            options.filter(opt => {
+                if (opt.value === "") return true; // Keep empty/placeholder option
+                const labelText = typeof opt.label === 'string' ? opt.label : String(opt.label);
+                return labelText.toLowerCase().includes(search.toLowerCase());
+            }),
             [options, search]);
 
         useEffect(() => {
@@ -225,7 +226,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                             ${className}
                         `}
                     >
-                        <span className={`block truncate flex-1 text-sm ${selectedOptions.length === 0 || (selectedOptions.length === 1 && selectedOptions[0].value === "") ? 'text-slate-400 dark:text-slate-500' : 'font-medium'}`}>
+                        <span className={`block flex-1 text-sm ${selectedOptions.length === 0 || (selectedOptions.length === 1 && selectedOptions[0].value === "") ? 'text-slate-400 dark:text-slate-500 truncate' : 'font-medium whitespace-pre-line'}`}>
                             {selectedOptions.length > 0 && !(selectedOptions.length === 1 && selectedOptions[0].value === "")
                                 ? (multiple ? `${selectedOptions.length} selecionado(s)` : selectedOptions[0].label)
                                 : (placeholder || 'Selecione...')}
@@ -306,7 +307,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                                             )}
                                                         </div>
                                                     )}
-                                                    <span className="truncate">{opt.label}</span>
+                                                    <span className="whitespace-pre-line">{opt.label}</span>
                                                 </div>
                                                 {!multiple && String(opt.value) === String(value) && (
                                                     <span className="material-symbols-outlined text-lg">check</span>

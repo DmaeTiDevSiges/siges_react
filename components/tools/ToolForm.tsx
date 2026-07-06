@@ -185,6 +185,13 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
             return;
         }
 
+        const trimmedCode = code.trim();
+        const codeExists = await toolsService.checkCodeExists(trimmedCode, tool?.id);
+        if (codeExists) {
+            setModal({ isOpen: true, title: 'Código Duplicado', message: 'Já existe uma ferramenta com este código. Informe um código diferente.', type: 'warning' });
+            return;
+        }
+
         const trimmedSerial = serialNumber.trim();
         const serialExists = await toolsService.checkSerialNumberExists(trimmedSerial, tool?.id);
         if (serialExists) {

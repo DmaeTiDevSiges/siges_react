@@ -113,7 +113,7 @@ export const AssignToolForm: React.FC<AssignToolFormProps> = ({ companyId, onSav
                         onChange={(e) => setToolId(e.target.value)}
                         options={[
                             { value: '', label: 'Selecione uma ferramenta' },
-                            ...availableTools.map(t => ({ value: t.id.toString(), label: `${t.code ? `[${t.code}] ` : ''}${t.brand} ${t.model} (${t.serial_number})` }))
+                            ...availableTools.map(t => ({ value: t.id.toString(), label: t.material_code ? `${t.material_code} - ${t.material_description} (${t.material_unit})\n${t.code ? `[${t.code}] ` : ''}${t.brand} ${t.model} (${t.serial_number})` : `${t.code ? `[${t.code}] ` : ''}${t.brand} ${t.model} (${t.serial_number})` }))
                         ]}
                         placeholder="Selecione uma ferramenta"
                     />

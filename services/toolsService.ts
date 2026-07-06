@@ -47,6 +47,25 @@ export const toolsService = {
     return !!data;
   },
 
+  async checkCodeExists(code: string, excludeId?: number): Promise<boolean> {
+    let query = supabase
+      .from('tools')
+      .select('id')
+      .eq('code', code)
+      .eq('is_deleted', false);
+
+    if (excludeId) {
+      query = query.neq('id', excludeId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error) {
+      console.error('Error checking code:', error);
+      return false;
+    }
+    return !!data;
+  },
+
   async createTool(tool: Partial<Tool>): Promise<Tool> {
     const { data, error } = await supabase
       .from('tools')
