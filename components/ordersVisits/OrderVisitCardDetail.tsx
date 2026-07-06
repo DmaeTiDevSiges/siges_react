@@ -192,7 +192,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
             {/* Team Section */}
             <div className="flex justify-between items-center mb-0.5">
                 <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">
-                    {(visit.teamCode || 'EQUIPE').toUpperCase()}
+                    {(visit.teamCode || 'EQ.RESPONSAVEL').toUpperCase()}
                 </h4>
                 {visit.contractDescription && (
                     <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">

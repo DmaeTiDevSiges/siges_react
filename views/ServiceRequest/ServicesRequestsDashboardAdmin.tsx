@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { User, OrderFilters, Order, Company } from '../../types';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
@@ -27,7 +27,7 @@ import { TreeFilterSelect } from '../../components/ui/TreeFilterSelect';
 import { Loading } from '../../components/ui/Loading';
 
 
-interface OrdersRequestsDashboardAdminProps {
+interface ServicesRequestsDashboardAdminProps {
     currentUser: User | null;
     onSelectOrder?: (order: Order) => void;
     onSelectVisit?: (visit: OrderVisit) => void;
@@ -38,7 +38,7 @@ interface OrdersRequestsDashboardAdminProps {
     activeTab?: 'OS' | 'VISITAS';
 }
 
-export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS' }) => {
+export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS' }) => {
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
     const filtersScroll = useDraggableScroll();
@@ -216,10 +216,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 { label: '> 30 dias', count: 0 },
             ],
             openOS: [
-                { id: 2, label: 'Avaliação', count: 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
+                { id: 2, label: 'AvaliaÃ§Ã£o', count: 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
                 { id: 3, label: 'Autorizadas', count: 0, icon: 'check_circle', color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
                 { id: 4, label: 'Agendadas', count: 0, icon: 'calendar_month', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10' },
-                { id: 5, label: 'Execução', count: 0, icon: 'engineering', color: 'text-green-500', bgColor: 'bg-green-500/10' },
+                { id: 5, label: 'ExecuÃ§Ã£o', count: 0, icon: 'engineering', color: 'text-green-500', bgColor: 'bg-green-500/10' },
                 { id: 6, label: 'Suspensas', count: 0, icon: 'pause_circle', color: 'text-red-500', bgColor: 'bg-red-500/10' },
             ],
             ssSectorCounts: [] as Array<{ id: string, label: string, count: number }>,
@@ -258,7 +258,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             localStorage.setItem('cachedUsers', JSON.stringify(users));
             localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
         } catch (e) {
-            console.error('💾 Dashboard: Erro ao salvar cache no localStorage', e);
+            console.error('ðŸ’¾ Dashboard: Erro ao salvar cache no localStorage', e);
         }
     }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, teams, users, filterOptions]);
 
@@ -473,7 +473,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                  orderTeamId: ordersListFilters.orderTeamId,
                  priorityId: ordersListFilters.priorityId,
                  statusId: statusIdFromOverride ?? undefined,
-                 // assetTagId intentionally omitted — sector cards must always show all sectors
+                 // assetTagId intentionally omitted â€” sector cards must always show all sectors
                  search: searchQuery || undefined,
              };
 
@@ -504,7 +504,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                      dataService.getDashboardStats(
                          { search: searchQuery, ...appliedFilters },
                          restrictedSSFilters,
-                         statsOSFilters   // uses filters WITHOUT assetTagId → all sectors always visible
+                         statsOSFilters   // uses filters WITHOUT assetTagId â†’ all sectors always visible
                      ),
                      dataService.getUnscheduledSS(unscheduledSSFilters),
                      dataService.getOpenOS(openOSFilters)
@@ -546,10 +546,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             { label: '> 30 dias', count: statsResult.ssCounts.moreThan30 },
                         ],
                         openOS: [
-                            { id: 2, label: 'Avaliação', count: statsResult.osCounts[2] || 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
+                            { id: 2, label: 'AvaliaÃ§Ã£o', count: statsResult.osCounts[2] || 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
                             { id: 3, label: 'Autorizadas', count: statsResult.osCounts[3] || 0, icon: 'check_circle', color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
                             { id: 4, label: 'Agendadas', count: statsResult.osCounts[4] || 0, icon: 'calendar_month', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10' },
-                            { id: 5, label: 'Execução', count: statsResult.osCounts[5] || 0, icon: 'engineering', color: 'text-green-500', bgColor: 'bg-green-500/10' },
+                            { id: 5, label: 'ExecuÃ§Ã£o', count: statsResult.osCounts[5] || 0, icon: 'engineering', color: 'text-green-500', bgColor: 'bg-green-500/10' },
                             { id: 6, label: 'Suspensas', count: statsResult.osCounts[6] || 0, icon: 'pause_circle', color: 'text-red-500', bgColor: 'bg-red-500/10' },
                         ],
                         ssSectorCounts: statsResult.ssSectorCounts || [],
@@ -618,7 +618,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     sectors: getVal(results[8], 'sectors')
                 }));
 
-                // Pré-selecionar todos os contratos gerenciados se o usuário não definiu nenhum
+                // PrÃ©-selecionar todos os contratos gerenciados se o usuÃ¡rio nÃ£o definiu nenhum
                 if (contracts.length > 0) {
                     const defaultContractIds = contracts.map((c: any) => String(c.id));
                     setAdvancedOrdersFilters((prev: OrderFilters) => {
@@ -668,7 +668,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
          // 4. Realtime subscription for users (to update status borders)
          const userSubscription = dataService.subscribeToUsers(async () => {
              try {
-                 // Limpar cache de líderes para garantir dados atualizados
+                 // Limpar cache de lÃ­deres para garantir dados atualizados
                  dataService.clearMetadataCache();
  
                  const usersData = await dataService.getUsers();
@@ -678,7 +678,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
              }
          });
  
-         // 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
+         // ðŸ›¡ï¸ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
          fetchDataRef.current(false, false);
          setIsLoading(false);
  
@@ -849,11 +849,11 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 onSelectOrder?.(order);
                 setQuickSearchValue('');
             } else {
-                toast.error(`Nenhuma SS ou OS encontrada com a máscara: ${quickSearchValue}`);
+                toast.error(`Nenhuma SS ou OS encontrada com a mÃ¡scara: ${quickSearchValue}`);
             }
         } catch (error) {
             console.error('Quick search error:', error);
-            toast.error('Erro ao realizar busca rápida');
+            toast.error('Erro ao realizar busca rÃ¡pida');
         } finally {
             setIsSearchingQuickly(false);
         }
@@ -934,9 +934,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         }}
                                     />
                                     <FilterSelect
-                                        label="POSIÇÕES"
+                                        label="POSIÃ‡Ã•ES"
                                         value={advancedOrdersFilters.assetTagSubId || []}
-                                        onClick={() => openSelectionModal('assetTagSubId', 'POSIÇÕES', assetTagSubs.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                        onClick={() => openSelectionModal('assetTagSubId', 'POSIÃ‡Ã•ES', assetTagSubs.map(opt => ({ value: String(opt.id), label: opt.description })))}
                                         onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagSubId: [] }))}
                                         disabled={!advancedOrdersFilters.assetTagId || (Array.isArray(advancedOrdersFilters.assetTagId) && advancedOrdersFilters.assetTagId.length === 0)}
                                     />
@@ -988,7 +988,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     <button
                                         onClick={() => onCreateServiceRequest?.()}
                                         className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 dark:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 dark:hover:bg-blue-600 hover:scale-[1.02] active:scale-95 transition-all duration-200 group"
-                                        title="Nova Solicitação de Serviço"
+                                        title="Nova SolicitaÃ§Ã£o de ServiÃ§o"
                                     >
                                         <span className="material-symbols-outlined text-xl transition-transform group-hover:rotate-12">add_task</span>
                                         <span className="text-[13px] uppercase tracking-wide whitespace-nowrap">Nova SS</span>
@@ -997,10 +997,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     <button
                                         onClick={() => onNavigate?.('services-history')}
                                         className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold shadow-sm hover:bg-slate-100 dark:hover:bg-slate-700 hover:scale-[1.02] active:scale-95 transition-all duration-200 group"
-                                        title="Pesquisar histórico de SS"
+                                        title="Pesquisar histÃ³rico de SS"
                                     >
                                         <span className="material-symbols-outlined text-xl text-slate-400 group-hover:text-primary transition-colors">history</span>
-                                        <span className="text-[13px] uppercase tracking-wide whitespace-nowrap">Histórico</span>
+                                        <span className="text-[13px] uppercase tracking-wide whitespace-nowrap">HistÃ³rico</span>
                                     </button>
 
                                     {/* Quick Search Field */}
@@ -1027,7 +1027,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 <div className="flex items-center gap-3">
                                     <button
                                         onClick={() => {
-                                            // Validação: contrato é obrigatório
+                                            // ValidaÃ§Ã£o: contrato Ã© obrigatÃ³rio
                                             const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
                                             if (selectedContracts.length === 0) {
                                                 toast.error('Selecione ao menos um contrato para filtrar');
@@ -1070,7 +1070,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         </div>
                     </div>
 
-                    {/* ── Filtering overlay ── */}
+                    {/* â”€â”€ Filtering overlay â”€â”€ */}
                     {isFiltering && (
                         <div className="absolute inset-0 z-40 pointer-events-none flex flex-col">
                             {/* Top progress bar */}
@@ -1107,7 +1107,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-4 pb-20 md:pb-6">
                         <section className="px-4 pt-4 pb-0">
                             <div className="flex items-center justify-between mb-0.5">
-                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">SS's Não Programadas</h2>
+                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">SS's NÃ£o Programadas</h2>
                                 <div className="flex items-center gap-2">
                                     <RequestsListPDFButton
                                         filters={ssEffectiveFilters}
@@ -1252,7 +1252,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                     });
                                                 }}
                                                 className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-primary transition-colors z-10"
-                                                title="Rastrear Usuários"
+                                                title="Rastrear UsuÃ¡rios"
                                             >
                                                 <span className="material-symbols-outlined text-[18px]">location_on</span>
                                             </button>
@@ -1402,7 +1402,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         <div className="w-full flex items-center justify-center py-10">
                                             <div className="flex flex-col items-center">
                                                 <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">inventory_2</span>
-                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma Ordem de Serviço encontrada</h3>
+                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma Ordem de ServiÃ§o encontrada</h3>
                                                 <p className="text-slate-400">Tente ajustar sua busca ou filtros.</p>
                                             </div>
                                         </div>
@@ -1487,4 +1487,5 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         </div>
     );
 };
+
 

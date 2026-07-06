@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Loading } from '../../components/ui/Loading';
 import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
+import { TreeFilterSelect } from '../../components/ui/TreeFilterSelect';
 
 interface DashboardUnitsPowerElectricProps {
     currentUser: User;
@@ -84,7 +85,7 @@ const FilterBarSection = React.memo(({
         orderSubTypes: (orderSubTypes || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
         contracts: (rawFilterOptions?.contracts || []).map((opt: any) => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })),
         plans: (rawFilterOptions?.plans || []).map((opt: any) => ({ value: String(opt.id), label: opt.description })),
-        teams: (rawFilterOptions?.teams || []).map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description }))
+        teams: (rawFilterOptions?.teams || []).map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))
     }), [rawFilterOptions, unitSubTypes, orderSubTypes]);
 
     const openSelectionModal = useCallback((key: keyof OrderFilters, label: string, options: { value: string; label: string }[]) => {
@@ -127,7 +128,7 @@ const FilterBarSection = React.memo(({
             <FilterSelect label="SUB-TIPO OS" value={advancedFilters.orderTypeSubId || []} onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', filterOptions.orderSubTypes)} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))} disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)} />
             <FilterSelect label="CONTRATO" value={advancedFilters.contractId || []} onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts)} onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))} required />
             <FilterSelect label="PLANO" value={advancedFilters.orderPlanId || []} onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterOptions.plans)} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderPlanId: [] }))} />
-            <FilterSelect label="EQUIPE" value={advancedFilters.orderTeamId || []} onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterOptions.teams)} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))} />
+            <TreeFilterSelect label="EQ.RESPONSAVEL" value={advancedFilters.orderTeamId || []} options={filterOptions.teams} onChange={(vals) => setAdvancedFilters(prev => ({ ...prev, orderTeamId: vals }))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))} />
 
             <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
                 <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} />
@@ -1081,7 +1082,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                 dataService.getOrderTypes(),
                 dataService.getPlans(),
                 dataService.getManagedContracts(currentUser.id.toString()),
-                dataService.getTeams()
+                dataService.getTeams(undefined, currentUser?.departmentId)
             ]);
 
             const getVal = (res: any) => (res.status === 'fulfilled' ? res.value : []);

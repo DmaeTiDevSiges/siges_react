@@ -10,6 +10,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
 import { VisitsListPDFButton } from '../../components/reports/VisitsListPDFButton';
 import { FilterSelect } from '../../components/ui/FilterSelect';
+import { TreeFilterSelect } from '../../components/ui/TreeFilterSelect';
 import { BatchVisitReportPDFButton } from '../../components/reports/BatchVisitReportPDFButton';
 import { ExcelExportUtils } from '../../utils/ExcelExportUtils';
 import { FileUtils } from '../../utils/FileUtils';
@@ -250,7 +251,7 @@ const FilterBarSection = React.memo(({
             <FilterSelect label="SUB-TIPO OS" value={advancedFilters.orderTypeSubId || []} onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))} disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)} />
             <FilterSelect label="CONTRATO" value={advancedFilters.contractId || []} onClick={() => openSelectionModal('contractId', 'CONTRATO', filterSelectOptions.contracts.map((opt: any) => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))} required />
             <FilterSelect label="PLANO" value={advancedFilters.orderPlanId || []} onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterSelectOptions.plans.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderPlanId: [] }))} />
-            <FilterSelect label="EQUIPE" value={advancedFilters.orderTeamId || []} onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))} />
+            <TreeFilterSelect label="EQ.RESPONSAVEL" value={advancedFilters.orderTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters(prev => ({ ...prev, orderTeamId: vals }))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))} />
 
             <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
                 <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} />
@@ -1040,7 +1041,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 dataService.getOrderTypes(),
                 dataService.getPlans(),
                 dataService.getManagedContracts(currentUser.id.toString()),
-                dataService.getTeams(),
+                dataService.getTeams(undefined, currentUser?.departmentId),
                 dataService.getUnits('active'),
                 dataService.getAssetTags('active')
             ]);

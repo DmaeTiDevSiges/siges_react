@@ -30,14 +30,16 @@ export const FilterSelect: React.FC<{
                         {required && <span className="text-red-500 text-[10px] font-black leading-none">*</span>}
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span className={`text-[11px] font-bold whitespace-nowrap ${
+                        <span className={`text-[11px] font-bold whitespace-nowrap truncate max-w-[120px] ${
                             showRequiredError
                                 ? 'text-red-400'
                                 : count > 0
                                     ? 'text-primary'
                                     : 'text-slate-500 dark:text-slate-400'
                         }`}>
-                            {count > 0 ? `${count} ${count === 1 ? 'item' : 'itens'}` : (required ? 'Obrigatório' : 'Todos')}
+                            {count > 0
+                                ? (typeof value === 'string' ? value : `${count} ${count === 1 ? 'item' : 'itens'}`)
+                                : (required ? 'Obrigatório' : 'Todos')}
                         </span>
                     </div>
                 </div>

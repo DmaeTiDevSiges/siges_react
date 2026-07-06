@@ -166,9 +166,10 @@ export const usersService = {
         if (error) throw error;
     },
 
-    async getTeams(companyId?: string): Promise<Team[]> {
+    async getTeams(companyId?: string, departmentId?: string): Promise<Team[]> {
         let query = supabase.from('cfg_teams').select('*').eq('is_available', 'true');
         if (companyId) query = query.eq('company_id', companyId);
+        if (departmentId) query = query.eq('department_id', departmentId);
 
         const { data, error } = await query.order('description');
         if (error) { console.error('Error fetching teams:', error); return []; }
@@ -176,6 +177,7 @@ export const usersService = {
         return (data || []).map((item: any) => ({
             id: item.id.toString(),
             departmentId: item.department_id?.toString(),
+            parentId: item.parent_id?.toString(),
             name: item.description,
             code: item.code,
             status: item.is_available ? 'active' : 'inactive',
@@ -197,6 +199,7 @@ export const usersService = {
         return data.map((item: any) => ({
             id: item.id.toString(),
             departmentId: item.department_id.toString(),
+            parentId: item.parent_id?.toString(),
             name: item.description,
             code: item.code,
             status: item.is_available ? 'active' : 'inactive'
@@ -343,6 +346,7 @@ export const usersService = {
         return data.map((item: any) => ({
             id: item.id.toString(),
             departmentId: item.department_id.toString(),
+            parentId: item.parent_id?.toString(),
             name: item.description,
             code: item.code,
             status: item.is_available ? 'active' : 'inactive'

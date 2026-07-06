@@ -8,6 +8,7 @@ import { Modal } from '../../components/ui/Modal';
 import { getInitials, formatCurrency } from '../../utils/formatters';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { FilterSelect } from '../../components/ui/FilterSelect';
+import { TreeFilterSelect } from '../../components/ui/TreeFilterSelect';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { OrderFilters } from '../../types';
 
@@ -760,7 +761,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                     dataService.getOrderTypes(),
                     dataService.getPlans(),
                     currentUser ? dataService.getManagedContracts(currentUser.id.toString()) : dataService.getContracts(),
-                    dataService.getTeams(),
+                    dataService.getTeams(undefined, currentUser?.departmentId),
                     dataService.getUnits('active'),
                     dataService.getAssetTags('active'),
                     dataService.getAssetTagSubs(undefined, 'active')
@@ -1195,10 +1196,11 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                             onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterOptions.plans.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                             onClear={() => setAdvancedFilters((prev: OrderFilters) => ({ ...prev, orderPlanId: [] }))}
                         />
-                        <FilterSelect
-                            label="EQUIPE"
+                        <TreeFilterSelect
+                            label="EQ.RESPONSAVEL"
                             value={advancedFilters.orderTeamId || []}
-                            onClick={() => openSelectionModal('orderTeamId', 'EQUIPE', filterOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description })))}
+                            options={filterOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))}
+                            onChange={(vals) => setAdvancedFilters((prev: OrderFilters) => ({ ...prev, orderTeamId: vals }))}
                             onClear={() => setAdvancedFilters((prev: OrderFilters) => ({ ...prev, orderTeamId: [] }))}
                         />
                     </div>

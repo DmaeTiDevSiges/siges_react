@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { usersService } from '../users/usersService';
+import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 export const purchasesService = {
     async createMaterialPurchase(data: { materialId: string; purchaseTypeId?: string; warehouseId?: string; quantity: number; unitPrice: number; justification: string; code?: string }): Promise<any> {
@@ -14,7 +15,8 @@ export const purchasesService = {
             justification: data.justification,
             status_id: 1,
             requester_id: currentUser?.id ? parseInt(currentUser.id) : 0,
-            created_user_id: currentUser?.id ? parseInt(currentUser.id) : undefined
+            created_user_id: currentUser?.id ? parseInt(currentUser.id) : undefined,
+            created_at: getBrazilTimestamp()
         };
 
         if (data.purchaseTypeId) {
@@ -146,8 +148,8 @@ export const purchasesService = {
             total_price: totalPrice,
             justification: data.justification,
             authorizer_id: currentUser?.id ? parseInt(currentUser.id) : undefined,
-            authorized_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            authorized_at: getBrazilTimestamp(),
+            updated_at: getBrazilTimestamp()
         };
 
         const { error } = await supabase
@@ -164,7 +166,7 @@ export const purchasesService = {
             const materialDesc = materialData?.description || 'Material';
             const materialCode = materialData?.code || '';
             const totalPriceFormatted = totalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            const timestamp = new Date().toISOString();
+            const timestamp = getBrazilTimestamp();
 
             await supabase.from('users_notifications').insert({
                 user_id_to: purchase.requester_id,
@@ -206,7 +208,7 @@ export const purchasesService = {
             .update({
                 status_id: 4,
                 cancel_reason: cancelReason,
-                updated_at: new Date().toISOString()
+                updated_at: getBrazilTimestamp()
             })
             .eq('id', parseInt(id));
 
@@ -219,7 +221,7 @@ export const purchasesService = {
             const materialDesc = materialData?.description || 'Material';
             const materialCode = materialData?.code || '';
             const cancellerName = currentUser?.nameShort || currentUser?.nameFull || 'Administrador';
-            const timestamp = new Date().toISOString();
+            const timestamp = getBrazilTimestamp();
 
             await supabase.from('users_notifications').insert({
                 user_id_to: purchase.requester_id,
@@ -260,8 +262,8 @@ export const purchasesService = {
             .from('materials_purchases')
             .update({
                 status_id: 3,
-                concluded_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                concluded_at: getBrazilTimestamp(),
+                updated_at: getBrazilTimestamp()
             })
             .eq('id', parseInt(id));
 
@@ -287,7 +289,7 @@ export const purchasesService = {
                 .update({
                     quantity: existing.quantity + quantity,
                     cost_avg: unitPrice,
-                    updated_at: new Date().toISOString()
+                    updated_at: getBrazilTimestamp()
                 })
                 .eq('id', existing.id);
         }
@@ -303,7 +305,7 @@ export const purchasesService = {
             const completerName = currentUser?.nameShort || currentUser?.nameFull || 'Administrador';
             const totalPrice = quantity * unitPrice;
             const totalPriceFormatted = totalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            const timestamp = new Date().toISOString();
+            const timestamp = getBrazilTimestamp();
 
             await supabase.from('users_notifications').insert({
                 user_id_to: purchase.requester_id,

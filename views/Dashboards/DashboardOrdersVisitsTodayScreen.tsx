@@ -3,6 +3,15 @@ import { Company, User, OrderVisit, OrderVisitTeam, OrderFilters, Asset, Order }
 import { dataService } from '../../services/dataService';
 import { Map as LeafletMap, Marker as LeafletMarker } from 'leaflet';
 import L from 'leaflet';
+
+// Fix for default Leaflet marker icons in Vite/Capacitor
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
 import 'leaflet/dist/leaflet.css';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { getInitials } from '../../utils/formatters';

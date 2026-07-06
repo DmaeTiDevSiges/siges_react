@@ -400,7 +400,7 @@ export const dataService = {
         return usersService.deleteDepartment.apply(usersService, arguments as any);
     },
 
-    async getTeams(companyId?: string): Promise<Team[]> {
+    async getTeams(companyId?: string, departmentId?: string): Promise<Team[]> {
         return usersService.getTeams.apply(usersService, arguments as any);
     },
 

@@ -11,6 +11,7 @@ import { dataService } from './services/dataService';
 import { usePermissions } from './contexts/PermissionsContext';
 import { permissionService } from './services/permissionService';
 import { Sidebar } from './components/Sidebar';
+import { DashboardTabs } from './components/DashboardTabs';
 import { AppSettings } from './views/Settings/AppSettings';
 import { LoginScreen } from './views/Users/LoginScreen';
 import { Toaster, toast } from 'sonner';
@@ -37,6 +38,8 @@ const DashboardOrdersVisitsTodayScreen = React.lazy(() => import('./views/Dashbo
 const DashboardUnitsPowerElectric = React.lazy(() => import('./views/Dashboards/DashboardUnitsPowerElectric').then(m => ({ default: m.DashboardUnitsPowerElectric })));
 const DashboardUnitsAssetsTags = React.lazy(() => import('./views/Dashboards/DashboardUnitsAssetsTags').then(m => ({ default: m.DashboardUnitsAssetsTags })));
 const DashboardOrdersAdminCalendarScreen = React.lazy(() => import('./views/Dashboards/DashboardOrdersAdminCalendarScreen').then(m => ({ default: m.DashboardOrdersAdminCalendarScreen })));
+const DashboardServicesAdminScreen = React.lazy(() => import('./views/Dashboards/DashboardServicesAdminScreen').then(m => ({ default: m.DashboardServicesAdminScreen })));
+const ServicesRequestsDashboardAdmin = React.lazy(() => import('./views/ServiceRequest/ServicesRequestsDashboardAdmin').then(m => ({ default: m.ServicesRequestsDashboardAdmin })));
 const SystemsList = React.lazy(() => import('./views/Settings/Systems/SystemsList').then(m => ({ default: m.SystemsList })));
 const SystemForm = React.lazy(() => import('./views/Settings/Systems/SystemForm').then(m => ({ default: m.SystemForm })));
 const UnitTypesList = React.lazy(() => import('./views/Settings/UnitTypes/UnitTypesList').then(m => ({ default: m.UnitTypesList })));
@@ -115,7 +118,7 @@ const MaintenancePlansScreen = React.lazy(() => import('./views/Settings/Mainten
 const ToolsMainView = React.lazy(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/imgproxyService';
@@ -451,6 +454,9 @@ const AppContent: React.FC = () => {
       setCurrentScreen('orders-dashboard');
     } else if (path === 'visits') {
       setCurrentScreen('orders-dashboard'); // Visitas now maps to orders-dashboard with activeTab='VISITAS'
+    } else if (path === 'services-history') {
+      tab = 'orders';
+      setCurrentScreen('services-history');
     } else {
       setCurrentScreen(path as any);
     }
@@ -459,76 +465,7 @@ const AppContent: React.FC = () => {
 
   const [ordersDashboardTab, setOrdersDashboardTab] = useState<'OS' | 'VISITAS'>('OS');
 
-  // Subcomponent for dashboard tabs that respects permissions
-  const DashboardTabs = () => {
-    const { canView } = usePermissions();
 
-    // Check permissions for each tab
-    const hasOrders = canView('dashboard_orders');
-    const hasVisits = canView('dashboard_orders_visits');
-    const hasUnits = canView('dashboard_units_assets_tags');
-    const hasPower = canView('dashboard_units_power_electric');
-
-    // Only show tabs if on the Admin Dashboard or specialized Dashboards
-    const isDashboardScreen = currentScreen === 'orders-dashboard' ||
-      currentScreen === 'visits-dashboard' ||
-      currentScreen === 'dashboard-units-power-electric' ||
-      currentScreen === 'dashboard-units-assets-tags' ||
-      currentScreen === 'dashboard-orders-admin-calendar' ||
-      currentScreen === 'materials-dashboard';
-
-    if (!isDashboardScreen) return null;
-
-    return (
-      <div className="flex items-center gap-4 h-full mt-1">
-        <h1 className="hidden md:block text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Gestão</h1>
-        <div className="hidden md:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
-        <div className="flex gap-4 overflow-x-auto no-scrollbar">
-          {hasOrders && (
-            <button
-              onClick={() => { setOrdersDashboardTab('OS'); setCurrentScreen('orders-dashboard'); }}
-              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-            >
-              OS's
-            </button>
-          )}
-          {hasVisits && (
-            <button
-              onClick={() => { setOrdersDashboardTab('VISITAS'); setCurrentScreen('visits-dashboard'); }}
-              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${(currentScreen === 'visits-dashboard' || (currentScreen === 'orders-dashboard' && ordersDashboardTab === 'VISITAS')) ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-            >
-              Visitas
-            </button>
-          )}
-          {hasUnits && (
-            <button
-              onClick={() => { setCurrentScreen('dashboard-units-assets-tags'); setActiveTab('dashboard-units-assets-tags'); }}
-              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${currentScreen === 'dashboard-units-assets-tags' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-            >
-              Unidades
-            </button>
-          )}
-          {hasVisits && (
-            <button
-              onClick={() => setCurrentScreen('dashboard-orders-admin-calendar')}
-              className={`pb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${currentScreen === 'dashboard-orders-admin-calendar' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-            >
-              <span className="material-symbols-outlined text-[14px]">calendar_view_week</span>
-              Calendário
-            </button>
-          )}
-          {canView('dashboard_materials') && (
-            <button
-              onClick={() => setCurrentScreen('materials-dashboard')}
-              className={`pb-1 text-xs font-black uppercase tracking-widest border-b-[3px] transition-all hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap flex-shrink-0 ${currentScreen === 'materials-dashboard' ? 'border-primary text-primary' : 'border-transparent text-slate-400'}`}
-            >
-              Materiais
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   const getTabNavigation = () => {
     const isDashboardScreen = currentScreen === 'orders-dashboard' ||
@@ -536,10 +473,19 @@ const AppContent: React.FC = () => {
       currentScreen === 'dashboard-units-power-electric' ||
       currentScreen === 'dashboard-units-assets-tags' ||
       currentScreen === 'dashboard-orders-admin-calendar' ||
-      currentScreen === 'materials-dashboard';
+      currentScreen === 'materials-dashboard' ||
+      currentScreen === 'services-history';
 
     if (!isDashboardScreen) return undefined;
-    return <DashboardTabs />;
+    return (
+      <DashboardTabs
+        currentScreen={currentScreen}
+        setCurrentScreen={setCurrentScreen}
+        ordersDashboardTab={ordersDashboardTab}
+        setOrdersDashboardTab={setOrdersDashboardTab}
+        setActiveTab={setActiveTab}
+      />
+    );
   };
 
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
@@ -1135,6 +1081,8 @@ const AppContent: React.FC = () => {
       }
     } else if (currentScreen === 'service-request-detail') {
       setCurrentScreen(lastOrderSource);
+    } else if (currentScreen === 'services-history') {
+      setCurrentScreen(lastOrderSource || 'orders-dashboard');
     } else if (currentScreen === 'order-create' || currentScreen === 'service-request-create') {
       setCurrentScreen('orders-dashboard');
     } else if (currentScreen === 'order-visit-execute') {
@@ -1816,6 +1764,29 @@ const AppContent: React.FC = () => {
             onEdit={(order) => {
               setSelectedOrder(order);
               setCurrentScreen('order-create');
+            }}
+          />
+        );
+      case 'services-history':
+        return (
+          <ServicesRequestsDashboardAdmin
+            currentUser={currentUser}
+            onSelectOrder={(order) => {
+              setLastOrderSource('services-history');
+              setSelectedOrder(order);
+              const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
+              if (isOS) {
+                setOrderDetailActiveTab('SS');
+                setCurrentScreen('order-detail');
+              } else {
+                setSsDetailActiveTab('OS');
+                setCurrentScreen('service-request-detail');
+              }
+            }}
+            onNavigate={(path) => {
+              if (path === 'services-history') {
+                setCurrentScreen('services-history');
+              }
             }}
           />
         );
@@ -2653,6 +2624,7 @@ const AppContent: React.FC = () => {
       case 'maintenance-plan-details': return 'Detalhes do Plano';
       case 'unit-asset-tag-details': return 'Disponibilidade do Setor';
       case 'unit-asset-tag-available': return 'Disponibilidade';
+      case 'services-history': return 'Histórico de SS';
       case 'tools': return 'Ferramentas';
       default: return 'Siges';
     }
@@ -2812,6 +2784,7 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) !== 'dashboard-units-power-electric' &&
                 (currentScreen as string) !== 'dashboard-units-assets-tags' &&
                 (currentScreen as string) !== 'dashboard-orders-admin-calendar' &&
+                (currentScreen as string) !== 'services-history' &&
                 (currentScreen as string) !== 'companies' &&
                 (currentScreen as string) !== 'units-search' &&
                 (currentScreen as string) !== 'assets-search' &&
@@ -2836,7 +2809,8 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) === 'visits-dashboard' ||
                 (currentScreen as string) === 'dashboard-units-power-electric' ||
                 (currentScreen as string) === 'dashboard-units-assets-tags' ||
-                (currentScreen as string) === 'users-tracker'
+                (currentScreen as string) === 'users-tracker' ||
+                (currentScreen as string) === 'services-history'
               }
               onProfileClick={() => {
                 localStorage.setItem('last_main_tab', activeTab);
@@ -2919,6 +2893,9 @@ const AppContent: React.FC = () => {
                 await handleUserStatusChange(showShiftAlert.type === 'START', currentUser?.ovIdInProgress || null);
                 dismissAlert(showShiftAlert.type);
                 toast.success(showShiftAlert.type === 'START' ? 'Você está online!' : 'Check-out realizado com sucesso.');
+                if (showShiftAlert.type !== 'START') {
+                  setCurrentScreen('profile');
+                }
               } catch (e) {
                 toast.error('Erro ao atualizar status.');
               }

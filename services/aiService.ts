@@ -44,20 +44,16 @@ export const aiService = {
     }
   },
 
-  async chat(sessionId: string, userMessage: string, userId: string) {
+  async chat(sessionId: string, userMessage: string, userId: string, assetContext?: { code?: string; id?: number | string; description?: string; unit?: string }) {
     try {
-      // 1. Busca Contexto (RAG) se houver conhecimento relevante
-      const contextDocs = await this.searchKnowledge(userMessage);
-      const context = contextDocs.map((d: any) => d.content).join("\n---\n");
-
-      // 2. Dispara o Webhook do n8n Orquestrador
+      // Dispara o Webhook do n8n Orquestrador
       const endpoint = import.meta.env.VITE_API_N8N_WEBHOOK_ASSISTANT || "webhook/siges-ai-assistant";
       
       const response = await apiN8nService.triggerWebhook(endpoint, {
         sessionId,
         userId,
         message: userMessage,
-        context: context // Passa o RAG local para o n8n
+        assetContext, // Contexto automático do ativo
       });
 
       // O n8n deve retornar no campo 'output' ou similar

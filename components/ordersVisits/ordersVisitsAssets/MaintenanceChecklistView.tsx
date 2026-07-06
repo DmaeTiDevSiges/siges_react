@@ -561,7 +561,9 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
         return dataService.getPublicImageUrl(path, fileName) || '';
     }, [checklistResponses, ovAssetId, companyId, assetId]);
 
-    const isPlanLocked = initialPlanId != null && initialPlanId !== '' && initialPlanId !== '0' && Number(initialPlanId) !== 0;
+    // O plano só fica bloqueado (cadeado) quando a tela está em modo somente-leitura (disabled=true).
+    // Em modo de edição, o usuário pode trocar o plano mesmo que já exista um salvo.
+    const isPlanLocked = disabled && initialPlanId != null && initialPlanId !== '' && initialPlanId !== '0' && Number(initialPlanId) !== 0;
 
     const handleViewImages = useCallback((urls: string[], index: number = 0) => {
         setExpandedInitialIndex(index);
@@ -676,19 +678,13 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                         </label>
                     </div>
                     <Select
-                        disabled={disabled || loadingChecklist || isPlanLocked}
-                        value={selectedPlanId || (isPlanLocked ? String(initialPlanId) : '')}
+                        disabled={disabled || loadingChecklist}
+                        value={selectedPlanId || (initialPlanId && initialPlanId !== '0' ? String(initialPlanId) : '')}
                         onChange={(e: any) => handlePlanSelect(e.target.value)}
-                        options={isPlanLocked
-                            ? [{
-                                value: String(initialPlanId),
-                                label: plans.find(p => String(p.id) === String(initialPlanId))?.description || 'Plano atual selecionado'
-                            }]
-                            : [
-                                { value: '', label: 'Selecione um plano...' },
-                                ...plans.map(p => ({ value: String(p.id), label: p.description }))
-                            ]
-                        }
+                        options={[
+                            { value: '', label: 'Selecione um plano...' },
+                            ...plans.map(p => ({ value: String(p.id), label: p.description }))
+                        ]}
                     />
                 </div>
             )}

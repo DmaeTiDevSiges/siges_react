@@ -169,7 +169,7 @@ const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminLis
                 <div className="flex flex-col gap-2">
                     <div className="flex justify-between items-center w-full">
                         <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
-                            { (visit.teamCode || 'EQUIPE').toUpperCase() }
+                            { (visit.teamCode || 'EQ.RESPONSAVEL').toUpperCase() }
                         </span>
                         {visit.contractDescription && (
                             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">

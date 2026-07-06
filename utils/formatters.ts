@@ -40,7 +40,7 @@ export const formatCurrency = (value: number): string => {
  */
 export const formatDate = (date: string | Date): string => {
     const d = typeof date === 'string' ? new Date(date) : date;
-    return new Intl.DateTimeFormat('pt-BR').format(d);
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(d);
 };
 
 /**
@@ -53,13 +53,18 @@ export const formatDateTime = (date: string | Date | null | undefined): string =
     const d = typeof date === 'string' ? new Date(date) : date;
     if (isNaN(d.getTime())) return 'N/A';
 
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-
-    return `${day}/${month}/${year} ${hours}:${minutes} h`;
+    const formatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour12: false,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    const parts = formatter.formatToParts(d);
+    const map = new Map(parts.map(p => [p.type, p.value]));
+    return `${map.get('day')}/${map.get('month')}/${map.get('year')} ${map.get('hour')}:${map.get('minute')} h`;
 };
 
 /**

@@ -106,7 +106,23 @@ export const dashboardService = {
         });
 
         const ssSectorMap: Record<string, { id: string, label: string, count: number }> = {};
-        ssDataList.forEach((o: any) => {
+        const periodFilter = ssFiltersOverride?.period || filters?.period;
+        let sectorDataList = ssDataList;
+        if (periodFilter) {
+            sectorDataList = ssDataList.filter((o: any) => {
+                const d = parseDate(o.requested_at);
+                if (!d) return false;
+                if (periodFilter === 'Hoje') return d >= today;
+                if (periodFilter === 'Ontem') return d >= yesterday && d < today;
+                if (periodFilter === '2-7 dias') return d >= sevenDaysAgo && d < yesterday;
+                if (periodFilter === '8-15 dias') return d >= fifteenDaysAgo && d < sevenDaysAgo;
+                if (periodFilter === '16-30 dias') return d >= thirtyDaysAgo && d < fifteenDaysAgo;
+                if (periodFilter === '> 30 dias') return d < thirtyDaysAgo;
+                return true;
+            });
+        }
+
+        sectorDataList.forEach((o: any) => {
             const id = o.asset_tag_id ? o.asset_tag_id.toString() : 'null';
             const label = o.asset_tag_description || 'Sem Setor';
             if (!ssSectorMap[id]) ssSectorMap[id] = { id, label, count: 0 };
@@ -114,8 +130,17 @@ export const dashboardService = {
         });
         const ssSectorCounts = Object.values(ssSectorMap).sort((a, b) => b.count - a.count);
 
+        const osStatusFilter = osFiltersOverride?.statusId;
+        let osSectorCountSource = osDataList;
+        if (osStatusFilter) {
+            const statusIdNum = Array.isArray(osStatusFilter) ? Number(osStatusFilter[0]) : Number(osStatusFilter);
+            if (!Number.isNaN(statusIdNum)) {
+                osSectorCountSource = osDataList.filter((o: any) => o.status_id === statusIdNum);
+            }
+        }
+
         const osSectorMap: Record<string, { id: string, label: string, count: number }> = {};
-        osDataList.forEach((o: any) => {
+        osSectorCountSource.forEach((o: any) => {
             const id = o.asset_tag_id ? o.asset_tag_id.toString() : 'null';
             const label = o.asset_tag_description || 'Sem Setor';
             if (!osSectorMap[id]) osSectorMap[id] = { id, label, count: 0 };

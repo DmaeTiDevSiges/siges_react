@@ -129,6 +129,7 @@ export interface Department {
 export interface Team {
   id: string;
   departmentId: string;
+  parentId?: string;
 
   // Mapped from cfg_teams
   name: string; // description
@@ -1156,12 +1157,15 @@ export interface OrderFilters {
   useGeneralView?: boolean;
   orderPlanId?: string | string[];
   orderTeamId?: string | string[];
+  requesterTeamId?: string | string[];
   priorityId?: string | string[];
   search?: string;
   activeFilter?: string;
   statusId?: number | null;
   parentId?: string | string[];
   period?: string | null;
+  dateFrom?: string;
+  dateTo?: string;
   orderMask?: string;
   /** Filtro de setor exclusivo do carrossel de OS abertas (dashboard admin). */
   osAssetTagId?: string | string[];

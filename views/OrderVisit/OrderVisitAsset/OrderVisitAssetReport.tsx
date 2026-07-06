@@ -12,6 +12,7 @@ import { OptimizedImage } from '../../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../../components/ui/PhotoViewer';
 import { Button } from '../../../components/ui/Button';
 import { ButtonNew } from '../../../components/ui/ButtonNew';
+import { AIAssetPanel } from '../../../components/ai/AIAssetPanel';
 import { createPortal } from 'react-dom';
 import { usePermissions } from '../../../contexts/PermissionsContext';
 import { Select } from '../../../components/ui/Select';
@@ -192,6 +193,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [usedMaterials, setUsedMaterials] = useState<OrderVisitAssetMaterial[]>([]);
     const [uploadingCount, setUploadingCount] = useState(0);
     const [currentUserId, setCurrentUserId] = useState<string>('');
+    const [currentUserIsAdminSuper, setCurrentUserIsAdminSuper] = useState(false);
     const [showRejectionModal, setShowRejectionModal] = useState(false);
     const [rejectionNotes, setRejectionNotes] = useState('');
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -279,7 +281,10 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 }
             }
 
-            if (user) setCurrentUserId(user.id);
+            if (user) {
+                setCurrentUserId(user.id);
+                setCurrentUserIsAdminSuper(!!user.isAdminSuper);
+            }
             let isManager = false;
 
             if (data) {
@@ -997,6 +1002,16 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 {/* Asset Detail Card */}
                 {!readOnly && <OrderVisitAssetCardDetail asset={asset} onClick={onViewAsset} />}
 
+                {/* 🤖 Assistente IA do Ativo — apenas para admin super e visita não aprovada */}
+                {currentUserIsAdminSuper && asset?.code && Number(asset.processingId) !== 5 && (
+                    <AIAssetPanel
+                        assetCode={asset.code}
+                        assetId={asset.assetId}
+                        assetDescription={asset.description}
+                        unitDescription={asset.beforeUnitDescription}
+                    />
+                )}
+
                 {/* Condição Antes */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
                     <SectionHeader icon="assignment" title="Condição Antes" required />
@@ -1382,7 +1397,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                                 <input
                                                     type="checkbox"
                                                     checked={checked}
-                                                    disabled={isUpdatingStatus}
+                                                    disabled={isUpdatingStatus || localEditMode === null}
                                                     onChange={() => toggleCompletedAlert(alert.id)}
                                                     className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
                                                 />

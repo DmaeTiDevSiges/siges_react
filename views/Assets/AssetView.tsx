@@ -20,6 +20,7 @@ import QRCode from 'react-qr-code';
 import { Loading } from '../../components/ui/Loading';
 
 
+
 interface AssetDetailsProps {
     asset: Asset;
     onBack: () => void;
@@ -385,6 +386,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                     }`}>
                     {/* Floating Asset Card */}
                     <AssetCardDetail asset={asset} />
+
 
 
                     {/* Tabs */}

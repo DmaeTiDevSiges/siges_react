@@ -8,7 +8,21 @@ interface Message {
   content: string;
 }
 
-export const AIChatWindow: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+interface AssetContext {
+  code?: string;
+  id?: number | string;
+  description?: string;
+  unit?: string;
+}
+
+interface AIChatWindowProps {
+  isOpen: boolean;
+  onClose: () => void;
+  assetContext?: AssetContext;
+  initialPrompt?: string;
+}
+
+export const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, assetContext, initialPrompt }) => {
   const { currentUser } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -54,7 +68,7 @@ export const AIChatWindow: React.FC<{ isOpen: boolean; onClose: () => void }> = 
     setIsLoading(true);
 
     try {
-      const response = await aiService.chat(sessionId, userMessage, currentUser.uuid);
+      const response = await aiService.chat(sessionId, userMessage, currentUser.uuid, assetContext);
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);
       setErrorHeader(null);
     } catch (error: any) {
@@ -65,6 +79,13 @@ export const AIChatWindow: React.FC<{ isOpen: boolean; onClose: () => void }> = 
       setIsLoading(false);
     }
   };
+
+  // Envia prompt inicial quando o chat abre
+  useEffect(() => {
+    if (isOpen && initialPrompt && sessionId && currentUser && messages.length === 0) {
+      handleSend(initialPrompt);
+    }
+  }, [isOpen, initialPrompt, sessionId]);
 
   if (!isOpen) return null;
 
@@ -77,7 +98,9 @@ export const AIChatWindow: React.FC<{ isOpen: boolean; onClose: () => void }> = 
             <span className="material-symbols-outlined text-primary">smart_toy</span>
           </div>
           <div>
-            <h3 className="font-bold text-white leading-tight">Siges Assistant</h3>
+            <h3 className="font-bold text-white leading-tight">
+              {assetContext?.code ? `Ativo ${assetContext.code}` : 'Siges Assistant'}
+            </h3>
             <span className="text-xs text-green-400 flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
               {isLoading ? 'Digitando...' : 'Online'}

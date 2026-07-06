@@ -933,7 +933,7 @@ export const assetsService = {
             description: alert.description,
             is_done: alert.isDone ?? false,
             created_user_id: currentUser ? parseInt(currentUser.id) : null,
-            created_at: new Date().toISOString()
+            created_at: getBrazilTimestamp()
         };
 
         if (alert.ovaId) {
@@ -958,7 +958,7 @@ export const assetsService = {
 
     async updateAssetAlert(id: string, alert: Partial<AssetAlert>): Promise<AssetAlert> {
         const dbData: any = {
-            updated_at: new Date().toISOString()
+            updated_at: getBrazilTimestamp()
         };
         if (alert.oTypeId !== undefined) dbData.o_type_id = alert.oTypeId ? parseInt(alert.oTypeId) : null;
         if (alert.priorityId !== undefined) dbData.priority_id = alert.priorityId ? parseInt(alert.priorityId) : null;
@@ -992,7 +992,7 @@ export const assetsService = {
             .update({
                 is_deleted: true,
                 deleted_user_id: currentUser ? parseInt(currentUser.id) : null,
-                deleted_at: new Date().toISOString()
+                deleted_at: getBrazilTimestamp()
             })
             .eq('id', id);
 

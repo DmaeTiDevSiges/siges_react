@@ -1131,6 +1131,7 @@ export const ordersService = {
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('team_id', filters.orderTeamId);
+            applyFilter('requester_team_id', filters.requesterTeamId);
             applyFilter('priority_id', filters.priorityId);
             if (filters.parentId !== undefined) {
                 if (filters.parentId === null) {
@@ -1183,6 +1184,21 @@ export const ordersService = {
                     query = query.gte('requested_at', thirtyDaysAgo.toISOString()).lt('requested_at', fifteenDaysAgo.toISOString());
                 } else if (filters.period === '> 30 dias') {
                     query = query.lt('requested_at', thirtyDaysAgo.toISOString());
+                }
+            }
+
+            // Filtro por range de datas customizado (usado no histórico)
+            if (filters.dateFrom) {
+                const fromDate = new Date(filters.dateFrom);
+                if (!isNaN(fromDate.getTime())) {
+                    query = query.gte('requested_at', fromDate.toISOString());
+                }
+            }
+            if (filters.dateTo) {
+                const toDate = new Date(filters.dateTo);
+                toDate.setHours(23, 59, 59, 999); // fim do dia
+                if (!isNaN(toDate.getTime())) {
+                    query = query.lte('requested_at', toDate.toISOString());
                 }
             }
         }
