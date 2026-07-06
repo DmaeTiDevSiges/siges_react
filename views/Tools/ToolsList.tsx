@@ -20,7 +20,7 @@ const statusConfig: Record<Tool['status'], { label: string; color: string }> = {
 
 export const ToolsList: React.FC<ToolsListProps> = () => {
     const { canCreate, canEdit, canDelete } = usePermissions();
-    const canEditDelete = canEdit('tools_edit_delete') || canDelete('tools_edit_delete');
+    const canEditDelete = canEdit('tools_create_edit_delete') || canDelete('tools_create_edit_delete');
     const [tools, setTools] = useState<Tool[]>([]);
     const [userTools, setUserTools] = useState<UserTool[]>([]);
     const [search, setSearch] = useState('');
