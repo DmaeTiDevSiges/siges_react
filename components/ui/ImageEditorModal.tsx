@@ -473,7 +473,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 
 
     return createPortal(
-        <div className="fixed inset-0 z-9999 bg-black flex flex-col animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-9999 bg-black flex flex-col animate-in fade-in duration-300" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
             {/* Toolbar Top - Close, Download and OK */}
             <div className="p-4 bg-linear-to-b from-black to-transparent flex items-center justify-between z-10">
                 <IconButton icon="close" onClick={onClose} variant="soft" size="lg" className="bg-white/10! text-white! rounded-2xl!" />

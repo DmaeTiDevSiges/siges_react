@@ -183,7 +183,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
                 </button>
             </div>
 
-            <div className="relative flex-1 min-h-[300px] bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden touch-none">
+            <div className="relative flex-1 min-h-[140px] bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden touch-none">
                 <canvas
                     ref={canvasRef}
                     onMouseDown={startDrawing}
@@ -198,17 +198,11 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
                 />
 
                 {/* Guia horizontal de orientação (não salvável) */}
-                <div className="absolute left-10 right-10 bottom-12 border-b-2 border-slate-200 dark:border-slate-800 pointer-events-none flex items-center gap-2 pb-1">
+                <div className="absolute left-10 right-10 top-1/4 border-b-2 border-slate-200 dark:border-slate-800 pointer-events-none flex items-center gap-2 pb-1">
                     <span className="material-symbols-outlined text-slate-300 dark:text-slate-700 text-lg">edit</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700">Assine aqui</span>
                 </div>
                 
-                {isEmpty && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-40">
-                        <span className="material-symbols-outlined text-4xl mb-2 text-slate-400">draw</span>
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Assine acima da linha</span>
-                    </div>
-                )}
             </div>
 
             <div className="flex gap-3 pt-2">

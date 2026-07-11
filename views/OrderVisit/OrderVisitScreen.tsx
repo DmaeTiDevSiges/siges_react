@@ -69,6 +69,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isFiling, setIsFiling] = useState(false);
     const [isRevising, setIsRevising] = useState(false);
     const [isReviseModalOpen, setIsReviseModalOpen] = useState(false);
+    const [isMissingSignatureModalOpen, setIsMissingSignatureModalOpen] = useState(false);
     const [isReverseConfirmModalOpen, setIsReverseConfirmModalOpen] = useState(false);
     const [isReverseAlertModalOpen, setIsReverseAlertModalOpen] = useState(false);
     const [isReversingApproval, setIsReversingApproval] = useState(false);
@@ -337,11 +338,20 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     };
 
     const handleReportVisit = async () => {
+        if (!visit?.ovSignatureLeaderPath) {
+            setIsMissingSignatureModalOpen(true);
+            return;
+        }
         setIsReportModalOpen(true);
     };
 
     const handleConfirmReportVisit = async () => {
         if (!visit || !currentUser) return;
+
+        if (!visit.ovSignatureLeaderPath) {
+            toast.warning('O responsável pela visita deve assinar antes de reportar.');
+            return;
+        }
 
         setIsReporting(true);
         const reportPromise = async () => {
@@ -688,6 +698,25 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                     onClick: () => setIsReportModalOpen(false),
                     variant: 'ghost'
                 }}
+            />
+
+            {/* Modal de Assinatura Obrigatória */}
+            <AlertModal
+                isOpen={isMissingSignatureModalOpen}
+                onClose={() => setIsMissingSignatureModalOpen(false)}
+                icon="warning"
+                iconClassName="text-amber-500"
+                iconBgClassName="bg-amber-50 dark:bg-amber-900/20"
+                iconRingClassName="ring-amber-50/50 dark:ring-amber-900/10"
+                title="Assinatura Obrigatória"
+                description="É necessário a assinatura do Líder antes de reportar a visita."
+                primaryAction={{
+                    label: 'Entendido',
+                    icon: 'check',
+                    onClick: () => setIsMissingSignatureModalOpen(false),
+                    variant: 'warning'
+                }}
+                secondaryAction={undefined}
             />
 
             {/* Modal de Fechamento */}

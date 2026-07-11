@@ -184,17 +184,32 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
         g.items.sort((a, b) => (a.tool_material_description || '').localeCompare(b.tool_material_description || '', 'pt-BR'));
     });
 
-    const filteredGroups = Object.entries(grouped).filter(([, { userName, items }]) =>
-        userName.toLowerCase().includes(search.toLowerCase()) ||
-        items.some(i => `${i.tool_brand} ${i.tool_model} ${i.tool_serial}`.toLowerCase().includes(search.toLowerCase()))
-    );
+    const matchItem = (i: ListItem, term: string) =>
+        (i.tool_code || '').toLowerCase().includes(term) ||
+        (i.tool_brand || '').toLowerCase().includes(term) ||
+        (i.tool_model || '').toLowerCase().includes(term) ||
+        (i.tool_serial || '').toLowerCase().includes(term) ||
+        (i.tool_material_code || '').toLowerCase().includes(term) ||
+        (i.tool_material_description || '').toLowerCase().includes(term);
+
+    const filteredGroups = Object.entries(grouped)
+        .map(([userId, group]) => {
+            const nameMatch = group.userName.toLowerCase().includes(search.toLowerCase());
+            const filteredItems = nameMatch
+                ? group.items
+                : group.items.filter(i => matchItem(i, search.toLowerCase()));
+            return { userId, group: { ...group, items: filteredItems }, nameMatch };
+        })
+        .filter(({ nameMatch, group }) => !nameMatch || group.items.length > 0)
+        .filter(({ group }) => group.items.length > 0)
+        .map(({ userId, group }) => [userId, group] as [string, { userName: string; userAvatar?: string; items: ListItem[] }]);
 
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
             <div className="flex items-center justify-between p-4 gap-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex-1">
-                    <SearchInput value={search} onChange={(e) => setSearch((e.target as HTMLInputElement).value)} placeholder="Buscar por usuário ou ferramenta..." />
+                    <SearchInput value={search} onChange={(e) => setSearch((e.target as HTMLInputElement).value)} placeholder="Buscar por Responsável ou ferramenta..." />
                 </div>
                 {canMovements && (
                     <button

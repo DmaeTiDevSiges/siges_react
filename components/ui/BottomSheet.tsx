@@ -84,7 +84,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                 )}
 
                 {/* Content */}
-                <div className={`flex-1 overflow-y-auto no-scrollbar ${height === 'auto' ? '' : 'h-full'}`}>
+                <div className={`flex-1 overflow-y-auto no-scrollbar ${height === 'auto' ? '' : 'h-full'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                     {children}
                 </div>
             </div>

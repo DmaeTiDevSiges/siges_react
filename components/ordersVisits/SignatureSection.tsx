@@ -16,6 +16,7 @@ interface SignatureSectionProps {
 
 export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRefresh, isEditable = true }) => {
     const [signingType, setSigningType] = useState<'leader' | 'requester' | null>(null);
+    const [deletingType, setDeletingType] = useState<'leader' | 'requester' | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const handleSaveSignature = async (base64: string) => {
@@ -35,16 +36,13 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
         }
     };
 
-    const handleDeleteSignature = async (type: 'leader' | 'requester') => {
-        if (!isEditable) return;
-        
-        if (!confirm(`Deseja realmente excluir a assinatura do ${type === 'leader' ? 'Líder' : 'Requisitante'}?`)) {
-            return;
-        }
+    const handleDeleteSignature = async () => {
+        if (!deletingType || !isEditable) return;
 
         try {
-            await dataService.deleteOrderVisitSignature(visit.id, type);
+            await dataService.deleteOrderVisitSignature(visit.id, deletingType);
             toast.success('Assinatura removida');
+            setDeletingType(null);
             onRefresh();
         } catch (error) {
             console.error('Erro ao excluir assinatura:', error);
@@ -82,7 +80,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                                 </div>
                                 {canDelete && (
                                     <button 
-                                        onClick={() => handleDeleteSignature('leader')}
+                                        onClick={() => setDeletingType('leader')}
                                         className="w-6 h-6 flex items-center justify-center bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all shadow-sm"
                                         title="Excluir assinatura"
                                     >
@@ -142,7 +140,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                                 </div>
                                 {canDelete && (
                                     <button 
-                                        onClick={() => handleDeleteSignature('requester')}
+                                        onClick={() => setDeletingType('requester')}
                                         className="w-6 h-6 flex items-center justify-center bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all shadow-sm"
                                         title="Excluir assinatura"
                                     >
@@ -194,9 +192,9 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                 title={`Coleta de Assinatura`}
                 maxWidth="sm"
             >
-                <div className="p-4 min-h-[450px]">
+                <div className="p-4">
                     {isSaving ? (
-                        <div className="flex flex-col items-center justify-center h-[300px] gap-4">
+                        <div className="flex flex-col items-center justify-center h-[280px] gap-4">
                             <div className="relative">
                                 <div className="h-16 w-16 rounded-full border-4 border-slate-100 dark:border-slate-800 animate-pulse"></div>
                                 <Loading size="xs" />
@@ -212,6 +210,16 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                     )}
                 </div>
             </Modal>
+
+            <Modal
+                isOpen={!!deletingType}
+                onClose={() => setDeletingType(null)}
+                title="Excluir Assinatura"
+                message={`Deseja realmente excluir a assinatura do ${deletingType === 'leader' ? 'Líder' : 'Requisitante'}?`}
+                type="warning"
+                confirmLabel="Excluir"
+                onConfirm={handleDeleteSignature}
+            />
         </section>
     );
 };

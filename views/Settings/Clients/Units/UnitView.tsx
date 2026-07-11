@@ -13,6 +13,7 @@ import { AssetMovementListItem } from '../../../../components/assets/AssetMoveme
 import { AssetsListPDFButton } from '../../../../components/reports/AssetsListPDFButton';
 import { AssetsListExcelButton } from '../../../../components/reports/AssetsListExcelButton';
 import { UnitAssetTagAvailableForm } from '../../../Units/UnitAssetTagAvailableForm';
+import { UnitAssetTagForm } from '../../../Units/UnitAssetTagForm';
 import { PhotoViewer } from '../../../../components/ui/PhotoViewer';
 import { toast } from 'sonner';
 import { apiN8nService } from '../../../../services/apiN8nService';
@@ -99,6 +100,8 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     const [selectedSystemTab, setSelectedSystemTab] = useState(() => {
         return localStorage.getItem(`unit_sector_${unit.id}`) || 'Tratamento Preliminar';
     });
+    const [isSectorFormOpen, setIsSectorFormOpen] = useState(false);
+    const [editingSector, setEditingSector] = useState<any>(null);
     const [isAssetsModalOpen, setIsAssetsModalOpen] = useState(false);
     const [modalAssets, setModalAssets] = useState<Asset[]>([]);
     const [isLoadingAssets, setIsLoadingAssets] = useState(false);
@@ -216,22 +219,23 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
         );
     }
 
-    useEffect(() => {
-        const loadSectors = async () => {
-            if (unit?.id) {
-                try {
-                    const data = await dataService.getUnitAssetTags(unit.id);
-                    setSectors(data);
-                    if (data.length > 0 && !selectedSector) {
-                        setSelectedSector(data[0].id);
-                    }
-                } catch (error) {
-                    console.error('Failed to load sectors', error);
+    const loadSectors = React.useCallback(async () => {
+        if (unit?.id) {
+            try {
+                const data = await dataService.getUnitAssetTags(unit.id);
+                setSectors(data);
+                if (data.length > 0 && !selectedSector) {
+                    setSelectedSector(data[0].id);
                 }
+            } catch (error) {
+                console.error('Failed to load sectors', error);
             }
-        };
+        }
+    }, [unit?.id, selectedSector]);
+
+    useEffect(() => {
         loadSectors();
-    }, [unit?.id]);
+    }, [loadSectors]);
 
     // Scroll to selected sector on load
     useEffect(() => {
@@ -477,8 +481,10 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                             <div className="w-5 shrink-0" />
 
                             {/* Add Sector Card */}
+                            {canCreate('units_assets_tags') && (
                             <div
                                 className="shrink-0 w-[130px] h-[130px] bg-slate-50/50 dark:bg-slate-900/30 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                                onClick={() => setIsSectorFormOpen(true)}
                             >
                                 <div className="flex flex-col items-center text-center min-h-[28px] justify-start mt-1">
                                     <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Novo Setor</h4>
@@ -497,6 +503,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                     </span>
                                 </div>
                             </div>
+                            )}
                         </div>
                     </div>
 
@@ -549,13 +556,13 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            {canEdit('units_assets_tags') && (
+                                            {canCreate('units_assets_tags') && (
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); onManageAvailability?.(item); }}
+                                                    onClick={(e) => { e.stopPropagation(); setEditingSector(item.originalData); setIsSectorFormOpen(true); }}
                                                     className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-400 hover:text-primary transition-all active:scale-95 shadow-sm"
-                                                    title="Configurações"
+                                                    title="Editar"
                                                 >
-                                                    <span className="material-symbols-outlined text-[20px]">settings</span>
+                                                    <span className="material-symbols-outlined text-[20px]">edit</span>
                                                 </button>
                                             )}
                                             <button
@@ -816,6 +823,19 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                             onClose={() => setLightboxImage(null)} 
                         />
                     )}
+
+                    {/* Sector Form Modal */}
+                    <UnitAssetTagForm
+                        isOpen={isSectorFormOpen}
+                        onClose={() => { setIsSectorFormOpen(false); setEditingSector(null); }}
+                        unitId={unit.id}
+                        unitDescription={unit.descriptionFull || unit.description}
+                        onCreated={() => {
+                            loadSectors();
+                            fetchAvailability();
+                        }}
+                        sectorData={editingSector}
+                    />
 
                 </div>
             </div>

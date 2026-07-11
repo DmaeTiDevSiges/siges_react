@@ -137,7 +137,7 @@ export const FaceDetectionCamera: React.FC<FaceDetectionCameraProps> = ({ onCapt
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-4" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
             <div className="relative w-full max-w-md aspect-[3/4] rounded-3xl overflow-hidden bg-slate-900 shadow-2xl border-4 border-slate-800">
                 <video
                     ref={videoRef}

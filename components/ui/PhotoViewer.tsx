@@ -139,7 +139,7 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
             onClick={(e) => e.stopPropagation()}
         >
             {/* Top Toolbar */}
-            <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-50 bg-linear-to-b from-black/80 to-transparent">
+            <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-50 bg-linear-to-b from-black/80 to-transparent" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                 <div className="flex items-center gap-2">
                     <IconButton
                         icon="close"
@@ -224,7 +224,7 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
 
             {/* Bottom Navigation Indicators for Mobile */}
             {hasMultiple && (
-                <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-2 z-50 pointer-events-none">
+                <div className="absolute left-0 right-0 flex justify-center gap-2 z-50 pointer-events-none" style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
                     {images!.map((_, idx) => (
                         <div
                             key={idx}
@@ -236,7 +236,7 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
             )}
 
             {/* Helper Hint & Status */}
-            <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
+            <div className="absolute left-0 right-0 flex flex-col items-center gap-3 pointer-events-none" style={{ bottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}>
                 <div className="flex items-center gap-4 bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 shadow-lg">
                     <span className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
                         <span className="material-symbols-outlined text-[12px]">pinch</span> PINCH PARA ZOOM

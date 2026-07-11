@@ -9,10 +9,10 @@ import { companiesService } from '../companies/companiesService';
 export const assetTagsService = {
     // ── Asset Tags ───────────────────────────────────────────────
     async getAssetTags(status: 'all' | 'active' | 'inactive' = 'all', search?: string): Promise<AssetTag[]> {
-        let query = supabase.from('cfg_assets_tags').select('*');
+        let query = supabase.from('v_assets_tags').select('*');
 
-        if (status === 'active') query = query.eq('is_available', 'true');
-        if (status === 'inactive') query = query.eq('is_available', 'false');
+        if (status === 'active') query = query.eq('is_available', true);
+        if (status === 'inactive') query = query.eq('is_available', false);
         if (search) query = query.ilike('description', `%${search}%`);
 
         const { data, error } = await query.order('description');
@@ -78,6 +78,7 @@ export const assetTagsService = {
     async getAssetTagSubs(parentId?: string, status: 'all' | 'active' | 'inactive' = 'all', search?: string): Promise<AssetTagSub[]> {
         let query = supabase.from('cfg_assets_tags_subs').select('*');
 
+        query = query.eq('is_deleted', false);
         if (parentId) query = query.eq('parent_id', parentId);
         if (status === 'active') query = query.eq('is_available', 'true');
         if (status === 'inactive') query = query.eq('is_available', 'false');
@@ -510,10 +511,9 @@ export const assetTagsService = {
     },
     async getUnitAssetTags(unitId: string): Promise<any[]> {
         const { data, error } = await supabase
-            .from('cfg_units_assets_tags')
+            .from('v_units_assets_tags')
             .select('*')
-            .eq('unit_id', unitId)
-            .eq('is_deleted', 'false');
+            .eq('unit_id', unitId);
 
         if (error) {
             console.error('Error fetching unit asset tags', error);
@@ -533,7 +533,10 @@ export const assetTagsService = {
             if (!tagId) return;
 
             if (!groups[tagId]) {
-                let sectorName = row.asset_tag_description;
+                let sectorName = row.tag_description;
+                if (sectorName && sectorName.includes(' - ')) {
+                    sectorName = sectorName.split(' - ')[0];
+                }
                 if (!sectorName && row.asset_tag_tag_sub_description) {
                     sectorName = row.asset_tag_tag_sub_description.split(' > ')[0];
                 }
@@ -566,6 +569,148 @@ export const assetTagsService = {
                 isAvailable: true
             }))
             .sort((a, b) => a.name.localeCompare(b.name));
+    },
+
+    async createUnitAssetTag(payload: {
+        unitId: number;
+        assetTagId: number;
+        assetTagSubId?: number | null;
+        assetTagTagSubDescription?: string;
+        operationUnit?: string;
+        assetAvailableRate?: number;
+        flowRateIsVisible?: boolean;
+        flowRateUnit?: string;
+        flowRateMin?: number;
+        flowRateMax?: number;
+        powerIsVisible?: boolean;
+        powerUnit?: string;
+        powerMin?: number;
+        powerMax?: number;
+        pressureIsVisible?: boolean;
+        pressureUnit?: string;
+        pressureMin?: number;
+        pressureMax?: number;
+        voltageIsVisible?: boolean;
+        voltageUnit?: string;
+        voltageMin?: number;
+        voltageMax?: number;
+        amperageIsVisible?: boolean;
+        amperageUnit?: string;
+        amperageMin?: number;
+        amperageMax?: number;
+        createdUserId?: number;
+    }): Promise<any> {
+        const { data, error } = await supabase
+            .from('cfg_units_assets_tags')
+            .insert({
+                unit_id: payload.unitId,
+                asset_tag_id: payload.assetTagId,
+                asset_tag_sub_id: payload.assetTagSubId || null,
+                asset_tag_tag_sub_description: payload.assetTagTagSubDescription || null,
+                operation_unit: payload.operationUnit || null,
+                asset_available_rate: payload.assetAvailableRate ?? 0,
+                flow_rate_is_visible: payload.flowRateIsVisible ?? false,
+                flow_rate_unit: payload.flowRateUnit || null,
+                flow_rate_min: payload.flowRateMin ?? 0,
+                flow_rate_max: payload.flowRateMax ?? 0,
+                power_is_visible: payload.powerIsVisible ?? false,
+                power_unit: payload.powerUnit || null,
+                power_min: payload.powerMin ?? 0,
+                power_max: payload.powerMax ?? 0,
+                pressure_is_visible: payload.pressureIsVisible ?? false,
+                pressure_unit: payload.pressureUnit || null,
+                pressure_min: payload.pressureMin ?? 0,
+                pressure_max: payload.pressureMax ?? 0,
+                voltage_is_visible: payload.voltageIsVisible ?? false,
+                voltage_unit: payload.voltageUnit || null,
+                voltage_min: payload.voltageMin ?? 0,
+                voltage_max: payload.voltageMax ?? 0,
+                amperage_is_visible: payload.amperageIsVisible ?? false,
+                amperage_unit: payload.amperageUnit || null,
+                amperage_min: payload.amperageMin ?? 0,
+                amperage_max: payload.amperageMax ?? 0,
+                is_active: true,
+                is_deleted: false,
+                last_created_at: getBrazilTimestamp(),
+                created_at: getBrazilTimestamp(),
+                created_user_id: payload.createdUserId || null,
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async updateUnitAssetTag(id: number, payload: {
+        unitId?: number;
+        assetTagId?: number;
+        assetTagSubId?: number | null;
+        assetTagTagSubDescription?: string;
+        operationUnit?: string;
+        assetAvailableRate?: number;
+        flowRateIsVisible?: boolean;
+        flowRateUnit?: string;
+        flowRateMin?: number;
+        flowRateMax?: number;
+        powerIsVisible?: boolean;
+        powerUnit?: string;
+        powerMin?: number;
+        powerMax?: number;
+        pressureIsVisible?: boolean;
+        pressureUnit?: string;
+        pressureMin?: number;
+        pressureMax?: number;
+        isActive?: boolean;
+        updatedUserId?: number;
+    }): Promise<any> {
+        const updateData: any = {};
+
+        if (payload.unitId !== undefined) updateData.unit_id = payload.unitId;
+        if (payload.assetTagId !== undefined) updateData.asset_tag_id = payload.assetTagId;
+        if (payload.assetTagSubId !== undefined) updateData.asset_tag_sub_id = payload.assetTagSubId;
+        if (payload.assetTagTagSubDescription !== undefined) updateData.asset_tag_tag_sub_description = payload.assetTagTagSubDescription;
+        if (payload.operationUnit !== undefined) updateData.operation_unit = payload.operationUnit;
+        if (payload.assetAvailableRate !== undefined) updateData.asset_available_rate = payload.assetAvailableRate;
+        if (payload.flowRateIsVisible !== undefined) updateData.flow_rate_is_visible = payload.flowRateIsVisible;
+        if (payload.flowRateUnit !== undefined) updateData.flow_rate_unit = payload.flowRateUnit;
+        if (payload.flowRateMin !== undefined) updateData.flow_rate_min = payload.flowRateMin;
+        if (payload.flowRateMax !== undefined) updateData.flow_rate_max = payload.flowRateMax;
+        if (payload.powerIsVisible !== undefined) updateData.power_is_visible = payload.powerIsVisible;
+        if (payload.powerUnit !== undefined) updateData.power_unit = payload.powerUnit;
+        if (payload.powerMin !== undefined) updateData.power_min = payload.powerMin;
+        if (payload.powerMax !== undefined) updateData.power_max = payload.powerMax;
+        if (payload.pressureIsVisible !== undefined) updateData.pressure_is_visible = payload.pressureIsVisible;
+        if (payload.pressureUnit !== undefined) updateData.pressure_unit = payload.pressureUnit;
+        if (payload.pressureMin !== undefined) updateData.pressure_min = payload.pressureMin;
+        if (payload.pressureMax !== undefined) updateData.pressure_max = payload.pressureMax;
+        if (payload.isActive !== undefined) updateData.is_active = payload.isActive;
+
+        updateData.updated_at = getBrazilTimestamp();
+        if (payload.updatedUserId !== undefined) updateData.updated_user_id = payload.updatedUserId;
+
+        const { data, error } = await supabase
+            .from('cfg_units_assets_tags')
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async deleteUnitAssetTag(id: number, deletedUserId?: number | null): Promise<void> {
+        const { error } = await supabase
+            .from('cfg_units_assets_tags')
+            .update({
+                is_deleted: true,
+                deleted_at: getBrazilTimestamp(),
+                deleted_user_id: deletedUserId || null,
+            })
+            .eq('id', id);
+
+        if (error) throw error;
     }
 
 };

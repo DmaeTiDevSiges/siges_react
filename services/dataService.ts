@@ -1098,6 +1098,66 @@ export const dataService = {
     return assetTagsService.getUnitAssetTags.apply(assetTagsService, arguments as any);
   },
 
+    async createUnitAssetTag(payload: {
+        unitId: number;
+        assetTagId: number;
+        assetTagSubId?: number | null;
+        assetTagTagSubDescription?: string;
+        operationUnit?: string;
+        assetAvailableRate?: number;
+        flowRateIsVisible?: boolean;
+        flowRateUnit?: string;
+        flowRateMin?: number;
+        flowRateMax?: number;
+        powerIsVisible?: boolean;
+        powerUnit?: string;
+        powerMin?: number;
+        powerMax?: number;
+        pressureIsVisible?: boolean;
+        pressureUnit?: string;
+        pressureMin?: number;
+        pressureMax?: number;
+        voltageIsVisible?: boolean;
+        voltageUnit?: string;
+        voltageMin?: number;
+        voltageMax?: number;
+        amperageIsVisible?: boolean;
+        amperageUnit?: string;
+        amperageMin?: number;
+        amperageMax?: number;
+        createdUserId?: number;
+    }): Promise<any> {
+        return assetTagsService.createUnitAssetTag.apply(assetTagsService, arguments as any);
+    },
+
+    async updateUnitAssetTag(id: number, payload: {
+        unitId?: number;
+        assetTagId?: number;
+        assetTagSubId?: number | null;
+        assetTagTagSubDescription?: string;
+        operationUnit?: string;
+        assetAvailableRate?: number;
+        flowRateIsVisible?: boolean;
+        flowRateUnit?: string;
+        flowRateMin?: number;
+        flowRateMax?: number;
+        powerIsVisible?: boolean;
+        powerUnit?: string;
+        powerMin?: number;
+        powerMax?: number;
+        pressureIsVisible?: boolean;
+        pressureUnit?: string;
+        pressureMin?: number;
+        pressureMax?: number;
+        isActive?: boolean;
+        updatedUserId?: number;
+    }): Promise<any> {
+        return assetTagsService.updateUnitAssetTag.apply(assetTagsService, arguments as any);
+    },
+
+    async deleteUnitAssetTag(id: number, deletedUserId?: number | null): Promise<void> {
+        return assetTagsService.deleteUnitAssetTag.apply(assetTagsService, arguments as any);
+    },
 
     // -------------------------------------------------------------------------
     // ASSET ATTRIBUTES (Dynamic Fields)
