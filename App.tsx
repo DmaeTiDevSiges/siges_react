@@ -408,6 +408,7 @@ const AppContent: React.FC = () => {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [lastAssetSource, setLastAssetSource] = useState<Screen>('assets-search');
   const [lastOrderSource, setLastOrderSource] = useState<Screen>('orders-dashboard');
+  const [lastVisitSource, setLastVisitSource] = useState<Screen>('visits-dashboard');
   const [selectedOrderVisitAsset, setSelectedOrderVisitAsset] = useState<OrderVisitAssetView | null>(null);
   const [selectedVisitForAssetReport, setSelectedVisitForAssetReport] = useState<OrderVisit | null>(null);
   const [selectedOrderVisitAssetId, setSelectedOrderVisitAssetId] = useState<string | null>(null);
@@ -902,6 +903,9 @@ const AppContent: React.FC = () => {
   };
 
   const handleVisitSelect = (visit: import('./types').OrderVisit) => {
+    if (currentScreen !== 'order-visit-execute') {
+      setLastVisitSource(currentScreen);
+    }
     setSelectedVisit(visit);
     setVisitActiveTab('home');
     setCurrentScreen('order-visit-execute');
@@ -1138,6 +1142,7 @@ const AppContent: React.FC = () => {
       setCurrentScreen('asset-details');
     } else if (currentScreen === 'order-detail') {
       if (selectedOrder?.id === currentUser?.oIdInProgress) {
+        setLastVisitSource('order-detail');
         setCurrentScreen('order-visit-execute');
       } else {
         setCurrentScreen(lastOrderSource);
@@ -1150,7 +1155,7 @@ const AppContent: React.FC = () => {
       setCurrentScreen('orders-dashboard');
     } else if (currentScreen === 'order-visit-execute') {
       setSelectedVisit(null);
-      setCurrentScreen(selectedOrder ? 'order-detail' : (['orders', 'visits', 'dashboard-orders-admin'].includes(activeTab) ? 'orders-dashboard' : 'dashboard'));
+      setCurrentScreen(lastVisitSource);
     } else if (currentScreen === 'order-visit-asset-report') {
       setCurrentScreen(assetReportBackScreen);
     } else if (currentScreen === 'order-visit-asset-activities' || currentScreen === 'order-visit-asset-materials') {
@@ -1760,6 +1765,7 @@ const AppContent: React.FC = () => {
             initialTab={dashboardInitialTab}
             onSelectOrder={handleOrderSelect}
             onResumeVisit={(visitId) => {
+              setLastVisitSource('dashboard');
               setCurrentScreen('order-visit-execute');
             }}
             onSelectVisit={handleVisitSelect}
@@ -2347,6 +2353,7 @@ const AppContent: React.FC = () => {
             onRefreshOrder={() => handleRefreshOrder(selectedOrder.id)}
             onBack={() => {
               if (selectedOrder.id === currentUser?.oIdInProgress) {
+                setLastVisitSource('order-detail');
                 setCurrentScreen('order-visit-execute');
               } else {
                 handleBack();
@@ -2388,6 +2395,7 @@ const AppContent: React.FC = () => {
                         if (updatedUser) {
                           setCurrentUser(updatedUser);
                           if (updatedUser.ovIdInProgress) {
+                            setLastVisitSource('order-detail');
                             setCurrentScreen('order-visit-execute');
                           } else {
                             setCurrentScreen('dashboard');
@@ -2429,15 +2437,7 @@ const AppContent: React.FC = () => {
             onTabChange={handleVisitTabChange}
             onBack={() => {
               setSelectedVisit(null);
-              if (selectedOrder) {
-                setCurrentScreen('order-detail');
-              } else if (['orders', 'visits', 'dashboard-orders-admin'].includes(activeTab)) {
-                setCurrentScreen('orders-dashboard');
-              } else {
-                setDashboardInitialTab('visits');
-                localStorage.setItem('dashboardInitialTab', 'visits');
-                setCurrentScreen('dashboard');
-              }
+              setCurrentScreen(lastVisitSource);
             }}
             onEndVisit={() => {
               setSelectedVisit(null);
