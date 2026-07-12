@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { dataService } from '../../services/dataService';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -14,6 +14,31 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [sessionReady, setSessionReady] = useState(false);
+
+    // Wait for Supabase to establish the recovery session
+    useEffect(() => {
+        const checkSession = async () => {
+            try {
+                const { data: { session }, error } = await (await import('../../services/supabase')).supabase.auth.getSession();
+                console.log('[ResetPassword] Session check:', session ? 'active' : 'none', error?.message || '');
+                if (session) {
+                    setSessionReady(true);
+                } else {
+                    // Retry after a short delay — PKCE exchange may still be in progress
+                    setTimeout(async () => {
+                        const { data: { session: retrySession } } = await (await import('../../services/supabase')).supabase.auth.getSession();
+                        console.log('[ResetPassword] Retry session check:', retrySession ? 'active' : 'none');
+                        setSessionReady(!!retrySession);
+                    }, 2000);
+                }
+            } catch (e) {
+                console.error('[ResetPassword] Session check failed:', e);
+                setSessionReady(true); // Try anyway
+            }
+        };
+        checkSession();
+    }, []);
 
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,14 +57,39 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
         setError(null);
 
         try {
-            await dataService.updatePassword(password);
+            const { supabase } = await import('../../services/supabase');
+
+            // Ensure session is loaded before calling updateUser
+            const { data: { session } } = await supabase.auth.getSession();
+            console.log('[ResetPassword] Pre-update session:', session ? 'active' : 'none');
+
+            if (!session) {
+                setError('Sessão de recuperação não encontrada. Solicite um novo link de recuperação.');
+                setLoading(false);
+                return;
+            }
+
+            const { data, error: updateError } = await supabase.auth.updateUser({ password });
+            console.log('[ResetPassword] Update result:', data, updateError);
+
+            if (updateError) {
+                throw updateError;
+            }
+
             setSuccess(true);
             setTimeout(() => {
                 onSuccess();
             }, 2000);
         } catch (err: any) {
             console.error('Update password error:', err);
-            setError('Falha ao atualizar a senha. O link pode ter expirado.');
+            const msg = err?.message || err?.error_description || String(err);
+            if (msg.includes('same_password')) {
+                setError('A nova senha deve ser diferente da atual.');
+            } else if (msg.includes('weak_password')) {
+                setError('A senha é muito fraca. Use pelo menos 6 caracteres.');
+            } else {
+                setError(`Falha ao atualizar a senha: ${msg}`);
+            }
         } finally {
             setLoading(false);
         }
