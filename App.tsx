@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NetworkProvider } from './contexts/NetworkContext';
 import { useNetworkStatus, useNetworkAndQuality, useQualityNotifications } from './hooks/useNetworkStatus';
 import { useNetworkAndQuality as useCombinedNetwork } from './hooks/useNetworkAndQuality';
@@ -200,6 +200,18 @@ const AppContent: React.FC = () => {
       try {
         const url = new URL(data.url);
         const path = url.pathname;
+        const hash = url.hash;
+        const search = url.search;
+
+        // Password recovery deep link: siges://reset-password#... or siges://?code=...
+        if (path.includes('/reset-password') || hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('code=')) {
+          console.log('[App] Recovery deep link detected');
+          // Build a web-compatible URL so the existing recovery logic can process it
+          const webParams = search ? search.substring(1) : '';
+          const webHash = hash || '';
+          window.location.href = `/${webParams ? '?' + webParams : ''}${webHash}`;
+          return;
+        }
 
         if (path.includes('/visit') || path.includes('/order-visit')) {
           setCurrentScreen('order-visit-execute');
@@ -320,13 +332,13 @@ const AppContent: React.FC = () => {
   // Computed once from the URL at the time the app loads.
   // Used to know if this page load originated from a password recovery link.
   // Covers: implicit (#type=recovery), PKCE via GoTrue (?code=), token_hash approach (?token_hash=...&type=recovery)
-  const isRecoveryFlow = (() => {
+  const isRecoveryFlowRef = useRef((() => {
     const params = new URLSearchParams(window.location.search);
     return window.location.hash.includes('type=recovery') ||
       params.get('type') === 'recovery' ||
       params.has('token_hash') ||
-      params.has('code'); // In this app, ?code= only comes from GoTrue recovery redirects (no OAuth)
-  })();
+      params.has('code');
+  })());
 
   const [authScreen, setAuthScreen] = useState<'login' | 'forgot-password' | 'reset-password'>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -617,7 +629,7 @@ const AppContent: React.FC = () => {
           clearTimeout(signedOutTimer);
           signedOutTimer = null;
         }
-        if (isRecoveryFlow) {
+        if (isRecoveryFlowRef.current) {
           // SIGNED_IN can fire instead of (or after) PASSWORD_RECOVERY in PKCE flow.
           // If we loaded from a recovery URL, keep showing the reset screen.
           setAuthScreen('reset-password');
@@ -628,7 +640,7 @@ const AppContent: React.FC = () => {
         // Debounce SIGNED_OUT: Supabase can fire SIGNED_OUT briefly during token refresh
         // on self-hosted instances. Wait 2s to see if SIGNED_IN follows.
         // SKIP during recovery flow — the session is valid for password reset.
-        if (isRecoveryFlow) {
+        if (isRecoveryFlowRef.current) {
           console.warn('[Auth] SIGNED_OUT ignored during recovery flow');
           return;
         }
@@ -2697,6 +2709,8 @@ const AppContent: React.FC = () => {
   // will be set — but we still need to show the password reset form.
   if (authScreen === 'reset-password') {
     return <ResetPasswordScreen onSuccess={() => {
+      isRecoveryFlowRef.current = false; // Mark recovery flow as complete
+      window.history.replaceState({}, document.title, '/'); // Clean URL params
       setAuthScreen('login');
       setCurrentUser(null); // Force re-auth after password change
     }} />;

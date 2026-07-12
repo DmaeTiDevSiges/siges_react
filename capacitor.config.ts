@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appId: 'com.ag.siges',
   appName: 'Siges',
   webDir: 'dist',
+  server: {
+    androidScheme: 'https',
+  },
   plugins: {
     Keyboard: {
       resize: 'body',

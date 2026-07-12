@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siges - Redirecionando...</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container { text-align: center; max-width: 400px; }
+        h1 { font-size: 1.5rem; margin-bottom: 8px; }
+        p { color: #94a3b8; margin-bottom: 24px; line-height: 1.5; }
+        .btn {
+            display: inline-block;
+            background: #3b82f6;
+            color: #fff;
+            padding: 14px 32px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #2563eb; }
+        .info { margin-top: 16px; color: #64748b; font-size: 0.85rem; }
+        .error { color: #ef4444; margin-top: 12px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Abrir no Siges</h1>
+        <p>Redirecionando para o aplicativo...</p>
+        <p id="error" class="error"></p>
+        <a id="openApp" class="btn" href="#">Abrir App</a>
+        <p class="info">O app não abriu? Verifique se está instalado.</p>
+    </div>
+
+    <script>
+        (function() {
+            // GoTrue redirects here with token params in query or hash
+            // Example: /deep-link-redirect.html?code=abc123&type=recovery
+            // Or: /deep-link-redirect.html#access_token=...&refresh_token=...&type=recovery
+            var search = window.location.search;
+            var hash = window.location.hash;
+
+            // Build deep link: siges://reset-password?code=...&type=recovery
+            // GoTrue puts params in query (?code=xxx) or hash (#access_token=xxx)
+            var deepLink = 'siges://reset-password';
+
+            if (search && search.length > 1) {
+                deepLink += search;
+            } else if (hash && hash.length > 1) {
+                deepLink += hash;
+            }
+
+            // Update button
+            var btn = document.getElementById('openApp');
+            btn.href = deepLink;
+
+            // Try to open immediately
+            window.location.href = deepLink;
+
+            // Show error after 5s if still on page
+            setTimeout(function() {
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent =
+                    'O app não abriu automaticamente. Toque no botão acima.';
+            }, 5000);
+        })();
+    </script>
+</body>
+</html>

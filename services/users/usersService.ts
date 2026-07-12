@@ -1094,8 +1094,15 @@ export const usersService = {
     },
 
     async resetPassword(email: string): Promise<void> {
+        // On native (Capacitor), redirect to a web page that redirects to siges:// deep link.
+        // On web, redirect to the app itself.
+        const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
+        const redirectBase = import.meta.env.VITE_DEEP_LINK_REDIRECT_URL || `${window.location.origin}`;
+        const redirectTo = isNative
+            ? `${redirectBase}/deep-link-redirect.html`
+            : `${window.location.origin}/`;
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/`,
+            redirectTo,
         });
         if (error) throw error;
     },
