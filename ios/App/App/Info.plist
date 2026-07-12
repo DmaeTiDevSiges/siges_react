@@ -31,6 +31,12 @@
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>O Siges usa sua localização em segundo plano para registrar visitas e deslocamentos de campo.</string>
 
+	<!-- Camera and photo library permissions — required for photo capture and gallery access. -->
+	<key>NSCameraUsageDescription</key>
+	<string>O Siges precisa acesso à câmera para tirar fotos de ativos, equipamentos e evidências de campo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O Siges precisa acesso à sua galeria para selecionar fotos de ativos, equipamentos e evidências de campo.</string>
+
 	<!-- Required for background location updates. -->
 	<key>UIBackgroundModes</key>
 	<array>

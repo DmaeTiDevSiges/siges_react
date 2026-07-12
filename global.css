@@ -4,6 +4,11 @@ body {
     overscroll-behavior: none;
 }
 
+/* Font scaling: respect system accessibility settings */
+html {
+    font-size: clamp(14px, 1rem, 16px);
+}
+
 input, textarea, select {
     font-size: 16px !important;
 }

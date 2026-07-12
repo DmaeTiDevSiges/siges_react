@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { dataService } from '../../services/dataService';
 import { getInitials } from '../../utils/formatters';
 import { UserNotification } from '../../types';
@@ -13,6 +13,8 @@ interface NotificationsListProps {
     onNotificationClick?: (notification: UserNotification) => void;
 }
 
+const PULL_THRESHOLD = 60;
+
 export const NotificationsList: React.FC<NotificationsListProps> = ({
     notifications: initialNotifications,
     onNotificationRead,
@@ -24,6 +26,11 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Pull-to-refresh state
+    const [pullDistance, setPullDistance] = useState(0);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const pullStartRef = useRef<number | null>(null);
 
     // Initial sync
     useEffect(() => {
@@ -39,9 +46,6 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
             const checkAndLoad = () => {
                 const container = scrollContainerRef.current;
                 if (container) {
-                    // Check if we can scroll. If not, load more if available.
-                    // For a whole page, we might want to check window height if it's not a fixed container
-                    // But here it will be inside a layout, so let's stick to container or window
                     const isScrollable = container.scrollHeight > container.clientHeight;
                     if (!isScrollable) {
                         loadMore();
@@ -81,6 +85,49 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
             setIsLoadingMore(false);
         }
     };
+
+    const handleRefresh = useCallback(async () => {
+        setIsRefreshing(true);
+        try {
+            const freshNotifications = await dataService.getNotifications(0, 10);
+            setLocalNotifications(freshNotifications);
+            setPage(0);
+            setHasMore(freshNotifications.length >= 10);
+            toast.success('Notificações atualizadas');
+        } catch (error) {
+            console.error('Error refreshing notifications:', error);
+            toast.error('Erro ao atualizar notificações');
+        } finally {
+            setIsRefreshing(false);
+            setPullDistance(0);
+        }
+    }, []);
+
+    const handlePullTouchStart = useCallback((e: React.TouchEvent) => {
+        const container = scrollContainerRef.current;
+        if (container && container.scrollTop <= 0) {
+            pullStartRef.current = e.touches[0].clientY;
+        }
+    }, []);
+
+    const handlePullTouchMove = useCallback((e: React.TouchEvent) => {
+        if (pullStartRef.current === null || isRefreshing) return;
+        const dy = e.touches[0].clientY - pullStartRef.current;
+        if (dy > 0) {
+            setPullDistance(Math.min(dy * 0.5, PULL_THRESHOLD * 1.5));
+        }
+    }, [isRefreshing]);
+
+    const handlePullTouchEnd = useCallback(() => {
+        if (pullStartRef.current === null) return;
+        pullStartRef.current = null;
+
+        if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+            handleRefresh();
+        } else {
+            setPullDistance(0);
+        }
+    }, [pullDistance, isRefreshing, handleRefresh]);
 
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -161,8 +208,26 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
         <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
+            onTouchStart={handlePullTouchStart}
+            onTouchMove={handlePullTouchMove}
+            onTouchEnd={handlePullTouchEnd}
             className="flex-1 overflow-y-auto px-4 py-6 md:p-8 custom-scrollbar h-full"
         >
+            {/* Pull-to-refresh indicator */}
+            {(pullDistance > 0 || isRefreshing) && (
+                <div
+                    className="flex justify-center items-center overflow-hidden transition-all duration-200"
+                    style={{ height: `${pullDistance}px` }}
+                >
+                    <div className={`flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-widest ${isRefreshing ? 'ptr-spinner' : ''}`}>
+                        <span className="material-symbols-outlined text-lg">
+                            {isRefreshing ? 'sync' : pullDistance >= PULL_THRESHOLD ? 'arrow_downward' : 'arrow_downward'}
+                        </span>
+                        {isRefreshing ? 'Atualizando...' : pullDistance >= PULL_THRESHOLD ? 'Solte para atualizar' : 'Puxe para atualizar'}
+                    </div>
+                </div>
+            )}
+
             <div className="max-w-2xl mx-auto space-y-4">
                 {localNotifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
@@ -240,11 +305,11 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
                                                             handleRead(notification.id);
                                                         }}
                                                         disabled={loadingId === notification.id}
-                                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${loadingId === notification.id
+                                                        aria-label="Excluir notificação"
+                                                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${loadingId === notification.id
                                                             ? 'bg-slate-100 dark:bg-slate-800 animate-spin'
                                                             : 'text-slate-300 hover:text-red-500 hover:bg-red-500/10 dark:text-slate-600 dark:hover:text-red-400 dark:hover:bg-red-400/10'
                                                             }`}
-                                                        title="Excluir notificação"
                                                     >
                                                         <span className="material-symbols-outlined text-lg">
                                                             {loadingId === notification.id ? 'sync' : 'delete'}

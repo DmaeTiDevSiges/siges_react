@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 const isDev = import.meta.env.DEV;
 const EXTERNAL_WEBHOOK_URL = import.meta.env.VITE_API_N8N_WEBHOOK;
 const WHATSAPP_SEND_MSG_ENDPOINT = import.meta.env.VITE_API_N8N_WEBHOOK_WHATSAPP_SEND_MSG;
+const IMPERSONATE_ENDPOINT = import.meta.env.VITE_API_N8N_WEBHOOK_IMPERSONATE || 'webhook/siges-impersonate-user';
+const RESTORE_PASSWORD_ENDPOINT = import.meta.env.VITE_API_N8N_WEBHOOK_RESTORE_PASSWORD || 'webhook/siges-restore-password';
 
 export const apiN8nService = {
     /**
@@ -95,6 +97,74 @@ export const apiN8nService = {
             throw error;
         } finally {
             clearTimeout(timer);
+        }
+    },
+
+    /**
+     * Gera uma sessão temporária para impersonação de usuário (super admin apenas).
+     * @param targetUserId ID do usuário a ser impersonado
+     * @param requesterToken Token JWT do super admin solicitante
+     * @param requesterId ID numérico do super admin solicitante (para verificação no n8n)
+     * @returns URL de magic link ou tokens de sessão
+     */
+    async impersonateUser(targetUserId: string, requesterToken: string, requesterUserId: string): Promise<{ email: string; password: string; uuid: string }> {
+        if (!EXTERNAL_WEBHOOK_URL && !isDev) {
+            throw new Error('N8N Webhook URL não configurada no .env');
+        }
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+        const url = isDev ? `/${IMPERSONATE_ENDPOINT}` : `${EXTERNAL_WEBHOOK_URL}/${IMPERSONATE_ENDPOINT}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${requesterToken}`,
+            },
+            body: JSON.stringify({ targetUserId, requesterUserId, supabaseUrl, supabaseServiceKey }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Falha ao impersonar usuário: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        // PostgreSQL node wraps in { result: { email, password, uuid } }
+        const payload = data.result || data;
+        return { email: payload.email, password: payload.password, uuid: payload.uuid };
+    },
+
+    /**
+     * Restaura a senha original do usuário após impersonação.
+     * @param userUuid UUID do usuário impersonado
+     */
+    async restorePassword(userUuid: string): Promise<void> {
+        if (!EXTERNAL_WEBHOOK_URL && !isDev) {
+            throw new Error('N8N Webhook URL não configurada no .env');
+        }
+
+        const url = isDev ? `/${RESTORE_PASSWORD_ENDPOINT}` : `${EXTERNAL_WEBHOOK_URL}/${RESTORE_PASSWORD_ENDPOINT}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userUuid }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Falha ao restaurar senha: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const payload = data.result || data;
+        if (payload.error) {
+            throw new Error(payload.error);
         }
     }
 };

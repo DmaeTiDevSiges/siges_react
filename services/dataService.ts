@@ -660,6 +660,14 @@ export const dataService = {
         return usersService.signIn.apply(usersService, arguments as any);
     },
 
+    async impersonateUser(targetUserId: string): Promise<{ email: string; password: string; uuid: string }> {
+        return usersService.impersonateUser.apply(usersService, arguments as any);
+    },
+
+    async exitImpersonation(adminAccessToken: string, adminRefreshToken: string): Promise<void> {
+        return usersService.exitImpersonation.apply(usersService, arguments as any);
+    },
+
     subscribeToAuthChanges(callback: (event: string, session: any) => void) {
         return usersService.subscribeToAuthChanges.apply(usersService, arguments as any);
     },

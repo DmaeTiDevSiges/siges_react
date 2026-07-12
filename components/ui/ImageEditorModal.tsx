@@ -561,7 +561,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 const ToolButton: React.FC<{ active: boolean; icon: string; onClick: () => void }> = ({ active, icon, onClick }) => (
     <button
         onClick={onClick}
-        className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl transition-all duration-200 ${active ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110 z-10' : 'text-white/70 hover:bg-white/10 active:scale-95'}`}
+        className={`w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200 ${active ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110 z-10' : 'text-white/70 hover:bg-white/10 active:scale-95'}`}
     >
         <span className="material-symbols-outlined text-xl">{icon}</span>
     </button>
@@ -570,7 +570,7 @@ const ToolButton: React.FC<{ active: boolean; icon: string; onClick: () => void 
 const ColorDot: React.FC<{ active: boolean; color: string; onClick: () => void }> = ({ active, color, onClick }) => (
     <button
         onClick={onClick}
-        className={`w-8 h-8 rounded-full border-2 transition-all p-0.5 ${active ? 'border-primary scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
+        className={`w-11 h-11 rounded-full border-2 transition-all p-0.5 ${active ? 'border-primary scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
     >
         <div className="w-full h-full rounded-full" style={{ backgroundColor: color }} />
     </button>

@@ -6,6 +6,7 @@ import { Layout } from './components/Layout';
 import { BottomNav } from './components/BottomNav';
 import { Button } from './components/ui/Button';
 import { SplashScreen } from './components/SplashScreen';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import UpdateNotifier from './components/UpdateNotifier';
 import { dataService } from './services/dataService';
 import { usePermissions } from './contexts/PermissionsContext';
@@ -188,6 +189,51 @@ const AppContent: React.FC = () => {
       setMinTimePassed(true);
     }, 7000);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Deep linking handler — listen for app URL opens
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handleAppUrlOpen = async (data: { url: string }) => {
+      console.log('[App] Deep link received:', data.url);
+      try {
+        const url = new URL(data.url);
+        const path = url.pathname;
+
+        if (path.includes('/visit') || path.includes('/order-visit')) {
+          setCurrentScreen('order-visit-execute');
+        } else if (path.includes('/order')) {
+          setCurrentScreen('orders-dashboard');
+        } else if (path.includes('/asset')) {
+          setCurrentScreen('assets-search');
+        } else if (path.includes('/profile')) {
+          setCurrentScreen('profile');
+        }
+      } catch (e) {
+        console.warn('[App] Failed to parse deep link:', e);
+      }
+    };
+
+    // Use Capacitor App plugin if available
+    import('@capacitor/app').then(({ App }) => {
+      App.addListener('appUrlOpen', handleAppUrlOpen);
+    }).catch(() => {
+      // Plugin not available — silent fail
+    });
+  }, []);
+
+  // Status bar configuration on native
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+      StatusBar.setStyle({ style: Style.Light });
+      StatusBar.setBackgroundColor({ color: '#ffffff' });
+      StatusBar.setOverlaysWebView({ overlay: false });
+    }).catch(() => {
+      // Plugin not installed — silent fail
+    });
   }, []);
 
 
@@ -581,6 +627,11 @@ const AppContent: React.FC = () => {
       } else if (event === 'SIGNED_OUT') {
         // Debounce SIGNED_OUT: Supabase can fire SIGNED_OUT briefly during token refresh
         // on self-hosted instances. Wait 2s to see if SIGNED_IN follows.
+        // SKIP during recovery flow — the session is valid for password reset.
+        if (isRecoveryFlow) {
+          console.warn('[Auth] SIGNED_OUT ignored during recovery flow');
+          return;
+        }
         signedOutTimer = setTimeout(() => {
           console.warn('[Auth] SIGNED_OUT confirmed after debounce — redirecting to login');
           setCurrentUser(null);
@@ -1910,11 +1961,14 @@ const AppContent: React.FC = () => {
           />
         ) : null;
       case 'all-users':
-        return <AllUsersList onSelectUser={async (user) => {
-          setSelectedUser(user);
-          localStorage.setItem('last_screen_before_profile', 'all-users');
-          setCurrentScreen('user-details');
-        }} />;
+        return <AllUsersList
+          onSelectUser={async (user) => {
+            setSelectedUser(user);
+            localStorage.setItem('last_screen_before_profile', 'all-users');
+            setCurrentScreen('user-details');
+          }}
+          currentUser={currentUser}
+        />;
       case 'user-details':
         return selectedUser ? (
           <UserViewScreen
@@ -2680,7 +2734,15 @@ const AppContent: React.FC = () => {
             isFullscreenMapMode={true}
           />
         </div>
-        <Toaster position="top-right" richColors closeButton style={{ top: '24px', position: 'fixed' }} />
+        <Toaster
+          position={Capacitor.isNativePlatform() ? 'bottom-center' : 'top-right'}
+          richColors
+          closeButton
+          style={Capacitor.isNativePlatform()
+            ? { bottom: 'calc(1.5rem + env(safe-area-inset-bottom))', position: 'fixed' }
+            : { top: '24px', position: 'fixed' }
+          }
+        />
       </PermissionsProvider>
     );
   }
@@ -2902,9 +2964,59 @@ const AppContent: React.FC = () => {
             }}
           />
 
-          <Toaster position="top-right" richColors closeButton style={{ top: '96px', position: 'fixed' }} />
+          <Toaster
+            position={Capacitor.isNativePlatform() ? 'bottom-center' : 'top-right'}
+            richColors
+            closeButton
+            style={Capacitor.isNativePlatform()
+              ? { bottom: 'calc(1.5rem + env(safe-area-inset-bottom))', position: 'fixed' }
+              : { top: '96px', position: 'fixed' }
+            }
+          />
           <UpdateNotifier />
         </div>
+        )}
+
+        {/* Floating Exit Impersonation Button */}
+        {sessionStorage.getItem('is_impersonating') === 'true' && (
+          <button
+            onClick={async () => {
+              try {
+                // 1. Restore original password before switching back
+                const impersonatedUuid = sessionStorage.getItem('impersonated_user_uuid');
+                if (impersonatedUuid) {
+                  const { apiN8nService } = await import('./services/apiN8nService');
+                  await apiN8nService.restorePassword(impersonatedUuid);
+                }
+              } catch (e) {
+                console.error('Erro ao restaurar senha:', e);
+                // Continue even if restore fails — admin can reset password manually
+              }
+
+              // 2. Restore admin session
+              const adminToken = sessionStorage.getItem('admin_access_token');
+              const adminRefresh = sessionStorage.getItem('admin_refresh_token');
+              if (adminToken && adminRefresh) {
+                const { supabase } = await import('./services/supabase');
+                await supabase.auth.setSession({
+                  access_token: adminToken,
+                  refresh_token: adminRefresh,
+                });
+              }
+
+              // 3. Clean up
+              sessionStorage.removeItem('is_impersonating');
+              sessionStorage.removeItem('impersonated_user_uuid');
+              sessionStorage.removeItem('admin_access_token');
+              sessionStorage.removeItem('admin_refresh_token');
+              window.location.reload();
+            }}
+            className="fixed bottom-6 right-6 z-[99999] w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg flex items-center justify-center hover:bg-amber-600 transition-colors active:scale-95"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            title="Voltar ao Admin"
+          >
+            <span className="material-symbols-outlined text-[22px]">admin_panel_settings</span>
+          </button>
         )}
       </PermissionsProvider>
     </>
@@ -2917,7 +3029,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <NetworkProvider>
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
     </NetworkProvider>
   );
 };

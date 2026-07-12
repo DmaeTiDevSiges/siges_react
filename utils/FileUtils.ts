@@ -68,24 +68,47 @@ export const FileUtils = {
      * Tenta compartilhar o arquivo salvo para que o usuário possa abrir ou salvar
      */
     shareFile: async (uri: string, fileName: string) => {
-        try {
-            const { Share } = await import('@capacitor/share');
-            const isSupported = await Share.canShare();
-            
-            if (isSupported) {
-                await Share.share({
+        // 1. Try native Share first (Capacitor)
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const { Share } = await import('@capacitor/share');
+                const isSupported = await Share.canShare();
+                
+                if (isSupported) {
+                    await Share.share({
+                        title: fileName,
+                        text: 'PDF gerado pelo Siges',
+                        url: uri,
+                        dialogTitle: 'Abrir PDF'
+                    });
+                    return;
+                }
+            } catch (shareError) {
+                console.error('[FileUtils] Erro ao compartilhar arquivo:', shareError);
+            }
+        }
+
+        // 2. Fallback: Web Share API (browser)
+        if (!Capacitor.isNativePlatform() && navigator.share) {
+            try {
+                const response = await fetch(uri);
+                const blob = await response.blob();
+                const file = new File([blob], fileName, { type: blob.type });
+                
+                await navigator.share({
                     title: fileName,
                     text: 'PDF gerado pelo Siges',
-                    url: uri,
-                    dialogTitle: 'Abrir PDF'
+                    files: [file]
                 });
-            } else {
-                console.warn('[FileUtils] Share não suportado nesta plataforma/contexto.');
+                return;
+            } catch (webShareError) {
+                console.warn('[FileUtils] Web Share API falhou, tentando fallback:', webShareError);
             }
-        } catch (shareError) {
-            console.error('[FileUtils] Erro ao compartilhar arquivo:', shareError);
-            // Em alguns Androids, o browser.open pode funcionar se tivermos o FileProvider configurado, 
-            // mas o Share é mais robusto.
+        }
+
+        // 3. Final fallback: open in new tab
+        if (!Capacitor.isNativePlatform()) {
+            window.open(uri, '_blank');
         }
     },
 

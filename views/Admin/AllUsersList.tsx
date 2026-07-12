@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../types';
 import { dataService } from '../../services/dataService';
+import { supabase } from '../../services/supabase';
 import { toast } from 'sonner';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { StatusBadge } from '../../components/ui/StatusBadge';
@@ -12,12 +13,14 @@ import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/User
 interface AllUsersListProps {
     onAddUser?: () => void;
     onSelectUser?: (user: User) => void;
+    currentUser?: User | null;
 }
 
-export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectUser }) => {
+export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectUser, currentUser }) => {
     const [search, setSearch] = useState(() => localStorage.getItem('users_search') || '');
     const [selectedTeam, setSelectedTeam] = useState<string>('');
     const [selectedProfile, setSelectedProfile] = useState<string>('');
+    const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(null);
 
     const handleSearchChangeLocal = (val: string) => {
         setSearch(val);
@@ -51,6 +54,17 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
         message: '',
         title: ''
     });
+
+    // Impersonation Modal State
+    const [impersonateModal, setImpersonateModal] = useState<{
+        isOpen: boolean;
+        user: User | null;
+    }>({
+        isOpen: false,
+        user: null,
+    });
+
+    const isSuperAdmin = currentUser?.isAdminSuper === true;
 
 
     useEffect(() => {
@@ -110,6 +124,54 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
         } catch (error) {
             console.error("Failed to update status", error);
             toast.error('Erro ao atualizar status.');
+        }
+    };
+
+    const handleImpersonate = async () => {
+        const { user } = impersonateModal;
+        if (!user) return;
+
+        setImpersonatingUserId(user.id);
+        try {
+            // 1. Salvar sessão do super admin atual
+            const { data: { session: adminSession } } = await supabase.auth.getSession();
+            if (!adminSession) {
+                throw new Error('Sessão do admin não encontrada');
+            }
+
+            // 2. Gerar credenciais temporárias via n8n
+            const result = await dataService.impersonateUser(user.id);
+
+            if (!result?.email || !result?.password) {
+                throw new Error('Resposta inválida do servidor de impersonação');
+            }
+
+            // 3. Fazer login como o usuário alvo
+            toast.error(`Entrando na conta de ${user.nameFull || user.email}...`);
+            setImpersonateModal({ isOpen: false, user: null });
+
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: result.email,
+                password: result.password,
+            });
+
+            if (signInError) {
+                throw new Error('Falha ao entrar na conta: ' + signInError.message);
+            }
+
+            // 4. Salvar dados da sessão do admin para poder voltar
+            sessionStorage.setItem('is_impersonating', 'true');
+            sessionStorage.setItem('impersonated_user_uuid', result.uuid);
+            sessionStorage.setItem('admin_access_token', adminSession.access_token);
+            sessionStorage.setItem('admin_refresh_token', adminSession.refresh_token);
+
+            // 5. Recarregar a página para entrar na nova sessão
+            window.location.reload();
+        } catch (error: any) {
+            console.error('Erro ao impersonar usuário:', error);
+            toast.error(error.message || 'Erro ao entrar como usuário');
+        } finally {
+            setImpersonatingUserId(null);
         }
     };
 
@@ -259,8 +321,23 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
                                     </p>
                                 </div>
 
-                                {/* Chevron Right */}
-                                <div className="ml-2 flex items-center shrink-0">
+                                {/* Chevron Right + Impersonate Button */}
+                                <div className="ml-2 flex items-center gap-1 shrink-0">
+                                    {isSuperAdmin && user.id !== currentUser?.id && user.statusName === 'Ativo' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setImpersonateModal({ isOpen: true, user });
+                                            }}
+                                            disabled={impersonatingUserId === user.id}
+                                            className="p-2 rounded-full text-slate-400 hover:text-primary hover:bg-primary/10 transition-all disabled:opacity-50"
+                                            title={`Entrar como ${user.nameFull}`}
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">
+                                                {impersonatingUserId === user.id ? 'sync' : 'login'}
+                                            </span>
+                                        </button>
+                                    )}
                                     {onSelectUser && (
                                         <div className="text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">
                                             <span className="material-symbols-outlined text-[24px]">chevron_right</span>
@@ -288,6 +365,17 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
                 message={statusModal.message}
                 type={statusModal.nextStatusId === 3 ? 'warning' : 'info'}
                 confirmLabel={statusModal.nextStatusId === 3 ? 'Desativar' : 'Confirmar'}
+            />
+
+            <Modal
+                isOpen={impersonateModal.isOpen}
+                onClose={() => setImpersonateModal({ isOpen: false, user: null })}
+                onConfirm={handleImpersonate}
+                title="Entrar como este usuário"
+                message={`Você será redirecionado para a conta de ${impersonateModal.user?.nameFull || impersonateModal.user?.email}. Sua sessão de super admin será salva para voltar depois.`}
+                type="warning"
+                confirmLabel={impersonatingUserId === impersonateModal.user?.id ? 'Entrando...' : 'Confirmar Entrada'}
+                confirmLoading={impersonatingUserId === impersonateModal.user?.id}
             />
 
         </div>

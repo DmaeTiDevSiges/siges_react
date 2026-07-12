@@ -11,6 +11,7 @@ apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
     implementation project(':capacitor-community-background-geolocation')
     implementation project(':capacitor-mlkit-barcode-scanning')
+    implementation project(':capacitor-app')
     implementation project(':capacitor-browser')
     implementation project(':capacitor-camera')
     implementation project(':capacitor-filesystem')
@@ -20,6 +21,7 @@ dependencies {
     implementation project(':capacitor-network')
     implementation project(':capacitor-preferences')
     implementation project(':capacitor-share')
+    implementation project(':capacitor-status-bar')
 
 }
 

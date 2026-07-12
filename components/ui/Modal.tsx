@@ -216,6 +216,9 @@ export const Modal: React.FC<ModalProps> = ({
         <div
             className="fixed inset-0 flex items-center justify-center p-4 sm:p-6"
             style={{ zIndex: 9999, paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={typeof title === 'string' ? title : undefined}
         >
             {/* Backdrop — dimmer when near dismiss threshold */}
             <div

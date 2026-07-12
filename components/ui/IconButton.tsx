@@ -5,6 +5,7 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
     variant?: 'ghost' | 'soft' | 'primary' | 'danger' | 'outline';
     color?: string;
     size?: 'sm' | 'md' | 'lg';
+    ariaLabel?: string;
 }
 
 export const IconButton: React.FC<IconButtonProps> = ({
@@ -13,6 +14,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
     size = 'md',
     className = '',
     color,
+    ariaLabel,
     ...props
 }) => {
     const baseClasses = "flex items-center justify-center rounded-full transition-all duration-200 active:scale-[0.97] active:brightness-95 font-bold flex-shrink-0 cursor-pointer select-none";
@@ -28,15 +30,16 @@ export const IconButton: React.FC<IconButtonProps> = ({
     const style = color ? { borderColor: color, color: color } : {};
 
     const sizes = {
-        sm: "h-8 w-8",
+        sm: "h-11 w-11",
         md: "h-10 w-10",
-        lg: "h-12 w-12", // Increased for a more premium look in modals
+        lg: "h-12 w-12",
     };
 
     return (
         <button
             className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`}
             style={style}
+            aria-label={ariaLabel}
             {...props}
         >
             <span className="material-symbols-outlined text-[20px]">{icon}</span>

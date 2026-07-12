@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { IconButton } from './IconButton';
 
@@ -8,8 +8,10 @@ interface BottomSheetProps {
     title?: React.ReactNode;
     children: React.ReactNode;
     showCloseButton?: boolean;
-    height?: string; // e.g., '90vh', 'auto'
+    height?: string;
 }
+
+const SWIPE_DISMISS_THRESHOLD = 100;
 
 export const BottomSheet: React.FC<BottomSheetProps> = ({
     isOpen,
@@ -20,6 +22,9 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
     height = '92vh'
 }) => {
     const [isAnimating, setIsAnimating] = useState(false);
+    const [translateY, setTranslateY] = useState(0);
+    const dragStartY = useRef<number | null>(null);
+    const isDragging = useRef(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -35,10 +40,36 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         };
     }, [isOpen]);
 
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        dragStartY.current = e.touches[0].clientY;
+        isDragging.current = true;
+    }, []);
+
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (!isDragging.current || dragStartY.current === null) return;
+        const dy = e.touches[0].clientY - dragStartY.current;
+        if (dy > 0) {
+            setTranslateY(dy);
+        }
+    }, []);
+
+    const handleTouchEnd = useCallback(() => {
+        if (!isDragging.current) return;
+        isDragging.current = false;
+
+        if (translateY >= SWIPE_DISMISS_THRESHOLD) {
+            setTranslateY(0);
+            onClose();
+        } else {
+            setTranslateY(0);
+        }
+        dragStartY.current = null;
+    }, [translateY, onClose]);
+
     if (!isOpen && !isAnimating) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-9999 flex items-end justify-center">
+        <div className="fixed inset-0 z-9999 flex items-end justify-center" role="dialog" aria-modal="true">
             {/* Backdrop */}
             <div
                 className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
@@ -48,18 +79,31 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             />
 
             {/* Sheet Container */}
-            <div 
+            <div
                 className={`relative w-full max-w-2xl bg-slate-50 dark:bg-slate-950 rounded-t-[32px] shadow-2xl overflow-hidden transition-transform duration-300 ease-out transform flex flex-col ${
                     isOpen ? 'translate-y-0' : 'translate-y-full'
                 }`}
-                style={{ height, maxHeight: '92vh' }}
+                style={{
+                    height,
+                    maxHeight: '92vh',
+                    transform: translateY > 0 ? `translateY(${translateY}px)` : undefined,
+                    transition: isDragging.current ? 'none' : undefined
+                }}
             >
                 {/* Drag Handle Bar */}
-                <div className="flex flex-col items-center pt-3 pb-2 shrink-0">
+                <div
+                    className="flex flex-col items-center pt-3 pb-2 shrink-0 cursor-grab active:cursor-grabbing touch-none"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                >
                     <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-1" />
+                    <span className="text-[9px] text-slate-400 dark:text-slate-600 font-bold uppercase tracking-widest">
+                        {translateY >= SWIPE_DISMISS_THRESHOLD ? 'Solte para fechar' : 'Arraste para baixo'}
+                    </span>
                 </div>
 
-                {/* Header omitted for brevity in instruction if not changed, but I will include it to be safe */}
+                {/* Header */}
                 {(title || showCloseButton) && (
                     <div className="px-6 py-4 flex items-center justify-between shrink-0 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                         <div className="flex-1">
@@ -77,6 +121,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                                 onClick={onClose}
                                 variant="ghost"
                                 size="sm"
+                                ariaLabel="Fechar"
                                 className="text-slate-400 hover:text-slate-600 dark:hover:text-white shrink-0"
                             />
                         )}

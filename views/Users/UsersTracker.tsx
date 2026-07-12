@@ -756,15 +756,15 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                         <div className="flex gap-1 shrink-0">
                             <button
                                 onClick={() => setVisitStatusFilter('all')}
-                                className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold transition-colors ${visitStatusFilter === 'all' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
+                                className={`px-3 py-2 rounded-full text-[10px] uppercase font-bold transition-colors min-h-[44px] ${visitStatusFilter === 'all' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
                             >Tudo ({filterCounts.all})</button>
                             <button
                                 onClick={() => setVisitStatusFilter('open')}
-                                className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold transition-colors ${visitStatusFilter === 'open' ? 'bg-green-100 text-green-700 dark:bg-green-900/40' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
+                                className={`px-3 py-2 rounded-full text-[10px] uppercase font-bold transition-colors min-h-[44px] ${visitStatusFilter === 'open' ? 'bg-green-100 text-green-700 dark:bg-green-900/40' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
                             >Em Aberto ({filterCounts.open})</button>
                             <button
                                 onClick={() => setVisitStatusFilter('closed')}
-                                className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold transition-colors ${visitStatusFilter === 'closed' ? 'bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
+                                className={`px-3 py-2 rounded-full text-[10px] uppercase font-bold transition-colors min-h-[44px] ${visitStatusFilter === 'closed' ? 'bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}
                             >Encerradas ({filterCounts.closed})</button>
                         </div>
                     ) : (

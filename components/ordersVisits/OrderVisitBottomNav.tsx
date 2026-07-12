@@ -35,10 +35,9 @@ export const OrderVisitBottomNav: React.FC<OrderVisitBottomNavProps> = ({
 
     return (
         <div
-            className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 px-2 grid rounded-t-[24px] shadow-2xl z-30"
+            className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 px-2 flex flex-row items-stretch overflow-x-auto rounded-t-[24px] shadow-2xl z-30 no-scrollbar"
             style={{
-                paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
-                gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`
+                paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))'
             }}
         >
             {tabs.map((tab) => {
@@ -49,7 +48,7 @@ export const OrderVisitBottomNav: React.FC<OrderVisitBottomNavProps> = ({
                     <button
                         key={tab.id}
                         onClick={() => onTabChange(tab.id)}
-                        className={`flex flex-col items-center justify-center p-2 gap-1 transition-all active:scale-90 ${activeTab === tab.id ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+                        className={`flex-1 min-w-0 flex flex-col items-center justify-center p-2 gap-1 transition-all active:scale-90 ${activeTab === tab.id ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
                     >
                         <div className="relative">
                             <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: activeTab === tab.id ? '"FILL" 1' : '' }}>

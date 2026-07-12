@@ -9,6 +9,16 @@
       "lastSyncedHash": "972ef7c73788e288838cb8031107706fa2d6e533af969ae38df15f4a5c932057",
       "lastSyncedAt": "2026-07-05T12:53:17.494Z",
       "filename": "siges_assistant.workflow.ts"
+    },
+    "ao8MeMRo7cDv9C3D": {
+      "lastSyncedHash": "e7b768e1cc34655130db7be22f510bd673b5764d856c45ca5ff9721cb5ba2adf",
+      "lastSyncedAt": "2026-07-11T20:53:19.469Z",
+      "filename": "SigesImpersonateUser.workflow.ts"
+    },
+    "7lrGbfjnID8E2Cik": {
+      "lastSyncedHash": "454c07aec45f15d5df3937093ea90b1686001df36e9cbcaf4a9c3837a87f4b7e",
+      "lastSyncedAt": "2026-07-11T23:44:27.920Z",
+      "filename": "SigesImpersonateUserRestorePassword.workflow.ts"
     }
   }
 }

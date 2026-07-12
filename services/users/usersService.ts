@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { apiN8nService } from '../apiN8nService';
 import { User, UserStatus, Permission, Team, Department, Vehicle } from '../../types';
 import { getPublicImageUrl } from '../imageUtils';
 import { r2Service } from '../r2Service';
@@ -1015,6 +1016,63 @@ export const usersService = {
                 console.error('Failed to sync user UUID:', syncError);
             }
         }
+    },
+
+    /**
+     * Impersona um usuário (super admin apenas).
+     * Gera uma sessão temporária via n8n webhook + GoTrue Admin API.
+     * @param targetUserId ID do usuário a ser impersonado
+     * @returns URL de magic link para login automático
+     */
+    async impersonateUser(targetUserId: string): Promise<{ email: string; password: string; uuid: string }> {
+        // 1. Obter o token do super admin atual
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            throw new Error('Sessão do super admin não encontrada');
+        }
+
+        // Buscar o ID do super admin na tabela users
+        const { data: adminUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('uuid', session.user.id)
+            .single();
+
+        if (!adminUser?.id) {
+            throw new Error('Usuário admin não encontrado na tabela users');
+        }
+
+        // 2. Chamar n8n webhook para gerar credenciais temporárias
+        const result = await apiN8nService.impersonateUser(
+            targetUserId,
+            session.access_token,
+            String(adminUser.id)
+        );
+
+        if (!result?.email || !result?.password) {
+            throw new Error('Resposta inválida do servidor de impersonação');
+        }
+
+        return { email: result.email, password: result.password, uuid: result.uuid };
+    },
+
+    /**
+     * Sai de uma sessão impersonada e volta para a sessão do super admin.
+     * @param adminAccessToken Token JWT do super admin (salvo antes da impersonação)
+     * @param adminRefreshToken Token de refresh do super admin
+     */
+    async exitImpersonation(adminAccessToken: string, adminRefreshToken: string): Promise<void> {
+        const { error } = await supabase.auth.setSession({
+            access_token: adminAccessToken,
+            refresh_token: adminRefreshToken,
+        });
+
+        if (error) {
+            console.error('[usersService] Error restoring admin session:', error);
+            throw new Error('Erro ao restaurar sessão do admin');
+        }
+
+        currentUserPromise = null;
     },
 
     subscribeToAuthChanges(callback: (event: string, session: any) => void) {
