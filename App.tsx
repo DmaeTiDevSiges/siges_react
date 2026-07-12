@@ -2708,11 +2708,19 @@ const AppContent: React.FC = () => {
   // Supabase recovery sessions authenticate the user automatically, so currentUser
   // will be set — but we still need to show the password reset form.
   if (authScreen === 'reset-password') {
-    return <ResetPasswordScreen onSuccess={() => {
-      isRecoveryFlowRef.current = false; // Mark recovery flow as complete
-      window.history.replaceState({}, document.title, '/'); // Clean URL params
-      setAuthScreen('login');
-      setCurrentUser(null); // Force re-auth after password change
+    return <ResetPasswordScreen onSuccess={async () => {
+      isRecoveryFlowRef.current = false;
+      window.history.replaceState({}, document.title, '/');
+      // Session is still active after password update — load user and enter the app
+      setAuthLoading(true);
+      try {
+        await loadUserRef.current?.();
+      } catch (e) {
+        console.error('[Recovery] Failed to load user after password reset:', e);
+        setAuthScreen('login');
+      } finally {
+        setAuthLoading(false);
+      }
     }} />;
   }
 
