@@ -2711,13 +2711,14 @@ const AppContent: React.FC = () => {
     return <ResetPasswordScreen onSuccess={async () => {
       isRecoveryFlowRef.current = false;
       window.history.replaceState({}, document.title, '/');
-      // Session is still active after password update — load user and enter the app
+      // Clear reset screen immediately — loadUser will set currentUser
+      setAuthScreen('login');
       setAuthLoading(true);
       try {
         await loadUserRef.current?.();
       } catch (e) {
         console.error('[Recovery] Failed to load user after password reset:', e);
-        setAuthScreen('login');
+        // loadUser already handles fallback to login
       } finally {
         setAuthLoading(false);
       }
