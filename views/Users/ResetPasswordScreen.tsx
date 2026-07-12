@@ -82,13 +82,18 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
             }, 2000);
         } catch (err: any) {
             console.error('Update password error:', err);
-            const msg = err?.message || err?.error_description || String(err);
-            if (msg.includes('same_password')) {
-                setError('A nova senha deve ser diferente da atual.');
-            } else if (msg.includes('weak_password')) {
-                setError('A senha é muito fraca. Use pelo menos 6 caracteres.');
+            const msg = (err?.message || err?.error_description || String(err)).toLowerCase();
+
+            if (msg.includes('same_password') || msg.includes('different from the old')) {
+                setError('A nova senha deve ser diferente da senha atual.');
+            } else if (msg.includes('weak_password') || msg.includes('at least 6') || msg.includes('should be at least')) {
+                setError('A senha deve ter pelo menos 6 caracteres.');
+            } else if (msg.includes('token') && (msg.includes('expired') || msg.includes('invalid'))) {
+                setError('O link de recuperação expirou ou é inválido. Solicite um novo link.');
+            } else if (msg.includes('session') && (msg.includes('missing') || msg.includes('not found'))) {
+                setError('Sessão de recuperação não encontrada. Solicite um novo link de recuperação.');
             } else {
-                setError(`Falha ao atualizar a senha: ${msg}`);
+                setError('Ocorreu um erro ao redefinir a senha. Tente novamente ou solicite um novo link.');
             }
         } finally {
             setLoading(false);
