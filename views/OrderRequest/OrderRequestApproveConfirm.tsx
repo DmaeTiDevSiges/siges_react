@@ -17,9 +17,6 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
     const [isLoading, setIsLoading] = useState(false);
     const [suspendedReasons, setSuspendedReasons] = useState<SuspendedReason[]>([]);
     const [causeReasons, setCauseReasons] = useState<CauseReason[]>([]);
-
-    const [hasReadToBottom, setHasReadToBottom] = useState(false);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
     const formRef = useRef<OrderRequestFormRef>(null);
 
     // Approval State
@@ -45,17 +42,6 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
         };
         loadReasons();
     }, []);
-
-    const handleScroll = () => {
-        if (!scrollContainerRef.current) return;
-
-        const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-        const isAtBottom = scrollHeight - scrollTop <= clientHeight + 50; // 50px buffer
-
-        if (isAtBottom && !hasReadToBottom) {
-            setHasReadToBottom(true);
-        }
-    };
 
     const handleConfirmApproval = async () => {
         if (formData.statusId === '6' && !formData.suspendedReasonId) {
@@ -92,9 +78,7 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f172a] relative">
             <div
-                ref={scrollContainerRef}
-                onScroll={handleScroll}
-                className="flex-1 overflow-y-auto no-scrollbar pb-32"
+                className="flex-1 overflow-y-auto no-scrollbar"
             >
                 <OrderRequestForm
                     ref={formRef}
@@ -112,7 +96,7 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
                     hideFooter={true}
                 />
 
-                <div className="px-4 space-y-4 mt-4 pb-32">
+                <div className="px-4 space-y-4 mt-4">
                     <Select
                         label="Situação"
                         required
@@ -173,19 +157,17 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
                             />
                         </div>
                     )}
-                </div>
-            </div>
 
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-50 dark:bg-[#0f172a] z-100 border-none">
-                <div className="flex max-w-lg mx-auto w-full">
-                    <Button
-                        onClick={handleConfirmApproval}
-                        loading={isLoading}
-                        disabled={!hasReadToBottom}
-                        className={`w-full ${hasReadToBottom ? 'bg-primary hover:bg-primary/90' : 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed'} text-white uppercase tracking-widest font-black text-xs h-12 shadow-none border-none`}
-                    >
-                        {hasReadToBottom ? 'CONFIRMAR APROVAÇÃO' : 'ROLE ATÉ O FINAL'}
-                    </Button>
+                    <div className="pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                        <Button
+                            onClick={handleConfirmApproval}
+                            loading={isLoading}
+                            variant="primary"
+                            fullWidth
+                        >
+                            CONFIRMAR APROVAÇÃO
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

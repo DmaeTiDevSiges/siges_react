@@ -25,7 +25,7 @@ export const ButtonSave: React.FC<ButtonSaveProps> = ({
     disabled = false
 }) => {
     return (
-        <div className={`p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-800 bg-surface-light dark:bg-background-dark flex gap-3 ${className}`}>
+        <div className={`p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex gap-3 ${className}`}>
             <Button
                 variant="ghost"
                 fullWidth

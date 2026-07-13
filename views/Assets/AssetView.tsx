@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Asset, AssetAttribute, AssetHistoryItem } from '../../types';
 import { dataService } from '../../services/dataService';
 import { IconButton } from '../../components/ui/IconButton';
@@ -12,7 +12,9 @@ import { usePermissions } from '../../contexts/PermissionsContext';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { AssetAlertForm } from './AssetAlertForm';
+import type { AssetAlertFormHandle } from './AssetAlertForm';
 import { AssetAlert } from '../../types';
+import { Modal } from '../../components/ui/Modal';
 import { AssetDetailsPDFButton } from '../../components/reports/AssetDetailsPDFButton';
 import { AssetAlertListItem } from './AssetAlertListItem';
 
@@ -128,6 +130,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const [isAddingAlert, setIsAddingAlert] = useState(false);
     const [editingAlert, setEditingAlert] = useState<AssetAlert | null>(null);
     const [alertFilter, setAlertFilter] = useState<'abertos' | 'resolvidos' | 'todos'>('abertos');
+    const alertFormRef = useRef<AssetAlertFormHandle>(null);
 
     const tabs = ['Dados', 'Histórico', 'Docs', 'Componentes', 'Alertas', 'QR CODE'];
 
@@ -505,26 +508,32 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                         {activeTab === 'Alertas' && (
                             <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                {isAddingAlert || editingAlert ? (
-                                    <div className="bg-white dark:bg-card-dark rounded-3xl overflow-hidden border border-slate-100 dark:border-white/5 shadow-2xl">
-                                        <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50 dark:bg-white/5">
-                                            <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">
-                                                {editingAlert ? 'Editar Alerta' : 'Novo Alerta'}
-                                            </h4>
-                                            <IconButton 
-                                                icon="close" 
-                                                onClick={() => { setIsAddingAlert(false); setEditingAlert(null); }} 
-                                                size="sm"
-                                            />
-                                        </div>
-                                        <AssetAlertForm
-                                            assetId={asset.id}
-                                            initialAlert={editingAlert || undefined}
-                                            onSave={handleAlertSave}
-                                            onCancel={() => { setIsAddingAlert(false); setEditingAlert(null); }}
-                                        />
-                                    </div>
-                                ) : (
+                                <Modal
+                                    isOpen={!!(isAddingAlert || editingAlert)}
+                                    onClose={() => { setIsAddingAlert(false); setEditingAlert(null); }}
+                                    onConfirm={async () => {
+                                        if (alertFormRef.current) {
+                                            const success = await alertFormRef.current.submit();
+                                            if (success) {
+                                                setIsAddingAlert(false);
+                                                setEditingAlert(null);
+                                            }
+                                        }
+                                    }}
+                                    title={editingAlert ? 'Editar Alerta' : 'Novo Alerta'}
+                                    confirmLabel="Salvar"
+                                    maxWidth="sm"
+                                >
+                                    <AssetAlertForm
+                                        ref={alertFormRef}
+                                        assetId={asset.id}
+                                        initialAlert={editingAlert || undefined}
+                                        onSave={handleAlertSave}
+                                        onCancel={() => { setIsAddingAlert(false); setEditingAlert(null); }}
+                                    />
+                                </Modal>
+
+                                {!isAddingAlert && !editingAlert && (
                                     <>
                                         <div className="flex items-center justify-between mb-6">
                                             <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Alertas</h3>

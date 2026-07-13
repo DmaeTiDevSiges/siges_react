@@ -460,6 +460,8 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                         placeholder="Informações adicionais importantes..."
                     />
                 </div>
+
+                <ButtonSave isSaving={isSaving} onCancel={onCancel} onSave={handleSubmit} />
             </div>
         );
     };
@@ -580,7 +582,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
             )}
 
             <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
+                <div className="flex-1 overflow-y-auto no-scrollbar">
 
                     {/* Live Preview Header (Mockup Style) */}
                     <div className="p-4 bg-linear-to-b from-blue-600/10 to-transparent">
@@ -846,9 +848,6 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                         </section>
                     </div>
                 </div>
-
-                {/* Fixed Footer */}
-                <ButtonSave isSaving={isSaving} onCancel={onCancel} onSave={handleSubmit} />
             </form>
 
             <ImageUploadSheet

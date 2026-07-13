@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OrderVisit } from '../../types';
 import { Card } from '../ui/Card';
 import { Modal } from '../ui/Modal';
@@ -18,6 +18,31 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
     const [signingType, setSigningType] = useState<'leader' | 'requester' | null>(null);
     const [deletingType, setDeletingType] = useState<'leader' | 'requester' | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isLandscape, setIsLandscape] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return window.matchMedia('(orientation: landscape)').matches ||
+               window.matchMedia('(max-height: 500px)').matches;
+    });
+
+    useEffect(() => {
+        const mqPortrait = window.matchMedia('(orientation: portrait)');
+        const mqLandscape = window.matchMedia('(orientation: landscape)');
+        const mqSmallHeight = window.matchMedia('(max-height: 500px)');
+
+        const update = () => {
+            setIsLandscape(mqLandscape.matches || mqSmallHeight.matches);
+        };
+
+        mqPortrait.addEventListener('change', update);
+        mqLandscape.addEventListener('change', update);
+        mqSmallHeight.addEventListener('change', update);
+
+        return () => {
+            mqPortrait.removeEventListener('change', update);
+            mqLandscape.removeEventListener('change', update);
+            mqSmallHeight.removeEventListener('change', update);
+        };
+    }, []);
 
     const handleSaveSignature = async (base64: string) => {
         if (!signingType || !isEditable) return;
@@ -190,25 +215,29 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                 isOpen={!!signingType}
                 onClose={() => !isSaving && setSigningType(null)}
                 title={`Coleta de Assinatura`}
-                maxWidth="sm"
+                maxWidth={isLandscape ? '4xl' : 'sm'}
+                fullScreenMobile={isLandscape}
+                noPadding={isLandscape}
+                hideHeader={isLandscape}
+                className={isLandscape ? 'pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]' : ''}
             >
-                <div className="p-4">
-                    {isSaving ? (
-                        <div className="flex flex-col items-center justify-center h-[280px] gap-4">
-                            <div className="relative">
-                                <div className="h-16 w-16 rounded-full border-4 border-slate-100 dark:border-slate-800 animate-pulse"></div>
-                                <Loading size="xs" />
-                            </div>
-                            <span className="text-xs font-black uppercase tracking-widest text-slate-500 animate-pulse">Processando Assinatura</span>
+                {isSaving ? (
+                    <div className={`flex flex-col items-center justify-center ${isLandscape ? 'h-[200px]' : 'h-[300px]'} gap-4`}>
+                        <div className="relative">
+                            <div className="h-16 w-16 rounded-full border-4 border-slate-100 dark:border-slate-800 animate-pulse"></div>
+                            <Loading size="xs" />
                         </div>
-                    ) : (
-                        <SignaturePad 
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-500 animate-pulse">Processando Assinatura</span>
+                    </div>
+                ) : (
+                    <div className={isLandscape ? 'h-[65vh] sm:h-[75vh] flex flex-col' : 'h-[55vh] sm:h-[60vh] flex flex-col'}>
+                        <SignaturePad
                             onSave={handleSaveSignature}
                             onCancel={() => setSigningType(null)}
                             title={signingType === 'leader' ? "Assinatura do Líder" : "Assinatura do Requisitante"}
                         />
-                    )}
-                </div>
+                    </div>
+                )}
             </Modal>
 
             <Modal
