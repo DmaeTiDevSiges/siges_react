@@ -39,7 +39,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                         rounded-xl shadow-sm
                         transition-all duration-200
                         focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none
-                        resize-none
+                        resize-none overflow-hidden
                         ${className}
                     `}
                     {...props}

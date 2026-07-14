@@ -1274,3 +1274,58 @@ export interface ToolMovement {
   to_user_name?: string;
   to_user_avatar?: string;
 }
+
+// ── Technical Manuals (Documentos Técnicos) ──────────────────────────────────
+
+export interface TechnicalManual {
+  id: string;
+  code?: string;
+  description: string;
+  tmTypeId: string;
+  tmTypeDescription?: string;
+  assetTypeId: string;
+  assetTypeDescription?: string;
+  companyId?: string;
+  assetsAmount: number;
+  docFilePath?: string;
+  docFileName?: string;
+  versionMode?: string;
+}
+
+export interface TechnicalManualType {
+  id: string;
+  description: string;
+  versionMode?: string;
+  createdUserId?: string;
+  createdAt?: string;
+  updatedUserId?: string;
+  updatedAt?: string;
+  deletedUserId?: string;
+  deletedAt?: string;
+  isDeleted?: boolean;
+}
+
+export interface TechnicalManualFile {
+  id: string;
+  tmId: string;
+  docFilePath: string;
+  docFileName: string;
+  fileType: 'image' | 'pdf' | 'doc' | 'excel';
+  createdAt?: string;
+}
+
+export interface TechnicalManualAsset {
+  id: string;
+  tmId: string;
+  assetId: string;
+  versionMode?: string;
+  // UI helpers
+  assetCode?: string;
+  assetDescription?: string;
+  assetStatusName?: string;
+  assetTypeName?: string;
+  clientName?: string;
+  unitDescription?: string;
+  tagDescription?: string;
+  tagSubDescription?: string;
+}

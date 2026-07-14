@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Asset, AssetAttribute, AssetHistoryItem } from '../../types';
+import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile } from '../../types';
 import { dataService } from '../../services/dataService';
+import { getPublicImageUrl } from '../../services/imageUtils';
 import { IconButton } from '../../components/ui/IconButton';
 import { Button } from '../../components/ui/Button';
 import { Avatar } from '../../components/ui/Avatar';
@@ -132,7 +133,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const [alertFilter, setAlertFilter] = useState<'abertos' | 'resolvidos' | 'todos'>('abertos');
     const alertFormRef = useRef<AssetAlertFormHandle>(null);
 
-    const tabs = ['Dados', 'Histórico', 'Docs', 'Componentes', 'Alertas', 'QR CODE'];
+    const tabs = ['Dados', 'Histórico', 'Manuais', 'Componentes', 'Alertas', 'QR CODE'];
 
     useEffect(() => {
         const fetchAlerts = async () => {
@@ -268,12 +269,32 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
         }
     }, [activeTab, asset.id]);
 
-    // Mock docs
-    const docs = [
-        { id: '1', name: 'Manual do Fabricante.pdf', info: '2.4 MB • Atualizado 12/01/22', icon: 'description', color: 'bg-red-500/10 text-red-500' },
-        { id: '2', name: 'Laudo de Vibração - Mai/23', info: '156 KB • Atualizado 15/05/23', icon: 'analytics', color: 'bg-blue-500/10 text-blue-500' },
-        { id: '3', name: 'Esquemático Elétrico', info: '3.1 MB • PNG', icon: 'image', color: 'bg-orange-500/10 text-orange-500' },
-    ];
+    // Technical Manuals loaded from DB
+    const [techManuals, setTechManuals] = useState<any[]>([]);
+    const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+
+    useEffect(() => {
+        const loadDocs = async () => {
+            if (activeTab !== 'Manuais' || !asset.typeId) return;
+            setIsLoadingDocs(true);
+            try {
+                const manuals = await dataService.getTechnicalManuals('all', '', asset.typeId);
+                // Collect all files from manuals
+                const manualsWithFiles = await Promise.all(
+                    manuals.map(async (m: any) => {
+                        const files = await dataService.getTechnicalManualFiles(m.id);
+                        return { ...m, files };
+                    })
+                );
+                setTechManuals(manualsWithFiles);
+            } catch (error) {
+                console.error('Error loading technical manuals:', error);
+            } finally {
+                setIsLoadingDocs(false);
+            }
+        };
+        loadDocs();
+    }, [activeTab, asset.typeId, asset.id]);
 
     // Mock components
     const components = [
@@ -792,23 +813,79 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                         );})()}
 
                         {/* Documentation Section */}
-                        {activeTab === 'Docs' && (
+                        {activeTab === 'Manuais' && (
                             <section>
-                                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Documentação Técnica</h3>
-                                <div className="space-y-3">
-                                    {docs.map((doc) => (
-                                        <div key={doc.id} className="flex items-center gap-4 bg-white dark:bg-[#111827] p-4 rounded-2xl border border-slate-100 dark:border-white/5 group hover:border-blue-500/30 transition-all cursor-pointer">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${doc.color}`}>
-                                                <span className="material-symbols-outlined">{doc.icon}</span>
+                                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Manuais Técnicos</h3>
+                                {isLoadingDocs ? (
+                                    <div className="flex justify-center py-8">
+                                        <Loading size="sm" text="Carregando documentos..." />
+                                    </div>
+                                ) : techManuals.length === 0 ? (
+                                    <div className="text-center py-8 text-slate-500">
+                                        Nenhum documento técnico para este tipo de ativo
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {techManuals.map((manual) => (
+                                            <div key={manual.id} className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-100 dark:border-white/5 overflow-hidden">
+                                                <div className="p-4 border-b border-slate-100 dark:border-white/5">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                                                            <span className="material-symbols-outlined text-primary">description</span>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-200 truncate">{manual.description}</h4>
+                                                            {manual.code && (
+                                                                <p className="text-[10px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">{manual.code}</p>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{manual.tmTypeDescription}</span>
+                                                    </div>
+                                                </div>
+                                                {manual.files && manual.files.length > 0 && (
+                                                    <div className="p-3 space-y-2">
+                                                        {manual.files.map((file: TechnicalManualFile) => {
+                                                            const isImage = file.fileType === 'image' || ['jpg', 'jpeg', 'png', 'webp'].includes(file.docFileName.split('.').pop() || '');
+                                                            const ext = file.docFileName.split('.').pop()?.toUpperCase() || '';
+                                                            const iconColor = isImage
+                                                                ? 'bg-orange-500/10 text-orange-500'
+                                                                : ext === 'PDF'
+                                                                    ? 'bg-red-500/10 text-red-500'
+                                                                    : ['DOC', 'DOCX'].includes(ext)
+                                                                        ? 'bg-blue-500/10 text-blue-500'
+                                                                        : 'bg-emerald-500/10 text-emerald-500';
+                                                            const icon = isImage ? 'image' : ext === 'PDF' ? 'description' : ['DOC', 'DOCX'].includes(ext) ? 'article' : 'table_chart';
+
+                                                            return (
+                                                                <a
+                                                                    key={file.id}
+                                                                    href={getPublicImageUrl(file.docFilePath, file.docFileName)}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                                                                >
+                                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${iconColor}`}>
+                                                                        <span className="material-symbols-outlined text-lg">{icon}</span>
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <h5 className="text-xs font-bold text-slate-900 dark:text-slate-200 truncate">{file.docFileName}</h5>
+                                                                        <p className="text-[10px] text-slate-500 uppercase">{ext}</p>
+                                                                    </div>
+                                                                    <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">download</span>
+                                                                </a>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                                {(!manual.files || manual.files.length === 0) && (
+                                                    <div className="p-4 text-center text-xs text-slate-400">
+                                                        Nenhum arquivo associado
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-black text-slate-900 dark:text-slate-200 truncate">{doc.name}</h4>
-                                                <p className="text-[10px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">{doc.info}</p>
-                                            </div>
-                                            <IconButton icon="download" variant="ghost" className="text-slate-500! group-hover:text-blue-500!" />
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                )}
                             </section>
                         )}
 

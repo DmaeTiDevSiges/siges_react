@@ -3,7 +3,7 @@ import React from 'react';
 import { usePermissions } from '../contexts/PermissionsContext';
 
 interface BottomNavProps {
-  activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'tools' | 'materials';
+  activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'tools' | 'materials' | 'manuals';
   setActiveTab: (tab: any) => void;
   isAdminSuper?: boolean;
   currentUser?: any;
@@ -25,6 +25,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
   const showTools = isAdminSuper || canView('tools_create_edit_delete');
   const showMaterials = isAdminSuper || canView('materials_search');
   const showMaintenancePlans = isAdminSuper || canView('maintenance_plans');
+  const showManuals = isAdminSuper || canView('technicals_manuals_search');
 
   return (
     <div className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 px-2 flex flex-row items-center overflow-x-auto rounded-t-[12px]" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}>
@@ -103,6 +104,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
             checklist
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest">PMP</span>
+        </button>
+      )}
+
+      {showManuals && (
+        <button
+          onClick={() => setActiveTab('manuals')}
+          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'manuals' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+        >
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'manuals' ? '"FILL" 1' : '' }}>
+            menu_book
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest">Manuais</span>
         </button>
       )}
 

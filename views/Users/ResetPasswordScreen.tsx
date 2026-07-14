@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { dataService } from '../../services/dataService';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { Loading } from '../../components/ui/Loading';
+
+const SESSION_POLL_INTERVAL = 1500;
+const SESSION_POLL_MAX_WAIT = 15000;
 
 interface ResetPasswordScreenProps {
     onSuccess: () => void;
+    onBack: () => void;
 }
 
-export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSuccess }) => {
+export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSuccess, onBack }) => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -15,30 +19,61 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [sessionReady, setSessionReady] = useState(false);
+    const [sessionTimedOut, setSessionTimedOut] = useState(false);
+    const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const mountedRef = useRef(true);
 
-    // Wait for Supabase to establish the recovery session
+    const cleanupPoll = useCallback(() => {
+        if (pollRef.current) {
+            clearTimeout(pollRef.current);
+            pollRef.current = null;
+        }
+    }, []);
+
+    // Wait for Supabase to establish the recovery session via polling
     useEffect(() => {
-        const checkSession = async () => {
+        mountedRef.current = true;
+        let elapsed = 0;
+
+        const pollSession = async () => {
+            if (!mountedRef.current) return;
             try {
-                const { data: { session }, error } = await (await import('../../services/supabase')).supabase.auth.getSession();
-                console.log('[ResetPassword] Session check:', session ? 'active' : 'none', error?.message || '');
+                const { supabase } = await import('../../services/supabase');
+                const { data: { session }, error } = await supabase.auth.getSession();
+                console.log('[ResetPassword] Session poll:', session ? 'active' : 'none', `(${elapsed}ms)`, error?.message || '');
+
                 if (session) {
                     setSessionReady(true);
-                } else {
-                    // Retry after a short delay — PKCE exchange may still be in progress
-                    setTimeout(async () => {
-                        const { data: { session: retrySession } } = await (await import('../../services/supabase')).supabase.auth.getSession();
-                        console.log('[ResetPassword] Retry session check:', retrySession ? 'active' : 'none');
-                        setSessionReady(!!retrySession);
-                    }, 2000);
+                    return;
                 }
+
+                elapsed += SESSION_POLL_INTERVAL;
+
+                if (elapsed >= SESSION_POLL_MAX_WAIT) {
+                    console.error('[ResetPassword] Session not established after', SESSION_POLL_MAX_WAIT, 'ms');
+                    setSessionTimedOut(true);
+                    return;
+                }
+
+                pollRef.current = setTimeout(pollSession, SESSION_POLL_INTERVAL);
             } catch (e) {
-                console.error('[ResetPassword] Session check failed:', e);
-                setSessionReady(true); // Try anyway
+                console.error('[ResetPassword] Session poll error:', e);
+                elapsed += SESSION_POLL_INTERVAL;
+                if (elapsed >= SESSION_POLL_MAX_WAIT) {
+                    setSessionTimedOut(true);
+                    return;
+                }
+                pollRef.current = setTimeout(pollSession, SESSION_POLL_INTERVAL);
             }
         };
-        checkSession();
-    }, []);
+
+        pollSession();
+
+        return () => {
+            mountedRef.current = false;
+            cleanupPoll();
+        };
+    }, [cleanupPoll]);
 
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -113,6 +148,51 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
                             Sua senha foi atualizada com sucesso. Redirecionando para o login...
                         </p>
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Waiting for recovery session to be established
+    if (!sessionReady && !sessionTimedOut) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
+                <div className="w-full max-w-[400px] space-y-8 text-center">
+                    <div className="flex flex-col items-center space-y-4">
+                        <div className="w-48 h-24 flex items-center justify-center">
+                            <img src="/siges_logo.png" alt="Siges Logo" className="max-w-full max-h-full object-contain" />
+                        </div>
+                        <Loading size="md" />
+                        <p className="text-slate-500 dark:text-slate-400 text-sm">
+                            Preparando ambiente de recuperação...
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Session could not be established
+    if (sessionTimedOut) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
+                <div className="w-full max-w-[400px] space-y-8 text-center">
+                    <div className="flex flex-col items-center space-y-4">
+                        <div className="w-20 h-20 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                            <span className="material-symbols-outlined text-red-600 text-4xl">error</span>
+                        </div>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Link expirado ou inválido</h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm">
+                            Não foi possível validar o link de recuperação. Solicite um novo link de recuperação de senha.
+                        </p>
+                    </div>
+                    <Button
+                        onClick={onBack}
+                        fullWidth
+                        className="h-12 bg-primary hover:bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-primary/20"
+                    >
+                        Solicitar novo link
+                    </Button>
                 </div>
             </div>
         );

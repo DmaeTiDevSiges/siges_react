@@ -80,6 +80,9 @@ const AssetTagsList = React.lazy(() => import('./views/Settings/Assets/AssetTags
 const AssetTagForm = React.lazy(() => import('./views/Settings/Assets/AssetTags/AssetTagForm').then(m => ({ default: m.AssetTagForm })));
 const AssetTagSubsList = React.lazy(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubsList').then(m => ({ default: m.AssetTagSubsList })));
 const AssetTagSubForm = React.lazy(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubForm').then(m => ({ default: m.AssetTagSubForm })));
+const TechnicalManualsList = React.lazy(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualsList').then(m => ({ default: m.TechnicalManualsList })));
+const TechnicalManualForm = React.lazy(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualForm').then(m => ({ default: m.TechnicalManualForm })));
+const TechnicalManualDetails = React.lazy(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualDetails').then(m => ({ default: m.TechnicalManualDetails })));
 const UnitsSearch = React.lazy(() => import('./views/Units/UnitsSearch').then(m => ({ default: m.UnitsSearch })));
 const UnitAssetTagAvailableForm = React.lazy(() => import('./views/Units/UnitAssetTagAvailableForm').then(m => ({ default: m.UnitAssetTagAvailableForm })));
 const UnitAssetTagAvailableDetails = React.lazy(() => import('./views/Units/UnitAssetTagAvailableDetails').then(m => ({ default: m.UnitAssetTagAvailableDetails })));
@@ -119,7 +122,7 @@ const MaintenancePlansScreen = React.lazy(() => import('./views/Settings/Mainten
 const ToolsMainView = React.lazy(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/imgproxyService';
@@ -250,7 +253,7 @@ const AppContent: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals'>(() => {
     const saved = localStorage.getItem('app_active_tab');
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
@@ -298,6 +301,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('tools');
     } else if (normalizedTab === 'materials') {
       setCurrentScreen('materials-search');
+    } else if (normalizedTab === 'manuals') {
+      setCurrentScreen('technical-manuals');
     }
   };
   const [currentScreen, setCurrentScreen] = useState<Screen>(() => {
@@ -320,6 +325,7 @@ const AppContent: React.FC = () => {
     if (savedTab === 'companies') return 'companies';
     if (savedTab === 'contracts') return 'contracts';
     if (savedTab === 'materials' || savedTab === 'materials-search') return 'materials-search';
+    if (savedTab === 'manuals') return 'technical-manuals';
     return 'dashboard';
   });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -357,13 +363,15 @@ const AppContent: React.FC = () => {
     const tokenHash = params.get('token_hash');
     const type = params.get('type');
     if (tokenHash && type === 'recovery') {
+      console.log('[Recovery] token_hash detected, cleaning URL and calling verifyOtp');
       window.history.replaceState({}, document.title, '/');
       import('./services/supabase').then(({ supabase }) => {
-        supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error }: { error: any }) => {
+        supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ data, error }: { data: any; error: any }) => {
           if (error) {
-            console.error('Token verification failed:', error);
+            console.error('[Recovery] verifyOtp failed:', error.message, error);
             setAuthScreen('forgot-password');
           } else {
+            console.log('[Recovery] verifyOtp succeeded, session established');
             setAuthScreen('reset-password');
           }
         });
@@ -405,6 +413,7 @@ const AppContent: React.FC = () => {
   const [selectedAssetPriority, setSelectedAssetPriority] = useState<AssetPriority | null>(null);
   const [selectedAssetTag, setSelectedAssetTag] = useState<AssetTag | null>(null);
   const [selectedAssetTagSub, setSelectedAssetTagSub] = useState<AssetTagSub | null>(null);
+  const [selectedTechnicalManual, setSelectedTechnicalManual] = useState<import('./types').TechnicalManual | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [lastAssetSource, setLastAssetSource] = useState<Screen>('assets-search');
   const [lastOrderSource, setLastOrderSource] = useState<Screen>('orders-dashboard');
@@ -499,6 +508,7 @@ const AppContent: React.FC = () => {
     }
     if (path === 'settings' || path === 'companies' || path === 'contracts') tab = path;
     if (path === 'materials' || path === 'materials-search') tab = 'materials';
+    if (path === 'manuals' || path === 'technical-manuals') tab = 'manuals';
     if (path.startsWith('maintenance-plan')) tab = 'maintenance-plans';
 
     setActiveTab(tab);
@@ -509,6 +519,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('units-search');
     } else if (path === 'materials' || path === 'materials-search') {
       setCurrentScreen('materials-search');
+    } else if (path === 'manuals' || path === 'technical-manuals') {
+      setCurrentScreen('technical-manuals');
     } else if (path === 'orders') {
       setCurrentScreen('orders-dashboard');
     } else if (path === 'visits') {
@@ -1017,6 +1029,39 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const handleTechnicalManualSelect = (tm: import('./types').TechnicalManual) => {
+    setSelectedTechnicalManual(tm);
+    setCurrentScreen('technical-manual-details');
+  };
+
+  const handleSaveTechnicalManual = async (tm: Partial<import('./types').TechnicalManual>) => {
+    try {
+      if (selectedTechnicalManual?.id && currentScreen === 'technical-manual-edit') {
+        await dataService.updateTechnicalManual(selectedTechnicalManual.id, tm);
+      } else {
+        await dataService.createTechnicalManual(tm);
+      }
+      setCurrentScreen('technical-manuals');
+    } catch (error) {
+      console.error("Error saving technical manual", error);
+      toast.error("Erro ao salvar documento técnico");
+    }
+  };
+
+  const handleDeleteTechnicalManual = async () => {
+    if (!selectedTechnicalManual?.id) return;
+    if (!confirm('Tem certeza que deseja excluir este documento técnico?')) return;
+
+    try {
+      await dataService.deleteTechnicalManual(selectedTechnicalManual.id);
+      toast.success('Documento técnico excluído!');
+      setCurrentScreen('technical-manuals');
+    } catch (error) {
+      console.error("Error deleting technical manual", error);
+      toast.error("Erro ao excluir documento técnico");
+    }
+  };
+
   const handleBack = () => {
     if (currentScreen === 'company-details' || currentScreen === 'company-form') {
       setCurrentScreen('companies');
@@ -1060,6 +1105,12 @@ const AppContent: React.FC = () => {
       setCurrentScreen('settings');
     } else if (currentScreen === 'asset-tag-sub-form' || currentScreen === 'asset-tag-sub-edit') {
       setCurrentScreen('asset-tag-subs');
+    } else if (currentScreen === 'technical-manuals') {
+      setCurrentScreen('settings');
+    } else if (currentScreen === 'technical-manual-form' || currentScreen === 'technical-manual-edit') {
+      setCurrentScreen('technical-manuals');
+    } else if (currentScreen === 'technical-manual-details') {
+      setCurrentScreen('technical-manuals');
     } else if (currentScreen === 'client-units') {
       setCurrentScreen('client-details');
     } else if (currentScreen === 'unit-details') {
@@ -2211,6 +2262,14 @@ const AppContent: React.FC = () => {
         return <AssetTagSubForm onSave={handleSaveAssetTagSub} onCancel={handleBack} />;
       case 'asset-tag-sub-edit':
         return selectedAssetTagSub ? <AssetTagSubForm initialTagSub={selectedAssetTagSub} onSave={handleSaveAssetTagSub} onCancel={handleBack} /> : null;
+      case 'technical-manuals':
+        return <TechnicalManualsList onAdd={() => setCurrentScreen('technical-manual-form')} onSelect={handleTechnicalManualSelect} />;
+      case 'technical-manual-form':
+        return <TechnicalManualForm onSave={handleSaveTechnicalManual} onCancel={handleBack} />;
+      case 'technical-manual-edit':
+        return selectedTechnicalManual ? <TechnicalManualForm initialManual={selectedTechnicalManual} onSave={handleSaveTechnicalManual} onCancel={handleBack} /> : null;
+      case 'technical-manual-details':
+        return selectedTechnicalManual ? <TechnicalManualDetails manual={selectedTechnicalManual} onEdit={() => setCurrentScreen('technical-manual-edit')} onDelete={handleDeleteTechnicalManual} onSelectAsset={async (assetId) => { try { const asset = await dataService.getAssetById(assetId); if (asset) handleAssetSelect(asset); } catch (e) { console.error(e); } }} /> : null;
       case 'maintenance-plans':
       case 'maintenance-plan-form':
       case 'maintenance-plan-edit':
@@ -2673,6 +2732,10 @@ const AppContent: React.FC = () => {
       case 'asset-tag-subs': return 'Posições';
       case 'asset-tag-sub-form': return 'Nova Posição';
       case 'asset-tag-sub-edit': return 'Editar Posição';
+      case 'technical-manuals': return 'Manuais';
+      case 'technical-manual-form': return 'Novo Manual';
+      case 'technical-manual-edit': return 'Editar Manual';
+      case 'technical-manual-details': return 'Detalhes do Manual';
       case 'notifications': return 'Notificações';
       case 'service-request-detail': return 'Detalhes da SS';
       case 'service-request-create': return selectedOrder?.id ? 'Edição SS' : 'Nova SS';
@@ -2708,21 +2771,24 @@ const AppContent: React.FC = () => {
   // Supabase recovery sessions authenticate the user automatically, so currentUser
   // will be set — but we still need to show the password reset form.
   if (authScreen === 'reset-password') {
-    return <ResetPasswordScreen onSuccess={async () => {
-      isRecoveryFlowRef.current = false;
-      window.history.replaceState({}, document.title, '/');
-      // Clear reset screen immediately — loadUser will set currentUser
-      setAuthScreen('login');
-      setAuthLoading(true);
-      try {
-        await loadUserRef.current?.();
-      } catch (e) {
-        console.error('[Recovery] Failed to load user after password reset:', e);
-        // loadUser already handles fallback to login
-      } finally {
-        setAuthLoading(false);
-      }
-    }} />;
+    return <ResetPasswordScreen
+      onSuccess={async () => {
+        isRecoveryFlowRef.current = false;
+        window.history.replaceState({}, document.title, '/');
+        // Clear reset screen immediately — loadUser will set currentUser
+        setAuthScreen('login');
+        setAuthLoading(true);
+        try {
+          await loadUserRef.current?.();
+        } catch (e) {
+          console.error('[Recovery] Failed to load user after password reset:', e);
+          // loadUser already handles fallback to login
+        } finally {
+          setAuthLoading(false);
+        }
+      }}
+      onBack={() => setAuthScreen('forgot-password')}
+    />;
   }
 
   if (!currentUser) {
@@ -2873,6 +2939,7 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) !== 'companies' &&
                 (currentScreen as string) !== 'units-search' &&
                 (currentScreen as string) !== 'assets-search' &&
+                (currentScreen as string) !== 'technical-manuals' &&
                 (currentScreen as string) !== 'settings' &&
                 (currentScreen as string) !== 'profile-permissions' &&
                 (currentScreen as string) !== 'notifications' &&

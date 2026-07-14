@@ -5,7 +5,7 @@ import { usePermissions } from '../contexts/PermissionsContext';
 interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
-    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'materials';
+    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'materials' | 'manuals';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -112,6 +112,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         isActive={activeTab === 'maintenance-plans'}
                         isCollapsed={isCollapsed}
                         onClick={() => { onNavigate('maintenance-plans'); }}
+                    />
+                )}
+                {(isAdminSuper || canView('technicals_manuals_search')) && (
+                    <SidebarItem
+                        icon="menu_book"
+                        label="Manuais"
+                        isActive={activeTab === 'manuals'}
+                        isCollapsed={isCollapsed}
+                        onClick={() => { onNavigate('manuals'); }}
                     />
                 )}
                 {(isAdminSuper || canView('settings')) && (

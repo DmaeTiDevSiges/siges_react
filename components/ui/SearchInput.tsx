@@ -9,7 +9,7 @@ interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export const SearchInput: React.FC<SearchInputProps> = ({ containerClassName = '', className = '', onClear, rightAction, ...props }) => {
     return (
-        <div className={`relative group ${containerClassName}`}>
+        <div className={`relative group ${containerClassName} ${props.disabled ? 'opacity-50 pointer-events-none' : ''}`}>
             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-400 dark:text-slate-500 group-focus-within:text-primary transition-colors">
                 <span className="material-symbols-outlined text-[20px]">search</span>
             </div>
