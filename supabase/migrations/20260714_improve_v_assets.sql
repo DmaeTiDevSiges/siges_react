@@ -74,6 +74,7 @@ select
   assets.img_file_name,
   assets.img_file_name_thumb,
   assets.version_mode,
+  assets.is_deleted,
   cfg_assets_statuses.color as status_color,
   assets.client_id,
   clients.name as client_name,

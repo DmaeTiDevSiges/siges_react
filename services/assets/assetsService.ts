@@ -17,9 +17,6 @@ export const assetsService = {
                 .select('*')
                 .order('description');
 
-            if (filter === 'active') query = query.eq('is_deleted', false);
-            else if (filter === 'inactive') query = query.eq('is_deleted', true);
-
             if (search && search.trim().length > 0) {
                 const terms = search.trim().split(/\s+/);
                 terms.forEach(term => {

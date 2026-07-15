@@ -2482,6 +2482,7 @@ CREATE TABLE IF NOT EXISTS public.v_assets (
     img_file_name text,
     img_file_name_thumb text,
     version_mode character varying(255),
+    is_deleted boolean DEFAULT false,
     PRIMARY KEY (id)
 );
 
