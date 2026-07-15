@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TechnicalManual, TechnicalManualFile, TechnicalManualAsset } from '../../../../types';
+import { TechnicalManual, TechnicalManualFile, TechnicalManualAsset, TechnicalManualCategory } from '../../../../types';
 import { dataService } from '../../../../services/dataService';
 import { getPublicImageUrl } from '../../../../services/imageUtils';
 import { Button } from '../../../../components/ui/Button';
@@ -8,6 +8,7 @@ import { Select } from '../../../../components/ui/Select';
 import { Loading } from '../../../../components/ui/Loading';
 import { Modal } from '../../../../components/ui/Modal';
 import { toast } from 'sonner';
+import { usePermissions } from '../../../../contexts/PermissionsContext';
 
 interface TechnicalManualDetailsProps {
     manual: TechnicalManual;
@@ -22,6 +23,9 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
     onDelete,
     onSelectAsset
 }) => {
+    const { canEdit, canDelete } = usePermissions();
+    const canEditManual = canEdit('technicals_manuals_create_edit_delete');
+    const canDeleteManual = canDelete('technicals_manuals_create_edit_delete');
     const [activeTab, setActiveTab] = useState<'files' | 'assets'>('files');
     const [files, setFiles] = useState<TechnicalManualFile[]>([]);
     const [assets, setAssets] = useState<TechnicalManualAsset[]>([]);
@@ -42,6 +46,8 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
     const [loadingUnits, setLoadingUnits] = useState(false);
     const [associatingAssetId, setAssociatingAssetId] = useState<string | null>(null);
     const [showMenuActions, setShowMenuActions] = useState(false);
+    const [categories, setCategories] = useState<TechnicalManualCategory[]>([]);
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
     const menuActionsRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +71,18 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
     useEffect(() => {
         loadData();
     }, [manual.id]);
+
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const cats = await dataService.getTechnicalManualCategories();
+                setCategories(cats);
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        };
+        loadCategories();
+    }, []);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -97,7 +115,7 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
 
         setUploading(true);
         try {
-            await dataService.uploadTechnicalManualFile(manual.id, file, manual.companyId);
+            await dataService.uploadTechnicalManualFile(manual.id, file, manual.companyId || '1', selectedCategoryId || undefined);
             toast.success('Arquivo enviado com sucesso!');
             loadData();
         } catch (error) {
@@ -277,6 +295,7 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                             </div>
                         </div>
                         <div className="relative" ref={menuActionsRef}>
+                            {(canEditManual || canDeleteManual) && (
                             <button
                                 onClick={() => setShowMenuActions(!showMenuActions)}
                                 className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 ${showMenuActions
@@ -288,9 +307,11 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                                     {showMenuActions ? 'close' : 'more_vert'}
                                 </span>
                             </button>
+                            )}
                             {showMenuActions && (
                                 <div className="absolute right-0 top-full mt-2 min-w-[180px] bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                     <div className="py-1.5">
+                                        {canEditManual && (
                                         <button
                                             onClick={() => { setShowMenuActions(false); onEdit(); }}
                                             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left"
@@ -298,6 +319,8 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                                             <span className="material-symbols-outlined text-[20px]">edit</span>
                                             <span>Editar</span>
                                         </button>
+                                        )}
+                                        {canDeleteManual && (
                                         <button
                                             onClick={() => {
                                                 setShowMenuActions(false);
@@ -315,6 +338,7 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                                             <span className="material-symbols-outlined text-[20px]">delete</span>
                                             <span>Excluir</span>
                                         </button>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -357,6 +381,18 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
             <div className="flex-1 overflow-y-auto p-4 pb-32">
                 {activeTab === 'files' && (
                     <div className="space-y-4">
+                        {/* Category Selector */}
+                        <Select
+                            label="Categoria do Arquivo"
+                            value={selectedCategoryId}
+                            onChange={(e) => setSelectedCategoryId(e.target.value)}
+                        >
+                            <option value="">Sem categoria</option>
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.description}</option>
+                            ))}
+                        </Select>
+
                         {/* Upload Button */}
                         <input
                             ref={fileInputRef}
@@ -370,7 +406,7 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                             fullWidth
                             onClick={() => fileInputRef.current?.click()}
                             loading={uploading}
-                            disabled={uploading}
+                            disabled={uploading || !selectedCategoryId}
                         >
                             <span className="material-symbols-outlined text-sm mr-2">upload</span>
                             Adicionar Arquivo
@@ -403,9 +439,19 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                                             <div className="p-4 flex items-center gap-4">
                                                 <div className="flex-1 min-w-0">
                                                     <h4 className="text-sm font-bold text-slate-900 dark:text-slate-200 truncate">{file.docFileName}</h4>
-                                                    <p className="text-[10px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">
-                                                        {formatFileSize(file.docFileName)}
-                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                            {formatFileSize(file.docFileName)}
+                                                        </p>
+                                                        {file.tmCategoryDescription && (
+                                                            <>
+                                                                <span className="text-[10px] text-slate-300">•</span>
+                                                                <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider">
+                                                                    {file.tmCategoryDescription}
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="flex gap-1">
                                                     <a
@@ -416,12 +462,14 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                                                     >
                                                         <span className="material-symbols-outlined text-slate-500">download</span>
                                                     </a>
+                                                    {canDeleteManual && (
                                                     <button
                                                         onClick={() => handleDeleteFile(file.id)}
                                                         className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                     >
                                                         <span className="material-symbols-outlined text-red-500">delete</span>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

@@ -1,6 +1,6 @@
 import { supabase } from '../supabase';
 import { r2Service } from '../r2Service';
-import { TechnicalManual, TechnicalManualType, TechnicalManualFile, TechnicalManualAsset } from '../../types';
+import { TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset } from '../../types';
 
 export const technicalManualsService = {
     // ── Technical Manuals CRUD ──────────────────────────────────────────
@@ -34,8 +34,6 @@ export const technicalManualsService = {
             id: item.id.toString(),
             code: item.code || '',
             description: item.tm_description || '',
-            tmTypeId: item.tm_type_id?.toString() || '',
-            tmTypeDescription: item.tm_type_description || '',
             assetTypeId: item.asset_type_id?.toString() || '',
             assetTypeDescription: item.asset_type_description || '',
             companyId: item.company_id?.toString() || '',
@@ -66,8 +64,6 @@ export const technicalManualsService = {
             id: data.id.toString(),
             code: data.code || '',
             description: data.tm_description || '',
-            tmTypeId: data.tm_type_id?.toString() || '',
-            tmTypeDescription: data.tm_type_description || '',
             assetTypeId: data.asset_type_id?.toString() || '',
             assetTypeDescription: data.asset_type_description || '',
             companyId: data.company_id?.toString() || '',
@@ -82,7 +78,6 @@ export const technicalManualsService = {
         const dbData = {
             code: tm.code || null,
             description: tm.description,
-            tm_type_id: parseInt(tm.tmTypeId),
             asset_type_id: parseInt(tm.assetTypeId),
             company_id: tm.companyId ? parseInt(tm.companyId) : null,
             assets_amount: 0
@@ -108,7 +103,6 @@ export const technicalManualsService = {
 
         if (tm.code !== undefined) dbData.code = tm.code || null;
         if (tm.description !== undefined) dbData.description = tm.description;
-        if (tm.tmTypeId !== undefined) dbData.tm_type_id = parseInt(tm.tmTypeId);
         if (tm.assetTypeId !== undefined) dbData.asset_type_id = parseInt(tm.assetTypeId);
 
         const { data, error } = await supabase
@@ -145,17 +139,17 @@ export const technicalManualsService = {
         if (error) throw error;
     },
 
-    // ── Technical Manual Types ──────────────────────────────────────────
+    // ── Technical Manual Categories ──────────────────────────────────────────
 
-    async getTechnicalManualTypes(): Promise<TechnicalManualType[]> {
+    async getTechnicalManualCategories(): Promise<TechnicalManualCategory[]> {
         const { data, error } = await supabase
-            .from('technicals_manuals_types')
+            .from('cfg_technicals_manuals_categories')
             .select('*')
             .eq('is_deleted', false)
             .order('description');
 
         if (error) {
-            console.error('Error fetching technical manual types:', error);
+            console.error('Error fetching technical manual categories:', error);
             throw error;
         }
 
@@ -163,13 +157,13 @@ export const technicalManualsService = {
             id: item.id.toString(),
             description: item.description,
             isDeleted: item.is_deleted
-        })) as TechnicalManualType[];
+        })) as TechnicalManualCategory[];
     },
 
-    async createTechnicalManualType(tmType: Partial<TechnicalManualType>): Promise<TechnicalManualType> {
+    async createTechnicalManualCategory(tmCategory: Partial<TechnicalManualCategory>): Promise<TechnicalManualCategory> {
         const { data, error } = await supabase
-            .from('technicals_manuals_types')
-            .insert({ description: tmType.description })
+            .from('cfg_technicals_manuals_categories')
+            .insert({ description: tmCategory.description })
             .select()
             .single();
 
@@ -179,7 +173,7 @@ export const technicalManualsService = {
             id: data.id.toString(),
             description: data.description,
             isDeleted: data.is_deleted
-        } as TechnicalManualType;
+        } as TechnicalManualCategory;
     },
 
     // ── Technical Manual Files ──────────────────────────────────────────
@@ -187,7 +181,7 @@ export const technicalManualsService = {
     async getTechnicalManualFiles(tmId: string): Promise<TechnicalManualFile[]> {
         const { data, error } = await supabase
             .from('technicals_manuals_files')
-            .select('*')
+            .select('*, cfg_technicals_manuals_categories!inner(id, description)')
             .eq('tm_id', parseInt(tmId))
             .order('created_at', { ascending: false });
 
@@ -199,6 +193,8 @@ export const technicalManualsService = {
         return data.map((item: any) => ({
             id: item.id.toString(),
             tmId: item.tm_id.toString(),
+            tmCategoryId: item.tm_category_id?.toString() || '',
+            tmCategoryDescription: item.cfg_technicals_manuals_categories?.description || '',
             docFilePath: item.doc_file_path || '',
             docFileName: item.doc_file_name || '',
             fileType: item.file_type || 'pdf',
@@ -209,11 +205,12 @@ export const technicalManualsService = {
     async uploadTechnicalManualFile(
         tmId: string,
         file: File,
-        companyId: string = '1'
+        companyId: string = '1',
+        tmCategoryId?: string
     ): Promise<TechnicalManualFile> {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
-        const folderPath = `companies/${companyId}/technical-manuals/${tmId}`;
+        const folderPath = `companies/${companyId}/technicals-manuals/${tmId}`;
         const fullPath = `${folderPath}/${fileName}`;
 
         // Determine file type
@@ -234,6 +231,7 @@ export const technicalManualsService = {
             .from('technicals_manuals_files')
             .insert({
                 tm_id: parseInt(tmId),
+                tm_category_id: tmCategoryId ? parseInt(tmCategoryId) : null,
                 doc_file_path: folderPath,
                 doc_file_name: fileName,
                 file_type: fileType
@@ -246,6 +244,7 @@ export const technicalManualsService = {
         return {
             id: data.id.toString(),
             tmId: data.tm_id.toString(),
+            tmCategoryId: data.tm_category_id?.toString() || '',
             docFilePath: data.doc_file_path,
             docFileName: data.doc_file_name,
             fileType: data.file_type,

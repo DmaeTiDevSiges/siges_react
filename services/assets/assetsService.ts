@@ -6,17 +6,19 @@ import { unitsService } from '../core/unitsService';
 import { getPublicImageUrl } from '../imageUtils';
 import { formatDateTime } from '../../utils/formatters';
 import { assetAttributesService } from './assetAttributesService';
-import { companiesService } from '../companies/companiesService';
+
 
 export const assetsService = {
     // ── Asset CRUD ───────────────────────────────────────────────
     async getAssets(filter: 'all' | 'active' | 'inactive' = 'all', search: string = '', unitId?: string, unitAssetTagId?: string): Promise<Asset[]> {
         try {
             let query = supabase
-                .from('assets')
+                .from('v_assets')
                 .select('*')
-                .eq('is_deleted', 'false')
                 .order('description');
+
+            if (filter === 'active') query = query.eq('is_deleted', false);
+            else if (filter === 'inactive') query = query.eq('is_deleted', true);
 
             if (search && search.trim().length > 0) {
                 const terms = search.trim().split(/\s+/);
@@ -33,106 +35,69 @@ export const assetsService = {
                 query = query.eq('unit_asset_tag_id', unitAssetTagId);
             }
 
-            const { data: assetsData, error: assetsError } = await query.limit(5000);
+            const { data, error } = await query.limit(5000);
 
-            if (assetsError) {
-                console.error('getAssets: ERRO AO BUSCAR ATIVOS:', assetsError);
-                throw assetsError;
+            if (error) {
+                console.error('getAssets: ERRO AO BUSCAR ATIVOS:', error);
+                throw error;
             }
 
-            if (!assetsData || assetsData.length === 0) {
+            if (!data || data.length === 0) {
                 return [];
             }
 
-            const unitIds = [...new Set(assetsData.map((a: any) => a.unit_id).filter(Boolean))];
-            const clientIds = [...new Set(assetsData.map((a: any) => a.client_id).filter(Boolean))];
-            const statusIds = [...new Set(assetsData.map((a: any) => a.status_id).filter(Boolean))];
-            const unitAssetTagIds = [...new Set(assetsData.map((a: any) => a.unit_asset_tag_id).filter(Boolean))];
-
-            const promises: any[] = [];
-
-            if (unitIds.length > 0)
-                promises.push(supabase.from('units').select('id, description_full').in('id', unitIds));
-            else
-                promises.push(Promise.resolve({ data: [] }));
-
-            if (clientIds.length > 0)
-                promises.push(supabase.from('clients').select('id, name').in('id', clientIds));
-            else
-                promises.push(Promise.resolve({ data: [] }));
-
-            if (statusIds.length > 0)
-                promises.push(supabase.from('cfg_assets_statuses').select('id, code, color').in('id', statusIds));
-            else
-                promises.push(Promise.resolve({ data: [] }));
-
-            if (unitAssetTagIds.length > 0)
-                promises.push(supabase.from('cfg_units_assets_tags').select('id, asset_tag_tag_sub_description').in('id', unitAssetTagIds));
-            else
-                promises.push(Promise.resolve({ data: [] }));
-
-            const [unitsRes, clientsRes, statusRes, unitTagsRes] = await Promise.all(promises);
-
-            const unitsMap = new Map((unitsRes.data || []).map((u: any) => [u.id.toString(), u.description_full]));
-            const clientsMap = new Map((clientsRes.data || []).map((c: any) => [c.id.toString(), c.name]));
-            const statusMap = new Map((statusRes.data || []).map((s: any) => [s.id.toString(), s.code]));
-            const statusColorMap = new Map((statusRes.data || []).map((s: any) => [s.id.toString(), s.color]));
-            const unitTagsMap = new Map((unitTagsRes.data || []).map((t: any) => [t.id.toString(), t.asset_tag_tag_sub_description]));
-
-            return assetsData.map((item: any) => {
-                const unitId = item.unit_id?.toString();
-                const clientId = item.client_id?.toString();
-                const statusId = item.status_id?.toString();
-
-                return {
-                    id: item.id.toString(),
-                    code: item.code || '',
-                    description: item.description || '',
-                    clientId,
-                    clientName: clientsMap.get(clientId) || '',
-                    unitId,
-                    unitDescriptionFull: unitsMap.get(unitId) || '',
-                    statusId,
-                    statusCode: statusMap.get(statusId) || '',
-                    statusColor: statusColorMap.get(statusId) || '#22c55e',
-                    tagId: item.tag_id?.toString(),
-                    tagName: unitTagsMap.get(item.unit_asset_tag_id?.toString()) || '',
-                    tagSubId: item.tag_sub_id?.toString(),
-                    tagSubName: '',
-                    unitAssetTagId: item.unit_asset_tag_id?.toString(),
-                    statusAt: item.status_at,
-                    acquisitionAt: item.acquisition_at,
-                    typeId: item.type_id?.toString(),
-                    comments: item.comments,
-                    brand: item.brand,
-                    model: item.model,
-                    serial: item.serial,
-                    location: item.location,
-                    power: item.power,
-                    powerUnit: item.power_unit,
-                    voltage: item.voltage,
-                    voltageUnit: item.voltage_unit,
-                    amperage: item.amperage,
-                    poles: item.poles,
-                    rotation: item.rotation,
-                    rotationUnit: item.rotation_unit,
-                    serviceFactor: item.service_factor,
-                    rotorDiameter: item.rotor_diameter,
-                    rotorDiameterUnit: item.rotor_diameter_unit,
-                    flowRateMax: item.flow_rate_max,
-                    flowRateMin: item.flow_rate_min,
-                    flowRateOperation: item.flow_rate_operation,
-                    flowRateUnit: item.flow_rate_unit,
-                    pressureMax: item.pressure_max,
-                    pressureMin: item.pressure_min,
-                    pressureOperation: item.pressure_operation,
-                    pressureUnit: item.pressure_unit,
-                    weight: item.weight,
-                    weightUnit: item.weight_unit,
-                    imgFilePath: item.img_file_path,
-                    imgFileName: item.img_file_name
-                } as Asset;
-            });
+            return data.map((item: any) => ({
+                id: item.id.toString(),
+                code: item.code || '',
+                description: item.description || '',
+                clientId: item.client_id?.toString(),
+                clientName: item.client_name || '',
+                unitId: item.unit_id?.toString(),
+                unitDescriptionFull: item.unit_description || '',
+                statusId: item.status_id?.toString(),
+                statusCode: item.status_code || '',
+                statusColor: item.status_color || '#22c55e',
+                tagId: item.tag_id?.toString(),
+                tagName: '',
+                tagSubId: item.tag_sub_id?.toString(),
+                tagSubName: item.tag_sub_description || '',
+                unitAssetTagId: item.unit_asset_tag_id?.toString(),
+                statusAt: item.status_at,
+                acquisitionAt: item.acquisition_at,
+                typeId: item.type_id?.toString(),
+                comments: item.comments,
+                brand: item.brand,
+                model: item.model,
+                serial: item.serial,
+                location: item.location,
+                power: item.power,
+                powerUnit: item.power_unit,
+                voltage: item.voltage,
+                voltageUnit: item.voltage_unit,
+                amperage: item.amperage,
+                poles: item.poles,
+                rotation: item.rotation,
+                rotationUnit: item.rotation_unit,
+                serviceFactor: item.service_factor,
+                rotorDiameter: item.rotor_diameter,
+                rotorDiameterUnit: item.rotor_diameter_unit,
+                flowRateMax: item.flow_rate_max,
+                flowRateMin: item.flow_rate_min,
+                flowRateOperation: item.flow_rate_operation,
+                flowRateUnit: item.flow_rate_unit,
+                pressureMax: item.pressure_max,
+                pressureMin: item.pressure_min,
+                pressureOperation: item.pressure_operation,
+                pressureUnit: item.pressure_unit,
+                weight: item.weight,
+                weightUnit: item.weight_unit,
+                materialId: item.material_id?.toString(),
+                materialCode: item.material_code || '',
+                materialDescription: item.material_description || '',
+                materialUnit: item.material_unit || '',
+                imgFilePath: item.img_file_path,
+                imgFileName: item.img_file_name
+            } as Asset));
 
         } catch (error) {
             console.error('getAssets: ERRO CRÍTICO:', error);
@@ -176,9 +141,8 @@ export const assetsService = {
             }
 
             let query = supabase
-                .from('assets')
+                .from('v_assets')
                 .select('*')
-                .eq('is_deleted', 'false')
                 .order('description');
 
             if (filters.search && filters.search.trim().length > 0) {
@@ -215,51 +179,32 @@ export const assetsService = {
                 else query = query.eq('type_id', filters.typeId);
             }
 
-            const { data: assetsData, error: assetsError } = await query.limit(5000);
+            const { data, error } = await query.limit(5000);
 
-            if (assetsError) {
-                console.error('getFilteredAssets: ERRO:', assetsError);
-                throw assetsError;
+            if (error) {
+                console.error('getFilteredAssets: ERRO:', error);
+                throw error;
             }
 
-            if (!assetsData || assetsData.length === 0) {
+            if (!data || data.length === 0) {
                 return [];
             }
 
-            const unitIds = [...new Set(assetsData.map((a: any) => a.unit_id).filter(Boolean))];
-            const clientIds = [...new Set(assetsData.map((a: any) => a.client_id).filter(Boolean))];
-            const statusIds = [...new Set(assetsData.map((a: any) => a.status_id).filter(Boolean))];
-            const unitAssetTagIds = [...new Set(assetsData.map((a: any) => a.unit_asset_tag_id).filter(Boolean))];
-
-            const promises: any[] = [];
-            promises.push(unitIds.length > 0 ? supabase.from('units').select('id, description_full').in('id', unitIds) : Promise.resolve({ data: [] }));
-            promises.push(clientIds.length > 0 ? supabase.from('clients').select('id, name').in('id', clientIds) : Promise.resolve({ data: [] }));
-            promises.push(statusIds.length > 0 ? supabase.from('cfg_assets_statuses').select('id, code, color').in('id', statusIds) : Promise.resolve({ data: [] }));
-            promises.push(unitAssetTagIds.length > 0 ? supabase.from('cfg_units_assets_tags').select('id, asset_tag_tag_sub_description').in('id', unitAssetTagIds) : Promise.resolve({ data: [] }));
-
-            const [unitsRes, clientsRes, statusRes, unitTagsRes] = await Promise.all(promises);
-
-            const unitsMap = new Map((unitsRes.data || []).map((u: any) => [u.id.toString(), u.description_full]));
-            const clientsMap = new Map((clientsRes.data || []).map((c: any) => [c.id.toString(), c.name]));
-            const statusMap = new Map((statusRes.data || []).map((s: any) => [s.id.toString(), s.code]));
-            const statusColorMap = new Map((statusRes.data || []).map((s: any) => [s.id.toString(), s.color]));
-            const unitTagsMap = new Map((unitTagsRes.data || []).map((t: any) => [t.id.toString(), t.asset_tag_tag_sub_description]));
-
-            return assetsData.map((item: any) => ({
+            return data.map((item: any) => ({
                 id: item.id.toString(),
                 code: item.code || '',
                 description: item.description || '',
                 clientId: item.client_id?.toString(),
-                clientName: clientsMap.get(item.client_id?.toString()) || '',
+                clientName: item.client_name || '',
                 unitId: item.unit_id?.toString(),
-                unitDescriptionFull: unitsMap.get(item.unit_id?.toString()) || '',
+                unitDescriptionFull: item.unit_description || '',
                 statusId: item.status_id?.toString(),
-                statusCode: statusMap.get(item.status_id?.toString()) || '',
-                statusColor: statusColorMap.get(item.status_id?.toString()) || '#22c55e',
+                statusCode: item.status_code || '',
+                statusColor: item.status_color || '#22c55e',
                 tagId: item.tag_id?.toString(),
-                tagName: unitTagsMap.get(item.unit_asset_tag_id?.toString()) || '',
+                tagName: '',
                 tagSubId: item.tag_sub_id?.toString(),
-                tagSubName: '',
+                tagSubName: item.tag_sub_description || '',
                 unitAssetTagId: item.unit_asset_tag_id?.toString(),
                 statusAt: item.status_at,
                 acquisitionAt: item.acquisition_at,
@@ -290,6 +235,10 @@ export const assetsService = {
                 pressureUnit: item.pressure_unit,
                 weight: item.weight,
                 weightUnit: item.weight_unit,
+                materialId: item.material_id?.toString(),
+                materialCode: item.material_code || '',
+                materialDescription: item.material_description || '',
+                materialUnit: item.material_unit || '',
                 imgFilePath: item.img_file_path,
                 imgFileName: item.img_file_name
             })) as Asset[];
@@ -302,37 +251,28 @@ export const assetsService = {
 
     async getAssetById(id: string): Promise<Asset | null> {
         const { data, error } = await supabase
-            .from('assets')
+            .from('v_assets')
             .select('*')
             .eq('id', id)
             .single();
 
-        if (error) return null;
-
-        const [unitsData, clientsData, statusData, tagInfo] = await Promise.all([
-            supabase.from('units').select('id, description_full').eq('id', data.unit_id).single(),
-            supabase.from('clients').select('id, name').eq('id', data.client_id).single(),
-            supabase.from('cfg_assets_statuses').select('id, code, color').eq('id', data.status_id).single(),
-            data.unit_asset_tag_id
-                ? supabase.from('cfg_units_assets_tags').select('id, asset_tag_tag_sub_description').eq('id', data.unit_asset_tag_id).single()
-                : Promise.resolve({ data: null })
-        ]);
+        if (error || !data) return null;
 
         return {
             id: data.id.toString(),
             code: data.code || '',
             description: data.description || '',
             clientId: data.client_id?.toString(),
-            clientName: clientsData.data?.name || '',
+            clientName: data.client_name || '',
             unitId: data.unit_id?.toString(),
-            unitDescriptionFull: unitsData.data?.description_full || '',
+            unitDescriptionFull: data.unit_description || '',
             statusId: data.status_id?.toString(),
-            statusCode: statusData.data?.code || '',
-            statusColor: statusData.data?.color || '#22c55e',
+            statusCode: data.status_code || '',
+            statusColor: data.status_color || '#22c55e',
             tagId: data.tag_id?.toString(),
-            tagName: tagInfo.data?.asset_tag_tag_sub_description || '',
+            tagName: '',
             tagSubId: data.tag_sub_id?.toString(),
-            tagSubName: '',
+            tagSubName: data.tag_sub_description || '',
             unitAssetTagId: data.unit_asset_tag_id?.toString(),
             statusAt: data.status_at,
             typeId: data.type_id?.toString(),
@@ -363,6 +303,10 @@ export const assetsService = {
             pressureUnit: data.pressure_unit,
             weight: data.weight,
             weightUnit: data.weight_unit,
+            materialId: data.material_id?.toString(),
+            materialCode: data.material_code || '',
+            materialDescription: data.material_description || '',
+            materialUnit: data.material_unit || '',
             imgFilePath: data.img_file_path,
             imgFileName: data.img_file_name
         } as Asset;
@@ -405,6 +349,7 @@ export const assetsService = {
             pressure_unit: asset.pressureUnit,
             weight: asset.weight,
             weight_unit: asset.weightUnit,
+            material_id: asset.materialId ? parseInt(asset.materialId) : null,
             type_id: asset.typeId ? parseInt(asset.typeId) : null,
             unit_asset_tag_id: asset.unitAssetTagId ? parseInt(asset.unitAssetTagId) : null,
             img_file_path: asset.imgFilePath,
@@ -483,6 +428,7 @@ export const assetsService = {
         if (asset.pressureUnit !== undefined) dbData.pressure_unit = asset.pressureUnit;
         if (asset.weight !== undefined) dbData.weight = asset.weight;
         if (asset.weightUnit !== undefined) dbData.weight_unit = asset.weightUnit;
+        if (asset.materialId !== undefined) dbData.material_id = asset.materialId ? parseInt(asset.materialId) : null;
         if (asset.imgFilePath !== undefined) dbData.img_file_path = asset.imgFilePath;
         if (asset.imgFileName !== undefined) dbData.img_file_name = asset.imgFileName;
         if (asset.typeId !== undefined) dbData.type_id = asset.typeId ? parseInt(asset.typeId) : null;

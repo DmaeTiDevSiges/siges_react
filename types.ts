@@ -659,6 +659,8 @@ export interface Asset {
   priorityId?: number;
   materialId?: string;
   materialCode?: string;
+  materialDescription?: string;
+  materialUnit?: string;
   acquisitionAt?: string;
   location?: string;
   weight?: number;
@@ -1281,8 +1283,6 @@ export interface TechnicalManual {
   id: string;
   code?: string;
   description: string;
-  tmTypeId: string;
-  tmTypeDescription?: string;
   assetTypeId: string;
   assetTypeDescription?: string;
   companyId?: string;
@@ -1292,7 +1292,7 @@ export interface TechnicalManual {
   versionMode?: string;
 }
 
-export interface TechnicalManualType {
+export interface TechnicalManualCategory {
   id: string;
   description: string;
   versionMode?: string;
@@ -1308,6 +1308,8 @@ export interface TechnicalManualType {
 export interface TechnicalManualFile {
   id: string;
   tmId: string;
+  tmCategoryId?: string;
+  tmCategoryDescription?: string;
   docFilePath: string;
   docFileName: string;
   fileType: 'image' | 'pdf' | 'doc' | 'excel';

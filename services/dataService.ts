@@ -21,7 +21,7 @@ import { maintenancePlansService } from './core/maintenancePlansService';
 import { orderConfigService } from './core/orderConfigService';
 import { toolsService } from './toolsService';
 import { technicalManualsService } from './assets/technicalManualsService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualType, TechnicalManualFile, TechnicalManualAsset } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset } from '../types';
 
 
 
@@ -2258,19 +2258,19 @@ export const dataService = {
         return technicalManualsService.deleteTechnicalManual.apply(technicalManualsService, arguments as any);
     },
 
-    async getTechnicalManualTypes(): Promise<TechnicalManualType[]> {
-        return technicalManualsService.getTechnicalManualTypes.apply(technicalManualsService, arguments as any);
+    async getTechnicalManualCategories(): Promise<TechnicalManualCategory[]> {
+        return technicalManualsService.getTechnicalManualCategories.apply(technicalManualsService, arguments as any);
     },
 
-    async createTechnicalManualType(tmType: Partial<TechnicalManualType>): Promise<TechnicalManualType> {
-        return technicalManualsService.createTechnicalManualType.apply(technicalManualsService, arguments as any);
+    async createTechnicalManualCategory(tmCategory: Partial<TechnicalManualCategory>): Promise<TechnicalManualCategory> {
+        return technicalManualsService.createTechnicalManualCategory.apply(technicalManualsService, arguments as any);
     },
 
     async getTechnicalManualFiles(tmId: string): Promise<TechnicalManualFile[]> {
         return technicalManualsService.getTechnicalManualFiles.apply(technicalManualsService, arguments as any);
     },
 
-    async uploadTechnicalManualFile(tmId: string, file: File, companyId?: string): Promise<TechnicalManualFile> {
+    async uploadTechnicalManualFile(tmId: string, file: File, companyId?: string, tmCategoryId?: string): Promise<TechnicalManualFile> {
         return technicalManualsService.uploadTechnicalManualFile.apply(technicalManualsService, arguments as any);
     },
 

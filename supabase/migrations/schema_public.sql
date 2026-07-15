@@ -345,9 +345,17 @@ CREATE VIEW public.v_assets AS
     assets.img_file_path,
     assets.img_file_name,
     assets.img_file_name_thumb,
-    assets.version_mode
-   FROM (((((((((public.assets
+    assets.version_mode,
+    cfg_assets_statuses.color AS status_color,
+    assets.client_id,
+    clients.name AS client_name,
+    assets.material_id,
+    materials.code AS material_code,
+    materials.description AS material_description,
+    materials.unit AS material_unit
+   FROM (((((((((((((public.assets
      LEFT JOIN public.units ON ((assets.unit_id = units.id)))
+     LEFT JOIN public.clients ON ((assets.client_id = clients.id)))
      LEFT JOIN public.cfg_companies ON ((assets.company_id = cfg_companies.id)))
      LEFT JOIN public.cfg_companies cfg_companies_owners ON ((assets.company_owner_id = cfg_companies_owners.id)))
      LEFT JOIN public.cfg_assets_tags ON ((assets.tag_id = cfg_assets_tags.id)))
@@ -356,7 +364,8 @@ CREATE VIEW public.v_assets AS
      LEFT JOIN public.cfg_assets_types ON ((assets.type_id = cfg_assets_types.id)))
      LEFT JOIN public.cfg_assets_priorities ON ((assets.priority_id = cfg_assets_priorities.id)))
      LEFT JOIN public.cfg_assets_couplings_models ON ((assets.coupling_model_id = cfg_assets_couplings_models.id)))
-  WHERE (assets.is_deleted = false);
+     LEFT JOIN public.materials ON ((assets.material_id = materials.id)))
+   WHERE (assets.is_deleted = false);
 
 
 --
@@ -7308,6 +7317,14 @@ ALTER TABLE ONLY public.assets
 
 ALTER TABLE ONLY public.assets
     ADD CONSTRAINT assets_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id) ON DELETE SET NULL;
+
+
+--
+-- Name: assets assets_material_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.assets
+    ADD CONSTRAINT assets_material_id_fkey FOREIGN KEY (material_id) REFERENCES public.materials(id) ON DELETE SET NULL;
 
 
 --

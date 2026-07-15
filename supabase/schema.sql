@@ -3194,6 +3194,70 @@ ALTER TABLE public.warehouses_materials ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all authenticated users full access to warehouses_materials" ON public.warehouses_materials FOR ALL TO authenticated USING (true);
 
 -- =============================================================================
+-- Tabelas de documentos técnicos
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.technicals_manuals (
+    id BIGSERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES public.cfg_companies(id),
+    code TEXT,
+    description TEXT NOT NULL,
+    asset_type_id INTEGER NOT NULL REFERENCES public.cfg_assets_types(id),
+    doc_file_path TEXT,
+    doc_file_name TEXT,
+    assets_amount INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP NULL,
+    is_deleted BOOLEAN DEFAULT false,
+    deleted_at TIMESTAMP NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.cfg_technicals_manuals_categories (
+    id BIGSERIAL PRIMARY KEY,
+    description TEXT NOT NULL,
+    version_mode VARCHAR DEFAULT '1',
+    created_user_id INTEGER REFERENCES public.users(id),
+    created_at TIMESTAMP DEFAULT now(),
+    updated_user_id INTEGER REFERENCES public.users(id),
+    updated_at TIMESTAMP NULL,
+    deleted_user_id INTEGER REFERENCES public.users(id),
+    deleted_at TIMESTAMP NULL,
+    is_deleted BOOLEAN DEFAULT false
+);
+
+CREATE TABLE IF NOT EXISTS public.technicals_manuals_files (
+    id BIGSERIAL PRIMARY KEY,
+    tm_id BIGINT NOT NULL REFERENCES public.technicals_manuals(id) ON DELETE CASCADE,
+    tm_category_id BIGINT REFERENCES public.cfg_technicals_manuals_categories(id) ON DELETE SET NULL,
+    doc_file_path TEXT,
+    doc_file_name TEXT,
+    file_type VARCHAR DEFAULT 'pdf',
+    created_at TIMESTAMP DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tmf_tm_id ON public.technicals_manuals_files(tm_id);
+
+ALTER TABLE public.technicals_manuals_files ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all authenticated users full access to technicals_manuals_files" ON public.technicals_manuals_files FOR ALL TO authenticated USING (true);
+
+-- =============================================================================
+-- Tabela de associação de ativos a documentos técnicos
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.technicals_manuals_assets (
+    id BIGSERIAL PRIMARY KEY,
+    tm_id BIGINT NOT NULL REFERENCES public.technicals_manuals(id) ON DELETE CASCADE,
+    asset_id BIGINT NOT NULL REFERENCES public.assets(id) ON DELETE CASCADE,
+    version_mode VARCHAR DEFAULT '1',
+    created_at TIMESTAMP DEFAULT now(),
+    UNIQUE (tm_id, asset_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tma_tm_id ON public.technicals_manuals_assets(tm_id);
+CREATE INDEX IF NOT EXISTS idx_tma_asset_id ON public.technicals_manuals_assets(asset_id);
+
+ALTER TABLE public.technicals_manuals_assets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all authenticated users full access to technicals_manuals_assets" ON public.technicals_manuals_assets FOR ALL TO authenticated USING (true);
+
+-- =============================================================================
 -- Tabela de backup de senhas para impersonação
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.impersonation_password_backup (

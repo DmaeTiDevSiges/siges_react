@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Asset, Client, Unit, AssetStatus, AssetTag, AssetTagSub, AssetType, AssetAttribute } from '../../types';
+import { Asset, Client, Unit, AssetStatus, AssetTag, AssetTagSub, AssetType, AssetAttribute, Material } from '../../types';
 import { dataService } from '../../services/dataService';
 import { ButtonSave } from '../../components/ui/ButtonSave';
 import { Avatar } from '../../components/ui/Avatar';
@@ -20,9 +20,10 @@ interface AssetFormProps {
     isDuplicate?: boolean;
     onSave: (asset: Partial<Asset>, attributeValues: Record<string, string>, file?: File, onProgress?: (progress: number) => void) => Promise<void>;
     onCancel: () => void;
+    onMaterialSelect?: (material: Material) => void;
 }
 
-export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate, onSave, onCancel }) => {
+export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate, onSave, onCancel, onMaterialSelect }) => {
     const { canCreate, canEdit } = usePermissions();
     const isEdit = !!initialAsset && !isDuplicate;
     const hasAccess = isEdit ? canEdit('assets') : canCreate('assets');
@@ -41,6 +42,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
         brand: '',
         model: '',
         serial: '',
+        materialId: '',
         location: '',
         acquisitionAt: '',
         typeId: '',
@@ -67,7 +69,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
         weight: undefined,
         weightUnit: 'kg',
         ...initialAsset,
-        ...(isDuplicate ? { id: undefined, code: '', serial: '', imgFilePath: undefined, imgFileName: undefined } : {})
+        ...(isDuplicate ? { id: undefined, code: '', serial: '', materialId: '', imgFilePath: undefined, imgFileName: undefined } : {})
     }));
 
     // ... (rest of the state)
@@ -80,6 +82,13 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
     const [tags, setTags] = useState<AssetTag[]>([]);
     const [unitTags, setUnitTags] = useState<AssetTag[]>([]);
     const [tagSubs, setTagSubs] = useState<AssetTagSub[]>([]);
+    const [materialSearch, setMaterialSearch] = useState('');
+    const [materialResults, setMaterialResults] = useState<Material[]>([]);
+    const [materialLoading, setMaterialLoading] = useState(false);
+    const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
+    const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+    const materialRef = useRef<HTMLDivElement>(null);
+    const materialSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(
         initialAsset && !isDuplicate ? dataService.getPublicImageUrl(initialAsset.imgFilePath, initialAsset.imgFileName, { width: 400, height: 400, resize: 'contain' }) : null
     );
@@ -111,6 +120,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                 brand: initialAsset.brand || '',
                 model: initialAsset.model || '',
                 serial: initialAsset.serial || '',
+                materialId: initialAsset.materialId || '',
                 location: initialAsset.location || '',
                 comments: initialAsset.comments || '',
                 // Ensure specialized fields are mapped
@@ -233,6 +243,83 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                 tagSubId: ''
             }));
         }
+    };
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (materialRef.current && !materialRef.current.contains(e.target as Node)) {
+                setShowMaterialDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    // Load selected material text when editing
+    useEffect(() => {
+        if (initialAsset?.materialId && !selectedMaterial) {
+            // Set display immediately from asset data
+            const code = initialAsset.materialCode || '';
+            const desc = initialAsset.materialDescription || '';
+            const unit = initialAsset.materialUnit || '';
+            if (code || desc) {
+                setMaterialSearch(`${code} — ${desc}` + (unit ? ` (${unit})` : ''));
+                // Set a fallback Material object from asset data so the clickable link works
+                setSelectedMaterial({
+                    id: initialAsset.materialId,
+                    code,
+                    description: desc,
+                    unit,
+                    isAvailable: true,
+                } as Material);
+            }
+            // Also try to load full Material object (in case we need more data later)
+            dataService.getMaterialById(initialAsset.materialId).then(found => {
+                if (found) {
+                    setSelectedMaterial(found);
+                }
+            });
+        }
+    }, [initialAsset?.materialId]);
+
+    const handleMaterialSearchChange = (val: string) => {
+        setMaterialSearch(val);
+        setSelectedMaterial(null);
+        setFormData(prev => ({ ...prev, materialId: '' }));
+        setShowMaterialDropdown(true);
+
+        if (materialSearchTimeout.current) clearTimeout(materialSearchTimeout.current);
+        if (!val.trim()) {
+            setMaterialResults([]);
+            setMaterialLoading(false);
+            return;
+        }
+        setMaterialLoading(true);
+        materialSearchTimeout.current = setTimeout(async () => {
+            try {
+                const results = await dataService.getAvailableMaterials(val, 0, 20);
+                setMaterialResults(results);
+            } catch {
+                setMaterialResults([]);
+            } finally {
+                setMaterialLoading(false);
+            }
+        }, 350);
+    };
+
+    const handleSelectMaterial = (mat: Material) => {
+        setSelectedMaterial(mat);
+        setFormData(prev => ({ ...prev, materialId: mat.id.toString() }));
+        setMaterialSearch(`${mat.code} — ${mat.description} (${mat.unit})`);
+        setShowMaterialDropdown(false);
+        setMaterialResults([]);
+    };
+
+    const handleClearMaterial = () => {
+        setSelectedMaterial(null);
+        setFormData(prev => ({ ...prev, materialId: '' }));
+        setMaterialSearch('');
+        setMaterialResults([]);
     };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -742,6 +829,77 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                             onChange={e => setFormData({ ...formData, serial: e.target.value })}
                                             placeholder="Ex: 567890-ABC"
                                         />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-5">
+                                    <div ref={materialRef} className="space-y-1.5 relative">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Material Relacionado</label>
+                                        <div className="relative">
+                                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
+                                            <input
+                                                type="text"
+                                                value={materialSearch}
+                                                onChange={(e) => handleMaterialSearchChange(e.target.value)}
+                                                onFocus={() => {
+                                                    if (materialSearch && !selectedMaterial) setShowMaterialDropdown(true);
+                                                }}
+                                                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                placeholder="Buscar material por descrição ou código..."
+                                            />
+                                            {materialSearch && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleClearMaterial}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                                >
+                                                    <span className="material-symbols-outlined text-base">close</span>
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {selectedMaterial && (
+                                            <p className="mt-1.5 text-xs text-primary font-medium flex items-center gap-1">
+                                                <span className="material-symbols-outlined text-sm">check_circle</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onMaterialSelect?.(selectedMaterial)}
+                                                    className="hover:underline cursor-pointer text-left"
+                                                >
+                                                    {selectedMaterial.code} — {selectedMaterial.description} ({selectedMaterial.unit})
+                                                </button>
+                                            </p>
+                                        )}
+                                        {!formData.materialId && materialSearch === '' && (
+                                            <p className="mt-1.5 text-xs text-slate-400">Digite para buscar um material do catálogo.</p>
+                                        )}
+
+                                        {showMaterialDropdown && (
+                                            <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden">
+                                                {materialLoading ? (
+                                                    <div className="p-4 text-sm text-slate-500 flex items-center gap-2">
+                                                        <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                                                        Buscando...
+                                                    </div>
+                                                ) : materialResults.length > 0 ? (
+                                                    <ul className="max-h-56 overflow-y-auto py-1">
+                                                        {materialResults.map(mat => (
+                                                            <li
+                                                                key={mat.id}
+                                                                onClick={() => handleSelectMaterial(mat)}
+                                                                className="px-4 py-2.5 text-sm cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-between"
+                                                            >
+                                                                <span className="font-medium">{mat.code}</span>
+                                                                <span className="text-slate-500 dark:text-slate-400 truncate ml-2">{mat.description}</span>
+                                                                <span className="text-xs text-slate-400 dark:text-slate-500 ml-2">({mat.unit})</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                ) : materialSearch.trim() ? (
+                                                    <div className="p-4 text-sm text-slate-500">Nenhum material encontrado para "{materialSearch}".</div>
+                                                ) : null}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

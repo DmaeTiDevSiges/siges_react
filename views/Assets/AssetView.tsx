@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile } from '../../types';
+import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile, Material } from '../../types';
 import { dataService } from '../../services/dataService';
 import { getPublicImageUrl } from '../../services/imageUtils';
 import { IconButton } from '../../components/ui/IconButton';
@@ -30,9 +30,10 @@ interface AssetDetailsProps {
     onEdit?: () => void;
     onDuplicate?: () => void;
     onViewReport?: (ovaId: string) => void;
+    onMaterialSelect?: (material: Material) => void;
 }
 
-const AssetCardDetail: React.FC<{ asset: Asset }> = ({ asset }) => {
+const AssetCardDetail: React.FC<{ asset: Asset; onMaterialSelect?: (material: Material) => void }> = ({ asset, onMaterialSelect }) => {
     const status = asset.statusCode || "USO";
     const date = formatDateTime(asset.statusAt);
     const unitDesc = asset.unitDescriptionFull || asset.location || "Não informada";
@@ -104,10 +105,24 @@ const AssetCardDetail: React.FC<{ asset: Asset }> = ({ asset }) => {
                         {/* Comentários */}
                         {asset.comments && (
                             <div className="flex flex-col gap-[2px]">
-                                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-extrabold uppercase leading-none">Comentários</span>
+                                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-extrabold uppercase leading-none">Observações</span>
                                 <span className="text-xs font-bold text-slate-900 dark:text-white uppercase leading-tight">
                                     {asset.comments}
                                 </span>
+                            </div>
+                        )}
+
+                        {/* Material Relacionado */}
+                        {asset.materialDescription && (
+                            <div className="flex flex-col gap-[2px]">
+                                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-extrabold uppercase leading-none">Material Relacionado</span>
+                                <button
+                                    type="button"
+                                    onClick={() => onMaterialSelect?.({ id: asset.materialId, code: asset.materialCode, description: asset.materialDescription, unit: asset.materialUnit } as Material)}
+                                    className="text-xs font-bold text-slate-900 dark:text-white uppercase leading-tight text-left hover:underline cursor-pointer"
+                                >
+                                    {asset.materialCode} — {asset.materialDescription} ({asset.materialUnit})
+                                </button>
                             </div>
                         )}
                     </div>
@@ -117,7 +132,7 @@ const AssetCardDetail: React.FC<{ asset: Asset }> = ({ asset }) => {
     );
 };
 
-export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdit, onDuplicate, onViewReport }) => {
+export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdit, onDuplicate, onViewReport, onMaterialSelect }) => {
     const { canView, canCreate, canEdit, canDelete } = usePermissions();
     const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
     const [activeTab, setActiveTab] = useState('Dados');
@@ -409,7 +424,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                 <div className={`p-4 space-y-8 pb-32 relative md:max-w-5xl md:mx-auto transition-all duration-700 ease-in-out ${isHeaderExpanded ? 'translate-y-20 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
                     }`}>
                     {/* Floating Asset Card */}
-                    <AssetCardDetail asset={asset} />
+                    <AssetCardDetail asset={asset} onMaterialSelect={onMaterialSelect} />
 
 
 
@@ -829,17 +844,11 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                         {techManuals.map((manual) => (
                                             <div key={manual.id} className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-100 dark:border-white/5 overflow-hidden">
                                                 <div className="p-4 border-b border-slate-100 dark:border-white/5">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                                                            <span className="material-symbols-outlined text-primary">description</span>
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-200 truncate">{manual.description}</h4>
-                                                            {manual.code && (
-                                                                <p className="text-[10px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">{manual.code}</p>
-                                                            )}
-                                                        </div>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{manual.tmTypeDescription}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-sm font-bold text-slate-900 dark:text-slate-200 truncate">{manual.description}</h4>
+                                                        {manual.code && (
+                                                            <p className="text-[10px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">{manual.code}</p>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 {manual.files && manual.files.length > 0 && (
@@ -864,12 +873,19 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                                     rel="noopener noreferrer"
                                                                     className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
                                                                 >
-                                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${iconColor}`}>
-                                                                        <span className="material-symbols-outlined text-lg">{icon}</span>
-                                                                    </div>
                                                                     <div className="flex-1 min-w-0">
                                                                         <h5 className="text-xs font-bold text-slate-900 dark:text-slate-200 truncate">{file.docFileName}</h5>
-                                                                        <p className="text-[10px] text-slate-500 uppercase">{ext}</p>
+                                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                                            <p className="text-[10px] text-slate-500 uppercase">{ext}</p>
+                                                                            {file.tmCategoryDescription && (
+                                                                                <>
+                                                                                    <span className="text-[10px] text-slate-300">•</span>
+                                                                                    <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider">
+                                                                                        {file.tmCategoryDescription}
+                                                                                    </span>
+                                                                                </>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                     <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">download</span>
                                                                 </a>

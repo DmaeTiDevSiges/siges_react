@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { TechnicalManual, TechnicalManualType, AssetType } from '../../../../types';
+import { TechnicalManual, TechnicalManualCategory, AssetType } from '../../../../types';
 import { dataService } from '../../../../services/dataService';
 import { Input } from '../../../../components/ui/Input';
 import { Select } from '../../../../components/ui/Select';
@@ -20,13 +20,11 @@ export const TechnicalManualForm: React.FC<TechnicalManualFormProps> = ({
 }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [tmTypes, setTmTypes] = useState<TechnicalManualType[]>([]);
     const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
 
     const [form, setForm] = useState({
         code: initialManual?.code || '',
         description: initialManual?.description || '',
-        tmTypeId: initialManual?.tmTypeId || '',
         assetTypeId: initialManual?.assetTypeId || ''
     });
 
@@ -47,11 +45,7 @@ export const TechnicalManualForm: React.FC<TechnicalManualFormProps> = ({
     useEffect(() => {
         const loadDropdowns = async () => {
             try {
-                const [types, aTypes] = await Promise.all([
-                    dataService.getTechnicalManualTypes(),
-                    dataService.getAssetTypes('active')
-                ]);
-                setTmTypes(types);
+                const aTypes = await dataService.getAssetTypes('active');
                 setAssetTypes(aTypes);
             } catch (error) {
                 console.error('Error loading dropdown data:', error);
@@ -65,7 +59,7 @@ export const TechnicalManualForm: React.FC<TechnicalManualFormProps> = ({
     const handleSubmit = async (e?: React.FormEvent) => {
         e?.preventDefault();
         if (isSaving) return;
-        if (!form.code || !form.description || !form.tmTypeId || !form.assetTypeId) return;
+        if (!form.code || !form.description || !form.assetTypeId) return;
 
         try {
             setIsSaving(true);
@@ -108,18 +102,6 @@ export const TechnicalManualForm: React.FC<TechnicalManualFormProps> = ({
                 />
 
                 <Select
-                    label="Tipo de Documento"
-                    value={form.tmTypeId}
-                    onChange={(e) => setForm({ ...form, tmTypeId: e.target.value })}
-                    required
-                >
-                    <option value="">Selecione...</option>
-                    {tmTypes.map(type => (
-                        <option key={type.id} value={type.id}>{type.description}</option>
-                    ))}
-                </Select>
-
-                <Select
                     label="Tipo de Ativo"
                     value={form.assetTypeId}
                     onChange={(e) => setForm({ ...form, assetTypeId: e.target.value })}
@@ -147,7 +129,7 @@ export const TechnicalManualForm: React.FC<TechnicalManualFormProps> = ({
                         type="submit"
                         fullWidth
                         loading={isSaving}
-                        disabled={!form.code || !form.description || !form.tmTypeId || !form.assetTypeId}
+                        disabled={!form.code || !form.description || !form.assetTypeId}
                     >
                         Salvar
                     </Button>

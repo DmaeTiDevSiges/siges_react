@@ -2334,13 +2334,14 @@ const AppContent: React.FC = () => {
               setAssetReportBackScreen('asset-details');
               setCurrentScreen('order-visit-asset-report');
             }}
+            onMaterialSelect={handleMaterialSelect}
           />
         ) : null;
       case 'asset-form':
-        return <AssetForm onSave={handleSaveAsset} onCancel={handleBack} />;
+        return <AssetForm onSave={handleSaveAsset} onCancel={handleBack} onMaterialSelect={handleMaterialSelect} />;
       case 'asset-edit':
         return selectedAsset ? (
-          <AssetForm initialAsset={selectedAsset} onSave={handleSaveAsset} onCancel={handleBack} />
+          <AssetForm initialAsset={selectedAsset} onSave={handleSaveAsset} onCancel={handleBack} onMaterialSelect={handleMaterialSelect} />
         ) : null;
       case 'asset-duplicate':
         return selectedAsset ? (
@@ -2349,6 +2350,7 @@ const AppContent: React.FC = () => {
             isDuplicate={true}
             onSave={handleSaveAsset}
             onCancel={handleBack}
+            onMaterialSelect={handleMaterialSelect}
           />
         ) : null;
       case 'notifications':
