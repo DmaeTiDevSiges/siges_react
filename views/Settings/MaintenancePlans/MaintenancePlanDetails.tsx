@@ -11,15 +11,17 @@ import { Loading } from '../../../components/ui/Loading';
 interface MaintenancePlanDetailsProps {
     planId: string;
     onEdit: () => void;
+    onDuplicate: () => Promise<void>;
     onBack: () => void;
 }
 
-export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ planId, onEdit, onBack }) => {
+export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ planId, onEdit, onDuplicate, onBack }) => {
     const [plan, setPlan] = useState<MaintenancePlan | null>(null);
     const [sections, setSections] = useState<Array<MaintenancePlanSection & { activities: MaintenancePlanSectionActivity[] }>>([]);
     const [assetType, setAssetType] = useState<AssetType | null>(null);
     const [showMenu, setShowMenu] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [duplicating, setDuplicating] = useState(false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -29,8 +31,8 @@ export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ 
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
     }, [showMenu]);
 
     useEffect(() => {
@@ -101,7 +103,7 @@ export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ 
                 />
                 
                 {/* Top Actions: PDF and Status */}
-                <div className="absolute top-5 right-5 z-20 flex items-center gap-2">
+                <div className="absolute top-5 right-5 z-50 flex items-center gap-2">
                     <MaintenancePlanPDFButton 
                         planId={plan.id} 
                         variant="action"
@@ -120,14 +122,51 @@ export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ 
                         {showMenu && (
                             <div className="absolute top-full right-0 mt-2 w-48 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
                                 <button 
-                                    onClick={() => {
+                                    type="button"
+                                    onPointerDown={(e) => {
+                                        console.log('[MENU] onPointerDown em Editar');
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        e.nativeEvent.stopPropagation();
                                         setShowMenu(false);
                                         onEdit();
                                     }}
-                                    className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/10 transition-colors text-left"
+                                    className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/10 transition-colors text-left cursor-pointer pointer-events-auto"
                                 >
                                     <span className="material-symbols-outlined text-blue-400">edit</span>
                                     <span className="text-sm font-bold uppercase tracking-tight">Editar</span>
+                                </button>
+                                <button 
+                                    type="button"
+                                    onPointerDown={async (e) => {
+                                        console.log('[MENU] onPointerDown em Duplicar');
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        e.nativeEvent.stopPropagation();
+                                        if (duplicating) return;
+                                        setShowMenu(false);
+                                        setDuplicating(true);
+                                        console.log('[MENU] chamando onDuplicate...');
+                                        try {
+                                            await onDuplicate();
+                                            console.log('[MENU] onDuplicate concluiu');
+                                        } catch (err) {
+                                            console.error('[MENU] Erro:', err);
+                                        } finally {
+                                            setDuplicating(false);
+                                        }
+                                    }}
+                                    disabled={duplicating}
+                                    className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/10 transition-colors text-left disabled:opacity-50 cursor-pointer pointer-events-auto"
+                                >
+                                    {duplicating ? (
+                                        <span className="material-symbols-outlined text-amber-400 animate-spin">progress_activity</span>
+                                    ) : (
+                                        <span className="material-symbols-outlined text-emerald-400">content_copy</span>
+                                    )}
+                                    <span className="text-sm font-bold uppercase tracking-tight">
+                                        {duplicating ? 'Duplicando...' : 'Duplicar'}
+                                    </span>
                                 </button>
                             </div>
                         )}

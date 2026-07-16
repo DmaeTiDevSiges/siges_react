@@ -2007,6 +2007,10 @@ export const dataService = {
         return maintenancePlansService.updateMaintenancePlan.apply(maintenancePlansService, arguments as any);
     },
 
+    async duplicateMaintenancePlan(planId: string, userId: string): Promise<string> {
+        return maintenancePlansService.duplicateMaintenancePlan.apply(maintenancePlansService, arguments as any);
+    },
+
     async getMaintenancePlanSections(planId: string): Promise<MaintenancePlanSection[]> {
         return maintenancePlansService.getMaintenancePlanSections.apply(maintenancePlansService, arguments as any);
     },
@@ -2240,6 +2244,10 @@ export const dataService = {
         assetTypeId?: string
     ): Promise<TechnicalManual[]> {
         return technicalManualsService.getTechnicalManuals.apply(technicalManualsService, arguments as any);
+    },
+
+    async getTechnicalManualsByAssetId(assetId: string): Promise<TechnicalManual[]> {
+        return technicalManualsService.getTechnicalManualsByAssetId.apply(technicalManualsService, arguments as any);
     },
 
     async getTechnicalManualById(id: string): Promise<TechnicalManual | null> {

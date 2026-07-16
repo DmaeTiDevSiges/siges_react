@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Team } from '../../types';
 import { Button } from '../../components/ui/Button';
+import { TabsBar } from '../../components/ui/TabsBar';
 
 interface TeamDetailsProps {
     team: Team;
@@ -86,17 +87,7 @@ export const TeamDetails: React.FC<TeamDetailsProps> = ({ team, onEdit, onDelete
             </div>
 
             <div className="px-4 py-6">
-                <div className="flex h-12 w-full items-center justify-center rounded-lg bg-slate-200 dark:bg-surface-dark p-1">
-                    {['Membros', 'Histórico'].map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`flex-1 h-full flex items-center justify-center rounded-[4px] text-sm font-semibold transition-all ${activeTab === tab ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                        >
-                            {tab}
-                        </button>
-                    ))}
-                </div>
+                <TabsBar tabs={['Membros', 'Histórico']} activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
 
             {activeTab === 'Membros' && (

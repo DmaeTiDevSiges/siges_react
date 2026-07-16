@@ -43,6 +43,45 @@ export const technicalManualsService = {
         })) as TechnicalManual[];
     },
 
+    async getTechnicalManualsByAssetId(assetId: string): Promise<TechnicalManual[]> {
+        const { data: associations, error: assocError } = await supabase
+            .from('technicals_manuals_assets')
+            .select('tm_id')
+            .eq('asset_id', parseInt(assetId));
+
+        if (assocError) {
+            console.error('Error fetching asset manual associations:', assocError);
+            throw assocError;
+        }
+
+        if (!associations || associations.length === 0) return [];
+
+        const tmIds = associations.map((a: any) => a.tm_id);
+
+        const { data, error } = await supabase
+            .from('v_technicals_manuals')
+            .select('*')
+            .in('id', tmIds)
+            .order('tm_description');
+
+        if (error) {
+            console.error('Error fetching technical manuals by asset:', error);
+            throw error;
+        }
+
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            code: item.code || '',
+            description: item.tm_description || '',
+            assetTypeId: item.asset_type_id?.toString() || '',
+            assetTypeDescription: item.asset_type_description || '',
+            companyId: item.company_id?.toString() || '',
+            assetsAmount: item.assets_amount || 0,
+            docFilePath: item.doc_file_path || '',
+            docFileName: item.doc_file_name || ''
+        })) as TechnicalManual[];
+    },
+
     async getTechnicalManualById(id: string): Promise<TechnicalManual | null> {
         const { data, error } = await supabase
             .from('v_technicals_manuals')

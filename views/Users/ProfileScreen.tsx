@@ -848,8 +848,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
 
 
                     {/* Tab Navigation */}
-                    <div className="sticky top-0 z-10 -mx-5 px-5 bg-slate-50 dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800">
-                        <div className="flex overflow-x-auto gap-0" style={{ scrollbarWidth: 'none' }}>
+                    <div className="sticky top-0 z-10 -mx-5 px-5 bg-slate-50 dark:bg-[#0f172a]">
+                        <div className="flex overflow-x-auto gap-4 no-scrollbar" style={{ scrollbarWidth: 'none' }}>
                             {([
                                 { id: 'personal' as const, icon: 'person', label: 'Dados' },
                                 { id: 'org' as const, icon: 'business', label: 'Organização' },
@@ -860,14 +860,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                 <button
                                     key={tab.id}
                                     onClick={() => handleTabChange(tab.id)}
-                                    className={`flex items-center gap-1.5 py-3.5 px-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-all flex-shrink-0 ${
+                                    className={`flex items-center gap-1.5 pb-4 px-2 text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all flex-shrink-0 relative ${
                                         activeTab === tab.id
-                                            ? 'border-primary text-primary'
-                                            : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                                            ? 'text-primary'
+                                            : 'text-slate-400 hover:text-slate-300'
                                     }`}
                                 >
                                     <span className="material-symbols-outlined text-[17px]">{tab.icon}</span>
                                     {tab.label}
+                                    {activeTab === tab.id && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+                                    )}
                                 </button>
                             ))}
                         </div>

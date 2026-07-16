@@ -3,6 +3,7 @@ import { Material } from '../../../types';
 import { dataService } from '../../../services/dataService';
 import { usePermissions } from '../../../contexts/PermissionsContext';
 import { Loading } from '../../../components/ui/Loading';
+import { TabsBar } from '../../../components/ui/TabsBar';
 import { Select } from '../../../components/ui/Select';
 import { Input } from '../../../components/ui/Input';
 import { Modal } from '../../../components/ui/Modal';
@@ -215,28 +216,14 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
 
             <div className="px-4 mt-2">
                 <div className="flex items-center justify-between mb-4">
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setActiveTab('almoxarifados')}
-                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                activeTab === 'almoxarifados'
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                            }`}
-                        >
-                            Almoxarifados
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('compras')}
-                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                activeTab === 'compras'
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                            }`}
-                        >
-                            Compras
-                        </button>
-                    </div>
+                    <TabsBar
+                        tabs={[
+                            { id: 'almoxarifados', label: 'Almoxarifados' },
+                            { id: 'compras', label: 'Compras' }
+                        ]}
+                        activeTab={activeTab}
+                        onTabChange={(id) => setActiveTab(id as 'almoxarifados' | 'compras')}
+                    />
                     {activeTab === 'almoxarifados' && canCreate('warehouses_create_edit_delete') && (
                         <button
                             onClick={handleOpenAddModal}

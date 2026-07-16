@@ -6,7 +6,7 @@ import { DepartmentsList } from '../../Departments/DepartmentsList';
 import { UsersList } from '../../Users/UsersList';
 import { ProfilesList } from '../../Users/ProfilesList';
 import { ContractsList } from '../../Contracts/ContractsList';
-import { Tabs } from '../../../components/ui/Tabs';
+import { TabsBar } from '../../../components/ui/TabsBar';
 
 interface CompanyDetailsProps {
   company: Company;
@@ -124,15 +124,14 @@ export const CompanyDetails: React.FC<CompanyDetailsProps> = ({
 
 
 
-      <Tabs.Root value={activeTab} onValueChange={handleTabChange}>
-        <Tabs.List>
-          <Tabs.Trigger value="Departamentos">Departamentos</Tabs.Trigger>
-          <Tabs.Trigger value="Usuários">Usuários</Tabs.Trigger>
-          <Tabs.Trigger value="Permissões">Permissões</Tabs.Trigger>
-          <Tabs.Trigger value="Contratos">Contratos</Tabs.Trigger>
-        </Tabs.List>
+      <TabsBar
+        tabs={['Departamentos', 'Usuários', 'Permissões', 'Contratos']}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+      />
 
-        <Tabs.Content value="Departamentos" className="flex flex-col pb-8">
+      {activeTab === 'Departamentos' && (
+        <div className="flex flex-col pb-8">
           <DepartmentsList
             companyId={company.id}
             onAddDepartment={onAddDepartment}
@@ -141,30 +140,32 @@ export const CompanyDetails: React.FC<CompanyDetailsProps> = ({
             onAddTeam={onAddTeam}
             onDeleteTeam={onDeleteTeam}
           />
-        </Tabs.Content>
+        </div>
+      )}
 
-        <Tabs.Content value="Usuários">
-          <UsersList
-            companyId={company.id}
-            onAddUser={onAddUser}
-            onSelectUser={onSelectUser}
-          />
-        </Tabs.Content>
+      {activeTab === 'Usuários' && (
+        <UsersList
+          companyId={company.id}
+          onAddUser={onAddUser}
+          onSelectUser={onSelectUser}
+        />
+      )}
 
-        <Tabs.Content value="Contratos" className="flex flex-col">
+      {activeTab === 'Contratos' && (
+        <div className="flex flex-col">
           <ContractsList
             companyId={company.id}
             onSelect={onSelectContract}
             onAdd={onAddContract}
           />
-        </Tabs.Content>
+        </div>
+      )}
 
-        <Tabs.Content value="Permissões">
-          <ProfilesList
-            companyId={company.id}
-          />
-        </Tabs.Content>
-      </Tabs.Root>
+      {activeTab === 'Permissões' && (
+        <ProfilesList
+          companyId={company.id}
+        />
+      )}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
 import { ContractServicesList } from './Services/ContractServicesList';
 import { Loading } from '../../components/ui/Loading';
+import { TabsBar } from '../../components/ui/TabsBar';
 
 
 interface ContractDetailsProps {
@@ -273,25 +274,8 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
             </div>
 
             {/* Action Buttons Section */}
-            <div className="flex gap-2 mt-4">
-                <button
-                    onClick={() => setActiveTab('gestores')}
-                    className={`flex-1 px-4 py-2.5 text-sm font-bold uppercase tracking-wide rounded-lg shadow-sm transition-colors ${activeTab === 'gestores'
-                        ? 'bg-primary text-white'
-                        : 'bg-slate-700 dark:bg-slate-800 text-slate-300 hover:bg-slate-600 dark:hover:bg-slate-700'
-                        }`}
-                >
-                    Gestores
-                </button>
-                <button
-                    onClick={() => setActiveTab('servicos')}
-                    className={`flex-1 px-4 py-2.5 text-sm font-bold uppercase tracking-wide rounded-lg shadow-sm transition-colors ${activeTab === 'servicos'
-                        ? 'bg-primary text-white'
-                        : 'bg-slate-700 dark:bg-slate-800 text-slate-300 hover:bg-slate-600 dark:hover:bg-slate-700'
-                        }`}
-                >
-                    Serviços
-                </button>
+            <div className="mt-4">
+                <TabsBar tabs={['Gestores', 'Serviços']} activeTab={activeTab === 'gestores' ? 'Gestores' : 'Serviços'} onTabChange={(tab) => setActiveTab(tab === 'Gestores' ? 'gestores' : 'servicos')} />
             </div>
 
             {/* Services Tab Content */}

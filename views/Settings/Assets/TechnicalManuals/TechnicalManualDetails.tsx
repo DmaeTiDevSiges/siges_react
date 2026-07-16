@@ -7,6 +7,7 @@ import { SearchInput } from '../../../../components/ui/SearchInput';
 import { Select } from '../../../../components/ui/Select';
 import { Loading } from '../../../../components/ui/Loading';
 import { Modal } from '../../../../components/ui/Modal';
+import { TabsBar } from '../../../../components/ui/TabsBar';
 import { toast } from 'sonner';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
 
@@ -349,32 +350,14 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
 
             {/* Tabs */}
             <div className="px-4 mt-4">
-                <div className="flex gap-4 border-b border-slate-200 dark:border-slate-800">
-                    <button
-                        onClick={() => setActiveTab('files')}
-                        className={`pb-3 px-1 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'files'
-                            ? 'text-primary'
-                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                            }`}
-                    >
-                        Arquivos ({files.length})
-                        {activeTab === 'files' && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('assets')}
-                        className={`pb-3 px-1 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'assets'
-                            ? 'text-primary'
-                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                            }`}
-                    >
-                        Ativos ({assets.length})
-                        {activeTab === 'assets' && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-                        )}
-                    </button>
-                </div>
+                <TabsBar
+                    tabs={[
+                        { id: 'files', label: `Arquivos (${files.length})` },
+                        { id: 'assets', label: `Ativos (${assets.length})` }
+                    ]}
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                />
             </div>
 
             {/* Content */}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ToolsList } from './ToolsList';
 import { UserToolsView } from './UserToolsView';
 import { ResponsibleToolsView } from './ResponsibleToolsView';
+import { TabsBar } from '../../components/ui/TabsBar';
 
 interface ToolsMainViewProps {
     companyId: string;
@@ -24,21 +25,7 @@ export const ToolsMainView: React.FC<ToolsMainViewProps> = ({ companyId }) => {
             <div className="px-4 pt-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
 
                 {/* Tabs */}
-                <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
-                    {tabs.map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap flex-shrink-0 ${
-                                activeTab === tab.id
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                            }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <TabsBar tabs={tabs} activeTab={activeTab} onTabChange={(id) => setActiveTab(id as Tab)} />
             </div>
 
             {/* Tab Content */}

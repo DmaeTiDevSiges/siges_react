@@ -12,6 +12,7 @@ import { useOrderFollow } from '../../hooks/useOrderFollow';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { Modal } from '../../components/ui/Modal';
+import { TabsBar } from '../../components/ui/TabsBar';
 import { ManusIntegrationService, ManusImageClassification } from '../../services/manusIntegrationService';
 import { ManusVisit } from '../../types/manus';
 import { ManusVisitCard } from '../../components/ordersVisits/ManusVisitCard';
@@ -453,23 +454,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                     })()}
 
                     {/* Tabs */}
-                    <div className="flex items-center border-b border-slate-200 dark:border-white/5 no-scrollbar overflow-x-auto gap-6 px-1">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => handleTabChange(tab)}
-                                className={`pb-4 px-1 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === tab
-                                    ? 'text-rose-500'
-                                    : 'text-slate-400 hover:text-slate-300'
-                                    }`}
-                            >
-                                {tab}
-                                {activeTab === tab && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-500 rounded-full" />
-                                )}
-                            </button>
-                        ))}
-                    </div>
+                    <TabsBar tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
 
                     {/* Tab Content */}
                     <div className="space-y-8">

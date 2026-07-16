@@ -21,6 +21,7 @@ import { AssetAlertListItem } from './AssetAlertListItem';
 
 import QRCode from 'react-qr-code';
 import { Loading } from '../../components/ui/Loading';
+import { TabsBar } from '../../components/ui/TabsBar';
 
 
 
@@ -290,11 +291,10 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
     useEffect(() => {
         const loadDocs = async () => {
-            if (activeTab !== 'Manuais' || !asset.typeId) return;
+            if (activeTab !== 'Manuais' || !asset.id) return;
             setIsLoadingDocs(true);
             try {
-                const manuals = await dataService.getTechnicalManuals('all', '', asset.typeId);
-                // Collect all files from manuals
+                const manuals = await dataService.getTechnicalManualsByAssetId(asset.id);
                 const manualsWithFiles = await Promise.all(
                     manuals.map(async (m: any) => {
                         const files = await dataService.getTechnicalManualFiles(m.id);
@@ -309,7 +309,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
             }
         };
         loadDocs();
-    }, [activeTab, asset.typeId, asset.id]);
+    }, [activeTab, asset.id]);
 
     // Mock components
     const components = [
@@ -429,23 +429,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
 
                     {/* Tabs */}
-                    <div className="flex items-center border-b border-slate-200 dark:border-white/5 no-scrollbar overflow-x-auto gap-4">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === tab
-                                    ? 'text-blue-500'
-                                    : 'text-slate-400 hover:text-slate-300'
-                                    }`}
-                            >
-                                {tab}
-                                {activeTab === tab && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full" />
-                                )}
-                            </button>
-                        ))}
-                    </div>
+                    <TabsBar tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
                     {/* Content Sections */}
                     <div className="space-y-10">
@@ -837,7 +821,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                     </div>
                                 ) : techManuals.length === 0 ? (
                                     <div className="text-center py-8 text-slate-500">
-                                        Nenhum documento técnico para este tipo de ativo
+                                        Nenhum manual técnico associado a este ativo
                                     </div>
                                 ) : (
                                     <div className="space-y-4">

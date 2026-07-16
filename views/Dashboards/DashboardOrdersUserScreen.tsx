@@ -8,6 +8,7 @@ import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisit
 import { getProcessingStatus } from '../../components/ordersVisits/OrderVisitProcessingButton';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 import { Loading } from '../../components/ui/Loading';
+import { TabsBar } from '../../components/ui/TabsBar';
 
 interface DashboardScreenProps {
     currentUser: User | null;
@@ -165,26 +166,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     return (
         <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 bg-slate-50 dark:bg-slate-900 safe-area-bottom">
             {/* Navigation Tabs */}
-            <div className="flex items-center gap-2 px-4 pt-3">
-                <button
-                    onClick={() => handleTabChange('services')}
-                    className={`px-6 py-2 rounded-[16px] text-sm font-bold transition-all ${activeTab === 'services'
-                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                        : 'bg-white dark:bg-card-dark text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
-                >
-                    Serviços
-                </button>
-                <button
-                    onClick={() => handleTabChange('visits')}
-                    className={`px-6 py-2 rounded-[16px] text-sm font-bold transition-all ${activeTab === 'visits'
-                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                        : 'bg-white dark:bg-card-dark text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
-                >
-                    Visitas
-                </button>
-            </div>
+            <TabsBar tabs={['Serviços', 'Visitas']} activeTab={activeTab === 'services' ? 'Serviços' : 'Visitas'} onTabChange={(tab) => handleTabChange(tab === 'Serviços' ? 'services' : 'visits')} />
 
             {/* Content Area */}
             <div className="flex-1 overflow-hidden relative flex flex-col">
