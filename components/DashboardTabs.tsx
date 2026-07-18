@@ -38,7 +38,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
     <div className="flex items-center gap-4 h-full mt-1">
       <h1 className="hidden md:block text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Gestão</h1>
       <div className="hidden md:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
-      <div className="flex items-center border-b border-slate-200 dark:border-white/5 no-scrollbar overflow-x-auto gap-4">
+      <div className="flex items-center no-scrollbar overflow-x-auto gap-4">
         {hasOrders && (
           <button
             onClick={() => { setOrdersDashboardTab('OS'); setCurrentScreen('orders-dashboard'); }}

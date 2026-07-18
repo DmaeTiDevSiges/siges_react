@@ -16,7 +16,7 @@ export const TabsBar: React.FC<TabsBarProps> = ({ tabs, activeTab, onTabChange, 
     const normalizedTabs = tabs.map(t => typeof t === 'string' ? { id: t, label: t } : t);
 
     return (
-        <div className={`flex items-center border-b border-slate-200 dark:border-white/5 no-scrollbar overflow-x-auto gap-4 ${className}`}>
+        <div className={`flex items-center no-scrollbar overflow-x-auto gap-4 ${className}`}>
             {normalizedTabs.map((tab) => (
                 <button
                     key={tab.id}
