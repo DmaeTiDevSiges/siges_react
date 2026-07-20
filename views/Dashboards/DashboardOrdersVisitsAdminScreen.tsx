@@ -20,6 +20,7 @@ import { AssetMovementsDocument } from '../../components/reports/AssetMovementsD
 import { pdf } from '@react-pdf/renderer';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { FaFilePdf } from 'react-icons/fa';
+import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 
 interface DashboardOrdersVisitsAdminScreenProps {
     currentUser: User;
@@ -90,6 +91,7 @@ const FilterBarSection = React.memo(({
     setIsMovementsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
     appropriationData: any;
 }) => {
+    const filtersScroll = useDraggableScroll();
     const [selectionModal, setSelectionModal] = useState<{
         isOpen: boolean;
         filterKey: keyof OrderFilters;
@@ -238,7 +240,11 @@ const FilterBarSection = React.memo(({
     }, [selectionModal.filterKey, setAdvancedFilters, handleSystemChange, handleParentUnitTypeChange, handleOrderTypeChange]);
 
     return (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1 cursor-grab active:cursor-grabbing touch-auto"
+            ref={filtersScroll.ref}
+            onMouseDown={filtersScroll.onMouseDown}
+            onTouchStart={filtersScroll.onTouchStart}
+            onClickCapture={filtersScroll.onClickCapture}>
             <FilterSelect label="SISTEMA" value={advancedFilters.systemParentId || []} onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterSelectOptions.systems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSystemChange([])} />
             <FilterSelect label="SUB-SISTEMA" value={advancedFilters.systemId || []} onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterSelectOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, systemId: [] }))} disabled={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)} />
             <FilterSelect label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} />
