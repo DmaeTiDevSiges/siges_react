@@ -1,5 +1,4 @@
 import React from 'react';
-import { IconButton } from './ui/IconButton';
 import { usePermissions } from '../contexts/PermissionsContext';
 
 interface SidebarProps {
@@ -27,18 +26,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ${isCollapsed ? 'w-20' : 'w-64'}
         `}>
             {/* Header */}
-            <div className={`p-4 border-b border-slate-100 dark:border-slate-800 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+            <div className={`px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
                 {!isCollapsed && (
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white animate-in fade-in duration-300">Menu</h2>
                 )}
 
                 {/* Toggle Button for Desktop */}
-                <IconButton
-                    icon={isCollapsed ? 'menu_open' : 'menu'}
+                <button
                     onClick={onToggleCollapse}
-                    className="text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    className={`flex items-center gap-1 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors ${isCollapsed ? 'justify-center flex-col' : ''}`}
                     title={isCollapsed ? "Expandir" : "Recolher"}
-                />
+                >
+                    {!isCollapsed && (
+                        <span className="material-symbols-outlined text-slate-400">
+                            chevron_left
+                        </span>
+                    )}
+                    <img
+                        src="/siges_logo.png"
+                        alt="Siges"
+                        className="w-14 h-14 object-contain"
+                    />
+                    {isCollapsed && (
+                        <span className="material-symbols-outlined text-slate-400 rotate-180">
+                            chevron_left
+                        </span>
+                    )}
+                </button>
             </div>
 
             {/* Navigation Items */}
