@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { User, OrderFilters, Order, Company } from '../../types';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -48,6 +49,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     const openOSCarouselScroll = useDraggableScroll();
     const leadersScroll = useDraggableScroll();
     const ssSectorScroll = useDraggableScroll();
+
+    const { canCreate, canView } = usePermissions();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [quickSearchValue, setQuickSearchValue] = useState('');
@@ -985,6 +988,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             {/* Action Row */}
                             <div className="flex items-center justify-between gap-3 pb-1">
                                 <div className="flex items-center gap-3">
+                                    {canCreate('services_requests') && (
                                     <button
                                         onClick={() => onCreateServiceRequest?.()}
                                         className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 dark:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 dark:hover:bg-blue-600 hover:scale-[1.02] active:scale-95 transition-all duration-200 group"
@@ -993,6 +997,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         <span className="material-symbols-outlined text-xl transition-transform group-hover:rotate-12">add_task</span>
                                         <span className="text-[13px] uppercase tracking-wide whitespace-nowrap">Nova SS</span>
                                     </button>
+                                    )}
 
                                     <button
                                         onClick={() => onNavigate?.('services-history')}
@@ -1232,6 +1237,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter truncate flex-1 leading-tight pr-6">
                                                 {group.companyName}
                                             </p>
+                                            {canView('dashboard_orders_users_tracker') && (
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -1256,6 +1262,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             >
                                                 <span className="material-symbols-outlined text-[18px]">location_on</span>
                                             </button>
+                                            )}
                                         </div>
                                         <div className="flex gap-4 overflow-visible py-1 px-1">
                                             {group.leaders.map((leader) => (
