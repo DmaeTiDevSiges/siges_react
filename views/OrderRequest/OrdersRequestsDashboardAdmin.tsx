@@ -1109,8 +1109,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         </div>
                     )}
 
-                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-4 pb-20 md:pb-6">
-                        <section className="px-4 pt-4 pb-0">
+                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-20 md:pb-6">
+                        <section className="px-4 pt-1 pb-0">
                             <div className="flex items-center justify-between mb-0.5">
                                 <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">SS's Não Programadas</h2>
                                 <div className="flex items-center gap-2">
