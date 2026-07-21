@@ -81,7 +81,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         } catch { return []; }
     });
     const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
-    const [selectedPeriod, setSelectedPeriod] = useState<string | null>('Hoje');
+    const [selectedPeriod, setSelectedPeriod] = useState<string | null>('Todas');
 
     // Use the custom hook for follow functionality
     const { followedOrderIds, isOrderFollowed, toggleFollow } = useOrderFollow(currentUser?.id);
@@ -211,6 +211,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
         return {
             unscheduled: [
+                { label: 'Todas', count: 0 },
                 { label: 'Hoje', count: 0 },
                 { label: 'Ontem', count: 0 },
                 { label: '2-7 dias', count: 0 },
@@ -325,6 +326,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 if (o.parentId || o.statusId !== 1) return false;
                 const date = parseDateString(o.date || o.createdDate || '');
                 if (!date) return false;
+                if (selectedPeriod === 'Todas') return true;
                 if (selectedPeriod === 'Hoje') return date >= today;
                 if (selectedPeriod === 'Ontem') return date >= yesterday && date < today;
                 if (selectedPeriod === '2-7 dias') return date >= sevenDaysAgo && date < yesterday;
@@ -541,6 +543,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 if (statsResult) {
                     setStats({
                         unscheduled: [
+                            { label: 'Todas', count: (statsResult.ssCounts.today || 0) + (statsResult.ssCounts.yesterday || 0) + (statsResult.ssCounts.sevenDays || 0) + (statsResult.ssCounts.fifteenDays || 0) + (statsResult.ssCounts.between16And30 || 0) + (statsResult.ssCounts.moreThan30 || 0) },
                             { label: 'Hoje', count: statsResult.ssCounts.today },
                             { label: 'Ontem', count: statsResult.ssCounts.yesterday },
                             { label: '2-7 dias', count: statsResult.ssCounts.sevenDays },
@@ -1111,9 +1114,28 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
                     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-20 md:pb-6">
                         <section className="px-4 pt-1 pb-0">
-                            <div className="flex items-center justify-between mb-0.5">
-                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">SS's Não Programadas</h2>
-                                <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-4 mb-0.5">
+                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl shrink-0">SS's Não Programadas</h2>
+                                <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 px-1 cursor-grab active:cursor-grabbing touch-auto min-w-0">
+                                    {stats.unscheduled.map((item, idx) => (
+                                        <div key={idx} onClick={() => {
+                                            const clickedPeriod = item.label;
+                                            setSelectedPeriod(clickedPeriod);
+                                            setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
+                                            setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
+                                            fetchData(false, true, { ...appliedFilters, period: clickedPeriod, assetTagId: [] });
+                                        }}
+                                            className={`backdrop-blur-sm p-2 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-[110px] cursor-pointer
+                                        ${selectedPeriod === item.label ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                    `}>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <p className={`text-[10px] font-bold ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
+                                                <span className="text-lg font-black text-slate-900 dark:text-white">{item.count}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 ml-auto">
                                     <RequestsListPDFButton
                                         filters={ssEffectiveFilters}
                                         searchQuery={searchQuery}
@@ -1135,29 +1157,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         }
                                     />
                                 </div>
-                            </div>
-                            <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto">
-                                {stats.unscheduled.map((item, idx) => (
-                                    <div key={idx} onClick={() => {
-                                        // Period cards are exclusive selectors (no toggle/deselect to null).
-                                        // Clicking any period always sets it as active.
-                                        // Clicking the already-active period just clears the sector filter.
-                                        const clickedPeriod = item.label;
-                                        setSelectedPeriod(clickedPeriod);
-                                        setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
-                                        setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
-                                        fetchData(false, true, { ...appliedFilters, period: clickedPeriod, assetTagId: [] });
-                                    }}
-                                        className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-[110px] cursor-pointer
-                                    ${selectedPeriod === item.label ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
-                                `}>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-lg font-black text-slate-900 dark:text-white">{item.count}</span>
-                                            <span className="material-symbols-outlined text-slate-400 text-[18px]">schedule</span>
-                                        </div>
-                                        <p className={`text-[10px] font-bold ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
-                                    </div>
-                                ))}
                             </div>
 
                             {stats.ssSectorCounts && stats.ssSectorCounts.length > 0 && (
