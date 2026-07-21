@@ -2,6 +2,7 @@ import React from 'react';
 import { Header } from './Header';
 import { UserProfileHeader } from './ui/UserProfileHeader';
 import { Loading } from './ui/Loading';
+import { ScrollToTopButton } from './ui/ScrollToTopButton';
 import { User } from '../types';
 
 interface LayoutProps {
@@ -93,6 +94,7 @@ export const Layout: React.FC<LayoutProps> = ({
           <div className={`w-full h-full transition-opacity duration-300 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
             {children}
           </div>
+          {!isDashboard && <ScrollToTopButton scrollContainerRef={mainRef} />}
         </main>
       </div>
     </div>

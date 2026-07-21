@@ -1047,10 +1047,24 @@ export const assetsService = {
 
     // ── Dashboard ────────────────────────────────────────────────
     async getUnitsAssetsTagsDashboard(systemParentId: string): Promise<any[]> {
+        const { data: unitsWithStatus, error: unitsError } = await supabase
+            .from('units')
+            .select('id')
+            .eq('system_parent_id', systemParentId)
+            .eq('status_id', 3)
+            .eq('is_deleted', false);
+
+        if (unitsError || !unitsWithStatus || unitsWithStatus.length === 0) {
+            console.error('Error fetching units with status_id=3:', unitsError);
+            return [];
+        }
+
+        const unitIds = unitsWithStatus.map(u => u.id);
+
         const { data, error } = await supabase
             .from('v_units_assets_tags')
             .select('*, units(latitude, longitude)')
-            .eq('system_parent_id', systemParentId)
+            .in('unit_id', unitIds)
             .order('unit_description');
 
         if (error) {

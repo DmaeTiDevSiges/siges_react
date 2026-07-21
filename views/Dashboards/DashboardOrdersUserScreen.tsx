@@ -164,9 +164,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         (currentUser as any)?.is_ov_in_progress === 'true';
 
     return (
-        <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 bg-slate-50 dark:bg-slate-900 safe-area-bottom">
+        <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 bg-slate-50 dark:bg-slate-900 safe-area-bottom pt-4">
             {/* Navigation Tabs */}
-            <TabsBar tabs={['Serviços', 'Visitas']} activeTab={activeTab === 'services' ? 'Serviços' : 'Visitas'} onTabChange={(tab) => handleTabChange(tab === 'Serviços' ? 'services' : 'visits')} />
+            <TabsBar tabs={['Serviços', 'Visitas']} activeTab={activeTab === 'services' ? 'Serviços' : 'Visitas'} onTabChange={(tab) => handleTabChange(tab === 'Serviços' ? 'services' : 'visits')} className="px-4" />
 
             {/* Content Area */}
             <div className="flex-1 overflow-hidden relative flex flex-col">
@@ -181,7 +181,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                         />
 
                         {/* Orders List */}
-                        <div className="flex-1 px-4 pb-24 overflow-y-auto no-scrollbar">
+                        <div className="flex-1 px-4 pt-4 pb-24 overflow-y-auto no-scrollbar">
                             <div className="flex items-center justify-between mb-4 px-1">
                                 <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
                                     {selectedService === 'autorizados' ? 'OS Autorizados' :
@@ -250,7 +250,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                             onStatusSelect={handleVisitStatusSelect}
                         />
 
-                        <div className="flex-1 px-4 overflow-y-auto no-scrollbar pb-24">
+                        <div className="flex-1 px-4 pt-4 overflow-y-auto no-scrollbar pb-24">
                             <div className="flex items-center justify-between mb-4 px-1">
                                 <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
                                     {getProcessingStatus(
