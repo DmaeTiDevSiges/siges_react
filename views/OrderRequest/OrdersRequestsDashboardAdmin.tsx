@@ -268,7 +268,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     const leadersByCompany = React.useMemo(() => {
         const leaders = users
-            .filter(u => u.isTeamLeader && u.statusId === 2)
+            .filter(u => u.isTeamLeader && u.statusId === 2 && (u.isAvailable || (u.ovIdInProgress && Number(u.ovIdInProgress) > 0)))
             .sort((a, b) => (a.nameShort || a.nameFull || "").localeCompare(b.nameShort || b.nameFull || ""));
 
         const grouped: Record<string, { companyId: string; companyName: string; companyLogoUrl?: string; leaders: User[] }> = {};
