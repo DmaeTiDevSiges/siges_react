@@ -15,6 +15,7 @@ interface ServiceRequestCardListItemProps {
 }
 
 export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProps> = ({ order: req, onClick, isFollowed, onToggleFollow }) => {
+    const [expanded, setExpanded] = useState(false);
     // Parse date for Badge (Day.Month.Year - No padding based on image Step 1020)
     const parseDate = (dateStr?: string) => {
         if (!dateStr) return { day: '21', month: '1', year: '2026' };
@@ -163,48 +164,61 @@ export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProp
                 </p>
             </div>
 
-            {/* Image Gallery */}
-            {
-                imageUrls.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 items-center" onClick={(e) => e.stopPropagation()}>
-                        {imageUrls.map((url, index) => (
-                            <div
-                                key={index}
-                                onClick={(e) => handleImageClick(e, index)}
-                                className="shrink-0 w-[90px] h-[90px] rounded-lg overflow-hidden border border-slate-100 dark:border-slate-700 shadow-xs cursor-pointer hover:opacity-90 transition-opacity relative group"
-                            >
-                                <Avatar
-                                    src={url}
-                                    alt={`Imagem ${index + 1}`}
-                                    shape="rounded"
-                                    className="w-full! h-full! rounded-none!"
-                                    imageClassName="hover:scale-105 transition-transform duration-500"
-                                />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                            </div>
-                        ))}
-                    </div>
-                )
-            }
+            {/* Expand/Collapse Toggle */}
+            <button
+                onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+                className="flex items-center justify-center w-full py-1 mt-auto text-slate-400 hover:text-primary transition-colors"
+            >
+                <span className="material-symbols-outlined text-[20px] transition-transform duration-200" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                    expand_more
+                </span>
+            </button>
 
-            {/* Contact Info Grid */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mb-2 mt-auto">
-                <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    {req.requesterNameShort || req.requesterName || 'Solicitante não identificado'}
+            {/* Expanded Content */}
+            {expanded && (<>
+                {/* Image Gallery */}
+                {
+                    imageUrls.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 items-center" onClick={(e) => e.stopPropagation()}>
+                            {imageUrls.map((url, index) => (
+                                <div
+                                    key={index}
+                                    onClick={(e) => handleImageClick(e, index)}
+                                    className="shrink-0 w-[90px] h-[90px] rounded-lg overflow-hidden border border-slate-100 dark:border-slate-700 shadow-xs cursor-pointer hover:opacity-90 transition-opacity relative group"
+                                >
+                                    <Avatar
+                                        src={url}
+                                        alt={`Imagem ${index + 1}`}
+                                        shape="rounded"
+                                        className="w-full! h-full! rounded-none!"
+                                        imageClassName="hover:scale-105 transition-transform duration-500"
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                </div>
+                            ))}
+                        </div>
+                    )
+                }
+
+                {/* Contact Info Grid */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mb-2">
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        {req.requesterNameShort || req.requesterName || 'Solicitante não identificado'}
+                    </div>
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300 text-right">
+                        {req.requesterTeamCode || req.teamDescription}
+                    </div>
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {req.requesterPhone || req.phone}
+                    </div>
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 text-right flex flex-col">
+                        <span>{formatGridDate(req.requestedAt)}</span>
+                        <span className="text-[10px] uppercase text-slate-400 tracking-tight mt-0.5">
+                            {getRelativeTime(req.statusAt || req.requestedAt)}
+                        </span>
+                    </div>
                 </div>
-                <div className="text-xs font-bold text-slate-700 dark:text-slate-300 text-right">
-                    {req.requesterTeamCode || req.teamDescription}
-                </div>
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                    {req.requesterPhone || req.phone}
-                </div>
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 text-right flex flex-col">
-                    <span>{formatGridDate(req.requestedAt)}</span>
-                    <span className="text-[10px] uppercase text-slate-400 tracking-tight mt-0.5">
-                        {getRelativeTime(req.statusAt || req.requestedAt)}
-                    </span>
-                </div>
-            </div>
+            </>)}
 
 
             {/* Photo Viewer */}

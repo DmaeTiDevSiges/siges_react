@@ -1208,7 +1208,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     onTouchStart={unscheduledSSScroll.onTouchStart}
                                     onClickCapture={unscheduledSSScroll.onClickCapture}>
                                     {displayedUnscheduledSS.map((ss) => (
-                                        <div key={ss.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                        <div key={ss.id} className="min-w-[352px] max-w-[352px] shrink-0 h-auto">
                                             <ServiceRequestCardListItem
                                                 order={ss}
                                                 onClick={() => onSelectOrder?.(ss)}
