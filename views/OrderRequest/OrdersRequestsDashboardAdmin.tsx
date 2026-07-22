@@ -699,16 +699,38 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
              }
          });
  
-         // 5. Periodic polling for user availability as fallback (every 30s)
-         const pollingInterval = setInterval(async () => {
+         // 5. Periodic polling fallback (every 15s) — refreshes dashboard data + users even if Realtime is down
+         const pollingInterval = setInterval(() => {
              try {
-                 dataService.clearMetadataCache();
-                 const usersData = await dataService.getUsers();
-                 setUsers(usersData);
+                 fetchDataRef.current(false, false);
+                 debouncedRefreshUsers();
              } catch (err) {
                  // Silent fail for polling
              }
-         }, 30000);
+         }, 15000);
+ 
+         // 6. Refresh immediately when user returns to the tab or focuses the window
+         let lastRefreshTime = 0;
+         const handleVisibilityChange = () => {
+             if (document.visibilityState === 'visible') {
+                 const now = Date.now();
+                 if (now - lastRefreshTime > 5000) {
+                     lastRefreshTime = now;
+                     fetchDataRef.current(false, false);
+                     debouncedRefreshUsers();
+                 }
+             }
+         };
+         const handleWindowFocus = () => {
+             const now = Date.now();
+             if (now - lastRefreshTime > 5000) {
+                 lastRefreshTime = now;
+                 fetchDataRef.current(false, false);
+                 debouncedRefreshUsers();
+             }
+         };
+         document.addEventListener('visibilitychange', handleVisibilityChange);
+         window.addEventListener('focus', handleWindowFocus);
  
          // 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
          fetchDataRef.current(false, false);
@@ -716,6 +738,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
  
          return () => {
              window.removeEventListener('refresh_dashboard', handleRefresh);
+             document.removeEventListener('visibilitychange', handleVisibilityChange);
+             window.removeEventListener('focus', handleWindowFocus);
              if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
              if (subscription) subscription.unsubscribe();
              if (visitSubscription) visitSubscription.unsubscribe();
