@@ -369,10 +369,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [loggingOut, setLoggingOut] = useState(false);
 
     const handleLogout = async () => {
+        if (user?.isOvInProgress || (user?.ovIdInProgress && Number(user.ovIdInProgress) > 0)) {
+            setModal({
+                isOpen: true,
+                title: 'Visita em andamento',
+                message: 'Você possui uma visita em andamento. Encerre-a antes de sair.',
+                type: 'warning'
+            });
+            return;
+        }
         setLoggingOut(true);
         try {
             await new Promise(resolve => setTimeout(resolve, 600));
-            await dataService.signOut();
+            await dataService.signOut(user?.uuid);
         } catch (error) {
             setLoggingOut(false);
             setModal({

@@ -322,6 +322,46 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
         loadInitialData();
     }, [dateRange]);
 
+    // Realtime subscriptions for leader availability updates
+    useEffect(() => {
+        let cancelled = false;
+
+        const refreshLeaders = async () => {
+            try {
+                dataService.clearMetadataCache();
+                const [usersData, leadersList] = await Promise.all([
+                    dataService.getUsers(),
+                    dataService.getLeadersByCompany(company.id)
+                ]);
+                if (!cancelled) {
+                    setUsers(usersData);
+                    setLeaders(leadersList);
+                }
+            } catch (err) {
+                console.error("Failed to refresh leaders in realtime", err);
+            }
+        };
+
+        const userSub = dataService.subscribeToUsers(() => {
+            refreshLeaders();
+        });
+
+        const visitSub = dataService.subscribeToOrdersVisits(() => {
+            refreshLeaders();
+        });
+
+        const pollingInterval = setInterval(() => {
+            refreshLeaders();
+        }, 30000);
+
+        return () => {
+            cancelled = true;
+            userSub.unsubscribe();
+            visitSub.unsubscribe();
+            clearInterval(pollingInterval);
+        };
+    }, [company.id]);
+
     // --- Map Logic ---
     useEffect(() => {
         if (!mapContainerRef.current || mapRef.current) return;

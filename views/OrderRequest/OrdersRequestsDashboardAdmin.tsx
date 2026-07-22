@@ -661,22 +661,37 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
          const handleRefresh = () => fetchDataRef.current(false, false);
          window.addEventListener('refresh_dashboard', handleRefresh);
  
+         // Debounced user refresh to avoid excessive calls when orders/visits fire rapidly
+         let userRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
+         const debouncedRefreshUsers = () => {
+             if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
+             userRefreshTimeout = setTimeout(async () => {
+                 try {
+                     dataService.clearMetadataCache();
+                     const usersData = await dataService.getUsers();
+                     setUsers(usersData);
+                 } catch (err) {
+                     console.error("Failed to refresh users (debounced)", err);
+                 }
+             }, 1000);
+         };
+ 
          // 2. Realtime subscription for orders
          const subscription = dataService.subscribeToOrders((payload) => {
              fetchDataRef.current(false, false);
+             debouncedRefreshUsers();
          });
  
          // 3. Realtime subscription for visits
          const visitSubscription = dataService.subscribeToVisits((payload) => {
              fetchDataRef.current(false, false);
+             debouncedRefreshUsers();
          });
  
          // 4. Realtime subscription for users (to update status borders)
          const userSubscription = dataService.subscribeToUsers(async () => {
              try {
-                 // Limpar cache de líderes para garantir dados atualizados
                  dataService.clearMetadataCache();
- 
                  const usersData = await dataService.getUsers();
                  setUsers(usersData);
              } catch (err) {
@@ -684,15 +699,28 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
              }
          });
  
+         // 5. Periodic polling for user availability as fallback (every 30s)
+         const pollingInterval = setInterval(async () => {
+             try {
+                 dataService.clearMetadataCache();
+                 const usersData = await dataService.getUsers();
+                 setUsers(usersData);
+             } catch (err) {
+                 // Silent fail for polling
+             }
+         }, 30000);
+ 
          // 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
          fetchDataRef.current(false, false);
          setIsLoading(false);
  
          return () => {
              window.removeEventListener('refresh_dashboard', handleRefresh);
+             if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
              if (subscription) subscription.unsubscribe();
              if (visitSubscription) visitSubscription.unsubscribe();
              if (userSubscription) userSubscription.unsubscribe();
+             clearInterval(pollingInterval);
          };
          // eslint-disable-next-line react-hooks/exhaustive-deps
      }, []); // Only on mount

@@ -673,7 +673,7 @@ export const dataService = {
         return usersService.subscribeToAuthChanges.apply(usersService, arguments as any);
     },
 
-    async signOut(): Promise<void> {
+    async signOut(userUuid?: string): Promise<void> {
         return usersService.signOut.apply(usersService, arguments as any);
     },
 

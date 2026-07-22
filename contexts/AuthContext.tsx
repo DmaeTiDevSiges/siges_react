@@ -63,8 +63,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
      * Logout user
      */
     const logout = async () => {
+        if (currentUser?.isOvInProgress || (currentUser?.ovIdInProgress && Number(currentUser.ovIdInProgress) > 0)) {
+            throw new Error('VISIT_IN_PROGRESS');
+        }
         try {
-            await dataService.signOut();
+            await dataService.signOut(currentUser?.uuid);
             setCurrentUser(null);
         } catch (error) {
             console.error('Logout error:', error);

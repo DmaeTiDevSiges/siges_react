@@ -1081,8 +1081,17 @@ export const usersService = {
         });
     },
 
-    async signOut(): Promise<void> {
+    async signOut(userUuid?: string): Promise<void> {
         try {
+            // Set user as unavailable before signing out
+            if (userUuid) {
+                const { error: updateError } = await supabase
+                    .from('users')
+                    .update({ is_available: false })
+                    .eq('uuid', userUuid);
+                if (updateError) console.warn('Warning: could not update availability on sign out:', updateError);
+            }
+
             const { error } = await supabase.auth.signOut();
             if (error) console.error('Error signing out from Supabase:', error);
         } catch (e) {

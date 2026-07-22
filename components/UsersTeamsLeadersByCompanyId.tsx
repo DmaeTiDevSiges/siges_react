@@ -35,26 +35,56 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
+        let cancelled = false;
+
+        const loadData = async (showLoading = true) => {
+            if (showLoading) setIsLoading(true);
             try {
                 const [companyData, leadersData] = await Promise.all([
                     dataService.getCompanyById(companyId),
                     dataService.getLeadersByCompany(companyId)
                 ]);
                 
-                setCompany(companyData);
-                setLeaders(leadersData);
+                if (!cancelled) {
+                    setCompany(companyData);
+                    setLeaders(leadersData);
+                }
             } catch (error) {
                 console.error("Erro ao carregar dados da empresa e líderes:", error);
             } finally {
-                setIsLoading(false);
+                if (!cancelled) setIsLoading(false);
             }
         };
 
         if (companyId) {
             loadData();
+
+            // Realtime subscription for user changes (availability, visits, etc.)
+            const userSub = dataService.subscribeToUsers(() => {
+                dataService.clearMetadataCache();
+                loadData(false);
+            });
+
+            // Realtime subscription for visit changes (affects leader availability)
+            const visitSub = dataService.subscribeToOrdersVisits(() => {
+                dataService.clearMetadataCache();
+                loadData(false);
+            });
+
+            // Periodic polling fallback (every 30s) in case Realtime is not enabled
+            const pollingInterval = setInterval(() => {
+                loadData(false);
+            }, 30000);
+
+            return () => {
+                cancelled = true;
+                userSub.unsubscribe();
+                visitSub.unsubscribe();
+                clearInterval(pollingInterval);
+            };
         }
+
+        return () => { cancelled = true; };
     }, [companyId]);
 
     if (isLoading) {
