@@ -134,7 +134,7 @@ const AppContent: React.FC = () => {
   const [selectedCompanyForTracker, setSelectedCompanyForTracker] = useState<Company | null>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('screen') === 'users-tracker') {
-      const stored = sessionStorage.getItem('tracker_company');
+      const stored = localStorage.getItem('tracker_company');
       if (stored) {
         try { return JSON.parse(stored); } catch {}
       }
@@ -309,7 +309,7 @@ const AppContent: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const screenParam = params.get('screen') as Screen | null;
     if (screenParam && screenParam === 'users-tracker') {
-      const stored = sessionStorage.getItem('tracker_company');
+      const stored = localStorage.getItem('tracker_company');
       if (stored) return 'users-tracker';
     }
     const savedTab = localStorage.getItem('app_active_tab');
@@ -383,6 +383,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('screen') === 'users-tracker') {
+      localStorage.removeItem('tracker_company');
       window.history.replaceState({}, document.title, '/');
     }
   }, []);
@@ -1214,7 +1215,7 @@ const AppContent: React.FC = () => {
     } else if (currentScreen === 'order-visit-approve') {
       setCurrentScreen('order-visit-execute');
     } else if (currentScreen === 'users-tracker') {
-      sessionStorage.removeItem('tracker_company');
+      localStorage.removeItem('tracker_company');
       if (window.opener) {
         window.close();
       } else {
@@ -2640,7 +2641,7 @@ const AppContent: React.FC = () => {
       setSelectedCompanyForTracker(company);
       setCurrentScreen('users-tracker');
     } else {
-      sessionStorage.setItem('tracker_company', JSON.stringify(company));
+      localStorage.setItem('tracker_company', JSON.stringify(company));
       window.open(window.location.pathname + '?screen=users-tracker', '_blank');
     }
   };

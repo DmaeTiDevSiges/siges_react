@@ -1097,8 +1097,9 @@ export const dataService = {
     },
 
     subscribeToOrdersVisits(callback: (payload: any) => void) {
+        const channelName = `orders_visits-changes-${Math.random().toString(36).substring(7)}`;
         return supabase
-            .channel('orders_visits-changes')
+            .channel(channelName)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders_visits' }, callback)
             .subscribe();
     },
