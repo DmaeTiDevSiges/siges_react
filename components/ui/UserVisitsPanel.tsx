@@ -14,11 +14,14 @@ interface UserVisitsPanelProps {
     reportadasCount?: number;
     revisadasCount?: number;
     reprovadasCount?: number;
+    chatPendentesCount?: number;
     selectedStatus?: string;
     onStatusSelect?: (status: string) => void;
 }
 
 const VisitCard: React.FC<VisitCardProps> = ({ processingId, label, count, isSelected, onClick }) => {
+    const isChatCard = processingId === -1;
+
     return (
         <div
             onClick={onClick}
@@ -35,11 +38,16 @@ const VisitCard: React.FC<VisitCardProps> = ({ processingId, label, count, isSel
 
                 {/* Icon and Count */}
                 <div className="flex items-center justify-between">
-                    {/* Icon using OrderVisitProcessingButton */}
-                    <OrderVisitProcessingButton
-                        processingId={processingId}
-                        size="md"
-                    />
+                    {isChatCard ? (
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-100 dark:bg-amber-900/40">
+                            <span className="material-symbols-outlined text-2xl text-amber-600 dark:text-amber-400">forum</span>
+                        </div>
+                    ) : (
+                        <OrderVisitProcessingButton
+                            processingId={processingId}
+                            size="md"
+                        />
+                    )}
 
                     {/* Count */}
                     <p className="text-3xl font-bold text-slate-900 dark:text-white">
@@ -56,6 +64,7 @@ export const UserVisitsPanel: React.FC<UserVisitsPanelProps> = ({
     reportadasCount = 0,
     revisadasCount = 0,
     reprovadasCount = 0,
+    chatPendentesCount = 0,
     selectedStatus: externalSelectedStatus,
     onStatusSelect
 }) => {
@@ -70,6 +79,12 @@ export const UserVisitsPanel: React.FC<UserVisitsPanelProps> = ({
 
 
     const statuses = [
+        ...(chatPendentesCount > 0 ? [{
+            id: 'chats',
+            processingId: -1,
+            label: 'Chats Pendentes',
+            count: chatPendentesCount
+        }] : []),
         {
             id: 'rascunho',
             processingId: PROCESSING_STATUSES.RASCUNHO.id,
@@ -107,7 +122,7 @@ export const UserVisitsPanel: React.FC<UserVisitsPanelProps> = ({
         <div className="py-3">
             {/* Horizontal Scroll */}
             <div className="overflow-x-auto no-scrollbar md:overflow-visible">
-                <div className="flex md:grid md:grid-cols-4 gap-3 px-4 pb-2">
+                <div className="flex md:grid md:grid-cols-5 gap-3 px-4 pb-2">
                     {statuses.map((status) => (
                         <VisitCard
                             key={status.id}

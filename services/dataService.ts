@@ -1606,6 +1606,10 @@ export const dataService = {
         return visitsService.getVisitsByLeader.apply(visitsService, arguments as any);
     },
 
+    async getVisitsByChatCreator(userId: string): Promise<OrderVisit[]> {
+        return visitsService.getVisitsByChatCreator.apply(visitsService, arguments as any);
+    },
+
     async startOrderVisit(order: Order, currentUser: User): Promise<void> {
         return visitsService.startOrderVisit.apply(visitsService, arguments as any);
     },

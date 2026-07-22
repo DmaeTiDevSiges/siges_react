@@ -336,19 +336,15 @@ export const visitChatService = {
     },
 
     async ensureChatCreator(visitId: string, userId: string): Promise<void> {
-        console.log('[ensureChatCreator] visitId:', visitId, 'userId:', userId);
         const { data, error: fetchError } = await supabase
             .from('orders_visits')
             .select('chat_created_user_id')
             .eq('id', parseInt(visitId))
             .single();
 
-        console.log('[ensureChatCreator] current creator:', data?.chat_created_user_id);
-
         if (fetchError || !data) return;
 
         if (!data.chat_created_user_id) {
-            console.log('[ensureChatCreator] setting creator to:', userId);
             const { error } = await supabase
                 .from('orders_visits')
                 .update({ chat_created_user_id: parseInt(userId) })
@@ -356,21 +352,16 @@ export const visitChatService = {
 
             if (error) {
                 console.error('[ensureChatCreator] Error:', error);
-            } else {
-                console.log('[ensureChatCreator] Creator set successfully');
             }
         }
     },
 
     async closeVisitChat(visitId: string, userId: string): Promise<void> {
-        console.log('[closeVisitChat] visitId:', visitId, 'userId:', userId);
         const { data, error: fetchError } = await supabase
             .from('orders_visits')
             .select('chat_created_user_id, chat_status')
             .eq('id', parseInt(visitId))
             .single();
-
-        console.log('[closeVisitChat] DB data:', data, 'fetchError:', fetchError);
 
         if (fetchError || !data) {
             throw new Error('Visita nao encontrada');
@@ -396,8 +387,6 @@ export const visitChatService = {
                     .eq('id', parseInt(visitId));
             }
         }
-
-        console.log('[closeVisitChat] final creatorId:', creatorId, 'match:', String(creatorId) === String(userId));
 
         if (!creatorId || String(creatorId) !== String(userId)) {
             throw new Error('Somente o criador da conversa pode encerrar');

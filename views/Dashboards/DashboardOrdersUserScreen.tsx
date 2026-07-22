@@ -77,12 +77,23 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
         if (showLoading) setIsLoading(true);
         try {
-            const [teamOrders, teamVisits] = await Promise.all([
+            const [teamOrders, teamVisits, chatCreatorVisits] = await Promise.all([
                 dataService.getOrdersByLeader(currentUser.id.toString()),
-                dataService.getVisitsByLeader(currentUser.id.toString())
+                dataService.getVisitsByLeader(currentUser.id.toString()),
+                dataService.getVisitsByChatCreator(currentUser.id.toString())
             ]);
             setOrders(teamOrders);
-            setVisits(teamVisits);
+
+            // Merge visits from both queries, deduplicating by ID
+            const mergedVisits = [...teamVisits];
+            const existingIds = new Set(teamVisits.map(v => v.id));
+            for (const visit of chatCreatorVisits) {
+                if (!existingIds.has(visit.id)) {
+                    mergedVisits.push(visit);
+                    existingIds.add(visit.id);
+                }
+            }
+            setVisits(mergedVisits);
         } catch (error) {
             console.error('Error fetching dashboard orders:', error);
         } finally {
@@ -141,10 +152,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
             reportadas: visits.filter(v => v.ovProcessingId === 2).length,
             revisadas: visits.filter(v => v.ovProcessingId === 3).length,
             reprovadas: visits.filter(v => v.ovProcessingId === 4).length,
+            chatPendentes: visits.filter(v => v.chatStatus === 'open' && String(v.chatCreatedUserId) === String(currentUser?.id)).length,
         };
-    }, [visits]);
+    }, [visits, currentUser?.id]);
 
     const filteredVisits = useMemo(() => {
+        if (selectedVisitStatus === 'chats') {
+            return visits.filter(v => v.chatStatus === 'open' && String(v.chatCreatedUserId) === String(currentUser?.id));
+        }
         const statusMap: Record<string, number> = {
             'rascunho': 1,
             'reportadas': 2,
@@ -246,6 +261,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                             reportadasCount={visitsStats.reportadas}
                             revisadasCount={visitsStats.revisadas}
                             reprovadasCount={visitsStats.reprovadas}
+                            chatPendentesCount={visitsStats.chatPendentes}
                             selectedStatus={selectedVisitStatus}
                             onStatusSelect={handleVisitStatusSelect}
                         />
@@ -253,12 +269,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                         <div className="flex-1 px-4 pt-4 overflow-y-auto no-scrollbar pb-24">
                             <div className="flex items-center justify-between mb-4 px-1">
                                 <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
-                                    {getProcessingStatus(
-                                        selectedVisitStatus === 'rascunho' ? 1 :
-                                        selectedVisitStatus === 'reportadas' ? 2 :
-                                        selectedVisitStatus === 'revisadas' ? 3 :
-                                        selectedVisitStatus === 'reprovadas' ? 4 : 1
-                                    ).label} ({filteredVisits.length})
+                                    {selectedVisitStatus === 'chats' ? 'Chats Pendentes' :
+                                        getProcessingStatus(
+                                            selectedVisitStatus === 'rascunho' ? 1 :
+                                            selectedVisitStatus === 'reportadas' ? 2 :
+                                            selectedVisitStatus === 'revisadas' ? 3 :
+                                            selectedVisitStatus === 'reprovadas' ? 4 : 1
+                                        ).label} ({filteredVisits.length})
                                 </h2>
                             </div>
 
