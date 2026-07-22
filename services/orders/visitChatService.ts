@@ -105,6 +105,13 @@ export const visitChatService = {
             throw error;
         }
 
+        // Ensure the sender becomes the chat creator on first message
+        try {
+            await this.ensureChatCreator(messageData.ovId!, messageData.userId!);
+        } catch (creatorErr) {
+            console.error('Failed to ensure chat creator:', creatorErr);
+        }
+
         try {
             await this.sendChatNotifications(
                 messageData.ovId!,
@@ -280,6 +287,151 @@ export const visitChatService = {
 
         if (notifInsertError) {
             console.error('Error inserting chat notifications:', notifInsertError);
+        }
+    },
+
+    // -------------------------------------------------------------------------
+    // CHAT STATUS (open / closed)
+    // -------------------------------------------------------------------------
+
+    async getVisitChatStatus(visitId: string): Promise<{ chatStatus: string; chatCreatedUserId: string | null; chatClosedAt: string | null; chatClosedUserId: string | null }> {
+        const { data, error } = await supabase
+            .from('orders_visits')
+            .select('chat_status, chat_created_user_id, chat_closed_at, chat_closed_user_id')
+            .eq('id', parseInt(visitId))
+            .single();
+
+        if (error || !data) {
+            return { chatStatus: 'open', chatCreatedUserId: null, chatClosedAt: null, chatClosedUserId: null };
+        }
+
+        let creatorId = data.chat_created_user_id?.toString() || null;
+
+        // Fallback: if no creator set yet, find the first message sender and set it
+        if (!creatorId) {
+            const { data: firstMsg } = await supabase
+                .from('orders_visits_chat')
+                .select('user_id')
+                .eq('ov_id', parseInt(visitId))
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+
+            if (firstMsg?.user_id) {
+                creatorId = firstMsg.user_id.toString();
+                // Auto-set the creator in the background
+                await supabase
+                    .from('orders_visits')
+                    .update({ chat_created_user_id: firstMsg.user_id })
+                    .eq('id', parseInt(visitId));
+            }
+        }
+
+        return {
+            chatStatus: data.chat_status || 'open',
+            chatCreatedUserId: creatorId,
+            chatClosedAt: data.chat_closed_at || null,
+            chatClosedUserId: data.chat_closed_user_id?.toString() || null
+        };
+    },
+
+    async ensureChatCreator(visitId: string, userId: string): Promise<void> {
+        console.log('[ensureChatCreator] visitId:', visitId, 'userId:', userId);
+        const { data, error: fetchError } = await supabase
+            .from('orders_visits')
+            .select('chat_created_user_id')
+            .eq('id', parseInt(visitId))
+            .single();
+
+        console.log('[ensureChatCreator] current creator:', data?.chat_created_user_id);
+
+        if (fetchError || !data) return;
+
+        if (!data.chat_created_user_id) {
+            console.log('[ensureChatCreator] setting creator to:', userId);
+            const { error } = await supabase
+                .from('orders_visits')
+                .update({ chat_created_user_id: parseInt(userId) })
+                .eq('id', parseInt(visitId));
+
+            if (error) {
+                console.error('[ensureChatCreator] Error:', error);
+            } else {
+                console.log('[ensureChatCreator] Creator set successfully');
+            }
+        }
+    },
+
+    async closeVisitChat(visitId: string, userId: string): Promise<void> {
+        console.log('[closeVisitChat] visitId:', visitId, 'userId:', userId);
+        const { data, error: fetchError } = await supabase
+            .from('orders_visits')
+            .select('chat_created_user_id, chat_status')
+            .eq('id', parseInt(visitId))
+            .single();
+
+        console.log('[closeVisitChat] DB data:', data, 'fetchError:', fetchError);
+
+        if (fetchError || !data) {
+            throw new Error('Visita nao encontrada');
+        }
+
+        let creatorId = data.chat_created_user_id?.toString() || null;
+
+        // Fallback: if no creator set, find first message sender
+        if (!creatorId) {
+            const { data: firstMsg } = await supabase
+                .from('orders_visits_chat')
+                .select('user_id')
+                .eq('ov_id', parseInt(visitId))
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+
+            if (firstMsg?.user_id) {
+                creatorId = firstMsg.user_id.toString();
+                await supabase
+                    .from('orders_visits')
+                    .update({ chat_created_user_id: firstMsg.user_id })
+                    .eq('id', parseInt(visitId));
+            }
+        }
+
+        console.log('[closeVisitChat] final creatorId:', creatorId, 'match:', String(creatorId) === String(userId));
+
+        if (!creatorId || String(creatorId) !== String(userId)) {
+            throw new Error('Somente o criador da conversa pode encerrar');
+        }
+
+        const { error } = await supabase
+            .from('orders_visits')
+            .update({
+                chat_status: 'closed',
+                chat_closed_at: getBrazilTimestamp(),
+                chat_closed_user_id: parseInt(userId)
+            })
+            .eq('id', parseInt(visitId));
+
+        if (error) {
+            console.error('Error closing visit chat:', error);
+            throw error;
+        }
+    },
+
+    async reopenVisitChat(visitId: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('orders_visits')
+            .update({
+                chat_status: 'open',
+                chat_created_user_id: parseInt(userId),
+                chat_closed_at: null,
+                chat_closed_user_id: null
+            })
+            .eq('id', parseInt(visitId));
+
+        if (error) {
+            console.error('Error reopening visit chat:', error);
+            throw error;
         }
     },
 

@@ -2167,6 +2167,18 @@ export const dataService = {
         return visitChatService.markVisitChatMessagesAsRead.apply(visitChatService, arguments as any);
     },
 
+    async getVisitChatStatus(visitId: string): Promise<{ chatStatus: string; chatCreatedUserId: string | null; chatClosedAt: string | null; chatClosedUserId: string | null }> {
+        return visitChatService.getVisitChatStatus.apply(visitChatService, arguments as any);
+    },
+
+    async closeVisitChat(visitId: string, userId: string): Promise<void> {
+        return visitChatService.closeVisitChat.apply(visitChatService, arguments as any);
+    },
+
+    async reopenVisitChat(visitId: string, userId: string): Promise<void> {
+        return visitChatService.reopenVisitChat.apply(visitChatService, arguments as any);
+    },
+
     // -------------------------------------------------------------------------
     // MATERIAL PURCHASES (materials_purchases)
     // -------------------------------------------------------------------------

@@ -74,7 +74,11 @@ export const visitsService = {
             ovOStatusId: row.ov_o_status_id,
             ovOStatusDescription: row.ov_o_status_description,
             ovOSuspendedReasonId: row.ov_o_suspended_reason_id,
-            ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description
+            ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
+            chatStatus: row.chat_status || 'open',
+            chatClosedAt: row.chat_closed_at,
+            chatClosedUserId: row.chat_closed_user_id?.toString(),
+            chatCreatedUserId: row.chat_created_user_id?.toString()
         })) as OrderVisit[];
     },
 
@@ -117,7 +121,11 @@ export const visitsService = {
             ovOStatusId: row.ov_o_status_id,
             ovOStatusDescription: row.ov_o_status_description,
             ovOSuspendedReasonId: row.ov_o_suspended_reason_id,
-            ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description
+            ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
+            chatStatus: row.chat_status || 'open',
+            chatClosedAt: row.chat_closed_at,
+            chatClosedUserId: row.chat_closed_user_id?.toString(),
+            chatCreatedUserId: row.chat_created_user_id?.toString()
         })) as OrderVisit[];
     },
 
@@ -163,6 +171,10 @@ export const visitsService = {
             ovOStatusDescription: row.ov_o_status_description,
             ovOSuspendedReasonId: row.ov_o_suspended_reason_id,
             ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
+            chatStatus: row.chat_status || 'open',
+            chatClosedAt: row.chat_closed_at,
+            chatClosedUserId: row.chat_closed_user_id?.toString(),
+            chatCreatedUserId: row.chat_created_user_id?.toString()
         })) as OrderVisit[];
     },
 
@@ -334,6 +346,10 @@ export const visitsService = {
             ovSignatureRequesterPath: data.ov_signature_requester_path,
             ovSignatureRequesterName: data.ov_signature_requester_name,
             ovSignatureRequesterAt: data.ov_signature_requester_at,
+            chatStatus: data.chat_status || 'open',
+            chatClosedAt: data.chat_closed_at,
+            chatClosedUserId: data.chat_closed_user_id?.toString(),
+            chatCreatedUserId: data.chat_created_user_id?.toString()
         } as OrderVisit;
     },
 
@@ -669,7 +685,11 @@ export const visitsService = {
                 materialsValue: item.ov_materials_value,
                 vehiclesValue: item.ov_vehicles_value,
                 totalValue: item.ov_total_value,
-                teamCode: item.o_team_code
+                teamCode: item.o_team_code,
+                chatStatus: item.chat_status || 'open',
+                chatClosedAt: item.chat_closed_at,
+                chatClosedUserId: item.chat_closed_user_id?.toString(),
+                chatCreatedUserId: item.chat_created_user_id?.toString()
             } as OrderVisit;
         });
     },
@@ -732,7 +752,11 @@ export const visitsService = {
                 materialsValue: item.ov_materials_value,
                 vehiclesValue: item.ov_vehicles_value,
                 totalValue: item.ov_total_value,
-                teamCode: item.o_team_code
+                teamCode: item.o_team_code,
+                chatStatus: item.chat_status || 'open',
+                chatClosedAt: item.chat_closed_at,
+                chatClosedUserId: item.chat_closed_user_id?.toString(),
+                chatCreatedUserId: item.chat_created_user_id?.toString()
             } as OrderVisit;
         });
     },

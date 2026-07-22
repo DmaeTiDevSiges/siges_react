@@ -956,6 +956,12 @@ export interface OrderVisit {
   ovSignatureRequesterPath?: string;
   ovSignatureRequesterName?: string;
   ovSignatureRequesterAt?: string;
+
+  // Chat status
+  chatStatus?: 'open' | 'closed';
+  chatClosedAt?: string;
+  chatClosedUserId?: string;
+  chatCreatedUserId?: string;
 }
 
 export interface OrderVisitTeam {

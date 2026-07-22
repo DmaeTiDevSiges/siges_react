@@ -133,6 +133,11 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
     const activeUserIdsRef = useRef<string[]>([]);
 
+    // Chat status state
+    const [chatStatus, setChatStatus] = useState<'open' | 'closed'>('open');
+    const [chatCreatedUserId, setChatCreatedUserId] = useState<string | null>(null);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
     // Participant Modal states
     const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
     const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -233,6 +238,16 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             }
 
             const [msgs] = await Promise.all([loadMessages(), loadParticipants()]);
+
+            // Load chat status
+            try {
+                const statusData = await dataService.getVisitChatStatus(visitId);
+                setChatStatus(statusData.chatStatus as 'open' | 'closed');
+                setChatCreatedUserId(statusData.chatCreatedUserId);
+            } catch (err) {
+                console.error('Error loading chat status:', err);
+            }
+
             // Auto-mark as read after initial load
             if (msgs.length > 0) {
                 markUnreadAsRead(msgs);
@@ -457,6 +472,29 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             )
             .subscribe();
 
+        // ─── Canal 4: postgres_changes para chat_status (orders_visits) ───
+        const chatStatusChannel = supabase
+            .channel(`chat_status_${visitId}_${Date.now()}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'orders_visits',
+                    filter: `id=eq.${visitId}`
+                },
+                (payload) => {
+                    const updated = payload.new as any;
+                    if (updated?.chat_status) {
+                        setChatStatus(updated.chat_status);
+                    }
+                    if (updated?.chat_created_user_id) {
+                        setChatCreatedUserId(updated.chat_created_user_id.toString());
+                    }
+                }
+            )
+            .subscribe();
+
         // ─── Polling de fallback (5s) — garante atualização mesmo se realtime falhar ───
         const pollInterval = setInterval(async () => {
             const data = await dataService.getVisitChatMessages(visitId);
@@ -483,6 +521,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             messagesChannel.unsubscribe();
             presenceChannel.unsubscribe();
             readsChannel.unsubscribe();
+            chatStatusChannel.unsubscribe();
         };
     }, [visitId]);
 
@@ -563,13 +602,13 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
         
         // Restriction rule: Only the sender of the message can mark it as resolved/unresolved
         if (String(currentUser.id) !== String(senderId)) {
-            toast.error('Apenas o criador da ação pode alterar seu status');
+            toast.error('Apenas o criador da acao pode alterar seu status');
             return;
         }
 
         try {
             await dataService.toggleResolveChatAction(messageId, !currentStatus);
-            toast.success(currentStatus ? 'Ação marcada como pendente' : 'Ação marcada como resolvida');
+            toast.success(currentStatus ? 'Acao marcada como pendente' : 'Acao marcada como resolvida');
             setMessages(prev => prev.map(m => {
                 if (m.id === messageId) {
                     return {
@@ -581,7 +620,40 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             }));
         } catch (error) {
             console.error('Error toggling resolve action:', error);
-            toast.error('Erro ao atualizar status da ação');
+            toast.error('Erro ao atualizar status da acao');
+        }
+    };
+
+    const handleCloseChat = async () => {
+        if (!currentUser) return;
+
+        setIsUpdatingStatus(true);
+        try {
+            await dataService.closeVisitChat(visitId, currentUser.id);
+            setChatStatus('closed');
+            toast.success('Conversa encerrada');
+        } catch (error: any) {
+            console.error('Error closing chat:', error);
+            toast.error(error.message || 'Erro ao encerrar conversa');
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    const handleReopenChat = async () => {
+        if (!currentUser) return;
+
+        setIsUpdatingStatus(true);
+        try {
+            await dataService.reopenVisitChat(visitId, currentUser.id);
+            setChatStatus('open');
+            setChatCreatedUserId(currentUser.id);
+            toast.success('Conversa reaberta');
+        } catch (error) {
+            console.error('Error reopening chat:', error);
+            toast.error('Erro ao reabrir conversa');
+        } finally {
+            setIsUpdatingStatus(false);
         }
     };
 
@@ -669,18 +741,50 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                     <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                         Chat da Visita
                     </h3>
+                    {/* Status Badge */}
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        chatStatus === 'open'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
+                            : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400'
+                    }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${chatStatus === 'open' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                        {chatStatus === 'open' ? 'Aberta' : 'Encerrada'}
+                    </span>
                 </div>
-                <button
-                    onClick={openParticipantModal}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm ${
-                        participants.length <= 1
-                            ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-600 dark:text-amber-400 animate-pulse'
-                            : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
-                    }`}
-                >
-                    <span className="material-symbols-outlined text-sm font-bold">group</span>
-                    <span>Notificar ({Math.max(0, participants.length - 1)})</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Close / Reopen Button */}
+                    {chatStatus === 'open' && currentUser && (
+                        <button
+                            onClick={handleCloseChat}
+                            disabled={isUpdatingStatus}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 disabled:opacity-50"
+                        >
+                            <span className="material-symbols-outlined text-sm font-bold">lock</span>
+                            <span>Encerrar</span>
+                        </button>
+                    )}
+                    {chatStatus === 'closed' && currentUser && (
+                        <button
+                            onClick={handleReopenChat}
+                            disabled={isUpdatingStatus}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 disabled:opacity-50"
+                        >
+                            <span className="material-symbols-outlined text-sm font-bold">lock_open</span>
+                            <span>Reabrir</span>
+                        </button>
+                    )}
+                    <button
+                        onClick={openParticipantModal}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm ${
+                            participants.length <= 1
+                                ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-600 dark:text-amber-400 animate-pulse'
+                                : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
+                        }`}
+                    >
+                        <span className="material-symbols-outlined text-sm font-bold">group</span>
+                        <span>Notificar ({Math.max(0, participants.length - 1)})</span>
+                    </button>
+                </div>
             </div>
 
             {/* Chat Messages Panel */}
