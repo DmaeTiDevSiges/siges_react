@@ -2541,8 +2541,8 @@ const AppContent: React.FC = () => {
               if (!selectedVisitForApproval || !currentUser) return;
 
               const approvePromise = async () => {
-                // 1. Update order status/progress if changed in form
-                if (selectedOrder?.id) {
+                // 1. Update order status/progress only if OS is NOT in Execução (statusId=5)
+                if (selectedOrder?.id && selectedOrder?.statusId !== 5) {
                   await dataService.updateOrder(selectedOrder.id, {
                     statusId: parseInt(data.statusId),
                     statusAt: selectedVisitForApproval.ovEndedAt,
