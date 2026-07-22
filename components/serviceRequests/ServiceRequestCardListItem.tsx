@@ -120,24 +120,34 @@ export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProp
                     </div>
                 </div>
 
-                <button
-                    className={`transition-all active:scale-90 ${isFollowed ? 'text-yellow-400' : 'text-slate-300 hover:text-yellow-400'}`}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (onToggleFollow) onToggleFollow(e);
-                    }}
-                >
-                    <span
-                        key={isFollowed ? 'followed' : 'unfollowed'}
-                        className={`material-symbols-outlined ${isFollowed ? 'animate-star-pop' : ''}`}
-                        style={{
-                            fontSize: '48px',
-                            fontVariationSettings: isFollowed ? "'FILL' 1" : "'FILL' 0"
+                <div className="flex items-center gap-2">
+                    {imageUrls.length > 0 && (
+                        <span
+                            className="material-symbols-outlined text-green-400"
+                            style={{ fontSize: '48px', fontVariationSettings: "'FILL' 1" }}
+                        >
+                            image
+                        </span>
+                    )}
+                    <button
+                        className={`transition-all active:scale-90 ${isFollowed ? 'text-yellow-400' : 'text-slate-300 hover:text-yellow-400'}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onToggleFollow) onToggleFollow(e);
                         }}
                     >
-                        star
-                    </span>
-                </button>
+                        <span
+                            key={isFollowed ? 'followed' : 'unfollowed'}
+                            className={`material-symbols-outlined ${isFollowed ? 'animate-star-pop' : ''}`}
+                            style={{
+                                fontSize: '48px',
+                                fontVariationSettings: isFollowed ? "'FILL' 1" : "'FILL' 0"
+                            }}
+                        >
+                            star
+                        </span>
+                    </button>
+                </div>
             </div>
 
             {/* Client Name */}
