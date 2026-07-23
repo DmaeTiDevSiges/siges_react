@@ -266,8 +266,22 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, teams, users, filterOptions]);
 
     const leadersByCompany = React.useMemo(() => {
+        const selectedContractIds = Array.isArray(appliedFilters.contractId)
+            ? appliedFilters.contractId
+            : appliedFilters.contractId ? [appliedFilters.contractId] : [];
+
+        const relevantCompanyIds = new Set<string>();
+        if (selectedContractIds.length > 0 && filterOptions.contracts.length > 0) {
+            filterOptions.contracts
+                .filter((c: any) => selectedContractIds.includes(String(c.id)))
+                .forEach((c: any) => {
+                    if (c.providerCompanyId) relevantCompanyIds.add(c.providerCompanyId);
+                });
+        }
+
         const leaders = users
             .filter(u => u.isTeamLeader && u.statusId === 2)
+            .filter(u => relevantCompanyIds.size === 0 || relevantCompanyIds.has(u.companyId || ''))
             .sort((a, b) => (a.nameShort || a.nameFull || "").localeCompare(b.nameShort || b.nameFull || ""));
 
         const grouped: Record<string, { companyId: string; companyName: string; companyLogoUrl?: string; leaders: User[] }> = {};
@@ -286,7 +300,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         });
 
         return Object.values(grouped);
-    }, [users]);
+    }, [users, appliedFilters.contractId, filterOptions.contracts]);
 
 
 

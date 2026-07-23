@@ -223,7 +223,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 { id: 2, label: 'Avaliação', count: 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
                 { id: 3, label: 'Autorizadas', count: 0, icon: 'check_circle', color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
                 { id: 4, label: 'Agendadas', count: 0, icon: 'calendar_month', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10' },
-                { id: 5, label: 'Execução', count: 0, icon: 'engineering', color: 'text-green-500', bgColor: 'bg-green-500/10' },
+                { id: 5, label: 'Execução', count: 0, icon: 'play_circle', color: 'text-green-500', bgColor: 'bg-green-500/10' },
                 { id: 6, label: 'Suspensas', count: 0, icon: 'pause_circle', color: 'text-red-500', bgColor: 'bg-red-500/10' },
             ],
             ssSectorCounts: [] as Array<{ id: string, label: string, count: number }>,
@@ -267,8 +267,23 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, teams, users, filterOptions]);
 
     const leadersByCompany = React.useMemo(() => {
+        const selectedContractIds = Array.isArray(appliedFilters.contractId)
+            ? appliedFilters.contractId
+            : appliedFilters.contractId ? [appliedFilters.contractId] : [];
+
+        const relevantCompanyIds = new Set<string>();
+        if (selectedContractIds.length > 0 && filterOptions.contracts.length > 0) {
+            filterOptions.contracts
+                .filter((c: any) => selectedContractIds.includes(String(c.id)))
+                .forEach((c: any) => {
+                    if (c.providerCompanyId) relevantCompanyIds.add(String(c.providerCompanyId));
+                });
+        }
+
         const leaders = users
-            .filter(u => u.isTeamLeader && u.statusId === 2 && (u.isAvailable || (u.ovIdInProgress && Number(u.ovIdInProgress) > 0)))
+            .filter(u => u.isTeamLeader && u.statusId === 2)
+            .filter(u => relevantCompanyIds.size === 0 || relevantCompanyIds.has(String(u.companyId || '')))
+            .filter(u => u.isAvailable || (u.ovIdInProgress && Number(u.ovIdInProgress) > 0))
             .sort((a, b) => (a.nameShort || a.nameFull || "").localeCompare(b.nameShort || b.nameFull || ""));
 
         const grouped: Record<string, { companyId: string; companyName: string; companyLogoUrl?: string; leaders: User[] }> = {};
@@ -287,7 +302,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         });
 
         return Object.values(grouped);
-    }, [users]);
+    }, [users, appliedFilters.contractId, filterOptions.contracts]);
 
 
 
@@ -555,7 +570,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             { id: 2, label: 'Avaliação', count: statsResult.osCounts[2] || 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
                             { id: 3, label: 'Autorizadas', count: statsResult.osCounts[3] || 0, icon: 'check_circle', color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
                             { id: 4, label: 'Agendadas', count: statsResult.osCounts[4] || 0, icon: 'calendar_month', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10' },
-                            { id: 5, label: 'Execução', count: statsResult.osCounts[5] || 0, icon: 'engineering', color: 'text-green-500', bgColor: 'bg-green-500/10' },
+                            { id: 5, label: 'Execução', count: statsResult.osCounts[5] || 0, icon: 'play_circle', color: 'text-green-500', bgColor: 'bg-green-500/10' },
                             { id: 6, label: 'Suspensas', count: statsResult.osCounts[6] || 0, icon: 'pause_circle', color: 'text-red-500', bgColor: 'bg-red-500/10' },
                         ],
                         ssSectorCounts: statsResult.ssSectorCounts || [],
@@ -1166,9 +1181,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
                     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-20 md:pb-6">
                         <section className="px-4 pt-1 pb-0">
-                            <div className="flex items-center gap-4 mb-0.5">
+                            <div className="flex items-center gap-4 mb-0.5 overflow-x-auto no-scrollbar py-1 px-1 cursor-grab active:cursor-grabbing touch-auto w-full">
                                 <h2 className="font-extrabold text-slate-900 dark:text-white text-xl shrink-0">SS's Não Programadas</h2>
-                                <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 px-1 cursor-grab active:cursor-grabbing touch-auto min-w-0">
+                                <div className="flex gap-3 shrink-0">
                                     {stats.unscheduled.map((item, idx) => (
                                         <div key={idx} onClick={() => {
                                             const clickedPeriod = item.label;
@@ -1177,13 +1192,11 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
                                             fetchData(false, true, { ...appliedFilters, period: clickedPeriod, assetTagId: [] });
                                         }}
-                                            className={`backdrop-blur-sm p-2 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-[110px] cursor-pointer
+                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
                                         ${selectedPeriod === item.label ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
                                     `}>
-                                            <div className="flex items-center justify-between mb-1">
-                                                <p className={`text-[10px] font-bold ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
-                                                <span className="text-lg font-black text-slate-900 dark:text-white">{item.count}</span>
-                                            </div>
+                                            <p className={`text-[10px] font-bold ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
+                                            <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white">{item.count}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -1212,7 +1225,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             </div>
 
                             {stats.ssSectorCounts && stats.ssSectorCounts.length > 0 && (
-                                <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                <div className="flex items-center gap-3 pb-3 min-w-0">
+                                    <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
+                                    <div className="flex gap-3 overflow-x-auto no-scrollbar px-1 py-1.5 cursor-grab active:cursor-grabbing touch-auto flex-1 min-w-0"
                                     ref={ssSectorScroll.ref}
                                     onMouseDown={ssSectorScroll.onMouseDown}
                                     onTouchStart={ssSectorScroll.onTouchStart}
@@ -1235,18 +1250,17 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                 // Pass period explicitly so it is not lost in the override merge
                                                 fetchData(false, true, { ...appliedFilters, period: selectedPeriod, assetTagId: newAssetTagId });
                                             }}
-                                                className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer
+                                                className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer flex items-center justify-between gap-3
                                                     ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
                                                 `}>
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <p className={`text-[11px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
-                                                        {item.label}
-                                                    </p>
-                                                    <span className="text-[16px] font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
-                                                </div>
+                                                <p className={`text-[10px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
+                                                    {item.label}
+                                                </p>
+                                                <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
                                             </div>
                                         );
                                     })}
+                                </div>
                                 </div>
                             )}
                         </section>
@@ -1282,13 +1296,33 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 onClickCapture={leadersScroll.onClickCapture}>
 
                                 {leadersByCompany.map((group) => (
-                                    <div key={group.companyId} className="flex flex-col gap-2 shrink-0 p-3 bg-white dark:bg-slate-800/40 rounded-[12px] border border-slate-100 dark:border-white/5 shadow-sm min-w-[200px] w-max max-w-none">
-                                        <div className="flex items-center gap-2 border-b border-slate-50 dark:border-white/5 pb-1.5 relative">
-                                            <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="xs" className="scale-75 -ml-1 text-[10px]" />
-                                            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter truncate flex-1 leading-tight pr-6">
-                                                {group.companyName}
-                                            </p>
-                                            {canView('dashboard_orders_users_tracker') && (
+                                    <div key={group.companyId} className="flex items-center justify-between gap-4 shrink-0 p-2 px-3 bg-white dark:bg-slate-800/40 rounded-[12px] border border-slate-100 dark:border-white/5 shadow-sm w-max max-w-none">
+                                        <div className="flex items-center gap-2 min-w-0 shrink-0 border-r border-slate-100 dark:border-white/10 pr-4" title={group.companyName}>
+                                            <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="sm" className="shrink-0 text-[10px]" />
+                                        </div>
+                                        
+                                        <div className="flex gap-4 overflow-visible items-center">
+                                            {group.leaders.map((leader) => (
+                                                <div key={leader.id} className="flex flex-col items-center gap-1 group cursor-default shrink-0">
+                                                    <UserAvatar
+                                                        src={leader.avatarUrl}
+                                                        name={leader.nameShort || leader.nameFull || ''}
+                                                        size="sm"
+                                                        status={(leader.ovIdInProgress && Number(leader.ovIdInProgress) > 0) ? 'busy' : (leader.isAvailable ? 'available' : 'unavailable')}
+                                                        className="shadow-sm transition-transform group-hover:scale-110"
+                                                    />
+                                                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-tight truncate max-w-[56px]">
+                                                        {leader.nameShort || leader.nameFull}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                            {group.leaders.length === 0 && (
+                                                <span className="text-[10px] text-slate-400 italic">Nenhum</span>
+                                            )}
+                                        </div>
+
+                                        {canView('dashboard_orders_users_tracker') && (
+                                        <div className="border-l border-slate-100 dark:border-white/10 pl-4 shrink-0 flex items-center justify-center">
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -1308,29 +1342,13 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                         code: ''
                                                     });
                                                 }}
-                                                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-primary transition-colors z-10"
+                                                className="p-1 -mr-1 text-slate-400 hover:text-primary transition-colors flex items-center justify-center"
                                                 title="Rastrear Usuários"
                                             >
                                                 <span className="material-symbols-outlined text-[18px]">location_on</span>
                                             </button>
-                                            )}
                                         </div>
-                                        <div className="flex gap-4 overflow-visible py-1 px-1">
-                                            {group.leaders.map((leader) => (
-                                                <div key={leader.id} className="flex flex-col items-center gap-1 group cursor-default shrink-0">
-                                                    <UserAvatar
-                                                        src={leader.avatarUrl}
-                                                        name={leader.nameShort || leader.nameFull || ''}
-                                                        size="sm"
-                                                        status={(leader.ovIdInProgress && Number(leader.ovIdInProgress) > 0) ? 'busy' : (leader.isAvailable ? 'available' : 'unavailable')}
-                                                        className="shadow-sm transition-transform group-hover:scale-110"
-                                                    />
-                                                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-tight truncate max-w-[56px]">
-                                                        {leader.nameShort || leader.nameFull}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -1350,9 +1368,33 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         : stats.openOS.reduce((acc, curr) => acc + curr.count, 0);
 
                                 return (
-                                    <div className="flex items-center justify-between mb-0.5">
-                                        <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">OS's Abertas</h2>
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-4 mb-0.5 overflow-x-auto no-scrollbar py-1 px-1 cursor-grab active:cursor-grabbing touch-auto w-full"
+                                        ref={openOSScroll.ref}
+                                        onMouseDown={openOSScroll.onMouseDown}
+                                        onTouchStart={openOSScroll.onTouchStart}
+                                        onClickCapture={openOSScroll.onClickCapture}>
+                                        <h2 className="font-extrabold text-slate-900 dark:text-white text-xl shrink-0">OS's Abertas</h2>
+                                        
+                                        <div className="flex gap-3 shrink-0">
+                                            
+                                            {stats.openOS.map((item, idx) => (
+                                                <div key={idx} onClick={() => {
+                                                    const newStatusId = selectedStatusId === item.id ? null : item.id;
+                                                    setSelectedStatusId(newStatusId);
+                                                    setOsAssetTagId([]);
+                                                    fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
+                                                }}
+                                                    className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
+                                                    ${selectedStatusId === item.id ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                `}>
+                                                    <span className={`material-symbols-outlined text-[16px] ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-400'} ${item.color || ''}`}>{item.icon}</span>
+                                                    <p className={`text-[10px] font-bold ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
+                                                    <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white">{item.count}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="flex items-center gap-2 shrink-0 ml-auto">
                                             <OrdersListPDFButton
                                                 filters={osEffectiveFilters}
                                                 searchQuery={searchQuery}
@@ -1369,68 +1411,45 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     </div>
                                 );
                             })()}
-                            <div className="flex gap-3 overflow-x-auto no-scrollbar py-1 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                ref={openOSScroll.ref}
-                                onMouseDown={openOSScroll.onMouseDown}
-                                onTouchStart={openOSScroll.onTouchStart}
-                                onClickCapture={openOSScroll.onClickCapture}>
-
-                                {stats.openOS.map((item, idx) => (
-                                    <div key={idx} onClick={() => {
-                                        const newStatusId = selectedStatusId === item.id ? null : item.id;
-                                        setSelectedStatusId(newStatusId);
-                                        setOsAssetTagId([]);
-                                        fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
-                                    }}
-                                        className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-[110px] cursor-pointer
-                                ${selectedStatusId === item.id ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
-                            `}>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-lg font-black text-slate-900 dark:text-white">{item.count}</span>
-                                            <span className={`material-symbols-outlined text-slate-400 text-[18px] ${item.color}`}>{item.icon}</span>
-                                        </div>
-                                        <p className={`text-[10px] font-bold ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-500 dark:text-slate-300'}`}>{item.label}</p>
-                                    </div>
-                                ))}
-                            </div>
 
                             {stats.osSectorCounts && stats.osSectorCounts.length > 0 && (
-                                <div
-                                    className="flex gap-3 overflow-x-auto no-scrollbar py-1 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                    ref={osSectorScroll.ref}
-                                    onMouseDown={osSectorScroll.onMouseDown}
-                                    onTouchStart={osSectorScroll.onTouchStart}
-                                    onClickCapture={osSectorScroll.onClickCapture}
-                                >
-                                    {stats.osSectorCounts.map((item, idx) => {
-                                        const isSelected = osAssetTagId.includes(item.id);
-                                        return (
-                                            <div
-                                                key={idx}
-                                                onClick={() => {
-                                                    const newOsAssetTagId = isSelected
-                                                        ? osAssetTagId.filter((id) => id !== item.id)
-                                                        : [...osAssetTagId, item.id];
-                                                    setOsAssetTagId(newOsAssetTagId);
-                                                    fetchData(false, true, {
-                                                        ...appliedFilters,
-                                                        statusId: selectedStatusId,
-                                                        osAssetTagId: newOsAssetTagId,
-                                                    });
-                                                }}
-                                                        className={`backdrop-blur-sm p-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[110px] max-w-[200px] cursor-pointer
-                                                    ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
-                                                `}
-                                            >
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <p className={`text-[11px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
+                                <div className="flex items-center gap-3 pb-3 min-w-0">
+                                    <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
+                                    <div
+                                        className="flex gap-3 overflow-x-auto no-scrollbar px-1 py-1.5 cursor-grab active:cursor-grabbing touch-auto flex-1 min-w-0"
+                                        ref={osSectorScroll.ref}
+                                        onMouseDown={osSectorScroll.onMouseDown}
+                                        onTouchStart={osSectorScroll.onTouchStart}
+                                        onClickCapture={osSectorScroll.onClickCapture}
+                                    >
+                                        {stats.osSectorCounts.map((item, idx) => {
+                                            const isSelected = osAssetTagId.includes(item.id);
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => {
+                                                        const newOsAssetTagId = isSelected
+                                                            ? osAssetTagId.filter((id) => id !== item.id)
+                                                            : [...osAssetTagId, item.id];
+                                                        setOsAssetTagId(newOsAssetTagId);
+                                                        fetchData(false, true, {
+                                                            ...appliedFilters,
+                                                            statusId: selectedStatusId,
+                                                            osAssetTagId: newOsAssetTagId,
+                                                        });
+                                                    }}
+                                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[110px] max-w-[200px] cursor-pointer flex items-center justify-between gap-3
+                                                        ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                    `}
+                                                >
+                                                    <p className={`text-[10px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
                                                         {item.label}
                                                     </p>
-                                                    <span className="text-[16px] font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
+                                                    <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
                         </section>

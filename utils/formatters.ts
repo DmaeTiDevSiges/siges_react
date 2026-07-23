@@ -173,7 +173,7 @@ export const getStatusConfig = (statusId?: number | string) => {
         case 4: // Agendada
             return { icon: 'calendar_month', color: 'text-indigo-500', bgColor: 'bg-indigo-500/10', barColor: 'bg-indigo-500', label: 'Agendadas' };
         case 5: // Execução
-            return { icon: 'engineering', color: 'text-green-500', bgColor: 'bg-green-500/10', barColor: 'bg-green-500', label: 'Execução' };
+            return { icon: 'play_circle', color: 'text-green-500', bgColor: 'bg-green-500/10', barColor: 'bg-green-500', label: 'Execução' };
         case 6: // Suspensa
             return { icon: 'pause_circle', color: 'text-red-500', bgColor: 'bg-red-500/10', barColor: 'bg-red-500', label: 'Suspensas' };
         case 7: // Cancelada

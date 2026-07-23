@@ -2328,10 +2328,22 @@ export const visitsService = {
         }
 
         // 4. Release Team
-        const { data: team } = await supabase
+        const ovId = parseInt(visitId);
+        let { data: team } = await supabase
             .from('orders_visits_teams')
             .select('user_id')
-            .eq('ov_id', visitId);
+            .eq('ov_id', ovId);
+
+        if (!team || team.length === 0) {
+            const { data: stuckUsers } = await supabase
+                .from('users')
+                .select('id')
+                .eq('ov_id_in_progress', ovId);
+
+            if (stuckUsers && stuckUsers.length > 0) {
+                team = stuckUsers.map(u => ({ user_id: u.id }));
+            }
+        }
 
         if (team && team.length > 0) {
             const userIds = team.map(t => t.user_id);
