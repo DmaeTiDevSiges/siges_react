@@ -80,6 +80,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         today: 0, yesterday: 0, thisWeek: 0, lastWeek: 0, thisMonth: 0, lastMonth: 0
     });
     const completedOSScroll = useDraggableScroll();
+    const completedOSCardsScroll = useDraggableScroll();
     const [teams, setTeams] = useState<any[]>(() => {
         try {
             const saved = localStorage.getItem('cachedTeams');
@@ -1350,12 +1351,19 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
                                             fetchData(false, true, { ...appliedFilters, period: clickedPeriod, assetTagId: [] });
                                         }}
-                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
+                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
                                         ${selectedPeriod === item.label ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                        ${item.label === 'Hoje' && item.count > 0 ? 'ring-2 ring-red-500/50 animate-pulse' : ''}
                                     `}>
                                             <span className={`material-symbols-outlined text-[16px] ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-400'} ${item.color}`}>{item.icon}</span>
                                             <p className={`text-[10px] font-bold ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
-                                            <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white">{item.count}</span>
+                                            <span className={`text-[14px] leading-none font-black ${item.label === 'Hoje' && item.count > 0 ? 'text-red-500' : 'text-slate-900 dark:text-white'}`}>{item.count}</span>
+                                            {item.label === 'Hoje' && item.count > 0 && (
+                                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                                </span>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -1627,6 +1635,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             onClick={() => {
                                                 setCompletedTemporalFilter(opt.value);
                                                 setIsOsConcluidasOpen(true);
+                                                fetchData(false, true, { ...appliedFilters });
                                             }}
                                             className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
                                                 ${completedTemporalFilter === opt.value
@@ -1642,7 +1651,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                    {isPendingCompleted && <Loading size="xs" />}
+                                    {isPendingCompleted && <Loading size="xs" overlay={false} />}
                                     <OrdersListPDFButton
                                         filters={completedOSEffectiveFilters}
                                         searchQuery={searchQuery}
@@ -1664,6 +1673,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 completedOS.data.length > 0 ? (
                                     <div
                                         className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                        ref={completedOSCardsScroll.ref}
+                                        onMouseDown={completedOSCardsScroll.onMouseDown}
+                                        onTouchStart={completedOSCardsScroll.onTouchStart}
+                                        onClickCapture={completedOSCardsScroll.onClickCapture}
                                     >
                                         {completedOS.data.map((os) => (
                                             <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
