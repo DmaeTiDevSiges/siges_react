@@ -2388,6 +2388,13 @@ CREATE TABLE IF NOT EXISTS public.orders (
 -- CREATE INDEX idx_orders_created_at ON public.orders(created_at);
 -- CREATE INDEX idx_orders_user_id ON public.orders(user_id);
 
+-- Performance indexes (2026-07-23)
+CREATE INDEX IF NOT EXISTS idx_orders_completed_lookup ON public.orders(status_id, parent_id, status_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_status_id ON public.orders(status_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status_at ON public.orders(status_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_company_status ON public.orders(company_id, status_id);
+CREATE INDEX IF NOT EXISTS idx_orders_parent_id ON public.orders(parent_id) WHERE parent_id > 0;
+
 -- Start File: 392-create-cfg_assets_tags_subs-table.sql
 -- =============================================================================
 -- Table: cfg_assets_tags_subs

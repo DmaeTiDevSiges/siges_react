@@ -1130,7 +1130,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                             value={advancedFilters.systemId || []}
                             onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                             onClear={() => setAdvancedFilters((prev: OrderFilters) => ({ ...prev, systemId: [] }))}
-                            disabled={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)}
+                            hidden={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)}
                         />
                         <FilterSelect
                             label="TIPO UNIDADE"
@@ -1143,7 +1143,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                             value={advancedFilters.unitTypeId || []}
                             onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                             onClear={() => setAdvancedFilters((prev: OrderFilters) => ({ ...prev, unitTypeId: [] }))}
-                            disabled={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)}
+                            hidden={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)}
                         />
                         <FilterSelect
                             label="UNIDADES"
@@ -1162,7 +1162,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                             value={advancedFilters.assetTagSubId || []}
                             onClick={() => openSelectionModal('assetTagSubId', 'POSIÇÕES', assetTagSubOptions.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                             onClear={() => setAdvancedFilters((prev: OrderFilters) => ({ ...prev, assetTagSubId: [] }))}
-                            disabled={filterOptions.positions.length === 0}
+                            hidden={filterOptions.positions.length === 0}
                         />
                         <FilterSelect
                             label="FINALIDADE"
@@ -1181,7 +1181,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                             value={advancedFilters.orderTypeSubId || []}
                             onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                             onClear={() => setAdvancedFilters((prev: OrderFilters) => ({ ...prev, orderTypeSubId: [] }))}
-                            disabled={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)}
+                            hidden={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)}
                         />
                         <FilterSelect
                             label="CONTRATO"

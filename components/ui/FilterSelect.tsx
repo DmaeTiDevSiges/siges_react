@@ -7,10 +7,13 @@ export const FilterSelect: React.FC<{
     onClear: () => void;
     disabled?: boolean;
     required?: boolean;
-}> = ({ label, value, onClick, onClear, disabled, required }) => {
+    hidden?: boolean;
+}> = ({ label, value, onClick, onClear, disabled, required, hidden }) => {
     const count = Array.isArray(value) ? value.length : (value ? 1 : 0);
     const isEmpty = count === 0;
     const showRequiredError = required && isEmpty;
+
+    if (hidden) return null;
 
     return (
         <div className={`relative flex items-center w-auto shrink-0 min-w-[110px] h-[42px] transition-opacity ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>

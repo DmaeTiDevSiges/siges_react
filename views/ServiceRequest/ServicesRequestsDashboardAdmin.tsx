@@ -946,12 +946,12 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                     <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
                         <div className="flex flex-col p-4 gap-2">
                             {/* Filters Row */}
-                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full cursor-grab active:cursor-grabbing touch-auto"
-                                ref={filtersScroll.ref}
-                                onMouseDown={filtersScroll.onMouseDown}
-                                onTouchStart={filtersScroll.onTouchStart}
-                                onClickCapture={filtersScroll.onClickCapture}>
-                                <div className="flex items-center gap-2 min-w-full pb-1">
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 cursor-grab active:cursor-grabbing touch-auto"
+                                    ref={filtersScroll.ref}
+                                    onMouseDown={filtersScroll.onMouseDown}
+                                    onTouchStart={filtersScroll.onTouchStart}
+                                    onClickCapture={filtersScroll.onClickCapture}>
                                     <FilterSelect
                                         label="SISTEMA"
                                         value={advancedOrdersFilters.systemParentId || []}
@@ -963,7 +963,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         value={advancedOrdersFilters.systemId || []}
                                         onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems.map(opt => ({ value: String(opt.id), label: opt.description })))}
                                         onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, systemId: [] }))}
-                                        disabled={!advancedOrdersFilters.systemParentId || (Array.isArray(advancedOrdersFilters.systemParentId) && advancedOrdersFilters.systemParentId.length === 0)}
+                                        hidden={!advancedOrdersFilters.systemParentId || (Array.isArray(advancedOrdersFilters.systemParentId) && advancedOrdersFilters.systemParentId.length === 0)}
                                     />
                                     <FilterSelect
                                         label="TIPO UNIDADE"
@@ -976,7 +976,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         value={advancedOrdersFilters.unitTypeId || []}
                                         onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
                                         onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, unitTypeId: [] }))}
-                                        disabled={!advancedOrdersFilters.unitTypeParentId || (Array.isArray(advancedOrdersFilters.unitTypeParentId) && advancedOrdersFilters.unitTypeParentId.length === 0)}
+                                        hidden={!advancedOrdersFilters.unitTypeParentId || (Array.isArray(advancedOrdersFilters.unitTypeParentId) && advancedOrdersFilters.unitTypeParentId.length === 0)}
                                     />
                                     <FilterSelect
                                         label="UNIDADES"
@@ -993,11 +993,11 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         }}
                                     />
                                     <FilterSelect
-                                        label="POSIÃ‡Ã•ES"
+                                        label="POSIÇÕES"
                                         value={advancedOrdersFilters.assetTagSubId || []}
-                                        onClick={() => openSelectionModal('assetTagSubId', 'POSIÃ‡Ã•ES', assetTagSubs.map(opt => ({ value: String(opt.id), label: opt.description })))}
+                                        onClick={() => openSelectionModal('assetTagSubId', 'POSIÇÕES', assetTagSubs.map(opt => ({ value: String(opt.id), label: opt.description })))}
                                         onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagSubId: [] }))}
-                                        disabled={!advancedOrdersFilters.assetTagId || (Array.isArray(advancedOrdersFilters.assetTagId) && advancedOrdersFilters.assetTagId.length === 0)}
+                                        hidden={!advancedOrdersFilters.assetTagId || (Array.isArray(advancedOrdersFilters.assetTagId) && advancedOrdersFilters.assetTagId.length === 0)}
                                     />
                                     <FilterSelect
                                         label="FINALIDADE"
@@ -1016,7 +1016,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         value={advancedOrdersFilters.orderTypeSubId || []}
                                         onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
                                         onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTypeSubId: [] }))}
-                                        disabled={!advancedOrdersFilters.orderTypeId || (Array.isArray(advancedOrdersFilters.orderTypeId) && advancedOrdersFilters.orderTypeId.length === 0)}
+                                        hidden={!advancedOrdersFilters.orderTypeId || (Array.isArray(advancedOrdersFilters.orderTypeId) && advancedOrdersFilters.orderTypeId.length === 0)}
                                     />
                                     <FilterSelect
                                         label="CONTRATO"
@@ -1039,56 +1039,11 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTeamId: [] }))}
                                     />
                                 </div>
-                            </div>
 
-                            {/* Action Row */}
-                            <div className="flex items-center justify-between gap-3 pb-1">
-                                <div className="flex items-center gap-3">
-                                    {canCreate('services_requests') && (
-                                    <button
-                                        onClick={() => onCreateServiceRequest?.()}
-                                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 dark:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 dark:hover:bg-blue-600 hover:scale-[1.02] active:scale-95 transition-all duration-200 group"
-                                        title="Nova Solicitação de Serviço"
-                                    >
-                                        <span className="material-symbols-outlined text-xl transition-transform group-hover:rotate-12">add_task</span>
-                                        <span className="text-[13px] uppercase tracking-wide whitespace-nowrap">Nova SS</span>
-                                    </button>
-                                    )}
-
-                                    <button
-                                        onClick={() => onNavigate?.('services-history')}
-                                        className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold shadow-sm hover:bg-slate-100 dark:hover:bg-slate-700 hover:scale-[1.02] active:scale-95 transition-all duration-200 group"
-                                        title="Pesquisar histÃ³rico de SS"
-                                    >
-                                        <span className="material-symbols-outlined text-xl text-slate-400 group-hover:text-primary transition-colors">history</span>
-                                        <span className="text-[13px] uppercase tracking-wide whitespace-nowrap">HistÃ³rico</span>
-                                    </button>
-
-                                    {/* Quick Search Field */}
-                                    <form onSubmit={handleQuickSearch} className="relative hidden md:flex items-center">
-                                        <input
-                                            type="text"
-                                            value={quickSearchValue}
-                                            onChange={(e) => setQuickSearchValue(e.target.value)}
-                                            placeholder="Buscar SS/OS (Ex: 123.1.2026)"
-                                            className="w-48 lg:w-64 pl-4 pr-10 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-[13px] focus:ring-2 focus:ring-blue-500/50 transition-all outline-none"
-                                        />
-                                        <button
-                                            type="submit"
-                                            disabled={isSearchingQuickly || !quickSearchValue.trim()}
-                                            className="absolute right-2 p-1 text-slate-400 hover:text-blue-500 transition-colors disabled:opacity-50"
-                                        >
-                                            <span className={`material-symbols-outlined text-xl ${isSearchingQuickly ? 'animate-spin' : ''}`}>
-                                                {isSearchingQuickly ? 'progress_activity' : 'search'}
-                                            </span>
-                                        </button>
-                                    </form>
-                                </div>
-
-                                <div className="flex items-center gap-3">
+                                {/* Filtrar — fixo à direita */}
+                                <div className="flex items-center gap-2 shrink-0 ml-auto">
                                     <button
                                         onClick={() => {
-                                            // ValidaÃ§Ã£o: contrato Ã© obrigatÃ³rio
                                             const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
                                             if (selectedContracts.length === 0) {
                                                 toast.error('Selecione ao menos um contrato para filtrar');
@@ -1101,33 +1056,78 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                             fetchData(false, true, newFilters);
                                         }}
                                         disabled={isLoading}
-                                        className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none group"
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none group"
                                     >
                                         <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${isLoading ? 'animate-spin' : 'group-hover:rotate-12'}`}>
                                             {isLoading ? 'progress_activity' : 'filter_list'}
                                         </span>
                                         <span className="text-[13px] uppercase tracking-wide">{isLoading ? 'Filtrando...' : 'Filtrar'}</span>
                                     </button>
-
-                                    {Object.values(advancedOrdersFilters).some(v => Array.isArray(v) && v.length > 0) && (
-                                        <button
-                                            onClick={() => {
-                                                const defaultContractIds = filterOptions.contracts.map((c: any) => String(c.id));
-                                                const resetFilters = { contractId: defaultContractIds };
-                                                setAdvancedOrdersFilters(resetFilters);
-                                                setAppliedFilters(resetFilters);
-                                                setUnitSubTypes([]);
-                                                setOrderSubTypes([]);
-                                                setHasAppliedFilters(false);
-                                            }}
-                                            className="inline-flex items-center justify-center w-10 h-10 text-slate-500 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all duration-200 active:scale-95"
-                                            title="Limpar todos os filtros"
-                                        >
-                                            <span className="material-symbols-outlined text-xl">filter_alt_off</span>
-                                        </button>
-                                    )}
                                 </div>
                             </div>
+
+                            {/* Cards de Empresas / Líderes — dentro do header */}
+                            <div
+                                className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                ref={leadersScroll.ref}
+                                onMouseDown={leadersScroll.onMouseDown}
+                                onTouchStart={leadersScroll.onTouchStart}
+                                onClickCapture={leadersScroll.onClickCapture}>
+
+                                {leadersByCompany.map((group) => (
+                                    <div key={group.companyId} className="flex flex-col gap-2 shrink-0 p-3 bg-white dark:bg-slate-800/40 rounded-[12px] border border-slate-100 dark:border-white/5 shadow-sm min-w-[200px] w-max max-w-none">
+                                        <div className="flex items-center gap-2 border-b border-slate-50 dark:border-white/5 pb-1.5 relative">
+                                            <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="xs" className="scale-75 -ml-1 text-[10px]" />
+                                            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter truncate flex-1 leading-tight pr-6">
+                                                {group.companyName}
+                                            </p>
+                                            {canView('dashboard_orders_users_tracker') && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onTrackUsers?.({
+                                                        id: group.companyId,
+                                                        name: group.companyName,
+                                                        logoUrl: group.companyLogoUrl || '',
+                                                        emailSuffix: '',
+                                                        logoPath: '',
+                                                        logoName: '',
+                                                        status: 'active',
+                                                        category: '',
+                                                        phone: '',
+                                                        location: '',
+                                                        cnpj: '',
+                                                        contractCount: 0,
+                                                        code: ''
+                                                    });
+                                                }}
+                                                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-primary transition-colors z-10"
+                                                title="Rastrear Usuários"
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]">location_on</span>
+                                            </button>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-4 overflow-visible py-1 px-1">
+                                            {group.leaders.map((leader) => (
+                                                <div key={leader.id} className="flex flex-col items-center gap-1 group cursor-default shrink-0">
+                                                    <UserAvatar
+                                                        src={leader.avatarUrl}
+                                                        name={leader.nameShort || leader.nameFull || ''}
+                                                        size="sm"
+                                                        status={(leader.ovIdInProgress && Number(leader.ovIdInProgress) > 0) ? 'busy' : (leader.isAvailable ? 'available' : 'unavailable')}
+                                                        className="shadow-sm transition-transform group-hover:scale-110"
+                                                    />
+                                                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-tight truncate max-w-[56px]">
+                                                        {leader.nameShort || leader.nameFull}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                         </div>
                     </div>
 
@@ -1277,69 +1277,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                 </div>
                             </section>
                         )}
-
-                        <section className="px-4 py-1.5">
-                            <div
-                                className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                ref={leadersScroll.ref}
-                                onMouseDown={leadersScroll.onMouseDown}
-                                onTouchStart={leadersScroll.onTouchStart}
-                                onClickCapture={leadersScroll.onClickCapture}>
-
-                                {leadersByCompany.map((group) => (
-                                    <div key={group.companyId} className="flex flex-col gap-2 shrink-0 p-3 bg-white dark:bg-slate-800/40 rounded-[12px] border border-slate-100 dark:border-white/5 shadow-sm min-w-[200px] w-max max-w-none">
-                                        <div className="flex items-center gap-2 border-b border-slate-50 dark:border-white/5 pb-1.5 relative">
-                                            <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="xs" className="scale-75 -ml-1 text-[10px]" />
-                                            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter truncate flex-1 leading-tight pr-6">
-                                                {group.companyName}
-                                            </p>
-                                            {canView('dashboard_orders_users_tracker') && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onTrackUsers?.({
-                                                        id: group.companyId,
-                                                        name: group.companyName,
-                                                        logoUrl: group.companyLogoUrl || '',
-                                                        emailSuffix: '',
-                                                        logoPath: '',
-                                                        logoName: '',
-                                                        status: 'active',
-                                                        category: '',
-                                                        phone: '',
-                                                        location: '',
-                                                        cnpj: '',
-                                                        contractCount: 0,
-                                                        code: ''
-                                                    });
-                                                }}
-                                                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-primary transition-colors z-10"
-                                                title="Rastrear Usuários"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">location_on</span>
-                                            </button>
-                                            )}
-                                        </div>
-                                        <div className="flex gap-4 overflow-visible py-1 px-1">
-                                            {group.leaders.map((leader) => (
-                                                <div key={leader.id} className="flex flex-col items-center gap-1 group cursor-default shrink-0">
-                                                    <UserAvatar
-                                                        src={leader.avatarUrl}
-                                                        name={leader.nameShort || leader.nameFull || ''}
-                                                        size="sm"
-                                                        status={(leader.ovIdInProgress && Number(leader.ovIdInProgress) > 0) ? 'busy' : (leader.isAvailable ? 'available' : 'unavailable')}
-                                                        className="shadow-sm transition-transform group-hover:scale-110"
-                                                    />
-                                                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-tight truncate max-w-[56px]">
-                                                        {leader.nameShort || leader.nameFull}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
 
                         <section className="px-4 py-0 mt-0">
                             {(() => {
@@ -1546,6 +1483,41 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                         </div>
                     </Modal>
                 </>
+            )}
+
+            {/* Floating Action Button + Busca — fixos à direita inferior */}
+            {activeTab === 'OS' && (
+                <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+                    <form onSubmit={handleQuickSearch} className="relative hidden md:flex items-center">
+                        <input
+                            type="text"
+                            value={quickSearchValue}
+                            onChange={(e) => setQuickSearchValue(e.target.value)}
+                            placeholder="Buscar SS/OS (Ex: 123.1.2026)"
+                            className="w-48 lg:w-64 pl-4 pr-10 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-[13px] shadow-lg focus:ring-2 focus:ring-blue-500/50 transition-all outline-none"
+                        />
+                        <button
+                            type="submit"
+                            disabled={isSearchingQuickly || !quickSearchValue.trim()}
+                            className="absolute right-2 p-1 text-slate-400 hover:text-blue-500 transition-colors disabled:opacity-50"
+                        >
+                            <span className={`material-symbols-outlined text-xl ${isSearchingQuickly ? 'animate-spin' : ''}`}>
+                                {isSearchingQuickly ? 'progress_activity' : 'search'}
+                            </span>
+                        </button>
+                    </form>
+
+                    {canCreate('services_requests') && (
+                        <button
+                            onClick={() => onCreateServiceRequest?.()}
+                            className="flex items-center gap-2 px-5 py-3.5 bg-blue-600 dark:bg-blue-500 text-white rounded-full font-bold shadow-lg shadow-blue-600/30 hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-xl hover:shadow-blue-600/40 active:scale-95 transition-all duration-200 group"
+                            title="Nova Solicitação de Serviço"
+                        >
+                            <span className="material-symbols-outlined text-2xl">add_task</span>
+                            <span className="text-sm uppercase tracking-wide">Nova SS</span>
+                        </button>
+                    )}
+                </div>
             )}
         </div>
     );
