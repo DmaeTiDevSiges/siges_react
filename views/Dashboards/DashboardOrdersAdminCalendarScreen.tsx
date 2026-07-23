@@ -1118,7 +1118,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                     onMouseDown={filtersScroll.onMouseDown}
                     onTouchStart={filtersScroll.onTouchStart}
                     onClickCapture={filtersScroll.onClickCapture}>
-                    <div className="flex items-center gap-2 min-w-full pb-0.5">
+                    <div className="flex items-center gap-2 min-w-full pb-0.5 flex-1 min-w-0">
                         <FilterSelect
                             label="SISTEMA"
                             value={advancedFilters.systemParentId || []}
@@ -1203,6 +1203,16 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                             onChange={(vals) => setAdvancedFilters((prev: OrderFilters) => ({ ...prev, orderTeamId: vals }))}
                             onClear={() => setAdvancedFilters((prev: OrderFilters) => ({ ...prev, orderTeamId: [] }))}
                         />
+                        <button
+                            onClick={handleApplyFilters}
+                            disabled={isLoading}
+                            className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md shadow-primary/20 hover:bg-primary-dark hover:scale-[1.01] active:scale-95 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none group cursor-pointer shrink-0"
+                        >
+                            <span className={`material-symbols-outlined text-lg transition-transform duration-300 ${isLoading ? 'animate-spin' : 'group-hover:rotate-12'}`}>
+                                {isLoading ? 'progress_activity' : 'filter_list'}
+                            </span>
+                            <span className="text-[12px] uppercase tracking-wide whitespace-nowrap">{isLoading ? 'Filtrando...' : 'Filtrar'}</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1241,28 +1251,6 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
 
                     {/* Search & Actions */}
                     <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
-                            {/* Filtrar Button */}
-                        <button
-                            onClick={handleApplyFilters}
-                            disabled={isLoading}
-                            className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md shadow-primary/20 hover:bg-primary-dark hover:scale-[1.01] active:scale-95 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none group cursor-pointer"
-                        >
-                            <span className={`material-symbols-outlined text-lg transition-transform duration-300 ${isLoading ? 'animate-spin' : 'group-hover:rotate-12'}`}>
-                                {isLoading ? 'progress_activity' : 'filter_list'}
-                            </span>
-                            <span className="text-[12px] uppercase tracking-wide whitespace-nowrap">{isLoading ? 'Filtrando...' : 'Filtrar'}</span>
-                        </button>
-
-                        {/* Limpar Filtros Button */}
-                        {Object.values(advancedFilters).some(v => Array.isArray(v) && v.length > 0) && (
-                            <button
-                                onClick={clearOsFilters}
-                                className="inline-flex items-center justify-center w-10 h-10 text-slate-500 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer shrink-0"
-                                title="Limpar todos os filtros de OS"
-                            >
-                                <span className="material-symbols-outlined text-xl">filter_alt_off</span>
-                            </button>
-                        )}
                     </div>
                 </div>
 

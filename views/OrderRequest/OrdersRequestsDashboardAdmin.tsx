@@ -94,6 +94,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     });
     const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
     const [selectedPeriod, setSelectedPeriod] = useState<string | null>('Todas');
+    const [isOsAbertasOpen, setIsOsAbertasOpen] = useState(true);
+    const [isOsConcluidasOpen, setIsOsConcluidasOpen] = useState(true);
 
     // Use the custom hook for follow functionality
     const { followedOrderIds, isOrderFollowed, toggleFollow } = useOrderFollow(currentUser?.id);
@@ -223,13 +225,13 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
         return {
             unscheduled: [
-                { label: 'Todas', count: 0 },
-                { label: 'Hoje', count: 0 },
-                { label: 'Ontem', count: 0 },
-                { label: '2-7 dias', count: 0 },
-                { label: '8-15 dias', count: 0 },
-                { label: '16-30 dias', count: 0 },
-                { label: '> 30 dias', count: 0 },
+                { label: 'Todas', count: 0, icon: 'select_all', color: 'text-slate-500' },
+                { label: 'Hoje', count: 0, icon: 'today', color: 'text-primary' },
+                { label: 'Ontem', count: 0, icon: 'history', color: 'text-primary' },
+                { label: '2-7 dias', count: 0, icon: 'date_range', color: 'text-primary' },
+                { label: '8-15 dias', count: 0, icon: 'date_range', color: 'text-primary' },
+                { label: '16-30 dias', count: 0, icon: 'date_range', color: 'text-primary' },
+                { label: '> 30 dias', count: 0, icon: 'calendar_month', color: 'text-primary' },
             ],
             openOS: [
                 { id: 2, label: 'Avaliação', count: 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
@@ -546,6 +548,29 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         };
     }, [appliedFilters, selectedStatusId, osAssetTagId]);
 
+    const completedOSEffectiveFilters = React.useMemo(() => {
+        const range = getCompletedTemporalDateRange(completedTemporalFilter);
+        return {
+            systemParentId: appliedFilters.systemParentId,
+            systemId: appliedFilters.systemId,
+            unitTypeParentId: appliedFilters.unitTypeParentId,
+            unitTypeId: appliedFilters.unitTypeId,
+            unitId: appliedFilters.unitId,
+            orderObjectId: appliedFilters.orderObjectId,
+            orderTypeId: appliedFilters.orderTypeId,
+            orderTypeSubId: appliedFilters.orderTypeSubId,
+            contractId: appliedFilters.contractId,
+            orderPlanId: appliedFilters.orderPlanId,
+            orderTeamId: appliedFilters.orderTeamId,
+            priorityId: appliedFilters.priorityId,
+            statusId: 7,
+            assetTagId: appliedFilters.assetTagId,
+            assetTagSubId: appliedFilters.assetTagSubId,
+            startDate: range.start,
+            endDate: range.end,
+        };
+    }, [appliedFilters, completedTemporalFilter, getCompletedTemporalDateRange]);
+
     const fetchData = useCallback(async (
         loadMore: boolean = false,
         isManual: boolean = false,
@@ -687,13 +712,13 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 if (statsResult) {
                     setStats({
                         unscheduled: [
-                            { label: 'Todas', count: (statsResult.ssCounts.today || 0) + (statsResult.ssCounts.yesterday || 0) + (statsResult.ssCounts.sevenDays || 0) + (statsResult.ssCounts.fifteenDays || 0) + (statsResult.ssCounts.between16And30 || 0) + (statsResult.ssCounts.moreThan30 || 0) },
-                            { label: 'Hoje', count: statsResult.ssCounts.today },
-                            { label: 'Ontem', count: statsResult.ssCounts.yesterday },
-                            { label: '2-7 dias', count: statsResult.ssCounts.sevenDays },
-                            { label: '8-15 dias', count: statsResult.ssCounts.fifteenDays },
-                            { label: '16-30 dias', count: statsResult.ssCounts.between16And30 },
-                            { label: '> 30 dias', count: statsResult.ssCounts.moreThan30 },
+                            { label: 'Todas', count: (statsResult.ssCounts.today || 0) + (statsResult.ssCounts.yesterday || 0) + (statsResult.ssCounts.sevenDays || 0) + (statsResult.ssCounts.fifteenDays || 0) + (statsResult.ssCounts.between16And30 || 0) + (statsResult.ssCounts.moreThan30 || 0), icon: 'select_all', color: 'text-slate-500' },
+                            { label: 'Hoje', count: statsResult.ssCounts.today, icon: 'today', color: 'text-primary' },
+                            { label: 'Ontem', count: statsResult.ssCounts.yesterday, icon: 'history', color: 'text-primary' },
+                            { label: '2-7 dias', count: statsResult.ssCounts.sevenDays, icon: 'date_range', color: 'text-primary' },
+                            { label: '8-15 dias', count: statsResult.ssCounts.fifteenDays, icon: 'date_range', color: 'text-primary' },
+                            { label: '16-30 dias', count: statsResult.ssCounts.between16And30, icon: 'date_range', color: 'text-primary' },
+                            { label: '> 30 dias', count: statsResult.ssCounts.moreThan30, icon: 'calendar_month', color: 'text-primary' },
                         ],
                         openOS: [
                             { id: 2, label: 'Avaliação', count: statsResult.osCounts[2] || 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
@@ -1328,6 +1353,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
                                         ${selectedPeriod === item.label ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
                                     `}>
+                                            <span className={`material-symbols-outlined text-[16px] ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-400'} ${item.color}`}>{item.icon}</span>
                                             <p className={`text-[10px] font-bold ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
                                             <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white">{item.count}</span>
                                         </div>
@@ -1439,6 +1465,14 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         onMouseDown={openOSScroll.onMouseDown}
                                         onTouchStart={openOSScroll.onTouchStart}
                                         onClickCapture={openOSScroll.onClickCapture}>
+                                        <button
+                                            onClick={() => setIsOsAbertasOpen(prev => !prev)}
+                                            className="shrink-0 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                        >
+                                            <span className={`material-symbols-outlined text-slate-500 dark:text-slate-400 text-xl transition-transform duration-200 ${isOsAbertasOpen ? '' : '-rotate-90'}`}>
+                                                expand_more
+                                            </span>
+                                        </button>
                                         <h2 className="font-extrabold text-slate-900 dark:text-white text-xl shrink-0">OS's Abertas</h2>
                                         
                                         <div className="flex gap-3 shrink-0">
@@ -1448,6 +1482,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                     const newStatusId = selectedStatusId === item.id ? null : item.id;
                                                     setSelectedStatusId(newStatusId);
                                                     setOsAssetTagId([]);
+                                                    setIsOsAbertasOpen(true);
                                                     fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
                                                 }}
                                                     className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
@@ -1478,6 +1513,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 );
                             })()}
 
+                            {isOsAbertasOpen && (
+                            <>
                             {stats.osSectorCounts && stats.osSectorCounts.length > 0 && (
                                 <div className="flex items-center gap-3 pb-3 min-w-0">
                                     <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
@@ -1518,9 +1555,11 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     </div>
                                 </div>
                             )}
+                            </>
+                            )}
                         </section>
 
-                        {displayedOpenOS.length > 0 && (
+                        {isOsAbertasOpen && displayedOpenOS.length > 0 && (
                             <section className="px-4 py-0">
                                 <div
                                     className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
@@ -1563,10 +1602,15 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 onTouchStart={completedOSScroll.onTouchStart}
                                 onClickCapture={completedOSScroll.onClickCapture}
                             >
-                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl shrink-0 flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-emerald-500 text-[24px]">check_circle</span>
-                                    OS's Concluídas
-                                </h2>
+                                <button
+                                    onClick={() => setIsOsConcluidasOpen(prev => !prev)}
+                                    className="shrink-0 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    <span className={`material-symbols-outlined text-slate-500 dark:text-slate-400 text-xl transition-transform duration-200 ${isOsConcluidasOpen ? '' : '-rotate-90'}`}>
+                                        expand_more
+                                    </span>
+                                </button>
+                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl shrink-0">OS's Concluídas</h2>
 
                                 {/* Temporal filter buttons */}
                                 <div className="flex gap-2 shrink-0">
@@ -1580,7 +1624,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     ]).map((opt) => (
                                         <div
                                             key={opt.value}
-                                            onClick={() => setCompletedTemporalFilter(opt.value)}
+                                            onClick={() => {
+                                                setCompletedTemporalFilter(opt.value);
+                                                setIsOsConcluidasOpen(true);
+                                            }}
                                             className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
                                                 ${completedTemporalFilter === opt.value
                                                     ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900'
@@ -1596,35 +1643,50 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
                                 <div className="flex items-center gap-2 shrink-0 ml-auto">
                                     {isPendingCompleted && <Loading size="xs" />}
-                                    <span className="text-[12px] font-black text-slate-900 dark:text-white">{completedOS.total}</span>
+                                    <OrdersListPDFButton
+                                        filters={completedOSEffectiveFilters}
+                                        searchQuery={searchQuery}
+                                        totalCount={completedOS.total}
+                                        fetchData={(opts) => dataService.getCompletedOS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate })}
+                                    />
+                                    <ExcelExportButton
+                                        filters={completedOSEffectiveFilters}
+                                        searchQuery={searchQuery}
+                                        filename="relatorio-os-concluidas"
+                                        title="EXCEL"
+                                        totalCount={completedOS.total}
+                                        fetchData={(opts) => dataService.getCompletedOS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate })}
+                                    />
                                 </div>
                             </div>
 
-                            {completedOS.data.length > 0 ? (
-                                <div
-                                    className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                >
-                                    {completedOS.data.map((os) => (
-                                        <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
-                                            <OrderRequestCardListItem
-                                                order={os}
-                                                currentUser={currentUser}
-                                                onClick={() => onSelectOrder?.(os)}
-                                                onSuccess={() => loadCompletedOS()}
-                                                onEdit={onEdit}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : !isPendingCompleted ? (
-                                <div className="w-full flex items-center justify-center py-10">
-                                    <div className="flex flex-col items-center">
-                                        <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">task_alt</span>
-                                        <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma OS concluída neste período</h3>
-                                        <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
+                            {isOsConcluidasOpen && (
+                                completedOS.data.length > 0 ? (
+                                    <div
+                                        className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                    >
+                                        {completedOS.data.map((os) => (
+                                            <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                                <OrderRequestCardListItem
+                                                    order={os}
+                                                    currentUser={currentUser}
+                                                    onClick={() => onSelectOrder?.(os)}
+                                                    onSuccess={() => loadCompletedOS()}
+                                                    onEdit={onEdit}
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
-                                </div>
-                            ) : null}
+                                ) : !isPendingCompleted ? (
+                                    <div className="w-full flex items-center justify-center py-10">
+                                        <div className="flex flex-col items-center">
+                                            <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">task_alt</span>
+                                            <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma OS concluída neste período</h3>
+                                            <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
+                                        </div>
+                                    </div>
+                                ) : null
+                            )}
                         </section>
 
                         

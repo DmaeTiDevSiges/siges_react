@@ -14,6 +14,7 @@ interface ExcelExportButtonProps {
     title?: string;
     className?: string;
     totalCount?: number;
+    fetchData?: (opts: any) => Promise<{ data: any[]; total: number }>;
 }
 
 /**
@@ -25,7 +26,8 @@ export const ExcelExportButton = ({
     filename,
     title = "Exportar Excel",
     className = "",
-    totalCount
+    totalCount,
+    fetchData
 }: ExcelExportButtonProps) => {
     const [isExporting, setIsExporting] = useState(false);
 
@@ -34,12 +36,12 @@ export const ExcelExportButton = ({
             setIsExporting(true);
             const toastId = toast.loading('Buscando dados para o Excel...');
 
-            // Buscar todos os registros ignorando paginação
-            const result = await dataService.getOrdersFilters({
+            const fetchFn = fetchData || ((opts: any) => dataService.getOrdersFilters(opts));
+            const result = await fetchFn({
                 ...filters,
                 search: searchQuery,
                 page: 0,
-                pageSize: 1000 // Busca até 1000 registros para o Excel
+                pageSize: 1000
             });
 
             if (!result.data || result.data.length === 0) {

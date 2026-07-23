@@ -17,6 +17,7 @@ interface OrdersListPDFButtonProps {
     filename?: string;
     className?: string;
     totalCount?: number;
+    fetchData?: (opts: any) => Promise<{ data: any[]; total: number }>;
 }
 
 /**
@@ -28,7 +29,8 @@ export const OrdersListPDFButton = ({
     searchQuery = '',
     filename = 'relatorio-os',
     className = "",
-    totalCount
+    totalCount,
+    fetchData
 }: OrdersListPDFButtonProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -37,13 +39,12 @@ export const OrdersListPDFButton = ({
             setIsGenerating(true);
             const toastId = toast.loading('Buscando dados para o relatório...');
 
-            // Buscar todos os registros ignorando paginação (limit alto)
-            // Mantemos os filtros aplicados pelo usuário
-            const result = await dataService.getOrdersFilters({
+            const fetchFn = fetchData || ((opts: any) => dataService.getOrdersFilters(opts));
+            const result = await fetchFn({
                 ...filters,
                 search: searchQuery,
                 page: 0,
-                pageSize: 1000 // Busca até 1000 registros para o relatório
+                pageSize: 1000
             });
 
             if (!result.data || result.data.length === 0) {

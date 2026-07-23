@@ -240,7 +240,7 @@ const FilterBarSection = React.memo(({
     }, [selectionModal.filterKey, setAdvancedFilters, handleSystemChange, handleParentUnitTypeChange, handleOrderTypeChange]);
 
     return (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pb-1 cursor-grab active:cursor-grabbing touch-auto"
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 min-w-0 pb-1 cursor-grab active:cursor-grabbing touch-auto"
             ref={filtersScroll.ref}
             onMouseDown={filtersScroll.onMouseDown}
             onTouchStart={filtersScroll.onTouchStart}
@@ -1667,22 +1667,42 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white animate-in fade-in duration-500 relative">
                 <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
                     <div className="flex flex-col p-4 gap-2">
-                        <FilterBarSection 
-                            advancedFilters={advancedFilters}
-                            setAdvancedFilters={setAdvancedFilters}
-                            filterSelectOptions={filterOptions}
-                            handleSystemChange={handleSystemChange}
-                            handleParentUnitTypeChange={handleParentUnitTypeChange}
-                            handleOrderTypeChange={handleOrderTypeChange}
-                            handleSectorChange={handleSectorChange}
-                            unitSubTypes={unitSubTypes}
-                            assetTagSubOptions={assetTagSubOptions}
-                            orderSubTypes={orderSubTypes}
-                            isMovementsModalOpen={isMovementsModalOpen}
-                            setIsMovementsModalOpen={setIsMovementsModalOpen}
-                            appropriationData={appropriationData}
-                        />
-                        <div className="flex items-center justify-between gap-3 pb-1 pt-0 mt-0">
+                        <div className="flex items-center gap-2 pb-1 pt-0 mt-0">
+                            <FilterBarSection 
+                                advancedFilters={advancedFilters}
+                                setAdvancedFilters={setAdvancedFilters}
+                                filterSelectOptions={filterOptions}
+                                handleSystemChange={handleSystemChange}
+                                handleParentUnitTypeChange={handleParentUnitTypeChange}
+                                handleOrderTypeChange={handleOrderTypeChange}
+                                handleSectorChange={handleSectorChange}
+                                unitSubTypes={unitSubTypes}
+                                assetTagSubOptions={assetTagSubOptions}
+                                orderSubTypes={orderSubTypes}
+                                isMovementsModalOpen={isMovementsModalOpen}
+                                setIsMovementsModalOpen={setIsMovementsModalOpen}
+                                appropriationData={appropriationData}
+                            />
+                            <button
+                                onClick={() => {
+                                    const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];
+                                    if (selectedContracts.length === 0) {
+                                        toast.error('Selecione ao menos um contrato para filtrar');
+                                        return;
+                                    }
+                                    setAppliedFilters({ ...advancedFilters });
+                                    loadData(true);
+                                }}
+                                disabled={loading}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none group shrink-0"
+                            >
+                                <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${loading ? 'animate-spin' : 'group-hover:rotate-12'}`}>
+                                    {loading ? 'progress_activity' : 'filter_list'}
+                                </span>
+                                <span className="text-[13px] uppercase tracking-wide">{loading ? 'Filtrando...' : 'Filtrar'}</span>
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-3 pb-1 pt-0 mt-0">
                             <div
                                 onClick={handleDateModalOpen}
                                 className="group w-auto flex items-center gap-3 bg-white dark:bg-slate-800 p-1.5 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 cursor-pointer transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
@@ -1703,41 +1723,6 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     </div>
                                 </div>
                                 <span className="material-symbols-outlined text-slate-300 text-lg group-hover:text-primary transition-colors shrink-0">edit_calendar</span>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => {
-                                        const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];
-                                        if (selectedContracts.length === 0) {
-                                            toast.error('Selecione ao menos um contrato para filtrar');
-                                            return;
-                                        }
-                                        setAppliedFilters({ ...advancedFilters });
-                                        loadData(true);
-                                    }}
-                                    disabled={loading}
-                                    className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none group"
-                                >
-                                    <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${loading ? 'animate-spin' : 'group-hover:rotate-12'}`}>
-                                        {loading ? 'progress_activity' : 'filter_list'}
-                                    </span>
-                                    <span className="text-[13px] uppercase tracking-wide">{loading ? 'Filtrando...' : 'Filtrar'}</span>
-                                </button>
-                                {Object.values(advancedFilters).some(v => Array.isArray(v) && v.length > 0) && (
-                                    <button
-                                        onClick={() => {
-                                            const defaultContractIds = filterOptions.contracts.map((c: any) => String(c.id));
-                                            setAdvancedFilters({ contractId: defaultContractIds });
-                                            setUnitSubTypes([]);
-                                            setOrderSubTypes([]);
-                                        }}
-                                        className="flex items-center justify-center w-10 h-10 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all duration-200 group active:scale-95"
-                                        title="Limpar todos os filtros"
-                                    >
-                                        <span className="material-symbols-outlined text-[22px] group-hover:rotate-[-10deg]">filter_alt_off</span>
-                                    </button>
-                                )}
                             </div>
                         </div>
                     </div>
