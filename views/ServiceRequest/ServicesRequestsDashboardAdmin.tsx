@@ -1128,7 +1128,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                 ))}
                             </div>
                         </div>
-                        </div>
                     </div>
 
                     {/* â”€â”€ Filtering overlay â”€â”€ */}
