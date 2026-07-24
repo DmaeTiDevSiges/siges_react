@@ -1411,12 +1411,19 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                     localStorage.setItem('ordersSection_osAbertasOpen', JSON.stringify(true));
                                                     fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
                                                 }}
-                                                    className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
+                                                    className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
                                                     ${selectedStatusId === item.id ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                    ${item.label === 'Execução' && item.count > 0 ? 'ring-2 ring-green-500/50 animate-pulse' : ''}
                                                 `}>
                                                     <span className={`material-symbols-outlined text-[16px] ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-400'} ${item.color || ''}`}>{item.icon}</span>
                                                     <p className={`text-[10px] font-bold ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
-                                                    <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white">{item.count}</span>
+                                                    <span className={`text-[14px] leading-none font-black ${item.label === 'Execução' && item.count > 0 ? 'text-green-500' : 'text-slate-900 dark:text-white'}`}>{item.count}</span>
+                                                    {item.label === 'Execução' && item.count > 0 && (
+                                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                                        </span>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -1557,15 +1564,24 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                 localStorage.setItem('ordersSection_osConcluidasOpen', JSON.stringify(true));
                                                 fetchData(false, true, { ...appliedFilters });
                                             }}
-                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
+                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
                                                 ${completedTemporalFilter === opt.value
                                                     ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900'
-                                                    : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'
-                                                }`}
+                                                    : (opt.label === 'Hoje' && completedOSCounts[opt.value] > 0
+                                                        ? 'bg-white dark:bg-slate-800/40 border-green-500'
+                                                        : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5')
+                                                }
+                                            `}
                                         >
                                             <span className={`material-symbols-outlined text-[16px] ${completedTemporalFilter === opt.value ? 'text-primary' : 'text-slate-400'} ${opt.color}`}>{opt.icon}</span>
                                             <p className={`text-[10px] font-bold ${completedTemporalFilter === opt.value ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{opt.label}</p>
-                                            <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white">{completedOSCounts[opt.value]}</span>
+                                            <span className={`text-[14px] leading-none font-black ${completedTemporalFilter !== opt.value && opt.label === 'Hoje' && completedOSCounts[opt.value] > 0 ? 'text-green-500' : 'text-slate-900 dark:text-white'}`}>{completedOSCounts[opt.value]}</span>
+                                            {opt.label === 'Hoje' && completedOSCounts[opt.value] > 0 && (
+                                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                                </span>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

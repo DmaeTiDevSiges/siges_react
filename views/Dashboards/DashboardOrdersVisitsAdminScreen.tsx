@@ -963,8 +963,14 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             loadDataRef.current(false);
         });
 
+        const POLL_INTERVAL = 30000;
+        const pollTimer = setInterval(() => {
+            loadDataRef.current(false);
+        }, POLL_INTERVAL);
+
         return () => {
             window.removeEventListener('refresh_dashboard', handleRefresh);
+            clearInterval(pollTimer);
             orderSub.unsubscribe();
             visitSub.unsubscribe();
         };
