@@ -9,8 +9,7 @@ import { Loading } from '../../components/ui/Loading';
 import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
 import { VisitsListPDFButton } from '../../components/reports/VisitsListPDFButton';
-import { FilterSelect } from '../../components/ui/FilterSelect';
-import { TreeFilterSelect } from '../../components/ui/TreeFilterSelect';
+import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components/ui/FilterBarResponsive';
 import { BatchVisitReportPDFButton } from '../../components/reports/BatchVisitReportPDFButton';
 import { ExcelExportUtils } from '../../utils/ExcelExportUtils';
 import { FileUtils } from '../../utils/FileUtils';
@@ -20,7 +19,6 @@ import { AssetMovementsDocument } from '../../components/reports/AssetMovementsD
 import { pdf } from '@react-pdf/renderer';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { FaFilePdf } from 'react-icons/fa';
-import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 
 interface DashboardOrdersVisitsAdminScreenProps {
     currentUser: User;
@@ -31,6 +29,8 @@ interface DashboardOrdersVisitsAdminScreenProps {
     onAppliedFiltersChange?: (filters: OrderFilters) => void;
     searchQuery?: string;
     onSearchQueryChange?: (query: string) => void;
+    filterBarRef?: React.RefObject<FilterBarResponsiveHandle>;
+    onActiveFiltersChange?: (count: number) => void;
 }
 
 interface VisitStats {
@@ -61,374 +61,7 @@ interface OrderVisitExtended extends OrderVisit {
     sectorDescription?: string;
 }
 
-// Isolated Filter Bar Section to prevent Dashboard re-renders during filter selection
-const FilterBarSection = React.memo(({ 
-    advancedFilters, 
-    setAdvancedFilters, 
-    filterSelectOptions,
-    handleSystemChange,
-    handleParentUnitTypeChange,
-    handleOrderTypeChange,
-    handleSectorChange,
-    unitSubTypes,
-    assetTagSubOptions,
-    orderSubTypes,
-    isMovementsModalOpen,
-    setIsMovementsModalOpen,
-    appropriationData
-}: { 
-    advancedFilters: OrderFilters;
-    setAdvancedFilters: React.Dispatch<React.SetStateAction<OrderFilters>>;
-    filterSelectOptions: any;
-    handleSystemChange: (id: string | string[]) => void;
-    handleParentUnitTypeChange: (id: string | string[]) => void;
-    handleOrderTypeChange: (id: string | string[]) => void;
-    handleSectorChange: (id: string | string[]) => void;
-    unitSubTypes: any[];
-    assetTagSubOptions: any[];
-    orderSubTypes: any[];
-    isMovementsModalOpen: boolean;
-    setIsMovementsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    appropriationData: any;
-}) => {
-    const filtersScroll = useDraggableScroll();
-    const [selectionModal, setSelectionModal] = useState<{
-        isOpen: boolean;
-        filterKey: keyof OrderFilters;
-        label: string;
-        options: { value: string; label: string }[];
-        currentValue: string[];
-    }>({
-        isOpen: false,
-        filterKey: 'contractId',
-        label: '',
-        options: [],
-        currentValue: []
-    });
 
-    const [isExportingExcel, setIsExportingExcel] = useState(false);
-    const [isExportingPDF, setIsExportingPDF] = useState(false);
-
-    const handleExportExcel = async () => {
-        try {
-            const movedAssets = (appropriationData as any)?.movedAssets || [];
-            if (movedAssets.length === 0) {
-                toast.error('Nenhuma movimentação para exportar.');
-                return;
-            }
-
-            setIsExportingExcel(true);
-            const toastId = toast.loading('Gerando Excel de Movimentações...');
-
-            const reportRows = movedAssets.map((a: any) => ({
-                code: a.code || '',
-                description: a.description || '',
-                beforeClientUnit: `${a.beforeClientName || ''} - ${a.beforeUnitDescription || ''}`,
-                beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
-                beforeStatus: a.beforeStatusDescription || '',
-                beforeDate: a.beforeStatusAt ? new Date(a.beforeStatusAt).toLocaleDateString('pt-BR') : '',
-                afterClientUnit: `${a.afterClientName || ''} - ${a.afterUnitDescription || ''}`,
-                afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
-                afterStatus: a.afterStatusDescription || '',
-                afterDate: a.afterStatusAt ? new Date(a.afterStatusAt).toLocaleDateString('pt-BR') : '',
-                comments: a.movedComments || ''
-            }));
-
-            const mapping = {
-                code: 'Código',
-                description: 'Descrição',
-                beforeClientUnit: 'Origem (Cliente - Unidade)',
-                beforeSector: 'Origem (Setor > Posição)',
-                beforeStatus: 'Origem (Situação)',
-                beforeDate: 'Origem (Data)',
-                afterClientUnit: 'Destino (Cliente - Unidade)',
-                afterSector: 'Destino (Setor > Posição)',
-                afterStatus: 'Destino (Situação)',
-                afterDate: 'Destino (Data)',
-                comments: 'Observações'
-            };
-
-            const formattedData = ExcelExportUtils.formatDataForExport(reportRows, mapping);
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const filename = `movimentacoes_ativos_${timestamp}`;
-
-            await ExcelExportUtils.exportToExcel(formattedData, filename, 'Movimentações');
-            toast.success('Excel exportado com sucesso!', { id: toastId });
-        } catch (error) {
-            console.error('Erro ao exportar Excel:', error);
-            toast.error('Ocorreu um erro ao exportar o Excel.');
-        } finally {
-            setIsExportingExcel(false);
-        }
-    };
-
-    const handleExportPDF = async () => {
-        try {
-            const movedAssets = (appropriationData as any)?.movedAssets || [];
-            if (movedAssets.length === 0) {
-                toast.error('Nenhuma movimentação para exportar.');
-                return;
-            }
-
-            setIsExportingPDF(true);
-            const toastId = toast.loading('Gerando PDF de Movimentações...');
-
-            const reportRows = movedAssets.map((a: any) => ({
-                code: a.code || '',
-                description: a.description || '',
-                beforeClientName: a.beforeClientName || '',
-                beforeUnitDescription: a.beforeUnitDescription || '',
-                beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
-                beforeStatus: a.beforeStatusDescription || '',
-                beforeDate: a.beforeStatusAt ? new Date(a.beforeStatusAt).toLocaleDateString('pt-BR') : '',
-                afterClientName: a.afterClientName || '',
-                afterUnitDescription: a.afterUnitDescription || '',
-                afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
-                afterStatus: a.afterStatusDescription || '',
-                afterDate: a.afterStatusAt ? new Date(a.afterStatusAt).toLocaleDateString('pt-BR') : ''
-            }));
-
-            const logoBase64 = await getLogoBase64();
-            const doc = (
-                <AssetMovementsDocument 
-                    assets={reportRows} 
-                    logoBase64={logoBase64} 
-                    generatedAt={new Date().toLocaleString('pt-BR')}
-                />
-            );
-            const blob = await pdf(doc).toBlob();
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const filename = `movimentacoes_ativos_${timestamp}.pdf`;
-
-            await FileUtils.downloadFile(blob, filename);
-            toast.success('PDF gerado com sucesso!', { id: toastId });
-        } catch (error) {
-            console.error('Erro ao gerar PDF:', error);
-            toast.error('Ocorreu um erro ao gerar o PDF.');
-        } finally {
-            setIsExportingPDF(false);
-        }
-    };
-
-    const openSelectionModal = useCallback((key: keyof OrderFilters, label: string, options: { value: string; label: string }[]) => {
-        const value = advancedFilters[key];
-        const currentValue = Array.isArray(value)
-            ? (value as any[]).map(String)
-            : (value !== undefined && value !== null ? [String(value)] : []);
-
-        setSelectionModal({
-            isOpen: true,
-            filterKey: key,
-            label,
-            options,
-            currentValue
-        });
-    }, [advancedFilters]);
-
-    const handleModalConfirm = useCallback((value: string[]) => {
-        const key = selectionModal.filterKey;
-        if (key === 'systemParentId') {
-            handleSystemChange(value);
-        } else if (key === 'unitTypeParentId') {
-            handleParentUnitTypeChange(value);
-        } else if (key === 'orderTypeId') {
-            handleOrderTypeChange(value);
-        } else {
-            setAdvancedFilters(prev => ({ ...prev, [key]: value }));
-        }
-        setSelectionModal(prev => ({ ...prev, isOpen: false }));
-    }, [selectionModal.filterKey, setAdvancedFilters, handleSystemChange, handleParentUnitTypeChange, handleOrderTypeChange]);
-
-    return (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 min-w-0 pb-1 cursor-grab active:cursor-grabbing touch-auto"
-            ref={filtersScroll.ref}
-            onMouseDown={filtersScroll.onMouseDown}
-            onTouchStart={filtersScroll.onTouchStart}
-            onClickCapture={filtersScroll.onClickCapture}>
-            <FilterSelect label="SISTEMA" value={advancedFilters.systemParentId || []} onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterSelectOptions.systems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSystemChange([])} />
-            <FilterSelect label="SUB-SISTEMA" value={advancedFilters.systemId || []} onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterSelectOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, systemId: [] }))} hidden={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)} />
-            <FilterSelect label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} />
-            <FilterSelect label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, unitTypeId: [] }))} hidden={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
-            <FilterSelect label="UNIDADES" value={advancedFilters.unitId || []} onClick={() => openSelectionModal('unitId', 'UNIDADES', filterSelectOptions.units.map((opt: any) => ({ value: String(opt.id), label: opt.description_full || opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, unitId: [] }))} />
-            <FilterSelect label="SETORES" value={advancedFilters.assetTagId || []} onClick={() => openSelectionModal('assetTagId', 'SETORES', filterSelectOptions.sectors.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSectorChange([])} />
-            <FilterSelect label="POSIÇÕES" value={advancedFilters.assetTagSubId || []} onClick={() => openSelectionModal('assetTagSubId', 'POSIÇÕES', assetTagSubOptions.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, assetTagSubId: [] }))} hidden={!advancedFilters.assetTagId || (Array.isArray(advancedFilters.assetTagId) && advancedFilters.assetTagId.length === 0)} />
-            <FilterSelect label="FINALIDADE" value={advancedFilters.orderObjectId || []} onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterSelectOptions.orderObjects.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderObjectId: [] }))} />
-            <FilterSelect label="TIPO OS" value={advancedFilters.orderTypeId || []} onClick={() => openSelectionModal('orderTypeId', 'TIPO OS', filterSelectOptions.orderTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleOrderTypeChange([])} />
-            <FilterSelect label="SUB-TIPO OS" value={advancedFilters.orderTypeSubId || []} onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTypeSubId: [] }))} hidden={!advancedFilters.orderTypeId || (Array.isArray(advancedFilters.orderTypeId) && advancedFilters.orderTypeId.length === 0)} />
-            <FilterSelect label="CONTRATO" value={advancedFilters.contractId || []} onClick={() => openSelectionModal('contractId', 'CONTRATO', filterSelectOptions.contracts.map((opt: any) => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, contractId: [] }))} required />
-            <FilterSelect label="PLANO" value={advancedFilters.orderPlanId || []} onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterSelectOptions.plans.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderPlanId: [] }))} />
-            <TreeFilterSelect label="EQ.RESPONSAVEL" value={advancedFilters.orderTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters(prev => ({ ...prev, orderTeamId: vals }))} onClear={() => setAdvancedFilters(prev => ({ ...prev, orderTeamId: [] }))} />
-
-            <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
-                <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} />
-            </Modal>
-            <Modal
-                isOpen={isMovementsModalOpen}
-                onClose={() => setIsMovementsModalOpen(false)}
-                title="MOVIMENTAÇÕES ATIVOS"
-                maxWidth="lg"
-                draggable
-            >
-                <div className="flex flex-col gap-4">
-                    <div className="flex justify-end items-center px-1">
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleExportExcel}
-                                disabled={isExportingExcel}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 dark:bg-green-500/20 border border-green-500/30 text-green-500 hover:bg-green-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs"
-                                title="Exportar Movimentações para Excel"
-                            >
-                                {isExportingExcel ? (
-                                    <Loading size="xs" />
-                                ) : (
-                                    <RiFileExcel2Fill className="text-[14px]" />
-                                )}
-                                <span>XLS ({(appropriationData as any)?.movedAssets?.length || 0})</span>
-                            </button>
-                            <button
-                                onClick={handleExportPDF}
-                                disabled={isExportingPDF}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs"
-                                title="Exportar Movimentações para PDF"
-                            >
-                                {isExportingPDF ? (
-                                    <Loading size="xs" />
-                                ) : (
-                                    <FaFilePdf className="text-[14px]" />
-                                )}
-                                <span>PDF ({(appropriationData as any)?.movedAssets?.length || 0})</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="max-h-[60vh] overflow-y-auto p-1 no-scrollbar">
-                        <div className="flex flex-col gap-6">
-                            {((appropriationData as any)?.movedAssets || []).length === 0 ? (
-                                <div className="text-sm text-slate-500">Nenhuma movimentação encontrada</div>
-                            ) : (
-                                (appropriationData as any)?.movedAssets?.map((item: any, i: number) => (
-                                    <AssetMovementListItem key={i} asset={item} />
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex justify-between items-center p-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            {(appropriationData as any)?.movedAssets?.length || 0} MOVIMENTAÇÕES ENCONTRADAS
-                        </span>
-                        <button
-                            onClick={() => setIsMovementsModalOpen(false)}
-                            className="px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs uppercase hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-['Inter']"
-                        >
-                            Fechar
-                        </button>
-                    </div>
-                </div>
-            </Modal>
-
-            
-        </div>
-    );
-});
-
-// Memoized Item for Filter Selection List
-const FilterOptionItem = React.memo(({ 
-    opt, 
-    isSelected, 
-    onToggle 
-}: { 
-    opt: { value: string; label: string }; 
-    isSelected: boolean; 
-    onToggle: (value: string) => void;
-}) => {
-    return (
-        <label
-            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5' : ''}`}
-        >
-            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
-                {isSelected && <span className="material-symbols-outlined text-white text-[16px] font-bold">check</span>}
-            </div>
-            <input
-                type="checkbox"
-                className="hidden"
-                checked={isSelected}
-                onChange={() => onToggle(opt.value)}
-            />
-            <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{opt.label}</span>
-        </label>
-    );
-});
-
-// Modal Content Component for Filters
-const FilterSelectionContent: React.FC<{
-    label: string;
-    options: { value: string; label: string }[];
-    initialValue: string[];
-    onConfirm: (value: string[]) => void;
-}> = ({ label, options, initialValue, onConfirm }) => {
-    const [selectionSearch, setSelectionSearch] = useState('');
-    const [currentValue, setCurrentValue] = useState<string[]>(initialValue);
-
-    const filteredOptions = useMemo(() => {
-        const query = selectionSearch.toLowerCase().trim();
-        if (!query) return options;
-        return options.filter(opt => opt.label.toLowerCase().includes(query));
-    }, [options, selectionSearch]);
-
-    const selectedSet = useMemo(() => new Set(currentValue), [currentValue]);
-
-    const handleToggle = useCallback((value: string) => {
-        setCurrentValue(prev => 
-            prev.includes(value) 
-                ? prev.filter(v => v !== value) 
-                : [...prev, value]
-        );
-    }, []);
-
-    return (
-        <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100">
-            <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                <input
-                    type="text"
-                    placeholder={`Pesquisar ${label}...`}
-                    value={selectionSearch}
-                    onChange={(e) => setSelectionSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-                    autoFocus
-                />
-            </div>
-
-            <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
-                {filteredOptions.length > 0 ? (
-                    filteredOptions.map(opt => (
-                        <FilterOptionItem
-                            key={opt.value}
-                            opt={opt}
-                            isSelected={selectedSet.has(opt.value)}
-                            onToggle={handleToggle}
-                        />
-                    ))
-                ) : (
-                    <div className="py-10 text-center flex flex-col items-center gap-2">
-                        <span className="material-symbols-outlined text-slate-300 text-4xl">search_off</span>
-                        <p className="text-slate-400 text-sm font-medium">Nenhum resultado encontrado</p>
-                    </div>
-                )}
-            </div>
-
-            <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                    onClick={() => onConfirm(currentValue)}
-                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all"
-                >
-                    Confirmar Seleção ({currentValue.length})
-                </button>
-            </div>
-        </div>
-    );
-};
 
 interface StatCardProps {
     icon: string;
@@ -833,7 +466,9 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     appliedFilters: appliedFiltersProp,
     onAppliedFiltersChange,
     searchQuery: searchQueryProp,
-    onSearchQueryChange
+    onSearchQueryChange,
+    filterBarRef,
+    onActiveFiltersChange
 }) => {
     const [advancedFilters, setAdvancedFilters] = useState<OrderFilters>(() => {
         if (currentFilters) return currentFilters;
@@ -969,6 +604,81 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     const [isAllUnitsModalOpen, setIsAllUnitsModalOpen] = useState(false);
     const [isMovementsModalOpen, setIsMovementsModalOpen] = useState(false);
+    const [visitFilterCount, setVisitFilterCount] = useState(0);
+
+    const [isExportingExcel, setIsExportingExcel] = useState(false);
+    const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+    const handleExportExcel = async () => {
+        try {
+            const movedAssets = (appropriationData as any)?.movedAssets || [];
+            if (movedAssets.length === 0) {
+                toast.error('Nenhuma movimentação para exportar.');
+                return;
+            }
+            setIsExportingExcel(true);
+            const toastId = toast.loading('Gerando Excel de Movimentações...');
+            const reportRows = movedAssets.map((a: any) => ({
+                code: a.code || '',
+                description: a.description || '',
+                beforeClientUnit: `${a.beforeClientName || ''} - ${a.beforeUnitDescription || ''}`,
+                beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
+                beforeStatus: a.beforeStatusDescription || '',
+                beforeDate: a.beforeStatusAt ? new Date(a.beforeStatusAt).toLocaleDateString('pt-BR') : '',
+                afterClientUnit: `${a.afterClientName || ''} - ${a.afterUnitDescription || ''}`,
+                afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
+                afterStatus: a.afterStatusDescription || '',
+                afterDate: a.afterStatusAt ? new Date(a.afterStatusAt).toLocaleDateString('pt-BR') : '',
+                comments: a.movedComments || ''
+            }));
+            const mapping = {
+                code: 'Código', description: 'Descrição',
+                beforeClientUnit: 'Origem (Cliente - Unidade)', beforeSector: 'Origem (Setor > Posição)',
+                beforeStatus: 'Origem (Situação)', beforeDate: 'Origem (Data)',
+                afterClientUnit: 'Destino (Cliente - Unidade)', afterSector: 'Destino (Setor > Posição)',
+                afterStatus: 'Destino (Situação)', afterDate: 'Destino (Data)', comments: 'Observações'
+            };
+            const formattedData = ExcelExportUtils.formatDataForExport(reportRows, mapping);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            await ExcelExportUtils.exportToExcel(formattedData, `movimentacoes_ativos_${timestamp}`, 'Movimentações');
+            toast.success('Excel exportado com sucesso!', { id: toastId });
+        } catch (error) {
+            console.error('Erro ao exportar Excel:', error);
+            toast.error('Ocorreu um erro ao exportar o Excel.');
+        } finally { setIsExportingExcel(false); }
+    };
+
+    const handleExportPDF = async () => {
+        try {
+            const movedAssets = (appropriationData as any)?.movedAssets || [];
+            if (movedAssets.length === 0) {
+                toast.error('Nenhuma movimentação para exportar.');
+                return;
+            }
+            setIsExportingPDF(true);
+            const toastId = toast.loading('Gerando PDF de Movimentações...');
+            const reportRows = movedAssets.map((a: any) => ({
+                code: a.code || '', description: a.description || '',
+                beforeClientName: a.beforeClientName || '', beforeUnitDescription: a.beforeUnitDescription || '',
+                beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
+                beforeStatus: a.beforeStatusDescription || '',
+                beforeDate: a.beforeStatusAt ? new Date(a.beforeStatusAt).toLocaleDateString('pt-BR') : '',
+                afterClientName: a.afterClientName || '', afterUnitDescription: a.afterUnitDescription || '',
+                afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
+                afterStatus: a.afterStatusDescription || '',
+                afterDate: a.afterStatusAt ? new Date(a.afterStatusAt).toLocaleDateString('pt-BR') : ''
+            }));
+            const logoBase64 = await getLogoBase64();
+            const doc = <AssetMovementsDocument assets={reportRows} logoBase64={logoBase64} generatedAt={new Date().toLocaleString('pt-BR')} />;
+            const blob = await pdf(doc).toBlob();
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            await FileUtils.downloadFile(blob, `movimentacoes_ativos_${timestamp}.pdf`);
+            toast.success('PDF gerado com sucesso!', { id: toastId });
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            toast.error('Ocorreu um erro ao gerar o PDF.');
+        } finally { setIsExportingPDF(false); }
+    };
 
     useEffect(() => {
         if (isDateModalOpen) {
@@ -1668,7 +1378,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
                     <div className="flex flex-col p-4 gap-2">
                         <div className="flex items-center gap-2 pb-1 pt-0 mt-0">
-                            <FilterBarSection 
+                            <FilterBarResponsive
+                                ref={filterBarRef}
                                 advancedFilters={advancedFilters}
                                 setAdvancedFilters={setAdvancedFilters}
                                 filterSelectOptions={filterOptions}
@@ -1679,12 +1390,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 unitSubTypes={unitSubTypes}
                                 assetTagSubOptions={assetTagSubOptions}
                                 orderSubTypes={orderSubTypes}
-                                isMovementsModalOpen={isMovementsModalOpen}
-                                setIsMovementsModalOpen={setIsMovementsModalOpen}
-                                appropriationData={appropriationData}
-                            />
-                            <button
-                                onClick={() => {
+                                onActiveFiltersChange={(count) => { setVisitFilterCount(count); onActiveFiltersChange?.(count); }}
+                                onApply={() => {
                                     const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];
                                     if (selectedContracts.length === 0) {
                                         toast.error('Selecione ao menos um contrato para filtrar');
@@ -1693,14 +1400,25 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                     setAppliedFilters({ ...advancedFilters });
                                     loadData(true);
                                 }}
-                                disabled={loading}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none group shrink-0"
-                            >
-                                <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${loading ? 'animate-spin' : 'group-hover:rotate-12'}`}>
-                                    {loading ? 'progress_activity' : 'filter_list'}
-                                </span>
-                                <span className="text-[13px] uppercase tracking-wide">{loading ? 'Filtrando...' : 'Filtrar'}</span>
-                            </button>
+                            />
+                                <button
+                                    onClick={() => {
+                                        const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];
+                                        if (selectedContracts.length === 0) {
+                                            toast.error('Selecione ao menos um contrato para filtrar');
+                                            return;
+                                        }
+                                        setAppliedFilters({ ...advancedFilters });
+                                        loadData(true);
+                                    }}
+                                    disabled={loading}
+                                    className="hidden md:inline-flex items-center justify-center gap-2 h-12 px-6 font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed shrink-0"
+                                >
+                                    <span className={`material-symbols-outlined text-xl ${loading ? 'animate-spin' : ''}`}>
+                                        {loading ? 'progress_activity' : 'filter_list'}
+                                    </span>
+                                    <span className="tracking-wide text-sm font-bold uppercase">{loading ? 'Filtrando...' : 'Filtrar'}</span>
+                                </button>
                         </div>
                         <div className="flex items-center gap-3 pb-1 pt-0 mt-0">
                             <div
@@ -1724,6 +1442,17 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 </div>
                                 <span className="material-symbols-outlined text-slate-300 text-lg group-hover:text-primary transition-colors shrink-0">edit_calendar</span>
                             </div>
+                            <button
+                                onClick={() => filterBarRef?.current?.openMobileFilters()}
+                                className="relative md:hidden flex items-center justify-center h-11 w-11 bg-primary text-white hover:bg-blue-600 shadow-md rounded-full transition-all duration-200 active:scale-[0.97] active:brightness-95 font-bold flex-shrink-0 cursor-pointer select-none ml-auto"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">filter_list</span>
+                                {visitFilterCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[9px] font-black rounded-full px-1 shadow-sm">
+                                        {visitFilterCount}
+                                    </span>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -2162,6 +1891,61 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                         </span>
                         <button
                             onClick={() => setIsAllUnitsModalOpen(false)}
+                            className="px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs uppercase hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-['Inter']"
+                        >
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={isMovementsModalOpen}
+                onClose={() => setIsMovementsModalOpen(false)}
+                title="MOVIMENTAÇÕES ATIVOS"
+                maxWidth="lg"
+                draggable
+            >
+                <div className="flex flex-col gap-4">
+                    <div className="flex justify-end items-center px-1">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleExportExcel}
+                                disabled={isExportingExcel}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 dark:bg-green-500/20 border border-green-500/30 text-green-500 hover:bg-green-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs"
+                                title="Exportar Movimentações para Excel"
+                            >
+                                {isExportingExcel ? <Loading size="xs" /> : <RiFileExcel2Fill className="text-[14px]" />}
+                                <span>XLS ({(appropriationData as any)?.movedAssets?.length || 0})</span>
+                            </button>
+                            <button
+                                onClick={handleExportPDF}
+                                disabled={isExportingPDF}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs"
+                                title="Exportar Movimentações para PDF"
+                            >
+                                {isExportingPDF ? <Loading size="xs" /> : <FaFilePdf className="text-[14px]" />}
+                                <span>PDF ({(appropriationData as any)?.movedAssets?.length || 0})</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="max-h-[60vh] overflow-y-auto p-1 no-scrollbar">
+                        <div className="flex flex-col gap-6">
+                            {((appropriationData as any)?.movedAssets || []).length === 0 ? (
+                                <div className="text-sm text-slate-500">Nenhuma movimentação encontrada</div>
+                            ) : (
+                                (appropriationData as any)?.movedAssets?.map((item: any, i: number) => (
+                                    <AssetMovementListItem key={i} asset={item} />
+                                ))
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex justify-between items-center p-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {(appropriationData as any)?.movedAssets?.length || 0} MOVIMENTAÇÕES ENCONTRADAS
+                        </span>
+                        <button
+                            onClick={() => setIsMovementsModalOpen(false)}
                             className="px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs uppercase hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-['Inter']"
                         >
                             Fechar

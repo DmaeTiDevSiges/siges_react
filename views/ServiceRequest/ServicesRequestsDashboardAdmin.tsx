@@ -1164,7 +1164,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                         </div>
                     )}
 
-                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-20 md:pb-6">
+                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-6">
                         <section className="px-4 pt-1 pb-0">
                             <div className="flex items-center justify-between mb-0.5">
                                 <h2 className="font-extrabold text-slate-900 dark:text-white text-xl">SS's NÃ£o Programadas</h2>
@@ -1486,8 +1486,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
             {/* Floating Action Button + Busca — fixos à direita inferior */}
             {activeTab === 'OS' && (
-                <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
-                    <form onSubmit={handleQuickSearch} className="relative hidden md:flex items-center">
+                <div className="fixed bottom-24 md:bottom-6 right-6 z-50 flex items-center gap-3">
+                    <form onSubmit={handleQuickSearch} className="relative flex items-center">
                         <input
                             type="text"
                             value={quickSearchValue}
@@ -1512,7 +1512,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                             className="flex items-center gap-2 px-5 py-3.5 bg-blue-600 dark:bg-blue-500 text-white rounded-full font-bold shadow-lg shadow-blue-600/30 hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-xl hover:shadow-blue-600/40 active:scale-95 transition-all duration-200 group"
                             title="Nova Solicitação de Serviço"
                         >
-                            <span className="material-symbols-outlined text-2xl">add_task</span>
                             <span className="text-sm uppercase tracking-wide">Nova SS</span>
                         </button>
                     )}

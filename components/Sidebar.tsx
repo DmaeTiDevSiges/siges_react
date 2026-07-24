@@ -26,7 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ${isCollapsed ? 'w-20' : 'w-64'}
         `}>
             {/* Header */}
-            <div className={`px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+            <div className={`px-4 py-2.5 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
                 {!isCollapsed && (
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white animate-in fade-in duration-300">Menu</h2>
                 )}

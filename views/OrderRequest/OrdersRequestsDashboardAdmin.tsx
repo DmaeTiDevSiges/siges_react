@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo, useTransition } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useTransition, useRef } from 'react';
 import { User, OrderFilters, Order, Company } from '../../types';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
 import { usePermissions } from '../../contexts/PermissionsContext';
-import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { IconButton } from '../../components/ui/IconButton';
@@ -23,8 +22,8 @@ import { OrdersListPDFButton } from '../../components/reports/OrdersListPDFButto
 import { ExcelExportButton } from '../../components/reports/ExcelExportButton';
 import { RequestsListPDFButton } from '../../components/reports/RequestsListPDFButton';
 import { RequestsExcelExportButton } from '../../components/reports/RequestsExcelExportButton';
-import { FilterSelect } from '../../components/ui/FilterSelect';
-import { TreeFilterSelect } from '../../components/ui/TreeFilterSelect';
+import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components/ui/FilterBarResponsive';
+import { ChevronButton } from '../../components/ui/ChevronButton';
 import { Loading } from '../../components/ui/Loading';
 
 
@@ -37,12 +36,13 @@ interface OrdersRequestsDashboardAdminProps {
     onNavigate?: (path: string) => void;
     onEdit?: (order: Order) => void;
     activeTab?: 'OS' | 'VISITAS';
+    onFilterBarRef?: (ref: FilterBarResponsiveHandle | null) => void;
+    onMobileFilterCountChange?: (tab: 'OS' | 'VISITAS', count: number) => void;
 }
 
-export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS' }) => {
+export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS', onFilterBarRef, onMobileFilterCountChange }) => {
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
-    const filtersScroll = useDraggableScroll();
     const unscheduledSSScroll = useDraggableScroll();
     const openOSScroll = useDraggableScroll();
     const osSectorScroll = useDraggableScroll();
@@ -52,7 +52,17 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     const { canCreate, canView } = usePermissions();
 
+    const filterBarRef = useRef<FilterBarResponsiveHandle>(null);
+    const visitsFilterBarRef = useRef<FilterBarResponsiveHandle>(null);
+
+    useEffect(() => {
+        const activeRef = activeTab === 'VISITAS' ? visitsFilterBarRef.current : filterBarRef.current;
+        onFilterBarRef?.(activeRef);
+        return () => onFilterBarRef?.(null);
+    }, [onFilterBarRef, activeTab]);
+
     const [searchQuery, setSearchQuery] = useState('');
+    const [osFilterCount, setOsFilterCount] = useState(0);
     const [quickSearchValue, setQuickSearchValue] = useState('');
     const [isSearchingQuickly, setIsSearchingQuickly] = useState(false);
     // Data Cache (Persisted)
@@ -95,8 +105,18 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     });
     const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
     const [selectedPeriod, setSelectedPeriod] = useState<string | null>('Todas');
-    const [isOsAbertasOpen, setIsOsAbertasOpen] = useState(true);
-    const [isOsConcluidasOpen, setIsOsConcluidasOpen] = useState(true);
+    const [isOsAbertasOpen, setIsOsAbertasOpen] = useState(() => {
+        const saved = localStorage.getItem('ordersSection_osAbertasOpen');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [isOsConcluidasOpen, setIsOsConcluidasOpen] = useState(() => {
+        const saved = localStorage.getItem('ordersSection_osConcluidasOpen');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [isNaoProgramadasOpen, setIsNaoProgramadasOpen] = useState(() => {
+        const saved = localStorage.getItem('ordersSection_naoProgramadasOpen');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
 
     // Use the custom hook for follow functionality
     const { followedOrderIds, isOrderFollowed, toggleFollow } = useOrderFollow(currentUser?.id);
@@ -183,20 +203,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Selection Modal State
-    const [selectionModal, setSelectionModal] = useState<{
-        isOpen: boolean;
-        filterKey: keyof OrderFilters;
-        label: string;
-        options: { value: string; label: string }[];
-        currentValue: string[];
-    }>({
-        isOpen: false,
-        filterKey: 'orderTypeId',
-        label: '',
-        options: [],
-        currentValue: []
-    });
-    const [selectionSearch, setSelectionSearch] = useState('');
     const [unscheduledSS, setUnscheduledSS] = useState<Order[]>(() => {
         try {
             const saved = localStorage.getItem('cachedUnscheduledSS_v3');
@@ -226,13 +232,13 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
         return {
             unscheduled: [
-                { label: 'Todas', count: 0, icon: 'select_all', color: 'text-slate-500' },
                 { label: 'Hoje', count: 0, icon: 'today', color: 'text-primary' },
                 { label: 'Ontem', count: 0, icon: 'history', color: 'text-primary' },
                 { label: '2-7 dias', count: 0, icon: 'date_range', color: 'text-primary' },
                 { label: '8-15 dias', count: 0, icon: 'date_range', color: 'text-primary' },
                 { label: '16-30 dias', count: 0, icon: 'date_range', color: 'text-primary' },
                 { label: '> 30 dias', count: 0, icon: 'calendar_month', color: 'text-primary' },
+                { label: 'Todas', count: 0, icon: 'select_all', color: 'text-slate-500' },
             ],
             openOS: [
                 { id: 2, label: 'Avaliação', count: 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
@@ -713,13 +719,13 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 if (statsResult) {
                     setStats({
                         unscheduled: [
-                            { label: 'Todas', count: (statsResult.ssCounts.today || 0) + (statsResult.ssCounts.yesterday || 0) + (statsResult.ssCounts.sevenDays || 0) + (statsResult.ssCounts.fifteenDays || 0) + (statsResult.ssCounts.between16And30 || 0) + (statsResult.ssCounts.moreThan30 || 0), icon: 'select_all', color: 'text-slate-500' },
                             { label: 'Hoje', count: statsResult.ssCounts.today, icon: 'today', color: 'text-primary' },
                             { label: 'Ontem', count: statsResult.ssCounts.yesterday, icon: 'history', color: 'text-primary' },
                             { label: '2-7 dias', count: statsResult.ssCounts.sevenDays, icon: 'date_range', color: 'text-primary' },
                             { label: '8-15 dias', count: statsResult.ssCounts.fifteenDays, icon: 'date_range', color: 'text-primary' },
                             { label: '16-30 dias', count: statsResult.ssCounts.between16And30, icon: 'date_range', color: 'text-primary' },
                             { label: '> 30 dias', count: statsResult.ssCounts.moreThan30, icon: 'calendar_month', color: 'text-primary' },
+                            { label: 'Todas', count: (statsResult.ssCounts.today || 0) + (statsResult.ssCounts.yesterday || 0) + (statsResult.ssCounts.sevenDays || 0) + (statsResult.ssCounts.fifteenDays || 0) + (statsResult.ssCounts.between16And30 || 0) + (statsResult.ssCounts.moreThan30 || 0), icon: 'select_all', color: 'text-slate-500' },
                         ],
                         openOS: [
                             { id: 2, label: 'Avaliação', count: statsResult.osCounts[2] || 0, icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
@@ -1033,39 +1039,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         }
     };
 
-    const openSelectionModal = (key: keyof OrderFilters, label: string, options: { value: string; label: string }[]) => {
-        const value = advancedOrdersFilters[key];
-        const currentValue = Array.isArray(value)
-            ? (value as any[]).map(String)
-            : (value !== undefined && value !== null ? [String(value)] : []);
-        setSelectionModal({
-            isOpen: true,
-            filterKey: key,
-            label,
-            options,
-            currentValue
-        });
-        setSelectionSearch('');
-    };
-
-    const handleModalConfirm = (value: string[]) => {
-        const key = selectionModal.filterKey;
-        const finalValue = key === 'statusId' ? (value[0] ? Number(value[0]) : null) : value;
-
-        if (key === 'systemParentId') {
-            handleSystemChange(finalValue as string | string[]);
-        } else if (key === 'unitTypeParentId') {
-            handleParentUnitTypeChange(finalValue as string | string[]);
-        } else if (key === 'orderTypeId') {
-            handleOrderTypeChange(finalValue as string | string[]);
-        } else if (key === 'assetTagId') {
-            handleAssetTagChange(finalValue as string | string[]);
-        } else {
-            setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, [key]: finalValue }));
-        }
-        setSelectionModal((prev: any) => ({ ...prev, isOpen: false }));
-    };
-
     const handleQuickSearch = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         if (!quickSearchValue.trim()) return;
@@ -1104,6 +1077,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         onAppliedFiltersChange={setAppliedFilters}
                         searchQuery={searchQuery}
                         onSearchQueryChange={setSearchQuery}
+                        filterBarRef={visitsFilterBarRef}
+                        onActiveFiltersChange={(count) => onMobileFilterCountChange?.('VISITAS', count)}
                     />
                 </div>
             )}
@@ -1113,131 +1088,61 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 <>
                     {/* Horizontal Filter Bar */}
                     <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
-                        <div className="flex flex-col p-4 gap-2">
+                        <div className="flex flex-col p-4">
                             {/* Filters Row */}
-                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full cursor-grab active:cursor-grabbing touch-auto"
-                                ref={filtersScroll.ref}
-                                onMouseDown={filtersScroll.onMouseDown}
-                                onTouchStart={filtersScroll.onTouchStart}
-                                onClickCapture={filtersScroll.onClickCapture}>
-                                <div className="flex items-center gap-2 min-w-full pb-1">
-                                    <FilterSelect
-                                        label="SISTEMA"
-                                        value={advancedOrdersFilters.systemParentId || []}
-                                        onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterOptions.systems.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => handleSystemChange([])}
-                                    />
-                                    <FilterSelect
-                                        label="SUB-SISTEMA"
-                                        value={advancedOrdersFilters.systemId || []}
-                                        onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, systemId: [] }))}
-                                        hidden={!advancedOrdersFilters.systemParentId || (Array.isArray(advancedOrdersFilters.systemParentId) && advancedOrdersFilters.systemParentId.length === 0)}
-                                    />
-                                    <FilterSelect
-                                        label="TIPO UNIDADE"
-                                        value={advancedOrdersFilters.unitTypeParentId || []}
-                                        onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterOptions.unitTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => handleParentUnitTypeChange([])}
-                                    />
-                                    <FilterSelect
-                                        label="SUB-TIPO UNIDADE"
-                                        value={advancedOrdersFilters.unitTypeId || []}
-                                        onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, unitTypeId: [] }))}
-                                        hidden={!advancedOrdersFilters.unitTypeParentId || (Array.isArray(advancedOrdersFilters.unitTypeParentId) && advancedOrdersFilters.unitTypeParentId.length === 0)}
-                                    />
-                                    <FilterSelect
-                                        label="UNIDADES"
-                                        value={advancedOrdersFilters.unitId || []}
-                                        onClick={() => openSelectionModal('unitId', 'UNIDADES', filterOptions.units.map(opt => ({ value: String(opt.id), label: opt.description_full || opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, unitId: [] }))}
-                                    />
-                                    <FilterSelect
-                                        label="SETORES"
-                                        value={advancedOrdersFilters.assetTagId || []}
-                                        onClick={() => openSelectionModal('assetTagId', 'SETORES', filterOptions.sectors.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => {
-                                            handleAssetTagChange([]);
-                                        }}
-                                    />
-                                    <FilterSelect
-                                        label="POSIÇÕES"
-                                        value={advancedOrdersFilters.assetTagSubId || []}
-                                        onClick={() => openSelectionModal('assetTagSubId', 'POSIÇÕES', assetTagSubs.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagSubId: [] }))}
-                                        hidden={!advancedOrdersFilters.assetTagId || (Array.isArray(advancedOrdersFilters.assetTagId) && advancedOrdersFilters.assetTagId.length === 0)}
-                                    />
-                                    <FilterSelect
-                                        label="FINALIDADE"
-                                        value={advancedOrdersFilters.orderObjectId || []}
-                                        onClick={() => openSelectionModal('orderObjectId', 'FINALIDADE', filterOptions.orderObjects.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderObjectId: [] }))}
-                                    />
-                                    <FilterSelect
-                                        label="TIPO OS"
-                                        value={advancedOrdersFilters.orderTypeId || []}
-                                        onClick={() => openSelectionModal('orderTypeId', 'TIPO OS', filterOptions.orderTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => handleOrderTypeChange([])}
-                                    />
-                                    <FilterSelect
-                                        label="SUB-TIPO OS"
-                                        value={advancedOrdersFilters.orderTypeSubId || []}
-                                        onClick={() => openSelectionModal('orderTypeSubId', 'SUB-TIPO OS', orderSubTypes.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTypeSubId: [] }))}
-                                        hidden={!advancedOrdersFilters.orderTypeId || (Array.isArray(advancedOrdersFilters.orderTypeId) && advancedOrdersFilters.orderTypeId.length === 0)}
-                                    />
-                                    <FilterSelect
-                                        label="CONTRATO"
-                                        value={advancedOrdersFilters.contractId || []}
-                                        onClick={() => openSelectionModal('contractId', 'CONTRATO', filterOptions.contracts.map(opt => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))}
-                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, contractId: [] }))}
-                                        required
-                                    />
-                                    <FilterSelect
-                                        label="PLANO"
-                                        value={advancedOrdersFilters.orderPlanId || []}
-                                        onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterOptions.plans.map(opt => ({ value: String(opt.id), label: opt.description })))}
-                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderPlanId: [] }))}
-                                    />
-                                    <TreeFilterSelect
-                                        label="EQ.RESPONSAVEL"
-                                        value={advancedOrdersFilters.orderTeamId || []}
-                                        options={filterOptions.teams.map(opt => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))}
-                                        onChange={(vals) => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTeamId: vals }))}
-                                        onClear={() => setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTeamId: [] }))}
-                                    />
-
-                                    {/* Filtrar — fixo à direita */}
-                                    <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                        <button
-                                            onClick={() => {
-                                                const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
-                                                if (selectedContracts.length === 0) {
-                                                    toast.error('Selecione ao menos um contrato para filtrar');
-                                                    return;
-                                                }
-                                                const newFilters = { ...advancedOrdersFilters };
-                                                setAppliedFilters(newFilters);
-                                                setHasAppliedFilters(true);
-                                                setIsFiltering(true);
-                                                fetchData(false, true, newFilters);
-                                            }}
-                                            disabled={isLoading}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none group"
-                                        >
-                                            <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${isLoading ? 'animate-spin' : 'group-hover:rotate-12'}`}>
-                                                {isLoading ? 'progress_activity' : 'filter_list'}
-                                            </span>
-                                            <span className="text-[13px] uppercase tracking-wide">{isLoading ? 'Filtrando...' : 'Filtrar'}</span>
-                                        </button>
-                                    </div>
-                                </div>
+                            <div className="flex items-center gap-2 pb-2">
+                                <FilterBarResponsive
+                                    ref={filterBarRef}
+                                    advancedFilters={advancedOrdersFilters}
+                                    setAdvancedFilters={setAdvancedOrdersFilters}
+                                    filterSelectOptions={filterOptions}
+                                    handleSystemChange={handleSystemChange}
+                                    handleParentUnitTypeChange={handleParentUnitTypeChange}
+                                    handleOrderTypeChange={handleOrderTypeChange}
+                                    handleSectorChange={handleAssetTagChange}
+                                    unitSubTypes={unitSubTypes}
+                                    assetTagSubOptions={assetTagSubs}
+                                    orderSubTypes={orderSubTypes}
+                                    onActiveFiltersChange={(count) => { setOsFilterCount(count); onMobileFilterCountChange?.('OS', count); }}
+                                    onApply={() => {
+                                        const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
+                                        if (selectedContracts.length === 0) {
+                                            toast.error('Selecione ao menos um contrato para filtrar');
+                                            return;
+                                        }
+                                        const newFilters = { ...advancedOrdersFilters };
+                                        setAppliedFilters(newFilters);
+                                        setHasAppliedFilters(true);
+                                        setIsFiltering(true);
+                                        fetchData(false, true, newFilters);
+                                    }}
+                                />
+                                <button
+                                    onClick={() => {
+                                        const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
+                                        if (selectedContracts.length === 0) {
+                                            toast.error('Selecione ao menos um contrato para filtrar');
+                                            return;
+                                        }
+                                        const newFilters = { ...advancedOrdersFilters };
+                                        setAppliedFilters(newFilters);
+                                        setHasAppliedFilters(true);
+                                        setIsFiltering(true);
+                                        fetchData(false, true, newFilters);
+                                    }}
+                                    disabled={isLoading}
+                                    className="hidden md:inline-flex items-center justify-center gap-2 h-12 px-6 font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed shrink-0"
+                                >
+                                    <span className={`material-symbols-outlined text-xl ${isLoading ? 'animate-spin' : ''}`}>
+                                        {isLoading ? 'progress_activity' : 'filter_list'}
+                                    </span>
+                                    <span className="tracking-wide text-sm font-bold uppercase">{isLoading ? 'Filtrando...' : 'Filtrar'}</span>
+                                </button>
                             </div>
 
                             {/* Cards de Empresas / Líderes — dentro do header */}
                             <div
-                                className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                className="flex gap-3 overflow-x-auto no-scrollbar px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                 ref={leadersScroll.ref}
                                 onMouseDown={leadersScroll.onMouseDown}
                                 onTouchStart={leadersScroll.onTouchStart}
@@ -1338,15 +1243,25 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         </div>
                     )}
 
-                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-20 md:pb-6">
-                        <section className="px-4 pt-1 pb-0">
-                            <div className="flex items-center gap-4 mb-0.5 overflow-x-auto no-scrollbar py-1 px-1 cursor-grab active:cursor-grabbing touch-auto w-full">
-                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl shrink-0">SS's Não Programadas</h2>
+                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-6">
+                        <div className="mx-4 mb-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-200/50 dark:border-slate-700/30 p-4">
+                        <section className="pt-1 pb-0">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                                <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">SS's Não Programadas</h2>
+                                <ChevronButton
+                                    isOpen={isNaoProgramadasOpen}
+                                    onToggle={() => setIsNaoProgramadasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_naoProgramadasOpen', JSON.stringify(next)); return next; })}
+                                    className="shrink-0 ml-auto"
+                                />
+                            </div>
+                            <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 cursor-grab active:cursor-grabbing touch-auto w-full">
                                 <div className="flex gap-3 shrink-0">
                                     {stats.unscheduled.map((item, idx) => (
                                         <div key={idx} onClick={() => {
                                             const clickedPeriod = item.label;
                                             setSelectedPeriod(clickedPeriod);
+                                            setIsNaoProgramadasOpen(true);
+                                            localStorage.setItem('ordersSection_naoProgramadasOpen', JSON.stringify(true));
                                             setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
                                             setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
                                             fetchData(false, true, { ...appliedFilters, period: clickedPeriod, assetTagId: [] });
@@ -1391,7 +1306,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </div>
                             </div>
 
-                            {stats.ssSectorCounts && stats.ssSectorCounts.length > 0 && (
+                            {isNaoProgramadasOpen && stats.ssSectorCounts && stats.ssSectorCounts.length > 0 && (
                                 <div className="flex items-center gap-3 pb-3 min-w-0">
                                     <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
                                     <div className="flex gap-3 overflow-x-auto no-scrollbar px-1 py-1.5 cursor-grab active:cursor-grabbing touch-auto flex-1 min-w-0"
@@ -1432,8 +1347,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             )}
                         </section>
 
-                        {displayedUnscheduledSS.length > 0 && (
-                            <section className="px-4 py-0">
+                        {isNaoProgramadasOpen && displayedUnscheduledSS.length > 0 && (
+                            <section className="py-0">
 
                                 <div className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                     ref={unscheduledSSScroll.ref}
@@ -1453,8 +1368,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </div>
                             </section>
                         )}
+                        </div>
 
-                        <section className="px-4 py-0 mt-0">
+                        <div className="mx-4 mb-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/30 p-4">
+                        <section className="py-0 mt-0">
                             {(() => {
                                 // Priority: selected sectors > selected status > total
                                 // osSectorCounts is fetched with statusId but WITHOUT assetTagId,
@@ -1468,20 +1385,20 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         : stats.openOS.reduce((acc, curr) => acc + curr.count, 0);
 
                                 return (
-                                    <div className="flex items-center gap-4 mb-0.5 overflow-x-auto no-scrollbar py-1 px-1 cursor-grab active:cursor-grabbing touch-auto w-full"
+                                    <>
+                                    <div className="flex items-center gap-2 mb-2 px-1">
+                                        <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">OS's Abertas</h2>
+                                        <ChevronButton
+                                            isOpen={isOsAbertasOpen}
+                                            onToggle={() => setIsOsAbertasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_osAbertasOpen', JSON.stringify(next)); return next; })}
+                                            className="shrink-0 ml-auto"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 cursor-grab active:cursor-grabbing touch-auto w-full"
                                         ref={openOSScroll.ref}
                                         onMouseDown={openOSScroll.onMouseDown}
                                         onTouchStart={openOSScroll.onTouchStart}
                                         onClickCapture={openOSScroll.onClickCapture}>
-                                        <button
-                                            onClick={() => setIsOsAbertasOpen(prev => !prev)}
-                                            className="shrink-0 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                        >
-                                            <span className={`material-symbols-outlined text-slate-500 dark:text-slate-400 text-xl transition-transform duration-200 ${isOsAbertasOpen ? '' : '-rotate-90'}`}>
-                                                expand_more
-                                            </span>
-                                        </button>
-                                        <h2 className="font-extrabold text-slate-900 dark:text-white text-xl shrink-0">OS's Abertas</h2>
                                         
                                         <div className="flex gap-3 shrink-0">
                                             
@@ -1491,6 +1408,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                     setSelectedStatusId(newStatusId);
                                                     setOsAssetTagId([]);
                                                     setIsOsAbertasOpen(true);
+                                                    localStorage.setItem('ordersSection_osAbertasOpen', JSON.stringify(true));
                                                     fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
                                                 }}
                                                     className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
@@ -1518,6 +1436,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             />
                                         </div>
                                     </div>
+                                    </>
                                 );
                             })()}
 
@@ -1568,7 +1487,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         </section>
 
                         {isOsAbertasOpen && displayedOpenOS.length > 0 && (
-                            <section className="px-4 py-0">
+                            <section className="py-0">
                                 <div
                                     className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                     ref={openOSCarouselScroll.ref}
@@ -1600,26 +1519,26 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </div>
                             </section>
                         )}
+                        </div>
 
                         {/* OS's Concluídas Section */}
-                        <section className="px-4 py-0 mt-4">
+                        <div className="mx-4 mb-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30 p-4">
+                        <section className="py-0 mt-0">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                                <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">OS's Concluídas</h2>
+                                <ChevronButton
+                                    isOpen={isOsConcluidasOpen}
+                                    onToggle={() => setIsOsConcluidasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_osConcluidasOpen', JSON.stringify(next)); return next; })}
+                                    className="shrink-0 ml-auto"
+                                />
+                            </div>
                             <div
-                                className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-2 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                 ref={completedOSScroll.ref}
                                 onMouseDown={completedOSScroll.onMouseDown}
                                 onTouchStart={completedOSScroll.onTouchStart}
                                 onClickCapture={completedOSScroll.onClickCapture}
                             >
-                                <button
-                                    onClick={() => setIsOsConcluidasOpen(prev => !prev)}
-                                    className="shrink-0 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                >
-                                    <span className={`material-symbols-outlined text-slate-500 dark:text-slate-400 text-xl transition-transform duration-200 ${isOsConcluidasOpen ? '' : '-rotate-90'}`}>
-                                        expand_more
-                                    </span>
-                                </button>
-                                <h2 className="font-extrabold text-slate-900 dark:text-white text-xl shrink-0">OS's Concluídas</h2>
-
                                 {/* Temporal filter buttons */}
                                 <div className="flex gap-2 shrink-0">
                                     {([
@@ -1635,6 +1554,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             onClick={() => {
                                                 setCompletedTemporalFilter(opt.value);
                                                 setIsOsConcluidasOpen(true);
+                                                localStorage.setItem('ordersSection_osConcluidasOpen', JSON.stringify(true));
                                                 fetchData(false, true, { ...appliedFilters });
                                             }}
                                             className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2
@@ -1651,7 +1571,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                    {isPendingCompleted && <Loading size="xs" overlay={false} />}
                                     <OrdersListPDFButton
                                         filters={completedOSEffectiveFilters}
                                         searchQuery={searchQuery}
@@ -1701,111 +1620,62 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 ) : null
                             )}
                         </section>
+                        </div>
 
                         
                     </div>
 
 
 
-                    {/* Selection Modal for Filters */}
-                    <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal((prev: any) => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
-                        <div className="flex flex-col gap-4">
-                            <div className="relative">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                                <input
-                                    type="text"
-                                    placeholder={`Pesquisar ${selectionModal.label}...`}
-                                    value={selectionSearch}
-                                    onChange={(e) => setSelectionSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-                                />
-                            </div>
-
-                            <div className="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
-                                {selectionModal.options
-                                    .filter(opt => opt.label.toLowerCase().includes(selectionSearch.toLowerCase()))
-                                    .map(opt => {
-                                        const isSelected = selectionModal.currentValue.includes(opt.value);
-                                        return (
-                                            <label
-                                                key={opt.value}
-                                                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5' : ''}`}
-                                            >
-                                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
-                                                    {isSelected && <span className="material-symbols-outlined text-white text-[16px] font-bold">check</span>}
-                                                </div>
-                                                <input
-                                                    type="checkbox"
-                                                    className="hidden"
-                                                    checked={isSelected}
-                                                    onChange={() => {
-                                                        const newVal = isSelected
-                                                            ? selectionModal.currentValue.filter(v => v !== opt.value)
-                                                            : [...selectionModal.currentValue, opt.value];
-                                                        setSelectionModal((prev: any) => ({ ...prev, currentValue: newVal }));
-                                                    }}
-                                                />
-                                                <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{opt.label}</span>
-                                            </label>
-                                        );
-                                    })}
-                                {selectionModal.options.filter(opt => opt.label.toLowerCase().includes(selectionSearch.toLowerCase())).length === 0 && (
-                                    <div className="py-10 text-center flex flex-col items-center gap-2">
-                                        <span className="material-symbols-outlined text-slate-300 text-4xl">search_off</span>
-                                        <p className="text-slate-400 text-sm">Nenhum resultado encontrado</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                                <button
-                                    onClick={() => setSelectionModal((prev: any) => ({ ...prev, isOpen: false }))}
-                                    className="flex-1 py-3 items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={() => handleModalConfirm(selectionModal.currentValue)}
-                                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold font-['Inter'] shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 text-sm"
-                                >
-                                    Confirmar ({selectionModal.currentValue.length})
-                                </button>
-                            </div>
-                        </div>
-                    </Modal>
                 </>
             )}
 
             {/* Floating Action Button + Busca — fixos à direita inferior */}
             {activeTab === 'OS' && (
-                <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
-                    <form onSubmit={handleQuickSearch} className="relative hidden md:flex items-center">
+                <div className="fixed bottom-24 md:bottom-6 right-6 z-50 flex items-center gap-3">
+                    <form onSubmit={handleQuickSearch} className="relative group">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+                            <span className="material-symbols-outlined text-[20px]">search</span>
+                        </span>
                         <input
                             type="text"
                             value={quickSearchValue}
                             onChange={(e) => setQuickSearchValue(e.target.value)}
-                            placeholder="Buscar SS/OS (Ex: 123.1.2026)"
-                            className="w-48 lg:w-64 pl-4 pr-10 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-[13px] shadow-lg focus:ring-2 focus:ring-blue-500/50 transition-all outline-none"
+                            placeholder="Buscar SS/OS"
+                            className="block w-48 lg:w-56 h-12 pl-10 pr-4 text-sm rounded-[12px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm outline-none transition-all"
                         />
-                        <button
-                            type="submit"
-                            disabled={isSearchingQuickly || !quickSearchValue.trim()}
-                            className="absolute right-2 p-1 text-slate-400 hover:text-blue-500 transition-colors disabled:opacity-50"
-                        >
-                            <span className={`material-symbols-outlined text-xl ${isSearchingQuickly ? 'animate-spin' : ''}`}>
-                                {isSearchingQuickly ? 'progress_activity' : 'search'}
-                            </span>
-                        </button>
+                        {quickSearchValue.trim() && (
+                            <button
+                                type="submit"
+                                disabled={isSearchingQuickly}
+                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                            >
+                                <span className={`material-symbols-outlined text-[18px] ${isSearchingQuickly ? 'animate-spin' : ''}`}>
+                                    {isSearchingQuickly ? 'progress_activity' : 'arrow_forward'}
+                                </span>
+                            </button>
+                        )}
                     </form>
+
+                    <button
+                        onClick={() => filterBarRef.current?.openMobileFilters()}
+                        className="relative md:hidden flex items-center justify-center h-12 w-12 bg-primary text-white hover:bg-blue-600 shadow-md rounded-full transition-all duration-200 active:scale-[0.97] active:brightness-95 font-bold flex-shrink-0 cursor-pointer select-none"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">filter_list</span>
+                        {osFilterCount > 0 && (
+                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[9px] font-black rounded-full px-1 shadow-sm">
+                                {osFilterCount}
+                            </span>
+                        )}
+                    </button>
 
                     {canCreate('services_requests') && (
                         <button
                             onClick={() => onCreateServiceRequest?.()}
-                            className="flex items-center gap-2 px-5 py-3.5 bg-blue-600 dark:bg-blue-500 text-white rounded-full font-bold shadow-lg shadow-blue-600/30 hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-xl hover:shadow-blue-600/40 active:scale-95 transition-all duration-200 group"
+                            className="inline-flex items-center justify-center h-12 px-4 font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/20 active:scale-[0.98]"
                             title="Nova Solicitação de Serviço"
                         >
-                            <span className="material-symbols-outlined text-2xl">add_task</span>
-                            <span className="text-sm uppercase tracking-wide">Nova SS</span>
+                            <span className="tracking-wide text-sm font-bold uppercase">Nova SS</span>
                         </button>
                     )}
                 </div>
