@@ -1858,8 +1858,6 @@ export const visitsService = {
         if (kmFinal !== undefined) dbData.recorder_end = kmFinal;
         dbData.updated_at = new Date().toISOString();
 
-        console.log('Sending start update:', dbData);
-
         const { error } = await supabase
             .from('orders_visits_vehicles')
             .update(dbData)
@@ -1870,7 +1868,6 @@ export const visitsService = {
 
             // Fallback: If migration failed, column might still be km_initial
             if (kmInitial !== undefined && error.message?.includes('recorder_start')) {
-                console.log('Retrying with km_initial...');
                 const fallbackData: any = { updated_at: new Date().toISOString() };
                 fallbackData.km_initial = kmInitial;
                 if (kmFinal !== undefined) fallbackData.recorder_end = kmFinal;
@@ -3352,9 +3349,6 @@ export const visitsService = {
 
         const fullPath = `${folderPath}/${fileName}`.replace(/\s+/g, '_');
 
-        console.log('DEBUG: Final upload path:', fullPath);
-        console.log('DEBUG: file.type (original):', file.type);
-
         // We use a new File object if we need to force the MIME type, but r2Service just needs the blob and path
         await r2Service.uploadFile(file, fullPath, onProgress);
         return { path: folderPath, filename: fileName };
@@ -3382,7 +3376,6 @@ export const visitsService = {
             const folderPath = existing.img_file_path || `checklist/${ovAssetId}/${activityId}`;
             const fullPath = `${folderPath}/${fileName}`.replace(/\/+/g, '/');
 
-            console.log('DEBUG: Deleting from R2 at path:', fullPath);
             await r2Service.deleteFile(fullPath);
         } catch (r2Error) {
             console.warn('Não foi possível excluir do R2, continuando com atualização do Banco:', r2Error);

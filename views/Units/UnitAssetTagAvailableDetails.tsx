@@ -85,7 +85,7 @@ export const UnitAssetTagAvailableDetails: React.FC<UnitAssetTagAvailableDetails
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 animate-in fade-in duration-500">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark animate-in fade-in duration-500">
             <div className="flex-1 overflow-y-auto no-scrollbar px-6 py-8">
                 {/* Identification Header - Precisely matched design */}
                 <div className="mb-8 ml-1 flex flex-col gap-0.5">
@@ -202,7 +202,7 @@ export const UnitAssetTagAvailableDetails: React.FC<UnitAssetTagAvailableDetails
                 {canCreate('assets_available') && (
                     <button 
                         onClick={onNewEntry}
-                        className="fixed bottom-24 right-6 w-16 h-16 bg-primary text-white rounded-2xl shadow-2xl shadow-primary/40 flex items-center justify-center active:scale-90 transition-all z-20 hover:scale-105"
+                        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 w-16 h-16 bg-primary text-white rounded-2xl shadow-2xl shadow-primary/40 flex items-center justify-center active:scale-90 transition-all z-20 hover:scale-105"
                     >
                         <span className="material-symbols-outlined text-3xl">add</span>
                     </button>

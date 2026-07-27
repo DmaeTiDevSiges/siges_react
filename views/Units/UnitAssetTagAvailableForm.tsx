@@ -257,7 +257,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
     };
 
     return (
-        <div className="flex flex-col bg-slate-50 dark:bg-slate-900 min-h-full h-full overflow-hidden animate-in fade-in duration-300">
+        <div className="flex flex-col bg-background-light dark:bg-background-dark min-h-full h-full overflow-hidden animate-in fade-in duration-300">
             {loading ? (
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
                     <Loading size="md" />

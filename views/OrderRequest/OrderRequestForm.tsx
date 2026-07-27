@@ -1,5 +1,5 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Client, Unit, OrderType, OrderSubType, OrderObject, OrderPlan, Contract, Team, Priority, Order, AssetTag } from '../../types';
+import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { Client, Unit, OrderType, OrderSubType, OrderObject, OrderPlan, Contract, Team, Priority, Order, AssetTag, AssetAlert } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
@@ -10,6 +10,7 @@ import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
+import { OrderAlertCard } from './OrderAlertCard';
 
 export interface OrderRequestFormProps {
     onBack: () => void;
@@ -25,8 +26,8 @@ export interface OrderRequestFormRef {
 }
 
 export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestFormProps>(({ onBack, onSubmit, initialData, mode, showCardHeader, hideFooter }, ref) => {
-    // Detect edit mode
-    const isEdit = mode === 'edit' || (!!initialData?.id && (initialData?.parentId !== undefined && initialData?.parentId !== null && Number(initialData.parentId) > 0));
+    // Detect edit mode — only respect the explicit mode prop
+    const isEdit = mode === 'edit';
 
     // State
     const [step, setStep] = useState(1);
@@ -64,6 +65,12 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
     const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
     const [isPhotoActionOpen, setIsPhotoActionOpen] = useState(false);
     const [editingImage, setEditingImage] = useState<{ url: string | File; index: number | null } | null>(null);
+
+    // Alert states
+    const [availableAlerts, setAvailableAlerts] = useState<AssetAlert[]>([]);
+    const [selectedAlertIds, setSelectedAlertIds] = useState<string[]>([]);
+    const [loadingAlerts, setLoadingAlerts] = useState(false);
+    const [initialLinkedAlertIds, setInitialLinkedAlertIds] = useState<string[]>([]);
 
     useEffect(() => {
         const loadLists = async () => {
@@ -207,6 +214,44 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
         }
     }, [formData.orderTypeId]);
 
+    useEffect(() => {
+        const loadAlerts = async () => {
+            if (formData.unitAssetTagId && formData.orderTypeId) {
+                setLoadingAlerts(true);
+                try {
+                    const alerts = await dataService.getOpenAlertsBySectorAndType(
+                        formData.unitAssetTagId,
+                        formData.orderTypeId
+                    );
+                    setAvailableAlerts(alerts);
+
+                    // In edit mode, pre-load alerts linked to this OS
+                    if (isEdit && initialData?.id) {
+                        try {
+                            const linkedIds = await dataService.getAlertsByOrderId(initialData.id);
+                            if (linkedIds.length > 0) {
+                                setSelectedAlertIds(linkedIds);
+                                setInitialLinkedAlertIds(linkedIds);
+                            }
+                        } catch (err) {
+                            console.error("Error loading linked alerts", err);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error loading alerts", err);
+                    setAvailableAlerts([]);
+                } finally {
+                    setLoadingAlerts(false);
+                }
+            } else {
+                setAvailableAlerts([]);
+                setSelectedAlertIds([]);
+            }
+        };
+
+        loadAlerts();
+    }, [formData.unitAssetTagId, formData.orderTypeId, isEdit, initialData?.id]);
+
     const handleAddPhotos = async () => {
         const totalPhotos = selectedFiles.length + existingImages.length;
         if (totalPhotos >= 4) {
@@ -341,8 +386,28 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                 toast.success("Ordem de Serviço criada!");
             }
 
+            // Link selected alerts to the order
+            if (selectedAlertIds.length > 0 && resultOrder.id) {
+                try {
+                    await dataService.linkAlertsToOrder(resultOrder.id, selectedAlertIds);
+                } catch (linkError) {
+                    console.error("Error linking alerts to order", linkError);
+                }
+            }
+
+            // In edit mode, unlink alerts that were deselected
+            if (isEdit && resultOrder.id && initialLinkedAlertIds.length > 0) {
+                const toUnlink = initialLinkedAlertIds.filter(id => !selectedAlertIds.includes(id));
+                for (const alertId of toUnlink) {
+                    try {
+                        await dataService.unlinkAlertFromOrder(resultOrder.id, alertId);
+                    } catch (unlinkError) {
+                        console.error("Error unlinking alert from order", unlinkError);
+                    }
+                }
+            }
+
             const finalCompanyId = resultOrder.companyId || initialData?.companyId || (resultOrder as any).company_id;
-            console.log('Order created/updated. Result:', { id: resultOrder.id, companyId: resultOrder.companyId, finalCompanyId });
 
             if (selectedFiles.length > 0 && resultOrder.id && finalCompanyId) {
                 let progresses = new Array(selectedFiles.length).fill(0);
@@ -383,17 +448,43 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
             : undefined);
     const hasContextInfo = !!(displayClient || displayUnit);
 
+    const alertsByAsset = useMemo(() => {
+        const map = new Map<string, AssetAlert[]>();
+        for (const alert of availableAlerts) {
+            const key = alert.assetId || alert.id;
+            const existing = map.get(key);
+            if (existing) existing.push(alert);
+            else map.set(key, [alert]);
+        }
+        return Array.from(map.values());
+    }, [availableAlerts]);
+
     const isStep1Valid = !!(formData.orderTypeId && formData.priorityId && formData.requestedServices && formData.contractId && formData.orderTypeSubId && formData.orderObjectId && (hasContextInfo || (formData.clientId && formData.unitId)));
 
     const handleNext = () => {
         if (step === 1 && isStep1Valid) setStep(2);
-        else if (step === 2) handleSubmit();
+        else if (step === 2) setStep(3);
+        else if (step === 3) handleSubmit();
         else toast.error("Preencha os campos obrigatórios");
     };
 
     const handlePrev = () => {
         if (step > 1) setStep(step - 1);
         else onBack();
+    };
+
+    const toggleAlertSelection = (alertId: string) => {
+        const alert = availableAlerts.find(a => a.id === alertId);
+        if (alert?.orderId && alert.orderId !== initialData?.id) {
+            toast.warning(`Este alerta já está vinculado à OS ${alert.orderMask}`);
+            return;
+        }
+
+        setSelectedAlertIds(prev =>
+            prev.includes(alertId)
+                ? prev.filter(id => id !== alertId)
+                : [...prev, alertId]
+        );
     };
 
     useImperativeHandle(ref, () => ({
@@ -408,7 +499,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
     }));
 
     return (
-        <div className={`flex flex-col ${hideFooter ? '' : 'h-full'} bg-slate-50 dark:bg-[#0f172a] relative`}>
+        <div className={`flex flex-col ${hideFooter ? '' : 'h-full'} bg-slate-100 dark:bg-[#0f172a] relative`}>
             {isLoading && (
                 <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500/20 z-50 overflow-hidden">
                     {uploadProgress > 0 ? (
@@ -459,11 +550,16 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                         <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-black transition-colors ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/50'}`}>1</div>
                                         <div className={`w-5 h-0.5 rounded-full transition-colors ${step >= 2 ? 'bg-blue-600' : 'bg-white/20'}`} />
                                         <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-black transition-colors ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/50'}`}>2</div>
+                                        <div className={`w-5 h-0.5 rounded-full transition-colors ${step >= 3 ? 'bg-blue-600' : 'bg-white/20'}`} />
+                                        <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-black transition-colors ${step >= 3 ? 'bg-blue-600 text-white' : 'bg-white/20 text-white/50'}`}>3</div>
                                     </div>
                                 )}
 
                                 <h2 className="text-2xl font-black text-white leading-none mt-2">
-                                    {isEdit ? (step === 1 ? "Editar OS" : "Evidências") : (step === 1 ? "Dados da OS" : "Evidências")}
+                                    {isEdit
+                                        ? (step === 1 ? "Editar OS" : step === 2 ? "Alertas em Aberto" : "Evidências")
+                                        : (step === 1 ? "Dados da OS" : step === 2 ? "Alertas em Aberto" : "Evidências")
+                                    }
                                 </h2>
                             </div>
                         </div>
@@ -594,6 +690,72 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                         )}
 
                         {(step === 2 && !hideFooter) && (
+                            <section className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {loadingAlerts
+                                            ? 'Buscando alertas...'
+                                            : availableAlerts.length === 0
+                                                ? 'Nenhum alerta encontrado para este setor e tipo de OS'
+                                                : `${availableAlerts.length} alerta(s) encontrado(s)`
+                                        }
+                                    </p>
+                                </div>
+
+                                {selectedAlertIds.length > 0 && (
+                                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                                        {selectedAlertIds.length} selecionado(s)
+                                    </span>
+                                )}
+
+                                {loadingAlerts ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                    </div>
+                                ) : availableAlerts.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">
+                                            notifications_off
+                                        </span>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                            Nenhum alerta em aberto para o setor e tipo de OS selecionados
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {alertsByAsset.map((group, idx) => (
+                                            <OrderAlertCard
+                                                key={group[0].assetId || idx}
+                                                alerts={group}
+                                                selectedIds={selectedAlertIds}
+                                                onToggle={toggleAlertSelection}
+                                                disabled={group.every(a => !!a.orderId && a.orderId !== initialData?.id)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="flex gap-4 py-4 pt-2">
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handlePrev}
+                                        className="flex-1 text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 shadow-sm min-h-[52px] rounded-2xl"
+                                        disabled={isLoading}
+                                    >
+                                        Voltar
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleNext}
+                                        className="flex-1 min-h-[52px] rounded-2xl"
+                                    >
+                                        Próximo
+                                    </Button>
+                                </div>
+                            </section>
+                        )}
+
+                        {(step === 3 && !hideFooter) && (
                             <section className="space-y-3">
                                 <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                                     Adicione até 4 fotos para ajudar a equipe a identificar o problema (Opcional).

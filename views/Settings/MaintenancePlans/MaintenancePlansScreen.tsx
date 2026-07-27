@@ -14,16 +14,9 @@ export const MaintenancePlansScreen: React.FC<{
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
     const handleDuplicate = async (planId: string) => {
-        console.log('[DUPLICAR] ▶ handleDuplicate iniciado');
-        console.log('[DUPLICAR] planId:', planId);
-        console.log('[DUPLICAR] currentUser:', currentUser);
-        console.log('[DUPLICAR] userId:', currentUser?.id, '→ String:', String(currentUser?.id));
         try {
-            console.log('[DUPLICAR] chamando dataService.duplicateMaintenancePlan...');
             const newPlanId = await dataService.duplicateMaintenancePlan(planId, String(currentUser?.id));
-            console.log('[DUPLICAR] ✅ novo plano ID:', newPlanId);
             setSelectedPlanId(newPlanId);
-            console.log('[DUPLICAR] setSelectedPlanId chamado, navegando para maintenance-plan-edit...');
             onNavigate('maintenance-plan-edit');
             toast.success('Plano duplicado com sucesso');
         } catch (error) {
@@ -35,7 +28,7 @@ export const MaintenancePlansScreen: React.FC<{
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
 
             <div className="flex-1 overflow-y-auto">
                 {currentScreen === 'maintenance-plans' && (

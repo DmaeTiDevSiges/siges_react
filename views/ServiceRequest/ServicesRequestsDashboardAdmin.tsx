@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, OrderFilters, Order, Company } from '../../types';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
@@ -919,7 +919,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f172a] animate-in fade-in duration-500 relative">
+        <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0f172a] animate-in fade-in duration-500 relative">
 
             {/* Unified Header with Tabs has been moved to the Main Layout Header in App.tsx */}
 
@@ -1486,7 +1486,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
             {/* Floating Action Button + Busca — fixos à direita inferior */}
             {activeTab === 'OS' && (
-                <div className="fixed bottom-24 md:bottom-6 right-6 z-50 flex items-center gap-3">
+                <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-50 flex items-center gap-3">
                     <form onSubmit={handleQuickSearch} className="relative flex items-center">
                         <input
                             type="text"

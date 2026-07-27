@@ -225,7 +225,7 @@ const UpdateNotifier: React.FC = () => {
             />
 
             {showBanner && (
-                <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-slate-900/95 text-white rounded-lg shadow-lg border border-white/10 p-4">
+                <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-50 max-w-sm w-full bg-slate-900/95 text-white rounded-lg shadow-lg border border-white/10 p-4">
                     <div className="flex items-start gap-3">
                         <div className="flex-1">
                             <div className="font-black">Nova versão disponível{versionSuffix}!</div>
@@ -243,7 +243,7 @@ const UpdateNotifier: React.FC = () => {
             {!showBanner && reminderCount > 0 && (
                 <button
                     onClick={showBannerFromReminder}
-                    className="fixed bottom-6 right-6 z-60 w-12 h-12 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center font-bold"
+                    className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-60 w-12 h-12 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center font-bold"
                     title={`Você tem ${reminderCount} lembretes de atualização`}
                 >
                     {reminderCount}

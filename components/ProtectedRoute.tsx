@@ -20,7 +20,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900">
+            <div className="flex items-center justify-center h-screen bg-background-light dark:bg-background-dark">
                 <div className="flex flex-col items-center gap-4">
                     <Loading size="md" />
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
@@ -33,7 +33,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     if (!hasPermission(routeKey, requireAction)) {
         return fallback || (
-            <div className="flex flex-col items-center justify-center h-screen gap-6 p-8 bg-slate-50 dark:bg-slate-900">
+            <div className="flex flex-col items-center justify-center h-screen gap-6 p-8 bg-background-light dark:bg-background-dark">
                 <div className="w-24 h-24 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
                     <span className="material-symbols-outlined text-6xl text-red-500">block</span>
                 </div>

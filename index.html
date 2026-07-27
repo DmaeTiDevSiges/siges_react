@@ -29,6 +29,16 @@
 </head>
 
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased overflow-x-hidden">
+    <script>
+        (function() {
+            var theme = localStorage.getItem('app_theme');
+            if (theme === 'dark' || (!theme && true)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

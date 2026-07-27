@@ -218,7 +218,7 @@ export const ProfilesList: React.FC<ProfilesListProps> = ({ companyId }) => {
 
             {/* Form Drawer/Modal Overlay */}
             {isFormOpen && (
-                <div className="fixed inset-0 z-50 flex flex-col bg-slate-50/95 dark:bg-background-dark/95 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-50 flex flex-col bg-slate-100/95 dark:bg-background-dark/95 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="flex-1 flex flex-col w-full max-w-5xl mx-auto bg-slate-100 dark:bg-background-dark shadow-2xl overflow-hidden md:my-8 md:rounded-3xl border border-slate-200 dark:border-slate-800">
                         <div className="flex items-center justify-between p-4 bg-white dark:bg-card-dark border-b border-slate-100 dark:border-slate-800 sticky top-0 z-20">
                             <IconButton

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 
-export const SplashScreen: React.FC = () => {
+interface SplashScreenProps {
+    isDarkMode?: boolean;
+}
+
+export const SplashScreen: React.FC<SplashScreenProps> = ({ isDarkMode = true }) => {
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
@@ -14,15 +18,25 @@ export const SplashScreen: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
+    const darkBg = '#050a10';
+    const lightBg = '#f1f5f9';
+    const bgColor = isDarkMode ? darkBg : lightBg;
+
+    const darkGradient = `
+        radial-gradient(circle at 50% 50%, rgba(19, 127, 236, 0.15) 0%, transparent 60%),
+        linear-gradient(180deg, #050a10 0%, #0a1420 100%)
+    `;
+    const lightGradient = `
+        radial-gradient(circle at 50% 50%, rgba(19, 127, 236, 0.1) 0%, transparent 60%),
+        linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)
+    `;
+
     return (
         <div
             className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden safe-area-top safe-area-bottom"
             style={{
-                backgroundColor: '#050a10',
-                backgroundImage: `
-                    radial-gradient(circle at 50% 50%, rgba(19, 127, 236, 0.15) 0%, transparent 60%),
-                    linear-gradient(180deg, #050a10 0%, #0a1420 100%)
-                `,
+                backgroundColor: bgColor,
+                backgroundImage: isDarkMode ? darkGradient : lightGradient,
             }}
         >
             {/* Animated Grid Background */}
@@ -42,7 +56,7 @@ export const SplashScreen: React.FC = () => {
                 <img
                     src="/siges_logo.png"
                     alt="SIGES Logo"
-                    className="w-48 h-48 md:w-56 md:h-56 mx-auto object-contain filter drop-shadow-[0_0_40px_rgba(19,127,236,0.6)]"
+                    className={`w-48 h-48 md:w-56 md:h-56 mx-auto object-contain filter ${isDarkMode ? 'drop-shadow-[0_0_40px_rgba(19,127,236,0.6)]' : 'drop-shadow-[0_0_20px_rgba(19,127,236,0.3)]'}`}
                     style={{
                         animation: 'splash-entrance 1s cubic-bezier(0.16, 1, 0.3, 1) forwards',
                     }}
@@ -55,11 +69,11 @@ export const SplashScreen: React.FC = () => {
                         animation: 'splash-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both',
                     }}
                 >
-                    <h1 className="text-4xl md:text-5xl font-black text-white tracking-[0.2em] mb-2 uppercase italic">
+                    <h1 className={`text-4xl md:text-5xl font-black tracking-[0.2em] mb-2 uppercase italic ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                         SIGES
                     </h1>
                     <div className="h-[1px] w-12 bg-primary/50 mb-4" />
-                    <p className="text-[10px] md:text-xs font-medium text-slate-400 tracking-[0.4em] uppercase">
+                    <p className={`text-[10px] md:text-xs font-medium tracking-[0.4em] uppercase ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                         Sistema Gerenciador de Serviços
                     </p>
                 </div>
@@ -72,12 +86,12 @@ export const SplashScreen: React.FC = () => {
                     }}
                 >
                     {/* Loading Text */}
-                    <span className="text-xs font-medium text-slate-400 tracking-[0.3em] uppercase animate-pulse">
+                    <span className={`text-xs font-medium tracking-[0.3em] uppercase animate-pulse ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                         Carregando...
                     </span>
 
                     {/* Progress Bar Container */}
-                    <div className="w-full h-[2px] bg-white/5 rounded-full overflow-hidden">
+                    <div className={`w-full h-[2px] rounded-full overflow-hidden ${isDarkMode ? 'bg-white/5' : 'bg-slate-300/50'}`}>
                         <div 
                             className="h-full bg-primary transition-all duration-300 ease-out shadow-[0_0_10px_#137fec]"
                             style={{ width: `${progress}%` }}

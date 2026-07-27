@@ -585,7 +585,7 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
     );
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f172a] relative overflow-hidden">
+        <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0f172a] relative overflow-hidden">
             <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
                 {/* Hero Section */}
                 <div className="relative h-48 w-full shrink-0 overflow-hidden">

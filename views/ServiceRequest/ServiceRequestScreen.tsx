@@ -11,7 +11,7 @@ interface ServiceRequestPageProps {
 
 export const ServiceRequestPage: React.FC<ServiceRequestPageProps> = ({ onBack, onSubmit, initialData, onSelectOrder }) => {
     return (
-        <div className="h-full w-full bg-slate-50 dark:bg-slate-900 safe-area-bottom">
+        <div className="h-full w-full bg-background-light dark:bg-background-dark safe-area-bottom">
             <ServiceRequestForm onBack={onBack} onSubmit={onSubmit} initialData={initialData} onSelectOrder={onSelectOrder} />
         </div>
     );

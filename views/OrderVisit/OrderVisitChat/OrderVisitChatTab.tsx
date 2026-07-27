@@ -733,23 +733,21 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
     }
 
     return (
-        <div className="flex flex-col h-full min-h-0 bg-slate-50 dark:bg-slate-950 overflow-hidden">
+        <div className="flex flex-col flex-1 min-h-0 bg-background-light dark:bg-background-dark overflow-hidden">
             {/* Header: Chat Participants Manager */}
             <div className="px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-indigo-500 font-bold">forum</span>
                     <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                        Chat da Visita
+                        Chat
                     </h3>
-                    {/* Status Badge */}
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                        chatStatus === 'open'
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
-                            : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400'
-                    }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${chatStatus === 'open' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                        {chatStatus === 'open' ? 'Aberta' : 'Encerrada'}
-                    </span>
+                    {/* Status Badge — only when closed */}
+                    {chatStatus === 'closed' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            Encerrada
+                        </span>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     {/* Close / Reopen Button */}
@@ -820,7 +818,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                                     <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 px-1">
                                         <span>{msg.userName}</span>
                                         <span>•</span>
-                                        <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        <span>{new Date(msg.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} às {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}h</span>
                                     </div>
                                     
                                     <div

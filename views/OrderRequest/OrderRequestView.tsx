@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Order, User, OrderVisit, ServiceHistoryItem } from '../../types';
+import { Order, User, OrderVisit, ServiceHistoryItem, AssetAlert } from '../../types';
 import { dataService } from '../../services/dataService';
 import { IconButton } from '../../components/ui/IconButton';
 import { Avatar } from '../../components/ui/Avatar';
@@ -21,6 +21,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { Loading } from '../../components/ui/Loading';
 import { BatchVisitReportPDFButton } from '../../components/reports/BatchVisitReportPDFButton';
 import { OrderVisitAssetCardListItem } from '../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardListItem';
+import { OrderAssetAlerts } from './OrderAssetAlerts';
 import { OrderVisitAssetReport } from '../OrderVisit/OrderVisitAsset/OrderVisitAssetReport';
 import { OrderVisitAssetView } from '../../types';
 
@@ -84,6 +85,10 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     const [isLoadingVisitAssets, setIsLoadingVisitAssets] = useState(false);
     const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
+    // Alertas vinculados à OS
+    const [alertDetails, setAlertDetails] = useState<AssetAlert[]>([]);
+    const [isLoadingAlerts, setIsLoadingAlerts] = useState(false);
+
     // Get current user for logic and follow hook
     const [currentUser, setCurrentUser] = useState<User | null>(null);
 
@@ -96,11 +101,11 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     // Use the custom hook for follow functionality
     const { isOrderFollowed, toggleFollow } = useOrderFollow(currentUser?.id);
 
-    const tabs = ['SS', 'Visitas', 'Histórico', 'Assets', 'Localização'];
+    const tabs = ['SS', 'Visitas', 'Histórico', 'Assets', 'Alertas', 'Localização'];
 
     if (!canView('orders_requests')) {
         return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-background-light dark:bg-slate-950">
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-background-light dark:bg-background-dark">
                 <div className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-4">
                     <span className="material-symbols-outlined text-red-500 text-[40px]">lock</span>
                 </div>
@@ -183,6 +188,16 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                 })
                 .catch(err => console.error('Error fetching visit assets:', err))
                 .finally(() => setIsLoadingVisitAssets(false));
+        }
+    }, [activeTab, order.id]);
+
+    useEffect(() => {
+        if (activeTab === 'Alertas' && order.id) {
+            setIsLoadingAlerts(true);
+            dataService.getAlertDetailsByOrderId(order.id)
+                .then(data => setAlertDetails(data))
+                .catch(err => console.error("Error fetching alert details:", err))
+                .finally(() => setIsLoadingAlerts(false));
         }
     }, [activeTab, order.id]);
 
@@ -325,7 +340,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark text-slate-900 dark:text-white relative">
 
             <div className="flex-1 overflow-y-auto no-scrollbar relative animate-in fade-in duration-700">
 
@@ -758,6 +773,29 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                         </div>
                                     )}
                                 </section>
+                            </div>
+                        )}
+
+                        {activeTab === 'Alertas' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                {isLoadingAlerts ? (
+                                    <div className="py-20 text-center space-y-4">
+                                        <Loading size="md" />
+                                        <p className="text-slate-500 dark:text-slate-400 font-bold animate-pulse uppercase tracking-widest text-[10px]">CARREGANDO ALERTAS...</p>
+                                    </div>
+                                ) : alertDetails.length === 0 ? (
+                                    <div className="py-20 text-center space-y-4">
+                                        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
+                                            <span className="material-symbols-outlined text-4xl">notifications_off</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Sem alertas vinculados</p>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500">Esta OS não possui alertas associados.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <OrderAssetAlerts alerts={alertDetails} />
+                                )}
                             </div>
                         )}
                     </div>

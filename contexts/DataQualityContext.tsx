@@ -41,7 +41,6 @@ export const DataQualityProvider: React.FC<{ children: ReactNode }> = ({ childre
     try {
       await dataQualityService.startMonitoring(intervalMs);
       setIsDataQualityMonitoring(true);
-      console.log('[DataQualityContext] Monitoramento de qualidade iniciado');
     } catch (error) {
       console.error('[DataQualityContext] Erro ao iniciar monitoramento:', error);
     }
@@ -50,7 +49,6 @@ export const DataQualityProvider: React.FC<{ children: ReactNode }> = ({ childre
   const stopDataQualityMonitoring = () => {
     dataQualityService.stopMonitoring();
     setIsDataQualityMonitoring(false);
-    console.log('[DataQualityContext] Monitoramento de qualidade parado');
   };
 
   const getDataQualityHistory = () => {

@@ -178,8 +178,6 @@ export const materialsService = {
             throw error;
         }
 
-        console.log('cfg_materials_statuses result:', data);
-
         return (data || []).map((item: any) => ({
             id: item.id,
             code: item.code,
@@ -282,10 +280,6 @@ export const materialsService = {
         if (error) {
             console.error('Error fetching asset materials:', error);
             return [];
-        }
-
-        if (data && data.length > 0) {
-            console.log('DEBUG: First material record from view:', JSON.stringify(data[0], null, 2));
         }
 
         return (data || []).map((item: any) => ({

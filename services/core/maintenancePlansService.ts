@@ -91,49 +91,33 @@ export const maintenancePlansService = {
     },
 
     async duplicateMaintenancePlan(planId: string, userId: string): Promise<string> {
-        console.log('[SVC-DUP] ▶ início — planId:', planId, 'userId:', userId);
-
         const plan = await this.getMaintenancePlanById(planId);
         if (!plan) {
             console.error('[SVC-DUP] ❌ plano não encontrado para id:', planId);
             throw new Error('Plano não encontrado');
         }
-        console.log('[SVC-DUP] plano encontrado:', plan.code, '|', plan.description);
-
-        console.log('[SVC-DUP] criando novo plano...');
         const newPlan = await this.createMaintenancePlan({
             code: `CÓPIA DE ${plan.code}`,
             description: `CÓPIA DE ${plan.description}`,
             assetTypeId: plan.assetTypeId,
             isAvailable: true
         }, userId);
-        console.log('[SVC-DUP] ✅ novo plano criado — id:', newPlan.id);
-
         const sections = await this.getMaintenancePlanSections(planId);
-        console.log('[SVC-DUP] seções encontradas:', sections.length);
-
         for (const section of sections) {
-            console.log('[SVC-DUP] criando seção:', section.description);
             const newSection = await this.createMaintenancePlanSection({
                 maintenancePlanId: newPlan.id,
                 description: section.description,
                 orderIndex: section.orderIndex
             }, userId);
-            console.log('[SVC-DUP] ✅ seção criada — id:', newSection.id);
-
             const activities = await this.getMaintenancePlanSectionActivities(section.id);
-            console.log('[SVC-DUP] atividades na seção:', activities.length);
             for (const act of activities) {
-                console.log('[SVC-DUP] inserindo atividade — activityId:', act.activityId);
                 await this.insertSectionActivity(
                     newSection.id, act.activityId, userId,
                     act.orderIndex, act.description, act.commentsDefault
                 );
-                console.log('[SVC-DUP] ✅ atividade inserida');
             }
         }
 
-        console.log('[SVC-DUP] ✅✅ duplicação concluída — novoId:', newPlan.id);
         return newPlan.id;
     },
 

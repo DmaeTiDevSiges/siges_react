@@ -54,16 +54,6 @@ export const VisitReportPDFButton = ({
                 dataService.getOrderVisitAssetsMaterialsByVisit(visitId)
             ]);
 
-            console.log(`[VisitReportPDFButton] Debug Data for Visit ${visitId}:`, {
-                visitId,
-                foundAssets: assets?.length || 0,
-                foundActivities: allActivities?.length || 0,
-                foundMaterials: allMaterials?.length || 0,
-                visitCode: visit?.ovMask || visit?.id
-            });
-            console.log(`[VisitReportPDFButton] First 3 Activities:`, (allActivities || []).slice(0, 3));
-            console.log(`[VisitReportPDFButton] First 3 Assets Plans:`, (assets || []).slice(0, 3).map(a => a.maintenancePlanId));
-
             if (!visit) {
                 toast.error('Visita não encontrada.', { id: toastId });
                 return;

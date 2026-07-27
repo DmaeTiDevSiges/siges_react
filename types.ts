@@ -610,6 +610,13 @@ export interface AssetAlert {
   unitDescription?: string;
   tagName?: string;
   tagSubName?: string;
+  imgFilePath?: string;
+  imgFileName?: string;
+  systemParentName?: string;
+
+  // Link to OS
+  orderId?: string;
+  orderMask?: string;
 }
 
 export interface Asset {

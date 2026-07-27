@@ -68,16 +68,12 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
     useEffect(() => {
         const fetchData = async () => {
             try {
-                console.log('Fetching data for companyId:', companyId);
                 const [deptData, teamsData] = await Promise.all([
                     companyId
                         ? dataService.getDepartmentsByCompany(companyId)
                         : dataService.getDepartments(),
                     dataService.getTeams()
                 ]);
-
-                console.log('Departments loaded:', deptData);
-                console.log('Teams loaded:', teamsData);
 
                 setDepartments(deptData);
                 setAllTeams(teamsData);

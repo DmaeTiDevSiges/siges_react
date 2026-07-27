@@ -314,8 +314,6 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
         }
 
         setLoadingChecklist(true);
-        console.log('Loading checklist for planId:', planId, 'ovAssetId:', ovAssetId, 'assetId:', assetId);
-
         try {
             const [planSections, currentResponses, historyResponses] = await Promise.all([
                 dataService.getMaintenancePlanSections(planId),
@@ -323,7 +321,6 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                 assetId ? dataService.getGlobalMaintenanceChecklistItems(assetId, planId, ovAssetId) : Promise.resolve([])
             ]);
 
-            console.log('Fetched sections:', planSections.length);
             setSections(planSections);
 
             if (planSections.length > 0) {

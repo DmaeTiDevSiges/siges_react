@@ -11,7 +11,7 @@ export default {
             colors: {
                 "primary": "#137fec",
                 "primary-dark": "#0e5eb0", // Derived/Estimated
-                "background-light": "#f6f7f8",
+                "background-light": "#f1f5f9",
                 "background-dark": "#101922",
                 "surface-dark": "#1C252E",
                 "surface-light": "#FFFFFF",

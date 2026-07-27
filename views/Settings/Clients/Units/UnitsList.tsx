@@ -32,7 +32,6 @@ export const UnitsList: React.FC<UnitsListProps> = ({ client, onSelect, onAdd })
         setLoading(true);
         try {
             const data = await dataService.getUnitsByClient(client.id);
-            console.log('🔄 Units loaded:', data.length);
             setUnits(data);
         } catch (error) {
             console.error('Failed to load units', error);

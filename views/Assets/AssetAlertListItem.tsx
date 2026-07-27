@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { AssetAlert } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,25 +13,28 @@ interface AssetAlertListItemProps {
     onDelete?: (id: string) => void;
     onViewReport?: (ovaId: string) => void;
     hideAssetIdentification?: boolean;
+    onSelectOrder?: (orderId: string) => void;
 }
 
-export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
+// Movida para fora do componente: não é recriada a cada render
+const formatDate = (dateStr?: string, pattern: string = "dd/MM/yyyy HH:mm 'h'") => {
+    if (!dateStr) return '';
+    try {
+        return format(new Date(dateStr), pattern, { locale: ptBR });
+    } catch (e) {
+        return '';
+    }
+};
+
+export const AssetAlertListItem = memo<AssetAlertListItemProps>(({
     alert,
     onClick,
     onEdit,
     onDelete,
-    onViewReport
-    , hideAssetIdentification
+    onViewReport,
+    hideAssetIdentification,
+    onSelectOrder
 }) => {
-    // Formatar datas com segurança
-    const formatDate = (dateStr?: string, pattern: string = "dd/MM/yyyy HH:mm 'h'") => {
-        if (!dateStr) return '';
-        try {
-            return format(new Date(dateStr), pattern, { locale: ptBR });
-        } catch (e) {
-            return '';
-        }
-    };
 
     const handleEditClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -57,12 +60,11 @@ export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
     return (
         <div
             onClick={handleCardClick}
-            className={`group relative bg-white dark:bg-[#0B132B] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-xl overflow-hidden p-5 flex flex-col border-l-4 transition-all duration-300 ${
+            className={`group relative bg-white dark:bg-[#0B132B] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-xl overflow-hidden p-5 flex flex-col transition-all duration-300 ${
                 (onClick || (alert.isDone && alert.ovaId)) 
                     ? 'cursor-pointer hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99]' 
                     : ''
             } ${alert.isDone ? 'opacity-80' : ''}`}
-            style={{ borderLeftColor: priorityColor }}
         >
             {!hideAssetIdentification && (
                 <>
@@ -88,7 +90,7 @@ export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
 
                         {/* Avatar do Ativo */}
                         <Avatar
-                            src={dataService.getPublicImageUrl('', '', { width: 100, height: 100, resize: 'cover' })}
+                            src={alert.imgFileName ? dataService.getPublicImageUrl(alert.imgFilePath, alert.imgFileName, { width: 100, height: 100, resize: 'cover' }) : dataService.getPublicImageUrl('', '', { width: 100, height: 100, resize: 'cover' })}
                             alt={alert.assetDescription || 'Ativo'}
                             size="sm"
                             className="border border-slate-200 dark:border-slate-800 shrink-0"
@@ -130,21 +132,32 @@ export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
             <div className="flex flex-col gap-3 text-left">
                 {/* Badges e Status do Alerta */}
                 <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-1.5">
-                        {/* Badge Prioridade */}
-                        {alert.priorityName && (
-                            <div 
-                                className="px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white shadow-sm"
-                                style={{ backgroundColor: priorityColor }}
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5">
+                            {/* Badge Prioridade */}
+                            {alert.priorityName && (
+                                <div 
+                                    className="px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white shadow-sm"
+                                    style={{ backgroundColor: priorityColor }}
+                                >
+                                    {alert.priorityName}
+                                </div>
+                            )}
+                            {/* Badge Tipo de Ordem */}
+                            {alert.orderTypeName && (
+                                <div className="bg-slate-100 dark:bg-white/10 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-white/5">
+                                    {alert.orderTypeName}
+                                </div>
+                            )}
+                        </div>
+                        {/* Badge OS Vinculada */}
+                        {alert.orderId && onSelectOrder && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onSelectOrder(alert.orderId!); }}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-600/10 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 w-fit hover:bg-blue-600/20 dark:hover:bg-blue-600/30 transition-colors cursor-pointer"
                             >
-                                {alert.priorityName}
-                            </div>
-                        )}
-                        {/* Badge Tipo de Ordem */}
-                        {alert.orderTypeName && (
-                            <div className="bg-slate-100 dark:bg-white/10 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-white/5">
-                                {alert.orderTypeName}
-                            </div>
+                                <span className="text-[10px] font-black uppercase tracking-widest">OS: {alert.orderMask}</span>
+                            </button>
                         )}
                     </div>
 
@@ -195,7 +208,7 @@ export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
                 <div className="flex items-center justify-between w-full pt-1">
                     <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
                         <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                        <span className="text-[9px] font-black uppercase tracking-widest">
+                        <span className="text-[13px] font-bold uppercase tracking-wide">
                             {formatDate(alert.createdAt)}
                         </span>
                     </div>
@@ -204,18 +217,15 @@ export const AssetAlertListItem: React.FC<AssetAlertListItemProps> = ({
                     {alert.isDone && alert.resolvedAt && (
                         <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                             <span className="material-symbols-outlined text-[13px] font-bold">check_circle</span>
-                            <span className="text-[9px] font-black uppercase tracking-widest">
+                            <span className="text-[13px] font-bold uppercase tracking-wide">
                                 {formatDate(alert.resolvedAt)}
                             </span>
                         </div>
                     )}
                 </div>
             </div>
-            {onClick && !alert.isDone && (
-                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-600 text-sm opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-x-1">
-                    arrow_forward_ios
-                </span>
-            )}
         </div>
     );
-};
+});
+
+AssetAlertListItem.displayName = 'AssetAlertListItem';

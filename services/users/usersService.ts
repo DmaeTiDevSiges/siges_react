@@ -939,8 +939,6 @@ export const usersService = {
         const folderPath = `users/${userId}/avatar`;
         const fullPath = `${folderPath}/${fileName}`;
 
-        console.log('👤 Uploading user avatar to R2:', { folderPath, fileName, fullPath });
-
         try {
             await r2Service.uploadFile(file as any, fullPath, onProgress);
             return { path: folderPath, filename: fileName };
@@ -1147,7 +1145,6 @@ export const usersService = {
     },
 
     async getUserPermissions(userId: string): Promise<Permission[]> {
-        console.log(`[usersService] Fetching perms for user:`, userId);
         const { data, error } = await supabase
             .rpc('fc_get_user_permissions', { p_user_id: parseInt(userId) });
 
@@ -1155,8 +1152,6 @@ export const usersService = {
             console.error('Error fetching user permissions:', error);
             return [];
         }
-
-        console.log(`[usersService] RPC returned ${data?.length || 0} permissions`);
 
         return data.map((item: any) => ({
             id: '0',
@@ -1198,7 +1193,6 @@ export const usersService = {
     },
 
     async updateProfilePermissions(profileId: string, permissions: any[]): Promise<void> {
-        console.log(`[usersService] Updating permissions for profile ${profileId}`, permissions);
         const routesJson = permissions.map(p => ({
             route_id: parseInt(p.routeId),
             can_view: !!p.canView,

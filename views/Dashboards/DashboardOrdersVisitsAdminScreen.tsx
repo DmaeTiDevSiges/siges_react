@@ -940,6 +940,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     const loadDataRef = useRef(loadData);
     const loadFilterOptionsRef = useRef(loadFilterOptions);
+    const realtimeDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         loadDataRef.current = loadData;
@@ -956,11 +957,20 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         const handleRefresh = () => loadDataRef.current(true);
         window.addEventListener('refresh_dashboard', handleRefresh);
 
+        // Debounce para eventos Realtime: subscribeToOrders e subscribeToVisits
+        // disparam simultaneamente na mesma mudança → agrupa em um único fetch.
+        const scheduledRealtimeRefresh = () => {
+            if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+            realtimeDebounceRef.current = setTimeout(() => {
+                loadDataRef.current(false);
+            }, 500); // Agrupa eventos dentro de 500ms
+        };
+
         const orderSub = dataService.subscribeToOrders(() => {
-            loadDataRef.current(false);
+            scheduledRealtimeRefresh();
         });
         const visitSub = dataService.subscribeToVisits(() => {
-            loadDataRef.current(false);
+            scheduledRealtimeRefresh();
         });
 
         const POLL_INTERVAL = 30000;
@@ -970,6 +980,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
         return () => {
             window.removeEventListener('refresh_dashboard', handleRefresh);
+            if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
             clearInterval(pollTimer);
             orderSub.unsubscribe();
             visitSub.unsubscribe();
@@ -1372,7 +1383,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-900">
+            <div className="flex items-center justify-center h-full bg-background-light dark:bg-background-dark">
                 <Loading size="md" text="Carregando Painel..." />
             </div>
         );
@@ -1380,7 +1391,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
 
     return (
         <>
-            <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white animate-in fade-in duration-500 relative">
+            <div className="flex flex-col h-full bg-background-light dark:bg-background-dark text-slate-900 dark:text-white animate-in fade-in duration-500 relative">
                 <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
                     <div className="flex flex-col p-4 gap-2">
                         <div className="flex items-center gap-2 pb-1 pt-0 mt-0">

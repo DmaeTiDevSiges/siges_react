@@ -292,7 +292,7 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                                     {manual.assetTypeDescription}
                                 </span>
                                 <span className="text-[10px] text-slate-400">•</span>
-                                <span className="text-[10px] text-slate-500">{manual.tmTypeDescription}</span>
+                                <span className="text-[10px] text-slate-500">{manual.assetTypeDescription}</span>
                             </div>
                         </div>
                         <div className="relative" ref={menuActionsRef}>
@@ -356,7 +356,7 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                         { id: 'assets', label: `Ativos (${assets.length})` }
                     ]}
                     activeTab={activeTab}
-                    onTabChange={setActiveTab}
+                    onTabChange={(tabId: string) => setActiveTab(tabId as 'assets' | 'files')}
                 />
             </div>
 

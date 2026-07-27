@@ -69,7 +69,6 @@ class DataQualityServiceImpl {
     // Agenda próxima medição com setTimeout recursivo (evita acúmulo de execuções)
     this.scheduleNextMonitoring(intervalMs);
 
-    console.log('[DataQualityService] Monitoramento iniciado com intervalo de', intervalMs, 'ms');
   }
 
   /**
@@ -101,7 +100,6 @@ class DataQualityServiceImpl {
       clearTimeout(this.monitoringTimeout);
       this.monitoringTimeout = null;
     }
-    console.log('[DataQualityService] Monitoramento parado');
   }
 
   /**

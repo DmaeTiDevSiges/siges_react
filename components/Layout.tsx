@@ -85,7 +85,7 @@ export const Layout: React.FC<LayoutProps> = ({
         </div>
         )}
 
-        <main ref={mainRef} className={`flex-1 ${isDashboard ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar ${hidePadding ? 'pb-0 md:pb-0' : 'pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-6'} relative`}>
+        <main ref={mainRef} className={`flex-1 ${isDashboard ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar ${hidePadding ? 'pb-0 md:pb-0' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-6'} relative`}>
           {loading && (
             <div className="absolute inset-0 z-[50] bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm flex items-center justify-center transition-all duration-300">
               <Loading size="md" text={loadingText} />

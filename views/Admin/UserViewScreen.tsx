@@ -17,7 +17,7 @@ export const UserViewScreen: React.FC<UserViewScreenProps> = ({ user, onBack, on
         : 'unavailable';
 
     return (
-        <div className="flex flex-col min-h-full bg-slate-50 dark:bg-slate-900 pb-20">
+        <div className="flex flex-col min-h-full bg-background-light dark:bg-background-dark pb-20">
             {/* Header / Cover Area */}
             <div className="bg-white dark:bg-card-dark px-4 pt-4 pb-8 rounded-b-[32px] shadow-sm border-b border-slate-100 dark:border-slate-800">
                 <div className="flex justify-end items-start mb-6">

@@ -203,7 +203,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
     };
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-slate-900 overflow-hidden">
+        <div className="flex flex-col h-full bg-white dark:bg-background-dark overflow-hidden">
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24">
                 <div className="max-w-2xl mx-auto space-y-6">
 

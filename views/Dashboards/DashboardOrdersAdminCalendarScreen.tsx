@@ -1107,7 +1107,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
 
     // ─────────────────────────────────────────────────────────────────────────
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark overflow-hidden">
 
             {/* ── Top Bar ───────────────────────────────────────────────────── */}
             <div className="flex-shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-4 py-3 space-y-3">

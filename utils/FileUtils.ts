@@ -25,13 +25,10 @@ export const FileUtils = {
 
         // 2. Caso seja APK/Nativo, precisamos salvar no sistema de arquivos local
         try {
-            console.log(`[FileUtils] Iniciando processo nativo para: ${fileName} (${blob.size} bytes)`);
-            
             const { Filesystem, Directory } = await import('@capacitor/filesystem');
             
             // Converter Blob para Base64 (necessário para o Filesystem.writeFile)
             const base64Data = await FileUtils.blobToBase64(blob);
-            console.log(`[FileUtils] Base64 gerado: ${base64Data.length} chars`);
 
             // Tentar salvar no diretório de Documentos ou Cache
             // Cache é muitas vezes mais "garantido" para arquivos temporários que serão compartilhados
@@ -44,7 +41,6 @@ export const FileUtils = {
                     directory: targetDirectory,
                     recursive: true
                 });
-                console.log('[FileUtils] Arquivo salvo com sucesso em Documents:', savedFile.uri);
                 await FileUtils.shareFile(savedFile.uri, fileName);
             } catch (docError) {
                 console.warn('[FileUtils] Falha ao salvar em Documents, tentando Cache...', docError);
@@ -55,7 +51,6 @@ export const FileUtils = {
                     directory: targetDirectory,
                     recursive: true
                 });
-                console.log('[FileUtils] Arquivo salvo com sucesso em Cache:', savedFile.uri);
                 await FileUtils.shareFile(savedFile.uri, fileName);
             }
         } catch (error) {

@@ -225,7 +225,7 @@ export const AIAssetPanel: React.FC<AIAssetPanelProps> = ({
       </div>
 
       {/* Estilos para esconder a barra de rolagem */}
-      <style jsx>{`
+      <style>{`
         .hide-scrollbar {
           scrollbar-width: none;
           -ms-overflow-style: none;

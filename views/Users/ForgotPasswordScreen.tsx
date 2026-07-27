@@ -63,7 +63,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
 
     if (success) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
                 <div className="w-full max-w-[400px] space-y-8 text-center">
                     <div className="flex flex-col items-center space-y-4">
                         <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
@@ -83,7 +83,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
     }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
             <div className="w-full max-w-[400px] space-y-8">
                 {/* Header Area */}
                 <div className="flex flex-col items-center space-y-6">

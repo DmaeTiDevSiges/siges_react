@@ -103,19 +103,6 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
     };
 
     // DEBUG: Verificar estado das permissões
-    useEffect(() => {
-        console.log('🔍 DEBUG PERMISSIONS:', {
-            currentUser: currentUser?.id,
-            profileId: currentUser?.profileId,
-            isAdminSuper: currentUser?.isAdminSuper,
-            permissionsLoading,
-            permissionsCount: permissions.length,
-            canCreateAssets: canCreate('assets'),
-            canSearchAssets: hasSearchPermission,
-            onAddExists: !!onAdd,
-            allPermissions: permissions
-        });
-    }, [currentUser, permissions, permissionsLoading, onAdd, hasSearchPermission]);
 
     useEffect(() => {
         const fetchFollowed = async () => {
@@ -550,7 +537,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
             {onAdd && canCreate('assets') && (
                 <button
                     onClick={onAdd}
-                    className="fixed bottom-32 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-all z-20"
+                    className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-all z-20"
                 >
                     <span className="material-symbols-outlined text-3xl font-bold">add</span>
                 </button>

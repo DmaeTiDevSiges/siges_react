@@ -1,6 +1,10 @@
 import { supabase } from '../supabase';
 import { Activity, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Route, Service } from '../../types';
 
+// ── Cache TTL para tipos de OS (raramente mudam) ───────────────────────
+const ORDER_TYPES_TTL_MS = 30 * 60 * 1000; // 30 minutos
+let orderTypesCache: { data: OrderType[]; expiresAt: number } | null = null;
+
 export const orderConfigService = {
     // ── Activities (cfg_activities) ─────────────────────────────
     async getActivities(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<Activity[]> {
@@ -256,6 +260,12 @@ export const orderConfigService = {
 
     // ── Order Types (cfg_orders_types) ──────────────────────────
     async getOrderTypes(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<OrderType[]> {
+        // Cache apenas para a chamada padrão (all + sem busca) — usada nos filtros dos dashboards
+        const useCache = filter === 'all' && !search;
+        if (useCache && orderTypesCache && Date.now() < orderTypesCache.expiresAt) {
+            return orderTypesCache.data;
+        }
+
         let query = supabase
             .from('cfg_orders_types')
             .select(`*`)
@@ -279,7 +289,7 @@ export const orderConfigService = {
             throw error;
         }
 
-        return (data || []).map((item: any) => ({
+        const result = (data || []).map((item: any) => ({
             id: item.id.toString(),
             departmentId: item.department_id?.toString(),
             code: item.code || '',
@@ -287,6 +297,12 @@ export const orderConfigService = {
             isAvailable: item.is_available ?? true,
             departmentName: item.cfg_departments?.description || 'Desconhecido'
         })) as OrderType[];
+
+        if (useCache) {
+            orderTypesCache = { data: result, expiresAt: Date.now() + ORDER_TYPES_TTL_MS };
+        }
+
+        return result;
     },
 
     async createOrderType(orderType: Partial<OrderType>): Promise<OrderType> {

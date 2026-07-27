@@ -200,7 +200,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
 
     if (!canView('units')) {
         return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-background-light dark:bg-slate-950">
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-background-light dark:bg-background-dark">
                 <div className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-4">
                     <span className="material-symbols-outlined text-red-500 text-[40px]">lock</span>
                 </div>
@@ -318,7 +318,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
 
 
     return (
-        <div className="flex flex-col h-full bg-background-light dark:bg-slate-950 text-slate-900 dark:text-white relative">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark text-slate-900 dark:text-white relative">
             <div className={`flex-1 overflow-y-auto no-scrollbar relative transition-all duration-500 ${isHeaderExpanded ? 'overflow-hidden' : ''}`}>
                 {/* Floating Top Controls */}
                 <div className="absolute top-4 left-4 right-4 z-60 flex justify-end pointer-events-none">

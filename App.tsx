@@ -130,6 +130,7 @@ import { Loading } from './components/ui/Loading';
 
 
 const AppContent: React.FC = () => {
+  console.log(`Siges versão ${__BUILD_ID__}`);
   const [minTimePassed, setMinTimePassed] = useState(false);
   const [selectedCompanyForTracker, setSelectedCompanyForTracker] = useState<Company | null>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -155,18 +156,14 @@ const AppContent: React.FC = () => {
     const prevConnected = networkStatusRef.current.isConnected;
     networkStatusRef.current = { isConnected, connectionType: connectionType || null };
 
-    console.log('[AppContent] Network status:', { prevConnected, isConnected, connectionType });
-
     if (!isConnected && prevConnected) {
       // Transitioned from connected to disconnected
-      console.log('[AppContent] Showing disconnect toast');
       toast.error('⚠️ Sem conexão de internet', {
         description: 'Verifique sua conexão WiFi ou dados móveis',
         duration: 5000,
       });
     } else if (isConnected && !prevConnected) {
       // Transitioned from disconnected to connected
-      console.log('[AppContent] Showing reconnect toast');
       const connTypeLabel = connectionType ? ` via ${connectionType.toUpperCase()}` : '';
       toast.success('✅ Conectado novamente' + connTypeLabel, {
         duration: 3000,
@@ -182,8 +179,6 @@ const AppContent: React.FC = () => {
 
     // As notificações visuais via toast foram removidas para tornar o monitoramento menos intrusivo
     // O DataQualityIndicator (ícone) já mostra o status visualmente para o usuário
-    console.log('[AppContent] Data quality status:', { prevQuality, currentQuality, monitoring: isDataQualityMonitoring });
-
   }, [dataQualityStatus, isDataQualityMonitoring]);
 
   // Splash screen minimum timer
@@ -199,7 +194,6 @@ const AppContent: React.FC = () => {
     if (!Capacitor.isNativePlatform()) return;
 
     const handleAppUrlOpen = async (data: { url: string }) => {
-      console.log('[App] Deep link received:', data.url);
       try {
         const url = new URL(data.url);
         const path = url.pathname;
@@ -208,7 +202,6 @@ const AppContent: React.FC = () => {
 
         // Password recovery deep link: siges://reset-password#... or siges://?code=...
         if (path.includes('/reset-password') || hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('code=')) {
-          console.log('[App] Recovery deep link detected');
           // Build a web-compatible URL so the existing recovery logic can process it
           const webParams = search ? search.substring(1) : '';
           const webHash = hash || '';
@@ -238,18 +231,7 @@ const AppContent: React.FC = () => {
     });
   }, []);
 
-  // Status bar configuration on native
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-      StatusBar.setStyle({ style: Style.Light });
-      StatusBar.setBackgroundColor({ color: '#ffffff' });
-      StatusBar.setOverlaysWebView({ overlay: false });
-    }).catch(() => {
-      // Plugin not installed — silent fail
-    });
-  }, []);
+  // Status bar is configured in the theme useEffect below
 
 
 
@@ -363,7 +345,6 @@ const AppContent: React.FC = () => {
     const tokenHash = params.get('token_hash');
     const type = params.get('type');
     if (tokenHash && type === 'recovery') {
-      console.log('[Recovery] token_hash detected, cleaning URL and calling verifyOtp');
       window.history.replaceState({}, document.title, '/');
       import('./services/supabase').then(({ supabase }) => {
         supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ data, error }: { data: any; error: any }) => {
@@ -692,7 +673,7 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Sync theme
+  // Sync theme + StatusBar
   useEffect(() => {
     console.log('Switching theme to:', theme);
     if (theme === 'dark') {
@@ -701,6 +682,19 @@ const AppContent: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
     localStorage.setItem('app_theme', theme);
+
+    if (Capacitor.isNativePlatform()) {
+      import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+        if (theme === 'dark') {
+          StatusBar.setStyle({ style: Style.Dark });
+          StatusBar.setBackgroundColor({ color: '#101922' });
+        } else {
+          StatusBar.setStyle({ style: Style.Light });
+          StatusBar.setBackgroundColor({ color: '#ffffff' });
+        }
+        StatusBar.setOverlaysWebView({ overlay: false });
+      }).catch(() => {});
+    }
   }, [theme]);
 
   // Request native permissions on startup
@@ -2320,6 +2314,14 @@ const AppContent: React.FC = () => {
             } catch (e) { console.error(e); }
           };
           goToAsset();
+        }} onSelectOrder={async (orderId) => {
+          try {
+            const order = await dataService.getOrderById(orderId);
+            if (order) {
+              setSelectedOrder(order);
+              setCurrentScreen('order-detail');
+            }
+          } catch (e) { console.error(e); }
         }} />;
       case 'asset-details':
         return selectedAsset ? (
@@ -2742,7 +2744,7 @@ const AppContent: React.FC = () => {
       case 'notifications': return 'Notificações';
       case 'service-request-detail': return 'Detalhes da SS';
       case 'service-request-create': return selectedOrder?.id ? 'Edição SS' : 'Nova SS';
-      case 'order-create': return selectedOrder?.id ? 'Edição OS' : 'Nova OS';
+      case 'order-create': return (selectedOrder?.id && selectedOrder?.parentId) ? 'Edição OS' : 'Nova OS';
       case 'order-detail': return 'Detalhes da OS';
       case 'order-visit-execute': return 'Visita';
       case 'order-visit-asset-report': return 'Relatório de Ativo';
@@ -2764,7 +2766,7 @@ const AppContent: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 items-center justify-center">
+      <div className="flex min-h-screen bg-background-light dark:bg-background-dark items-center justify-center">
         <Loading size="md" />
       </div>
     );
@@ -2819,7 +2821,7 @@ const AppContent: React.FC = () => {
   if (isFullscreenMap) {
     return (
       <PermissionsProvider currentUser={currentUser}>
-        <div className="fixed inset-0 bg-slate-50 dark:bg-slate-900 overflow-hidden">
+        <div className="fixed inset-0 bg-background-light dark:bg-background-dark overflow-hidden">
           <DashboardUnitsAssetsTags
             currentUser={currentUser!}
             onSelectVisit={handleVisitSelect}
@@ -2899,12 +2901,12 @@ const AppContent: React.FC = () => {
 
   return (
     <>
-      {showSplash && <SplashScreen />}
+      {showSplash && <SplashScreen isDarkMode={theme === 'dark'} />}
       <PermissionsProvider currentUser={currentUser}>
         {currentScreen === 'users-tracker' ? (
           <div className="w-full h-screen overflow-hidden relative">
             <React.Suspense fallback={
-              <div className="flex h-screen bg-slate-50 dark:bg-slate-900 items-center justify-center">
+              <div className="flex h-screen bg-background-light dark:bg-background-dark items-center justify-center">
                 <Loading size="md" />
               </div>
             }>
@@ -2912,7 +2914,7 @@ const AppContent: React.FC = () => {
             </React.Suspense>
           </div>
         ) : (
-        <div className={`flex min-h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden ${showSplash ? 'hidden' : ''}`}>
+        <div className={`flex min-h-screen bg-background-light dark:bg-background-dark overflow-hidden ${showSplash ? 'hidden' : ''}`}>
           {currentScreen === 'profile' ? (
             <div className="flex-1 flex overflow-hidden">
               <div className="hidden md:block">
@@ -3104,7 +3106,7 @@ const AppContent: React.FC = () => {
               sessionStorage.removeItem('admin_refresh_token');
               window.location.reload();
             }}
-            className="fixed bottom-6 right-6 z-[99999] w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg flex items-center justify-center hover:bg-amber-600 transition-colors active:scale-95"
+            className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-[99999] w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg flex items-center justify-center hover:bg-amber-600 transition-colors active:scale-95"
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             title="Voltar ao Admin"
           >

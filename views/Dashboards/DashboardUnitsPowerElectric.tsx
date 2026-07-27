@@ -419,15 +419,18 @@ const VisitCard: React.FC<VisitCardProps> = ({ visit, onClick, formatDate, getSt
 );
 
 
-const FilterSelect = React.memo(({ label, value, onClick, onClear, disabled, required }: {
+const FilterSelect = React.memo(({ label, value, onClick, onClear, disabled, required, hidden }: {
     label: string;
     value: string | string[];
     onClick: () => void;
     onClear: () => void;
     disabled?: boolean;
     required?: boolean;
+    hidden?: boolean;
 }) => {
     const count = Array.isArray(value) ? value.length : (value ? 1 : 0);
+
+    if (hidden) return null;
 
     return (
         <div className={`relative flex items-center w-auto min-w-[110px] h-[42px] transition-opacity shrink-0 ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
@@ -651,7 +654,6 @@ const UnitsPowerElectricTable: React.FC<{ items: any[]; unitsOrders?: Record<str
                                                 value={item.selected_os_id || ""}
                                                 onChange={(e) => {
                                                     // This would typically update state in the parent or emit an event
-                                                    console.log('Selected OS:', e.target.value, 'for unit:', item.id);
                                                 }}
                                             >
                                                 <option value="" className="bg-[#0a0f1e] text-slate-500">SELECIONE OS</option>
@@ -1565,14 +1567,14 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-900">
+            <div className="flex items-center justify-center h-full bg-background-light dark:bg-background-dark">
                 <Loading size="md" text="Carregando Unidades..." />
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white animate-in fade-in duration-500 relative">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark text-slate-900 dark:text-white animate-in fade-in duration-500 relative">
 
             {/* Horizontal Filter Bar */}
             <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">

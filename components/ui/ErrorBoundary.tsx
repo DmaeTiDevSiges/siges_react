@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
             }
 
             return (
-                <div className="fixed inset-0 z-[99999] bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-8 text-center">
+                <div className="fixed inset-0 z-[99999] bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center p-8 text-center">
                     <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6">
                         <span className="material-symbols-outlined text-red-500 text-4xl">error</span>
                     </div>

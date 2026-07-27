@@ -65,7 +65,6 @@ export const AuthorizeOrderModal: React.FC<AuthorizeOrderModalProps> = ({
 
             // Fallback: fetch contract details if missing provider info
             if ((!providerCompanyId || !providerDepartmentId) && order.contractId) {
-                console.log('Authorize: Fetching contract details for fallback...');
                 const contract = await dataService.getContractById(order.contractId);
                 if (contract) {
                     if (!providerCompanyId) providerCompanyId = contract.providerCompanyId;
@@ -75,9 +74,6 @@ export const AuthorizeOrderModal: React.FC<AuthorizeOrderModalProps> = ({
 
             // Default to order.companyId if no provider company found (internal service)
             const targetCompanyId = providerCompanyId || order.companyId;
-
-            console.log('Authorize: Target Company ID:', targetCompanyId);
-            console.log('Authorize: Target Dept ID:', providerDepartmentId);
 
             const [teamsData, plansData] = await Promise.all([
                 dataService.getTeams(targetCompanyId),

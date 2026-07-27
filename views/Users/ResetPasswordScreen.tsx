@@ -40,7 +40,6 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
             try {
                 const { supabase } = await import('../../services/supabase');
                 const { data: { session }, error } = await supabase.auth.getSession();
-                console.log('[ResetPassword] Session poll:', session ? 'active' : 'none', `(${elapsed}ms)`, error?.message || '');
 
                 if (session) {
                     setSessionReady(true);
@@ -96,7 +95,6 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
 
             // Ensure session is loaded before calling updateUser
             const { data: { session } } = await supabase.auth.getSession();
-            console.log('[ResetPassword] Pre-update session:', session ? 'active' : 'none');
 
             if (!session) {
                 setError('Sessão de recuperação não encontrada. Solicite um novo link de recuperação.');
@@ -105,7 +103,6 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
             }
 
             const { data, error: updateError } = await supabase.auth.updateUser({ password });
-            console.log('[ResetPassword] Update result:', data, updateError);
 
             if (updateError) {
                 throw updateError;
@@ -137,7 +134,7 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
 
     if (success) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
                 <div className="w-full max-w-[400px] space-y-8 text-center animate-in zoom-in duration-300">
                     <div className="flex flex-col items-center space-y-4">
                         <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
@@ -156,7 +153,7 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
     // Waiting for recovery session to be established
     if (!sessionReady && !sessionTimedOut) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
                 <div className="w-full max-w-[400px] space-y-8 text-center">
                     <div className="flex flex-col items-center space-y-4">
                         <div className="w-48 h-24 flex items-center justify-center">
@@ -175,7 +172,7 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
     // Session could not be established
     if (sessionTimedOut) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
                 <div className="w-full max-w-[400px] space-y-8 text-center">
                     <div className="flex flex-col items-center space-y-4">
                         <div className="w-20 h-20 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
@@ -199,7 +196,7 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
     }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 dark:bg-background-dark p-6 font-inter transition-colors duration-300 relative safe-area-top safe-area-bottom">
             <div className="w-full max-w-[400px] space-y-8">
                 <div className="flex flex-col items-center space-y-6">
                     <div className="w-48 h-24 flex items-center justify-center">

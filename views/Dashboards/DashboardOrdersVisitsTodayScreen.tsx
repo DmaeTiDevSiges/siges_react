@@ -326,9 +326,11 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
     useEffect(() => {
         let cancelled = false;
 
-        const refreshLeaders = async () => {
+        // Chamado apenas em mudanças REAIS via Realtime:
+        // limpa cache para forçar re-busca de dados atualizados.
+        const refreshLeadersOnChange = async () => {
             try {
-                dataService.clearMetadataCache();
+                dataService.clearMetadataCache(); // ✅ só aqui — houve mudança real
                 const [usersData, leadersList] = await Promise.all([
                     dataService.getUsers(),
                     dataService.getLeadersByCompany(company.id)
@@ -342,16 +344,66 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
             }
         };
 
+        // Chamado pelo polling periódico:
+        // NÃO limpa cache — users/leaders raramente mudam entre polls.
+        // Só re-busca dados de visitas silenciosamente.
+        const refreshVisitsSilent = async () => {
+            if (cancelled) return;
+            try {
+                const visitsData = await dataService.getOrdersVisitsView({
+                    startDate: dateRange.start,
+                    endDate: dateRange.end
+                });
+                const actualVisitsData = (visitsData as any).data || visitsData;
+                const filteredByDate = actualVisitsData.filter((v: any) => {
+                    const date = (v.ov_started_at || v.ov_created_at || '').split('T')[0];
+                    return date >= dateRange.start && date <= dateRange.end;
+                });
+                if (!cancelled) {
+                    setVisits(filteredByDate.map((row: any) => ({
+                        id: row.id.toString(),
+                        ovMask: row.ov_mask,
+                        ovStatusId: row.ov_status_id,
+                        statusDescription: row.ov_status_description,
+                        unitDescription: row.unit_description,
+                        unitLatitude: row.unit_latitude,
+                        unitLongitude: row.unit_longitude,
+                        requestedServices: row.requested_services,
+                        ovStartedAt: row.ov_started_at,
+                        ovCreatedAt: row.ov_created_at || row.o_requested_at,
+                        ovOStatusId: row.ov_o_status_id,
+                        ovOStatusDescription: row.ov_o_status_description,
+                        ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
+                        progress: row.ov_progress,
+                        teamLeaderId: row.team_leader_id?.toString(),
+                        teamLeaderName: row.team_leader_name_short,
+                        clientName: row.client_name || row.o_client_name,
+                        orderMask: row.order_mask,
+                        totalValue: row.ov_total_value,
+                        systemParentId: row.o_system_parent_id?.toString(),
+                        unitTypeParentId: row.o_unit_type_parent_id?.toString(),
+                        orderTypeId: row.o_type_id?.toString(),
+                        planDescription: row.o_plan_description || row.plan_description,
+                    })));
+                }
+            } catch (err) {
+                console.error("Failed to refresh visits silently", err);
+            }
+        };
+
+        // Subscriptions: mudança real → invalida cache + rebusca leaders
         const userSub = dataService.subscribeToUsers(() => {
-            refreshLeaders();
+            refreshLeadersOnChange();
         });
 
         const visitSub = dataService.subscribeToOrdersVisits(() => {
-            refreshLeaders();
+            refreshLeadersOnChange();
+            refreshVisitsSilent();
         });
 
+        // Polling: apenas re-busca visitas sem tocar no cache de metadata
         const pollingInterval = setInterval(() => {
-            refreshLeaders();
+            refreshVisitsSilent();
         }, 30000);
 
         return () => {
@@ -360,7 +412,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
             visitSub.unsubscribe();
             clearInterval(pollingInterval);
         };
-    }, [company.id]);
+    }, [company.id, dateRange]);
 
     // --- Map Logic ---
     useEffect(() => {
@@ -586,14 +638,14 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-950">
+            <div className="flex items-center justify-center h-screen bg-background-light dark:bg-background-dark">
                 <Loading size="md" text="Iniciando Monitoramento..." />
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+        <div className="flex flex-col h-screen bg-background-light dark:bg-background-dark overflow-hidden">
             {/* Cabecalho */}
             <Header />
 
@@ -645,7 +697,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 </div>
 
                 {/* Footer List Display (Drawer implementation) */}
-                <div className="absolute bottom-6 left-6 right-6 z-40">
+                <div className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 left-6 right-6 z-40">
                     <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/40 dark:border-white/5 rounded-[24px] shadow-2xl p-4 max-h-[300px] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4 px-2">
                              <div className="flex items-center gap-2">

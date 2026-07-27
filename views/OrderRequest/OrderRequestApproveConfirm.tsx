@@ -76,7 +76,7 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f172a] relative">
+        <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0f172a] relative">
             <div
                 className="flex-1 overflow-y-auto no-scrollbar"
             >

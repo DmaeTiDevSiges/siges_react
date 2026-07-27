@@ -153,7 +153,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark text-slate-900 dark:text-white relative">
 
             <div className="flex-1 overflow-y-auto no-scrollbar relative">
                 <div className="p-4 space-y-6 pb-32 relative md:max-w-5xl md:mx-auto">
@@ -239,8 +239,6 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                                                     onClick={() => {
                                                         if (onSelectVisit) {
                                                             onSelectVisit(visit);
-                                                        } else {
-                                                            console.log('Visit clicked:', visit.id);
                                                         }
                                                     }}
                                                 />

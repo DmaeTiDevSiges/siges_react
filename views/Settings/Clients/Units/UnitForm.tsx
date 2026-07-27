@@ -322,9 +322,6 @@ export const UnitForm: React.FC<UnitFormProps> = ({
         e.preventDefault();
         if (isSaving || !hasPermission) return;
 
-        console.log('📝 Form submitted:', form);
-        console.log('📸 Selected file:', selectedFile);
-
         try {
             setIsSaving(true);
             setUploadProgress(0);

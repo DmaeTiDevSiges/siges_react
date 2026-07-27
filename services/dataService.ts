@@ -1214,8 +1214,6 @@ export const dataService = {
         const folderPath = `clients/${clientId}/units/${unitId}`;
         const fullPath = `${folderPath}/${fileName}`;
 
-        console.log('📸 Uploading unit image to R2:', { folderPath, fileName, fullPath });
-
         // Delete old image if exists (No R2, se desejar manter limpeza)
         try {
             const { data: existingUnit } = await supabase
@@ -1226,7 +1224,6 @@ export const dataService = {
 
             if (existingUnit?.img_file_path && existingUnit?.img_file_name) {
                 const oldPath = `${existingUnit.img_file_path}/${existingUnit.img_file_name}`;
-                console.log('🗑️ Deleting old image from R2:', oldPath);
                 await r2Service.deleteFile(oldPath);
             }
         } catch (cleanupError) {
@@ -1235,7 +1232,6 @@ export const dataService = {
 
         try {
             await r2Service.uploadFile(file, fullPath, onProgress);
-            console.log('✅ Unit image uploaded successfully to R2:', { path: folderPath, filename: fileName });
             return { path: folderPath, filename: fileName };
         } catch (uploadError) {
             console.error('❌ Error uploading unit image to R2:', uploadError);
@@ -1268,8 +1264,6 @@ export const dataService = {
     },
 
     subscribeToNotifications(userId: string, onUpdate: (payload: any) => void) {
-        console.log('📡 Setting up realtime subscription for user:', userId);
-
         return supabase
             .channel(`public:users_notifications:user_id_to=${userId}`)
             .on(
@@ -1281,17 +1275,12 @@ export const dataService = {
                     filter: `user_id_to=eq.${userId}`
                 },
                 (payload) => {
-                    console.log('🔔 Realtime notification received:', payload);
                     onUpdate(payload);
                 }
             )
             .subscribe((status, err) => {
-                console.log('📡 Subscription status:', status);
                 if (err) {
                     console.error('❌ Realtime subscription error:', err);
-                }
-                if (status === 'SUBSCRIBED') {
-                    console.log('✅ Successfully subscribed to notifications');
                 }
                 if (status === 'CHANNEL_ERROR') {
                     console.warn('⚠️ Realtime subscription failed. This might be due to WebSocket configuration in your self-hosted Supabase instance.');
@@ -1453,38 +1442,100 @@ export const dataService = {
 
      subscribeToOrders: (callback: (payload: any) => void) => {
          const channelId = `orders-changes-${Math.random().toString(36).substring(2)}`;
-         console.log('📡 [Meu Painel] Subscribing to orders realtime changes');
-         return supabase
-             .channel(channelId)
-             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-                 console.log('🔄 [Meu Painel] orders change received:', payload.eventType);
-                 callback(payload);
-             })
-             .subscribe((status, err) => {
-                 console.log('📡 [Meu Painel] orders subscription status:', status);
-                 if (err) console.error('❌ [Meu Painel] orders subscription error:', err);
-                 if (status === 'CHANNEL_ERROR') {
-                     console.warn('⚠️ [Meu Painel] Verifique se a tabela "orders" tem Realtime habilitado no Supabase (Database → Replication).');
-                 }
-             });
+         let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+         let disposed = false;
+         let retryCount = 0;
+         const MAX_RETRIES = 5;
+
+         const subscribe = () => {
+             if (disposed) return null;
+             return supabase
+                 .channel(channelId)
+                 .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+                     retryCount = 0;
+                     callback(payload);
+                 })
+                 .subscribe((status, err) => {
+                     if (err) console.error('❌ [Meu Painel] orders subscription error:', err);
+                     if (status === 'SUBSCRIBED') {
+                         retryCount = 0;
+                     }
+                     if (status === 'CHANNEL_ERROR') {
+                         if (retryCount >= MAX_RETRIES) {
+                             console.error(`❌ [Meu Painel] orders subscription gave up after ${MAX_RETRIES} retries`);
+                             return;
+                         }
+                         retryCount++;
+                         const delay = Math.min(3000 * Math.pow(2, retryCount - 1), 30000);
+                         console.warn(`⚠️ [Meu Painel] orders subscription error, reconnecting in ${Math.round(delay/1000)}s (attempt ${retryCount}/${MAX_RETRIES})...`);
+                         if (!disposed) {
+                             retryTimeout = setTimeout(() => {
+                                 supabase.removeChannel(channel);
+                                 channel = subscribe();
+                             }, delay);
+                         }
+                     }
+                 });
+         };
+
+         let channel: ReturnType<typeof subscribe> = subscribe();
+
+         return {
+             unsubscribe: () => {
+                 disposed = true;
+                 if (retryTimeout) clearTimeout(retryTimeout);
+                 if (channel) supabase.removeChannel(channel);
+             }
+         } as any;
      },
 
      subscribeToVisits: (callback: (payload: any) => void) => {
          const channelId = `visits-changes-${Math.random().toString(36).substring(2)}`;
-         console.log('📡 [Meu Painel] Subscribing to orders_visits realtime changes');
-         return supabase
-             .channel(channelId)
-             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders_visits' }, (payload) => {
-                 console.log('🔄 [Meu Painel] orders_visits change received:', payload.eventType);
-                 callback(payload);
-             })
-             .subscribe((status, err) => {
-                 console.log('📡 [Meu Painel] visits subscription status:', status);
-                 if (err) console.error('❌ [Meu Painel] visits subscription error:', err);
-                 if (status === 'CHANNEL_ERROR') {
-                     console.warn('⚠️ [Meu Painel] Verifique se a tabela "orders_visits" tem Realtime habilitado no Supabase (Database → Replication).');
-                 }
-             });
+         let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+         let disposed = false;
+         let retryCount = 0;
+         const MAX_RETRIES = 5;
+
+         const subscribe = () => {
+             if (disposed) return null;
+             return supabase
+                 .channel(channelId)
+                 .on('postgres_changes', { event: '*', schema: 'public', table: 'orders_visits' }, (payload) => {
+                     retryCount = 0;
+                     callback(payload);
+                 })
+                 .subscribe((status, err) => {
+                     if (err) console.error('❌ [Meu Painel] visits subscription error:', err);
+                     if (status === 'SUBSCRIBED') {
+                         retryCount = 0;
+                     }
+                     if (status === 'CHANNEL_ERROR') {
+                         if (retryCount >= MAX_RETRIES) {
+                             console.error(`❌ [Meu Painel] visits subscription gave up after ${MAX_RETRIES} retries`);
+                             return;
+                         }
+                         retryCount++;
+                         const delay = Math.min(3000 * Math.pow(2, retryCount - 1), 30000);
+                         console.warn(`⚠️ [Meu Painel] visits subscription error, reconnecting in ${Math.round(delay/1000)}s (attempt ${retryCount}/${MAX_RETRIES})...`);
+                         if (!disposed) {
+                             retryTimeout = setTimeout(() => {
+                                 supabase.removeChannel(channel);
+                                 channel = subscribe();
+                             }, delay);
+                         }
+                     }
+                 });
+         };
+
+         let channel: ReturnType<typeof subscribe> = subscribe();
+
+         return {
+             unsubscribe: () => {
+                 disposed = true;
+                 if (retryTimeout) clearTimeout(retryTimeout);
+                 if (channel) supabase.removeChannel(channel);
+             }
+         } as any;
      },
 
     async getOrderById(id: string | number): Promise<Order | null> {
@@ -2341,6 +2392,26 @@ export const dataService = {
 
     async getAssetsByTypeForAssociation(assetTypeId: string, search?: string, excludeTmId?: string, clientId?: string, unitId?: string): Promise<{ id: string; code: string; description: string; tagDescription?: string; tagSubDescription?: string; statusDescription?: string }[]> {
         return technicalManualsService.getAssetsByTypeForAssociation.apply(technicalManualsService, arguments as any);
+    },
+
+    async getOpenAlertsBySectorAndType(unitAssetTagId: string, orderTypeId: string): Promise<AssetAlert[]> {
+        return assetsService.getOpenAlertsBySectorAndType.apply(assetsService, arguments as any);
+    },
+
+    async linkAlertsToOrder(orderId: string, alertIds: string[]): Promise<void> {
+        return ordersService.linkAlertsToOrder.apply(ordersService, arguments as any);
+    },
+
+    async unlinkAlertFromOrder(orderId: string, alertId: string): Promise<void> {
+        return ordersService.unlinkAlertFromOrder.apply(ordersService, arguments as any);
+    },
+
+    async getAlertsByOrderId(orderId: string): Promise<string[]> {
+        return ordersService.getAlertsByOrderId.apply(ordersService, arguments as any);
+    },
+
+    async getAlertDetailsByOrderId(orderId: string): Promise<AssetAlert[]> {
+        return ordersService.getAlertDetailsByOrderId.apply(ordersService, arguments as any);
     }
 };
 

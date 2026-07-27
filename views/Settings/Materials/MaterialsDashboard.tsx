@@ -243,7 +243,7 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
     if (loading) return <Loading />;
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
             <div className="px-4 pt-4 pb-2">
                 <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Compras</h1>
             </div>

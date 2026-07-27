@@ -387,7 +387,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     );
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f172a] relative">
+        <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0f172a] relative">
             {isLoading && (
                 <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500/20 z-50 overflow-hidden">
                     {uploadProgress > 0 ? (

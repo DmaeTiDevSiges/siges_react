@@ -27,7 +27,6 @@ export const PermissionsProvider: React.FC<PermissionsProviderProps> = ({ childr
 
     const loadPermissions = async () => {
         if (!currentUser?.id) {
-            console.log('[PermissionsProvider] No currentUser.id found');
             setPermissions([]);
             setLoading(false);
             return;
@@ -35,11 +34,7 @@ export const PermissionsProvider: React.FC<PermissionsProviderProps> = ({ childr
 
         try {
             setLoading(true);
-            console.log('[PermissionsProvider] Loading permissions for user:', currentUser.id);
             const userPermissions = await dataService.getUserPermissions(currentUser.id);
-            console.log('[PermissionsProvider] Loaded permissions:', userPermissions);
-
-
             setPermissions(userPermissions);
         } catch (error) {
             console.error('Error loading permissions:', error);

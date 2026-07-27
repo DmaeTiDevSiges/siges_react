@@ -623,8 +623,9 @@ export const assetsService = {
             .from('assets_alerts')
             .select(`
                 *,
-                cfg_orders_types ( description ),
-                cfg_orders_priorities ( description, color )
+                cfg_orders_types!assets_alerts_o_type_id_fkey ( description ),
+                cfg_orders_priorities!assets_alerts_priority_id_fkey ( description, color ),
+                orders!left ( id, order_mask )
             `)
             .eq('asset_id', assetId)
             .eq('is_deleted', false)
@@ -655,26 +656,30 @@ export const assetsService = {
             }
         }
 
-        return (data || []).map((item: any) => ({
-            id: item.id.toString(),
-            assetId: item.asset_id.toString(),
-            oTypeId: item.o_type_id?.toString(),
-            priorityId: item.priority_id?.toString(),
-            description: item.description,
-            isDone: item.is_done,
-            ovaId: item.ova_id?.toString(),
-            createdUserId: item.created_user_id?.toString(),
-            createdAt: item.created_at,
-            updatedUserId: item.updated_user_id?.toString(),
-            updatedAt: item.updated_at,
-            isDeleted: item.is_deleted,
-            deletedUserId: item.deleted_user_id?.toString(),
-            deletedAt: item.deleted_at,
-            resolvedAt: item.ova_id ? resolvedMap.get(item.ova_id.toString()) : undefined,
-            orderTypeName: item.cfg_orders_types?.description,
-            priorityName: item.cfg_orders_priorities?.description,
-            priorityColor: item.cfg_orders_priorities?.color
-        })) as AssetAlert[];
+        return (data || []).map((item: any) => {
+            return {
+                id: item.id.toString(),
+                assetId: item.asset_id.toString(),
+                oTypeId: item.o_type_id?.toString(),
+                priorityId: item.priority_id?.toString(),
+                description: item.description,
+                isDone: item.is_done,
+                ovaId: item.ova_id?.toString(),
+                createdUserId: item.created_user_id?.toString(),
+                createdAt: item.created_at,
+                updatedUserId: item.updated_user_id?.toString(),
+                updatedAt: item.updated_at,
+                isDeleted: item.is_deleted,
+                deletedUserId: item.deleted_user_id?.toString(),
+                deletedAt: item.deleted_at,
+                resolvedAt: item.ova_id ? resolvedMap.get(item.ova_id.toString()) : undefined,
+                orderTypeName: item.cfg_orders_types?.description,
+                priorityName: item.cfg_orders_priorities?.description,
+                priorityColor: item.cfg_orders_priorities?.color,
+                orderId: item.orders?.id?.toString() || null,
+                orderMask: item.orders?.order_mask || null
+            };
+        }) as AssetAlert[];
     },
 
     async getAllAssetAlerts(): Promise<AssetAlert[]> {
@@ -682,8 +687,9 @@ export const assetsService = {
             .from('assets_alerts')
             .select(`
                 *,
-                cfg_orders_types ( description ),
-                cfg_orders_priorities ( description, color )
+                cfg_orders_types!assets_alerts_o_type_id_fkey ( description ),
+                cfg_orders_priorities!assets_alerts_priority_id_fkey ( description, color ),
+                orders!left ( id, order_mask )
             `)
             .eq('is_deleted', false)
             .order('created_at', { ascending: false });
@@ -713,12 +719,16 @@ export const assetsService = {
                 assetsMap = new Map(assetsDataList.map((a: any) => [a.id.toString(), a]));
                 const unitIds = [...new Set(assetsDataList.map((a: any) => a.unit_id).filter(Boolean))];
                 if (unitIds.length > 0) {
-                    const { data: unitsData } = await supabase.from('v_units').select('id, client_name').in('id', unitIds);
+                    const { data: unitsData } = await supabase.from('v_units').select('id, client_name, system_parent_id').in('id', unitIds);
                     if (unitsData) {
+                        const { data: systemsData } = await supabase.from('cfg_systems').select('id, description');
+                        const systemsMap = new Map(systemsData?.map((s: any) => [s.id.toString(), s.description]) || []);
+
                         unitsData.forEach((u: any) => {
                             for (const a of assetsDataList) {
                                 if (a.unit_id?.toString() === u.id?.toString()) {
                                     a.injected_client_name = u.client_name;
+                                    a.systemParentName = u.system_parent_id ? systemsMap.get(u.system_parent_id.toString()) : undefined;
                                 }
                             }
                         });
@@ -774,7 +784,10 @@ export const assetsService = {
                 clientName: clientByAssetId.get(item.asset_id?.toString()) || assetData?.client_name || assetData?.client_description,
                 tagName: assetData?.tag_name || assetData?.tag_description || assetData?.asset_tag_description || assetData?.unit_asset_tag_description,
                 tagSubName: assetData?.tag_sub_name || assetData?.tag_sub_description || assetData?.asset_tag_sub_description || assetData?.unit_asset_tag_sub_description,
-                resolvedAt
+                resolvedAt,
+                orderId: item.orders?.id?.toString() || null,
+                orderMask: item.orders?.order_mask || null,
+                systemParentName: assetData?.systemParentName
             } as AssetAlert;
         });
     },
@@ -784,8 +797,9 @@ export const assetsService = {
             .from('assets_alerts')
             .select(`
                 *,
-                cfg_orders_types ( description ),
-                cfg_orders_priorities ( description, color )
+                cfg_orders_types!assets_alerts_o_type_id_fkey ( description ),
+                cfg_orders_priorities!assets_alerts_priority_id_fkey ( description, color ),
+                orders!left ( id, order_mask )
             `)
             .eq('is_done', false)
             .eq('is_deleted', false)
@@ -860,7 +874,9 @@ export const assetsService = {
                 isDone: d.is_done,
                 ovaId: d.ova_id?.toString(),
                 createdAt: d.created_at,
-                createdUserId: d.created_user_id?.toString()
+                createdUserId: d.created_user_id?.toString(),
+                orderId: d.orders?.id?.toString() || null,
+                orderMask: d.orders?.order_mask || null
             };
         }) as AssetAlert[];
     },
@@ -1095,5 +1111,143 @@ export const assetsService = {
         }
 
         return data || [];
+    },
+
+    async getOpenAlertsBySectorAndType(
+        unitAssetTagId: string,
+        orderTypeId: string
+    ): Promise<AssetAlert[]> {
+        if (!unitAssetTagId || !orderTypeId) return [];
+
+        const { data: tagData, error: tagError } = await supabase
+            .from('cfg_units_assets_tags')
+            .select('asset_tag_id, unit_id')
+            .eq('id', parseInt(unitAssetTagId))
+            .single();
+
+        if (tagError || !tagData?.asset_tag_id || !tagData?.unit_id) {
+            return [];
+        }
+
+        const sectorId = tagData.asset_tag_id;
+        const unitId = tagData.unit_id;
+
+        // Strategy 1: assets.tag_id = sectorId AND assets.unit_id = unitId
+        let { data: assets, error: assetsError } = await supabase
+            .from('assets')
+            .select('id')
+            .eq('tag_id', sectorId)
+            .eq('unit_id', unitId)
+            .eq('is_deleted', false);
+
+        // Fallback: if no assets found via tag_id, try via unit_asset_tag_id
+        if (!assets || assets.length === 0) {
+            // Get all cfg_units_assets_tags records with same sector and unit
+            const { data: allUnitTags } = await supabase
+                .from('cfg_units_assets_tags')
+                .select('id')
+                .eq('asset_tag_id', sectorId)
+                .eq('unit_id', unitId);
+
+            if (allUnitTags && allUnitTags.length > 0) {
+                const tagIds = allUnitTags.map(t => t.id);
+
+                const result = await supabase
+                    .from('assets')
+                    .select('id')
+                    .in('unit_asset_tag_id', tagIds)
+                    .eq('is_deleted', false);
+
+                assets = result.data;
+                assetsError = result.error;
+
+            }
+        }
+
+        if (assetsError || !assets || assets.length === 0) {
+            return [];
+        }
+
+        const assetIds = assets.map(a => a.id);
+
+        const { data: alertsData, error: alertsError } = await supabase
+            .from('assets_alerts')
+            .select(`
+                *,
+                cfg_orders_types!assets_alerts_o_type_id_fkey ( description ),
+                cfg_orders_priorities!assets_alerts_priority_id_fkey ( description, color ),
+                orders!left ( id, order_mask )
+            `)
+            .in('asset_id', assetIds)
+            .eq('o_type_id', parseInt(orderTypeId))
+            .eq('is_done', false)
+            .eq('is_deleted', false)
+            .order('created_at', { ascending: false });
+
+        if (alertsError || !alertsData || alertsData.length === 0) {
+            return [];
+        }
+
+        const enrichedAssetIds = [...new Set(alertsData.map((d: any) => d.asset_id).filter(Boolean))];
+
+        let assetsMap = new Map<string, any>();
+        if (enrichedAssetIds.length > 0) {
+            const { data: assetsDataList } = await supabase
+                .from('v_assets')
+                .select('*')
+                .in('id', enrichedAssetIds);
+
+            if (assetsDataList) {
+                assetsMap = new Map(assetsDataList.map((a: any) => [a.id.toString(), a]));
+
+                const unitIds = [...new Set(assetsDataList.map((a: any) => a.unit_id).filter(Boolean))];
+                if (unitIds.length > 0) {
+                    const { data: unitsData } = await supabase
+                        .from('v_units')
+                        .select('id, client_name')
+                        .in('id', unitIds);
+
+                    if (unitsData) {
+                        unitsData.forEach((u: any) => {
+                            for (const a of assetsDataList) {
+                                if (a.unit_id?.toString() === u.id?.toString()) {
+                                    a.injected_client_name = u.client_name;
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        return alertsData.map((d: any) => {
+            const assetIdStr = d.asset_id?.toString();
+            const asset = assetIdStr ? assetsMap.get(assetIdStr) : null;
+
+            return {
+                id: d.id.toString(),
+                assetId: d.asset_id?.toString(),
+                assetDescription: asset?.description,
+                assetCode: asset?.code,
+                assetStatusName: asset?.status_code || '',
+                assetStatusColor: asset?.status_color || '',
+                clientName: asset?.injected_client_name || asset?.client_name || asset?.client_description || '',
+                unitDescription: asset?.unit_description_full || asset?.unit_description || asset?.description_full || '',
+                tagName: asset?.tag_name || asset?.tag_description || asset?.asset_tag_description || asset?.unit_asset_tag_description || '',
+                tagSubName: asset?.tag_sub_name || asset?.tag_sub_description || asset?.asset_tag_sub_description || asset?.unit_asset_tag_sub_description || '',
+                oTypeId: d.o_type_id?.toString(),
+                orderTypeName: d.cfg_orders_types?.description,
+                priorityId: d.priority_id?.toString(),
+                priorityName: d.cfg_orders_priorities?.description,
+                priorityColor: d.cfg_orders_priorities?.color,
+                description: d.description,
+                isDone: d.is_done,
+                ovaId: d.ova_id?.toString(),
+                createdAt: d.created_at,
+                createdUserId: d.created_user_id?.toString(),
+                orderId: d.orders?.id?.toString() || null,
+                orderMask: d.orders?.order_mask || null
+            };
+        }) as AssetAlert[];
     }
 };

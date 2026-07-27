@@ -200,16 +200,12 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         const fetchAllInfo = async () => {
             setModalLoading(true);
             try {
-                console.log('Fetching all info for selected asset ID:', selectedAssetForModal.id);
                 // Fetch basic detail info
                 const detailPromise = dataService.getUnitAssetTagItemById(selectedAssetForModal.id);
                 // Fetch active orders (confirmed link: v_units_assets_tags.id = v_orders.unit_asset_tag_id)
                 const ordersPromise = dataService.getActiveOrdersByAssetTagId(selectedAssetForModal.id);
 
                 const [data, orders] = await Promise.all([detailPromise, ordersPromise]);
-
-                console.log('Data fetched:', data ? 'Yes' : 'No');
-                console.log('Orders fetched count:', orders?.length || 0);
 
                 setModalData(data);
                 setActiveOrdersForModal(orders || []);
@@ -672,7 +668,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     />
 
                     {selectedUnitIdFromMap && (
-                        <div className="absolute bottom-6 left-6 right-6 z-8001 animate-in slide-in-from-bottom-4 fade-in duration-300">
+                        <div className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 left-6 right-6 z-8001 animate-in slide-in-from-bottom-4 fade-in duration-300">
                             {(() => {
                                 const unit = unitsRows.find(u => Number(u.id) === selectedUnitIdFromMap);
                                 if (!unit) return null;
@@ -1001,7 +997,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         </button>
 
                                         {selectedUnitIdFromMap && (
-                                            <div className="absolute bottom-4 left-4 right-4 z-3000 animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto">
+                                            <div className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-4 left-4 right-4 z-3000 animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto">
                                                 {(() => {
                                                     const unit = unitsRows.find(u => Number(u.id) === selectedUnitIdFromMap);
                                                     if (!unit) return null;

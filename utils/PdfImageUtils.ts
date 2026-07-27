@@ -178,11 +178,11 @@ export async function addWhiteBackgroundToImage(base64: string): Promise<string>
                     }
                 }
                 
-                console.log(`[PdfImageUtils] Signature analysis: ${totalDarkPixels} dark pixels, hasLightSignature=${hasLightSignature}`);
+
                 
                 // Se detectou assinatura clara ou poucos pixels escuros, aplicar correção
                 if (hasLightSignature || totalDarkPixels < 50) {
-                    console.log('[PdfImageUtils] Applying signature correction');
+
                     
                     // Limpar e redesenhar com processamento
                     ctx.clearRect(0, 0, canvas.width, canvas.height);

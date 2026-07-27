@@ -140,8 +140,6 @@ export const useConnectionLogger = () => {
       quality: dataQualityStatus.overallScore,
       details
     };
-    console.log('[ConnectionLogger]', log);
-    
     // Aqui você poderia enviar logs para um serviço de analytics
     // if (typeof window !== 'undefined' && window.analytics) {
     //   window.analytics.log('connection_event', log);

@@ -11,7 +11,7 @@ interface OrderRequestPageProps {
 
 export const OrderRequestPage: React.FC<OrderRequestPageProps> = ({ onBack, onSubmit, initialData, mode }) => {
     return (
-        <div className="h-full w-full bg-slate-50 dark:bg-slate-900 safe-area-bottom">
+        <div className="h-full w-full bg-background-light dark:bg-background-dark safe-area-bottom">
             <OrderRequestForm onBack={onBack} onSubmit={onSubmit} initialData={initialData} mode={mode} />
         </div>
     );

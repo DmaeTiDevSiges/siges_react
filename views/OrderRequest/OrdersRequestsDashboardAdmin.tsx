@@ -623,73 +623,73 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             let unscheduledSSResult: Order[] = [];
             let openOSResult: Order[] = [];
 
-             const restrictedSSFilters = {
-                 systemParentId: ordersListFilters.systemParentId,
-                 systemId: ordersListFilters.systemId,
-                 unitTypeParentId: ordersListFilters.unitTypeParentId,
-                 unitTypeId: ordersListFilters.unitTypeId,
-                 unitId: ordersListFilters.unitId,
-                 period: periodFromOverride ?? undefined,
-                 search: searchQuery || undefined,
-             };
+            const restrictedSSFilters = {
+                systemParentId: ordersListFilters.systemParentId,
+                systemId: ordersListFilters.systemId,
+                unitTypeParentId: ordersListFilters.unitTypeParentId,
+                unitTypeId: ordersListFilters.unitTypeId,
+                unitId: ordersListFilters.unitId,
+                period: periodFromOverride ?? undefined,
+                search: searchQuery || undefined,
+            };
 
-             const unscheduledSSFilters = {
-                 ...restrictedSSFilters,
-                 assetTagId: ssAssetTagFromOverride,
-                 assetTagSubId: ordersListFilters.assetTagSubId,
-             };
+            const unscheduledSSFilters = {
+                ...restrictedSSFilters,
+                assetTagId: ssAssetTagFromOverride,
+                assetTagSubId: ordersListFilters.assetTagSubId,
+            };
 
-             // statsOSFilters: WITHOUT assetTagId so sector cards always show all sectors
-             const statsOSFilters = {
-                 systemParentId: ordersListFilters.systemParentId,
-                 systemId: ordersListFilters.systemId,
-                 unitTypeParentId: ordersListFilters.unitTypeParentId,
-                 unitTypeId: ordersListFilters.unitTypeId,
-                 unitId: ordersListFilters.unitId,
-                 orderObjectId: ordersListFilters.orderObjectId,
-                 orderTypeId: ordersListFilters.orderTypeId,
-                 orderTypeSubId: ordersListFilters.orderTypeSubId,
-                 contractId: ordersListFilters.contractId,
-                 orderPlanId: ordersListFilters.orderPlanId,
-                 orderTeamId: ordersListFilters.orderTeamId,
-                 priorityId: ordersListFilters.priorityId,
-                 statusId: statusIdFromOverride ?? undefined,
-                 // assetTagId intentionally omitted — sector cards must always show all sectors
-                 search: searchQuery || undefined,
-             };
+            // statsOSFilters: WITHOUT assetTagId so sector cards always show all sectors
+            const statsOSFilters = {
+                systemParentId: ordersListFilters.systemParentId,
+                systemId: ordersListFilters.systemId,
+                unitTypeParentId: ordersListFilters.unitTypeParentId,
+                unitTypeId: ordersListFilters.unitTypeId,
+                unitId: ordersListFilters.unitId,
+                orderObjectId: ordersListFilters.orderObjectId,
+                orderTypeId: ordersListFilters.orderTypeId,
+                orderTypeSubId: ordersListFilters.orderTypeSubId,
+                contractId: ordersListFilters.contractId,
+                orderPlanId: ordersListFilters.orderPlanId,
+                orderTeamId: ordersListFilters.orderTeamId,
+                priorityId: ordersListFilters.priorityId,
+                statusId: statusIdFromOverride ?? undefined,
+                // assetTagId intentionally omitted — sector cards must always show all sectors
+                search: searchQuery || undefined,
+            };
 
-             // openOSFilters: WITH assetTagId and assetTagSubId to filter the carousel by selected sector/position
-             const openOSFilters = {
-                 ...statsOSFilters,
-                 assetTagId: osAssetTagFromOverride?.length ? osAssetTagFromOverride : ordersListFilters.assetTagId,
-                 assetTagSubId: ordersListFilters.assetTagSubId,
-             };
- 
-             if (loadMore) {
-                 // When loading more, we ONLY need the next page of orders
-                 ordersResult = await dataService.getOrdersFilters({
-                     search: searchQuery,
-                     ...ordersListFilters,
-                     page: pageToFetch,
-                     pageSize: 50
-                 });
-             } else {
-                 // When filtering/loading initial, we execute ALL requests in parallel for maximum speed
-                 const [pOrders, pStats, pUnscheduled, pOpenOS] = await Promise.all([
-                     dataService.getOrdersFilters({
-                         search: searchQuery,
-                         ...ordersListFilters,
-                         page: 0,
-                         pageSize: 50
-                     }),
-                     dataService.getDashboardStats(
-                         { search: searchQuery, ...appliedFilters },
-                         restrictedSSFilters,
-                         statsOSFilters   // uses filters WITHOUT assetTagId → all sectors always visible
-                     ),
-                     dataService.getUnscheduledSS(unscheduledSSFilters),
-                     dataService.getOpenOS(openOSFilters)
-                 ]);
+            // openOSFilters: WITH assetTagId and assetTagSubId to filter the carousel by selected sector/position
+            const openOSFilters = {
+                ...statsOSFilters,
+                assetTagId: osAssetTagFromOverride?.length ? osAssetTagFromOverride : ordersListFilters.assetTagId,
+                assetTagSubId: ordersListFilters.assetTagSubId,
+            };
+
+            if (loadMore) {
+                // When loading more, we ONLY need the next page of orders
+                ordersResult = await dataService.getOrdersFilters({
+                    search: searchQuery,
+                    ...ordersListFilters,
+                    page: pageToFetch,
+                    pageSize: 50
+                });
+            } else {
+                // When filtering/loading initial, we execute ALL requests in parallel for maximum speed
+                const [pOrders, pStats, pUnscheduled, pOpenOS] = await Promise.all([
+                    dataService.getOrdersFilters({
+                        search: searchQuery,
+                        ...ordersListFilters,
+                        page: 0,
+                        pageSize: 50
+                    }),
+                    dataService.getDashboardStats(
+                        { search: searchQuery, ...appliedFilters },
+                        restrictedSSFilters,
+                        statsOSFilters   // uses filters WITHOUT assetTagId → all sectors always visible
+                    ),
+                    dataService.getUnscheduledSS(unscheduledSSFilters),
+                    dataService.getOpenOS(openOSFilters)
+                ]);
 
                 ordersResult = pOrders;
                 statsResult = pStats;
@@ -832,98 +832,98 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     // Track if we have already handled the initial cache check
     const initialCacheSkipDone = React.useRef(false);
 
-     useEffect(() => {
-         // 1. Refresh dashboard event
-         const handleRefresh = () => fetchDataRef.current(false, false);
-         window.addEventListener('refresh_dashboard', handleRefresh);
- 
-         // Debounced user refresh to avoid excessive calls when orders/visits fire rapidly
-         let userRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
-         const debouncedRefreshUsers = () => {
-             if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
-             userRefreshTimeout = setTimeout(async () => {
-                 try {
-                     dataService.clearMetadataCache();
-                     const usersData = await dataService.getUsers();
-                     setUsers(usersData);
-                 } catch (err) {
-                     console.error("Failed to refresh users (debounced)", err);
-                 }
-             }, 1000);
-         };
- 
-         // 2. Realtime subscription for orders
-         const subscription = dataService.subscribeToOrders((payload) => {
-             fetchDataRef.current(false, false);
-             debouncedRefreshUsers();
-         });
- 
-         // 3. Realtime subscription for visits
-         const visitSubscription = dataService.subscribeToVisits((payload) => {
-             fetchDataRef.current(false, false);
-             debouncedRefreshUsers();
-         });
- 
-         // 4. Realtime subscription for users (to update status borders)
-         const userSubscription = dataService.subscribeToUsers(async () => {
-             try {
-                 dataService.clearMetadataCache();
-                 const usersData = await dataService.getUsers();
-                 setUsers(usersData);
-             } catch (err) {
-                 console.error("Failed to refresh users in realtime", err);
-             }
-         });
- 
-         // 5. Periodic polling fallback (every 15s) — refreshes dashboard data + users even if Realtime is down
-         const pollingInterval = setInterval(() => {
-             try {
-                 fetchDataRef.current(false, false);
-                 debouncedRefreshUsers();
-             } catch (err) {
-                 // Silent fail for polling
-             }
-         }, 15000);
- 
-         // 6. Refresh immediately when user returns to the tab or focuses the window
-         let lastRefreshTime = 0;
-         const handleVisibilityChange = () => {
-             if (document.visibilityState === 'visible') {
-                 const now = Date.now();
-                 if (now - lastRefreshTime > 5000) {
-                     lastRefreshTime = now;
-                     fetchDataRef.current(false, false);
-                     debouncedRefreshUsers();
-                 }
-             }
-         };
-         const handleWindowFocus = () => {
-             const now = Date.now();
-             if (now - lastRefreshTime > 5000) {
-                 lastRefreshTime = now;
-                 fetchDataRef.current(false, false);
-                 debouncedRefreshUsers();
-             }
-         };
-         document.addEventListener('visibilitychange', handleVisibilityChange);
-         window.addEventListener('focus', handleWindowFocus);
- 
-         // 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
-         fetchDataRef.current(false, false);
-         setIsLoading(false);
- 
-         return () => {
-             window.removeEventListener('refresh_dashboard', handleRefresh);
-             document.removeEventListener('visibilitychange', handleVisibilityChange);
-             window.removeEventListener('focus', handleWindowFocus);
-             if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
-             if (subscription) subscription.unsubscribe();
-             if (visitSubscription) visitSubscription.unsubscribe();
-             if (userSubscription) userSubscription.unsubscribe();
-             clearInterval(pollingInterval);
-         };
-         // eslint-disable-next-line react-hooks/exhaustive-deps
-     }, []); // Only on mount
+    useEffect(() => {
+        // 1. Refresh dashboard event
+        const handleRefresh = () => fetchDataRef.current(false, false);
+        window.addEventListener('refresh_dashboard', handleRefresh);
+
+        // Debounced user refresh to avoid excessive calls when orders/visits fire rapidly
+        let userRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
+        const debouncedRefreshUsers = () => {
+            if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
+            userRefreshTimeout = setTimeout(async () => {
+                try {
+                    dataService.clearMetadataCache();
+                    const usersData = await dataService.getUsers();
+                    setUsers(usersData);
+                } catch (err) {
+                    console.error("Failed to refresh users (debounced)", err);
+                }
+            }, 1000);
+        };
+
+        // 2. Realtime subscription for orders
+        const subscription = dataService.subscribeToOrders((payload) => {
+            fetchDataRef.current(false, false);
+            debouncedRefreshUsers();
+        });
+
+        // 3. Realtime subscription for visits
+        const visitSubscription = dataService.subscribeToVisits((payload) => {
+            fetchDataRef.current(false, false);
+            debouncedRefreshUsers();
+        });
+
+        // 4. Realtime subscription for users (to update status borders)
+        const userSubscription = dataService.subscribeToUsers(async () => {
+            try {
+                dataService.clearMetadataCache();
+                const usersData = await dataService.getUsers();
+                setUsers(usersData);
+            } catch (err) {
+                console.error("Failed to refresh users in realtime", err);
+            }
+        });
+
+        // 5. Periodic polling fallback (every 15s) — refreshes dashboard data + users even if Realtime is down
+        const pollingInterval = setInterval(() => {
+            try {
+                fetchDataRef.current(false, false);
+                debouncedRefreshUsers();
+            } catch (err) {
+                // Silent fail for polling
+            }
+        }, 15000);
+
+        // 6. Refresh immediately when user returns to the tab or focuses the window
+        let lastRefreshTime = 0;
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                const now = Date.now();
+                if (now - lastRefreshTime > 5000) {
+                    lastRefreshTime = now;
+                    fetchDataRef.current(false, false);
+                    debouncedRefreshUsers();
+                }
+            }
+        };
+        const handleWindowFocus = () => {
+            const now = Date.now();
+            if (now - lastRefreshTime > 5000) {
+                lastRefreshTime = now;
+                fetchDataRef.current(false, false);
+                debouncedRefreshUsers();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleWindowFocus);
+
+        // 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
+        fetchDataRef.current(false, false);
+        setIsLoading(false);
+
+        return () => {
+            window.removeEventListener('refresh_dashboard', handleRefresh);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleWindowFocus);
+            if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
+            if (subscription) subscription.unsubscribe();
+            if (visitSubscription) visitSubscription.unsubscribe();
+            if (userSubscription) userSubscription.unsubscribe();
+            clearInterval(pollingInterval);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only on mount
 
     useEffect(() => {
         setCurrentPage(0);
@@ -996,7 +996,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         if (systemId && (Array.isArray(systemId) ? systemId.length > 0 : true)) {
             const ids = Array.isArray(systemId) ? systemId : [systemId];
             const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
-                    setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
+            setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
         } else {
             setFilterOptions((prev: any) => ({ ...prev, subSystems: [] }));
         }
@@ -1061,7 +1061,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f172a] animate-in fade-in duration-500 relative">
+        <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0f172a] animate-in fade-in duration-500 relative">
 
             {/* Unified Header with Tabs has been moved to the Main Layout Header in App.tsx */}
 
@@ -1154,7 +1154,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="sm" className="shrink-0 text-[10px]" />
                                             <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-tight truncate max-w-[56px]">{group.companyName}</span>
                                         </div>
-                                        
+
                                         <div className="flex gap-4 overflow-visible items-center">
                                             {group.leaders.map((leader) => (
                                                 <div key={leader.id} className="flex flex-col items-center gap-1 group cursor-default shrink-0">
@@ -1176,32 +1176,32 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         </div>
 
                                         {canView('dashboard_orders_users_tracker') && (
-                                        <div className="border-l border-slate-100 dark:border-white/10 pl-4 shrink-0 flex items-center justify-center">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onTrackUsers?.({
-                                                        id: group.companyId,
-                                                        name: group.companyName,
-                                                        logoUrl: group.companyLogoUrl || '',
-                                                        emailSuffix: '',
-                                                        logoPath: '',
-                                                        logoName: '',
-                                                        status: 'active',
-                                                        category: '',
-                                                        phone: '',
-                                                        location: '',
-                                                        cnpj: '',
-                                                        contractCount: 0,
-                                                        code: ''
-                                                    });
-                                                }}
-                                                className="p-1 -mr-1 text-slate-400 hover:text-primary transition-colors flex items-center justify-center"
-                                                title="Rastrear Usuários"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">location_on</span>
-                                            </button>
-                                        </div>
+                                            <div className="border-l border-slate-100 dark:border-white/10 pl-4 shrink-0 flex items-center justify-center">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onTrackUsers?.({
+                                                            id: group.companyId,
+                                                            name: group.companyName,
+                                                            logoUrl: group.companyLogoUrl || '',
+                                                            emailSuffix: '',
+                                                            logoPath: '',
+                                                            logoName: '',
+                                                            status: 'active',
+                                                            category: '',
+                                                            phone: '',
+                                                            location: '',
+                                                            cnpj: '',
+                                                            contractCount: 0,
+                                                            code: ''
+                                                        });
+                                                    }}
+                                                    className="p-1 -mr-1 text-slate-400 hover:text-primary transition-colors flex items-center justify-center"
+                                                    title="Rastrear Usuários"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">location_on</span>
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 ))}
@@ -1245,432 +1245,426 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
                     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-6">
                         <div className="mx-4 mb-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-200/50 dark:border-slate-700/30 p-4">
-                        <section className="pt-1 pb-0">
-                            <div className="flex items-center gap-2 mb-2 px-1">
-                                <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">SS's Não Programadas</h2>
-                                <ChevronButton
-                                    isOpen={isNaoProgramadasOpen}
-                                    onToggle={() => setIsNaoProgramadasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_naoProgramadasOpen', JSON.stringify(next)); return next; })}
-                                    className="shrink-0 ml-auto"
-                                />
-                            </div>
-                            <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 cursor-grab active:cursor-grabbing touch-auto w-full">
-                                <div className="flex gap-3 shrink-0">
-                                    {stats.unscheduled.map((item, idx) => (
-                                        <div key={idx} onClick={() => {
-                                            const clickedPeriod = item.label;
-                                            setSelectedPeriod(clickedPeriod);
-                                            setIsNaoProgramadasOpen(true);
-                                            localStorage.setItem('ordersSection_naoProgramadasOpen', JSON.stringify(true));
-                                            setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
-                                            setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
-                                            fetchData(false, true, { ...appliedFilters, period: clickedPeriod, assetTagId: [] });
-                                        }}
-                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
+                            <section className="pt-1 pb-0">
+                                <div className="flex items-center gap-2 mb-2 px-1">
+                                    <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">SS's Não Programadas</h2>
+                                    <ChevronButton
+                                        isOpen={isNaoProgramadasOpen}
+                                        onToggle={() => setIsNaoProgramadasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_naoProgramadasOpen', JSON.stringify(next)); return next; })}
+                                        className="shrink-0 ml-auto"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 cursor-grab active:cursor-grabbing touch-auto w-full">
+                                    <div className="flex gap-3 shrink-0">
+                                        {stats.unscheduled.map((item, idx) => (
+                                            <div key={idx} onClick={() => {
+                                                const clickedPeriod = item.label;
+                                                setSelectedPeriod(clickedPeriod);
+                                                setIsNaoProgramadasOpen(true);
+                                                localStorage.setItem('ordersSection_naoProgramadasOpen', JSON.stringify(true));
+                                                setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
+                                                setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: [] }));
+                                                fetchData(false, true, { ...appliedFilters, period: clickedPeriod, assetTagId: [] });
+                                            }}
+                                                className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
                                         ${selectedPeriod === item.label ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
                                         ${item.label === 'Hoje' && item.count > 0 ? 'ring-2 ring-red-500/50 animate-pulse' : ''}
                                     `}>
-                                            <span className={`material-symbols-outlined text-[16px] ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-400'} ${item.color}`}>{item.icon}</span>
-                                            <p className={`text-[10px] font-bold ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
-                                            <span className={`text-[14px] leading-none font-black ${item.label === 'Hoje' && item.count > 0 ? 'text-red-500' : 'text-slate-900 dark:text-white'}`}>{item.count}</span>
-                                            {item.label === 'Hoje' && item.count > 0 && (
-                                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                                                </span>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                    <RequestsListPDFButton
-                                        filters={ssEffectiveFilters}
-                                        searchQuery={searchQuery}
-                                        totalCount={
-                                            selectedPeriod
-                                                ? (stats.unscheduled.find(p => p.label === selectedPeriod)?.count || 0)
-                                                : stats.unscheduled.reduce((acc, curr) => acc + curr.count, 0)
-                                        }
-                                    />
-                                    <RequestsExcelExportButton
-                                        filters={ssEffectiveFilters}
-                                        searchQuery={searchQuery}
-                                        filename="relatorio-ss"
-                                        title="EXCEL"
-                                        totalCount={
-                                            selectedPeriod
-                                                ? (stats.unscheduled.find(p => p.label === selectedPeriod)?.count || 0)
-                                                : stats.unscheduled.reduce((acc, curr) => acc + curr.count, 0)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            {isNaoProgramadasOpen && stats.ssSectorCounts && stats.ssSectorCounts.length > 0 && (
-                                <div className="flex items-center gap-3 pb-3 min-w-0">
-                                    <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
-                                    <div className="flex gap-3 overflow-x-auto no-scrollbar px-1 py-1.5 cursor-grab active:cursor-grabbing touch-auto flex-1 min-w-0"
-                                    ref={ssSectorScroll.ref}
-                                    onMouseDown={ssSectorScroll.onMouseDown}
-                                    onTouchStart={ssSectorScroll.onTouchStart}
-                                    onClickCapture={ssSectorScroll.onClickCapture}>
-                                    {stats.ssSectorCounts.map((item, idx) => {
-                                        const currentAssetTagIds = Array.isArray(advancedOrdersFilters.assetTagId)
-                                            ? advancedOrdersFilters.assetTagId
-                                            : advancedOrdersFilters.assetTagId
-                                                ? [advancedOrdersFilters.assetTagId]
-                                                : [];
-                                        const isSelected = currentAssetTagIds.includes(item.id);
-                                        
-                                        return (
-                                            <div key={idx} onClick={() => {
-                                                const newAssetTagId = isSelected
-                                                    ? currentAssetTagIds.filter((id) => id !== item.id)
-                                                    : [...currentAssetTagIds, item.id];
-                                                setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: newAssetTagId }));
-                                                setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: newAssetTagId }));
-                                                // Pass period explicitly so it is not lost in the override merge
-                                                fetchData(false, true, { ...appliedFilters, period: selectedPeriod, assetTagId: newAssetTagId });
-                                            }}
-                                                className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer flex items-center justify-between gap-3
-                                                    ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
-                                                `}>
-                                                <p className={`text-[10px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
-                                                    {item.label}
-                                                </p>
-                                                <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
+                                                <span className={`material-symbols-outlined text-[16px] ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-400'} ${item.color}`}>{item.icon}</span>
+                                                <p className={`text-[10px] font-bold ${selectedPeriod === item.label ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
+                                                <span className={`text-[14px] leading-none font-black ${item.label === 'Hoje' && item.count > 0 ? 'text-red-500' : 'text-slate-900 dark:text-white'}`}>{item.count}</span>
+                                                {item.label === 'Hoje' && item.count > 0 && (
+                                                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                                    </span>
+                                                )}
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                                </div>
-                            )}
-                        </section>
-
-                        {isNaoProgramadasOpen && displayedUnscheduledSS.length > 0 && (
-                            <section className="py-0">
-
-                                <div className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                    ref={unscheduledSSScroll.ref}
-                                    onMouseDown={unscheduledSSScroll.onMouseDown}
-                                    onTouchStart={unscheduledSSScroll.onTouchStart}
-                                    onClickCapture={unscheduledSSScroll.onClickCapture}>
-                                    {displayedUnscheduledSS.map((ss) => (
-                                        <div key={ss.id} className="min-w-[352px] max-w-[352px] shrink-0 h-auto">
-                                            <ServiceRequestCardListItem
-                                                order={ss}
-                                                onClick={() => onSelectOrder?.(ss)}
-                                                isFollowed={followedOrderIds.includes(ss.id)}
-                                                onToggleFollow={() => toggleFollow(ss.id)}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-                        </div>
-
-                        <div className="mx-4 mb-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/30 p-4">
-                        <section className="py-0 mt-0">
-                            {(() => {
-                                // Priority: selected sectors > selected status > total
-                                // osSectorCounts is fetched with statusId but WITHOUT assetTagId,
-                                // so sector counts already reflect the active status filter.
-                                const osTotalCount = osAssetTagId.length > 0
-                                    ? stats.osSectorCounts
-                                        .filter(s => osAssetTagId.includes(s.id))
-                                        .reduce((acc, s) => acc + s.count, 0)
-                                    : selectedStatusId
-                                        ? (stats.openOS.find(s => s.id === selectedStatusId)?.count || 0)
-                                        : stats.openOS.reduce((acc, curr) => acc + curr.count, 0);
-
-                                return (
-                                    <>
-                                    <div className="flex items-center gap-2 mb-2 px-1">
-                                        <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">OS's Abertas</h2>
-                                        <ChevronButton
-                                            isOpen={isOsAbertasOpen}
-                                            onToggle={() => setIsOsAbertasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_osAbertasOpen', JSON.stringify(next)); return next; })}
-                                            className="shrink-0 ml-auto"
+                                        ))}
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                        <RequestsListPDFButton
+                                            filters={ssEffectiveFilters}
+                                            searchQuery={searchQuery}
+                                            totalCount={
+                                                selectedPeriod
+                                                    ? (stats.unscheduled.find(p => p.label === selectedPeriod)?.count || 0)
+                                                    : stats.unscheduled.reduce((acc, curr) => acc + curr.count, 0)
+                                            }
+                                        />
+                                        <RequestsExcelExportButton
+                                            filters={ssEffectiveFilters}
+                                            searchQuery={searchQuery}
+                                            filename="relatorio-ss"
+                                            title="EXCEL"
+                                            totalCount={
+                                                selectedPeriod
+                                                    ? (stats.unscheduled.find(p => p.label === selectedPeriod)?.count || 0)
+                                                    : stats.unscheduled.reduce((acc, curr) => acc + curr.count, 0)
+                                            }
                                         />
                                     </div>
-                                    <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 cursor-grab active:cursor-grabbing touch-auto w-full"
-                                        ref={openOSScroll.ref}
-                                        onMouseDown={openOSScroll.onMouseDown}
-                                        onTouchStart={openOSScroll.onTouchStart}
-                                        onClickCapture={openOSScroll.onClickCapture}>
-                                        
-                                        <div className="flex gap-3 shrink-0">
-                                            
-                                            {stats.openOS.map((item, idx) => (
-                                                <div key={idx} onClick={() => {
-                                                    const newStatusId = selectedStatusId === item.id ? null : item.id;
-                                                    setSelectedStatusId(newStatusId);
-                                                    setOsAssetTagId([]);
-                                                    setIsOsAbertasOpen(true);
-                                                    localStorage.setItem('ordersSection_osAbertasOpen', JSON.stringify(true));
-                                                    fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
-                                                }}
-                                                    className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
-                                                    ${selectedStatusId === item.id ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
-                                                    ${item.label === 'Execução' && item.count > 0 ? 'ring-2 ring-green-500/50 animate-pulse' : ''}
-                                                `}>
-                                                    <span className={`material-symbols-outlined text-[16px] ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-400'} ${item.color || ''}`}>{item.icon}</span>
-                                                    <p className={`text-[10px] font-bold ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
-                                                    <span className={`text-[14px] leading-none font-black ${item.label === 'Execução' && item.count > 0 ? 'text-green-500' : 'text-slate-900 dark:text-white'}`}>{item.count}</span>
-                                                    {item.label === 'Execução' && item.count > 0 && (
-                                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
+                                </div>
 
-                                        <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                            <OrdersListPDFButton
-                                                filters={osEffectiveFilters}
-                                                searchQuery={searchQuery}
-                                                totalCount={osTotalCount}
-                                            />
-                                            <ExcelExportButton
-                                                filters={osEffectiveFilters}
-                                                searchQuery={searchQuery}
-                                                filename="relatorio-os"
-                                                title="EXCEL"
-                                                totalCount={osTotalCount}
-                                            />
-                                        </div>
-                                    </div>
-                                    </>
-                                );
-                            })()}
+                                {isNaoProgramadasOpen && stats.ssSectorCounts && stats.ssSectorCounts.length > 0 && (
+                                    <div className="flex items-center gap-3 pb-3 min-w-0">
+                                        <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
+                                        <div className="flex gap-3 overflow-x-auto no-scrollbar px-1 py-1.5 cursor-grab active:cursor-grabbing touch-auto flex-1 min-w-0"
+                                            ref={ssSectorScroll.ref}
+                                            onMouseDown={ssSectorScroll.onMouseDown}
+                                            onTouchStart={ssSectorScroll.onTouchStart}
+                                            onClickCapture={ssSectorScroll.onClickCapture}>
+                                            {stats.ssSectorCounts.map((item, idx) => {
+                                                const currentAssetTagIds = Array.isArray(advancedOrdersFilters.assetTagId)
+                                                    ? advancedOrdersFilters.assetTagId
+                                                    : advancedOrdersFilters.assetTagId
+                                                        ? [advancedOrdersFilters.assetTagId]
+                                                        : [];
+                                                const isSelected = currentAssetTagIds.includes(item.id);
 
-                            {isOsAbertasOpen && (
-                            <>
-                            {stats.osSectorCounts && stats.osSectorCounts.length > 0 && (
-                                <div className="flex items-center gap-3 pb-3 min-w-0">
-                                    <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
-                                    <div
-                                        className="flex gap-3 overflow-x-auto no-scrollbar px-1 py-1.5 cursor-grab active:cursor-grabbing touch-auto flex-1 min-w-0"
-                                        ref={osSectorScroll.ref}
-                                        onMouseDown={osSectorScroll.onMouseDown}
-                                        onTouchStart={osSectorScroll.onTouchStart}
-                                        onClickCapture={osSectorScroll.onClickCapture}
-                                    >
-                                        {stats.osSectorCounts.map((item, idx) => {
-                                            const isSelected = osAssetTagId.includes(item.id);
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    onClick={() => {
-                                                        const newOsAssetTagId = isSelected
-                                                            ? osAssetTagId.filter((id) => id !== item.id)
-                                                            : [...osAssetTagId, item.id];
-                                                        setOsAssetTagId(newOsAssetTagId);
-                                                        fetchData(false, true, {
-                                                            ...appliedFilters,
-                                                            statusId: selectedStatusId,
-                                                            osAssetTagId: newOsAssetTagId,
-                                                        });
+                                                return (
+                                                    <div key={idx} onClick={() => {
+                                                        const newAssetTagId = isSelected
+                                                            ? currentAssetTagIds.filter((id) => id !== item.id)
+                                                            : [...currentAssetTagIds, item.id];
+                                                        setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: newAssetTagId }));
+                                                        setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: newAssetTagId }));
+                                                        // Pass period explicitly so it is not lost in the override merge
+                                                        fetchData(false, true, { ...appliedFilters, period: selectedPeriod, assetTagId: newAssetTagId });
                                                     }}
-                                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[110px] max-w-[200px] cursor-pointer flex items-center justify-between gap-3
-                                                        ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
-                                                    `}
-                                                >
-                                                    <p className={`text-[10px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
-                                                        {item.label}
-                                                    </p>
-                                                    <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
-                                                </div>
-                                            );
-                                        })}
+                                                        className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer flex items-center justify-between gap-3
+                                                    ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                `}>
+                                                        <p className={`text-[10px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
+                                                            {item.label}
+                                                        </p>
+                                                        <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                            </>
-                            )}
-                        </section>
-
-                        {isOsAbertasOpen && displayedOpenOS.length > 0 && (
-                            <section className="py-0">
-                                <div
-                                    className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                    ref={openOSCarouselScroll.ref}
-                                    onMouseDown={openOSCarouselScroll.onMouseDown}
-                                    onTouchStart={openOSCarouselScroll.onTouchStart}
-                                    onClickCapture={openOSCarouselScroll.onClickCapture}
-                                >
-                                    {displayedOpenOS.length > 0 ? (
-                                        displayedOpenOS.map((os) => (
-                                            <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
-                                                <OrderRequestCardListItem
-                                                    order={os}
-                                                    currentUser={currentUser}
-                                                    onClick={() => onSelectOrder?.(os)}
-                                                    onSuccess={() => fetchData(false, true)}
-                                                    onEdit={onEdit}
-                                                />
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="w-full flex items-center justify-center py-10">
-                                            <div className="flex flex-col items-center">
-                                                <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">inventory_2</span>
-                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma Ordem de Serviço encontrada</h3>
-                                                <p className="text-slate-400">Tente ajustar sua busca ou filtros.</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                                )}
                             </section>
-                        )}
-                        </div>
 
-                        {/* OS's Concluídas Section */}
-                        <div className="mx-4 mb-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30 p-4">
-                        <section className="py-0 mt-0">
-                            <div className="flex items-center gap-2 mb-2 px-1">
-                                <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">OS's Concluídas</h2>
-                                <ChevronButton
-                                    isOpen={isOsConcluidasOpen}
-                                    onToggle={() => setIsOsConcluidasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_osConcluidasOpen', JSON.stringify(next)); return next; })}
-                                    className="shrink-0 ml-auto"
-                                />
-                            </div>
-                            <div
-                                className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                ref={completedOSScroll.ref}
-                                onMouseDown={completedOSScroll.onMouseDown}
-                                onTouchStart={completedOSScroll.onTouchStart}
-                                onClickCapture={completedOSScroll.onClickCapture}
-                            >
-                                {/* Temporal filter buttons */}
-                                <div className="flex gap-2 shrink-0">
-                                    {([
-                                        { value: 'today' as CompletedTemporalFilter, label: 'Hoje', icon: 'today', color: 'text-primary' },
-                                        { value: 'yesterday' as CompletedTemporalFilter, label: 'Ontem', icon: 'history', color: 'text-primary' },
-                                        { value: 'thisWeek' as CompletedTemporalFilter, label: 'Esta Semana', icon: 'date_range', color: 'text-primary' },
-                                        { value: 'lastWeek' as CompletedTemporalFilter, label: 'Semana Passada', icon: 'date_range', color: 'text-primary' },
-                                        { value: 'thisMonth' as CompletedTemporalFilter, label: 'Este Mês', icon: 'calendar_month', color: 'text-primary' },
-                                        { value: 'lastMonth' as CompletedTemporalFilter, label: 'Mês Passado', icon: 'calendar_month', color: 'text-primary' },
-                                    ]).map((opt) => (
-                                        <div
-                                            key={opt.value}
-                                            onClick={() => {
-                                                setCompletedTemporalFilter(opt.value);
-                                                setIsOsConcluidasOpen(true);
-                                                localStorage.setItem('ordersSection_osConcluidasOpen', JSON.stringify(true));
-                                                fetchData(false, true, { ...appliedFilters });
-                                            }}
-                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
-                                                ${completedTemporalFilter === opt.value
-                                                    ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900'
-                                                    : (opt.label === 'Hoje' && completedOSCounts[opt.value] > 0
-                                                        ? 'bg-white dark:bg-slate-800/40 border-green-500'
-                                                        : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5')
-                                                }
-                                            `}
-                                        >
-                                            <span className={`material-symbols-outlined text-[16px] ${completedTemporalFilter === opt.value ? 'text-primary' : 'text-slate-400'} ${opt.color}`}>{opt.icon}</span>
-                                            <p className={`text-[10px] font-bold ${completedTemporalFilter === opt.value ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{opt.label}</p>
-                                            <span className={`text-[14px] leading-none font-black ${completedTemporalFilter !== opt.value && opt.label === 'Hoje' && completedOSCounts[opt.value] > 0 ? 'text-green-500' : 'text-slate-900 dark:text-white'}`}>{completedOSCounts[opt.value]}</span>
-                                            {opt.label === 'Hoje' && completedOSCounts[opt.value] > 0 && (
-                                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                                                </span>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
+                            {isNaoProgramadasOpen && displayedUnscheduledSS.length > 0 && (
+                                <section className="py-0">
 
-                                <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                    <OrdersListPDFButton
-                                        filters={completedOSEffectiveFilters}
-                                        searchQuery={searchQuery}
-                                        totalCount={completedOS.total}
-                                        fetchData={(opts) => dataService.getCompletedOS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate })}
-                                    />
-                                    <ExcelExportButton
-                                        filters={completedOSEffectiveFilters}
-                                        searchQuery={searchQuery}
-                                        filename="relatorio-os-concluidas"
-                                        title="EXCEL"
-                                        totalCount={completedOS.total}
-                                        fetchData={(opts) => dataService.getCompletedOS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate })}
-                                    />
-                                </div>
-                            </div>
-
-                            {isOsConcluidasOpen && (
-                                completedOS.data.length > 0 ? (
-                                    <div
-                                        className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
-                                        ref={completedOSCardsScroll.ref}
-                                        onMouseDown={completedOSCardsScroll.onMouseDown}
-                                        onTouchStart={completedOSCardsScroll.onTouchStart}
-                                        onClickCapture={completedOSCardsScroll.onClickCapture}
-                                    >
-                                        {completedOS.data.map((os) => (
-                                            <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
-                                                <OrderRequestCardListItem
-                                                    order={os}
-                                                    currentUser={currentUser}
-                                                    onClick={() => onSelectOrder?.(os)}
-                                                    onSuccess={() => loadCompletedOS()}
-                                                    onEdit={onEdit}
+                                    <div className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                        ref={unscheduledSSScroll.ref}
+                                        onMouseDown={unscheduledSSScroll.onMouseDown}
+                                        onTouchStart={unscheduledSSScroll.onTouchStart}
+                                        onClickCapture={unscheduledSSScroll.onClickCapture}>
+                                        {displayedUnscheduledSS.map((ss) => (
+                                            <div key={ss.id} className="min-w-[352px] max-w-[352px] shrink-0 h-auto">
+                                                <ServiceRequestCardListItem
+                                                    order={ss}
+                                                    onClick={() => onSelectOrder?.(ss)}
+                                                    isFollowed={followedOrderIds.includes(ss.id)}
+                                                    onToggleFollow={() => toggleFollow(ss.id)}
                                                 />
                                             </div>
                                         ))}
                                     </div>
-                                ) : !isPendingCompleted ? (
-                                    <div className="w-full flex items-center justify-center py-10">
-                                        <div className="flex flex-col items-center">
-                                            <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">task_alt</span>
-                                            <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma OS concluída neste período</h3>
-                                            <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
-                                        </div>
-                                    </div>
-                                ) : null
+                                </section>
                             )}
-                        </section>
                         </div>
 
-                        
+                        <div className="mx-4 mb-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/30 p-4">
+                            <section className="py-0 mt-0">
+                                {(() => {
+                                    // Priority: selected sectors > selected status > total
+                                    // osSectorCounts is fetched with statusId but WITHOUT assetTagId,
+                                    // so sector counts already reflect the active status filter.
+                                    const osTotalCount = osAssetTagId.length > 0
+                                        ? stats.osSectorCounts
+                                            .filter(s => osAssetTagId.includes(s.id))
+                                            .reduce((acc, s) => acc + s.count, 0)
+                                        : selectedStatusId
+                                            ? (stats.openOS.find(s => s.id === selectedStatusId)?.count || 0)
+                                            : stats.openOS.reduce((acc, curr) => acc + curr.count, 0);
+
+                                    return (
+                                        <>
+                                            <div className="flex items-center gap-2 mb-2 px-1">
+                                                <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">OS's Abertas</h2>
+                                                <ChevronButton
+                                                    isOpen={isOsAbertasOpen}
+                                                    onToggle={() => setIsOsAbertasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_osAbertasOpen', JSON.stringify(next)); return next; })}
+                                                    className="shrink-0 ml-auto"
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 cursor-grab active:cursor-grabbing touch-auto w-full"
+                                                ref={openOSScroll.ref}
+                                                onMouseDown={openOSScroll.onMouseDown}
+                                                onTouchStart={openOSScroll.onTouchStart}
+                                                onClickCapture={openOSScroll.onClickCapture}>
+
+                                                <div className="flex gap-3 shrink-0">
+
+                                                    {stats.openOS.map((item, idx) => (
+                                                        <div key={idx} onClick={() => {
+                                                            const newStatusId = selectedStatusId === item.id ? null : item.id;
+                                                            setSelectedStatusId(newStatusId);
+                                                            setOsAssetTagId([]);
+                                                            setIsOsAbertasOpen(true);
+                                                            localStorage.setItem('ordersSection_osAbertasOpen', JSON.stringify(true));
+                                                            fetchData(false, true, { ...appliedFilters, statusId: newStatusId, osAssetTagId: [] });
+                                                        }}
+                                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
+                                                    ${selectedStatusId === item.id ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                    ${item.label === 'Execução' && item.count > 0 ? 'ring-2 ring-green-500/50 animate-pulse' : ''}
+                                                `}>
+                                                            <span className={`material-symbols-outlined text-[16px] ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-400'} ${item.color || ''}`}>{item.icon}</span>
+                                                            <p className={`text-[10px] font-bold ${selectedStatusId === item.id ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{item.label}</p>
+                                                            <span className={`text-[14px] leading-none font-black ${item.label === 'Execução' && item.count > 0 ? 'text-green-500' : 'text-slate-900 dark:text-white'}`}>{item.count}</span>
+                                                            {item.label === 'Execução' && item.count > 0 && (
+                                                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                                    <OrdersListPDFButton
+                                                        filters={osEffectiveFilters}
+                                                        searchQuery={searchQuery}
+                                                        totalCount={osTotalCount}
+                                                    />
+                                                    <ExcelExportButton
+                                                        filters={osEffectiveFilters}
+                                                        searchQuery={searchQuery}
+                                                        filename="relatorio-os"
+                                                        title="EXCEL"
+                                                        totalCount={osTotalCount}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+
+                                {isOsAbertasOpen && (
+                                    <>
+                                        {stats.osSectorCounts && stats.osSectorCounts.length > 0 && (
+                                            <div className="flex items-center gap-3 pb-3 min-w-0">
+                                                <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
+                                                <div
+                                                    className="flex gap-3 overflow-x-auto no-scrollbar px-1 py-1.5 cursor-grab active:cursor-grabbing touch-auto flex-1 min-w-0"
+                                                    ref={osSectorScroll.ref}
+                                                    onMouseDown={osSectorScroll.onMouseDown}
+                                                    onTouchStart={osSectorScroll.onTouchStart}
+                                                    onClickCapture={osSectorScroll.onClickCapture}
+                                                >
+                                                    {stats.osSectorCounts.map((item, idx) => {
+                                                        const isSelected = osAssetTagId.includes(item.id);
+                                                        return (
+                                                            <div
+                                                                key={idx}
+                                                                onClick={() => {
+                                                                    const newOsAssetTagId = isSelected
+                                                                        ? osAssetTagId.filter((id) => id !== item.id)
+                                                                        : [...osAssetTagId, item.id];
+                                                                    setOsAssetTagId(newOsAssetTagId);
+                                                                    fetchData(false, true, {
+                                                                        ...appliedFilters,
+                                                                        statusId: selectedStatusId,
+                                                                        osAssetTagId: newOsAssetTagId,
+                                                                    });
+                                                                }}
+                                                                className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[110px] max-w-[200px] cursor-pointer flex items-center justify-between gap-3
+                                                        ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                    `}
+                                                            >
+                                                                <p className={`text-[10px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
+                                                                    {item.label}
+                                                                </p>
+                                                                <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </section>
+
+                            {isOsAbertasOpen && displayedOpenOS.length > 0 && (
+                                <section className="py-0">
+                                    <div
+                                        className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                        ref={openOSCarouselScroll.ref}
+                                        onMouseDown={openOSCarouselScroll.onMouseDown}
+                                        onTouchStart={openOSCarouselScroll.onTouchStart}
+                                        onClickCapture={openOSCarouselScroll.onClickCapture}
+                                    >
+                                        {displayedOpenOS.length > 0 ? (
+                                            displayedOpenOS.map((os) => (
+                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                                    <OrderRequestCardListItem
+                                                        order={os}
+                                                        currentUser={currentUser}
+                                                        onClick={() => onSelectOrder?.(os)}
+                                                        onSuccess={() => fetchData(false, true)}
+                                                        onEdit={onEdit}
+                                                    />
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="w-full flex items-center justify-center py-10">
+                                                <div className="flex flex-col items-center">
+                                                    <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">inventory_2</span>
+                                                    <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma Ordem de Serviço encontrada</h3>
+                                                    <p className="text-slate-400">Tente ajustar sua busca ou filtros.</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+                            )}
+                        </div>
+
+                        {/* OS's Concluídas Section */}
+                        <div className="mx-4 mb-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30 p-4">
+                            <section className="py-0 mt-0">
+                                <div className="flex items-center gap-2 mb-2 px-1">
+                                    <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">OS's Concluídas</h2>
+                                    <ChevronButton
+                                        isOpen={isOsConcluidasOpen}
+                                        onToggle={() => setIsOsConcluidasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_osConcluidasOpen', JSON.stringify(next)); return next; })}
+                                        className="shrink-0 ml-auto"
+                                    />
+                                </div>
+                                <div
+                                    className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                    ref={completedOSScroll.ref}
+                                    onMouseDown={completedOSScroll.onMouseDown}
+                                    onTouchStart={completedOSScroll.onTouchStart}
+                                    onClickCapture={completedOSScroll.onClickCapture}
+                                >
+                                    {/* Temporal filter buttons */}
+                                    <div className="flex gap-2 shrink-0">
+                                        {([
+                                            { value: 'today' as CompletedTemporalFilter, label: 'Hoje', icon: 'today', color: 'text-primary' },
+                                            { value: 'yesterday' as CompletedTemporalFilter, label: 'Ontem', icon: 'history', color: 'text-primary' },
+                                            { value: 'thisWeek' as CompletedTemporalFilter, label: 'Esta Semana', icon: 'date_range', color: 'text-primary' },
+                                            { value: 'lastWeek' as CompletedTemporalFilter, label: 'Semana Passada', icon: 'date_range', color: 'text-primary' },
+                                            { value: 'thisMonth' as CompletedTemporalFilter, label: 'Este Mês', icon: 'calendar_month', color: 'text-primary' },
+                                            { value: 'lastMonth' as CompletedTemporalFilter, label: 'Mês Passado', icon: 'calendar_month', color: 'text-primary' },
+                                        ]).map((opt) => (
+                                            <div
+                                                key={opt.value}
+                                                onClick={() => {
+                                                    setCompletedTemporalFilter(opt.value);
+                                                    setIsOsConcluidasOpen(true);
+                                                    localStorage.setItem('ordersSection_osConcluidasOpen', JSON.stringify(true));
+                                                    fetchData(false, true, { ...appliedFilters });
+                                                }}
+                                                className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
+                                                ${completedTemporalFilter === opt.value
+                                                        ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900'
+                                                        : (opt.label === 'Hoje' && completedOSCounts[opt.value] > 0
+                                                            ? 'bg-white dark:bg-slate-800/40 border-green-500'
+                                                            : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5')
+                                                    }
+                                            `}
+                                            >
+                                                <span className={`material-symbols-outlined text-[16px] ${completedTemporalFilter === opt.value ? 'text-primary' : 'text-slate-400'} ${opt.color}`}>{opt.icon}</span>
+                                                <p className={`text-[10px] font-bold ${completedTemporalFilter === opt.value ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{opt.label}</p>
+                                                <span className={`text-[14px] leading-none font-black ${completedTemporalFilter !== opt.value && opt.label === 'Hoje' && completedOSCounts[opt.value] > 0 ? 'text-green-500' : 'text-slate-900 dark:text-white'}`}>{completedOSCounts[opt.value]}</span>
+                                                {opt.label === 'Hoje' && completedOSCounts[opt.value] > 0 && (
+                                                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                        <OrdersListPDFButton
+                                            filters={completedOSEffectiveFilters}
+                                            searchQuery={searchQuery}
+                                            totalCount={completedOS.total}
+                                            fetchData={(opts) => dataService.getCompletedOS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate })}
+                                        />
+                                        <ExcelExportButton
+                                            filters={completedOSEffectiveFilters}
+                                            searchQuery={searchQuery}
+                                            filename="relatorio-os-concluidas"
+                                            title="EXCEL"
+                                            totalCount={completedOS.total}
+                                            fetchData={(opts) => dataService.getCompletedOS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate })}
+                                        />
+                                    </div>
+                                </div>
+
+                                {isOsConcluidasOpen && (
+                                    completedOS.data.length > 0 ? (
+                                        <div
+                                            className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                            ref={completedOSCardsScroll.ref}
+                                            onMouseDown={completedOSCardsScroll.onMouseDown}
+                                            onTouchStart={completedOSCardsScroll.onTouchStart}
+                                            onClickCapture={completedOSCardsScroll.onClickCapture}
+                                        >
+                                            {completedOS.data.map((os) => (
+                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                                    <OrderRequestCardListItem
+                                                        order={os}
+                                                        currentUser={currentUser}
+                                                        onClick={() => onSelectOrder?.(os)}
+                                                        onSuccess={() => loadCompletedOS()}
+                                                        onEdit={onEdit}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : !isPendingCompleted ? (
+                                        <div className="w-full flex items-center justify-center py-10">
+                                            <div className="flex flex-col items-center">
+                                                <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">task_alt</span>
+                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma OS concluída neste período</h3>
+                                                <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
+                                            </div>
+                                        </div>
+                                    ) : null
+                                )}
+                            </section>
+                        </div>
+
+
                     </div>
-
-
 
                 </>
             )}
 
             {/* Floating Action Button + Busca — fixos à direita inferior */}
             {activeTab === 'OS' && (
-                <div className="fixed bottom-24 md:bottom-6 right-6 z-50 flex items-center gap-3">
-                    <form onSubmit={handleQuickSearch} className="relative group">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
-                            <span className="material-symbols-outlined text-[20px]">search</span>
-                        </span>
+                <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-50 flex items-center gap-3">
+                    <form onSubmit={handleQuickSearch} className="relative group flex items-center">
                         <input
                             type="text"
                             value={quickSearchValue}
                             onChange={(e) => setQuickSearchValue(e.target.value)}
                             placeholder="Buscar SS/OS"
-                            className="block w-48 lg:w-56 h-12 pl-10 pr-4 text-sm rounded-[12px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm outline-none transition-all"
+                            className="block w-40 lg:w-48 h-12 pl-3.5 pr-10 text-sm rounded-[12px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm outline-none transition-all"
                         />
-                        {quickSearchValue.trim() && (
-                            <button
-                                type="submit"
-                                disabled={isSearchingQuickly}
-                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
-                            >
-                                <span className={`material-symbols-outlined text-[18px] ${isSearchingQuickly ? 'animate-spin' : ''}`}>
-                                    {isSearchingQuickly ? 'progress_activity' : 'arrow_forward'}
-                                </span>
-                            </button>
-                        )}
+                        <button
+                            type="submit"
+                            disabled={isSearchingQuickly || !quickSearchValue.trim()}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-primary transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                            title="Pesquisar SS/OS"
+                        >
+                            <span className={`material-symbols-outlined text-[20px] ${isSearchingQuickly ? 'animate-spin' : ''}`}>
+                                {isSearchingQuickly ? 'progress_activity' : 'search'}
+                            </span>
+                        </button>
                     </form>
 
                     <button
@@ -1699,4 +1693,3 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         </div>
     );
 };
-

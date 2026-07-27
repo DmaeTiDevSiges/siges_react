@@ -470,5 +470,4 @@ export function convertFlowFile(inputPath: string, outDir: string = 'flows/gener
     try { require('fs').mkdirSync(outputDir, { recursive: true }); } catch (e) { }
     writeFileSync(path.join(outputDir, `${baseName}.ts`), ts);
     writeFileSync(path.join(outputDir, `${baseName}.md`), md);
-    console.log(`Generated ${baseName}.ts and ${baseName}.md in ${outputDir}`);
 }

@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { r2Service } from '../r2Service';
-import type { Order, User, OrderFilters, SuspendedReason, CauseReason, ServiceHistoryItem } from '../../types';
+import type { Order, User, OrderFilters, SuspendedReason, CauseReason, ServiceHistoryItem, AssetAlert } from '../../types';
 import { getPublicImageUrl } from '../imageUtils';
 import { usersService } from '../users/usersService';
 
@@ -24,8 +24,6 @@ export const ordersService = {
         
         try {
             const numericId = typeof unitAssetTagId === 'string' ? parseInt(unitAssetTagId) : unitAssetTagId;
-            console.log('Querying active orders for ID:', numericId);
-            
             const { data, error } = await supabase
                 .from('v_orders')
                 .select('id, order_mask, status_id, status_description, status_at, requested_services, requested_at, unit_asset_tag_id, unit_asset_tag_has_order, parent_id')
@@ -2640,6 +2638,128 @@ export const ordersService = {
         }
 
         return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+
+    async linkAlertsToOrder(orderId: string, alertIds: string[]): Promise<void> {
+        if (!alertIds || alertIds.length === 0) return;
+
+        const { error } = await supabase
+            .from('assets_alerts')
+            .update({ o_id: parseInt(orderId) })
+            .in('id', alertIds.map(id => parseInt(id)));
+
+        if (error) {
+            console.error('Error linking alerts to order:', error);
+            throw error;
+        }
+    },
+
+    async unlinkAlertFromOrder(orderId: string, alertId: string): Promise<void> {
+        const { error } = await supabase
+            .from('assets_alerts')
+            .update({ o_id: null })
+            .eq('id', parseInt(alertId))
+            .eq('o_id', parseInt(orderId));
+
+        if (error) {
+            console.error('Error unlinking alert from order:', error);
+            throw error;
+        }
+    },
+
+    async getAlertsByOrderId(orderId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('assets_alerts')
+            .select('id')
+            .eq('o_id', parseInt(orderId))
+            .eq('is_deleted', false);
+
+        if (error || !data || data.length === 0) {
+            return [];
+        }
+
+        return data.map(r => r.id?.toString()).filter(Boolean);
+    },
+
+    async getAlertDetailsByOrderId(orderId: string): Promise<AssetAlert[]> {
+        const { data: alertsData, error: alertsError } = await supabase
+            .from('assets_alerts')
+            .select(`
+                *,
+                cfg_orders_types!assets_alerts_o_type_id_fkey ( description ),
+                cfg_orders_priorities!assets_alerts_priority_id_fkey ( description, color ),
+                orders!left ( id, order_mask )
+            `)
+            .eq('o_id', parseInt(orderId))
+            .eq('is_deleted', false);
+
+        if (alertsError || !alertsData || alertsData.length === 0) {
+            return [];
+        }
+
+        const enrichedAssetIds = [...new Set(alertsData.map((d: any) => d.asset_id).filter(Boolean))];
+
+        let assetsMap = new Map<string, any>();
+        if (enrichedAssetIds.length > 0) {
+            const { data: assetsDataList } = await supabase
+                .from('v_assets')
+                .select('*')
+                .in('id', enrichedAssetIds);
+
+            if (assetsDataList) {
+                assetsMap = new Map(assetsDataList.map((a: any) => [a.id.toString(), a]));
+
+                const unitIds = [...new Set(assetsDataList.map((a: any) => a.unit_id).filter(Boolean))];
+                if (unitIds.length > 0) {
+                    const { data: unitsData } = await supabase
+                        .from('v_units')
+                        .select('id, client_name')
+                        .in('id', unitIds);
+
+                    if (unitsData) {
+                        unitsData.forEach((u: any) => {
+                            for (const a of assetsDataList) {
+                                if (a.unit_id?.toString() === u.id?.toString()) {
+                                    a.injected_client_name = u.client_name;
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        return alertsData.map((d: any) => {
+            const assetIdStr = d.asset_id?.toString();
+            const asset = assetIdStr ? assetsMap.get(assetIdStr) : null;
+
+            return {
+                id: d.id.toString(),
+                assetId: d.asset_id?.toString(),
+                assetDescription: asset?.description,
+                assetCode: asset?.code,
+                assetStatusName: asset?.status_code || '',
+                assetStatusColor: asset?.status_color || '',
+                clientName: asset?.injected_client_name || asset?.client_name || asset?.client_description || '',
+                unitDescription: asset?.unit_description_full || asset?.unit_description || asset?.description_full || '',
+                tagName: asset?.tag_name || asset?.tag_description || asset?.asset_tag_description || asset?.unit_asset_tag_description || '',
+                tagSubName: asset?.tag_sub_name || asset?.tag_sub_description || asset?.asset_tag_sub_description || asset?.unit_asset_tag_sub_description || '',
+                imgFilePath: asset?.img_file_path,
+                imgFileName: asset?.img_file_name,
+                oTypeId: d.o_type_id?.toString(),
+                orderTypeName: d.cfg_orders_types?.description,
+                priorityId: d.priority_id?.toString(),
+                priorityName: d.cfg_orders_priorities?.description,
+                priorityColor: d.cfg_orders_priorities?.color,
+                description: d.description,
+                isDone: d.is_done,
+                ovaId: d.ova_id?.toString(),
+                createdAt: d.created_at,
+                createdUserId: d.created_user_id?.toString(),
+                orderId: d.orders?.id?.toString() || null,
+                orderMask: d.orders?.order_mask || null
+            };
+        }) as AssetAlert[];
     }
 
 };

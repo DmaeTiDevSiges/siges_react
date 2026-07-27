@@ -214,10 +214,6 @@ const _logDiag = () => {
     const key  = import.meta.env.VITE_IMGPROXY_KEY;
     const salt = import.meta.env.VITE_IMGPROXY_SALT;
     console.group('[imgproxyService] Diagnóstico de configuração');
-    console.log('  VITE_IMGPROXY_URL :', url  ? `✅ ${url}`                : '❌ NÃO DEFINIDO');
-    console.log('  VITE_IMGPROXY_KEY :', key  ? `✅ (${key.length} chars)` : '❌ NÃO DEFINIDO');
-    console.log('  VITE_IMGPROXY_SALT:', salt ? `✅ (${salt.length} chars)`: '❌ NÃO DEFINIDO');
-    console.log('  Status geral      :', (url && key && salt) ? '✅ Configurado' : '⚠️  Desativado (fallback ativo)');
     console.groupEnd();
 };
 

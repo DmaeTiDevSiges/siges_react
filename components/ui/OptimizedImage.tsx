@@ -61,7 +61,6 @@ const OptimizedImageBase: React.FC<OptimizedImageProps> = ({
     const handleLoad = () => {
         if (shouldOptimize) {
             // Sucesso via imgproxy — reseta contador de falhas
-            console.log('[OptimizedImage] ✅ Carregada com sucesso via imgproxy:', optimizedSrc);
             imgproxyService.reportServiceSuccess();
         }
         setIsLoading(false);

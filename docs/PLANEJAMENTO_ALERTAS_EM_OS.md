@@ -43,8 +43,8 @@ O campo `unitAssetTagId` selecionado no form aponta para um registro em `cfg_uni
 - `asset_tag_sub_id` → **Posição** (FK para `cfg_assets_tags_subs.id`)
 
 Para buscar alertas de **mesmo setor, desconsiderando posição**, devemos:
-1. Buscar `cfg_units_assets_tags.asset_tag_id` a partir do `unitAssetTagId` selecionado → obtém o **sectorId**
-2. Filtrar ativos por `assets.tag_id = sectorId` (campo direto na tabela `assets`, sem usar `unit_asset_tag_id`)
+1. Buscar `cfg_units_assets_tags.asset_tag_id` e `unit_id` a partir do `unitAssetTagId` selecionado → obtém o **sectorId** e o **unitId**
+2. Filtrar ativos por `assets.tag_id = sectorId` E `assets.unit_id = unitId` (campos diretos na tabela `assets`, sem usar `unit_asset_tag_id`)
 
 **Não** filtrar por `assets.unit_asset_tag_id` porque isso exigiria mesma posição também.
 
@@ -56,18 +56,21 @@ Para buscar alertas de **mesmo setor, desconsiderando posição**, devemos:
 | Não Deletado | `assets_alerts.is_deleted` | = | `false` | Excluir alertas deletados |
 | Mesmo Tipo OS | `assets_alerts.o_type_id` | = | `formData.orderTypeId` | Tipo do alerta = Tipo da OS |
 | Mesmo Setor | `assets.tag_id` | = | `sectorId` | **Desconsiderar posição** |
+| Mesma Unidade | `assets.unit_id` | = | `unitId` | Ativos lotados na mesma unidade |
 
 ### Fluxo de Busca (Supabase)
 
 ```
-1. Resolver o setor a partir do unitAssetTagId selecionado:
-   SELECT asset_tag_id FROM cfg_units_assets_tags 
+1. Resolver o setor E a unidade a partir do unitAssetTagId selecionado:
+   SELECT asset_tag_id, unit_id FROM cfg_units_assets_tags 
    WHERE id = {unitAssetTagId}
    → sectorId = result.asset_tag_id
+   → unitId = result.unit_id
 
-2. Buscar IDs dos ativos do mesmo setor (desconsiderando posição):
+2. Buscar IDs dos ativos do mesmo setor E mesma unidade (desconsiderando posição):
    SELECT id FROM assets 
    WHERE tag_id = {sectorId}
+     AND unit_id = {unitId}
      AND is_deleted = false
 
 3. Buscar alertas abertos desses ativos com mesmo tipo de OS:
@@ -100,9 +103,17 @@ cfg_assets_tags (SECTORS)
 cfg_units_assets_tags (JUNCTION)
 ┌──────────────────────────┐
 │ id          (PK)         │ ← unitAssetTagId selecionado no form
-│ unit_id      (FK→units)  │
+│ unit_id      (FK→units)  │ ← RESOLVER ESTE CAMPO para obter unitId
 │ asset_tag_id (FK→sector) │ ← RESOLVER ESTE CAMPO para obter sectorId
 │ asset_tag_sub_id (FK→pos)│ ← IGNORADO neste filtro
+└──────────────────────────┘
+
+assets (ATIVOS)
+┌──────────────────────────┐
+│ id          (PK)         │
+│ tag_id      (FK→sector)  │ ← FILTRO: mesmo setor (sectorId)
+│ unit_id     (FK→units)   │ ← FILTRO: mesma unidade (unitId)
+│ is_deleted  (bool)       │ ← FILTRO: false
 └──────────────────────────┘
 ```
 
@@ -214,7 +225,7 @@ Nova função para buscar alertas por setor (desconsiderando posição) e tipo:
 
 ```typescript
 /**
- * Busca alertas abertos por setor (desconsiderando posição) e tipo de OS
+ * Busca alertas abertos por setor (desconsiderando posição), mesma unidade e tipo de OS
  * Usado na etapa de seleção de alertas do wizard de criação de OS
  * 
  * @param unitAssetTagId - ID do registro em cfg_units_assets_tags (selecionado no form)
@@ -224,26 +235,28 @@ async getOpenAlertsBySectorAndType(
     unitAssetTagId: string, 
     orderTypeId: string
 ): Promise<AssetAlert[]> {
-    // 1. Resolver o setor a partir do unitAssetTagId
-    //    (unitAssetTagId → cfg_units_assets_tags.asset_tag_id = sectorId)
+    // 1. Resolver o setor E a unidade a partir do unitAssetTagId
+    //    (unitAssetTagId → cfg_units_assets_tags.asset_tag_id = sectorId, unit_id = unitId)
     const { data: tagData, error: tagError } = await supabase
         .from('cfg_units_assets_tags')
-        .select('asset_tag_id')
+        .select('asset_tag_id, unit_id')
         .eq('id', parseInt(unitAssetTagId))
         .single();
 
-    if (tagError || !tagData?.asset_tag_id) {
+    if (tagError || !tagData?.asset_tag_id || !tagData?.unit_id) {
         return [];
     }
 
     const sectorId = tagData.asset_tag_id;
+    const unitId = tagData.unit_id;
 
-    // 2. Buscar IDs dos ativos do mesmo setor (desconsiderando posição)
-    //    assets.tag_id = sectorId (campo direto na tabela assets)
+    // 2. Buscar IDs dos ativos do mesmo setor E mesma unidade (desconsiderando posição)
+    //    assets.tag_id = sectorId AND assets.unit_id = unitId
     const { data: assets, error: assetsError } = await supabase
         .from('assets')
         .select('id')
         .eq('tag_id', sectorId)
+        .eq('unit_id', unitId)
         .eq('is_deleted', false);
 
     if (assetsError || !assets || assets.length === 0) {
@@ -253,12 +266,17 @@ async getOpenAlertsBySectorAndType(
     const assetIds = assets.map(a => a.id);
 
     // 3. Buscar alertas abertos desses ativos com mesmo tipo de OS
+    //    JOIN com orders_alerts + orders para saber se já está vinculado a outra OS
     const { data: alertsData, error: alertsError } = await supabase
         .from('assets_alerts')
         .select(`
             *,
             cfg_orders_types ( description ),
-            cfg_orders_priorities ( description, color )
+            cfg_orders_priorities ( description, color ),
+            orders_alerts!left (
+                order_id,
+                orders ( id, order_mask )
+            )
         `)
         .in('asset_id', assetIds)
         .eq('o_type_id', parseInt(orderTypeId))
@@ -309,6 +327,11 @@ async getOpenAlertsBySectorAndType(
         const assetIdStr = d.asset_id?.toString();
         const asset = assetIdStr ? assetsMap.get(assetIdStr) : null;
 
+        // Extrair info da OS vinculada (se existir)
+        const linkedOrder = d.orders_alerts?.[0]?.orders;
+        const orderId = linkedOrder?.id?.toString() || null;
+        const orderMask = linkedOrder?.order_mask || null;
+
         return {
             id: d.id.toString(),
             assetId: d.asset_id?.toString(),
@@ -329,7 +352,9 @@ async getOpenAlertsBySectorAndType(
             isDone: d.is_done,
             ovaId: d.ova_id?.toString(),
             createdAt: d.created_at,
-            createdUserId: d.created_user_id?.toString()
+            createdUserId: d.created_user_id?.toString(),
+            orderId: orderId,
+            orderMask: orderMask
         };
     }) as AssetAlert[];
 }
@@ -475,20 +500,24 @@ interface OrderAlertCardProps {
 │                                                             │
 │ Descricao do alerta...                                     │
 │                                                             │
-│ OS: 123.0.2026 (se vinculado)                             │
+│ OS: 123.0.2026 (se vinculado → badge azul)                │
 │                                                             │
 │ 25/07/2026 14:30                                           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **Elementos visuais:**
-- Checkbox no topo-esquerda para seleção
+- Checkbox no topo-esquerda para seleção (**desabilitado** se alerta já vinculado a outra OS)
 - Badge com código do ativo (cor do status)
 - Badge "Aberto" (vermelho)
 - Badges de prioridade e tipo de OS
 - Descrição do alerta
-- Se tiver OS vinculada: badge azul com `orderMask`
+- Se tiver OS vinculada: badge azul com `orderMask` + checkbox desabilitado
 - Data de criação
+
+**Regra de seleção:**
+- Se `alert.orderId` existir → alerta já vinculado a outra OS → checkbox desabilitado + tooltip "Já vinculado à OS {orderMask}"
+- Se `alert.orderId` for nulo → alerta disponível para vinculação
 
 ### 6.2 Alterações em `OrderRequestForm.tsx`
 
@@ -510,8 +539,8 @@ useEffect(() => {
         if (formData.unitAssetTagId && formData.orderTypeId) {
             setLoadingAlerts(true);
             try {
-                // A função internamente resolve unitAssetTagId → sectorId (asset_tag_id)
-                // e busca ativos com assets.tag_id = sectorId (desconsiderando posição)
+                // A função internamente resolve unitAssetTagId → sectorId (asset_tag_id) + unitId (unit_id)
+                // e busca ativos com assets.tag_id = sectorId AND assets.unit_id = unitId (desconsiderando posição)
                 const alerts = await dataService.getOpenAlertsBySectorAndType(
                     formData.unitAssetTagId,
                     formData.orderTypeId
@@ -558,6 +587,13 @@ const handlePrev = () => {
 
 ```typescript
 const toggleAlertSelection = (alertId: string) => {
+    // Verificar se o alerta já está vinculado a outra OS
+    const alert = availableAlerts.find(a => a.id === alertId);
+    if (alert?.orderId) {
+        toast.warning(`Este alerta já está vinculado à OS ${alert.orderMask}`);
+        return;
+    }
+    
     setSelectedAlertIds(prev => 
         prev.includes(alertId)
             ? prev.filter(id => id !== alertId)
@@ -844,7 +880,9 @@ Quando um alerta já estiver vinculado a uma OS (via `orders_alerts`), o campo `
 |-------|--------|-----------|-------------|
 | `unitAssetTagId` | `cfg_units_assets_tags.id` | Registro composto (unidade + setor + posição) | Selecionado no dropdown "Setor > Posição" |
 | `asset_tag_id` | `cfg_units_assets_tags.asset_tag_id` | FK para o setor (derivado do `unitAssetTagId`) | Usado para filtrar por setor |
+| `unit_id` | `cfg_units_assets_tags.unit_id` | FK para a unidade (derivado do `unitAssetTagId`) | Usado para filtrar por unidade |
 | `tag_id` | `assets.tag_id` | FK para o setor (armazenado no ativo) | Usado para buscar ativos do mesmo setor |
+| `unit_id` | `assets.unit_id` | FK para a unidade (armazenada no ativo) | Usado para buscar ativos da mesma unidade |
 
 **Fluxo de resolução:**
 ```
@@ -852,11 +890,12 @@ Usuário seleciona "Setor > Posição" no form
     ↓
 formData.unitAssetTagId = cfg_units_assets_tags.id
     ↓
-Busca: SELECT asset_tag_id FROM cfg_units_assets_tags WHERE id = {unitAssetTagId}
+Busca: SELECT asset_tag_id, unit_id FROM cfg_units_assets_tags WHERE id = {unitAssetTagId}
     ↓
 sectorId = asset_tag_id (o setor, sem a posição)
+unitId = unit_id (a unidade)
     ↓
-Busca alertas: assets.tag_id = {sectorId}
+Busca alertas: assets.tag_id = {sectorId} AND assets.unit_id = {unitId}
 ```
 
 ### Por que não usar `unitAssetTagId` diretamente?

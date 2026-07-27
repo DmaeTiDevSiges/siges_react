@@ -357,7 +357,7 @@ export const technicalManualsService = {
 
         return data.map((item: any) => {
             const asset = assetMap.get(item.asset_id.toString());
-            const unit = asset?.unit_id ? unitsMap.get(asset.unit_id.toString()) : null;
+            const unit = asset?.unit_id ? unitsMap.get(asset.unit_id.toString()) as any : null;
             return {
                 id: item.id.toString(),
                 tmId: item.tm_id.toString(),
@@ -476,7 +476,7 @@ export const technicalManualsService = {
         const vAssetsMap = new Map(vAssets?.map((v: any) => [v.id.toString(), v]) || []);
 
         return data.map((item: any) => {
-            const vAsset = vAssetsMap.get(item.id.toString());
+            const vAsset = vAssetsMap.get(item.id.toString()) as any;
             return {
                 id: item.id.toString(),
                 code: item.code,

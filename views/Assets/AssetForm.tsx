@@ -383,18 +383,15 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
 
     useEffect(() => {
         if (assetTypes.length === 0) {
-            console.log('AssetForm: assetTypes is empty, skipping auto-desc');
             return;
         }
 
         const selectedType = assetTypes.find(t => t.id === formData.typeId);
         if (!selectedType) {
-            console.log('AssetForm: typeId not selected, skipping auto-desc');
             return;
         }
 
         const pattern = selectedType.namingPattern || '{type} {brand} {model}';
-        console.log('AssetForm: Using pattern:', pattern);
 
         // Context for replacement
         const context: Record<string, string> = {
@@ -431,7 +428,6 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
 
         // Clean up double spaces and trailing separators
         generatedDesc = generatedDesc.replace(/\s+/g, ' ').trim();
-        console.log('AssetForm: Generated:', generatedDesc);
 
         if (!generatedDesc) return;
 
@@ -440,7 +436,6 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
         setFormData(prev => {
             // Só atualizamos se a descrição gerada for diferente da atual
             if (prev.description !== generatedDesc) {
-                console.log('AssetForm: Syncing description to:', generatedDesc);
                 return { ...prev, description: generatedDesc };
             }
             return prev;
@@ -457,16 +452,12 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
             }
 
             try {
-                console.log('Loading attributes for typeId:', formData.typeId);
                 const attrs = await dataService.getAssetAttributesByType(formData.typeId);
-                console.log('Fetched attributes:', attrs);
                 setAttributes(attrs);
 
                 // Load existing values if editing
                 if (initialAsset?.id) {
-                    console.log('Loading values for assetId:', initialAsset.id);
                     const values = await dataService.getAssetAttributeValues(initialAsset.id);
-                    console.log('Fetched values:', values);
                     setAttributeValues(values);
                 } else {
                     setAttributeValues({});
@@ -638,7 +629,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
 
     if (!hasAccess) {
         return (
-            <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-background-light dark:bg-slate-950">
+            <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-background-light dark:bg-background-dark">
                 <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-6 text-red-500">
                     <span className="material-symbols-outlined text-[40px]">lock</span>
                 </div>
@@ -657,7 +648,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
     }
 
     return (
-        <div className="flex flex-col h-full bg-background-light dark:bg-slate-950 relative">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark relative">
             {/* Top Loading Bar */}
             {isSaving && (
                 <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500/20 z-50 overflow-hidden">

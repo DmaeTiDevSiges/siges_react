@@ -92,7 +92,7 @@ export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ 
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 animate-in fade-in duration-500 overflow-y-auto pb-32">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark animate-in fade-in duration-500 overflow-y-auto pb-32">
             {/* Hero Section */}
             <div className="relative h-48 w-full shrink-0 overflow-hidden">
                 <div className="absolute inset-0 bg-slate-900/60 z-10"></div>
@@ -124,7 +124,6 @@ export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ 
                                 <button 
                                     type="button"
                                     onPointerDown={(e) => {
-                                        console.log('[MENU] onPointerDown em Editar');
                                         e.preventDefault();
                                         e.stopPropagation();
                                         e.nativeEvent.stopPropagation();
@@ -139,17 +138,14 @@ export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ 
                                 <button 
                                     type="button"
                                     onPointerDown={async (e) => {
-                                        console.log('[MENU] onPointerDown em Duplicar');
                                         e.preventDefault();
                                         e.stopPropagation();
                                         e.nativeEvent.stopPropagation();
                                         if (duplicating) return;
                                         setShowMenu(false);
                                         setDuplicating(true);
-                                        console.log('[MENU] chamando onDuplicate...');
                                         try {
                                             await onDuplicate();
-                                            console.log('[MENU] onDuplicate concluiu');
                                         } catch (err) {
                                             console.error('[MENU] Erro:', err);
                                         } finally {

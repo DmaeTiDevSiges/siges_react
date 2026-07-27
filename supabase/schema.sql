@@ -2671,6 +2671,19 @@ create index IF not exists idx_orders_visits_vehicles_ov_id on public.orders_vis
 create index IF not exists idx_orders_visits_assets_processing_id on public.orders_visits_assets using btree (processing_id) TABLESPACE pg_default;
 create index IF not exists idx_orders_visits_assets_asset_id on public.orders_visits_assets using btree (asset_id) TABLESPACE pg_default;
 
+-- Performance Optimization Indexes for SIGES Dashboards and Search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS idx_orders_visits_status_started ON public.orders_visits (ov_status_id, ov_started_at DESC) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_orders_visits_leader_status ON public.orders_visits (ov_team_leader_id, ov_status_id) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_orders_provider_status_date ON public.orders (provider_company_id, status_id, requested_at DESC) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_orders_unit_contract ON public.orders (unit_id, contract_id);
+CREATE INDEX IF NOT EXISTS idx_ov_assets_ov_processing ON public.orders_visits_assets (ov_id, processing_id);
+CREATE INDEX IF NOT EXISTS idx_trgm_orders_visits_ov_mask ON public.orders_visits USING gin (ov_mask gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_trgm_units_description ON public.units USING gin (description gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_assets_alerts_done_created ON public.assets_alerts (is_done, created_at DESC) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_assets_alerts_asset_id ON public.assets_alerts (asset_id);
+
+
 -- Triggers
 create trigger trg_set_ov_started_date_parts BEFORE INSERT
 or
@@ -2716,18 +2729,26 @@ CREATE TABLE IF NOT EXISTS public.assets_alerts (
     description text,
     is_done boolean DEFAULT false,
     ova_id bigint,
+    o_id bigint,
     created_user_id bigint,
     created_at timestamp DEFAULT now(),
     updated_user_id bigint,
     updated_at timestamp,
     is_deleted boolean DEFAULT false,
     deleted_user_id bigint,
-    deleted_at timestamp
+    deleted_at timestamp,
+    CONSTRAINT fk_assets_alerts_order FOREIGN KEY (o_id)
+        REFERENCES public.orders(id) ON DELETE SET NULL,
+    CONSTRAINT assets_alerts_o_type_id_fkey FOREIGN KEY (o_type_id)
+        REFERENCES public.cfg_orders_types(id) ON DELETE SET NULL,
+    CONSTRAINT assets_alerts_priority_id_fkey FOREIGN KEY (priority_id)
+        REFERENCES public.cfg_orders_priorities(id) ON DELETE SET NULL
 );
 
 -- Indexes (add based on your query patterns):
 CREATE INDEX IF NOT EXISTS idx_assets_alerts_asset_id ON public.assets_alerts(asset_id);
 CREATE INDEX IF NOT EXISTS idx_assets_alerts_ova_id ON public.assets_alerts(ova_id);
+CREATE INDEX IF NOT EXISTS idx_assets_alerts_o_id ON public.assets_alerts(o_id);
 CREATE INDEX IF NOT EXISTS idx_assets_alerts_is_done_deleted ON public.assets_alerts(is_done, is_deleted);
 
 -- =============================================================================

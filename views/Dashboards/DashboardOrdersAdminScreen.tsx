@@ -146,7 +146,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         (currentUser as any)?.is_ov_in_progress === 'true';
 
     return (
-        <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 bg-slate-50 dark:bg-slate-900 safe-area-bottom">
+        <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 bg-background-light dark:bg-background-dark safe-area-bottom">
             {/* Navigation Tabs */}
             <TabsBar tabs={['Serviços', 'Visitas']} activeTab={activeTab === 'services' ? 'Serviços' : 'Visitas'} onTabChange={(tab) => handleTabChange(tab === 'Serviços' ? 'services' : 'visits')} />
 
@@ -202,7 +202,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 pb-24">
+                    <div className="flex flex-col h-full bg-background-light dark:bg-background-dark pb-24">
                         {isInProgress && (
                             <div className="px-4 pt-4 pb-2">
                                 <div className="bg-red-500 rounded-[16px] p-4 shadow-lg shadow-red-500/20 text-white relative overflow-hidden group cursor-pointer" onClick={() => onResumeVisit?.(currentUser?.ovIdInProgress?.toString() || '')}>

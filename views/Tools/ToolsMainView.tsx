@@ -20,7 +20,7 @@ export const ToolsMainView: React.FC<ToolsMainViewProps> = ({ companyId }) => {
     ];
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
             {/* Page Header */}
             <div className="px-4 pt-5 pb-3 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
 

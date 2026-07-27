@@ -718,7 +718,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                 {onAdd && canCreate('units') && (
                     <button
                         onClick={onAdd}
-                        className="fixed bottom-32 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-all z-20"
+                        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-all z-20"
                     >
                         <span className="material-symbols-outlined text-3xl font-bold">add</span>
                     </button>

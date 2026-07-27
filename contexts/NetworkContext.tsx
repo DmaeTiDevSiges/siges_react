@@ -35,7 +35,6 @@ export const NetworkProvider: React.FC<{ children: ReactNode }> = ({ children })
       try {
         await networkService.initialize();
         const currentStatus = networkService.getStatus();
-        console.log('[NetworkContext] Initialized with status:', currentStatus);
         setStatus(currentStatus);
         setIsLoading(false);
       } catch (error) {
@@ -48,7 +47,6 @@ export const NetworkProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     // Subscribe to network changes
     const unsubscribe = networkService.subscribe((newStatus) => {
-      console.log('[NetworkContext] Status changed:', newStatus);
       setStatus(newStatus);
     });
 

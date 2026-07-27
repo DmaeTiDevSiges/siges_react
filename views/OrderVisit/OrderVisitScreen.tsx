@@ -498,7 +498,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
 
     if (loading) {
         return (
-            <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
+            <div className="h-screen w-full flex flex-col items-center justify-center bg-background-light dark:bg-background-dark">
                 <Loading size="md" />
                 <p className="text-slate-500 font-bold animate-pulse">CARREGANDO VISITA...</p>
             </div>
@@ -507,7 +507,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
 
     if (!visit) {
         return (
-            <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-6">
+            <div className="h-screen w-full flex flex-col items-center justify-center bg-background-light dark:bg-background-dark p-6">
                 <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">error_outline</span>
                 <p className="text-slate-500 font-bold mb-6">Visita não encontrada ou processada.</p>
                 <button
@@ -665,13 +665,13 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
+        <div className="flex flex-col h-full bg-background-light dark:bg-background-dark text-slate-900 dark:text-white">
             {activeTab === 'chat' ? (
-                <div className={`flex-1 min-h-0 overflow-hidden ${isKeyboardVisible ? '' : 'pb-[calc(5.75rem+env(safe-area-inset-bottom))]'}`}>
+                <div className="flex-1 min-h-0 overflow-hidden flex flex-col pb-[calc(5rem+env(safe-area-inset-bottom))]">
                     {renderTabContent()}
                 </div>
             ) : (
-                <KeyboardAwareScrollView className="p-4 pb-[calc(8rem+env(safe-area-inset-bottom))] md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
+                <KeyboardAwareScrollView className="flex-1 p-4 pb-[calc(8rem+env(safe-area-inset-bottom))] md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
                     {renderTabContent()}
                 </KeyboardAwareScrollView>
             )}
@@ -714,7 +714,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                     label: 'Entendido',
                     icon: 'check',
                     onClick: () => setIsMissingSignatureModalOpen(false),
-                    variant: 'warning'
+                    variant: 'primary'
                 }}
                 secondaryAction={undefined}
             />

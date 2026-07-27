@@ -15,7 +15,6 @@ export interface ManusImageClassification {
 export class ManusIntegrationService {
 
   static async fetchVisits(orderMask: string): Promise<ManusVisit[]> {
-    console.log(`Buscando visitas no Manus para OS: ${orderMask}`);
     const url = `https://manus.app.br/version-live/api/1.1/wf/api_siges_orders_visits?CustomerDoc=${orderMask}`;
     try {
       const response = await fetch(url, {
@@ -32,8 +31,6 @@ export class ManusIntegrationService {
       
       // Get raw text to inspect and fix malformed JSON
       const rawText = await response.text();
-      console.log("=== MANUS API DEBUG ===");
-      console.log("Raw Response Length:", rawText.length);
 
       // Try to parse JSON, with fallback for malformed responses
       let data: any = [];
@@ -57,15 +54,12 @@ export class ManusIntegrationService {
             .replace(/,\s*([\]}])/g, '$1');
           
           data = JSON.parse(fixedText);
-          console.log("Successfully fixed Manus JSON and parsed");
         } catch (e) {
           console.error("All JSON parsing attempts failed, returning empty array");
           console.error("Raw response (last 1000 chars):", rawText.substring(Math.max(0, rawText.length - 1000)));
           data = [];
         }
       }
-
-      console.log("Manus API Parsed Response (visits count):", Array.isArray(data) ? data.length : typeof data);
 
       let manusVisits: ManusVisit[] = [];
       if (Array.isArray(data)) {
@@ -87,7 +81,6 @@ export class ManusIntegrationService {
 
         if (!syncError && existingVisits && existingVisits.length > 0) {
           const existingFingerprints = new Set(existingVisits.map(v => v.finger_print));
-          console.log(`Filtradas ${existingVisits.length} visitas já importadas.`);
           manusVisits = manusVisits.filter(v => !existingFingerprints.has(v.UniqueId));
         }
       }
@@ -101,7 +94,6 @@ export class ManusIntegrationService {
         }));
       }
 
-      console.log(`Retornando ${manusVisits.length} novas visitas encontradas.`);
       return manusVisits;
     } catch (error) {
       console.error("Error fetching Manus visits", error);
@@ -275,7 +267,6 @@ export class ManusIntegrationService {
     userId: string,
     selectedClassifications?: ManusImageClassification[]
   ): Promise<string | null> {
-    console.log("Iniciando processamento de importação da visita:", visit);
     const now = getBrazilTimestamp();
     const totalAmountAssets = (visit.Reports || []).length;
 
@@ -402,7 +393,6 @@ export class ManusIntegrationService {
 
         // Requirement: scan only Reports.Images
         const rawImages = rep.Images || [];
-        console.log(`Processando ${rawImages.length} imagens para o ativo ${assetId}`);
 
         for (let iIdx = 0; iIdx < rawImages.length; iIdx++) {
           const img = rawImages[iIdx];
@@ -418,8 +408,6 @@ export class ManusIntegrationService {
             fileName = `${rIdx}_${iIdx}_image.jpg`;
           }
 
-          console.log(`[ImportImag] DEBUG: ReportIdx=${rIdx}, ImgIdx=${iIdx}, Asset=${assetId}`);
-
           const manual = selectedClassifications?.find(c => 
             c.reportIndex === rIdx && 
             c.imageIndex === iIdx
@@ -433,13 +421,11 @@ export class ManusIntegrationService {
             isBefore = manual.classification === 'A';
             isAfter = manual.classification === 'D';
             isIgnored = manual.classification === 'X';
-            console.log(`[ImportImag] DEBUG: Encontrado MANUAL [${manual.classification}] para R:${rIdx} I:${iIdx}`);
           } else {
             const sectionDoc = ((img as any).CustomerComments || img.CommentsCustomer || "").toUpperCase().trim();
             isBefore = sectionDoc.startsWith('A') || sectionDoc === 'A';
             isAfter = sectionDoc.startsWith('D') || sectionDoc === 'D';
             isIgnored = !isBefore && !isAfter;
-            console.log(`[ImportImag] DEBUG: AUTO-SELEÇÃO [B:${isBefore}, A:${isAfter}] para R:${rIdx} I:${iIdx}`);
           }
           
           if (isIgnored) {
@@ -454,11 +440,9 @@ export class ManusIntegrationService {
 
             try {
               const proxyUrl = getProxyUrl(rawUrl, { format: 'webp' });
-              console.log(`[ImportImag] Tentando imgproxy R:${rIdx} I:${iIdx} → ${proxyUrl}`);
               const imgResp = await fetch(proxyUrl);
               if (imgResp.ok) {
                 fetchedBlob = await imgResp.blob();
-                console.log(`[ImportImag] Imgproxy OK R:${rIdx} I:${iIdx} - ${fetchedBlob.size} bytes`);
               } else {
                 console.warn(`[ImportImag] Imgproxy falhou (${imgResp.status}) R:${rIdx} I:${iIdx} - tentando URL original`);
               }
@@ -469,11 +453,9 @@ export class ManusIntegrationService {
             // Fallback: buscar da URL original do Manus se imgproxy falhou
             if (!fetchedBlob) {
               try {
-                console.log(`[ImportImag] Fallback URL original R:${rIdx} I:${iIdx} → ${rawUrl}`);
                 const origResp = await fetch(rawUrl);
                 if (origResp.ok) {
                   fetchedBlob = await origResp.blob();
-                  console.log(`[ImportImag] URL original OK R:${rIdx} I:${iIdx} - ${fetchedBlob.size} bytes`);
                 } else {
                   console.error(`[ImportImag] URL original falhou (${origResp.status}) R:${rIdx} I:${iIdx}`);
                 }
@@ -487,14 +469,11 @@ export class ManusIntegrationService {
               
               try {
                 await r2Service.uploadFile(file, `${imgPath}/${fileName}`);
-                console.log(`[ImportImag] R2 Upload OK R:${rIdx} I:${iIdx}: ${fileName}`);
 
                 if (isBefore) {
                   beforeFiles.push(fileName);
-                  console.log(`[ImportImag] +ANTES (total: ${beforeFiles.length}): ${fileName}`);
                 } else if (isAfter) {
                   afterFiles.push(fileName);
-                  console.log(`[ImportImag] +DEPOIS (total: ${afterFiles.length}): ${fileName}`);
                 }
               } catch (uploadErr) {
                 console.error(`[ImportImag] R2 Upload FAIL R:${rIdx} I:${iIdx}:`, uploadErr);
@@ -506,10 +485,6 @@ export class ManusIntegrationService {
             console.error(`[ImportImag] FATAL R:${rIdx} I:${iIdx}:`, err);
           }
         }
-
-        console.log(`[ImportImag] CONTAGEM FINAL Ativo ${assetId}: ANTES=${beforeFiles.length}, DEPOIS=${afterFiles.length}`);
-        console.log(`[ImportImag] ARQUIVOS ANTES:`, beforeFiles);
-        console.log(`[ImportImag] ARQUIVOS DEPOIS:`, afterFiles);
 
         const { data: newOva, error: errOva } = await supabase.from('orders_visits_assets').insert({
           ov_id: orderVisitId,

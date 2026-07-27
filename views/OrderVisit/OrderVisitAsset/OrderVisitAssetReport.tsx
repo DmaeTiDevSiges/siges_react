@@ -470,20 +470,28 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     };
 
     const handleConfirmApproval = async () => {
+        const targetStatus = localEditMode === 'review' ? 3 : 5;
+        const previousAsset = asset;
+
+        // 1. Optimistic UI update: update state immediately
+        setAsset(prev => prev ? {
+            ...prev,
+            processingId: targetStatus,
+            processingDescription: targetStatus === 3 ? 'Revisado' : 'Aprovado'
+        } : prev);
+        setLocalEditMode(null);
+        setShowApproveMovedModal(false);
+        toast.success(`Processamento alterado para ${targetStatus === 3 ? 'Revisado' : 'Aprovado'}`);
+
+        // 2. Perform DB update in background
         try {
             setIsUpdatingStatus(true);
-            const targetStatus = localEditMode === 'review' ? 3 : 5;
             await dataService.updateOrderVisitAssetProcessingStatus(assetId, targetStatus, currentUserId);
-            setAsset(prev => prev ? {
-                ...prev,
-                processingId: targetStatus,
-                processingDescription: targetStatus === 3 ? 'Revisado' : 'Aprovado'
-            } : prev);
-            setLocalEditMode(null);
-            setShowApproveMovedModal(false);
-            toast.success(`Processamento alterado para ${targetStatus === 3 ? 'Revisado' : 'Aprovado'}`);
         } catch (error) {
+            console.error('Error confirming processing:', error);
             toast.error('Erro ao confirmar processamento');
+            // 3. Rollback on failure
+            setAsset(previousAsset);
         } finally {
             setIsUpdatingStatus(false);
         }
@@ -573,29 +581,38 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         if (!alert) return;
 
         const shouldComplete = !completedAlertIds.includes(alertId);
-        setIsUpdatingStatus(true);
 
+        // 1. Optimistic UI update: update local state instantly
+        setCompletedAlertIds(prev =>
+            shouldComplete ? [...prev, alertId] : prev.filter(id => id !== alertId)
+        );
+        setReportAssetAlerts(prev => prev.map(item =>
+            item.id === alertId
+                ? { ...item, isDone: shouldComplete, ovaId: shouldComplete ? asset.id : null }
+                : item
+        ));
+
+        // 2. Perform network request in background
         try {
+            setIsUpdatingStatus(true);
             await dataService.updateAssetAlert(alertId, {
                 isDone: shouldComplete,
                 updatedUserId: currentUserId,
                 ovaId: shouldComplete ? asset.id : null
             });
-
-            setCompletedAlertIds(prev =>
-                prev.includes(alertId)
-                    ? prev.filter(id => id !== alertId)
-                    : [...prev, alertId]
-            );
-
-            setReportAssetAlerts(prev => prev.map(item =>
-                item.id === alertId
-                    ? { ...item, isDone: shouldComplete, ovaId: shouldComplete ? asset.id : null }
-                    : item
-            ));
         } catch (error) {
             console.error('Error updating alert status:', error);
             toast.error('Erro ao atualizar status do alerta.');
+
+            // 3. Rollback on failure
+            setCompletedAlertIds(prev =>
+                shouldComplete ? prev.filter(id => id !== alertId) : [...prev, alertId]
+            );
+            setReportAssetAlerts(prev => prev.map(item =>
+                item.id === alertId
+                    ? { ...item, isDone: !shouldComplete, ovaId: !shouldComplete ? asset.id : null }
+                    : item
+            ));
         } finally {
             setIsUpdatingStatus(false);
         }
@@ -971,7 +988,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
     if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+            <div className="flex h-screen items-center justify-center bg-background-light dark:bg-background-dark">
                 <Loading size="sm" />
             </div>
         );
@@ -1592,7 +1609,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
             {/* Asset Swap Page (Overlay) */}
             {showSwapPage && (
-                <div className="fixed inset-0 z-150 bg-slate-50 dark:bg-slate-950 animate-in slide-in-from-right duration-300 overflow-y-auto">
+                <div className="fixed inset-0 z-150 bg-slate-100 dark:bg-slate-950 animate-in slide-in-from-right duration-300 overflow-y-auto">
                     {/* Page Header */}
                     <div className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-100 dark:border-slate-800 p-4">
                         <div className="max-w-md flex items-center gap-4">

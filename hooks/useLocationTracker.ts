@@ -72,7 +72,7 @@ export function useLocationTracker(
     const isLocationBlocked = blockReason !== null;
 
     useEffect(() => {
-        console.log('[LocationTracker] Init check:', { userId, trackerIntervalSeconds, retryCount });
+
 
         if (!userId) {
             console.warn('[LocationTracker] Not started: userId missing');
@@ -85,7 +85,6 @@ export function useLocationTracker(
         }
 
         if (!isAvailable && !hasOpenVisit) {
-            console.log('[LocationTracker] Not started: user unavailable and no open visit');
             return;
         }
 
@@ -97,7 +96,7 @@ export function useLocationTracker(
             if (watcherIdRef.current === 'native') {
                 try {
                     await LocationService.stop();
-                    console.log('[LocationTracker] Native Foreground Service stopped');
+
                 } catch (err) {
                     console.warn('[LocationTracker] Failed to stop native service:', err);
                 }
@@ -122,15 +121,6 @@ export function useLocationTracker(
             await dataService.updateUserLocation(userId, latitude, longitude, accuracy);
             lastWriteAtRef.current = Date.now();
             lastPosRef.current = { lat: latitude, lng: longitude };
-            console.log(
-                `%c[LocationTracker] 📍 Location updated (${triggerReason})`,
-                'color: #22c55e; font-weight: bold',
-                `\nUser: ${userId}`,
-                `\nLat: ${latitude}`,
-                `\nLng: ${longitude}`,
-                `\nAccuracy: ${accuracy ?? 'n/a'}m`,
-                `\nTime: ${new Date().toLocaleTimeString('pt-BR')}`
-            );
         };
 
         const shouldWrite = (newLat: number, newLng: number): { write: boolean; reason: 'time' | 'distance' | null } => {
@@ -191,7 +181,6 @@ export function useLocationTracker(
                 });
                 // 'native' é usado como sentinela para saber que o serviço está ativo
                 watcherIdRef.current = 'native';
-                console.log('[LocationTracker] ✅ Native Foreground Service started (hasOpenVisit=' + hasOpenVisit + ')');
                 // O heartbeat no lado JS é desabilitado no modo nativo —
                 // o Java envia heartbeat via HTTP diretamente quando o tempo esgota.
             } catch (err: any) {
@@ -266,7 +255,6 @@ export function useLocationTracker(
             if (cancelled) return;
             const hasWatcher = !!watcherIdRef.current || webWatchIdRef.current !== null;
             if (!hasWatcher) {
-                console.log('[LocationTracker] 🔁 Watchdog: no active watcher, restarting...');
                 start();
             }
         };
@@ -280,7 +268,6 @@ export function useLocationTracker(
         // force a re-check on visibility change for snappier recovery.
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('[LocationTracker] 🔄 App returned to foreground, re-checking...');
                 start();
             }
         };
