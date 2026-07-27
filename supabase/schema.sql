@@ -2682,6 +2682,8 @@ CREATE INDEX IF NOT EXISTS idx_trgm_orders_visits_ov_mask ON public.orders_visit
 CREATE INDEX IF NOT EXISTS idx_trgm_units_description ON public.units USING gin (description gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_assets_alerts_done_created ON public.assets_alerts (is_done, created_at DESC) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_assets_alerts_asset_id ON public.assets_alerts (asset_id);
+CREATE INDEX IF NOT EXISTS idx_orders_followers_o_id ON public.orders_followers (o_id);
+
 
 
 -- Triggers
