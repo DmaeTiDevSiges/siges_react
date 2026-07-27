@@ -2408,6 +2408,7 @@ const AppContent: React.FC = () => {
             onBack={() => setCurrentScreen('orders-dashboard')}
             onSubmit={(data) => handleOrderSelect(data)}
             initialData={selectedOrder || undefined}
+            mode={selectedOrder?.id && selectedOrder?.parentId ? 'edit' : undefined}
           />
         );
       case 'order-detail':
