@@ -295,28 +295,49 @@ export const ordersService = {
 
         const currentYear = new Date().getFullYear();
 
-        const { data: counterData, error: counterFetchError } = await supabase
-            .from('cfg_orders_counter')
-            .select('id, counter')
-            .eq('year', currentYear)
-            .maybeSingle();
+        let newCounter: number | null = null;
+        const MAX_COUNTER_RETRIES = 5;
 
-        let newCounter: number;
-        if (!counterData) {
-            const { data: newCounterData } = await supabase
+        for (let attempt = 0; attempt < MAX_COUNTER_RETRIES; attempt++) {
+            const { data: counterData } = await supabase
                 .from('cfg_orders_counter')
-                .insert({ year: currentYear, counter: 1 })
-                .select('counter')
-                .single();
-            newCounter = newCounterData!.counter;
-        } else {
-            const { data: updatedCounterData } = await supabase
-                .from('cfg_orders_counter')
-                .update({ counter: counterData.counter + 1 })
-                .eq('id', counterData.id)
-                .select('counter')
-                .single();
-            newCounter = updatedCounterData!.counter;
+                .select('id, counter')
+                .eq('year', currentYear)
+                .maybeSingle();
+
+            if (!counterData) {
+                const { data: newCounterData, error: insertError } = await supabase
+                    .from('cfg_orders_counter')
+                    .insert({ year: currentYear, counter: 1 })
+                    .select('counter')
+                    .single();
+
+                if (insertError) {
+                    if (attempt < MAX_COUNTER_RETRIES - 1) continue;
+                    throw new Error('Erro ao criar contador de ordens');
+                }
+                newCounter = newCounterData!.counter;
+                break;
+            } else {
+                const { data: updatedCounterData } = await supabase
+                    .from('cfg_orders_counter')
+                    .update({ counter: counterData.counter + 1 })
+                    .eq('id', counterData.id)
+                    .eq('counter', counterData.counter)
+                    .select('counter')
+                    .single();
+
+                if (!updatedCounterData) {
+                    if (attempt < MAX_COUNTER_RETRIES - 1) continue;
+                    throw new Error('Erro ao incrementar contador de ordens');
+                }
+                newCounter = updatedCounterData.counter;
+                break;
+            }
+        }
+
+        if (newCounter === null) {
+            throw new Error('Erro ao gerar número da OS. Tente novamente.');
         }
 
         const orderMask = `${newCounter}.0.${currentYear}`;
@@ -460,6 +481,10 @@ export const ordersService = {
 
             if (parentError || !parentOrder) throw new Error('Solicitação de Serviço (SS) pai não encontrada');
 
+            if (parentOrder.parent_id !== null && parentOrder.parent_id !== 0) {
+                throw new Error('O parent informado não é uma Solicitação de Serviço (SS). O parent deve ser uma SS, não outra OS.');
+            }
+
             let providerCompanyId = null;
             let providerDepartmentId = null;
             if (order.contractId) {
@@ -475,14 +500,44 @@ export const ordersService = {
                 }
             }
 
-            const { count, error: countError } = await supabase
-                .from('orders')
-                .select('*', { count: 'exact', head: true })
-                .eq('parent_id', parentId);
+            let childCounter: number | null = null;
+            const MAX_CHILD_RETRIES = 5;
 
-            if (countError) throw new Error('Erro ao contar ordens filhas');
+            for (let attempt = 0; attempt < MAX_CHILD_RETRIES; attempt++) {
+                const { data: existingChildren } = await supabase
+                    .from('orders')
+                    .select('counter_child')
+                    .eq('parent_id', parentId)
+                    .order('counter_child', { ascending: false })
+                    .limit(1);
 
-            const childCounter = (count || 0) + 1;
+                const maxCounter = existingChildren && existingChildren.length > 0
+                    ? existingChildren[0].counter_child
+                    : 0;
+                const candidateCounter = maxCounter + 1;
+                const candidateMask = `${parentOrder.counter_parent}.${candidateCounter}.${parentOrder.year}`;
+
+                const { data: conflictCheck } = await supabase
+                    .from('orders')
+                    .select('id')
+                    .eq('order_mask', candidateMask)
+                    .eq('is_deleted', false)
+                    .limit(1);
+
+                if (!conflictCheck || conflictCheck.length === 0) {
+                    childCounter = candidateCounter;
+                    break;
+                }
+
+                if (attempt >= MAX_CHILD_RETRIES - 1) {
+                    throw new Error('Erro ao gerar número sequencial da OS. Tente novamente.');
+                }
+            }
+
+            if (childCounter === null) {
+                throw new Error('Erro ao gerar número sequencial da OS. Tente novamente.');
+            }
+
             const currentYear = parentOrder.year;
 
             orderMask = `${parentOrder.counter_parent}.${childCounter}.${currentYear}`;

@@ -76,6 +76,7 @@ const AssetStatusesList = React.lazy(() => import('./views/Settings/Assets/Asset
 const AssetStatusForm = React.lazy(() => import('./views/Settings/Assets/AssetStatuses/AssetStatusForm').then(m => ({ default: m.AssetStatusForm })));
 const AssetPrioritiesList = React.lazy(() => import('./views/Settings/Assets/AssetPriorities/AssetPrioritiesList').then(m => ({ default: m.AssetPrioritiesList })));
 const AssetPriorityForm = React.lazy(() => import('./views/Settings/Assets/AssetPriorities/AssetPriorityForm').then(m => ({ default: m.AssetPriorityForm })));
+const AssetTypeAttributesScreen = React.lazy(() => import('./views/Settings/Assets/AssetTypeAttributes/AssetTypeAttributesScreen').then(m => ({ default: m.AssetTypeAttributesScreen })));
 const AssetTagsList = React.lazy(() => import('./views/Settings/Assets/AssetTags/AssetTagsList').then(m => ({ default: m.AssetTagsList })));
 const AssetTagForm = React.lazy(() => import('./views/Settings/Assets/AssetTags/AssetTagForm').then(m => ({ default: m.AssetTagForm })));
 const AssetTagSubsList = React.lazy(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubsList').then(m => ({ default: m.AssetTagSubsList })));
@@ -122,7 +123,7 @@ const MaintenancePlansScreen = React.lazy(() => import('./views/Settings/Mainten
 const ToolsMainView = React.lazy(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/imgproxyService';
@@ -2245,6 +2246,8 @@ const AppContent: React.FC = () => {
         return <AssetPriorityForm onSave={handleSaveAssetPriority} onCancel={handleBack} />;
       case 'asset-priority-edit':
         return selectedAssetPriority ? <AssetPriorityForm initialAssetPriority={selectedAssetPriority} onSave={handleSaveAssetPriority} onCancel={handleBack} /> : null;
+      case 'asset-type-attributes':
+        return <AssetTypeAttributesScreen />;
       case 'asset-tags':
         return <AssetTagsList onAdd={() => setCurrentScreen('asset-tag-form')} onSelect={handleAssetTagSelect} />;
       case 'asset-tag-form':
@@ -2726,6 +2729,7 @@ const AppContent: React.FC = () => {
       case 'asset-types': return 'Tipos de Ativos';
       case 'asset-type-form': return 'Novo Tipo de Ativo';
       case 'asset-type-edit': return 'Editar Tipo de Ativo';
+      case 'asset-type-attributes': return 'Dados Técnicos por Tipo';
       case 'asset-statuses': return 'Situações de Ativos';
       case 'asset-status-form': return 'Nova Situação';
       case 'asset-status-edit': return 'Editar Situação';

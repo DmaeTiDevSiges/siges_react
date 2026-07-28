@@ -581,6 +581,20 @@ export interface AssetAttributeValue {
   value: string;
 }
 
+export interface TypeAttributeConfig {
+  id: string;
+  attributeId: string;
+  fieldKey: string;
+  label: string;
+  dataType: 'text' | 'number' | 'date' | 'boolean' | 'select';
+  unit?: string;
+  decimals?: number;
+  isRequired: boolean;
+  orderIndex: number;
+  colSpan: number;
+  isAvailable: boolean;
+}
+
 export interface AssetAlert {
   id: string;
   assetId: string;

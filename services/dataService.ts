@@ -21,7 +21,7 @@ import { maintenancePlansService } from './core/maintenancePlansService';
 import { orderConfigService } from './core/orderConfigService';
 import { toolsService } from './toolsService';
 import { technicalManualsService } from './assets/technicalManualsService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset } from '../types';
 
 
 
@@ -1194,6 +1194,45 @@ export const dataService = {
 
     async deleteAssetAttribute(id: string): Promise<void> {
         return assetAttributesService.deleteAssetAttribute.apply(assetAttributesService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // TYPE-ATTRIBUTE CONFIGURATION (cfg_assets_types_attributes)
+    // -------------------------------------------------------------------------
+    async getAllAssetAttributes(): Promise<AssetAttribute[]> {
+        return assetAttributesService.getAllAssetAttributes.apply(assetAttributesService, arguments as any);
+    },
+
+    async getAttributesNotLinkedToType(assetTypeId: string): Promise<AssetAttribute[]> {
+        return assetAttributesService.getAttributesNotLinkedToType.apply(assetAttributesService, arguments as any);
+    },
+
+    async getTypeAttributeConfigs(assetTypeId: string): Promise<TypeAttributeConfig[]> {
+        return assetAttributesService.getTypeAttributeConfigs.apply(assetAttributesService, arguments as any);
+    },
+
+    async linkAttributeToType(
+        assetTypeId: string,
+        attributeId: string,
+        config: { isRequired?: boolean; orderIndex?: number; colSpan?: number } = {}
+    ): Promise<TypeAttributeConfig> {
+        return assetAttributesService.linkAttributeToType.apply(assetAttributesService, arguments as any);
+    },
+
+    async unlinkAttributeFromType(assetTypeId: string, attributeId: string): Promise<void> {
+        return assetAttributesService.unlinkAttributeFromType.apply(assetAttributesService, arguments as any);
+    },
+
+    async updateTypeAttributeConfig(
+        assetTypeId: string,
+        junctionId: string,
+        config: { isRequired?: boolean; colSpan?: number }
+    ): Promise<void> {
+        return assetAttributesService.updateTypeAttributeConfig.apply(assetAttributesService, arguments as any);
+    },
+
+    async reorderTypeAttributes(assetTypeId: string, orderedJunctionIds: string[]): Promise<void> {
+        return assetAttributesService.reorderTypeAttributes.apply(assetAttributesService, arguments as any);
     },
 
     // -------------------------------------------------------------------------

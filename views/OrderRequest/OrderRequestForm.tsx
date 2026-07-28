@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Client, Unit, OrderType, OrderSubType, OrderObject, OrderPlan, Contract, Team, Priority, Order, AssetTag, AssetAlert } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Button } from '../../components/ui/Button';
@@ -28,6 +28,12 @@ export interface OrderRequestFormRef {
 export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestFormProps>(({ onBack, onSubmit, initialData, mode, showCardHeader, hideFooter }, ref) => {
     // Detect edit mode — only respect the explicit mode prop
     const isEdit = mode === 'edit';
+
+    // Captura o parentId no momento em que o form abre, para evitar que
+    // selectedOrder mude durante o preenchimento e gere parent_id errado
+    const capturedParentIdRef = useRef<number | undefined>(
+        !isEdit && initialData?.id ? parseInt(initialData.id) : undefined
+    );
 
     // State
     const [step, setStep] = useState(1);
@@ -370,9 +376,15 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                 resultOrder = await dataService.updateOrder(initialData.id, orderData);
                 toast.success("Ordem de Serviço atualizada!");
             } else {
+                const parentOrderId = capturedParentIdRef.current;
+                if (!parentOrderId) {
+                    toast.error("Erro: SS pai não identificada");
+                    setIsLoading(false);
+                    return;
+                }
                 const newOrder = {
                     ...orderData,
-                    parentId: initialData?.id ? parseInt(initialData.id) : undefined,
+                    parentId: parentOrderId,
                 };
                 resultOrder = await dataService.createOrder(newOrder);
 

@@ -152,6 +152,13 @@ export const AppSettings: React.FC<{ onNavigate?: (screen: string) => void }> = 
                         subtitle="Gerenciar prioridades de ativos"
                         onClick={() => onNavigate?.('asset-priorities')}
                     />
+                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                    <SettingItem
+                        icon="tune"
+                        title="Dados Técnicos"
+                        subtitle="Configurar atributos técnicos por tipo"
+                        onClick={() => onNavigate?.('asset-type-attributes')}
+                    />
                 </div>
             </div>
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { User } from '../types';
 import { dataService } from '../services/dataService';
 
@@ -20,13 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-
-    /**
-     * Load current user on mount
-     */
-    useEffect(() => {
-        loadCurrentUser();
-    }, []);
+    const signedOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     /**
      * Load current user from service
@@ -42,6 +36,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setLoading(false);
         }
     };
+
+    /**
+     * Load current user on mount + subscribe to auth state changes
+     * so that token refreshes (SIGNED_IN) and real sign-outs (SIGNED_OUT)
+     * keep this context in sync with the actual Supabase session.
+     */
+    useEffect(() => {
+        loadCurrentUser();
+
+        const { data: { subscription } } = dataService.subscribeToAuthChanges((event: string) => {
+            if (event === 'SIGNED_IN') {
+                if (signedOutTimerRef.current) {
+                    clearTimeout(signedOutTimerRef.current);
+                    signedOutTimerRef.current = null;
+                }
+                loadCurrentUser();
+            } else if (event === 'SIGNED_OUT') {
+                if (signedOutTimerRef.current) {
+                    clearTimeout(signedOutTimerRef.current);
+                }
+                signedOutTimerRef.current = setTimeout(() => {
+                    setCurrentUser(null);
+                    signedOutTimerRef.current = null;
+                }, 2000);
+            }
+        });
+
+        return () => {
+            subscription.unsubscribe();
+            if (signedOutTimerRef.current) {
+                clearTimeout(signedOutTimerRef.current);
+            }
+        };
+    }, []);
 
     /**
      * Login user
