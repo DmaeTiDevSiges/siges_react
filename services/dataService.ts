@@ -21,7 +21,8 @@ import { maintenancePlansService } from './core/maintenancePlansService';
 import { orderConfigService } from './core/orderConfigService';
 import { toolsService } from './toolsService';
 import { technicalManualsService } from './assets/technicalManualsService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset } from '../types';
+import { systemNoticesService } from './core/systemNoticesService';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters } from '../types';
 
 
 
@@ -2451,6 +2452,37 @@ export const dataService = {
 
     async getAlertDetailsByOrderId(orderId: string): Promise<AssetAlert[]> {
         return ordersService.getAlertDetailsByOrderId.apply(ordersService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // SYSTEM NOTICES (Avisos do Sistema)
+    // -------------------------------------------------------------------------
+    async getActiveNotices(unitId?: string, systemCode?: string): Promise<SystemNotice[]> {
+        return systemNoticesService.getActiveNotices.apply(systemNoticesService, arguments as any);
+    },
+
+    async listNotices(filters?: NoticeFilters): Promise<{ notices: SystemNotice[]; total: number }> {
+        return systemNoticesService.listNotices.apply(systemNoticesService, arguments as any);
+    },
+
+    async getNoticeById(id: number): Promise<SystemNotice | null> {
+        return systemNoticesService.getNoticeById.apply(systemNoticesService, arguments as any);
+    },
+
+    async createNotice(input: CreateSystemNoticeInput): Promise<SystemNotice> {
+        return systemNoticesService.createNotice.apply(systemNoticesService, arguments as any);
+    },
+
+    async updateNotice(id: number, data: Partial<SystemNotice>): Promise<SystemNotice> {
+        return systemNoticesService.updateNotice.apply(systemNoticesService, arguments as any);
+    },
+
+    async deleteNotice(id: number): Promise<void> {
+        return systemNoticesService.deleteNotice.apply(systemNoticesService, arguments as any);
+    },
+
+    async toggleNoticeActive(id: number, isActive: boolean): Promise<void> {
+        return systemNoticesService.toggleNoticeActive.apply(systemNoticesService, arguments as any);
     }
 };
 

@@ -3,6 +3,7 @@ import { Header } from './Header';
 import { UserProfileHeader } from './ui/UserProfileHeader';
 import { Loading } from './ui/Loading';
 import { ScrollToTopButton } from './ui/ScrollToTopButton';
+import { SystemNoticeTicker } from './SystemNoticeTicker';
 import { User } from '../types';
 
 interface LayoutProps {
@@ -26,6 +27,7 @@ interface LayoutProps {
   loadingText?: string;
   titleRightElement?: React.ReactNode;
   hideHeader?: boolean;
+  dashboard?: string;
 }
 
 export const Layout: React.FC<LayoutProps> = ({
@@ -48,7 +50,8 @@ export const Layout: React.FC<LayoutProps> = ({
   loading = false,
   loadingText,
   titleRightElement,
-  hideHeader = false
+  hideHeader = false,
+  dashboard
 }) => {
   const mainRef = React.useRef<HTMLElement>(null);
 
@@ -82,6 +85,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 titleRightElement={titleRightElement}
               />
             </div>
+            <SystemNoticeTicker dashboard={dashboard} />
         </div>
         )}
 

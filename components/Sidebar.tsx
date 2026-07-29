@@ -4,7 +4,7 @@ import { usePermissions } from '../contexts/PermissionsContext';
 interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
-    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'materials' | 'manuals';
+    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'materials' | 'manuals' | 'system-notices';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -135,6 +135,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         isActive={activeTab === 'manuals'}
                         isCollapsed={isCollapsed}
                         onClick={() => { onNavigate('manuals'); }}
+                    />
+                )}
+                {(isAdminSuper || canView('system_notices')) && (
+                    <SidebarItem
+                        icon="notifications"
+                        label="Avisos"
+                        isActive={activeTab === 'system-notices'}
+                        isCollapsed={isCollapsed}
+                        onClick={() => { onNavigate('system-notices'); }}
                     />
                 )}
                 {(isAdminSuper || canView('settings')) && (

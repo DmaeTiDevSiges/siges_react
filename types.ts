@@ -1358,3 +1358,81 @@ export interface TechnicalManualAsset {
   tagDescription?: string;
   tagSubDescription?: string;
 }
+
+// ── System Notices (Avisos do Sistema) ──────────────────────────────────────
+
+export interface SystemNoticeCategory {
+  id: number;
+  code: string;
+  label: string;
+  color: string;
+  icon?: string;
+  orderIndex: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface SystemNoticeSeverity {
+  id: number;
+  code: string;
+  label: string;
+  color: string;
+  icon?: string;
+  orderIndex: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface SystemNotice {
+  id: number;
+  title: string;
+  message: string;
+  categoryId: number;
+  severityId: number;
+  startDate: string;
+  endDate: string;
+  dashboards: string[];
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  isActive: boolean;
+  // UI helpers (from view)
+  categoryCode?: string;
+  categoryLabel?: string;
+  categoryColor?: string;
+  categoryIcon?: string;
+  severityCode?: string;
+  severityLabel?: string;
+  severityColor?: string;
+  severityIcon?: string;
+  creatorName?: string;
+}
+
+export interface CreateSystemNoticeInput {
+  title: string;
+  message: string;
+  categoryId: number;
+  severityId: number;
+  startDate: string;
+  endDate: string;
+  dashboards: string[];
+}
+
+export const DASHBOARD_OPTIONS = [
+  { key: 'dashboard', label: 'Meu Painel' },
+  { key: 'orders', label: 'Painel Serviços' },
+  { key: 'units', label: 'Painel Unidades' },
+] as const;
+
+export type DashboardKey = typeof DASHBOARD_OPTIONS[number]['key'];
+
+export interface NoticeFilters {
+  categoryId?: number;
+  severityId?: number;
+  isActive?: boolean;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}

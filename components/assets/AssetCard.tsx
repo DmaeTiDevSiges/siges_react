@@ -19,7 +19,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onClick, isFavorite
     const system = [asset.tagName, asset.tagSubName]
         .filter(Boolean)
         .filter((item, index, self) => self.indexOf(item) === index)
-        .join(' - ') || "Sem Tag";
+        .join(' > ') || "Sem Tag";
 
     return (
         <div

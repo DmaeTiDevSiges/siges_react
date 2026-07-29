@@ -13,6 +13,9 @@ export interface LocationPermissionResult {
     locationServicesDisabled: boolean;
 }
 
+// Route keys for System Notices permissions
+export const SYSTEM_NOTICES_ROUTE_KEY = 'system_notices';
+
 const FOREGROUND_GRANTED = (s: PermissionState) => s === 'granted';
 
 /**
