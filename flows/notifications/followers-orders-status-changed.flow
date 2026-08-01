@@ -1,10 +1,10 @@
 ---
-name: Notificar Seguidores na Alteração de Situação de OS
+name: Notificar Seguidores e Líder na Alteração de Situação de OS
 category: notifications
-version: 1.2.0
-description: Notificar os usuários que seguem uma Ordem de Serviço quando houver alteração em sua situação (status).
+version: 1.3.0
+description: Notificar os usuários que seguem uma Ordem de Serviço e o líder da equipe quando houver alteração em sua situação (status).
 author: Flow System
-date: 2026-03-01
+date: 2026-08-01
 ---
 
 # Flow: Notificação de Alteração de Situação de OS para Seguidores
@@ -55,8 +55,9 @@ Quando a situação de uma Ordem de Serviço (OS) é alterada no sistema, todos 
   - `user_to_whatsapp`: `users.mobile_whatsapp` do seguidor.
   - `created_at`: `timezone('America/Sao_Paulo', CURRENT_TIMESTAMP)`
   - `is_read`: `false`
+- **Notificar o líder da equipe**: Se o campo `team_leader_id` estiver preenchido na OS e o líder não for já um seguidor, inserir também uma notificação para o líder com o mesmo formato.
 **Resultado Esperado:**
-- Notificações criadas com sucesso para todos os seguidores.
+- Notificações criadas com sucesso para todos os seguidores e o líder.
 - Se a integração com WhatsApp estiver ativa, o campo `user_to_whatsapp` permitirá o disparo externo.
 
 ## Estrutura da Mensagem (Corpo/Body)
@@ -97,7 +98,7 @@ A mensagem deve ser clara e conter as informações essenciais para identificaç
 - `is_read` (Status de leitura)
 
 ## Regras de Negócio e Validações
-1. **Evitar Duplicidade**: Garantir que o seguidor receba apenas uma notificação por alteração.
+1. **Evitar Duplicidade**: Garantir que o seguidor e o líder recebam apenas uma notificação por alteração. Se o líder já for seguidor, não enviar notificação duplicada.
 2. **Timestamps**: Utilizar sempre o fuso horário de Brasília (`America/Sao_Paulo`).
 3. **Segurança**: Notificações automáticas via banco de dados devem garantir que o `user_id_to` pertença à mesma organização ou tenha permissão de visualização da OS.
 4. **Resiliência**: Falhas no envio de WhatsApp (se aplicável) não devem impedir a gravação da notificação no banco de dados.
@@ -114,5 +115,5 @@ A mensagem deve ser clara e conter as informações essenciais para identificaç
 | `flows/generated/followers-orders-status-changed.diagrams.md` | Diagramas | Fluxograma, Sequência e Estados (Mermaid) |
 | `supabase/triggers/trg_followers_orders_status_changed.sql` | SQL | Trigger PostgreSQL para produção |
 
-_Última atualização: 2026-03-01 — v1.2.0_
+_Última atualização: 2026-08-01 — v1.3.0_
 

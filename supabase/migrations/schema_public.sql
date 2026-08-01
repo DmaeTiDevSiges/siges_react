@@ -6016,10 +6016,10 @@ CREATE VIEW public.v_systems_parent_assets_tags_available_rate AS
  SELECT v.system_parent_id,
     v.asset_tag_id,
     v.asset_tag_description,
-    v.flow_rate_is_visible,
+    bool_or(v.flow_rate_is_visible) AS flow_rate_is_visible,
     (sum(v.total_flow_rate_max))::numeric AS total_flow_rate_max,
     (sum(v.total_flow_rate_last))::numeric AS total_flow_rate_last,
-    v.flow_rate_unit,
+    MAX(v.flow_rate_unit) AS flow_rate_unit,
         CASE
             WHEN (sum(v.total_flow_rate_max) = (0)::double precision) THEN NULL::numeric
             ELSE ((sum(v.total_flow_rate_last))::numeric / (sum(v.total_flow_rate_max))::numeric)
@@ -6029,10 +6029,10 @@ CREATE VIEW public.v_systems_parent_assets_tags_available_rate AS
             WHEN (sum(v.total_flow_rate_max) = (0)::double precision) THEN NULL::numeric
             ELSE (((sum(v.total_flow_rate_last))::numeric / (sum(v.total_flow_rate_max))::numeric) * (100)::numeric)
         END)::numeric(6,2) AS pct_flow_rate_available_percent,
-    v.power_is_visible,
+    bool_or(v.power_is_visible) AS power_is_visible,
     (sum(v.total_power_max))::numeric AS total_power_max,
     (sum(v.total_power_last))::numeric AS total_power_last,
-    v.power_unit,
+    MAX(v.power_unit) AS power_unit,
         CASE
             WHEN (sum(v.total_power_max) = (0)::double precision) THEN NULL::numeric
             ELSE ((sum(v.total_power_last))::numeric / (sum(v.total_power_max))::numeric)
@@ -6042,10 +6042,10 @@ CREATE VIEW public.v_systems_parent_assets_tags_available_rate AS
             WHEN (sum(v.total_power_max) = (0)::double precision) THEN NULL::numeric
             ELSE (((sum(v.total_power_last))::numeric / (sum(v.total_power_max))::numeric) * (100)::numeric)
         END)::numeric(6,2) AS pct_power_available_percent,
-    v.pressure_is_visible,
+    bool_or(v.pressure_is_visible) AS pressure_is_visible,
     (sum(v.total_pressure_max))::numeric AS total_pressure_max,
     (sum(v.total_pressure_last))::numeric AS total_pressure_last,
-    v.pressure_unit,
+    MAX(v.pressure_unit) AS pressure_unit,
         CASE
             WHEN (sum(v.total_pressure_max) = (0)::double precision) THEN NULL::numeric
             ELSE ((sum(v.total_pressure_last))::numeric / (sum(v.total_pressure_max))::numeric)
@@ -6062,23 +6062,23 @@ CREATE VIEW public.v_systems_parent_assets_tags_available_rate AS
             uat.system_parent_id,
             uat.asset_tag_id,
             uat.tag_description AS asset_tag_description,
-            uat.flow_rate_is_visible,
+            bool_or(uat.flow_rate_is_visible) AS flow_rate_is_visible,
             COALESCE(sum(uat.flow_rate_max), (0)::double precision) AS total_flow_rate_max,
             COALESCE(sum(uat.last_flow_rate), (0)::double precision) AS total_flow_rate_last,
-            uat.flow_rate_unit,
-            uat.power_is_visible,
+            MAX(uat.flow_rate_unit) AS flow_rate_unit,
+            bool_or(uat.power_is_visible) AS power_is_visible,
             COALESCE(sum(uat.power_max), (0)::double precision) AS total_power_max,
             COALESCE(sum(uat.last_power), (0)::double precision) AS total_power_last,
-            uat.power_unit,
-            uat.pressure_is_visible,
+            MAX(uat.power_unit) AS power_unit,
+            bool_or(uat.pressure_is_visible) AS pressure_is_visible,
             COALESCE(sum(uat.pressure_max), (0)::double precision) AS total_pressure_max,
             COALESCE(sum(uat.last_pressure), (0)::double precision) AS total_pressure_last,
-            uat.pressure_unit,
+            MAX(uat.pressure_unit) AS pressure_unit,
             COALESCE(sum(uat.last_asset_available_rate), (0)::double precision) AS total_last_asset_available_rate
            FROM public.v_units_assets_tags uat
           WHERE (uat.is_deleted = false)
-          GROUP BY uat.unit_id, uat.unit_code, uat.system_parent_id, uat.asset_tag_id, uat.tag_description, uat.flow_rate_is_visible, uat.flow_rate_unit, uat.power_is_visible, uat.power_unit, uat.pressure_is_visible, uat.pressure_unit) v
-  GROUP BY v.system_parent_id, v.asset_tag_id, v.asset_tag_description, v.flow_rate_is_visible, v.flow_rate_unit, v.power_is_visible, v.power_unit, v.pressure_is_visible, v.pressure_unit
+          GROUP BY uat.unit_id, uat.unit_code, uat.system_parent_id, uat.asset_tag_id, uat.tag_description) v
+  GROUP BY v.system_parent_id, v.asset_tag_id, v.asset_tag_description
   ORDER BY v.system_parent_id, v.asset_tag_description;
 
 

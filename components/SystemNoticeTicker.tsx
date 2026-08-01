@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SystemNotice } from '../types';
 import { useSystemNotices } from '../hooks/useSystemNotices';
 
@@ -23,10 +23,10 @@ export const SystemNoticeTicker: React.FC<SystemNoticeTickerProps> = ({ dashboar
 
   return (
     <div className="w-full border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-800/30">
-      <div className="flex items-center gap-2 px-4 py-2 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-2 px-4 py-2">
         <span className="material-symbols-outlined text-slate-400 text-[18px] shrink-0">notifications</span>
         
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 flex-wrap">
           {visibleNotices.map((notice) => (
             <NoticeChip key={notice.id} notice={notice} />
           ))}
@@ -41,19 +41,23 @@ interface NoticeChipProps {
 }
 
 const NoticeChip: React.FC<NoticeChipProps> = ({ notice }) => {
+  const [expanded, setExpanded] = useState(false);
   const color = notice.severityColor || '#6B7280';
 
   return (
     <div
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium shrink-0 border"
+      className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer sm:cursor-default ${expanded ? 'w-full !rounded-2xl' : 'inline-flex flex-col shrink-0'}`}
       style={{
         backgroundColor: `${color}15`,
         borderColor: `${color}30`,
         color: color,
       }}
+      onClick={() => setExpanded((prev) => !prev)}
     >
-      <span className="font-semibold truncate max-w-[200px]">{notice.title}</span>
-      <span className="opacity-60 hidden sm:inline truncate max-w-[300px]">- {notice.message}</span>
+      <span className="font-semibold">{notice.title}</span>
+      <span className={`${expanded ? 'block' : 'hidden'} sm:hidden opacity-60 break-words whitespace-normal mt-1`}>
+        {notice.message}
+      </span>
     </div>
   );
 };

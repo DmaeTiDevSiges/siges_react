@@ -3,7 +3,7 @@
 -- Generated: 2026-03-01
 -- Description: Notifica os seguidores de uma OS quando sua situação (status) é alterada.
 -- Business Logic: flows/notifications/followers-orders-status-changed.flow
--- Version: 1.2.0
+-- Version: 1.4.0
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -18,7 +18,6 @@ DECLARE
     v_user_name     TEXT;
     v_body          TEXT;
     v_timestamp     TEXT;
-    v_status_desc   TEXT;
 BEGIN
     -- Condição: só processa se o status_id mudou OU se é re-agendamento (status 4)
     IF OLD.status_id IS NOT DISTINCT FROM NEW.status_id AND NEW.status_id != 4 THEN
@@ -33,9 +32,9 @@ BEGIN
 
     -- Buscar detalhes da OS (cliente, unidade, serviços)
     SELECT
-        o.o_mask,
+        o.order_mask,
         o.requested_services,
-        c.name_full         AS client_name,
+        c.name              AS client_name,
         u.description_full  AS unit_description,
         s.description       AS status_description
     INTO v_order
@@ -45,11 +44,20 @@ BEGIN
     LEFT JOIN public.cfg_orders_statuses s ON s.id = NEW.status_id
     WHERE o.id = NEW.id;
 
-    -- Buscar o nome curto do usuário que realizou a alteração
-    SELECT COALESCE(name_short, 'Sistema')
-    INTO v_user_name
-    FROM public.users
-    WHERE id = NEW.updated_user_id;
+    -- Buscar o nome curto do líder da equipe (com tratamento de erro)
+    v_user_name := 'N/A';
+    BEGIN
+        SELECT name_short
+        INTO v_user_name
+        FROM public.users
+        WHERE id = NEW.team_leader_id;
+    EXCEPTION WHEN OTHERS THEN
+        v_user_name := 'N/A';
+    END;
+
+    IF v_user_name IS NULL OR v_user_name = '' THEN
+        v_user_name := 'N/A';
+    END IF;
 
     -- Iterar sobre cada seguidor da OS
     FOR v_follower IN
@@ -62,36 +70,44 @@ BEGIN
     LOOP
         -- Montar o corpo da notificação
         v_body :=
-            'OS '          || COALESCE(v_order.o_mask, '')             || chr(10) ||
+            'Atualização Situação OS ' || COALESCE(v_order.order_mask, '') || chr(10) ||
             'Cliente: '    || COALESCE(v_order.client_name, 'N/A')     || chr(10) ||
             'Unidade: '    || COALESCE(v_order.unit_description, 'N/A') || chr(10) ||
             'Serviços: '   || COALESCE(v_order.requested_services, 'N/A') || chr(10) ||
             'Situação: '   || COALESCE(v_order.status_description, 'N/A') || chr(10) ||
             'Data hora: '  || v_timestamp                               || chr(10) ||
-            'Usuário: '    || COALESCE(v_user_name, 'N/A');
+            'Líder: '      || v_user_name;
 
-        -- Inserir notificação para o seguidor
-        INSERT INTO public.users_notifications (
-            user_id_to,
-            user_id_from,
-            title,
-            body,
-            type,
-            user_to_whatsapp,
-            o_id,
-            created_at,
-            is_read
-        ) VALUES (
-            v_follower.user_id,
-            NEW.updated_user_id,
-            'Atualização Situação OS ' || COALESCE(v_order.o_mask, ''),
-            v_body,
-            'order_status_change',
-            v_follower.mobile_whatsapp,
-            NEW.id,
-            TIMEZONE('America/Sao_Paulo', CURRENT_TIMESTAMP),
-            FALSE
-        );
+        -- Inserir notificação para o seguidor (evitar duplicidade)
+        IF NOT EXISTS (
+            SELECT 1 FROM public.users_notifications
+            WHERE user_id_to = v_follower.user_id
+            AND o_id = NEW.id
+            AND type = 'order_status_change'
+            AND created_at >= TIMEZONE('America/Sao_Paulo', CURRENT_TIMESTAMP) - INTERVAL '10 seconds'
+        ) THEN
+            INSERT INTO public.users_notifications (
+                user_id_to,
+                user_id_from,
+                title,
+                body,
+                type,
+                user_to_whatsapp,
+                o_id,
+                created_at,
+                is_read
+            ) VALUES (
+                v_follower.user_id,
+                NEW.updated_user_id,
+                'Atualização Situação OS ' || COALESCE(v_order.order_mask, ''),
+                v_body,
+                'order_status_change',
+                v_follower.mobile_whatsapp,
+                NEW.id,
+                TIMEZONE('America/Sao_Paulo', CURRENT_TIMESTAMP),
+                FALSE
+            );
+        END IF;
     END LOOP;
 
     RETURN NEW;
@@ -114,7 +130,7 @@ CREATE TRIGGER trg_followers_orders_status_changed
 -- -----------------------------------------------------------------------------
 
 COMMENT ON FUNCTION public.handle_followers_orders_status_changed() IS
-    'Flow: followers-orders-status-changed v1.2.0 — Notifica os seguidores de uma OS quando sua situação é alterada. Dispara após UPDATE em orders.status_id.';
+    'Flow: followers-orders-status-changed v1.4.0 — Notifica os seguidores de uma OS quando sua situação é alterada. Dispara após UPDATE em orders.status_id.';
 
 -- -----------------------------------------------------------------------------
 -- STEP 4: Recarregar schema do PostgREST

@@ -1588,7 +1588,8 @@ export const ordersService = {
             status_id: 3,
             status_at: now,
             team_id: teamId ? Number(teamId) : null,
-            plan_id: planId ? Number(planId) : null
+            plan_id: planId ? Number(planId) : null,
+            updated_user_id: authorizingUserId ? parseInt(authorizingUserId) : null
         };
 
         if (teamLeaderId && teamLeaderId !== "") {
@@ -1609,41 +1610,50 @@ export const ordersService = {
         try {
             const { data: orderData } = await supabase
                 .from('orders')
-                .select('client_id, unit_id, asset_tag_id, asset_tag_sub_id, order_mask, requested_services')
+                .select('team_leader_id')
                 .eq('id', orderId)
                 .single();
+
+            const leaderId = orderData?.team_leader_id;
+            if (!leaderId) return;
+
+            const { data: isFollower } = await supabase
+                .from('orders_followers')
+                .select('user_id')
+                .eq('o_id', orderId)
+                .eq('user_id', leaderId)
+                .maybeSingle();
+
+            if (isFollower) return;
 
             const unitDesc = order.unit_description || 'N/A';
             const clientDesc = order.client_name || 'N/A';
 
-            const { data: followers } = await supabase
-                .from('orders_followers')
-                .select('user_id')
-                .eq('o_id', orderId);
+            const { data: leaderUser } = await supabase
+                .from('users')
+                .select('name_short, mobile_whatsapp')
+                .eq('id', leaderId)
+                .single();
 
-            if (followers && followers.length > 0) {
-                const { data: followerUsers } = await supabase
-                    .from('users')
-                    .select('id, mobile_whatsapp')
-                    .in('id', followers.map(f => f.user_id));
+            const body =
+                `OS ${order.order_mask || ''} foi AUTORIZADA\n` +
+                `Cliente: ${clientDesc}\n` +
+                `Unidade: ${unitDesc}\n` +
+                `Setor: ${order.asset_tag_description || ''}\n` +
+                `Situação: Autorizada\n` +
+                `Data hora: ${now.replace(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}).*/, '$3/$2/$1 $4:$5')}`;
 
-                const notifications = followers.map(f => {
-                    const fUser = (followerUsers || []).find((u: any) => u.id === f.user_id);
-                    return {
-                        user_id_to: f.user_id,
-                        user_id_from: authorizingUserId ? parseInt(authorizingUserId) : null,
-                        title: 'Ordem Autorizada.',
-                        body: `${authorizingUserName} autorizou a OS ${order.order_mask}.\nCliente: ${clientDesc}\nUnidade: ${unitDesc}\nSetor: ${order.asset_tag_description || ''}`,
-                        type: 'Ordem Autorizada',
-                        created_at: now,
-                        is_read: false,
-                        o_id: orderId,
-                        user_to_whatsapp: fUser?.mobile_whatsapp
-                    };
-                });
-
-                await supabase.from('users_notifications').insert(notifications);
-            }
+            await supabase.from('users_notifications').insert({
+                user_id_to: leaderId,
+                user_id_from: authorizingUserId ? parseInt(authorizingUserId) : null,
+                title: `OS ${order.order_mask || ''} foi AUTORIZADA`,
+                body,
+                type: 'Ordem Autorizada',
+                created_at: now,
+                is_read: false,
+                o_id: orderId,
+                user_to_whatsapp: leaderUser?.mobile_whatsapp
+            });
         } catch (notifErr) {
             console.error('Error sending authorization notification:', notifErr);
         }
@@ -2450,13 +2460,22 @@ export const ordersService = {
 
     async scheduleOrder(orderId: string, date: string): Promise<void> {
         const id = Number(orderId);
-        const { data: order } = await supabase.from('orders').select('parent_id').eq('id', id).maybeSingle();
+        const { data: order } = await supabase.from('orders').select('parent_id, team_leader_id').eq('id', id).maybeSingle();
+
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        let userId: number | null = null;
+        if (authUser) {
+            const { data: userData } = await supabase
+                .from('users').select('id').eq('uuid', authUser.id).maybeSingle();
+            if (userData) userId = userData.id;
+        }
 
         const { error } = await supabase
             .from('orders')
             .update({
                 status_id: 4,
-                status_at: date
+                status_at: date,
+                updated_user_id: userId
             })
             .eq('id', id);
 
@@ -2464,6 +2483,70 @@ export const ordersService = {
 
         if (order?.parent_id) {
             await this.updateServiceRequestStatus(order.parent_id.toString());
+        }
+
+        try {
+            const leaderId = order?.team_leader_id;
+            if (!leaderId) return;
+
+            const { data: isFollower } = await supabase
+                .from('orders_followers')
+                .select('user_id')
+                .eq('o_id', id)
+                .eq('user_id', leaderId)
+                .maybeSingle();
+
+            if (isFollower) return;
+
+            const { data: orderDetails } = await supabase
+                .from('orders')
+                .select('order_mask, requested_services, client_id, unit_id')
+                .eq('id', id)
+                .single();
+
+            const { data: leaderUser } = await supabase
+                .from('users')
+                .select('name_short, mobile_whatsapp')
+                .eq('id', leaderId)
+                .single();
+
+            const { data: client } = await supabase
+                .from('clients')
+                .select('name')
+                .eq('id', orderDetails?.client_id)
+                .maybeSingle();
+
+            const { data: unit } = await supabase
+                .from('units')
+                .select('description_full')
+                .eq('id', orderDetails?.unit_id)
+                .maybeSingle();
+
+            const leaderName = leaderUser?.name_short || 'Líder';
+            const now = getBrazilTimestamp();
+            const nowFormatted = now.replace(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}).*/, '$3/$2/$1 $4:$5');
+
+            const body =
+                `OS ${orderDetails?.order_mask || ''} foi AGENDADA\n` +
+                `Cliente: ${client?.name || 'N/A'}\n` +
+                `Unidade: ${unit?.description_full || 'N/A'}\n` +
+                `Serviços: ${orderDetails?.requested_services || 'N/A'}\n` +
+                `Situação: Agendada\n` +
+                `Data hora: ${nowFormatted}`;
+
+            await supabase.from('users_notifications').insert({
+                user_id_to: leaderId,
+                user_id_from: userId,
+                title: `OS ${orderDetails?.order_mask || ''} foi AGENDADA`,
+                body,
+                type: 'order_status_change',
+                user_to_whatsapp: leaderUser?.mobile_whatsapp,
+                o_id: id,
+                created_at: now,
+                is_read: false
+            });
+        } catch (notifErr) {
+            console.error('Error sending schedule notification to leader:', notifErr);
         }
     },
 
