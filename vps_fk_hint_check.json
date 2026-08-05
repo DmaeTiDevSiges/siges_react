@@ -1,9 +1,0 @@
-{
-  "status": 400,
-  "data": {
-    "code": "PGRST200",
-    "details": "Searched for a foreign key relationship between 'cfg_profiles' and 'cfg_profiles_permissions' using the hint 'profile_id' in the schema 'public', but no matches were found.",
-    "hint": "Perhaps you meant 'cfg_departments' instead of 'cfg_profiles_permissions'.",
-    "message": "Could not find a relationship between 'cfg_profiles' and 'cfg_profiles_permissions' in the schema cache"
-  }
-}

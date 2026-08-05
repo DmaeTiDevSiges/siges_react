@@ -330,34 +330,66 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                     {searchResults.length > 0 && (
                         <div className="space-y-2 mt-4">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">RESULTADOS DA BUSCA</p>
-                            {searchResults.map(asset => (
-                                <div key={asset.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-white/5 transition-all hover:border-indigo-200">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-black text-slate-900 dark:text-white leading-tight mb-1">
-                                                {asset.description}
-                                            </p>
-                                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase truncate">
-                                                {asset.code} • {asset.tagName || asset.location || 'Sem Setor'}{asset.tagSubName ? ` > ${asset.tagSubName}` : ''}
-                                            </p>
-                                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase truncate">
-                                                {asset.statusCode || 'Não informada'}
-                                            </p>
+                            {searchResults.map(asset => {
+                                const isAlreadyAdded = visitAssets.some(va => va.assetId === asset.id);
+                                const isAddingThis = assetIdAdding === asset.id;
+                                const isSuccessThis = assetIdSuccess === asset.id;
+
+                                return (
+                                    <div
+                                        key={asset.id}
+                                        onClick={() => {
+                                            if (!isAlreadyAdded && !isAddingThis && !isSuccessThis) {
+                                                handleAddAsset(asset, currentUserId);
+                                            }
+                                        }}
+                                        className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all group ${
+                                            isAlreadyAdded
+                                                ? 'bg-slate-100/70 dark:bg-slate-800/30 border-slate-200/50 opacity-60 cursor-not-allowed'
+                                                : isAddingThis
+                                                    ? 'bg-indigo-50/60 dark:bg-indigo-500/20 border-indigo-300 dark:border-indigo-500/50 cursor-wait shadow-sm scale-[0.99]'
+                                                    : isSuccessThis
+                                                        ? 'bg-emerald-50 dark:bg-emerald-500/20 border-emerald-300 dark:border-emerald-500/50 cursor-default'
+                                                        : 'bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-white/10 hover:border-indigo-400 hover:shadow-md hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer active:scale-[0.99]'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-black text-slate-900 dark:text-white leading-tight mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                                    {asset.description}
+                                                </p>
+                                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase truncate">
+                                                    {asset.code} • {asset.tagName || asset.location || 'Sem Setor'}{asset.tagSubName ? ` > ${asset.tagSubName}` : ''}
+                                                </p>
+                                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase truncate">
+                                                    {asset.statusCode || 'Não informada'}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Status / Loading Icon on the right */}
+                                        <div className="shrink-0">
+                                            {isAlreadyAdded ? (
+                                                <div className="w-10 h-10 rounded-2xl bg-slate-200/70 dark:bg-slate-700/50 text-slate-400 flex items-center justify-center">
+                                                    <span className="material-symbols-outlined text-xl font-bold">check</span>
+                                                </div>
+                                            ) : isAddingThis ? (
+                                                <div className="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                                                    <span className="material-symbols-outlined text-xl animate-spin">progress_activity</span>
+                                                </div>
+                                            ) : isSuccessThis ? (
+                                                <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-sm animate-in zoom-in-50 duration-200">
+                                                    <span className="material-symbols-outlined text-xl font-bold">check</span>
+                                                </div>
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-all flex items-center justify-center">
+                                                    <span className="material-symbols-outlined text-xl">add</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                    {visitAssets.some(va => va.assetId === asset.id) ? (
-                                        <button disabled className="w-[45px] h-[45px] shrink-0 flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">
-                                            <span className="material-symbols-outlined text-2xl font-bold">check</span>
-                                        </button>
-                                    ) : (
-                                        <ButtonNew
-                                            onClick={() => handleAddAsset(asset, currentUserId)}
-                                            isLoading={assetIdAdding === asset.id}
-                                            isSuccess={assetIdSuccess === asset.id}
-                                        />
-                                    )}
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

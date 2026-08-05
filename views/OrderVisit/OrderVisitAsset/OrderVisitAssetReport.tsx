@@ -215,6 +215,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [showCoverConfirmModal, setShowCoverConfirmModal] = useState(false);
     const [selectedCoverUrl, setSelectedCoverUrl] = useState<string | null>(null);
     const [isUpdatingCover, setIsUpdatingCover] = useState(false);
+    const [removingActivityId, setRemovingActivityId] = useState<string | null>(null);
 
     // Recorder state
     const [hasRecorder, setHasRecorder] = useState(initialAsset?.hasRecorder ?? true);
@@ -252,6 +253,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [prioritiesList, setPrioritiesList] = useState<any[]>([]);
 
     const { canView } = usePermissions();
+
+    const isApproved = asset ? (Number(asset.processingId) === 3 || Number(asset.processingId) === 5) : false;
 
     const isReadOnly = readOnly || (asset ? (
         ![1, 4].includes(asset.processingId || 1) && !localEditMode
@@ -984,6 +987,30 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         }
     };
 
+    const handleRemoveActivity = async (activityId: string) => {
+        setRemovingActivityId(activityId);
+        try {
+            let userId = currentUserId;
+            if (!userId) {
+                const u = await dataService.getCurrentUser();
+                if (u) {
+                    userId = u.id;
+                    setCurrentUserId(u.id);
+                }
+            }
+            if (!userId) return;
+
+            await dataService.toggleOrderVisitAssetActivity(assetId, activityId, userId, false);
+            setActivities(prev => prev.filter(a => a.activityId !== activityId));
+            toast.success('Intervenção removida');
+        } catch (error) {
+            console.error('Error removing activity:', error);
+            toast.error('Erro ao remover intervenção');
+        } finally {
+            setRemovingActivityId(null);
+        }
+    };
+
 
 
     if (loading) {
@@ -1080,17 +1107,42 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     />
                     {activities.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                            {activities.map((act) => (
-                                <div
-                                    key={act.id}
-                                    className="px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-xl flex items-center gap-2 group"
-                                >
-                                    <span className="material-symbols-outlined text-xs text-emerald-500 font-black">done</span>
-                                    <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest leading-none pt-0.5">
-                                        {act.activityDescription}
-                                    </span>
-                                </div>
-                            ))}
+                            {activities.map((act) => {
+                                const isRemoving = removingActivityId === act.activityId;
+                                return (
+                                    <div
+                                        key={act.id}
+                                        className={`px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-xl flex items-center gap-2 transition-all ${
+                                            isRemoving ? 'opacity-50 pointer-events-none scale-95' : ''
+                                        }`}
+                                    >
+                                        <span className="material-symbols-outlined text-xs text-emerald-500 font-black">done</span>
+                                        <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest leading-none pt-0.5">
+                                            {act.activityDescription}
+                                        </span>
+                                        {!isApproved && (
+                                            <>
+                                                <div className="self-stretch -my-2 w-px bg-emerald-200 dark:bg-emerald-500/30 ml-1 mr-0.5" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveActivity(act.activityId)}
+                                                    disabled={isRemoving}
+                                                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-0.5 rounded-md flex items-center justify-center -mr-1 cursor-pointer disabled:cursor-not-allowed"
+                                                    title="Remover intervenção"
+                                                >
+                                                    {isRemoving ? (
+                                                        <span className="material-symbols-outlined text-sm animate-spin text-red-500">
+                                                            progress_activity
+                                                        </span>
+                                                    ) : (
+                                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                                    )}
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="p-8 border-2 border-dashed border-slate-50 dark:border-slate-800/50 rounded-2xl text-center">

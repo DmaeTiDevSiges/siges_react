@@ -1,1 +1,0 @@
-SUCCESS: Write permission OK

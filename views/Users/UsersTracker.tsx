@@ -10,6 +10,61 @@ import { haversineDistance, formatDistance } from '../../utils/geo';
 import { UsersTeamsLeadersByCompanyId } from '../../components/UsersTeamsLeadersByCompanyId';
 import { Capacitor } from '@capacitor/core';
 
+/**
+ * Animates a Leaflet marker from its current position to [toLat, toLng]
+ * using requestAnimationFrame with an ease-in-out curve — similar to how
+ * Uber smoothly moves driver icons on the map.
+ *
+ * @param marker   - The Leaflet Marker to animate.
+ * @param toLat    - Target latitude.
+ * @param toLng    - Target longitude.
+ * @param duration - Animation duration in milliseconds (default: 1200ms).
+ * @param rafRef   - A ref holding the current RAF id so callers can cancel
+ *                   previous animations before starting a new one.
+ */
+function animateMarkerTo(
+    marker: Marker,
+    toLat: number,
+    toLng: number,
+    duration = 1200,
+    rafRef?: { current: number | null }
+): void {
+    const from = marker.getLatLng();
+    // Skip animation if destination is the same (floating-point equality is fine here)
+    if (from.lat === toLat && from.lng === toLng) return;
+
+    // Cancel any animation already running for this marker
+    if (rafRef && rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+    }
+
+    const startTime = performance.now();
+
+    const step = (now: number) => {
+        const elapsed = now - startTime;
+        const rawT = Math.min(elapsed / duration, 1);
+        // ease-in-out cubic: smooth acceleration and deceleration
+        const t = rawT < 0.5
+            ? 4 * rawT * rawT * rawT
+            : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
+
+        const lat = from.lat + (toLat - from.lat) * t;
+        const lng = from.lng + (toLng - from.lng) * t;
+        marker.setLatLng([lat, lng]);
+
+        if (rawT < 1) {
+            const id = requestAnimationFrame(step);
+            if (rafRef) rafRef.current = id;
+        } else {
+            if (rafRef) rafRef.current = null;
+        }
+    };
+
+    const id = requestAnimationFrame(step);
+    if (rafRef) rafRef.current = id;
+}
+
 const getRelativeTime = (isoString?: string): string => {
     if (!isoString) return 'Sem dados';
     const diff = Date.now() - new Date(isoString).getTime();
@@ -61,6 +116,8 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
     const routesCacheRef = useRef<Map<string, { geometry: [number, number][], lastPos: [number, number], distance: number }>>(new Map());
     const unitMarkersRef = useRef<Map<string, L.Marker>>(new Map());
     const pinnedMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+    // Per-marker RAF ids so we can cancel previous animations before starting new ones
+    const markerRafRef = useRef<Map<string, { current: number | null }>>(new Map());
     const isFirstLoadRef = useRef(true);
     const preselectDoneRef = useRef(false);
     const prevSelectedVisitIdsRef = useRef<Set<string>>(new Set());
@@ -178,7 +235,22 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
     useEffect(() => {
         loadInitialData();
 
-        const userSub = dataService.subscribeToUsers(() => {
+        const userSub = dataService.subscribeToUsers((payload: any) => {
+            // Optimistic update: apply the new location fields immediately to the
+            // local users state so markers move without waiting for a full reload.
+            if ((payload.eventType === 'UPDATE' || payload.new) && payload.new?.id) {
+                const incoming = payload.new;
+                setUsers(prev => prev.map(u => {
+                    if (String(u.id) !== String(incoming.id)) return u;
+                    return {
+                        ...u,
+                        latitude: incoming.latitude ?? u.latitude,
+                        longitude: incoming.longitude ?? u.longitude,
+                        trackerHeartbeatAt: incoming.tracker_heartbeat_at ?? u.trackerHeartbeatAt,
+                    };
+                }));
+            }
+            // Full reload to keep all other fields in sync (visits, teams, etc.)
             loadInitialData();
         });
 
@@ -186,8 +258,8 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
             loadInitialData();
         });
 
-        // Lightweight fallback: poll every 60s ONLY when page is visible
-        // This handles silent Realtime disconnections without draining battery
+        // Lightweight fallback: poll every 30s ONLY when page is visible.
+        // Keeps relative-time badges fresh and handles silent Realtime disconnections.
         let pollInterval: ReturnType<typeof setInterval> | null = null;
 
         const startPolling = () => {
@@ -196,7 +268,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                 if (document.visibilityState === 'visible') {
                     loadInitialData();
                 }
-            }, 60_000);
+            }, 30_000);
         };
 
         const handleVisibility = () => {
@@ -407,8 +479,12 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                 if (markersRef.current.has(user.id)) {
                     const marker = markersRef.current.get(user.id);
                     if (marker) {
-                        const currentPos = marker.getLatLng();
-                        if (currentPos.lat !== lat || currentPos.lng !== lng) marker.setLatLng([lat, lng]);
+                        // Get or create a per-marker RAF ref for cancellation
+                        if (!markerRafRef.current.has(user.id)) {
+                            markerRafRef.current.set(user.id, { current: null });
+                        }
+                        const rafRef = markerRafRef.current.get(user.id)!;
+                        animateMarkerTo(marker, lat, lng, 1200, rafRef);
                         marker.setIcon(icon);
                     }
                 } else {
@@ -535,7 +611,15 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
 
             if (pinnedMarkersRef.current.has(techId)) {
                 const marker = pinnedMarkersRef.current.get(techId);
-                marker?.setLatLng([tech.latitude, tech.longitude]);
+                if (marker) {
+                    // Animate pinned marker to new position with the same smooth curve
+                    if (!markerRafRef.current.has(techId)) {
+                        markerRafRef.current.set(techId, { current: null });
+                    }
+                    const rafRef = markerRafRef.current.get(techId)!;
+                    animateMarkerTo(marker, tech.latitude, tech.longitude, 1200, rafRef);
+                    marker.setIcon(icon);
+                }
             } else {
                 const marker = L.marker([tech.latitude, tech.longitude], { icon, zIndexOffset: 2000 })
                     .addTo(map);

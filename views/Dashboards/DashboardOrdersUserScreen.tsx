@@ -77,23 +77,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
         if (showLoading) setIsLoading(true);
         try {
-            const [teamOrders, teamVisits, chatCreatorVisits] = await Promise.all([
+            const [teamOrders, teamVisits] = await Promise.all([
                 dataService.getOrdersByLeader(currentUser.id.toString()),
-                dataService.getVisitsByLeader(currentUser.id.toString()),
-                dataService.getVisitsByChatCreator(currentUser.id.toString())
+                dataService.getVisitsByLeader(currentUser.id.toString())
             ]);
             setOrders(teamOrders);
-
-            // Merge visits from both queries, deduplicating by ID
-            const mergedVisits = [...teamVisits];
-            const existingIds = new Set(teamVisits.map(v => v.id));
-            for (const visit of chatCreatorVisits) {
-                if (!existingIds.has(visit.id)) {
-                    mergedVisits.push(visit);
-                    existingIds.add(visit.id);
-                }
-            }
-            setVisits(mergedVisits);
+            setVisits(teamVisits);
         } catch (error) {
             console.error('Error fetching dashboard orders:', error);
         } finally {

@@ -140,7 +140,7 @@ export const appNoticesService = {
         start_date: input.startDate,
         end_date: input.endDate,
         dashboards: input.dashboards,
-        created_user_id: user?.id || null,
+        created_user_id: user?.id ? parseInt(user.id) : null,
         is_active: true,
       })
       .select()

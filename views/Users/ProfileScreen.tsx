@@ -13,6 +13,7 @@ import { ButtonSave } from '../../components/ui/ButtonSave';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { SignaturePad } from '../../components/ui/SignaturePad';
 import { Loading } from '../../components/ui/Loading';
+import { verifyHumanFaceInImage } from '../../services/faceDetectionService';
 
 
 
@@ -784,6 +785,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                         const reader = new FileReader();
                                         reader.onloadend = async () => {
                                             const imgData = reader.result as string;
+
+                                            // Verify that a human face is present before allowing profile update
+                                            const verification = await verifyHumanFaceInImage(imgData);
+                                            if (!verification.hasFace) {
+                                                setModal({
+                                                    isOpen: true,
+                                                    title: 'Rosto Não Identificado',
+                                                    message: 'Nenhum rosto humano foi detectado na imagem enviada. Para atualizar sua foto de perfil, por favor utilize uma foto nítida do seu rosto.',
+                                                    type: 'error'
+                                                });
+                                                setSaving(false);
+                                                return;
+                                            }
+                                            
                                             setAvatarUrl(imgData);
                                             
                                             setUploadProgress(0);

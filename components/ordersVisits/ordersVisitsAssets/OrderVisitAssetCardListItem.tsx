@@ -46,12 +46,19 @@ export const OrderVisitAssetCardListItem: React.FC<OrderVisitAssetCardDetailProp
             {/* Header: Status Badge and Processing status */}
             <div className="flex justify-between items-start mb-3">
                 <div
-                    className="rounded-2xl px-4 py-2 flex flex-col items-start min-w-[80px]"
+                    className="rounded-2xl px-4 py-2 flex flex-col items-start min-w-[110px] relative"
                     style={{ backgroundColor: statusColor }}
                 >
-                    <span className="text-white font-black text-lg leading-none mb-1">
-                        {asset.code || 'CODE'}
-                    </span>
+                    <div className="flex items-center justify-between w-full gap-3 mb-1">
+                        <span className="text-white font-black text-lg leading-none">
+                            {asset.code || 'CODE'}
+                        </span>
+                        {asset.isMoved && (
+                            <div className="flex items-center gap-1 bg-white/25 text-white px-2 py-0.5 rounded-lg shadow-2xs" title="Ativo Movimentado">
+                                <span className="material-symbols-outlined text-xs font-bold">local_shipping</span>
+                            </div>
+                        )}
+                    </div>
                     <div className="flex items-center gap-2 text-white/90 text-[10px] font-bold uppercase">
                         <span>{asset.beforeStatusDescription || 'STATUS'}</span>
                         <span>{statusDate}</span>
