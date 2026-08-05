@@ -186,6 +186,11 @@ export interface User {
   departmentId?: string;
   profileId?: string;
 
+  // Signature
+  signatureImagePath?: string;
+  signatureImageName?: string;
+  signatureImageDataUrl?: string; // Used for upload flow only
+
   // Flags & Permissions
   isAdmin?: boolean;
   isAdminSuper?: boolean;
@@ -261,6 +266,7 @@ export interface Permission {
 export interface Profile {
   id: string;
   companyId: string;
+  departmentId?: string;
   description: string;
   isAvailable: boolean;
   createdAt: string;
@@ -1392,7 +1398,7 @@ export interface SystemNotice {
   startDate: string;
   endDate: string;
   dashboards: string[];
-  createdBy?: string;
+  createdBy?: number;
   createdAt: string;
   updatedAt: string;
   isActive: boolean;
@@ -1436,3 +1442,75 @@ export interface NoticeFilters {
   page?: number;
   pageSize?: number;
 }
+
+// ============================================================================
+// APP TIPS (Dicas do App)
+// ============================================================================
+
+export type AppTipTargetMode = 'all' | 'filtered';
+
+export interface AppTip {
+  id: number;
+  title: string;
+  body: string;
+  icon: string;
+  screenTarget: string;
+  targetMode: AppTipTargetMode;
+  priority: number;
+  startDate?: string;
+  endDate?: string;
+  isActive: boolean;
+  createdBy?: number;
+  createdAt: string;
+  updatedAt: string;
+  companyIds?: number[];
+  departmentIds?: number[];
+  profileIds?: number[];
+}
+
+export interface AppTipDismissal {
+  id: number;
+  tipId: number;
+  userId: number;
+  dismissedAt: string;
+}
+
+export interface CreateAppTipInput {
+  title: string;
+  body: string;
+  icon?: string;
+  screenTarget: string;
+  targetMode?: AppTipTargetMode;
+  priority?: number;
+  startDate?: string;
+  endDate?: string;
+  companyIds?: number[];
+  departmentIds?: number[];
+  profileIds?: number[];
+}
+
+export interface AppTipFilters {
+  search?: string;
+  screenTarget?: string;
+  isActive?: boolean;
+  targetMode?: AppTipTargetMode;
+  page?: number;
+  pageSize?: number;
+}
+
+export const APP_TIP_SCREEN_TARGETS = [
+  { key: '*', label: 'Todas as telas' },
+  { key: 'dashboard', label: 'Painel Principal' },
+  { key: 'orders', label: 'Ordens de Serviço' },
+  { key: 'visits', label: 'Visitas Técnicas' },
+  { key: 'units', label: 'Unidades/Locais' },
+  { key: 'assets', label: 'Ativos/Equipamentos' },
+  { key: 'materials', label: 'Materiais' },
+  { key: 'profile', label: 'Perfil do Usuário' },
+  { key: 'reports', label: 'Relatórios' },
+] as const;
+
+export const APP_TIP_TARGET_MODES = [
+  { key: 'all' as AppTipTargetMode, label: 'Todos os usuários', icon: 'people', description: 'A dica será exibida para todos os usuários do app' },
+  { key: 'filtered' as AppTipTargetMode, label: 'Filtrar por...', icon: 'filter_list', description: 'A dica será exibida apenas para usuários de empresas, departamentos ou perfis específicos' },
+] as const;

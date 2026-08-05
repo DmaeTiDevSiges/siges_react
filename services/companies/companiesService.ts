@@ -1003,6 +1003,26 @@ export const companiesService = {
         })) as Profile[];
     },
 
+    async getAllProfiles(): Promise<Profile[]> {
+        const { data, error } = await supabase
+            .from('cfg_profiles')
+            .select('*, cfg_departments(company_id)');
+
+        if (error) {
+            console.error('Error fetching all profiles:', error);
+            return [];
+        }
+
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            companyId: item.cfg_departments?.company_id?.toString() || '',
+            departmentId: item.department_id?.toString() || '',
+            description: item.description,
+            isAvailable: true,
+            createdAt: item.created_at
+        })) as Profile[];
+    },
+
     async createCompanyProfile(companyId: string, description: string, permissions: Partial<Permission>[]): Promise<void> {
         const { data: profile, error: profileError } = await supabase
             .from('cfg_profiles')

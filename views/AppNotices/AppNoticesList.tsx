@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { usePermissions } from '../../contexts/PermissionsContext';
-import { useSystemNoticesAdmin } from '../../hooks/useSystemNotices';
-import { SystemNoticeForm } from '../../components/SystemNoticeForm';
-import { SystemNotice, CreateSystemNoticeInput, NoticeCategory, NoticeSeverity, DASHBOARD_OPTIONS } from '../../types';
-import { systemNoticesService } from '../../services/core/systemNoticesService';
+import { useAppNoticesAdmin } from '../../hooks/useAppNotices';
+import { AppNoticeForm } from '../../components/AppNoticeForm';
+import { SystemNotice, CreateSystemNoticeInput, DASHBOARD_OPTIONS } from '../../types';
+import { appNoticesService } from '../../services/core/appNoticesService';
+import { Select } from '../../components/ui/Select';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Loading } from '../../components/ui/Loading';
 import { toast } from 'sonner';
 
-interface SystemNoticesListProps {
+interface AppNoticesListProps {
     onBack?: () => void;
 }
 
-export const SystemNoticesList: React.FC<SystemNoticesListProps> = ({ onBack }) => {
+export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
     const { canCreate, canEdit, canDelete } = usePermissions();
-    const { notices, total, loading, fetchNotices, createNotice, updateNotice, deleteNotice, toggleActive } = useSystemNoticesAdmin();
+    const { notices, total, loading, fetchNotices, createNotice, updateNotice, deleteNotice, toggleActive } = useAppNoticesAdmin();
     
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingNotice, setEditingNotice] = useState<SystemNotice | null>(null);
@@ -40,8 +41,8 @@ export const SystemNoticesList: React.FC<SystemNoticesListProps> = ({ onBack }) 
 
     const loadCategoriesAndSeverities = async () => {
         const [cats, sevs] = await Promise.all([
-            systemNoticesService.getCategories(),
-            systemNoticesService.getSeverities(),
+            appNoticesService.getCategories(),
+            appNoticesService.getSeverities(),
         ]);
         setCategories(cats);
         setSeverities(sevs);
@@ -138,36 +139,35 @@ export const SystemNoticesList: React.FC<SystemNoticesListProps> = ({ onBack }) 
 
                 {/* Filters */}
                 <div className="flex gap-2 overflow-x-auto pb-2">
-                    <select
+                    <Select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive' | 'expired')}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                    >
-                        <option value="all">Todos status</option>
-                        <option value="active">Ativos</option>
-                        <option value="inactive">Inativos</option>
-                        <option value="expired">Expirados</option>
-                    </select>
-                    <select
-                        value={filterCategory || ''}
+                        options={[
+                            { value: 'all', label: 'Todos status' },
+                            { value: 'active', label: 'Ativos' },
+                            { value: 'inactive', label: 'Inativos' },
+                            { value: 'expired', label: 'Expirados' }
+                        ]}
+                        placeholder="Todos status"
+                    />
+                    <Select
+                        value={filterCategory?.toString() || ''}
                         onChange={(e) => setFilterCategory(e.target.value ? Number(e.target.value) : undefined)}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                    >
-                        <option value="">Todas categorias</option>
-                        {categories.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.label}</option>
-                        ))}
-                    </select>
-                    <select
-                        value={filterSeverity || ''}
+                        options={[
+                            { value: '', label: 'Todas categorias' },
+                            ...categories.map(cat => ({ value: cat.id.toString(), label: cat.label }))
+                        ]}
+                        placeholder="Todas categorias"
+                    />
+                    <Select
+                        value={filterSeverity?.toString() || ''}
                         onChange={(e) => setFilterSeverity(e.target.value ? Number(e.target.value) : undefined)}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                    >
-                        <option value="">Todas severidades</option>
-                        {severities.map(sev => (
-                            <option key={sev.id} value={sev.id}>{sev.label}</option>
-                        ))}
-                    </select>
+                        options={[
+                            { value: '', label: 'Todas severidades' },
+                            ...severities.map(sev => ({ value: sev.id.toString(), label: sev.label }))
+                        ]}
+                        placeholder="Todas severidades"
+                    />
                 </div>
 
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{total} aviso(s)</p>
@@ -278,7 +278,7 @@ export const SystemNoticesList: React.FC<SystemNoticesListProps> = ({ onBack }) 
 
                                             {/* Actions */}
                                             <div className="flex items-center gap-1 shrink-0">
-                                                {canEdit('system_notices') && (
+                                                {canEdit('app_notices') && (
                                                     <button
                                                         onClick={() => handleToggleActive(notice)}
                                                         className={`p-2 rounded-lg transition-colors ${
@@ -293,7 +293,7 @@ export const SystemNoticesList: React.FC<SystemNoticesListProps> = ({ onBack }) 
                                                         </span>
                                                     </button>
                                                 )}
-                                                {canEdit('system_notices') && (
+                                                {canEdit('app_notices') && (
                                                     <button
                                                         onClick={() => openEditForm(notice)}
                                                         className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
@@ -302,7 +302,7 @@ export const SystemNoticesList: React.FC<SystemNoticesListProps> = ({ onBack }) 
                                                         <span className="material-symbols-outlined text-[20px]">edit</span>
                                                     </button>
                                                 )}
-                                                {canDelete('system_notices') && (
+                                                {canDelete('app_notices') && (
                                                     <button
                                                         onClick={() => handleDelete(notice.id)}
                                                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
@@ -334,7 +334,7 @@ export const SystemNoticesList: React.FC<SystemNoticesListProps> = ({ onBack }) 
             </div>
 
             {/* FAB */}
-            {canCreate('system_notices') && (
+            {canCreate('app_notices') && (
                 <button
                     onClick={() => setIsFormOpen(true)}
                     className="fixed bottom-24 right-6 z-40 flex items-center justify-center h-14 w-14 bg-primary text-white rounded-full shadow-lg hover:bg-primary-dark transition-all hover:scale-105 active:scale-95"
@@ -345,7 +345,7 @@ export const SystemNoticesList: React.FC<SystemNoticesListProps> = ({ onBack }) 
             )}
 
             {/* Form Modal */}
-            <SystemNoticeForm
+            <AppNoticeForm
                 isOpen={isFormOpen}
                 onClose={closeForm}
                 onSave={editingNotice ? handleEdit : handleCreate}

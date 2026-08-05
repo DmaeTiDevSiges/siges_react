@@ -2,8 +2,9 @@ import React, { useRef, useState, useEffect } from 'react';
 
 interface SignaturePadProps {
     onSave: (base64: string) => void;
-    onCancel: () => void;
+    onCancel?: () => void;
     title?: string;
+    initialImage?: string;
 }
 
 const useIsLandscape = () => {
@@ -36,11 +37,12 @@ const useIsLandscape = () => {
     return isLandscape;
 };
 
-export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, title = "Assinatura Digital" }) => {
+export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, title = "Assinatura Digital", initialImage }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [isEmpty, setIsEmpty] = useState(true);
     const isLandscape = useIsLandscape();
+    const initialImageLoaded = useRef(false);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -81,6 +83,43 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
         resizeObserver.observe(canvas);
         return () => resizeObserver.disconnect();
     }, [isEmpty]);
+
+    // Load initial image onto canvas
+    useEffect(() => {
+        if (!initialImage || initialImageLoaded.current) return;
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const img = new Image();
+        img.onload = () => {
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+
+            const ratio = window.devicePixelRatio || 1;
+            canvas.width = rect.width * ratio;
+            canvas.height = rect.height * ratio;
+            ctx.scale(ratio, ratio);
+
+            // Draw image centered and scaled to fit
+            const padding = 20;
+            const maxW = rect.width - padding * 2;
+            const maxH = rect.height - padding * 2;
+            const scale = Math.min(maxW / img.width, maxH / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            const x = (rect.width - w) / 2;
+            const y = (rect.height - h) / 2;
+
+            ctx.drawImage(img, x, y, w, h);
+            setIsEmpty(false);
+            initialImageLoaded.current = true;
+        };
+        img.src = initialImage;
+    }, [initialImage]);
 
     const points = useRef<{ x: number, y: number }[]>([]);
     const startPoint = useRef<{ x: number, y: number } | null>(null);
@@ -206,14 +245,8 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
     if (isLandscape) {
         return (
             <div className="flex flex-col h-full w-full px-2 pt-[max(0.25rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-                <div className="flex items-center justify-between px-2 py-1 shrink-0">
+                <div className="flex items-center px-2 py-1 shrink-0">
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</h3>
-                    <button
-                        onClick={clear}
-                        className="text-[9px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 px-2 py-1 rounded-full transition-colors"
-                    >
-                        Limpar
-                    </button>
                 </div>
 
                 <div className="relative flex-1 min-h-0 bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden touch-none">
@@ -237,16 +270,24 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
                 </div>
 
                 <div className="flex gap-2 px-1 pt-2 shrink-0">
+                    {onCancel && (
+                        <button
+                            onClick={onCancel}
+                            className="px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                    )}
                     <button
-                        onClick={onCancel}
-                        className="flex-1 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        onClick={clear}
+                        className="px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
                     >
-                        Cancelar
+                        Limpar
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={isEmpty}
-                        className="flex-[1.5] px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest text-white bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:grayscale transition-all shadow-lg shadow-primary/20"
+                        className="flex-1 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest text-white bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:grayscale transition-all shadow-lg shadow-primary/20"
                     >
                         Salvar
                     </button>
@@ -257,14 +298,8 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
 
     return (
         <div className="flex flex-col h-full w-full px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <div className="flex items-center justify-between px-1 pb-2 shrink-0">
+            <div className="flex items-center px-1 pb-2 shrink-0">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{title}</h3>
-                <button
-                    onClick={clear}
-                    className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 px-3 py-1.5 rounded-full transition-colors"
-                >
-                    Limpar
-                </button>
             </div>
 
             <div className="relative flex-1 min-h-[200px] bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden touch-none">
@@ -288,16 +323,24 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
             </div>
 
             <div className="flex gap-3 pt-3 shrink-0">
+                {onCancel && (
+                    <button
+                        onClick={onCancel}
+                        className="px-6 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                )}
                 <button
-                    onClick={onCancel}
-                    className="flex-1 px-6 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    onClick={clear}
+                    className="px-6 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
                 >
-                    Cancelar
+                    Limpar
                 </button>
                 <button
                     onClick={handleSave}
                     disabled={isEmpty}
-                    className="flex-[1.5] px-6 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest text-white bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:grayscale transition-all shadow-lg shadow-primary/20"
+                    className="flex-1 px-6 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest text-white bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:grayscale transition-all shadow-lg shadow-primary/20"
                 >
                     Salvar Assinatura
                 </button>

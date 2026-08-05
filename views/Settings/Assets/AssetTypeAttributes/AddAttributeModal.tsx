@@ -34,7 +34,7 @@ export const AddAttributeModal: React.FC<AddAttributeModalProps> = ({
     const [newAttr, setNewAttr] = useState({
         fieldKey: '',
         label: '',
-        dataType: 'text' as const,
+        dataType: 'text' as 'text' | 'number' | 'date' | 'boolean' | 'select',
         unit: '',
         decimals: 0
     });
@@ -45,7 +45,7 @@ export const AddAttributeModal: React.FC<AddAttributeModalProps> = ({
             setSearch('');
             setIsRequired(false);
             setColSpan(6);
-            setNewAttr({ fieldKey: '', label: '', dataType: 'text', unit: '', decimals: 0 });
+            setNewAttr({ fieldKey: '', label: '', dataType: 'text' as 'text' | 'number' | 'date' | 'boolean' | 'select', unit: '', decimals: 0 });
             setActiveTab('existing');
         }
     }, [isOpen]);
@@ -211,7 +211,7 @@ export const AddAttributeModal: React.FC<AddAttributeModalProps> = ({
                         <Select
                             label="Tipo de Dado"
                             value={newAttr.dataType}
-                            onChange={(e) => setNewAttr({ ...newAttr, dataType: e.target.value as any })}
+                            onChange={(e) => setNewAttr({ ...newAttr, dataType: e.target.value as 'text' | 'number' | 'date' | 'boolean' | 'select' })}
                         >
                             <option value="text">Texto</option>
                             <option value="number">Número</option>

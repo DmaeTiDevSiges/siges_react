@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { OrderVisit } from '../../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { OrderVisit, User } from '../../types';
 import { Card } from '../ui/Card';
 import { Modal } from '../ui/Modal';
 import { SignaturePad } from '../ui/SignaturePad';
@@ -12,12 +12,15 @@ interface SignatureSectionProps {
     visit: OrderVisit;
     onRefresh: () => void;
     isEditable?: boolean;
+    currentUser?: User | null;
 }
 
-export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRefresh, isEditable = true }) => {
+export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRefresh, isEditable = true, currentUser }) => {
     const [signingType, setSigningType] = useState<'leader' | 'requester' | null>(null);
     const [deletingType, setDeletingType] = useState<'leader' | 'requester' | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isApplyingDefault, setIsApplyingDefault] = useState(false);
+    const autoApplyAttempted = useRef(false);
     const [isLandscape, setIsLandscape] = useState(() => {
         if (typeof window === 'undefined') return false;
         return window.matchMedia('(orientation: landscape)').matches ||
@@ -43,6 +46,53 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
             mqSmallHeight.removeEventListener('change', update);
         };
     }, []);
+
+    // Auto-apply default leader signature when visit has no leader signature
+    useEffect(() => {
+        if (
+            autoApplyAttempted.current ||
+            !isEditable ||
+            visit.ovSignatureLeaderPath ||
+            !currentUser?.signatureImagePath ||
+            !currentUser?.signatureImageName
+        ) {
+            return;
+        }
+
+        autoApplyAttempted.current = true;
+
+        const applyDefaultSignature = async () => {
+            try {
+                setIsApplyingDefault(true);
+                const signatureUrl = dataService.getUserSignatureUrl(
+                    currentUser.signatureImagePath!,
+                    currentUser.signatureImageName!
+                );
+                const response = await fetch(signatureUrl);
+                const blob = await response.blob();
+
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    try {
+                        const base64 = reader.result as string;
+                        await dataService.saveOrderVisitSignature(visit.id, 'leader', base64);
+                        toast.success('Assinatura padrão aplicada automaticamente');
+                        onRefresh();
+                    } catch (error) {
+                        console.error('Erro ao aplicar assinatura padrão:', error);
+                    } finally {
+                        setIsApplyingDefault(false);
+                    }
+                };
+                reader.readAsDataURL(blob);
+            } catch (error) {
+                console.error('Erro ao buscar assinatura padrão:', error);
+                setIsApplyingDefault(false);
+            }
+        };
+
+        applyDefaultSignature();
+    }, [visit, currentUser, isEditable, onRefresh]);
 
     const handleSaveSignature = async (base64: string) => {
         if (!signingType || !isEditable) return;

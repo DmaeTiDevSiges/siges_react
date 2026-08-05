@@ -21,8 +21,9 @@ import { maintenancePlansService } from './core/maintenancePlansService';
 import { orderConfigService } from './core/orderConfigService';
 import { toolsService } from './toolsService';
 import { technicalManualsService } from './assets/technicalManualsService';
-import { systemNoticesService } from './core/systemNoticesService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters } from '../types';
+import { appNoticesService } from './core/appNoticesService';
+import { appTipsService } from './core/appTipsService';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters } from '../types';
 
 
 
@@ -1244,6 +1245,22 @@ export const dataService = {
         return usersService.uploadUserAvatar.apply(usersService, arguments as any);
     },
 
+    async uploadUserSignature(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
+        return usersService.uploadUserSignature.apply(usersService, arguments as any);
+    },
+
+    async updateUserSignature(userUuid: string, signatureImagePath: string, signatureImageName: string): Promise<void> {
+        return usersService.updateUserSignature.apply(usersService, arguments as any);
+    },
+
+    async deleteUserSignature(userUuid: string): Promise<void> {
+        return usersService.deleteUserSignature.apply(usersService, arguments as any);
+    },
+
+    getUserSignatureUrl(path: string, name: string): string {
+        return this.getPublicImageUrl(path, name, { width: 600, height: 300, resize: 'fit' });
+    },
+
     async uploadUnitImage(clientId: string, unitId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
         // Importar r2Service dinamicamente para evitar problemas de dependência circular se houver
         // r2Service is now static
@@ -2006,6 +2023,10 @@ export const dataService = {
         return companiesService.getCompanyProfiles.apply(companiesService, arguments as any);
     },
 
+    async getAllProfiles(): Promise<Profile[]> {
+        return companiesService.getAllProfiles.apply(companiesService, arguments as any);
+    },
+
     async getAllRoutes(): Promise<Route[]> {
         return orderConfigService.getAllRoutes.apply(orderConfigService, arguments as any);
     },
@@ -2458,31 +2479,85 @@ export const dataService = {
     // SYSTEM NOTICES (Avisos do Sistema)
     // -------------------------------------------------------------------------
     async getActiveNotices(unitId?: string, systemCode?: string): Promise<SystemNotice[]> {
-        return systemNoticesService.getActiveNotices.apply(systemNoticesService, arguments as any);
+        return appNoticesService.getActiveNotices.apply(appNoticesService, arguments as any);
     },
 
     async listNotices(filters?: NoticeFilters): Promise<{ notices: SystemNotice[]; total: number }> {
-        return systemNoticesService.listNotices.apply(systemNoticesService, arguments as any);
+        return appNoticesService.listNotices.apply(appNoticesService, arguments as any);
     },
 
     async getNoticeById(id: number): Promise<SystemNotice | null> {
-        return systemNoticesService.getNoticeById.apply(systemNoticesService, arguments as any);
+        return appNoticesService.getNoticeById.apply(appNoticesService, arguments as any);
     },
 
     async createNotice(input: CreateSystemNoticeInput): Promise<SystemNotice> {
-        return systemNoticesService.createNotice.apply(systemNoticesService, arguments as any);
+        return appNoticesService.createNotice.apply(appNoticesService, arguments as any);
     },
 
     async updateNotice(id: number, data: Partial<SystemNotice>): Promise<SystemNotice> {
-        return systemNoticesService.updateNotice.apply(systemNoticesService, arguments as any);
+        return appNoticesService.updateNotice.apply(appNoticesService, arguments as any);
     },
 
     async deleteNotice(id: number): Promise<void> {
-        return systemNoticesService.deleteNotice.apply(systemNoticesService, arguments as any);
+        return appNoticesService.deleteNotice.apply(appNoticesService, arguments as any);
     },
 
     async toggleNoticeActive(id: number, isActive: boolean): Promise<void> {
-        return systemNoticesService.toggleNoticeActive.apply(systemNoticesService, arguments as any);
+        return appNoticesService.toggleNoticeActive.apply(appNoticesService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // APP TIPS (Dicas do App)
+    // -------------------------------------------------------------------------
+    async getActiveTipsForScreen(
+        screenKey: string,
+        userId: number,
+        userCompanyId?: number | null,
+        userDepartmentId?: number | null,
+        userProfileId?: number | null,
+    ): Promise<AppTip[]> {
+        return appTipsService.getActiveTipsForScreen.apply(appTipsService, arguments as any);
+    },
+
+    async getUndismissedTipsCount(
+        userId: number,
+        userCompanyId?: number | null,
+        userDepartmentId?: number | null,
+        userProfileId?: number | null,
+    ): Promise<number> {
+        return appTipsService.getUndismissedCount.apply(appTipsService, arguments as any);
+    },
+
+    async dismissAppTip(tipId: number, userId: number): Promise<void> {
+        return appTipsService.dismissTip.apply(appTipsService, arguments as any);
+    },
+
+    async resetAppTipDismissals(tipId: number): Promise<void> {
+        return appTipsService.resetDismissals.apply(appTipsService, arguments as any);
+    },
+
+    async listAppTips(filters?: AppTipFilters): Promise<{ tips: AppTip[]; total: number }> {
+        return appTipsService.listTips.apply(appTipsService, arguments as any);
+    },
+
+    async getAppTipById(id: string): Promise<AppTip | null> {
+        return appTipsService.getTipById.apply(appTipsService, arguments as any);
+    },
+
+    async createAppTip(input: CreateAppTipInput): Promise<AppTip> {
+        return appTipsService.createTip.apply(appTipsService, arguments as any);
+    },
+
+    async updateAppTip(id: string, data: Partial<CreateAppTipInput & { isActive: boolean }>): Promise<AppTip> {
+        return appTipsService.updateTip.apply(appTipsService, arguments as any);
+    },
+
+    async deleteAppTip(id: string): Promise<void> {
+        return appTipsService.deleteTip.apply(appTipsService, arguments as any);
+    },
+
+    async toggleAppTipActive(id: string, isActive: boolean): Promise<void> {
+        return appTipsService.toggleTipActive.apply(appTipsService, arguments as any);
     }
 };
 

@@ -11,6 +11,7 @@ import { FaceDetectionCamera } from '../../components/ui/FaceDetectionCamera';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
 import { ButtonSave } from '../../components/ui/ButtonSave';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
+import { SignaturePad } from '../../components/ui/SignaturePad';
 import { Loading } from '../../components/ui/Loading';
 
 
@@ -63,6 +64,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
         message: '',
         type: 'info'
     });
+    const [confirmDeleteSignature, setConfirmDeleteSignature] = useState(false);
 
     // Form state
     const [name, setName] = useState('');
@@ -89,6 +91,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [editingImage, setEditingImage] = useState<File | string | null>(null);
 
+    // Signature state
+    const [signatureUrl, setSignatureUrl] = useState<string | undefined>(
+        user?.signatureImagePath && user?.signatureImageName
+            ? dataService.getUserSignatureUrl(user.signatureImagePath, user.signatureImageName)
+            : undefined
+    );
+    const [showSignaturePad, setShowSignaturePad] = useState(false);
+    const [isSavingSignature, setIsSavingSignature] = useState(false);
+    const [signatureUploadProgress, setSignatureUploadProgress] = useState(0);
+
     // Team Management State
     const [isTeamExpanded, setIsTeamExpanded] = useState(false);
     const [searchTeamQuery, setSearchTeamQuery] = useState('');
@@ -104,7 +116,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     // Tab navigation state
-    const [activeTab, setActiveTab] = useState<'personal' | 'org' | 'schedule' | 'access' | 'tools'>('personal');
+    const [activeTab, setActiveTab] = useState<'personal' | 'org' | 'schedule' | 'access' | 'tools' | 'signature'>('personal');
     const [userTools, setUserTools] = useState<UserTool[]>([]);
     const [toolsLoading, setToolsLoading] = useState(false);
     const [toolsLoaded, setToolsLoaded] = useState(false);
@@ -400,7 +412,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
         setSearchResults([]);
     };
 
-    const handleTabChange = (tab: 'personal' | 'org' | 'schedule' | 'access' | 'tools') => {
+    const handleTabChange = (tab: 'personal' | 'org' | 'schedule' | 'access' | 'tools' | 'signature') => {
         setActiveTab(tab);
         if (tab === 'tools' && !toolsLoaded && user?.id) {
             setToolsLoading(true);
@@ -865,6 +877,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                 { id: 'schedule' as const, icon: 'schedule', label: 'Jornada' },
                                 { id: 'access' as const, icon: 'shield_person', label: 'Acesso' },
                                 { id: 'tools' as const, icon: 'construction', label: 'Ferramentas' },
+                                { id: 'signature' as const, icon: 'draw', label: 'Assinatura' },
                             ]).map(tab => (
                                 <button
                                     key={tab.id}
@@ -1165,6 +1178,97 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                             </div>
                         )}
 
+                        {/* ── Assinatura ── */}
+                        {activeTab === 'signature' && (
+                            <div className="space-y-4">
+                                {user?.isTeamLeader ? (
+                                    <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                        <div className="p-5">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                                                    <span className="material-symbols-outlined text-primary text-[20px]">draw</span>
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Assinatura Padrão</h3>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400">Será aplicada automaticamente nas visitas</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Signature preview */}
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowSignaturePad(true)}
+                                                disabled={isSavingSignature}
+                                                className="w-full bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5 flex items-center justify-center overflow-hidden transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/50 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                                                style={{ minHeight: '120px' }}
+                                            >
+                                                {signatureUrl ? (
+                                                    <img
+                                                        src={signatureUrl}
+                                                        alt="Assinatura Padrão"
+                                                        className="max-h-24 p-3 object-contain brightness-0 dark:invert pointer-events-none"
+                                                    />
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-2 opacity-30 py-6 pointer-events-none">
+                                                        <span className="material-symbols-outlined text-3xl">pending_actions</span>
+                                                        <span className="text-[10px] font-bold uppercase tracking-widest">Clique aqui para criar a sua assinatura.</span>
+                                                    </div>
+                                                )}
+                                            </button>
+
+                                            {/* Action buttons */}
+                                            {signatureUrl && (
+                                                <div className="flex gap-3 mt-4">
+                                                    <button
+                                                        onClick={() => setShowSignaturePad(true)}
+                                                        disabled={isSavingSignature}
+                                                        className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary-dark rounded-xl transition-all shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50"
+                                                    >
+                                                        Alterar Assinatura
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (!user?.uuid) return;
+                                                            setConfirmDeleteSignature(true);
+                                                        }}
+                                                        disabled={isSavingSignature}
+                                                        className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-rose-500 bg-rose-500/10 hover:bg-rose-500 hover:text-white rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
+                                                    >
+                                                        Remover
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* Upload progress */}
+                                            {isSavingSignature && (
+                                                <div className="mt-3">
+                                                    <div className="h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-primary transition-all duration-300"
+                                                            style={{ width: `${signatureUploadProgress}%` }}
+                                                        />
+                                                    </div>
+                                                    <p className="text-[10px] text-center text-slate-400 mt-1 font-bold uppercase tracking-widest">
+                                                        Processando...
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                        <div className="flex flex-col items-center justify-center py-14 text-center px-6">
+                                            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+                                                <span className="material-symbols-outlined text-3xl text-slate-400">draw</span>
+                                            </div>
+                                            <p className="font-semibold text-slate-700 dark:text-slate-300">Somente líderes</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Apenas líderes de equipe podem salvar assinatura padrão.</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                     </div>
                 </div>
             </div>
@@ -1190,6 +1294,47 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 title={modal.title}
                 message={modal.message}
                 type={modal.type}
+            />
+
+            {/* Confirm Delete Signature Modal */}
+            <Modal
+                isOpen={confirmDeleteSignature}
+                onClose={() => setConfirmDeleteSignature(false)}
+                onConfirm={async () => {
+                    if (!user?.uuid) return;
+                    try {
+                        setIsSavingSignature(true);
+                        await dataService.deleteUserSignature(user.uuid);
+                        setSignatureUrl(undefined);
+                        if (onUserUpdate) {
+                            onUserUpdate({ ...user, signatureImagePath: undefined, signatureImageName: undefined } as User);
+                        }
+                        setConfirmDeleteSignature(false);
+                        setModal({
+                            isOpen: true,
+                            title: 'Sucesso',
+                            message: 'Assinatura removida com sucesso!',
+                            type: 'success'
+                        });
+                    } catch (error) {
+                        console.error('Erro ao remover assinatura:', error);
+                        setConfirmDeleteSignature(false);
+                        setModal({
+                            isOpen: true,
+                            title: 'Erro',
+                            message: 'Falha ao remover assinatura.',
+                            type: 'error'
+                        });
+                    } finally {
+                        setIsSavingSignature(false);
+                    }
+                }}
+                title="Remover Assinatura"
+                message="Deseja realmente remover a assinatura padrão?"
+                type="warning"
+                confirmLabel="Remover"
+                confirmLoading={isSavingSignature}
+                confirmLoadingLabel="Removendo..."
             />
 
             {/* Status Change Modal */}
@@ -1238,6 +1383,76 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                     </div>
                 </div>
             )}
+
+            {/* Signature Pad Modal */}
+            <Modal
+                isOpen={showSignaturePad}
+                onClose={() => !isSavingSignature && setShowSignaturePad(false)}
+                title="Salvar Assinatura Padrão"
+                maxWidth="sm"
+            >
+                {isSavingSignature ? (
+                    <div className="flex flex-col items-center justify-center h-[300px] gap-4">
+                        <div className="relative">
+                            <div className="h-16 w-16 rounded-full border-4 border-slate-100 dark:border-slate-800 animate-pulse"></div>
+                            <Loading size="xs" />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-500 animate-pulse">Processando Assinatura</span>
+                    </div>
+                ) : (
+                    <div className="h-[55vh] sm:h-[60vh] flex flex-col">
+                        <SignaturePad
+                            onSave={async (base64) => {
+                                if (!user?.uuid) return;
+                                try {
+                                    setIsSavingSignature(true);
+                                    setSignatureUploadProgress(0);
+
+                                    const res = await fetch(base64);
+                                    const blob = await res.blob();
+
+                                    const { path, filename } = await dataService.uploadUserSignature(user.id, blob, (progress) => {
+                                        setSignatureUploadProgress(progress);
+                                    });
+
+                                    await dataService.updateUserSignature(user.uuid, path, filename);
+
+                                    const newUrl = dataService.getUserSignatureUrl(path, filename);
+                                    setSignatureUrl(newUrl);
+
+                                    if (onUserUpdate) {
+                                        onUserUpdate({
+                                            ...user,
+                                            signatureImagePath: path,
+                                            signatureImageName: filename
+                                        } as User);
+                                    }
+
+                                    setShowSignaturePad(false);
+                                    setModal({
+                                        isOpen: true,
+                                        title: 'Sucesso',
+                                        message: 'Assinatura padrão salva com sucesso!',
+                                        type: 'success'
+                                    });
+                                } catch (error) {
+                                    console.error('Erro ao salvar assinatura:', error);
+                                    setModal({
+                                        isOpen: true,
+                                        title: 'Erro',
+                                        message: 'Falha ao salvar assinatura no servidor.',
+                                        type: 'error'
+                                    });
+                                } finally {
+                                    setIsSavingSignature(false);
+                                    setSignatureUploadProgress(0);
+                                }
+                            }}
+                            title="Desenhe sua assinatura"
+                        />
+                    </div>
+                )}
+            </Modal>
         </Layout>
     );
 };

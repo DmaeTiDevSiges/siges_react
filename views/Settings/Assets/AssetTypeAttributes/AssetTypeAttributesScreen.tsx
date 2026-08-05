@@ -371,9 +371,9 @@ export const AssetTypeAttributesScreen: React.FC = () => {
                 onClose={() => setRemoveTarget(null)}
                 onConfirm={confirmRemove}
                 title="Remover Atributo"
-                message="Tem certeza que deseja remover este atributo do tipo?"
-                confirmLabel="Remover"
-                loading={isRemoving}
+                description="Tem certeza que deseja remover este atributo do tipo?"
+                confirmText="Remover"
+                isLoading={isRemoving}
             />
         </div>
     );

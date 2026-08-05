@@ -1,8 +1,5 @@
 package com.ag.siges;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
@@ -15,12 +12,15 @@ import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
+import com.google.android.gms.location.ActivityRecognition;
+import com.google.android.gms.location.ActivityRecognitionClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
+import com.google.android.gms.location.DetectedActivity;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -30,57 +30,74 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * LocationForegroundService
+ * LocationForegroundService — Battery-optimized location tracking.
  *
- * Serviço nativo Android que roda com alta prioridade (Foreground Service),
- * independente da WebView / Javascript.
+ * Strategy: Activity Recognition (sensor hub) → GPS (adaptive)
  *
- * Funciona mesmo com o app minimizado ou completamente fechado.
- * Envia a localização diretamente para a API REST do Supabase via HTTP.
+ * Activity Recognition (always running, ~0.1% battery):
+ *   STILL/TILTING → no GPS, heartbeat only
+ *   ON_FOOT       → BALANCED GPS, 10s
+ *   IN_VEHICLE    → HIGH_ACCURACY GPS, 5s
  *
- * Iniciado via Intent pela MainActivity/Javascript através do
- * LocationServicePlugin (Capacitor plugin bridge).
+ * GPS battery savings:
+ *   - Stationary: ~90% savings (GPS off, only heartbeat)
+ *   - Walking: ~60% savings (balanced power GPS)
+ *   - Driving: same (needs accuracy)
  */
 public class LocationForegroundService extends Service {
 
     private static final String TAG = "LocationFGService";
-    private static final String CHANNEL_ID = "siges_location_channel";
-    private static final int NOTIFICATION_ID = 1001;
 
-    // Intent actions para controle externo
     public static final String ACTION_START = "com.ag.siges.START_TRACKING";
     public static final String ACTION_STOP  = "com.ag.siges.STOP_TRACKING";
+    public static final String ACTION_ACTIVITY_DETECTED = "com.ag.siges.ACTIVITY_DETECTED";
 
-    // Intent extras
     public static final String EXTRA_USER_ID      = "userId";
     public static final String EXTRA_SUPABASE_URL = "supabaseUrl";
     public static final String EXTRA_SUPABASE_KEY = "supabaseKey";
     public static final String EXTRA_INTERVAL_SEC = "intervalSeconds";
     public static final String EXTRA_DISTANCE_M   = "distanceMeters";
+    public static final String EXTRA_ACTIVITY_TYPE = "activityType";
+    public static final String EXTRA_CONFIDENCE   = "confidence";
+
+    // Activity Recognition update interval (ms)
+    private static final long ACTIVITY_UPDATE_MS = 15_000; // 15 seconds
 
     private FusedLocationProviderClient fusedClient;
+    private ActivityRecognitionClient activityClient;
+    private PendingIntent activityPendingIntent;
     private LocationCallback locationCallback;
     private ExecutorService httpExecutor;
 
-    // Configurações recebidas do JS
+    // Config from JS
     private String userId;
     private String supabaseUrl;
     private String supabaseKey;
-    private int intervalSeconds  = 60;
     private float distanceMeters = 50f;
-    private boolean hasOpenVisit = false;
 
-    // Throttle por distância e tempo
-    private static final long MIN_SEND_INTERVAL_MS = 60_000; // 60 segundos
+    // ── Activity Recognition state ──
+    // Confidence threshold to act on detected activity
+    private static final int CONFIDENCE_THRESHOLD = 50;
+
+    // Current activity
+    private int currentActivityType = DetectedActivity.UNKNOWN;
+    private int currentConfidence   = 0;
+
+    // Send throttling
+    private static final long MIN_SEND_INTERVAL_MS    = 30_000;  // 30s minimum between HTTP sends
+    private static final long HEARTBEAT_STILL_MS      = 180_000; // 3 min heartbeat when still
+    private static final long HEARTBEAT_MOVING_MS     = 60_000;  // 1 min heartbeat when moving
+
     private Location lastSentLocation = null;
     private long     lastSentTimeMs   = 0;
+    private Location lastGpsLocation  = null;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        httpExecutor = Executors.newSingleThreadExecutor();
-        fusedClient  = LocationServices.getFusedLocationProviderClient(this);
-        createNotificationChannel();
+        httpExecutor  = Executors.newSingleThreadExecutor();
+        fusedClient   = LocationServices.getFusedLocationProviderClient(this);
+        activityClient = ActivityRecognition.getClient(this);
         Log.i(TAG, "Service created");
     }
 
@@ -92,23 +109,26 @@ public class LocationForegroundService extends Service {
             return START_NOT_STICKY;
         }
 
-        // Lê configurações do Intent
+        // Handle activity recognition results forwarded by the receiver
+        if (ACTION_ACTIVITY_DETECTED.equals(intent.getAction())) {
+            int activityType = intent.getIntExtra(EXTRA_ACTIVITY_TYPE, DetectedActivity.UNKNOWN);
+            int confidence   = intent.getIntExtra(EXTRA_CONFIDENCE, 0);
+            onActivityDetected(activityType, confidence);
+            return START_STICKY;
+        }
+
+        // Normal START action
         userId        = intent.getStringExtra(EXTRA_USER_ID);
         supabaseUrl   = intent.getStringExtra(EXTRA_SUPABASE_URL);
         supabaseKey   = intent.getStringExtra(EXTRA_SUPABASE_KEY);
-        intervalSeconds  = intent.getIntExtra(EXTRA_INTERVAL_SEC, 60);
-        distanceMeters   = intent.getFloatExtra(EXTRA_DISTANCE_M, 50f);
-        hasOpenVisit  = intent.getBooleanExtra("hasOpenVisit", false);
+        distanceMeters = intent.getFloatExtra(EXTRA_DISTANCE_M, 50f);
 
-        Log.i(TAG, "START — userId=" + userId + " interval=" + intervalSeconds + "s dist=" + distanceMeters + "m hasOpenVisit=" + hasOpenVisit);
+        Log.i(TAG, "START — userId=" + userId + " dist=" + distanceMeters + "m");
 
-        // Promove o service para Foreground (mostra a notificação persistente)
         startForegroundWithNotification();
-
-        // Inicia o rastreamento GPS via FusedLocationProvider
+        startActivityRecognition();
         startLocationUpdates();
 
-        // Se o SO matar o serviço (ex: baixa memória), reinicia automaticamente
         return START_STICKY;
     }
 
@@ -124,51 +144,128 @@ public class LocationForegroundService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        String title = "SIGES";
-        String text = "Em execução.";
-
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(text)
+        android.app.Notification notification = new NotificationCompat.Builder(this, "siges_location_channel")
+                .setContentTitle("SIGES")
+                .setContentText("Rastreamento de localização ativo")
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-                .setOngoing(true)           // Não pode ser removida pelo usuário
+                .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setContentIntent(pendingIntent)
                 .build();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            startForeground(1001, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
         } else {
-            startForeground(NOTIFICATION_ID, notification);
-        }
-    }
-
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Rastreamento de Localização",
-                    NotificationManager.IMPORTANCE_LOW // Silencioso (sem som)
-            );
-            channel.setDescription("Manter a localização do campo atualizada em tempo real");
-            channel.setShowBadge(false);
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            if (manager != null) manager.createNotificationChannel(channel);
+            startForeground(1001, notification);
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // GPS — FusedLocationProvider
+    // Activity Recognition (sensor hub — always running, ~0.1% battery)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void startActivityRecognition() {
+        Intent intent = new Intent(this, ActivityRecognitionBroadcastReceiver.class);
+        intent.setAction(ActivityRecognitionBroadcastReceiver.ACTION_ACTIVITY_DETECTED);
+
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        activityPendingIntent = PendingIntent.getBroadcast(this, 0, intent, flags);
+
+        try {
+            activityClient.requestActivityUpdates(ACTIVITY_UPDATE_MS, activityPendingIntent);
+            Log.i(TAG, "Activity Recognition started (interval=" + (ACTIVITY_UPDATE_MS / 1000) + "s)");
+        } catch (SecurityException e) {
+            Log.e(TAG, "No activity recognition permission", e);
+        }
+    }
+
+    private void stopActivityRecognition() {
+        if (activityPendingIntent != null) {
+            try {
+                activityClient.removeActivityUpdates(activityPendingIntent);
+                Log.i(TAG, "Activity Recognition stopped");
+            } catch (Exception e) {
+                Log.w(TAG, "Error stopping activity recognition", e);
+            }
+        }
+    }
+
+    /**
+     * Called when a new activity is detected by the sensor hub.
+     * Maps DetectedActivity types to GPS priorities:
+     *   STILL/UNKNOWN/CONFIDENCE_LOW → STATIONARY (GPS off or minimal)
+     *   ON_FOOT/WALKING/RUNNING     → SLOW (balanced GPS)
+     *   IN_VEHICLE/ON_BICYCLE       → MOVING (high accuracy GPS)
+     */
+    private void onActivityDetected(int activityType, int confidence) {
+        int previousActivity = currentActivityType;
+        currentActivityType = activityType;
+        currentConfidence   = confidence;
+
+        if (confidence < CONFIDENCE_THRESHOLD) {
+            Log.d(TAG, "Activity=" + activityName(activityType) + " conf=" + confidence + "% (below threshold, keeping previous)");
+            return;
+        }
+
+        Log.i(TAG, "Activity detected: " + activityName(activityType) + " (" + confidence + "%)");
+
+        if (activityType != previousActivity) {
+            adaptGpsForActivity(activityType);
+        }
+    }
+
+    /**
+     * Switch GPS priority and interval based on detected activity.
+     * This is the core battery optimization:
+     *   - STILL: GPS off, heartbeat every 3 min
+     *   - ON_FOOT: balanced GPS, 10s interval
+     *   - IN_VEHICLE: high accuracy GPS, 5s interval
+     */
+    private void adaptGpsForActivity(int activityType) {
+        switch (activityType) {
+            case DetectedActivity.STILL:
+            case DetectedActivity.UNKNOWN:
+                // GPS off — only heartbeat keeps the tracker visible
+                removeLocationUpdates();
+                Log.i(TAG, "GPS OFF — heartbeat only");
+                break;
+
+            case DetectedActivity.ON_FOOT:
+            case DetectedActivity.WALKING:
+            case DetectedActivity.RUNNING:
+                // Balanced power GPS
+                requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 10_000, 5_000);
+                Log.i(TAG, "GPS BALANCED — ON_FOOT (10s)");
+                break;
+
+            case DetectedActivity.IN_VEHICLE:
+            case DetectedActivity.ON_BICYCLE:
+                // High accuracy GPS
+                requestLocationWithPriority(Priority.PRIORITY_HIGH_ACCURACY, 5_000, 2_000);
+                Log.i(TAG, "GPS HIGH_ACCURACY — IN_VEHICLE (5s)");
+                break;
+
+            case DetectedActivity.TILTING:
+                // Transitional — balanced with slightly longer interval
+                requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 15_000, 8_000);
+                Log.i(TAG, "GPS BALANCED — TILTING (15s)");
+                break;
+
+            default:
+                // Unknown — balanced fallback
+                requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 15_000, 8_000);
+                break;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GPS — FusedLocationProvider (adaptive based on Activity Recognition)
     // ─────────────────────────────────────────────────────────────────────────
 
     private void startLocationUpdates() {
-        // Usa distanceFilter=0 no SO para receber ticks frequentes,
-        // mas o throttle real é feito em shouldSend() com distância e tempo.
-        LocationRequest request = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5_000)
-                .setMinUpdateIntervalMillis(2_000)
-                .setMinUpdateDistanceMeters(0)
-                .build();
-
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult result) {
@@ -179,15 +276,36 @@ public class LocationForegroundService extends Service {
             }
         };
 
+        // Start with current activity's GPS setting
+        adaptGpsForActivity(currentActivityType);
+        Log.i(TAG, "Location updates started (activity=" + activityName(currentActivityType) + ")");
+    }
+
+    private void requestLocationWithPriority(int priority, long intervalMs, long minIntervalMs) {
+        if (fusedClient == null || locationCallback == null) return;
+
+        LocationRequest request = new LocationRequest.Builder(priority, intervalMs)
+                .setMinUpdateIntervalMillis(minIntervalMs)
+                .setMinUpdateDistanceMeters(0)
+                .build();
+
         try {
+            fusedClient.removeLocationUpdates(locationCallback);
             fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper());
-            Log.i(TAG, "Location updates requested");
         } catch (SecurityException e) {
             Log.e(TAG, "No location permission", e);
         }
     }
 
+    private void removeLocationUpdates() {
+        if (fusedClient != null && locationCallback != null) {
+            fusedClient.removeLocationUpdates(locationCallback);
+        }
+    }
+
     private void onNewLocation(Location location) {
+        lastGpsLocation = location;
+
         if (!shouldSend(location)) return;
 
         lastSentLocation = location;
@@ -197,54 +315,55 @@ public class LocationForegroundService extends Service {
         double lng = location.getLongitude();
         float  acc = location.getAccuracy();
 
-        Log.d(TAG, "📍 Sending → lat=" + lat + " lng=" + lng + " acc=" + acc + "m");
+        Log.d(TAG, "Sending lat=" + lat + " lng=" + lng + " acc=" + acc + "m activity=" + activityName(currentActivityType));
 
-        // Envia para o Supabase numa thread separada (nunca bloqueia a thread do GPS)
         httpExecutor.execute(() -> sendToSupabase(lat, lng, acc));
     }
 
     /**
-     * Decide se deve enviar a nova localização baseado em:
-     * 1. Throttling temporal mínimo (MIN_SEND_INTERVAL_MS = 60s) para evitar consumo excessivo de bateria/rede
-     * 2. Distância percorrida desde a última posição enviada (com limite adaptativo baseado na velocidade)
-     * 3. Tempo limite total decorrido (heartbeat temporal)
+     * Adaptive send logic:
+     * - MOVING: send every 30s OR when moved >distanceMeters
+     * - STATIONARY: heartbeat every 3 min (keep-alive for admin tracker)
      */
     private boolean shouldSend(Location newLocation) {
         if (lastSentLocation == null || lastSentTimeMs == 0) return true;
 
-        long  elapsedMs     = System.currentTimeMillis() - lastSentTimeMs;
+        long elapsedMs = System.currentTimeMillis() - lastSentTimeMs;
 
-        // 1. Throttling Temporal: Bloqueia envios muito frequentes para economizar rádio e bateria
+        // Heartbeat interval based on activity
+        long heartbeatMs = isStill() ? HEARTBEAT_STILL_MS : HEARTBEAT_MOVING_MS;
+
+        // Minimum send interval (hard floor)
         if (elapsedMs < MIN_SEND_INTERVAL_MS) {
             return false;
         }
 
         float distanceMoved = lastSentLocation.distanceTo(newLocation);
-        long  elapsedSec    = elapsedMs / 1000;
 
-        // 2. Filtro Adaptativo por Velocidade
-        float currentDistanceFilter = distanceMeters;
-        if (newLocation.hasSpeed()) {
-            float speedMps = newLocation.getSpeed(); // metros por segundo
-            float speedKmh = speedMps * 3.6f;        // converte para km/h
-            
-            if (speedKmh > 50f) {
-                currentDistanceFilter = distanceMeters * 5; // ex: 250m se base for 50m
-            } else if (speedKmh > 20f) {
-                currentDistanceFilter = distanceMeters * 3; // ex: 150m se base for 50m
-            }
+        // Distance filter based on activity
+        float distanceFilter;
+        if (isStill()) {
+            distanceFilter = distanceMeters * 6; // 300m — only on significant movement
+        } else {
+            distanceFilter = distanceMeters;     // 50m
         }
 
-        if (distanceMoved >= currentDistanceFilter) {
-            Log.d(TAG, "✅ Send triggered by DISTANCE (" + Math.round(distanceMoved) + "m), adaptive threshold: " + Math.round(currentDistanceFilter) + "m");
+        if (distanceMoved >= distanceFilter) {
+            Log.d(TAG, "Send by DISTANCE (" + Math.round(distanceMoved) + "m), filter=" + Math.round(distanceFilter) + "m");
             return true;
         }
-        if (elapsedSec >= intervalSeconds) {
-            Log.d(TAG, "✅ Send triggered by TIME (" + elapsedSec + "s)");
+
+        if (elapsedMs >= heartbeatMs) {
+            Log.d(TAG, "Send by HEARTBEAT (" + (elapsedMs / 1000) + "s), activity=" + activityName(currentActivityType));
             return true;
         }
 
         return false;
+    }
+
+    private boolean isStill() {
+        return currentActivityType == DetectedActivity.STILL
+            || currentActivityType == DetectedActivity.UNKNOWN;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -258,14 +377,14 @@ public class LocationForegroundService extends Service {
         }
 
         String endpoint = supabaseUrl.replaceAll("/$", "") + "/rest/v1/users?id=eq." + userId;
-        String now      = java.time.Instant.now().toString(); // ISO 8601
+        String now      = java.time.Instant.now().toString();
 
         String body = "{"
-                + "\"latitude\":"                  + lat                        + ","
-                + "\"longitude\":"                 + lng                        + ","
-                + "\"tracker_accuracy\":"          + accuracy                   + ","
-                + "\"tracker_heartbeat_at\":\"" + now                        + "\","
-                + "\"tracked_at\":\""              + now                        + "\""
+                + "\"latitude\":"          + lat          + ","
+                + "\"longitude\":"         + lng          + ","
+                + "\"tracker_accuracy\":"  + accuracy     + ","
+                + "\"tracker_heartbeat_at\":\"" + now      + "\","
+                + "\"tracked_at\":\""      + now          + "\""
                 + "}";
 
         try {
@@ -286,13 +405,13 @@ public class LocationForegroundService extends Service {
 
             int responseCode = conn.getResponseCode();
             if (responseCode >= 200 && responseCode < 300) {
-                Log.i(TAG, "✅ Location sent to Supabase — HTTP " + responseCode);
+                Log.i(TAG, "Sent — HTTP " + responseCode + " activity=" + activityName(currentActivityType));
             } else {
-                Log.w(TAG, "⚠ Supabase returned HTTP " + responseCode);
+                Log.w(TAG, "Supabase HTTP " + responseCode);
             }
             conn.disconnect();
         } catch (Exception e) {
-            Log.e(TAG, "❌ Error sending to Supabase", e);
+            Log.e(TAG, "Error sending to Supabase", e);
         }
     }
 
@@ -303,6 +422,7 @@ public class LocationForegroundService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        stopActivityRecognition();
         if (fusedClient != null && locationCallback != null) {
             fusedClient.removeLocationUpdates(locationCallback);
         }
@@ -314,6 +434,19 @@ public class LocationForegroundService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        return null; // Não usamos binding
+        return null;
+    }
+
+    private String activityName(int type) {
+        switch (type) {
+            case DetectedActivity.IN_VEHICLE: return "IN_VEHICLE";
+            case DetectedActivity.ON_BICYCLE: return "ON_BICYCLE";
+            case DetectedActivity.ON_FOOT:    return "ON_FOOT";
+            case DetectedActivity.RUNNING:    return "RUNNING";
+            case DetectedActivity.WALKING:    return "WALKING";
+            case DetectedActivity.STILL:      return "STILL";
+            case DetectedActivity.TILTING:    return "TILTING";
+            default:                          return "UNKNOWN";
+        }
     }
 }

@@ -3,7 +3,8 @@ import { Header } from './Header';
 import { UserProfileHeader } from './ui/UserProfileHeader';
 import { Loading } from './ui/Loading';
 import { ScrollToTopButton } from './ui/ScrollToTopButton';
-import { SystemNoticeTicker } from './SystemNoticeTicker';
+import { AppNoticeTicker } from './AppNoticeTicker';
+import { AppTipBanner } from './AppTipBanner';
 import { User } from '../types';
 
 interface LayoutProps {
@@ -28,6 +29,7 @@ interface LayoutProps {
   titleRightElement?: React.ReactNode;
   hideHeader?: boolean;
   dashboard?: string;
+  currentScreen?: string;
 }
 
 export const Layout: React.FC<LayoutProps> = ({
@@ -51,7 +53,8 @@ export const Layout: React.FC<LayoutProps> = ({
   loadingText,
   titleRightElement,
   hideHeader = false,
-  dashboard
+  dashboard,
+  currentScreen
 }) => {
   const mainRef = React.useRef<HTMLElement>(null);
 
@@ -85,7 +88,16 @@ export const Layout: React.FC<LayoutProps> = ({
                 titleRightElement={titleRightElement}
               />
             </div>
-            <SystemNoticeTicker dashboard={dashboard} />
+            <AppNoticeTicker dashboard={dashboard} />
+            {currentScreen && currentUser?.id && (
+                <AppTipBanner
+                    screenKey={currentScreen}
+                    userId={Number(currentUser.id)}
+                    userCompanyId={currentUser.companyId ? Number(currentUser.companyId as string) || null : null}
+                    userDepartmentId={currentUser.departmentId ? Number(currentUser.departmentId as string) || null : null}
+                    userProfileId={currentUser.profileId ? Number(currentUser.profileId as string) || null : null}
+                />
+            )}
         </div>
         )}
 

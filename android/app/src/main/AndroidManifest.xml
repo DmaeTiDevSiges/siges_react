@@ -45,6 +45,12 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- Receiver para Activity Recognition (Google Play Services) -->
+        <receiver
+            android:name=".ActivityRecognitionBroadcastReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <!-- Service para detectar fechamento do app -->
         <service
             android:name=".TaskRemovedService"

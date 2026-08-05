@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { SystemNotice } from '../types';
-import { useSystemNotices } from '../hooks/useSystemNotices';
+import { useAppNotices } from '../hooks/useAppNotices';
 import { Modal } from './ui/Modal';
 
-interface SystemNoticeTickerProps {
+interface AppNoticeTickerProps {
   dashboard?: string;
 }
 
-export const SystemNoticeTicker: React.FC<SystemNoticeTickerProps> = ({ dashboard }) => {
-  const { notices, loading } = useSystemNotices({ dashboard });
+export const AppNoticeTicker: React.FC<AppNoticeTickerProps> = ({ dashboard }) => {
+  const { notices, loading } = useAppNotices({ dashboard });
 
   const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
   const now = new Date(nowStr);

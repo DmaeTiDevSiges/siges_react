@@ -51,7 +51,7 @@ export const AssetsAlerts: React.FC<AssetsAlertsProps> = ({ onSelectAsset, onSel
         return {};
     });
     const [selectionModal, setSelectionModal] = useState<SelectionModal>({
-        isOpen: false, filterKey: '', label: '', options: [], currentValue: []
+        isOpen: false, filterKey: '' as keyof AlertFilters, label: '', options: [], currentValue: []
     });
     const [selectionSearch, setSelectionSearch] = useState('');
     const filtersScroll = useDraggableScroll();

@@ -603,6 +603,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             visit={visit}
                             onRefresh={refreshVisit}
                             isEditable={!visit.isFiled}
+                            currentUser={currentUser}
                         />
                     </div>
                 );

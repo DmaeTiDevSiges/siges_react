@@ -94,7 +94,8 @@ const AssetsAlerts = React.lazy(() => import('./views/Assets/AssetsAlerts').then
 const AssetsAlertsHeaderWidget = React.lazy(() => import('./components/assets/AssetsAlertsHeaderWidget').then(m => ({ default: m.AssetsAlertsHeaderWidget })));
 const OrdersRequestsDashboardAdmin = React.lazy(() => import('./views/OrderRequest/OrdersRequestsDashboardAdmin').then(m => ({ default: m.OrdersRequestsDashboardAdmin })));
 const NotificationsList = React.lazy(() => import('./views/Notifications/NotificationsList').then(m => ({ default: m.NotificationsList })));
-const SystemNoticesList = React.lazy(() => import('./views/SystemNotices/SystemNoticesList').then(m => ({ default: m.SystemNoticesList })));
+const AppNoticesList = React.lazy(() => import('./views/AppNotices/AppNoticesList').then(m => ({ default: m.AppNoticesList })));
+const AppTipsList = React.lazy(() => import('./views/Settings/AppTips/AppTipsList').then(m => ({ default: m.AppTipsList })));
 const ServiceRequestDetail = React.lazy(() => import('./views/ServiceRequest/ServiceRequestDetail').then(m => ({ default: m.ServiceRequestDetail })));
 const ServiceRequestPage = React.lazy(() => import('./views/ServiceRequest/ServiceRequestScreen').then(m => ({ default: m.ServiceRequestPage })));
 const OrderRequestPage = React.lazy(() => import('./views/OrderRequest/OrderRequestScreen').then(m => ({ default: m.OrderRequestPage })));
@@ -124,7 +125,7 @@ const MaintenancePlansScreen = React.lazy(() => import('./views/Settings/Mainten
 const ToolsMainView = React.lazy(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar' | 'system-notices';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker' | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar' | 'app-notices' | 'app-tips';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/imgproxyService';
@@ -237,7 +238,7 @@ const AppContent: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'system-notices'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices' | 'app-tips'>(() => {
     const saved = localStorage.getItem('app_active_tab');
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
@@ -287,8 +288,10 @@ const AppContent: React.FC = () => {
       setCurrentScreen('materials-search');
     } else if (normalizedTab === 'manuals') {
       setCurrentScreen('technical-manuals');
-    } else if (normalizedTab === 'system-notices') {
-      setCurrentScreen('system-notices');
+    } else if (normalizedTab === 'app-notices') {
+      setCurrentScreen('app-notices');
+    } else if (normalizedTab === 'app-tips') {
+      setCurrentScreen('app-tips');
     }
   };
   const [currentScreen, setCurrentScreen] = useState<Screen>(() => {
@@ -1110,7 +1113,10 @@ const AppContent: React.FC = () => {
       setCurrentScreen('technical-manuals');
     } else if (currentScreen === 'technical-manual-details') {
       setCurrentScreen('technical-manuals');
-    } else if (currentScreen === 'system-notices') {
+    } else if (currentScreen === 'app-notices') {
+      const lastTab = localStorage.getItem('last_main_tab') || 'dashboard';
+      handleMainTabChange(lastTab);
+    } else if (currentScreen === 'app-tips') {
       const lastTab = localStorage.getItem('last_main_tab') || 'dashboard';
       handleMainTabChange(lastTab);
     } else if (currentScreen === 'client-units') {
@@ -2274,8 +2280,10 @@ const AppContent: React.FC = () => {
         return selectedTechnicalManual ? <TechnicalManualForm initialManual={selectedTechnicalManual} onSave={handleSaveTechnicalManual} onCancel={handleBack} /> : null;
       case 'technical-manual-details':
         return selectedTechnicalManual ? <TechnicalManualDetails manual={selectedTechnicalManual} onEdit={() => setCurrentScreen('technical-manual-edit')} onDelete={handleDeleteTechnicalManual} onSelectAsset={async (assetId) => { try { const asset = await dataService.getAssetById(assetId); if (asset) handleAssetSelect(asset); } catch (e) { console.error(e); } }} /> : null;
-      case 'system-notices':
-        return <SystemNoticesList onBack={handleBack} />;
+      case 'app-notices':
+        return <AppNoticesList onBack={handleBack} />;
+      case 'app-tips':
+        return <AppTipsList onBack={handleBack} />;
       case 'maintenance-plans':
       case 'maintenance-plan-form':
       case 'maintenance-plan-edit':
@@ -2772,7 +2780,8 @@ const AppContent: React.FC = () => {
       case 'unit-asset-tag-details': return 'Disponibilidade do Setor';
       case 'unit-asset-tag-available': return 'Disponibilidade';
       case 'services-history': return 'Histórico de SS';
-      case 'system-notices': return 'Avisos';
+      case 'app-notices': return 'Avisos';
+      case 'app-tips': return 'Dicas do App';
       case 'tools': return 'Ferramentas';
       default: return 'Siges';
     }
@@ -2967,7 +2976,8 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) !== 'materials-dashboard' &&
                 (currentScreen as string) !== 'material-form' &&
                 (currentScreen as string) !== 'material-edit' &&
-                (currentScreen as string) !== 'system-notices'
+                (currentScreen as string) !== 'app-notices' &&
+                (currentScreen as string) !== 'app-tips'
               }
               onBackClick={handleBack}
               currentUser={currentUser}
@@ -2985,6 +2995,7 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) === 'services-history'
               }
               dashboard={undefined}
+              currentScreen={currentScreen as string}
               onProfileClick={() => {
                 localStorage.setItem('last_main_tab', activeTab);
                 setCurrentScreen('profile');

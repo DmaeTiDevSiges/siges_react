@@ -174,7 +174,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
         setPullDistance(0);
     }, [loadInitialData]);
 
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates + lightweight fallback polling
     useEffect(() => {
         loadInitialData();
 
@@ -186,9 +186,40 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
             loadInitialData();
         });
 
+        // Lightweight fallback: poll every 60s ONLY when page is visible
+        // This handles silent Realtime disconnections without draining battery
+        let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+        const startPolling = () => {
+            if (pollInterval) return;
+            pollInterval = setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    loadInitialData();
+                }
+            }, 60_000);
+        };
+
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                loadInitialData(); // immediate refresh on re-focus
+                startPolling();
+            } else {
+                // Stop polling when page is hidden (saves battery)
+                if (pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibility);
+        startPolling();
+
         return () => {
             userSub.unsubscribe();
             visitSub.unsubscribe();
+            document.removeEventListener('visibilitychange', handleVisibility);
+            if (pollInterval) clearInterval(pollInterval);
             // Cancel any in-flight route requests
             routeAbortRef.current.forEach(ctrl => ctrl.abort());
             routeAbortRef.current.clear();

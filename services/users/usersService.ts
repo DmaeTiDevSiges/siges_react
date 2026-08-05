@@ -66,7 +66,9 @@ export const usersService = {
             vehicleId: item.vehicle_id?.toString(),
             isTeamLeader: item.is_team_leader,
             isAvailable: item.is_available,
-            ovIdInProgress: item.ov_id_in_progress
+            ovIdInProgress: item.ov_id_in_progress,
+            signatureImagePath: item.signature_image_path,
+            signatureImageName: item.signature_image_name
         })) as User[];
     },
 
@@ -742,6 +744,8 @@ export const usersService = {
                     shiftStart: data.shift_start,
                     shiftEnd: data.shift_end,
                     trackerIntervalSeconds: data.tracker_interval_seconds ?? null,
+                    signatureImagePath: data.signature_image_path,
+                    signatureImageName: data.signature_image_name,
                     permissions: permissions
                 } as User;
             } catch (error) {
@@ -855,6 +859,49 @@ export const usersService = {
                 throw err;
             }
         }
+
+        if (user.signatureImageDataUrl && user.signatureImageDataUrl.startsWith('data:')) {
+            try {
+                const { data: dbUser, error: fetchError } = await supabase
+                    .from('users')
+                    .select('id, signature_image_path, signature_image_name')
+                    .eq('uuid', userUuid)
+                    .single();
+
+                if (fetchError || !dbUser) throw new Error("Usuário não encontrado para upload de assinatura");
+
+                const userId = dbUser.id;
+                const oldPath = dbUser.signature_image_path;
+                const oldName = dbUser.signature_image_name;
+                const oldFullFile = (oldPath && oldName) ? `${oldPath}/${oldName}` : null;
+
+                const res = await fetch(user.signatureImageDataUrl);
+                const blob = await res.blob();
+
+                const { path, filename } = await usersService.uploadUserSignature(userId, blob, onProgress);
+
+                const { error: dbUpdateError } = await supabase
+                    .from('users')
+                    .update({
+                        signature_image_path: path,
+                        signature_image_name: filename
+                    })
+                    .eq('id', userId);
+
+                if (dbUpdateError) throw dbUpdateError;
+
+                if (oldFullFile) {
+                    try {
+                        await r2Service.deleteFile(oldFullFile);
+                    } catch (delError) {
+                        console.warn("Could not delete old signature from R2:", delError);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to process signature image update", err);
+                throw err;
+            }
+        }
     },
 
     async updateUserStatus(userId: string, statusId: number): Promise<string> {
@@ -945,6 +992,67 @@ export const usersService = {
         } catch (uploadError) {
             console.error('❌ Error uploading user avatar to R2:', uploadError);
             throw uploadError;
+        }
+    },
+
+    async uploadUserSignature(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
+        const fileExt = (file as File).name ? (file as File).name.split('.').pop() : 'png';
+        const fileName = `signature_${Date.now()}.${fileExt}`;
+        const folderPath = `users/${userId}/signature`;
+        const fullPath = `${folderPath}/${fileName}`;
+
+        try {
+            await r2Service.uploadFile(file as any, fullPath, onProgress);
+            return { path: folderPath, filename: fileName };
+        } catch (uploadError) {
+            console.error('❌ Error uploading user signature to R2:', uploadError);
+            throw uploadError;
+        }
+    },
+
+    async updateUserSignature(userUuid: string, signatureImagePath: string, signatureImageName: string): Promise<void> {
+        const { error } = await supabase
+            .from('users')
+            .update({
+                signature_image_path: signatureImagePath,
+                signature_image_name: signatureImageName
+            })
+            .eq('uuid', userUuid);
+
+        if (error) throw error;
+    },
+
+    async deleteUserSignature(userUuid: string): Promise<void> {
+        const { data: dbUser, error: fetchError } = await supabase
+            .from('users')
+            .select('id, signature_image_path, signature_image_name')
+            .eq('uuid', userUuid)
+            .single();
+
+        if (fetchError || !dbUser) throw new Error("Usuário não encontrado");
+
+        const oldPath = dbUser.signature_image_path;
+        const oldName = dbUser.signature_image_name;
+        const oldFullFile = (oldPath && oldName) ? `${oldPath}/${oldName}` : null;
+
+        const { data: updateData, error } = await supabase
+            .from('users')
+            .update({
+                signature_image_path: null,
+                signature_image_name: null
+            })
+            .eq('uuid', userUuid)
+            .select('id');
+
+        if (error) throw error;
+        if (!updateData || updateData.length === 0) throw new Error("Nenhum registro foi atualizado. Verifique as permissões de acesso.");
+
+        if (oldFullFile) {
+            try {
+                await r2Service.deleteFile(oldFullFile);
+            } catch (delError) {
+                console.warn("Could not delete old signature from R2:", delError);
+            }
         }
     },
 

@@ -16,7 +16,7 @@ Write-Host ""
 
 # Executa o Gradle diretamente. 
 # O hook preBuild.dependsOn no 'android/app/build.gradle' executara o build do React e cap sync automaticamente.
-Write-Host "[1/1] Gerando APK (Gradle)..." -ForegroundColor Yellow
+Write-Host "[1/1] Gerando APK Debug (minificado)..." -ForegroundColor Yellow
 Push-Location android
 try {
     .\gradlew.bat assembleDebug
@@ -27,7 +27,7 @@ try {
 
 # Resultado
 Write-Host ""
-Write-Host "[OK] APK gerado com sucesso!" -ForegroundColor Green
+Write-Host "[OK] APK Debug gerado com sucesso!" -ForegroundColor Green
 $apkPath = "android\app\build\outputs\apk\debug\app-debug.apk"
 Write-Host "[APK] $apkPath" -ForegroundColor Green
 Write-Host ""

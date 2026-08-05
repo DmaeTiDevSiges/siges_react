@@ -1,29 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SystemNotice, NoticeFilters } from '../types';
-import { systemNoticesService } from '../services/core/systemNoticesService';
+import { appNoticesService } from '../services/core/appNoticesService';
 
-const NOTICES_CHANGED_EVENT = 'system-notices-changed';
+const NOTICES_CHANGED_EVENT = 'app-notices-changed';
 
 export const emitNoticesChanged = () => {
   window.dispatchEvent(new CustomEvent(NOTICES_CHANGED_EVENT));
 };
 
-interface UseSystemNoticesOptions {
+interface UseAppNoticesOptions {
   dashboard?: string;
   autoRefreshInterval?: number;
 }
 
-interface UseSystemNoticesReturn {
+interface UseAppNoticesReturn {
   notices: SystemNotice[];
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
 }
 
-export const useSystemNotices = ({
+export const useAppNotices = ({
   dashboard,
   autoRefreshInterval = 30000,
-}: UseSystemNoticesOptions = {}): UseSystemNoticesReturn => {
+}: UseAppNoticesOptions = {}): UseAppNoticesReturn => {
   const [notices, setNotices] = useState<SystemNotice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,11 +31,11 @@ export const useSystemNotices = ({
   const fetchNotices = useCallback(async () => {
     try {
       setError(null);
-      const data = await systemNoticesService.getActiveNotices(dashboard);
+      const data = await appNoticesService.getActiveNotices(dashboard);
       setNotices(data);
     } catch (err) {
-      console.error('[SystemNoticeTicker] Error:', err);
-      setError('Erro ao carregar avisos do sistema');
+      console.error('[AppNoticeTicker] Error:', err);
+      setError('Erro ao carregar avisos do app');
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ export const useSystemNotices = ({
   };
 };
 
-interface UseSystemNoticesAdminReturn {
+interface UseAppNoticesAdminReturn {
   notices: SystemNotice[];
   total: number;
   loading: boolean;
@@ -74,7 +74,7 @@ interface UseSystemNoticesAdminReturn {
   toggleActive: (id: number, isActive: boolean) => Promise<void>;
 }
 
-export const useSystemNoticesAdmin = (): UseSystemNoticesAdminReturn => {
+export const useAppNoticesAdmin = (): UseAppNoticesAdminReturn => {
   const [notices, setNotices] = useState<SystemNotice[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -84,7 +84,7 @@ export const useSystemNoticesAdmin = (): UseSystemNoticesAdminReturn => {
     try {
       setLoading(true);
       setError(null);
-      const result = await systemNoticesService.listNotices(filters);
+      const result = await appNoticesService.listNotices(filters);
       setNotices(result.notices);
       setTotal(result.total);
     } catch (err) {
@@ -96,27 +96,27 @@ export const useSystemNoticesAdmin = (): UseSystemNoticesAdminReturn => {
   }, []);
 
   const createNotice = useCallback(async (input: import('../types').CreateSystemNoticeInput) => {
-    const notice = await systemNoticesService.createNotice(input);
+    const notice = await appNoticesService.createNotice(input);
     await fetchNotices();
     emitNoticesChanged();
     return notice;
   }, [fetchNotices]);
 
   const updateNotice = useCallback(async (id: number, data: Partial<SystemNotice>) => {
-    const notice = await systemNoticesService.updateNotice(id, data);
+    const notice = await appNoticesService.updateNotice(id, data);
     await fetchNotices();
     emitNoticesChanged();
     return notice;
   }, [fetchNotices]);
 
   const deleteNotice = useCallback(async (id: number) => {
-    await systemNoticesService.deleteNotice(id);
+    await appNoticesService.deleteNotice(id);
     await fetchNotices();
     emitNoticesChanged();
   }, [fetchNotices]);
 
   const toggleActive = useCallback(async (id: number, isActive: boolean) => {
-    await systemNoticesService.toggleNoticeActive(id, isActive);
+    await appNoticesService.toggleNoticeActive(id, isActive);
     await fetchNotices();
     emitNoticesChanged();
   }, [fetchNotices]);

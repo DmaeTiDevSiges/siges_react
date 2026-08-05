@@ -8282,6 +8282,336 @@ INSERT INTO public.cfg_materials_purchases_statuses (code, description) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 --
+-- Name: cfg_app_tips; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cfg_app_tips (
+    id integer NOT NULL,
+    title text NOT NULL,
+    body text NOT NULL,
+    icon text DEFAULT 'lightbulb' NOT NULL,
+    screen_target text DEFAULT '*' NOT NULL,
+    target_mode text DEFAULT 'all' NOT NULL,
+    priority integer DEFAULT 0 NOT NULL,
+    start_date timestamp without time zone,
+    end_date timestamp without time zone,
+    is_active boolean DEFAULT true NOT NULL,
+    created_by integer,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.cfg_app_tips OWNER TO postgres;
+
+--
+-- Name: cfg_app_tips_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cfg_app_tips
+    ADD CONSTRAINT cfg_app_tips_pkey PRIMARY KEY (id);
+
+--
+-- Name: cfg_app_tips_dismissals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cfg_app_tips_dismissals (
+    id integer NOT NULL,
+    tip_id integer NOT NULL,
+    user_id integer NOT NULL,
+    dismissed_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.cfg_app_tips_dismissals OWNER TO postgres;
+
+--
+-- Name: cfg_app_tips_dismissals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cfg_app_tips_dismissals
+    ADD CONSTRAINT cfg_app_tips_dismissals_pkey PRIMARY KEY (id);
+
+--
+-- Name: cfg_app_tips_dismissals_tip_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cfg_app_tips_dismissals
+    ADD CONSTRAINT cfg_app_tips_dismissals_tip_id_user_id_key UNIQUE (tip_id, user_id);
+
+--
+-- Name: cfg_app_tips_dismissals_tip_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cfg_app_tips_dismissals
+    ADD CONSTRAINT cfg_app_tips_dismissals_tip_id_fkey FOREIGN KEY (tip_id) REFERENCES public.cfg_app_tips(id) ON DELETE CASCADE;
+
+--
+-- Name: cfg_app_tips_dismissals_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cfg_app_tips_dismissals
+    ADD CONSTRAINT cfg_app_tips_dismissals_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+--
+-- Name: cfg_app_tips_companies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cfg_app_tips_companies (
+    id integer NOT NULL,
+    tip_id integer NOT NULL,
+    company_id bigint NOT NULL
+);
+
+ALTER TABLE public.cfg_app_tips_companies OWNER TO postgres;
+
+ALTER TABLE ONLY public.cfg_app_tips_companies
+    ADD CONSTRAINT cfg_app_tips_companies_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.cfg_app_tips_companies
+    ADD CONSTRAINT cfg_app_tips_companies_tip_id_company_id_key UNIQUE (tip_id, company_id);
+
+ALTER TABLE ONLY public.cfg_app_tips_companies
+    ADD CONSTRAINT cfg_app_tips_companies_tip_id_fkey FOREIGN KEY (tip_id) REFERENCES public.cfg_app_tips(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.cfg_app_tips_companies
+    ADD CONSTRAINT cfg_app_tips_companies_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.cfg_companies(id) ON DELETE CASCADE;
+
+CREATE INDEX idx_cfg_app_tips_companies_tip_id ON public.cfg_app_tips_companies USING btree (tip_id);
+
+CREATE INDEX idx_cfg_app_tips_companies_company_id ON public.cfg_app_tips_companies USING btree (company_id);
+
+ALTER TABLE public.cfg_app_tips_companies ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view tip companies"
+    ON public.cfg_app_tips_companies
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Admins can manage tip companies"
+    ON public.cfg_app_tips_companies
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE users.uuid = auth.uid()
+            AND users.is_admin_super = true
+        )
+    );
+
+--
+-- Name: cfg_app_tips_departments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cfg_app_tips_departments (
+    id integer NOT NULL,
+    tip_id integer NOT NULL,
+    department_id bigint NOT NULL
+);
+
+ALTER TABLE public.cfg_app_tips_departments OWNER TO postgres;
+
+ALTER TABLE ONLY public.cfg_app_tips_departments
+    ADD CONSTRAINT cfg_app_tips_departments_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.cfg_app_tips_departments
+    ADD CONSTRAINT cfg_app_tips_departments_tip_id_department_id_key UNIQUE (tip_id, department_id);
+
+ALTER TABLE ONLY public.cfg_app_tips_departments
+    ADD CONSTRAINT cfg_app_tips_departments_tip_id_fkey FOREIGN KEY (tip_id) REFERENCES public.cfg_app_tips(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.cfg_app_tips_departments
+    ADD CONSTRAINT cfg_app_tips_departments_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.cfg_departments(id) ON DELETE CASCADE;
+
+CREATE INDEX idx_cfg_app_tips_departments_tip_id ON public.cfg_app_tips_departments USING btree (tip_id);
+
+CREATE INDEX idx_cfg_app_tips_departments_department_id ON public.cfg_app_tips_departments USING btree (department_id);
+
+ALTER TABLE public.cfg_app_tips_departments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view tip departments"
+    ON public.cfg_app_tips_departments
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Admins can manage tip departments"
+    ON public.cfg_app_tips_departments
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE users.uuid = auth.uid()
+            AND users.is_admin_super = true
+        )
+    );
+
+--
+-- Name: cfg_app_tips_profiles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cfg_app_tips_profiles (
+    id integer NOT NULL,
+    tip_id integer NOT NULL,
+    profile_id bigint NOT NULL
+);
+
+ALTER TABLE public.cfg_app_tips_profiles OWNER TO postgres;
+
+ALTER TABLE ONLY public.cfg_app_tips_profiles
+    ADD CONSTRAINT cfg_app_tips_profiles_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.cfg_app_tips_profiles
+    ADD CONSTRAINT cfg_app_tips_profiles_tip_id_profile_id_key UNIQUE (tip_id, profile_id);
+
+ALTER TABLE ONLY public.cfg_app_tips_profiles
+    ADD CONSTRAINT cfg_app_tips_profiles_tip_id_fkey FOREIGN KEY (tip_id) REFERENCES public.cfg_app_tips(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.cfg_app_tips_profiles
+    ADD CONSTRAINT cfg_app_tips_profiles_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.cfg_profiles(id) ON DELETE CASCADE;
+
+CREATE INDEX idx_cfg_app_tips_profiles_tip_id ON public.cfg_app_tips_profiles USING btree (tip_id);
+
+CREATE INDEX idx_cfg_app_tips_profiles_profile_id ON public.cfg_app_tips_profiles USING btree (profile_id);
+
+ALTER TABLE public.cfg_app_tips_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view tip profiles"
+    ON public.cfg_app_tips_profiles
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Admins can manage tip profiles"
+    ON public.cfg_app_tips_profiles
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE users.uuid = auth.uid()
+            AND users.is_admin_super = true
+        )
+    );
+
+--
+-- Name: cfg_app_tips_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cfg_app_tips
+    ADD CONSTRAINT cfg_app_tips_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+--
+-- Name: idx_cfg_app_tips_screen_target; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cfg_app_tips_screen_target ON public.cfg_app_tips USING btree (screen_target);
+
+--
+-- Name: idx_cfg_app_tips_is_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cfg_app_tips_is_active ON public.cfg_app_tips USING btree (is_active);
+
+--
+-- Name: idx_cfg_app_tips_dismissals_tip_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cfg_app_tips_dismissals_tip_id ON public.cfg_app_tips_dismissals USING btree (tip_id);
+
+--
+-- Name: idx_cfg_app_tips_dismissals_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cfg_app_tips_dismissals_user_id ON public.cfg_app_tips_dismissals USING btree (user_id);
+
+--
+-- Name: cfg_app_tips; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cfg_app_tips ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view active tips"
+    ON public.cfg_app_tips
+    FOR SELECT
+    TO authenticated
+    USING (is_active = true);
+
+CREATE POLICY "Admins can manage tips"
+    ON public.cfg_app_tips
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE users.uuid = auth.uid()
+            AND users.is_admin_super = true
+        )
+    );
+
+--
+-- Name: cfg_app_tips_dismissals; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cfg_app_tips_dismissals ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own dismissals"
+    ON public.cfg_app_tips_dismissals
+    FOR SELECT
+    TO authenticated
+    USING (
+        user_id = (
+            SELECT id FROM public.users WHERE uuid = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can insert own dismissals"
+    ON public.cfg_app_tips_dismissals
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        user_id = (
+            SELECT id FROM public.users WHERE uuid = auth.uid()
+        )
+    );
+
+CREATE POLICY "Admins can manage all dismissals"
+    ON public.cfg_app_tips_dismissals
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE users.uuid = auth.uid()
+            AND users.is_admin_super = true
+        )
+    );
+
+--
+-- Name: update_cfg_app_tips_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.update_cfg_app_tips_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$function$;
+
+--
+-- Name: cfg_app_tips; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_update_cfg_app_tips_updated_at
+    BEFORE UPDATE ON public.cfg_app_tips
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_cfg_app_tips_updated_at();
+
+--
 -- PostgreSQL database dump complete
 --
 

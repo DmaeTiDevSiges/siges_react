@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { SystemNotice, SystemNoticeCategory, SystemNoticeSeverity, CreateSystemNoticeInput, DASHBOARD_OPTIONS } from '../types';
-import { systemNoticesService } from '../services/core/systemNoticesService';
+import { appNoticesService } from '../services/core/appNoticesService';
 
-interface SystemNoticeFormProps {
+interface AppNoticeFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (input: CreateSystemNoticeInput) => Promise<void>;
@@ -11,7 +11,7 @@ interface SystemNoticeFormProps {
   loading?: boolean;
 }
 
-export const SystemNoticeForm: React.FC<SystemNoticeFormProps> = ({
+export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
   isOpen,
   onClose,
   onSave,
@@ -52,8 +52,8 @@ export const SystemNoticeForm: React.FC<SystemNoticeFormProps> = ({
 
   const loadCategoriesAndSeverities = async () => {
     const [cats, sevs] = await Promise.all([
-      systemNoticesService.getCategories(),
-      systemNoticesService.getSeverities(),
+      appNoticesService.getCategories(),
+      appNoticesService.getSeverities(),
     ]);
     setCategories(cats);
     setSeverities(sevs);

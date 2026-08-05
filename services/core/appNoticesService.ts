@@ -7,10 +7,10 @@ import {
   NoticeFilters,
 } from '../../types';
 
-export const systemNoticesService = {
+export const appNoticesService = {
   async getCategories(): Promise<SystemNoticeCategory[]> {
     const { data, error } = await supabase
-      .from('system_notice_categories')
+      .from('cfg_app_notices_categories')
       .select('*')
       .eq('is_active', true)
       .order('order_index');
@@ -25,7 +25,7 @@ export const systemNoticesService = {
 
   async getSeverities(): Promise<SystemNoticeSeverity[]> {
     const { data, error } = await supabase
-      .from('system_notice_severities')
+      .from('cfg_app_notices_severities')
       .select('*')
       .eq('is_active', true)
       .order('order_index');
@@ -42,7 +42,7 @@ export const systemNoticesService = {
     const now = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
     
     let query = supabase
-      .from('v_system_notices')
+      .from('v_app_notices')
       .select('*')
       .eq('is_active', true)
       .lte('start_date', now)
@@ -70,7 +70,7 @@ export const systemNoticesService = {
     const { categoryId, severityId, isActive, startDate, endDate, search, page = 0, pageSize = 20 } = filters;
 
     let query = supabase
-      .from('v_system_notices')
+      .from('v_app_notices')
       .select('*', { count: 'exact' });
 
     if (categoryId) {
@@ -114,7 +114,7 @@ export const systemNoticesService = {
 
   async getNoticeById(id: number): Promise<SystemNotice | null> {
     const { data, error } = await supabase
-      .from('v_system_notices')
+      .from('v_app_notices')
       .select('*')
       .eq('id', id)
       .single();
@@ -131,7 +131,7 @@ export const systemNoticesService = {
     const { data: { user } } = await supabase.auth.getUser();
 
     const { data, error } = await supabase
-      .from('system_notices')
+      .from('cfg_app_notices')
       .insert({
         title: input.title,
         message: input.message,
@@ -140,7 +140,7 @@ export const systemNoticesService = {
         start_date: input.startDate,
         end_date: input.endDate,
         dashboards: input.dashboards,
-        created_by: user?.id || null,
+        created_user_id: user?.id || null,
         is_active: true,
       })
       .select()
@@ -166,7 +166,7 @@ export const systemNoticesService = {
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const { error } = await supabase
-      .from('system_notices')
+      .from('cfg_app_notices')
       .update(updateData)
       .eq('id', id);
 
@@ -180,7 +180,7 @@ export const systemNoticesService = {
 
   async deleteNotice(id: number): Promise<void> {
     const { error } = await supabase
-      .from('system_notices')
+      .from('cfg_app_notices')
       .delete()
       .eq('id', id);
 
@@ -192,7 +192,7 @@ export const systemNoticesService = {
 
   async toggleNoticeActive(id: number, isActive: boolean): Promise<void> {
     const { error } = await supabase
-      .from('system_notices')
+      .from('cfg_app_notices')
       .update({ is_active: isActive })
       .eq('id', id);
 
@@ -238,7 +238,7 @@ export const systemNoticesService = {
       startDate: row.start_date,
       endDate: row.end_date,
       dashboards: row.dashboards || [],
-      createdBy: row.created_by,
+      createdBy: row.created_user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isActive: row.is_active,

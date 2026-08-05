@@ -4,7 +4,7 @@ import { usePermissions } from '../contexts/PermissionsContext';
 interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
-    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'materials' | 'manuals' | 'system-notices';
+    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'materials' | 'manuals' | 'app-notices' | 'app-tips';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -137,13 +137,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => { onNavigate('manuals'); }}
                     />
                 )}
-                {(isAdminSuper || canView('system_notices')) && (
+                {(isAdminSuper || canView('app_notices')) && (
                     <SidebarItem
                         icon="notifications"
                         label="Avisos"
-                        isActive={activeTab === 'system-notices'}
+                        isActive={activeTab === 'app-notices'}
                         isCollapsed={isCollapsed}
-                        onClick={() => { onNavigate('system-notices'); }}
+                        onClick={() => { onNavigate('app-notices'); }}
+                    />
+                )}
+                {isAdminSuper && (
+                    <SidebarItem
+                        icon="tips_and_updates"
+                        label="Dicas"
+                        isActive={activeTab === 'app-tips'}
+                        isCollapsed={isCollapsed}
+                        onClick={() => { onNavigate('app-tips'); }}
                     />
                 )}
                 {(isAdminSuper || canView('settings')) && (
