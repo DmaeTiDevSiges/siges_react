@@ -174,7 +174,7 @@ export const usersService = {
         if (companyId) query = query.eq('company_id', companyId);
         if (departmentId) query = query.eq('department_id', departmentId);
 
-        const { data, error } = await query.order('description');
+        const { data, error } = await query.order('sort_order', { ascending: true }).order('description');
         if (error) { console.error('Error fetching teams:', error); return []; }
 
         return (data || []).map((item: any) => ({
@@ -184,6 +184,7 @@ export const usersService = {
             name: item.description,
             code: item.code,
             status: item.is_available ? 'active' : 'inactive',
+            sortOrder: item.sort_order ?? undefined,
             companyId: item.company_id?.toString()
         })) as Team[];
     },
@@ -192,7 +193,9 @@ export const usersService = {
         const { data, error } = await supabase
             .from('cfg_teams')
             .select('*')
-            .eq('department_id', departmentId);
+            .eq('department_id', departmentId)
+            .order('sort_order', { ascending: true })
+            .order('description');
 
         if (error) {
             console.error('Error fetching teams by department:', error);
@@ -205,7 +208,8 @@ export const usersService = {
             parentId: item.parent_id?.toString(),
             name: item.description,
             code: item.code,
-            status: item.is_available ? 'active' : 'inactive'
+            status: item.is_available ? 'active' : 'inactive',
+            sortOrder: item.sort_order ?? undefined
         })) as Team[];
     },
 
@@ -222,12 +226,28 @@ export const usersService = {
             if (dept) companyId = dept.company_id.toString();
         }
 
+        // Get next sort_order for this department
+        let nextSortOrder = 0;
+        if (team.departmentId) {
+            const { data: existingTeams } = await supabase
+                .from('cfg_teams')
+                .select('sort_order')
+                .eq('department_id', team.departmentId)
+                .order('sort_order', { ascending: false })
+                .limit(1);
+            
+            if (existingTeams && existingTeams.length > 0 && existingTeams[0].sort_order != null) {
+                nextSortOrder = existingTeams[0].sort_order + 1;
+            }
+        }
+
         const dbData = {
             department_id: team.departmentId,
             company_id: companyId,
             description: team.name,
             code: team.code,
-            is_available: true
+            is_available: true,
+            sort_order: nextSortOrder
         };
 
         const { data, error } = await supabase
@@ -245,11 +265,13 @@ export const usersService = {
     },
 
     async updateTeam(id: string, team: Partial<Team>): Promise<Team> {
-        const dbData = {
-            description: team.name,
-            code: team.code,
-            is_available: team.status === 'active'
-        };
+        const dbData: Record<string, any> = {};
+        if (team.name !== undefined) dbData.description = team.name;
+        if (team.code !== undefined) dbData.code = team.code;
+        if (team.status !== undefined) dbData.is_available = team.status === 'active';
+        if (team.parentId !== undefined) dbData.parent_id = team.parentId || null;
+        if (team.departmentId !== undefined) dbData.department_id = team.departmentId;
+        if (team.sortOrder !== undefined) dbData.sort_order = team.sortOrder;
 
         const { data, error } = await supabase
             .from('cfg_teams')
@@ -273,6 +295,22 @@ export const usersService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    async updateTeamOrders(updates: { id: string; sortOrder: number }[]): Promise<void> {
+        const promises = updates.map(({ id, sortOrder }) =>
+            supabase
+                .from('cfg_teams')
+                .update({ sort_order: sortOrder })
+                .eq('id', id)
+        );
+
+        const results = await Promise.all(promises);
+        const errors = results.filter(r => r.error);
+        if (errors.length > 0) {
+            console.error('Error updating team orders:', errors);
+            throw errors[0].error;
+        }
     },
 
     async getUsersByCompany(companyId: string): Promise<User[]> {
@@ -339,7 +377,9 @@ export const usersService = {
         const { data, error } = await supabase
             .from('cfg_teams')
             .select('*')
-            .eq('company_id', companyId);
+            .eq('company_id', companyId)
+            .order('sort_order', { ascending: true })
+            .order('description');
 
         if (error) {
             console.error('Error fetching teams by company:', error);
@@ -352,7 +392,8 @@ export const usersService = {
             parentId: item.parent_id?.toString(),
             name: item.description,
             code: item.code,
-            status: item.is_available ? 'active' : 'inactive'
+            status: item.is_available ? 'active' : 'inactive',
+            sortOrder: item.sort_order ?? undefined
         })) as Team[];
     },
 
@@ -1203,7 +1244,11 @@ export const usersService = {
         } catch (e) {
             console.error('Unexpected error during sign out:', e);
         } finally {
+            const savedCompanyId = localStorage.getItem('last_company_id');
             localStorage.clear();
+            if (savedCompanyId) {
+                localStorage.setItem('last_company_id', savedCompanyId);
+            }
             window.location.href = '/';
         }
     },

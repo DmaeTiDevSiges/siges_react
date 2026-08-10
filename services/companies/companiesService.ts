@@ -26,6 +26,7 @@ export const companiesService = {
                 id: item.id.toString(),
                 name: item.description,
                 code: item.code,
+                providerCompanyCode: item.provider_company_code,
                 emailSuffix: item.email_sufix,
                 logoPath: item.img_file_path,
                 logoName: item.img_file_name,
@@ -39,6 +40,7 @@ export const companiesService = {
             };
         }) as Company[];
     },
+
 
     async getCompanyById(id: string): Promise<Company | null> {
         if (!id) return null;
@@ -59,6 +61,7 @@ export const companiesService = {
             id: item.id.toString(),
             name: item.description,
             code: item.code,
+            providerCompanyCode: item.provider_company_code,
             emailSuffix: item.email_sufix,
             logoPath: item.img_file_path,
             logoName: item.img_file_name,
@@ -256,6 +259,7 @@ export const companiesService = {
             totalValue: item.total_value,
             clientCompanyName: companyMap.get(item.client_company_id?.toString())?.name || 'N/A',
             providerCompanyName: companyMap.get(item.provider_company_id?.toString())?.name || 'N/A',
+            providerCompanyCode: companyMap.get(item.provider_company_id?.toString())?.providerCompanyCode || companyMap.get(item.provider_company_id?.toString())?.code,
             clientDepartmentName: deptMap.get(item.client_department_id?.toString())?.name,
             providerDepartmentName: deptMap.get(item.provider_department_id?.toString())?.name,
             clientName: clientMap.get(item.client_id?.toString())?.name,
@@ -340,6 +344,7 @@ export const companiesService = {
             totalValue: item.total_value,
             clientCompanyName: companyMap.get(item.client_company_id?.toString())?.name || 'N/A',
             providerCompanyName: companyMap.get(item.provider_company_id?.toString())?.name || 'N/A',
+            providerCompanyCode: companyMap.get(item.provider_company_id?.toString())?.providerCompanyCode || companyMap.get(item.provider_company_id?.toString())?.code,
             clientDepartmentName: deptMap.get(item.client_department_id?.toString())?.name,
             providerDepartmentName: deptMap.get(item.provider_department_id?.toString())?.name,
             logoUrl: companyMap.get(item.provider_company_id?.toString())?.logoUrl
@@ -432,7 +437,7 @@ export const companiesService = {
                 clientDepartmentName: deptMap.get(item.client_department_id?.toString())?.name,
                 providerDepartmentName: deptMap.get(item.provider_department_id?.toString())?.name,
                 logoUrl: companyMap.get(item.provider_company_id?.toString())?.logoUrl,
-                providerCompanyCode: companyMap.get(item.provider_company_id?.toString())?.code
+                providerCompanyCode: companyMap.get(item.provider_company_id?.toString())?.providerCompanyCode || companyMap.get(item.provider_company_id?.toString())?.code
             })) as Contract[];
 
         } catch (error) {

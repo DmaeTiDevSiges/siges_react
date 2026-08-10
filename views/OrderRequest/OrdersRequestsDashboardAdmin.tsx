@@ -16,7 +16,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { useOrderFollow } from '../../hooks/useOrderFollow';
 import { DashboardOrdersVisitsAdminScreen } from '../../views/Dashboards/DashboardOrdersVisitsAdminScreen';
-import { OrderVisit } from '../../types';
+import { OrderVisit, OrderVisitTeam } from '../../types';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { OrdersListPDFButton } from '../../components/reports/OrdersListPDFButton';
 import { ExcelExportButton } from '../../components/reports/ExcelExportButton';
@@ -25,6 +25,8 @@ import { RequestsExcelExportButton } from '../../components/reports/RequestsExce
 import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components/ui/FilterBarResponsive';
 import { ChevronButton } from '../../components/ui/ChevronButton';
 import { Loading } from '../../components/ui/Loading';
+import { Modal } from '../../components/ui/Modal';
+import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 
 
 interface OrdersRequestsDashboardAdminProps {
@@ -131,6 +133,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     });
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [isFiltering, setIsFiltering] = useState(false);
+    const [modalVisit, setModalVisit] = useState<OrderVisit | null>(null);
+    const [modalVisitTeam, setModalVisitTeam] = useState<OrderVisitTeam[]>([]);
+    const [loadingLeaderId, setLoadingLeaderId] = useState<string | null>(null);
     const [totalOrders, setTotalOrders] = useState(() => {
         return Number(localStorage.getItem('cachedTotalOrders_v2')) || 0;
     });
@@ -441,6 +446,65 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
         return Object.values(grouped);
     }, [users, appliedFilters.contractId, filterOptions.contracts]);
+
+    const handleBusyLeaderClick = useCallback(async (leader: User) => {
+        const visitId = leader.ovIdInProgress?.toString();
+        if (!visitId) return;
+        setLoadingLeaderId(leader.id);
+        try {
+            const raw = await dataService.getOrderVisitById(visitId);
+            if (raw) {
+                const row = raw as any;
+                const mapped: OrderVisit = {
+                    id: row.id?.toString() || visitId,
+                    oId: row.o_id?.toString() || '',
+                    ovMask: row.ov_mask || '',
+                    ovStatusId: row.ov_status_id || 1,
+                    ovCreatedAt: row.ov_created_at || '',
+                    ovCreatedUserId: row.ov_created_user_id?.toString() || '',
+                    ovProcessingId: row.ov_processing_id || 1,
+                    ovTeamLeadId: row.ov_team_leader_id?.toString() || '',
+                    ovStartedAt: row.ov_started_at,
+                    ovEndedAt: row.ov_ended_at,
+                    unitDescription: row.o_unit_description,
+                    systemDescription: row.o_system_description,
+                    clientName: row.client_name || row.o_client_name,
+                    teamLeaderName: row.ov_team_leader_name_short,
+                    statusDescription: row.ov_status_description,
+                    processingDescription: row.ov_processing_description,
+                    ovOStatusId: row.ov_o_status_id,
+                    ovOStatusDescription: row.ov_o_status_description,
+                    ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
+                    unitId: row.o_unit_id?.toString(),
+                    orderMask: row.o_mask,
+                    teamCode: row.o_team_code,
+                    requestedServices: row.o_requested_services,
+                    progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
+                    ovDurationHours: row.ov_duration_hours ? parseFloat(row.ov_duration_hours) : 0,
+                    servicesValue: row.ov_services_value ? parseFloat(row.ov_services_value) : 0,
+                    materialsValue: row.ov_materials_value ? parseFloat(row.ov_materials_value) : 0,
+                    vehiclesValue: row.ov_vehicles_value ? parseFloat(row.ov_vehicles_value) : 0,
+                    totalValue: row.ov_total_value ? parseFloat(row.ov_total_value) : 0,
+                    priorityId: row.o_priority_id?.toString(),
+                    priorityCode: row.o_priority_code,
+                    priorityColor: row.o_priority_color,
+                    contractDescription: row.o_contract_description || row.contract_description,
+                    planDescription: row.o_plan_description || row.plan_description,
+                    assetTagDescription: row.o_asset_tag_description || row.asset_tag_description,
+                    assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description,
+                    typeCode: row.o_type_code,
+                    typeSubCode: row.o_type_sub_code,
+                } as OrderVisit;
+                setModalVisit(mapped);
+                const teams = await dataService.getOrderVisitTeam(visitId);
+                setModalVisitTeam(teams || []);
+            }
+        } catch (err) {
+            console.error('Error loading visit for busy leader:', err);
+        } finally {
+            setLoadingLeaderId(null);
+        }
+    }, []);
 
 
 
@@ -1149,27 +1213,42 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 onClickCapture={leadersScroll.onClickCapture}>
 
                                 {leadersByCompany.map((group) => (
-                                    <div key={group.companyId} className="flex items-center justify-between gap-4 shrink-0 p-2 px-3 bg-white dark:bg-slate-800/40 rounded-[12px] border border-slate-100 dark:border-white/5 shadow-sm w-max max-w-none">
-                                        <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 border-r border-slate-100 dark:border-white/10 pr-4" title={group.companyName}>
+                                    <div key={group.companyId} className="flex items-center gap-3 shrink-0 p-2 px-3 bg-white dark:bg-slate-800/40 rounded-[12px] border border-slate-100 dark:border-white/5 shadow-sm w-max max-w-none">
+                                        <div className="flex flex-col items-center shrink-0 border-r border-slate-100 dark:border-white/10 pr-3" title={group.companyName}>
                                             <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="sm" className="shrink-0 text-[10px]" />
-                                            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-tight truncate max-w-[56px]">{group.companyName}</span>
+                                            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-none mt-1 truncate w-12 h-[14px] overflow-hidden">{group.companyName}</span>
                                         </div>
 
-                                        <div className="flex gap-4 overflow-visible items-center">
-                                            {group.leaders.map((leader) => (
-                                                <div key={leader.id} className="flex flex-col items-center gap-1 group cursor-default shrink-0">
-                                                    <UserAvatar
-                                                        src={leader.avatarUrl}
-                                                        name={leader.nameShort || leader.nameFull || ''}
-                                                        size="sm"
-                                                        status={(leader.ovIdInProgress && Number(leader.ovIdInProgress) > 0) ? 'busy' : (leader.isAvailable ? 'available' : 'unavailable')}
-                                                        className="shadow-sm transition-transform group-hover:scale-110"
-                                                    />
-                                                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-tight truncate max-w-[56px]">
-                                                        {leader.nameShort || leader.nameFull}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                        <div className="flex gap-2.5">
+                                            {group.leaders.map((leader) => {
+                                                const isBusy = leader.ovIdInProgress && Number(leader.ovIdInProgress) > 0;
+                                                const isLoading = loadingLeaderId === leader.id;
+                                                return (
+                                                    <div
+                                                        key={leader.id}
+                                                        className={`flex flex-col items-center shrink-0 ${isBusy ? 'cursor-pointer' : 'cursor-default'}`}
+                                                        onClick={isBusy ? () => handleBusyLeaderClick(leader) : undefined}
+                                                    >
+                                                        <div className="relative group">
+                                                            <UserAvatar
+                                                                src={leader.avatarUrl}
+                                                                name={leader.nameShort || leader.nameFull || ''}
+                                                                size="sm"
+                                                                status={isBusy ? 'busy' : (leader.isAvailable ? 'available' : 'unavailable')}
+                                                                className={`shadow-sm transition-transform group-hover:scale-110 ${isLoading ? 'opacity-50' : ''}`}
+                                                            />
+                                                            {isLoading && (
+                                                                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/30">
+                                                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-none mt-1 truncate w-12 h-[14px] overflow-hidden">
+                                                            {leader.nameShort || leader.nameFull}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
                                             {group.leaders.length === 0 && (
                                                 <span className="text-[10px] text-slate-400 italic">Nenhum</span>
                                             )}
@@ -1690,6 +1769,25 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     )}
                 </div>
             )}
+
+            {/* Modal: card da visita do líder ocupado */}
+            <Modal
+                isOpen={!!modalVisit}
+                onClose={() => setModalVisit(null)}
+                title="DETALHE DA VISITA"
+                maxWidth="xl"
+                noPadding
+                draggable
+            >
+                {modalVisit && (
+                    <div className="p-4">
+                        <DashboardOrdersVisitsAdminListItem
+                            visit={modalVisit}
+                            teamMembers={modalVisitTeam}
+                        />
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

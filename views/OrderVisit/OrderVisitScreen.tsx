@@ -21,6 +21,7 @@ interface OrderVisitPageProps {
     onTabChange?: (tab: VisitTab) => void;
     onAssetSelect?: (asset: OrderVisitAssetView, visit: OrderVisit) => void;
     onApproveVisitRequest?: (visit: OrderVisit, order: Order) => void;
+    onNavigateToEvaluation?: (visitId: string) => void;
     onChatEntered?: (visitId: string) => void;
     onViewOrder?: () => void;
 }
@@ -39,7 +40,9 @@ import { Modal } from '../../components/ui/Modal';
 import { OrderRequestForm } from '../OrderRequest/OrderRequestForm';
 import { Loading } from '../../components/ui/Loading';
 import { OrderVisitChatTab } from './OrderVisitChat/OrderVisitChatTab';
+import { AIVisitAssistantTab } from '../../components/ai/AIVisitAssistantTab';
 import { AlertModal } from '../../components/ui/AlertModal';
+import { VisitEvaluationInline } from '../Visits/VisitEvaluationInline';
 
 export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     visitId,
@@ -49,6 +52,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     onTabChange: onExternalTabChange,
     onAssetSelect,
     onApproveVisitRequest,
+    onNavigateToEvaluation,
     onChatEntered,
     onViewOrder
 }) => {
@@ -73,6 +77,9 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isReverseConfirmModalOpen, setIsReverseConfirmModalOpen] = useState(false);
     const [isReverseAlertModalOpen, setIsReverseAlertModalOpen] = useState(false);
     const [isReversingApproval, setIsReversingApproval] = useState(false);
+    const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+    const [evaluationCount, setEvaluationCount] = useState(0);
+    const [totalRequirements, setTotalRequirements] = useState(0);
     const [fullOrderData, setFullOrderData] = useState<Order | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
     const [unreadChatCount, setUnreadChatCount] = useState(0);
@@ -242,6 +249,26 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         };
     }, [visitId]);
 
+    // Busca dados de avaliação para o badge
+    useEffect(() => {
+        const loadEvaluationData = async () => {
+            if (!visit) return;
+            const contractId = visit.contractId || (visit as any).o_contract_id;
+            if (!contractId) return;
+            try {
+                const [requirements, evaluations] = await Promise.all([
+                    dataService.getContractEvaluationRequirements(contractId),
+                    dataService.getVisitEvaluations(visitId)
+                ]);
+                setTotalRequirements(requirements.length);
+                setEvaluationCount(evaluations.filter(e => e.wasApplied).length);
+            } catch (error) {
+                console.error('Error loading evaluation data:', error);
+            }
+        };
+        loadEvaluationData();
+    }, [visitId, visit]);
+
     const refreshVisit = async () => {
         try {
             const visitData = await dataService.getActiveOrderVisit(visitId);
@@ -263,6 +290,15 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 .eq('ov_id', parseInt(visitId));
             if (sCount !== null) {
                 setServicesCount(sCount);
+            }
+
+            // Fetch and update evaluation count (only selected items)
+            if (visitData) {
+                const contractId = visitData.contractId || (visitData as any).o_contract_id;
+                if (contractId) {
+                    const evaluations = await dataService.getVisitEvaluations(visitId);
+                    setEvaluationCount(evaluations.filter(e => e.wasApplied).length);
+                }
             }
         } catch (error) {
             console.error('Error refreshing visit data:', error);
@@ -379,9 +415,30 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const handleApproveVisit = async () => {
         if (!visit || !currentUser || !onApproveVisitRequest) return;
 
+        const contractId = visit.contractId || (visit as any).o_contract_id;
+        if (contractId) {
+            const requirements = await dataService.getContractEvaluationRequirements(contractId);
+            if (requirements.length > 0) {
+                setIsApprovalModalOpen(true);
+                return;
+            }
+        }
+
+        handleApprovalModalDirect();
+    };
+
+    const handleApprovalModalEvaluate = () => {
+        setIsApprovalModalOpen(false);
+        if (onNavigateToEvaluation) {
+            onNavigateToEvaluation(visitId);
+        }
+    };
+
+    const handleApprovalModalDirect = async () => {
+        if (!visit || !currentUser || !onApproveVisitRequest) return;
+        setIsApprovalModalOpen(false);
         try {
             setIsApproving(true);
-            // Fetch full order data for editing
             const orderData = await dataService.getOrderById(visit.oId);
             if (orderData) {
                 onApproveVisitRequest(visit, orderData);
@@ -660,6 +717,25 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 );
             case 'chat':
                 return <OrderVisitChatTab visitId={visitId} onChatEntered={onChatEntered} />;
+            case 'evaluation':
+                return (
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                        {visit?.isFiled ? (
+                            <div className="text-center py-12 bg-white dark:bg-card-dark rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                                <span className="material-symbols-outlined text-4xl text-slate-200 dark:text-slate-800 mb-2">
+                                    lock
+                                </span>
+                                <p className="text-slate-400 dark:text-slate-500 text-sm font-medium">
+                                    Visita arquivada — avaliação somente leitura
+                                </p>
+                            </div>
+                        ) : (
+                            <VisitEvaluationInline visitId={visitId} visit={visit} onRefresh={refreshVisit} onEvaluationCountChange={setEvaluationCount} />
+                        )}
+                    </div>
+                );
+            case 'assistant':
+                return <AIVisitAssistantTab visitId={visitId} />;
             default:
                 return null;
         }
@@ -667,7 +743,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
 
     return (
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark text-slate-900 dark:text-white">
-            {activeTab === 'chat' ? (
+            {activeTab === 'chat' || activeTab === 'assistant' ? (
                 <div className="flex-1 min-h-0 overflow-hidden flex flex-col pb-[calc(5rem+env(safe-area-inset-bottom))]">
                     {renderTabContent()}
                 </div>
@@ -729,6 +805,30 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 visit={visit}
             />
 
+            {/* Modal de Aprovação - Avaliar ou Aprovar */}
+            <AlertModal
+                isOpen={isApprovalModalOpen}
+                onClose={() => setIsApprovalModalOpen(false)}
+                icon="gpp_maybe"
+                iconClassName="text-amber-500"
+                iconBgClassName="bg-amber-50 dark:bg-amber-900/20"
+                iconRingClassName="ring-amber-50/50 dark:ring-amber-900/10"
+                title="Aprovar Visita"
+                description="Deseja realizar a avaliação dos serviços antes de aprovar a visita?"
+                primaryAction={{
+                    label: 'AVALIAR PRIMEIRO',
+                    icon: 'rate_review',
+                    onClick: handleApprovalModalEvaluate,
+                    variant: 'primary'
+                }}
+                secondaryAction={{
+                    label: 'APROVAR DIRETO',
+                    icon: 'check_circle',
+                    onClick: handleApprovalModalDirect,
+                    variant: 'success'
+                }}
+            />
+
             {/* Bottom Navigation */}
             {!isKeyboardVisible && (
                 <div className="fixed bottom-0 left-0 right-0 z-50">
@@ -739,6 +839,9 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                         assetsCount={visit?.ovAssetsAmount || 0}
                         vehiclesCount={vehiclesCount}
                         servicesCount={servicesCount}
+                        evaluationCount={evaluationCount}
+                        totalRequirements={totalRequirements}
+                        isAdminSuper={currentUser?.isAdminSuper}
                     />
                 </div>
             )}

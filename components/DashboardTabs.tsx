@@ -22,12 +22,14 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   const hasVisits = canView('dashboard_orders_visits');
   const hasUnits = canView('dashboard_units_assets_tags');
   const hasPower = canView('dashboard_units_power_electric');
+  const hasEvaluations = canView('dashboard_contracts_evaluations');
 
   const isDashboardScreen =
     currentScreen === 'orders-dashboard' ||
     currentScreen === 'visits-dashboard' ||
     currentScreen === 'dashboard-units-power-electric' ||
     currentScreen === 'dashboard-units-assets-tags' ||
+    currentScreen === 'dashboard-contracts-evaluations' ||
     currentScreen === 'dashboard-orders-admin-calendar' ||
     currentScreen === 'materials-dashboard' ||
     currentScreen === 'services-history';
@@ -91,6 +93,17 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
           >
             Materiais
             {currentScreen === 'materials-dashboard' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+            )}
+          </button>
+        )}
+        {hasEvaluations && (
+          <button
+            onClick={() => { setCurrentScreen('dashboard-contracts-evaluations'); setActiveTab('dashboard-contracts-evaluations'); }}
+            className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${currentScreen === 'dashboard-contracts-evaluations' ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}
+          >
+            Avaliações
+            {currentScreen === 'dashboard-contracts-evaluations' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
             )}
           </button>

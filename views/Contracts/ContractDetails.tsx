@@ -5,6 +5,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
 import { ContractServicesList } from './Services/ContractServicesList';
+import { ContractEvaluationsTab } from './Evaluations/ContractEvaluationsTab';
 import { Loading } from '../../components/ui/Loading';
 import { TabsBar } from '../../components/ui/TabsBar';
 
@@ -66,7 +67,7 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
     onDelete
 }) => {
     const [showMenu, setShowMenu] = useState(false);
-    const [activeTab, setActiveTab] = useState<'gestores' | 'servicos' | null>(null);
+    const [activeTab, setActiveTab] = useState<'gestores' | 'servicos' | 'avaliacoes' | null>(null);
     const [managers, setManagers] = useState<ContractManager[]>([]);
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -275,12 +276,23 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
 
             {/* Action Buttons Section */}
             <div className="mt-4">
-                <TabsBar tabs={['Gestores', 'Serviços']} activeTab={activeTab === 'gestores' ? 'Gestores' : 'Serviços'} onTabChange={(tab) => setActiveTab(tab === 'Gestores' ? 'gestores' : 'servicos')} />
+                <TabsBar tabs={['Gestores', 'Serviços', 'Avaliações']} activeTab={
+                    activeTab === 'gestores' ? 'Gestores' : 
+                    activeTab === 'avaliacoes' ? 'Avaliações' : 'Serviços'
+                } onTabChange={(tab) => setActiveTab(
+                    tab === 'Gestores' ? 'gestores' : 
+                    tab === 'Avaliações' ? 'avaliacoes' : 'servicos'
+                )} />
             </div>
 
             {/* Services Tab Content */}
             {activeTab === 'servicos' && (
                 <ContractServicesList contractId={contract.id} />
+            )}
+
+            {/* Evaluations Tab Content */}
+            {activeTab === 'avaliacoes' && (
+                <ContractEvaluationsTab contractId={contract.id} />
             )}
 
             {/* Managers Tab Content */}

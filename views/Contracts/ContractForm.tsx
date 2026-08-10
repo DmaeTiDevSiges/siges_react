@@ -219,7 +219,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
                     options={[
                         { value: '', label: 'Selecione o parceiro' },
                         ...companies
-                            .filter(c => c.status === 'active' && c.id !== formData.clientCompanyId)
+                            .filter(c => c.status === 'active')
                             .map(c => ({ value: c.id, label: c.name }))
                     ]}
                     required

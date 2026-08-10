@@ -25,6 +25,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForg
         dataService.getCompanies().then(data => {
             setCompanies(data.filter(cc => cc.status === 'active'));
         }).catch(console.error);
+
+        const savedCompanyId = localStorage.getItem('last_company_id');
+        if (savedCompanyId) {
+            setCompanyId(savedCompanyId);
+        }
     }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -45,6 +50,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForg
             const fullEmail = `${trimmedUsername}${company?.emailSuffix || ''}`;
 
             await dataService.signIn(fullEmail, password);
+            localStorage.setItem('last_company_id', companyId);
             onLoginSuccess();
         } catch (err: any) {
             console.error('Login error:', err);

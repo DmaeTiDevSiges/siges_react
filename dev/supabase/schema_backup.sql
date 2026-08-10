@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS public.cfg_teams (
     description character varying not null,
     department_id bigint not null,
     is_available boolean not null default true,
+    sort_order integer null default 0,
     img_url character varying null,
     users_total bigint not null default '0'::bigint,
     company_id bigint not null,

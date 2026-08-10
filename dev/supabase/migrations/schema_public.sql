@@ -898,6 +898,7 @@ CREATE TABLE public.cfg_teams (
     description character varying NOT NULL,
     department_id bigint NOT NULL,
     is_available boolean DEFAULT true NOT NULL,
+    sort_order integer DEFAULT 0,
     img_url character varying,
     users_total bigint DEFAULT '0'::bigint NOT NULL,
     company_id bigint NOT NULL,
@@ -6101,6 +6102,8 @@ CREATE VIEW public.v_systems_parent_assets_tags_processing_counts AS
 -- Name: v_teams; Type: VIEW; Schema: public; Owner: -
 --
 
+DROP VIEW IF EXISTS public.v_teams;
+
 CREATE VIEW public.v_teams AS
  SELECT cfg_teams.id,
     cfg_teams.parent_id,
@@ -6108,6 +6111,7 @@ CREATE VIEW public.v_teams AS
     cfg_teams.description,
     cfg_teams.department_id,
     cfg_teams.is_available,
+    cfg_teams.sort_order,
     cfg_teams.img_url,
     cfg_teams.users_total,
     cfg_teams.company_id,
@@ -6121,7 +6125,7 @@ CREATE VIEW public.v_teams AS
     cfg_teams.version
    FROM public.cfg_teams
   WHERE (cfg_teams.is_deleted = false)
-  ORDER BY cfg_teams.description;
+  ORDER BY cfg_teams.sort_order, cfg_teams.description;
 
 
 --

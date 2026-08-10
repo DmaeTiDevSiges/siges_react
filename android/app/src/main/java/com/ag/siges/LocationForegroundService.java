@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.location.Location;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
@@ -92,12 +93,18 @@ public class LocationForegroundService extends Service {
     private long     lastSentTimeMs   = 0;
     private Location lastGpsLocation  = null;
 
+    // ── Heartbeat timer (keeps tracker_heartbeat_at fresh when GPS is off) ──
+    private Handler  heartbeatHandler;
+    private Runnable heartbeatRunnable;
+    private long     heartbeatStillMs = HEARTBEAT_STILL_MS;
+
     @Override
     public void onCreate() {
         super.onCreate();
-        httpExecutor  = Executors.newSingleThreadExecutor();
-        fusedClient   = LocationServices.getFusedLocationProviderClient(this);
-        activityClient = ActivityRecognition.getClient(this);
+        httpExecutor      = Executors.newSingleThreadExecutor();
+        fusedClient       = LocationServices.getFusedLocationProviderClient(this);
+        activityClient    = ActivityRecognition.getClient(this);
+        heartbeatHandler  = new Handler(Looper.getMainLooper());
         Log.i(TAG, "Service created");
     }
 
@@ -123,7 +130,10 @@ public class LocationForegroundService extends Service {
         supabaseKey   = intent.getStringExtra(EXTRA_SUPABASE_KEY);
         distanceMeters = intent.getFloatExtra(EXTRA_DISTANCE_M, 50f);
 
-        Log.i(TAG, "START — userId=" + userId + " dist=" + distanceMeters + "m");
+        long intervalSec = intent.getIntExtra(EXTRA_INTERVAL_SEC, 60);
+        heartbeatStillMs = Math.max(intervalSec * 1000L, MIN_SEND_INTERVAL_MS);
+
+        Log.i(TAG, "START — userId=" + userId + " dist=" + distanceMeters + "m heartbeat=" + (heartbeatStillMs / 1000) + "s");
 
         startForegroundWithNotification();
         startActivityRecognition();
@@ -220,7 +230,7 @@ public class LocationForegroundService extends Service {
     /**
      * Switch GPS priority and interval based on detected activity.
      * This is the core battery optimization:
-     *   - STILL: GPS off, heartbeat every 3 min
+     *   - STILL: LOW_POWER (antenas + Wi-Fi, 5min) + heartbeat backup
      *   - ON_FOOT: balanced GPS, 10s interval
      *   - IN_VEHICLE: high accuracy GPS, 5s interval
      */
@@ -228,15 +238,19 @@ public class LocationForegroundService extends Service {
         switch (activityType) {
             case DetectedActivity.STILL:
             case DetectedActivity.UNKNOWN:
-                // GPS off — only heartbeat keeps the tracker visible
-                removeLocationUpdates();
-                Log.i(TAG, "GPS OFF — heartbeat only");
+                // Low-power: antenas + Wi-Fi a cada 5min (precisão ~100-500m, bateria mínima)
+                // Heartbeat timer é backup caso a localização por antenas falhe
+                stopHeartbeat();
+                requestLocationWithPriority(Priority.PRIORITY_LOW_POWER, 300_000, 120_000);
+                startHeartbeat();
+                Log.i(TAG, "GPS LOW_POWER — antenas/Wi-Fi (5min) + heartbeat backup");
                 break;
 
             case DetectedActivity.ON_FOOT:
             case DetectedActivity.WALKING:
             case DetectedActivity.RUNNING:
                 // Balanced power GPS
+                stopHeartbeat();
                 requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 10_000, 5_000);
                 Log.i(TAG, "GPS BALANCED — ON_FOOT (10s)");
                 break;
@@ -244,18 +258,21 @@ public class LocationForegroundService extends Service {
             case DetectedActivity.IN_VEHICLE:
             case DetectedActivity.ON_BICYCLE:
                 // High accuracy GPS
+                stopHeartbeat();
                 requestLocationWithPriority(Priority.PRIORITY_HIGH_ACCURACY, 5_000, 2_000);
                 Log.i(TAG, "GPS HIGH_ACCURACY — IN_VEHICLE (5s)");
                 break;
 
             case DetectedActivity.TILTING:
                 // Transitional — balanced with slightly longer interval
+                stopHeartbeat();
                 requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 15_000, 8_000);
                 Log.i(TAG, "GPS BALANCED — TILTING (15s)");
                 break;
 
             default:
                 // Unknown — balanced fallback
+                stopHeartbeat();
                 requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 15_000, 8_000);
                 break;
         }
@@ -300,6 +317,46 @@ public class LocationForegroundService extends Service {
     private void removeLocationUpdates() {
         if (fusedClient != null && locationCallback != null) {
             fusedClient.removeLocationUpdates(locationCallback);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Heartbeat timer — keeps tracker_heartbeat_at alive when GPS is off
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Start a periodic timer that sends the last known GPS position to Supabase.
+     * This keeps the admin tracker "heartbeat" fresh even when the user is stationary
+     * and GPS is turned off to save battery.
+     */
+    private void startHeartbeat() {
+        stopHeartbeat(); // prevent duplicates
+        heartbeatRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (lastGpsLocation != null) {
+                    Log.d(TAG, "Heartbeat — sending last known position (lat=" + lastGpsLocation.getLatitude() + " lng=" + lastGpsLocation.getLongitude() + ")");
+                    double lat = lastGpsLocation.getLatitude();
+                    double lng = lastGpsLocation.getLongitude();
+                    float acc = lastGpsLocation.getAccuracy();
+                    lastSentLocation = lastGpsLocation;
+                    lastSentTimeMs   = System.currentTimeMillis();
+                    httpExecutor.execute(() -> sendToSupabase(lat, lng, acc));
+                } else {
+                    Log.d(TAG, "Heartbeat — no GPS fix yet, skipping");
+                }
+                heartbeatHandler.postDelayed(this, heartbeatStillMs);
+            }
+        };
+        heartbeatHandler.postDelayed(heartbeatRunnable, heartbeatStillMs);
+    }
+
+    /**
+     * Stop the periodic heartbeat timer.
+     */
+    private void stopHeartbeat() {
+        if (heartbeatHandler != null && heartbeatRunnable != null) {
+            heartbeatHandler.removeCallbacks(heartbeatRunnable);
         }
     }
 

@@ -106,11 +106,15 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
             'image/jpeg', 'image/png', 'image/webp', 'image/gif',
             'application/pdf',
             'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/plain', 'text/csv', 'application/octet-stream'
         ];
 
-        if (!allowedTypes.includes(file.type)) {
-            toast.error('Tipo de arquivo não suportado. Use imagens, PDF, Word ou Excel.');
+        const allowedExtensions = ['.txt', '.csv', '.gpc'];
+        const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+
+        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+            toast.error('Tipo de arquivo não suportado. Use imagens, PDF, Word, Excel, TXT, CSV ou GPC.');
             return;
         }
 
@@ -381,7 +385,7 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                             ref={fileInputRef}
                             type="file"
                             className="hidden"
-                            accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx"
+                            accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.gpc"
                             onChange={handleFileUpload}
                         />
                         <Button
@@ -394,6 +398,9 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                             <span className="material-symbols-outlined text-sm mr-2">upload</span>
                             Adicionar Arquivo
                         </Button>
+                        <p className="text-xs text-slate-400 text-center mt-1">
+                            Formatos: JPG, PNG, PDF, Word, Excel, TXT, CSV, GPC
+                        </p>
 
                         {/* Files List */}
                         {files.length === 0 ? (

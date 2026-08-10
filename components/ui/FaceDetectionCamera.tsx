@@ -7,16 +7,21 @@ interface FaceDetectionCameraProps {
 }
 
 // Helper to inject script tag (bypasses ESM dynamic import CORS restrictions in WebViews)
+const loadedScripts = new Set<string>();
+
 const loadExternalScript = (src: string): Promise<boolean> => {
     return new Promise((resolve) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
+        if (loadedScripts.has(src)) {
             resolve(true);
             return;
         }
         const script = document.createElement('script');
         script.src = src;
         script.crossOrigin = 'anonymous';
-        script.onload = () => resolve(true);
+        script.onload = () => {
+            loadedScripts.add(src);
+            resolve(true);
+        };
         script.onerror = (err) => {
             console.warn(`[FaceDetectionCamera] Failed to load script ${src}:`, err);
             resolve(false);

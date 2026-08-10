@@ -62,6 +62,7 @@ export interface Company {
   // Mapped from cfg_companies
   name: string; // description
   code: string; // code
+  providerCompanyCode?: string; // provider_company_code (from v_companies)
   emailSuffix: string; // email_sufix
   logoPath: string; // img_file_path
   logoName: string; // img_file_name
@@ -135,6 +136,7 @@ export interface Team {
   name: string; // description
   code: string; // code
   status: 'active' | 'inactive'; // is_available
+  sortOrder?: number; // sort_order
 
   // UI helpers
   departmentName?: string;
@@ -923,6 +925,7 @@ export interface OrderVisit {
   unitId?: string;
   systemDescription?: string;
   clientName?: string;
+  clientAddress?: string;
   assetTagDescription?: string;
   assetTagSubDescription?: string;
   requestedServices?: string;
@@ -1513,4 +1516,159 @@ export const APP_TIP_SCREEN_TARGETS = [
 export const APP_TIP_TARGET_MODES = [
   { key: 'all' as AppTipTargetMode, label: 'Todos os usuários', icon: 'people', description: 'A dica será exibida para todos os usuários do app' },
   { key: 'filtered' as AppTipTargetMode, label: 'Filtrar por...', icon: 'filter_list', description: 'A dica será exibida apenas para usuários de empresas, departamentos ou perfis específicos' },
-] as const;
+];
+
+// ============================================
+// SISTEMA DE AVALIAÇÃO DE SERVIÇOS
+// ============================================
+
+export interface EvaluationRequirement {
+  id: string;
+  description: string;
+  code?: string;
+  isAvailable: boolean;
+  isDeleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ContractEvaluationRequirement {
+  id: string;
+  contractId: string;
+  evaluationId: string;
+  weight: number;
+  isAvailable: boolean;
+  isDeleted?: boolean;
+  createdAt?: string;
+  // Dados do requisito (join)
+  evaluationDescription?: string;
+  evaluationCode?: string;
+}
+
+export interface OrderVisitEvaluation {
+  id: string;
+  ovId: string;
+  contractEvaluationId: string;
+  wasApplied: boolean;
+  notes?: string;
+  evaluatedByUserId: string;
+  evaluatedAt: string;
+  createdAt?: string;
+  // Dados do requisito (join)
+  requirementDescription?: string;
+  requirementCode?: string;
+  weight?: number;
+  evaluatorName?: string;
+  contractId?: string;
+}
+
+// ============================================
+// SISTEMA DE GAMIFICAÇÃO DE LÍDERES
+// ============================================
+
+export interface LeaderMonthlyScore {
+  id: string;
+  leaderId: string;
+  leaderName?: string;
+  departmentId: string;
+  departmentName?: string;
+  scoreYear: number;
+  scoreMonth: number;
+  totalVisits: number;
+  totalEvaluations: number;
+  failedEvaluations: number;
+  totalPenaltyScore: number;
+  avgComplianceScore: number;
+  bestComplianceScore: number;
+  worstComplianceScore: number;
+  rankingPosition?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LeaderScoreHistory {
+  id: string;
+  leaderId: string;
+  ovId: string;
+  orderId?: string;
+  scoreYear: number;
+  scoreMonth: number;
+  totalEvaluations: number;
+  failedEvaluations: number;
+  penaltyScore: number;
+  maxPossibleScore: number;
+  complianceScore: number;
+  evaluatedAt?: string;
+  createdAt?: string;
+}
+
+export interface LeaderScoreBadge {
+  id: string;
+  leaderId: string;
+  badgeCode: string;
+  badgeName: string;
+  badgeDescription?: string;
+  scoreYear: number;
+  scoreMonth: number;
+  earnedAt?: string;
+}
+
+export interface LeaderRankingEntry {
+  position: number;
+  leaderId: string;
+  leaderName: string;
+  departmentId: string;
+  departmentName?: string;
+  teamName?: string;
+  totalVisits: number;
+  totalEvaluations: number;
+  failedEvaluations: number;
+  avgComplianceScore: number;
+  bestComplianceScore: number;
+  worstComplianceScore: number;
+  trend: 'up' | 'down' | 'stable';
+  positionChange?: number;
+  badges: LeaderScoreBadge[];
+  prevMonthCompliance?: number;
+  prevRankingPosition?: number;
+  avatarUrl?: string;
+}
+
+export interface TeamRankingEntry {
+  position: number;
+  teamId: string;
+  teamName: string;
+  departmentId: string;
+  departmentName?: string;
+  leaderCount: number;
+  totalVisits: number;
+  totalEvaluations: number;
+  failedEvaluations: number;
+  avgComplianceScore: number;
+  bestComplianceScore: number;
+  worstComplianceScore: number;
+  trend: 'up' | 'down' | 'stable';
+  positionChange?: number;
+  bestLeader?: string;
+  worstLeader?: string;
+}
+
+export interface OrderVisitScore {
+  ovId: string;
+  orderId?: string;
+  leaderId: string;
+  leaderName?: string;
+  leaderTeamId?: string;
+  teamName?: string;
+  leaderDepartmentId?: string;
+  departmentName?: string;
+  ovStartedAt?: string;
+  ovEndedAt?: string;
+  scoreYear: number;
+  scoreMonth: number;
+  totalEvaluations: number;
+  failedEvaluations: number;
+  penaltyScore: number;
+  maxPossibleScore: number;
+  complianceScore: number;
+}

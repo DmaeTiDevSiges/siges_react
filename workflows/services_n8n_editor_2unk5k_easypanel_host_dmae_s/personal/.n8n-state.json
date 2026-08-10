@@ -19,6 +19,11 @@
       "lastSyncedHash": "454c07aec45f15d5df3937093ea90b1686001df36e9cbcaf4a9c3837a87f4b7e",
       "lastSyncedAt": "2026-07-11T23:44:27.920Z",
       "filename": "SigesImpersonateUserRestorePassword.workflow.ts"
+    },
+    "mwZdsrA2Y4J6hOXo": {
+      "lastSyncedHash": "f1d4f1ab7476e89668501835503e66e1e42ecc8af3821d6fdc0eb783eaa7a962",
+      "lastSyncedAt": "2026-08-06T02:02:22.870Z",
+      "filename": "SigesAiVisit.workflow.ts"
     }
   }
 }

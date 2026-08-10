@@ -9,11 +9,12 @@ import { toast } from 'sonner';
 interface OrderRequestApproveConfirmProps {
     onBack: () => void;
     onSubmit?: (data: any) => void;
+    onNavigateToEvaluation?: () => void;
     initialData?: Partial<Order>;
     visit?: OrderVisit;
 }
 
-export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProps> = ({ onBack, onSubmit, initialData, visit }) => {
+export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProps> = ({ onBack, onSubmit, onNavigateToEvaluation, initialData, visit }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [suspendedReasons, setSuspendedReasons] = useState<SuspendedReason[]>([]);
     const [causeReasons, setCauseReasons] = useState<CauseReason[]>([]);
@@ -158,7 +159,18 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
                         </div>
                     )}
 
-                    <div className="pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                    <div className="pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-3">
+                        {onNavigateToEvaluation && (
+                            <Button
+                                onClick={onNavigateToEvaluation}
+                                variant="secondary"
+                                fullWidth
+                                className="flex items-center justify-center gap-2"
+                            >
+                                <span className="material-symbols-outlined text-lg">rate_review</span>
+                                AVALIAR SERVIÇOS
+                            </Button>
+                        )}
                         <Button
                             onClick={handleConfirmApproval}
                             loading={isLoading}

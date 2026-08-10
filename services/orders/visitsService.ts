@@ -811,6 +811,71 @@ export const visitsService = {
         });
     },
 
+    async getVisitsByContractId(contractId: string): Promise<OrderVisit[]> {
+        const [visitsResult, configs] = await Promise.all([
+            supabase
+                .from('v_orders_visits')
+                .select('*')
+                .eq('o_contract_id', contractId)
+                .order('ov_started_at', { ascending: true }),
+            getProcessingConfigurations()
+        ]);
+
+        const { data, error } = visitsResult;
+
+        if (error || !data) return [];
+
+        return data.map(item => {
+            const config = configs.find(c => c.id === item.ov_processing_id);
+
+            return {
+                id: item.id?.toString(),
+                oId: item.o_id?.toString(),
+                ovMask: item.ov_mask,
+                ovStatusId: item.ov_status_id,
+                ovCreatedAt: item.created_at || item.ov_started_at,
+                ovCreatedUserId: item.created_user_id?.toString() || item.ov_team_leader_id?.toString(),
+                ovUpdatedAt: item.updated_at,
+                ovUpdatedUserId: item.updated_user_id?.toString(),
+                ovStartedAt: item.ov_started_at,
+                ovEndedAt: item.ov_ended_at,
+                ovTeamLeadId: item.ov_team_leader_id?.toString(),
+                ovProcessingId: item.ov_processing_id,
+                ovComments: item.ov_comments,
+                orderMask: item.o_mask,
+                statusDescription: item.ov_status_description,
+                processingDescription: item.ov_processing_description,
+                teamLeaderName: item.ov_team_leader_name_short,
+                unitDescription: item.o_unit_description,
+                unitId: item.o_unit_id?.toString(),
+                systemDescription: item.o_system_description,
+                clientName: item.o_client_name,
+                assetTagDescription: item.o_asset_tag_description,
+                assetTagSubDescription: item.o_asset_tag_sub_description,
+                requestedServices: item.o_requested_services,
+                progress: item.ov_o_progress ? Math.round(parseFloat(item.ov_o_progress) * 100) : 0,
+                ovOStatusId: item.ov_o_status_id,
+                ovOStatusDescription: item.ov_o_status_description,
+                ovOSuspendedReasonId: item.ov_o_suspended_reason_id,
+                ovOSuspendedReasonDescription: item.ov_o_suspended_reason_description,
+                processingIcon: config?.icon,
+                processingIconColor: config?.icon_color,
+                processingBgColor: config?.bg_color,
+                ovDurationHours: item.ov_duration_hours,
+                contractId: item.o_contract_id?.toString(),
+                servicesValue: item.ov_services_value,
+                materialsValue: item.ov_materials_value,
+                vehiclesValue: item.ov_vehicles_value,
+                totalValue: item.ov_total_value,
+                teamCode: item.o_team_code,
+                chatStatus: item.chat_status || 'open',
+                chatClosedAt: item.chat_closed_at,
+                chatClosedUserId: item.chat_closed_user_id?.toString(),
+                chatCreatedUserId: item.chat_created_user_id?.toString()
+            } as OrderVisit;
+        });
+    },
+
     // -------------------------------------------------------------------------
     // ASSET UNAVAILABLE REASONS
     // -------------------------------------------------------------------------

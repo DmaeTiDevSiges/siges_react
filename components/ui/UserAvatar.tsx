@@ -11,12 +11,14 @@ interface UserAvatarProps {
     isOvInProgress?: boolean;
     className?: string;
     imageClassName?: string;
+    badgeSrc?: string;
+    badgeAlt?: string;
 }
 
 const statusColors = {
     available: '#22C55E', // green-500
     unavailable: '#94A3B8', // slate-400
-    busy: '#EF4444', // red-500
+    busy: '#EF4444', // red-400
 };
 
 /**
@@ -30,7 +32,9 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     status = 'unavailable',
     isOvInProgress = false,
     className = '',
-    imageClassName = ''
+    imageClassName = '',
+    badgeSrc,
+    badgeAlt = 'Badge'
 }) => {
     // Determine the actual visual status based on combined rules:
     // 1) available (Green): users.is_available = true
@@ -62,6 +66,15 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 
     const isFullSize = className.includes('w-full') || className.includes('h-full') || className.includes('w-[') || className.includes('h-[');
 
+    const badgeSizeClasses = {
+        xs: 'w-3.5 h-3.5',
+        sm: 'w-5 h-5',
+        md: 'w-7 h-7',
+        lg: 'w-10 h-10',
+        xl: 'w-14 h-14',
+        '2xl': 'w-16 h-16'
+    };
+
     return (
         <div className={`relative inline-flex shrink-0 rounded-full ${!isFullSize ? sizeClasses[size] : ''} ${className}`}>
             <Avatar
@@ -76,6 +89,13 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
                 className={`bg-slate-50 dark:bg-slate-800 w-full! h-full!`}
                 imageClassName={imageClassName}
             />
+            {badgeSrc && (
+                <img
+                    src={badgeSrc}
+                    alt={badgeAlt}
+                    className={`absolute -bottom-0.5 -right-0.5 ${badgeSizeClasses[size]} rounded-full object-cover border-2 border-white dark:border-slate-900 shadow-sm`}
+                />
+            )}
         </div>
     );
 };

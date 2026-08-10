@@ -817,12 +817,6 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                 </>
                             }
                             onUserClick={(userId) => {
-                                // Técnico com visita aberta → seleciona/deseleciona a visita (igual ao card inferior)
-                                const openVisit = todayVisits.find(v => v.ovTeamLeadId === userId && !v.ovEndedAt);
-                                if (openVisit) {
-                                    toggleVisitSelection(openVisit.id);
-                                    return;
-                                }
                                 // Sem visita aberta → pin/unpin manual
                                 setPinnedTechIds(prev => {
                                     const next = new Set(prev);
@@ -833,6 +827,12 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                     }
                                     return next;
                                 });
+                            }}
+                            onBusyLeaderClick={(userId, _visitId) => {
+                                const openVisit = todayVisits.find(v => v.ovTeamLeadId === userId && !v.ovEndedAt);
+                                if (openVisit) {
+                                    toggleVisitSelection(openVisit.id);
+                                }
                             }}
                         />
                     </div>

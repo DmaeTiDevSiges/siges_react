@@ -180,6 +180,13 @@ export const AppSettings: React.FC<{ onNavigate?: (screen: string) => void }> = 
                         subtitle="Gerenciar catálogo de materiais"
                         onClick={() => onNavigate?.('materials')}
                     />
+                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                    <SettingItem
+                        icon="rate_review"
+                        title="Requisitos para Avaliações"
+                        subtitle="Gerenciar requisitos de avaliação de serviços"
+                        onClick={() => onNavigate?.('evaluation-requirements')}
+                    />
                 </div>
             </div>
 
@@ -200,6 +207,20 @@ export const AppSettings: React.FC<{ onNavigate?: (screen: string) => void }> = 
                         title="Permissões de Acesso"
                         subtitle="Gerenciar permissões por perfil"
                         onClick={() => onNavigate?.('profile-permissions')}
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-1 mt-6">
+                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                    Aplicativo
+                </h3>
+                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                    <SettingItem
+                        icon="tips_and_updates"
+                        title="Dicas"
+                        subtitle="Gerenciar dicas do aplicativo"
+                        onClick={() => onNavigate?.('app-tips')}
                     />
                 </div>
             </div>

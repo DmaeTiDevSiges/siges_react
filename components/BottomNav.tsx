@@ -3,7 +3,7 @@ import React from 'react';
 import { usePermissions } from '../contexts/PermissionsContext';
 
 interface BottomNavProps {
-  activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'tools' | 'materials' | 'manuals' | 'app-notices' | 'app-tips';
+  activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'tools' | 'materials' | 'manuals' | 'app-notices';
   setActiveTab: (tab: any) => void;
   isAdminSuper?: boolean;
   currentUser?: any;
@@ -18,7 +18,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
                     canView('dashboard_orders') || 
                     canView('dashboard_orders_visits') || 
                     canView('dashboard_units_assets_tags') || 
-                    canView('dashboard_units_power_electric');
+                    canView('dashboard_units_power_electric') ||
+                    canView('dashboard_contracts_evaluations');
   const showUnitsSearch = canSearch('units'); 
   const showAssetsSearch = canSearch('assets');
   const showSettings = isAdminSuper; 
@@ -27,7 +28,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
   const showMaintenancePlans = isAdminSuper || canView('maintenance_plans');
   const showManuals = isAdminSuper || canView('technicals_manuals_search');
   const showNotices = isAdminSuper || canView('app_notices');
-  const showTips = isAdminSuper;
+
 
   return (
     <div className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 px-2 flex flex-row items-center overflow-x-auto rounded-t-[12px]" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}>
@@ -51,10 +52,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
             else if (canView('dashboard_orders_visits')) setActiveTab('visits');
             else if (canView('dashboard_units_assets_tags')) setActiveTab('dashboard-units-assets-tags');
             else if (canView('dashboard_units_power_electric')) setActiveTab('dashboard-units-power-electric');
+            else if (canView('dashboard_contracts_evaluations')) setActiveTab('dashboard-contracts-evaluations');
           }}
-          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
         >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: (activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric') ? '"FILL" 1' : '' }}>
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: (activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking') ? '"FILL" 1' : '' }}>
             assignment
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest text-center truncate w-full">Gestão</span>
@@ -130,18 +132,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
             notifications
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest">Avisos</span>
-        </button>
-      )}
-
-      {showTips && (
-        <button
-          onClick={() => setActiveTab('app-tips')}
-          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'app-tips' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
-        >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'app-tips' ? '"FILL" 1' : '' }}>
-            tips_and_updates
-          </span>
-          <span className="text-[10px] font-bold uppercase tracking-widest">Dicas</span>
         </button>
       )}
 

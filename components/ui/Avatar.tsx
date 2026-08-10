@@ -58,7 +58,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 
     return (
         <div
-            className={`${baseClasses} ${sizeClasses[size]} ${shapeClasses[shape]} ${(!className.includes('border') && !style.border) ? 'border border-slate-200 dark:border-slate-600' : ''} ${(!src || hasError) ? 'flex items-center justify-center' : ''} ${className}`}
+            className={`${baseClasses} ${sizeClasses[size]} ${shapeClasses[shape]} ${(!className.includes('border') && !style.border) ? 'border border-slate-200 dark:border-slate-600' : ''} flex items-center justify-center ${className}`}
             style={style}
         >
             {src && !hasError && !src.includes('noImageUser.png') ? (

@@ -64,9 +64,6 @@ const NoticeChip: React.FC<NoticeChipProps> = ({ notice }) => {
         onClose={() => setIsModalOpen(false)}
         title={notice.title}
         type="info"
-        confirmLabel="Fechar"
-        hideCancelButton={true}
-        onConfirm={() => setIsModalOpen(false)}
         maxWidth="sm"
       >
         <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">

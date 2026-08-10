@@ -18,6 +18,7 @@ const getRelativeTimeShort = (isoString?: string): string => {
 interface UsersTeamsLeadersByCompanyIdProps {
     companyId: string;
     onUserClick?: (userId: string) => void;
+    onBusyLeaderClick?: (userId: string, visitId: string) => void;
     pinnedUserIds?: Set<string>;
     className?: string;
     titleContent?: React.ReactNode;
@@ -26,6 +27,7 @@ interface UsersTeamsLeadersByCompanyIdProps {
 export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyIdProps> = ({ 
     companyId, 
     onUserClick, 
+    onBusyLeaderClick,
     pinnedUserIds = new Set(),
     className = '',
     titleContent
@@ -138,7 +140,13 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
                             <button
                                 key={tech.id}
                                 title={`${tech.nameShort || 'Técnico'} — ${userStatus === 'busy' ? 'Em atividade' : userStatus === 'available' ? 'Disponível' : 'Indisponível'}`}
-                                onClick={() => onUserClick?.(tech.id)}
+                                onClick={() => {
+                                    if (userStatus === 'busy' && tech.ovIdInProgress && onBusyLeaderClick) {
+                                        onBusyLeaderClick(tech.id, String(tech.ovIdInProgress));
+                                    } else {
+                                        onUserClick?.(tech.id);
+                                    }
+                                }}
                                 className="shrink-0 flex flex-col items-center gap-0.5 transition-all cursor-pointer group py-1"
                             >
                                 {/* Borda de status separada do overflow-hidden */}

@@ -8,6 +8,7 @@ import { ordersService } from './orders/ordersService';
 import { visitsService } from './orders/visitsService';
 import { assetTagsService } from './assets/assetTagsService';
 import { companiesService } from './companies/companiesService';
+import { evaluationService } from './companies/evaluationService';
 import { unitsService } from './core/unitsService';
 import { visitChatService } from './orders/visitChatService';
 import { assetsService } from './assets/assetsService';
@@ -23,7 +24,8 @@ import { toolsService } from './toolsService';
 import { technicalManualsService } from './assets/technicalManualsService';
 import { appNoticesService } from './core/appNoticesService';
 import { appTipsService } from './core/appTipsService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters } from '../types';
+import { gamificationService } from './gamification/gamificationService';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore } from '../types';
 
 
 
@@ -421,6 +423,10 @@ export const dataService = {
 
     async deleteTeam(id: string): Promise<void> {
         return usersService.deleteTeam.apply(usersService, arguments as any);
+    },
+
+    async updateTeamOrders(updates: { id: string; sortOrder: number }[]): Promise<void> {
+        return usersService.updateTeamOrders.apply(usersService, arguments as any);
     },
 
     async getActivities(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<Activity[]> {
@@ -877,6 +883,63 @@ export const dataService = {
 
     async removeContractManager(contractId: string, managerId: string): Promise<void> {
         return companiesService.removeContractManager.apply(companiesService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // EVALUATION REQUIREMENTS (cfg_evaluation_requirements)
+    // -------------------------------------------------------------------------
+    async getEvaluationRequirements(): Promise<any[]> {
+        return evaluationService.getEvaluationRequirements.apply(evaluationService, arguments as any);
+    },
+
+    async createEvaluationRequirement(data: { description: string; code?: string }): Promise<any> {
+        return evaluationService.createEvaluationRequirement.apply(evaluationService, arguments as any);
+    },
+
+    async updateEvaluationRequirement(id: string, data: { description?: string; code?: string; isAvailable?: boolean }): Promise<boolean> {
+        return evaluationService.updateEvaluationRequirement.apply(evaluationService, arguments as any);
+    },
+
+    async deleteEvaluationRequirement(id: string): Promise<boolean> {
+        return evaluationService.deleteEvaluationRequirement.apply(evaluationService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // CONTRACT EVALUATION REQUIREMENTS (contracts_evaluation_requirements)
+    // -------------------------------------------------------------------------
+    async getContractEvaluationRequirements(contractId: string): Promise<any[]> {
+        return evaluationService.getContractEvaluationRequirements.apply(evaluationService, arguments as any);
+    },
+
+    async addEvaluationToContract(contractId: string, evaluationId: string, weight: number): Promise<any> {
+        return evaluationService.addEvaluationToContract.apply(evaluationService, arguments as any);
+    },
+
+    async updateContractEvaluationWeight(id: string, weight: number): Promise<boolean> {
+        return evaluationService.updateContractEvaluationWeight.apply(evaluationService, arguments as any);
+    },
+
+    async removeEvaluationFromContract(id: string): Promise<boolean> {
+        return evaluationService.removeEvaluationFromContract.apply(evaluationService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // VISIT EVALUATIONS (orders_visits_evaluations)
+    // -------------------------------------------------------------------------
+    async getVisitEvaluations(ovId: string): Promise<any[]> {
+        return evaluationService.getVisitEvaluations.apply(evaluationService, arguments as any);
+    },
+
+    async saveVisitEvaluations(ovId: string, evaluations: { contractEvaluationId: string; wasApplied: boolean; notes?: string }[], userId: string): Promise<boolean> {
+        return evaluationService.saveVisitEvaluations.apply(evaluationService, arguments as any);
+    },
+
+    async getVisitTotalScore(ovId: string): Promise<number> {
+        return evaluationService.getVisitTotalScore.apply(evaluationService, arguments as any);
+    },
+
+    async deleteVisitEvaluations(ovId: string): Promise<boolean> {
+        return evaluationService.deleteVisitEvaluations.apply(evaluationService, arguments as any);
     },
 
     async getAssets(filter: 'all' | 'active' | 'inactive' = 'all', search: string = '', unitId?: string, unitAssetTagId?: string): Promise<Asset[]> {
@@ -1774,11 +1837,13 @@ export const dataService = {
         return visitsService.getVisitsByOrderId.apply(visitsService, arguments as any);
     },
 
-
-    async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]> {
+async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]> {
         return visitsService.getVisitsByParentOrderId.apply(visitsService, arguments as any);
     },
 
+    async getVisitsByContractId(contractId: string): Promise<OrderVisit[]> {
+        return visitsService.getVisitsByContractId.apply(visitsService, arguments as any);
+    },
 
 
     async getAssetsUnavailableReasons(): Promise<{ id: number, description: string }[]> {
@@ -2558,6 +2623,61 @@ export const dataService = {
 
     async toggleAppTipActive(id: string, isActive: boolean): Promise<void> {
         return appTipsService.toggleTipActive.apply(appTipsService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // GAMIFICATION (Sistema de Gamificação de Líderes)
+    // -------------------------------------------------------------------------
+    async getVisitScores(filters?: { leaderId?: string; departmentId?: string; year?: number; month?: number }): Promise<OrderVisitScore[]> {
+        return gamificationService.getVisitScores.apply(gamificationService, arguments as any);
+    },
+
+    async getLeaderRanking(departmentId: string, year: number, month: number): Promise<LeaderRankingEntry[]> {
+        return gamificationService.getLeaderRanking.apply(gamificationService, arguments as any);
+    },
+
+    async getLeaderHistory(leaderId: string, months?: number): Promise<LeaderMonthlyScore[]> {
+        return gamificationService.getLeaderHistory.apply(gamificationService, arguments as any);
+    },
+
+    async getLeaderVisitHistory(leaderId: string, year: number, month: number): Promise<LeaderScoreHistory[]> {
+        return gamificationService.getLeaderVisitHistory.apply(gamificationService, arguments as any);
+    },
+
+    async getLeaderBadges(leaderId: string): Promise<LeaderScoreBadge[]> {
+        return gamificationService.getLeaderBadges.apply(gamificationService, arguments as any);
+    },
+
+    async getDepartmentSummary(departmentId: string, year: number, month: number): Promise<any> {
+        return gamificationService.getDepartmentSummary.apply(gamificationService, arguments as any);
+    },
+
+    async getTeamRanking(departmentId: string, year: number, month: number): Promise<TeamRankingEntry[]> {
+        return gamificationService.getTeamRanking.apply(gamificationService, arguments as any);
+    },
+
+    async getTeamSummary(departmentId: string, year: number, month: number): Promise<any> {
+        return gamificationService.getTeamSummary.apply(gamificationService, arguments as any);
+    },
+
+    async recalculateLeaderScore(leaderId: string, year: number, month: number): Promise<boolean> {
+        return gamificationService.recalculateLeaderScore.apply(gamificationService, arguments as any);
+    },
+
+    async recalculateDepartmentScores(departmentId: string, year: number, month: number): Promise<boolean> {
+        return gamificationService.recalculateDepartmentScores.apply(gamificationService, arguments as any);
+    },
+
+    async recalculateAllScores(year: number, month: number): Promise<boolean> {
+        return gamificationService.recalculateAllScores.apply(gamificationService, arguments as any);
+    },
+
+    async checkAndGrantBadges(leaderId: string, year: number, month: number): Promise<LeaderScoreBadge[]> {
+        return gamificationService.checkAndGrantBadges.apply(gamificationService, arguments as any);
+    },
+
+    async getDepartmentsWithLeaders(): Promise<{ departmentId: string; departmentName: string; leaderCount: number }[]> {
+        return gamificationService.getDepartmentsWithLeaders.apply(gamificationService, arguments as any);
     }
 };
 

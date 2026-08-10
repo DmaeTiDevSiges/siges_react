@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Department, Team } from '../../types';
 import { dataService } from '../../services/dataService';
 import { SearchInput } from '../../components/ui/SearchInput';
@@ -7,6 +7,21 @@ import { LoadMore } from '../../components/ui/LoadMore';
 import { Modal } from '../../components/ui/Modal';
 import { IconButton } from '../../components/ui/IconButton';
 import { Loading } from '../../components/ui/Loading';
+import {
+    DndContext,
+    DragOverlay,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+    DragStartEvent,
+    DragOverEvent,
+    useDroppable,
+    useDraggable
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
 interface DepartmentsListProps {
     companyId?: string;
@@ -23,6 +38,164 @@ interface DepartmentNode extends Department {
     teamCount?: number;
 }
 
+interface TeamNode extends Team {
+    children: TeamNode[];
+}
+
+// ---------- Draggable/Droppable Team Item ----------
+interface DraggableTeamItemProps {
+    team: TeamNode;
+    level: number;
+    onSelectTeam?: (team: Team) => void;
+    onDeleteTeam?: (teamId: string) => void;
+    onSetDeleteModal: (modal: { isOpen: boolean; team: Team | null }) => void;
+    activeId: string | null;
+    expandedTeams: Set<string>;
+    onToggleTeamExpand: (teamId: string) => void;
+}
+
+const DraggableTeamItem: React.FC<DraggableTeamItemProps> = ({
+    team,
+    level,
+    onSelectTeam,
+    onDeleteTeam,
+    onSetDeleteModal,
+    activeId,
+    expandedTeams,
+    onToggleTeamExpand
+}) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef: setDragRef,
+        transform,
+        transition,
+        isDragging
+    } = useDraggable({ id: team.id, data: { type: 'team', team } });
+
+    const {
+        setNodeRef: setDropRef,
+        isOver
+    } = useDroppable({
+        id: `drop-${team.id}`,
+        data: { type: 'team', team },
+        disabled: isDragging
+    });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : 1,
+        position: 'relative' as const,
+        opacity: isDragging ? 0.4 : 1,
+    };
+
+    const isOverTarget = isOver && activeId !== team.id;
+    const indent = level * 24;
+
+    return (
+        <div style={{ marginLeft: `${indent}px` }}>
+            <div
+                ref={(node) => {
+                    setDragRef(node);
+                    setDropRef(node);
+                }}
+                style={style}
+                className={`
+                    relative flex items-center gap-3 p-3 rounded-xl border transition-all group/team
+                    ${isOverTarget
+                        ? 'bg-primary/5 dark:bg-primary/10 border-primary dark:border-primary'
+                        : 'bg-white dark:bg-card-dark border-slate-100 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50'
+                    }
+                `}
+            >
+                {/* Drag Handle */}
+                <div
+                    {...attributes}
+                    {...listeners}
+                    className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 touch-none"
+                >
+                    <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
+                </div>
+
+                {/* Expand/Collapse button for children */}
+                {team.children.length > 0 && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleTeamExpand(team.id);
+                        }}
+                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                    >
+                        <span className="material-symbols-outlined text-slate-600 dark:text-slate-400 text-[18px]">
+                            {expandedTeams.has(team.id) ? 'expand_more' : 'chevron_right'}
+                        </span>
+                    </button>
+                )}
+
+                <span className="material-symbols-outlined text-primary text-[18px]">groups</span>
+                <div
+                    className="flex-1 cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectTeam?.(team);
+                    }}
+                >
+                    <div className="font-medium text-sm text-slate-900 dark:text-white">
+                        {team.name}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {team.code}
+                    </div>
+                </div>
+                <StatusBadge status={team.status} size="sm" />
+                {onDeleteTeam && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onSetDeleteModal({ isOpen: true, team });
+                        }}
+                        className="absolute right-3 opacity-0 group-hover/team:opacity-100 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all bg-white dark:bg-card-dark shadow-sm border border-slate-100 dark:border-slate-700"
+                        title="Remover equipe"
+                    >
+                        <span className="material-symbols-outlined text-red-500 text-[18px]">delete</span>
+                    </button>
+                )}
+            </div>
+
+            {/* Render children only if expanded */}
+            {team.children.length > 0 && expandedTeams.has(team.id) && (
+                <div className="space-y-2 mt-2">
+                    {team.children.map(child => (
+                        <DraggableTeamItem
+                            key={child.id}
+                            team={child}
+                            level={level + 1}
+                            onSelectTeam={onSelectTeam}
+                            onDeleteTeam={onDeleteTeam}
+                            onSetDeleteModal={onSetDeleteModal}
+                            activeId={activeId}
+                            expandedTeams={expandedTeams}
+                            onToggleTeamExpand={onToggleTeamExpand}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ---------- Drag Overlay Card ----------
+const DragOverlayCard: React.FC<{ team: Team }> = ({ team }) => (
+    <div className="flex items-center gap-3 p-3 bg-white dark:bg-card-dark rounded-xl border border-primary shadow-lg opacity-90">
+        <div className="text-primary">
+            <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
+        </div>
+        <span className="material-symbols-outlined text-primary text-[18px]">groups</span>
+        <span className="font-medium text-sm text-slate-900 dark:text-white">{team.name}</span>
+    </div>
+);
+
 export const DepartmentsList: React.FC<DepartmentsListProps> = ({
     companyId,
     onSelect,
@@ -36,6 +209,7 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
     const [allTeams, setAllTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     const [visibleCount, setVisibleCount] = useState(10);
+    const [activeTeam, setActiveTeam] = useState<Team | null>(null);
     const PAGE_SIZE = 10;
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
         const saved = localStorage.getItem(`dept_expanded_nodes_${companyId || 'global'}`);
@@ -45,10 +219,18 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
         const saved = localStorage.getItem(`dept_expanded_teams_${companyId || 'global'}`);
         return saved ? new Set<string>(JSON.parse(saved) as string[]) : new Set<string>();
     });
+    const [expandedTeamNodes, setExpandedTeamNodes] = useState<Set<string>>(() => {
+        const saved = localStorage.getItem(`team_nodes_expanded_${companyId || 'global'}`);
+        return saved ? new Set<string>(JSON.parse(saved) as string[]) : new Set<string>();
+    });
     const [deleteTeamModal, setDeleteTeamModal] = useState<{ isOpen: boolean; team: Team | null }>({
         isOpen: false,
         team: null
     });
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    );
 
     const handleSearchChange = (val: string) => {
         setSearch(val);
@@ -65,6 +247,77 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
         localStorage.setItem(`dept_expanded_teams_${companyId || 'global'}`, JSON.stringify(Array.from(newSet)));
     };
 
+    const toggleTeamNodeExpand = (teamId: string) => {
+        setExpandedTeamNodes(prev => {
+            const newSet = new Set<string>(prev);
+            if (newSet.has(teamId)) {
+                newSet.delete(teamId);
+            } else {
+                newSet.add(teamId);
+            }
+            localStorage.setItem(`team_nodes_expanded_${companyId || 'global'}`, JSON.stringify(Array.from(newSet)));
+            return newSet;
+        });
+    };
+
+    const handleDragStart = useCallback((event: DragStartEvent) => {
+        const { active } = event;
+        const team = allTeams.find(t => t.id === active.id);
+        setActiveTeam(team || null);
+    }, [allTeams]);
+
+    const handleDragEnd = useCallback(async (event: DragEndEvent, departmentId: string) => {
+        const { active, over } = event;
+        setActiveTeam(null);
+        if (!over || active.id === over.id) return;
+
+        const draggedId = active.id.toString();
+        const targetId = over.id.toString().replace('drop-', '');
+        if (draggedId === targetId) return;
+
+        const draggedTeam = allTeams.find(t => t.id === draggedId);
+        const targetTeam = allTeams.find(t => t.id === targetId);
+        if (!draggedTeam || !targetTeam) return;
+
+        const isDescendant = (parentId: string, childId: string): boolean => {
+            const children = allTeams.filter(t => t.parentId === parentId);
+            for (const child of children) {
+                if (child.id === childId) return true;
+                if (isDescendant(child.id, childId)) return true;
+            }
+            return false;
+        };
+        if (isDescendant(draggedId, targetId)) return;
+
+        const sameParent = draggedTeam.parentId === targetTeam.parentId;
+        let newParentId: string | undefined = draggedTeam.parentId;
+
+        if (!sameParent) {
+            newParentId = targetId;
+        }
+
+        const siblings = allTeams.filter(t => t.id !== draggedId && t.parentId === newParentId && t.departmentId === departmentId);
+        const targetIndex = siblings.findIndex(t => t.id === targetId);
+        const newSortOrder = targetIndex >= 0 ? targetIndex : siblings.length;
+
+        setAllTeams(prev => prev.map(t =>
+            t.id === draggedId
+                ? { ...t, parentId: newParentId, sortOrder: newSortOrder }
+                : t
+        ));
+
+        try {
+            await dataService.updateTeam(draggedId, {
+                parentId: newParentId,
+                sortOrder: newSortOrder
+            });
+        } catch (error) {
+            console.error('Error updating team:', error);
+            const data = await dataService.getTeams();
+            setAllTeams(data);
+        }
+    }, [allTeams]);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -78,7 +331,6 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                 setDepartments(deptData);
                 setAllTeams(teamsData);
 
-                // Auto-expand all department nodes initially IF NO SAVED STATE
                 if (!localStorage.getItem(`dept_expanded_nodes_${companyId || 'global'}`)) {
                     const allIds = new Set<string>(deptData.map(d => d.id));
                     updateExpandedNodes(allIds);
@@ -93,7 +345,6 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
         fetchData();
     }, [companyId]);
 
-    // Toggle expand/collapse for sub-departments
     const toggleExpand = (nodeId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         const newSet = new Set<string>(expandedNodes);
@@ -105,7 +356,6 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
         updateExpandedNodes(newSet);
     };
 
-    // Toggle expand/collapse for teams section
     const toggleTeamsExpand = (deptId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         const newSet = new Set<string>(expandedTeams);
@@ -117,14 +367,41 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
         updateExpandedTeams(newSet);
     };
 
-    // Build tree structure
+    // Build team tree for a department
+    const buildTeamTree = (deptTeams: Team[]): TeamNode[] => {
+        const map = new Map<string, TeamNode>();
+        const roots: TeamNode[] = [];
+
+        deptTeams.forEach(team => {
+            map.set(team.id, { ...team, children: [] });
+        });
+
+        deptTeams.forEach(team => {
+            const node = map.get(team.id)!;
+            if (team.parentId && map.has(team.parentId)) {
+                map.get(team.parentId)!.children.push(node);
+            } else {
+                roots.push(node);
+            }
+        });
+
+        const sortNodes = (nodes: TeamNode[]) => {
+            nodes.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
+            nodes.forEach(n => sortNodes(n.children));
+        };
+        sortNodes(roots);
+
+        return roots;
+    };
+
     const buildTree = (departments: Department[]): DepartmentNode[] => {
         const map = new Map<string, DepartmentNode>();
         const roots: DepartmentNode[] = [];
 
-        // Initialize all nodes with team count
         departments.forEach(dept => {
-            const teams = allTeams.filter(t => t.departmentId === dept.id);
+            const teams = allTeams
+                .filter(t => t.departmentId === dept.id)
+                .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
             map.set(dept.id, {
                 ...dept,
                 children: [],
@@ -133,7 +410,6 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
             });
         });
 
-        // Build relationships
         departments.forEach(dept => {
             const node = map.get(dept.id)!;
             if (dept.parentId && map.has(dept.parentId)) {
@@ -146,7 +422,6 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
         return roots;
     };
 
-    // Filter departments based on search
     const filteredDepartments = departments.filter(d =>
         d.name.toLowerCase().includes(search.toLowerCase()) ||
         d.code.toLowerCase().includes(search.toLowerCase())
@@ -154,13 +429,13 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
 
     const departmentTree = buildTree(filteredDepartments);
 
-    // Recursive render function
     const renderDepartmentNode = (node: DepartmentNode, level: number = 0) => {
         const indent = level * 20;
         const isExpanded = expandedNodes.has(node.id);
         const hasChildren = node.children.length > 0;
         const isTeamsExpanded = expandedTeams.has(node.id);
         const teamCount = node.teamCount || 0;
+        const teamTree = node.teams ? buildTeamTree(node.teams) : [];
 
         return (
             <React.Fragment key={node.id}>
@@ -173,7 +448,6 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                         onClick={() => onSelect?.(node)}
                         className={`flex items-center p-4 ${onSelect ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer rounded-2xl' : ''}`}
                     >
-                        {/* Expand/Collapse button for sub-departments */}
                         {hasChildren && (
                             <button
                                 onClick={(e) => toggleExpand(node.id, e)}
@@ -239,44 +513,33 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                                         Nenhuma equipe neste departamento
                                     </div>
                                 ) : (
-                                    node.teams?.map(team => (
-                                        <div
-                                            key={team.id}
-                                            className="relative flex items-center gap-3 p-3 bg-white dark:bg-card-dark rounded-xl border border-slate-100 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 transition-all group/team"
-                                        >
-                                            <span className="material-symbols-outlined text-primary text-[18px]">groups</span>
-                                            <div
-                                                className="flex-1 cursor-pointer"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onSelectTeam?.(team);
-                                                }}
-                                            >
-                                                <div className="font-medium text-sm text-slate-900 dark:text-white">
-                                                    {team.name}
-                                                </div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                    {team.code}
-                                                </div>
-                                            </div>
-                                            <StatusBadge status={team.status} size="sm" />
-                                            {onDeleteTeam && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setDeleteTeamModal({ isOpen: true, team });
-                                                    }}
-                                                    className="absolute right-3 opacity-0 group-hover/team:opacity-100 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all bg-white dark:bg-card-dark shadow-sm border border-slate-100 dark:border-slate-700"
-                                                    title="Remover equipe"
-                                                >
-                                                    <span className="material-symbols-outlined text-red-500 text-[18px]">delete</span>
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))
+                                    <DndContext
+                                        sensors={sensors}
+                                        collisionDetection={closestCenter}
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={(event) => handleDragEnd(event, node.id)}
+                                        modifiers={[restrictToVerticalAxis]}
+                                    >
+                                        {teamTree.map(team => (
+                                            <DraggableTeamItem
+                                                key={team.id}
+                                                team={team}
+                                                level={0}
+                                                onSelectTeam={onSelectTeam}
+                                                onDeleteTeam={onDeleteTeam}
+                                                onSetDeleteModal={setDeleteTeamModal}
+                                                activeId={activeTeam?.id || null}
+                                                expandedTeams={expandedTeamNodes}
+                                                onToggleTeamExpand={toggleTeamNodeExpand}
+                                            />
+                                        ))}
+
+                                        <DragOverlay dropAnimation={null}>
+                                            {activeTeam ? <DragOverlayCard team={activeTeam} /> : null}
+                                        </DragOverlay>
+                                    </DndContext>
                                 )}
 
-                                {/* Add Team Button */}
                                 {onAddTeam && (
                                     <button
                                         onClick={(e) => {
@@ -294,7 +557,6 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                     )}
                 </div>
 
-                {/* Render sub-departments only if expanded */}
                 {hasChildren && isExpanded && (
                     <div className="space-y-3 mt-3">
                         {node.children.map(child => renderDepartmentNode(child, level + 1))}

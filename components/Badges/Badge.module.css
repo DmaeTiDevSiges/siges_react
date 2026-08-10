@@ -1,0 +1,33 @@
+/* Badge.module.css */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px; /* pill shape */
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+}
+
+.gold {
+  background: linear-gradient(135deg, #ffd700, #ffb700);
+}
+
+.silver {
+  background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+}
+
+.bronze {
+  background: linear-gradient(135deg, #cd7f32, #b87333);
+}
