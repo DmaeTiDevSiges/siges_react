@@ -25,7 +25,7 @@ import { technicalManualsService } from './assets/technicalManualsService';
 import { appNoticesService } from './core/appNoticesService';
 import { appTipsService } from './core/appTipsService';
 import { gamificationService } from './gamification/gamificationService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial } from '../types';
 
 
 
@@ -2081,6 +2081,42 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async removeMaterialFromAsset(id: string, userId: string): Promise<void> {
         return materialsService.removeMaterialFromAsset.apply(materialsService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // ASSET COMPONENTS (assets_materials)
+    // -------------------------------------------------------------------------
+    async getAssetComponents(assetId: string): Promise<AssetMaterial[]> {
+        return materialsService.getAssetComponents.apply(materialsService, arguments as any);
+    },
+
+    async addComponentToAsset(
+        assetId: string,
+        materialId: string,
+        amount?: number,
+        brandModel?: string,
+        isOriginal?: boolean,
+        location?: string,
+        serial?: string
+    ): Promise<void> {
+        return materialsService.addComponentToAsset.apply(materialsService, arguments as any);
+    },
+
+    async removeComponentFromAsset(componentId: string): Promise<void> {
+        return materialsService.removeComponentFromAsset.apply(materialsService, arguments as any);
+    },
+
+    async updateAssetComponent(
+        componentId: string,
+        updates: {
+            amount?: number;
+            brandModel?: string;
+            serial?: string;
+            isOriginal?: boolean;
+            location?: string;
+        }
+    ): Promise<void> {
+        return materialsService.updateAssetComponent.apply(materialsService, arguments as any);
     },
 
     // PERMISSIONS MANAGEMENT

@@ -713,6 +713,21 @@ export interface Asset {
   attributeValues?: Record<string, string>;
 }
 
+export interface AssetMaterial {
+  id: string;
+  assetId: string;
+  materialId: string;
+  amount: number;
+  brandModel?: string;
+  serial?: string;
+  location?: string;
+  isOriginal: boolean;
+  // Joined fields from v_assets_materials
+  materialCode?: string;
+  materialDescription?: string;
+  materialUnit?: string;
+}
+
 export interface UserNotification {
   id: string;
   userIdTo: string;

@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { Material } from '../../types';
+import { Material, AssetMaterial } from '../../types';
 import { usersService } from '../users/usersService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
@@ -488,6 +488,96 @@ export const materialsService = {
         }
 
         return { total_stock_value: totalStockValue, total_materials: totalMaterials, materials_without_stock: materialsWithoutStock, materials_below_min: materialsBelowMin };
-    }
+    },
 
+    // -------------------------------------------------------------------------
+    // ASSET COMPONENTS (assets_materials)
+    // -------------------------------------------------------------------------
+
+    async getAssetComponents(assetId: string): Promise<AssetMaterial[]> {
+        const { data, error } = await supabase
+            .from('v_assets_materials')
+            .select('*')
+            .eq('asset_id', parseInt(assetId));
+
+        if (error) {
+            console.error('Error fetching asset components:', error);
+            throw error;
+        }
+
+        return (data || []).map((item: any) => ({
+            id: item.id?.toString(),
+            assetId: item.asset_id?.toString(),
+            materialId: item.material_id?.toString(),
+            amount: item.amount || 1,
+            brandModel: item.brand_model || '',
+            serial: item.serial || '',
+            location: item.location || '',
+            isOriginal: item.is_original ?? true,
+            materialCode: item.material_code || '',
+            materialDescription: item.material_description || '',
+            materialUnit: item.material_unit || ''
+        }));
+    },
+
+    async addComponentToAsset(
+        assetId: string,
+        materialId: string,
+        amount: number = 1,
+        brandModel: string = '',
+        isOriginal: boolean = true,
+        location: string = '',
+        serial: string = ''
+    ): Promise<void> {
+        const { error } = await supabase
+            .from('assets_materials')
+            .insert({
+                asset_id: parseInt(assetId),
+                material_id: parseInt(materialId),
+                amount,
+                brand_model: brandModel,
+                is_original: isOriginal,
+                location,
+                serial,
+                is_deleted: false,
+                created_at: getBrazilTimestamp()
+            });
+
+        if (error) throw error;
+    },
+
+    async removeComponentFromAsset(componentId: string): Promise<void> {
+        const { error } = await supabase
+            .from('assets_materials')
+            .update({ is_deleted: true })
+            .eq('id', parseInt(componentId));
+
+        if (error) throw error;
+    },
+
+    async updateAssetComponent(
+        componentId: string,
+        updates: {
+            amount?: number;
+            brandModel?: string;
+            serial?: string;
+            isOriginal?: boolean;
+            location?: string;
+        }
+    ): Promise<void> {
+        const dbUpdates: any = {};
+        if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+        if (updates.brandModel !== undefined) dbUpdates.brand_model = updates.brandModel;
+        if (updates.serial !== undefined) dbUpdates.serial = updates.serial;
+        if (updates.isOriginal !== undefined) dbUpdates.is_original = updates.isOriginal;
+        if (updates.location !== undefined) dbUpdates.location = updates.location;
+        dbUpdates.updated_at = getBrazilTimestamp();
+
+        const { error } = await supabase
+            .from('assets_materials')
+            .update(dbUpdates)
+            .eq('id', parseInt(componentId));
+
+        if (error) throw error;
+    }
 };

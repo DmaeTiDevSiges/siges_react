@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile, Material } from '../../types';
+import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile, Material, AssetMaterial } from '../../types';
 import { dataService } from '../../services/dataService';
 import { getPublicImageUrl } from '../../services/imageUtils';
 import { IconButton } from '../../components/ui/IconButton';
@@ -311,11 +311,30 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
         loadDocs();
     }, [activeTab, asset.id]);
 
-    // Mock components
-    const components = [
-        { id: '1', name: 'Selo Mecânico', detail: 'John Crane Type 1', status: 'Em estoque', statusColor: 'bg-emerald-500', icon: 'settings_input_component' },
-        { id: '2', name: 'Rolamento Dianteiro', detail: 'SKF 6309-2Z', status: 'Estoque Baixo', statusColor: 'bg-orange-500', icon: 'settings_backup_restore' },
-    ];
+    // Asset Components (materials associated with asset)
+    const [components, setComponents] = useState<AssetMaterial[]>([]);
+    const [isLoadingComponents, setIsLoadingComponents] = useState(false);
+    const [isAddingComponent, setIsAddingComponent] = useState(false);
+    const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+    const [componentSearch, setComponentSearch] = useState('');
+    const [componentSearchResults, setComponentSearchResults] = useState<Material[]>([]);
+    const [isSearchingComponents, setIsSearchingComponents] = useState(false);
+    const [componentForm, setComponentForm] = useState({
+        isOriginal: true,
+        brandModel: '',
+        serial: '',
+        amount: 1,
+        location: ''
+    });
+
+    const [editingComponent, setEditingComponent] = useState<AssetMaterial | null>(null);
+    const [editComponentForm, setEditComponentForm] = useState({
+        isOriginal: true,
+        brandModel: '',
+        serial: '',
+        amount: 1,
+        location: ''
+    });
 
     useEffect(() => {
         const loadDynamicData = async () => {
@@ -333,6 +352,109 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
         };
         loadDynamicData();
     }, [asset.id, asset.typeId]);
+
+    useEffect(() => {
+        const loadComponents = async () => {
+            if (activeTab !== 'Componentes') return;
+            setIsLoadingComponents(true);
+            try {
+                const data = await dataService.getAssetComponents(asset.id);
+                setComponents(data);
+            } catch (error) {
+                console.error('Error loading asset components:', error);
+            } finally {
+                setIsLoadingComponents(false);
+            }
+        };
+        loadComponents();
+    }, [activeTab, asset.id]);
+
+    const handleSearchComponents = async (search: string) => {
+        setComponentSearch(search);
+        if (search.length < 2) {
+            setComponentSearchResults([]);
+            return;
+        }
+        setIsSearchingComponents(true);
+        try {
+            const result = await dataService.getMaterials('all', search, undefined, 1, 20);
+            const existingIds = new Set(components.map(c => c.materialId));
+            setComponentSearchResults(result.materials.filter(m => !existingIds.has(m.id)));
+        } catch (error) {
+            console.error('Error searching materials:', error);
+        } finally {
+            setIsSearchingComponents(false);
+        }
+    };
+
+    const handleAddComponent = async () => {
+        if (!selectedMaterial) return;
+        try {
+            await dataService.addComponentToAsset(
+                asset.id,
+                selectedMaterial.id,
+                componentForm.amount,
+                componentForm.brandModel,
+                componentForm.isOriginal,
+                componentForm.location,
+                componentForm.serial
+            );
+            toast.success('Componente adicionado!');
+            setIsAddingComponent(false);
+            setSelectedMaterial(null);
+            setComponentSearch('');
+            setComponentSearchResults([]);
+            setComponentForm({ isOriginal: true, brandModel: '', serial: '', amount: 1, location: '' });
+            const data = await dataService.getAssetComponents(asset.id);
+            setComponents(data);
+        } catch (error) {
+            console.error('Error adding component:', error);
+            toast.error('Erro ao adicionar componente.');
+        }
+    };
+
+    const handleRemoveComponent = async (componentId: string) => {
+        if (!window.confirm('Tem certeza que deseja remover este componente?')) return;
+        try {
+            await dataService.removeComponentFromAsset(componentId);
+            toast.success('Componente removido.');
+            setComponents(prev => prev.filter(c => c.id !== componentId));
+        } catch (error) {
+            console.error('Error removing component:', error);
+            toast.error('Erro ao remover componente.');
+        }
+    };
+
+    const handleOpenEditComponent = (component: AssetMaterial) => {
+        setEditingComponent(component);
+        setEditComponentForm({
+            isOriginal: component.isOriginal,
+            brandModel: component.brandModel || '',
+            serial: component.serial || '',
+            amount: component.amount || 1,
+            location: component.location || ''
+        });
+    };
+
+    const handleUpdateComponent = async () => {
+        if (!editingComponent) return;
+        try {
+            await dataService.updateAssetComponent(editingComponent.id, {
+                amount: editComponentForm.amount,
+                brandModel: editComponentForm.brandModel,
+                serial: editComponentForm.serial,
+                isOriginal: editComponentForm.isOriginal,
+                location: editComponentForm.location
+            });
+            toast.success('Componente atualizado!');
+            setEditingComponent(null);
+            const data = await dataService.getAssetComponents(asset.id);
+            setComponents(data);
+        } catch (error) {
+            console.error('Error updating component:', error);
+            toast.error('Erro ao atualizar componente.');
+        }
+    };
 
     const filteredAlerts = alerts.filter(alert => {
         if (alertFilter === 'abertos') return !alert.isDone;
@@ -891,26 +1013,313 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                         {/* Associated Components */}
                         {activeTab === 'Componentes' && (
-                            <section>
-                                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Componentes Associados</h3>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {components.map((comp) => (
-                                        <div key={comp.id} className="flex items-center gap-4 bg-white dark:bg-[#111827] p-4 rounded-2xl border border-slate-100 dark:border-white/5 hover:border-emerald-500/30 transition-all cursor-pointer group">
-                                            <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
-                                                <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 text-3xl">{comp.icon}</span>
+                            <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <Modal
+                                    isOpen={isAddingComponent}
+                                    onClose={() => { setIsAddingComponent(false); setSelectedMaterial(null); setComponentSearch(''); setComponentSearchResults([]); setComponentForm({ isOriginal: true, brandModel: '', serial: '', amount: 1, location: '' }); }}
+                                    onConfirm={selectedMaterial ? handleAddComponent : undefined}
+                                    title={selectedMaterial ? 'Detalhes do Componente' : 'Adicionar Componente'}
+                                    confirmLabel="Salvar"
+                                    maxWidth="md"
+                                    hideHeader={false}
+                                >
+                                    {!selectedMaterial ? (
+                                        <div className="space-y-4">
+                                            <div className="relative">
+                                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar material por código ou descrição..."
+                                                    value={componentSearch}
+                                                    onChange={(e) => handleSearchComponents(e.target.value)}
+                                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                    autoFocus
+                                                />
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-black text-slate-900 dark:text-slate-200">{comp.name}</h4>
-                                                <p className="text-[10px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">{comp.detail}</p>
-                                                <div className="flex items-center gap-1.5 mt-2">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${comp.statusColor}`} />
-                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{comp.status}</span>
+                                            {isSearchingComponents && (
+                                                <div className="flex justify-center py-4">
+                                                    <Loading size="sm" />
+                                                </div>
+                                            )}
+                                            {!isSearchingComponents && componentSearch.length >= 2 && componentSearchResults.length === 0 && (
+                                                <div className="text-center py-8 text-slate-400 text-xs uppercase font-bold">
+                                                    Nenhum material encontrado
+                                                </div>
+                                            )}
+                                            <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto no-scrollbar">
+                                                {componentSearchResults.map((mat) => (
+                                                    <button
+                                                        key={mat.id}
+                                                        onClick={() => setSelectedMaterial(mat)}
+                                                        className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 hover:bg-primary/5 dark:hover:bg-primary/10 rounded-xl border border-slate-100 dark:border-white/5 hover:border-primary/30 transition-all text-left cursor-pointer"
+                                                    >
+                                                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                                            <span className="material-symbols-outlined text-primary text-xl">settings_input_component</span>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{mat.description}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{mat.code} — {mat.unit}</p>
+                                                        </div>
+                                                        <span className="material-symbols-outlined text-slate-300 text-xl">chevron_right</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/10">
+                                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                                    <span className="material-symbols-outlined text-primary text-xl">settings_input_component</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{selectedMaterial.description}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{selectedMaterial.code} — {selectedMaterial.unit}</p>
+                                                </div>
+                                                <button onClick={() => setSelectedMaterial(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                                                    <span className="material-symbols-outlined text-xl">edit</span>
+                                                </button>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Quantidade</label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={componentForm.amount}
+                                                        onChange={(e) => setComponentForm(prev => ({ ...prev, amount: parseInt(e.target.value) || 1 }))}
+                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Marca / Modelo</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Ex: SKF 6309-2Z"
+                                                        value={componentForm.brandModel}
+                                                        onChange={(e) => setComponentForm(prev => ({ ...prev, brandModel: e.target.value }))}
+                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Serial</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Número de série"
+                                                        value={componentForm.serial}
+                                                        onChange={(e) => setComponentForm(prev => ({ ...prev, serial: e.target.value }))}
+                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Localização</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Ex: Bloco A, Estante 3"
+                                                        value={componentForm.location}
+                                                        onChange={(e) => setComponentForm(prev => ({ ...prev, location: e.target.value }))}
+                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Tipo</label>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setComponentForm(prev => ({ ...prev, isOriginal: true }))}
+                                                            className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all border cursor-pointer ${componentForm.isOriginal ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 hover:border-emerald-500/30'}`}
+                                                        >
+                                                            Original
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setComponentForm(prev => ({ ...prev, isOriginal: false }))}
+                                                            className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all border cursor-pointer ${!componentForm.isOriginal ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 hover:border-orange-500/30'}`}
+                                                        >
+                                                            Compatível
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <IconButton icon="chevron_right" variant="ghost" className="text-slate-500! group-hover:text-slate-100!" />
                                         </div>
-                                    ))}
+                                    )}
+                                </Modal>
+
+                                <Modal
+                                    isOpen={!!editingComponent}
+                                    onClose={() => setEditingComponent(null)}
+                                    onConfirm={handleUpdateComponent}
+                                    title="Editar Componente"
+                                    confirmLabel="Salvar Alterações"
+                                    maxWidth="md"
+                                    hideHeader={false}
+                                >
+                                    {editingComponent && (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/10">
+                                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                                    <span className="material-symbols-outlined text-primary text-xl">settings_input_component</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{editingComponent.materialDescription}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{editingComponent.materialCode} — {editingComponent.materialUnit}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Quantidade</label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={editComponentForm.amount}
+                                                        onChange={(e) => setEditComponentForm(prev => ({ ...prev, amount: parseInt(e.target.value) || 1 }))}
+                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Marca / Modelo</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Ex: SKF 6309-2Z"
+                                                        value={editComponentForm.brandModel}
+                                                        onChange={(e) => setEditComponentForm(prev => ({ ...prev, brandModel: e.target.value }))}
+                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Serial</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Número de série"
+                                                        value={editComponentForm.serial}
+                                                        onChange={(e) => setEditComponentForm(prev => ({ ...prev, serial: e.target.value }))}
+                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Localização</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Ex: Bloco A, Estante 3"
+                                                        value={editComponentForm.location}
+                                                        onChange={(e) => setEditComponentForm(prev => ({ ...prev, location: e.target.value }))}
+                                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Tipo</label>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditComponentForm(prev => ({ ...prev, isOriginal: true }))}
+                                                            className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all border cursor-pointer ${editComponentForm.isOriginal ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 hover:border-emerald-500/30'}`}
+                                                        >
+                                                            Original
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditComponentForm(prev => ({ ...prev, isOriginal: false }))}
+                                                            className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all border cursor-pointer ${!editComponentForm.isOriginal ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 hover:border-orange-500/30'}`}
+                                                        >
+                                                            Compatível
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </Modal>
+
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Componentes Associados</h3>
+                                    {canCreate('assets_materials_create_edit_delete') && (
+                                        <button
+                                            className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full transition-all active:scale-95 border-none cursor-pointer"
+                                            onClick={() => setIsAddingComponent(true)}
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">add</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Incluir</span>
+                                        </button>
+                                    )}
                                 </div>
+
+                                {isLoadingComponents ? (
+                                    <div className="flex justify-center py-12">
+                                        <Loading size="md" />
+                                    </div>
+                                ) : components.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 px-6 bg-slate-500/5 rounded-3xl border border-dashed border-slate-200 dark:border-white/10">
+                                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                                            <span className="material-symbols-outlined text-slate-400 text-3xl">settings_input_component</span>
+                                        </div>
+                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-200 mb-1">Sem componentes</p>
+                                        <p className="text-[11px] text-slate-500 text-center max-w-[240px] leading-relaxed">
+                                            Nenhum componente (material) associado a este ativo.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {components.map((comp) => (
+                                             <div key={comp.id} className="flex items-center gap-4 bg-white dark:bg-[#111827] p-4 rounded-2xl border border-slate-100 dark:border-white/5 hover:border-primary/30 transition-all group">
+                                                 <div className="flex-1 min-w-0">
+                                                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-200">{comp.materialDescription}</h4>
+                                                    <div className="flex items-center justify-between mt-0.5">
+                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{comp.materialCode} — {comp.materialUnit}</p>
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <div className={`w-1.5 h-1.5 rounded-full ${comp.isOriginal ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{comp.isOriginal ? 'Original' : 'Compatível'}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 mt-2 flex-wrap">
+                                                        {comp.brandModel && (
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-[9px] font-black text-slate-500 uppercase">Marca/Modelo:</span>
+                                                                <span className="text-[10px] font-bold text-slate-400">{comp.brandModel}</span>
+                                                            </div>
+                                                        )}
+                                                        {comp.serial && (
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-[9px] font-black text-slate-500 uppercase">Serial:</span>
+                                                                <span className="text-[10px] font-bold text-slate-400">{comp.serial}</span>
+                                                            </div>
+                                                        )}
+                                                        {comp.location && (
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-[9px] font-black text-slate-500 uppercase">Local:</span>
+                                                                <span className="text-[10px] font-bold text-slate-400">{comp.location}</span>
+                                                            </div>
+                                                        )}
+                                                        {comp.amount && comp.amount > 0 && (
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-[9px] font-black text-slate-500 uppercase">Qtd:</span>
+                                                                <span className="text-[10px] font-bold text-slate-400">{comp.amount}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                 </div>
+                                                 <div className="flex flex-col items-center gap-1">
+                                                     {canEdit('assets_materials_create_edit_delete') && (
+                                                         <IconButton
+                                                             icon="edit"
+                                                             variant="ghost"
+                                                             className="text-slate-400! hover:text-primary!"
+                                                             onClick={() => handleOpenEditComponent(comp)}
+                                                         />
+                                                     )}
+                                                     {canDelete('assets_materials_create_edit_delete') && (
+                                                         <IconButton
+                                                             icon="delete"
+                                                             variant="ghost"
+                                                             className="text-slate-400! hover:text-red-500!"
+                                                             onClick={() => handleRemoveComponent(comp.id)}
+                                                         />
+                                                     )}
+                                                 </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </section>
                         )}
                     </div>
