@@ -36,9 +36,10 @@ export const AssetsSearchExcelButton: React.FC<AssetsSearchExcelButtonProps> = (
             const reportRows = assets.map(a => ({
                 unitDescriptionFull: a.unitDescriptionFull || a.unitDescription || '',
                 tagName: a.tagName || a.assetTagDescription || '',
+                tagSubName: a.tagSubName || '',
                 code: a.code,
                 description: a.description,
-                statusCode: a.statusId,
+                statusDescription: a.statusDescription || a.statusCode || a.statusId || '',
                 statusAt: a.statusAt,
                 typeDescription: a.typeId ? typeMap.get(a.typeId.toString()) : '—'
             }));
@@ -47,9 +48,10 @@ export const AssetsSearchExcelButton: React.FC<AssetsSearchExcelButtonProps> = (
             const mapping = {
                 unitDescriptionFull: 'Unidade',
                 tagName: 'Setor',
+                tagSubName: 'Posição',
                 code: 'Código',
                 description: 'Descrição',
-                statusCode: 'Situação',
+                statusDescription: 'Situação',
                 statusAt: 'Data Situação',
                 typeDescription: 'Tipo'
             };

@@ -53,6 +53,7 @@ export const assetsService = {
                 unitDescriptionFull: item.unit_description || '',
                 statusId: item.status_id?.toString(),
                 statusCode: item.status_code || '',
+                statusDescription: item.status_description || '',
                 statusColor: item.status_color || '#22c55e',
                 tagId: item.tag_id?.toString(),
                 tagName: item.tag_name || item.tag_description || item.asset_tag_description || '',
@@ -92,6 +93,7 @@ export const assetsService = {
                 materialCode: item.material_code || '',
                 materialDescription: item.material_description || '',
                 materialUnit: item.material_unit || '',
+                acquisitionValue: item.acquisition_value,
                 imgFilePath: item.img_file_path,
                 imgFileName: item.img_file_name
             } as Asset));
@@ -197,6 +199,7 @@ export const assetsService = {
                 unitDescriptionFull: item.unit_description || '',
                 statusId: item.status_id?.toString(),
                 statusCode: item.status_code || '',
+                statusDescription: item.status_description || '',
                 statusColor: item.status_color || '#22c55e',
                 tagId: item.tag_id?.toString(),
                 tagName: item.tag_name || item.tag_description || item.asset_tag_description || '',
@@ -236,6 +239,7 @@ export const assetsService = {
                 materialCode: item.material_code || '',
                 materialDescription: item.material_description || '',
                 materialUnit: item.material_unit || '',
+                acquisitionValue: item.acquisition_value,
                 imgFilePath: item.img_file_path,
                 imgFileName: item.img_file_name
             })) as Asset[];
@@ -304,6 +308,7 @@ export const assetsService = {
             materialCode: data.material_code || '',
             materialDescription: data.material_description || '',
             materialUnit: data.material_unit || '',
+            acquisitionValue: data.acquisition_value,
             imgFilePath: data.img_file_path,
             imgFileName: data.img_file_name
         } as Asset;
@@ -347,6 +352,7 @@ export const assetsService = {
             weight: asset.weight,
             weight_unit: asset.weightUnit,
             material_id: asset.materialId ? parseInt(asset.materialId) : null,
+            acquisition_value: asset.acquisitionValue,
             type_id: asset.typeId ? parseInt(asset.typeId) : null,
             unit_asset_tag_id: asset.unitAssetTagId ? parseInt(asset.unitAssetTagId) : null,
             img_file_path: asset.imgFilePath,
@@ -426,6 +432,7 @@ export const assetsService = {
         if (asset.weight !== undefined) dbData.weight = asset.weight;
         if (asset.weightUnit !== undefined) dbData.weight_unit = asset.weightUnit;
         if (asset.materialId !== undefined) dbData.material_id = asset.materialId ? parseInt(asset.materialId) : null;
+        if (asset.acquisitionValue !== undefined) dbData.acquisition_value = asset.acquisitionValue;
         if (asset.imgFilePath !== undefined) dbData.img_file_path = asset.imgFilePath;
         if (asset.imgFileName !== undefined) dbData.img_file_name = asset.imgFileName;
         if (asset.typeId !== undefined) dbData.type_id = asset.typeId ? parseInt(asset.typeId) : null;

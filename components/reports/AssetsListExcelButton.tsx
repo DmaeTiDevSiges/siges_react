@@ -47,9 +47,10 @@ export const AssetsListExcelButton: React.FC<AssetsListExcelButtonProps> = ({
             const reportRows = assets.map(a => ({
                 unitDescriptionFull: a.unitDescriptionFull || unitName,
                 tagName: a.tagName || '',
+                tagSubName: a.tagSubName || '',
                 code: a.code,
                 description: a.description,
-                statusCode: a.statusCode || a.statusId,
+                statusDescription: a.statusDescription || a.statusCode || a.statusId || '',
                 statusAt: a.statusAt,
                 typeDescription: a.typeId ? typeMap.get(a.typeId.toString()) : '-'
             }));
@@ -57,9 +58,10 @@ export const AssetsListExcelButton: React.FC<AssetsListExcelButtonProps> = ({
             const mapping = {
                 unitDescriptionFull: 'Unidade',
                 tagName: 'Setor',
+                tagSubName: 'Posição',
                 code: 'Codigo',
                 description: 'Descricao',
-                statusCode: 'Situacao',
+                statusDescription: 'Situação',
                 statusAt: 'Data Situacao',
                 typeDescription: 'Tipo'
             };

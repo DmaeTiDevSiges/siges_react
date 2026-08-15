@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AssetAttribute } from '../../../../types';
+import { AssetAttribute, AssetAttributeGroup } from '../../../../types';
 import { dataService } from '../../../../services/dataService';
 import { Modal } from '../../../../components/ui/Modal';
 import { SearchInput } from '../../../../components/ui/SearchInput';
@@ -7,6 +7,7 @@ import { Input } from '../../../../components/ui/Input';
 import { Select } from '../../../../components/ui/Select';
 import { Button } from '../../../../components/ui/Button';
 import { Loading } from '../../../../components/ui/Loading';
+import { IconButton } from '../../../../components/ui/IconButton';
 
 interface AddAttributeModalProps {
     isOpen: boolean;
@@ -36,16 +37,20 @@ export const AddAttributeModal: React.FC<AddAttributeModalProps> = ({
         label: '',
         dataType: 'text' as 'text' | 'number' | 'date' | 'boolean' | 'select',
         unit: '',
-        decimals: 0
+        decimals: 0,
+        selectOptionsGroupId: '' as string
     });
+
+    const [availableGroups, setAvailableGroups] = useState<AssetAttributeGroup[]>([]);
 
     useEffect(() => {
         if (isOpen) {
             loadAvailableAttributes();
+            loadGroups();
             setSearch('');
             setIsRequired(false);
             setColSpan(6);
-            setNewAttr({ fieldKey: '', label: '', dataType: 'text' as 'text' | 'number' | 'date' | 'boolean' | 'select', unit: '', decimals: 0 });
+            setNewAttr({ fieldKey: '', label: '', dataType: 'text', unit: '', decimals: 0, selectOptionsGroupId: '' });
             setActiveTab('existing');
         }
     }, [isOpen]);
@@ -60,6 +65,15 @@ export const AddAttributeModal: React.FC<AddAttributeModalProps> = ({
             console.error('Error loading attributes:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadGroups = async () => {
+        try {
+            const groups = await dataService.getAttributeGroups();
+            setAvailableGroups(groups);
+        } catch (error) {
+            console.error('Error loading groups:', error);
         }
     };
 
@@ -82,7 +96,8 @@ export const AddAttributeModal: React.FC<AddAttributeModalProps> = ({
                 label: newAttr.label,
                 dataType: newAttr.dataType,
                 unit: newAttr.unit || undefined,
-                decimals: newAttr.decimals
+                decimals: newAttr.decimals,
+                selectOptionsGroupId: newAttr.dataType === 'select' && newAttr.selectOptionsGroupId ? newAttr.selectOptionsGroupId : undefined
             });
             onAdd(created, { isRequired, colSpan });
             onClose();
@@ -219,6 +234,19 @@ export const AddAttributeModal: React.FC<AddAttributeModalProps> = ({
                             <option value="boolean">Sim/Não</option>
                             <option value="select">Seleção</option>
                         </Select>
+                        {newAttr.dataType === 'select' && (
+                            <Select
+                                label="Grupo de Opções"
+                                value={newAttr.selectOptionsGroupId}
+                                onChange={(e) => setNewAttr({ ...newAttr, selectOptionsGroupId: e.target.value })}
+                                placeholder="Selecione um grupo..."
+                            >
+                                <option value="">Nenhum grupo</option>
+                                {availableGroups.map(group => (
+                                    <option key={group.id} value={group.id}>{group.group}</option>
+                                ))}
+                            </Select>
+                        )}
                         <Input
                             label="Unidade"
                             placeholder="ex: kW, V, A"

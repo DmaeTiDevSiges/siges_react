@@ -14,6 +14,7 @@ import { visitChatService } from './orders/visitChatService';
 import { assetsService } from './assets/assetsService';
 import { assetConfigService } from './assets/assetConfigService';
 import { assetAttributesService } from './assets/assetAttributesService';
+import { assetAttributeGroupsService } from './assets/assetAttributeGroupsService';
 import { usersService } from './users/usersService';
 import { notificationsService } from './core/notificationsService';
 import { settingsService } from './core/settingsService';
@@ -1298,6 +1299,45 @@ export const dataService = {
 
     async reorderTypeAttributes(assetTypeId: string, orderedJunctionIds: string[]): Promise<void> {
         return assetAttributesService.reorderTypeAttributes.apply(assetAttributesService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // ASSET ATTRIBUTE GROUPS (cfg_assets_attributes_groups)
+    // -------------------------------------------------------------------------
+    async getAttributeGroups() {
+        return assetAttributeGroupsService.getGroups.apply(assetAttributeGroupsService, arguments as any);
+    },
+
+    async createAttributeGroup(group: string, description?: string) {
+        return assetAttributeGroupsService.createGroup.apply(assetAttributeGroupsService, arguments as any);
+    },
+
+    async updateAttributeGroup(id: string, group: string, description?: string) {
+        return assetAttributeGroupsService.updateGroup.apply(assetAttributeGroupsService, arguments as any);
+    },
+
+    async deleteAttributeGroup(id: string) {
+        return assetAttributeGroupsService.deleteGroup.apply(assetAttributeGroupsService, arguments as any);
+    },
+
+    async getAttributeOptionsByGroup(groupId: string) {
+        return assetAttributeGroupsService.getOptionsByGroup.apply(assetAttributeGroupsService, arguments as any);
+    },
+
+    async getAttributeOptionsAsSelect(groupId: string) {
+        return assetAttributeGroupsService.getOptionsAsSelect.apply(assetAttributeGroupsService, arguments as any);
+    },
+
+    async createAttributeOption(groupId: string, group: string, description?: string) {
+        return assetAttributeGroupsService.createOption.apply(assetAttributeGroupsService, arguments as any);
+    },
+
+    async updateAttributeOption(id: string, group: string, description?: string) {
+        return assetAttributeGroupsService.updateOption.apply(assetAttributeGroupsService, arguments as any);
+    },
+
+    async deleteAttributeOption(id: string) {
+        return assetAttributeGroupsService.deleteOption.apply(assetAttributeGroupsService, arguments as any);
     },
 
     // -------------------------------------------------------------------------

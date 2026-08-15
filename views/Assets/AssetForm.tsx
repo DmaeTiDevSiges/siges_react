@@ -9,6 +9,7 @@ import { Select } from '../../components/ui/Select';
 import { Input } from '../../components/ui/Input';
 import { Textarea } from '../../components/ui/Textarea';
 import { DynamicField } from '../../components/ui/DynamicField';
+import { CurrencyInput } from '../../components/ui/CurrencyInput';
 import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { usePermissions } from '../../contexts/PermissionsContext';
@@ -18,12 +19,14 @@ import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 interface AssetFormProps {
     initialAsset?: Asset;
     isDuplicate?: boolean;
-    onSave: (asset: Partial<Asset>, attributeValues: Record<string, string>, file?: File, onProgress?: (progress: number) => void) => Promise<void>;
+    onSave: (asset: Partial<Asset>, attributeValues: Record<string, string>, file?: File, onProgress?: (progress: number) => void, cloneOptions?: { copyComponentIds?: string[]; copyManualIds?: string[] }) => Promise<void>;
     onCancel: () => void;
     onMaterialSelect?: (material: Material) => void;
+    cloneOptions?: { copyComponentIds?: string[]; copyManualIds?: string[] };
+    headerBottomSlot?: React.ReactNode;
 }
 
-export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate, onSave, onCancel, onMaterialSelect }) => {
+export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate, onSave, onCancel, onMaterialSelect, cloneOptions, headerBottomSlot }) => {
     const { canCreate, canEdit } = usePermissions();
     const isEdit = !!initialAsset && !isDuplicate;
     const hasAccess = isEdit ? canEdit('assets') : canCreate('assets');
@@ -39,12 +42,10 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
         tagSubId: '',
         unitAssetTagId: '',
         comments: '',
-        brand: '',
-        model: '',
-        serial: '',
         materialId: '',
         location: '',
         acquisitionAt: '',
+        acquisitionValue: 0,
         typeId: '',
         // Specialized fields
         power: undefined,
@@ -69,7 +70,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
         weight: undefined,
         weightUnit: 'kg',
         ...initialAsset,
-        ...(isDuplicate ? { id: undefined, code: '', serial: '', materialId: '', imgFilePath: undefined, imgFileName: undefined } : {})
+        ...(isDuplicate ? { id: undefined, code: '', materialId: '', imgFilePath: undefined, imgFileName: undefined } : {})
     }));
 
     // ... (rest of the state)
@@ -99,6 +100,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
     // Dynamic attributes state
     const [attributes, setAttributes] = useState<AssetAttribute[]>([]);
     const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
+    const [groupOptionsMap, setGroupOptionsMap] = useState<Record<string, { value: string; label: string }[]>>({});
     const [isSaving, setIsSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -116,6 +118,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                 tagSubId: initialAsset.tagSubId || '',
                 unitAssetTagId: initialAsset.unitAssetTagId || '',
                 acquisitionAt: initialAsset.acquisitionAt || '',
+                acquisitionValue: initialAsset.acquisitionValue ?? 0,
                 statusAt: initialAsset.statusAt || '',
                 brand: initialAsset.brand || '',
                 model: initialAsset.model || '',
@@ -393,38 +396,34 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
 
         const pattern = selectedType.namingPattern || '{type} {brand} {model}';
 
-        // Context for replacement
-        const context: Record<string, string> = {
-            type: selectedType.description || '',
-            brand: formData.brand || '',
-            model: formData.model || '',
-            code: formData.code || '',
-            serial: formData.serial || '',
-            ...attributeValues
-        };
-
         let generatedDesc = pattern;
 
-        // Replace standard fields (Case insensitive for UX)
-        generatedDesc = generatedDesc.replace(/\{type\}/gi, context.type);
-        generatedDesc = generatedDesc.replace(/\{brand\}/gi, context.brand);
-        generatedDesc = generatedDesc.replace(/\{model\}/gi, context.model);
-        generatedDesc = generatedDesc.replace(/\{code\}/gi, context.code);
-        generatedDesc = generatedDesc.replace(/\{serial\}/gi, context.serial);
-
-        // Replace dynamic attributes
+        // 1. Replace dynamic attributes FIRST (inclui brand/model que são select)
         attributes.forEach(attr => {
             const val = attributeValues[attr.fieldKey];
             if (val) {
-                const valStr = attr.dataType === 'boolean' ? (val === 'true' ? 'SIM' : 'NÃO') : val;
+                let valStr: string;
+                if (attr.dataType === 'boolean') {
+                    valStr = val === 'true' ? 'SIM' : 'NÃO';
+                } else if (attr.dataType === 'select' && attr.selectOptionsGroupId && groupOptionsMap[attr.selectOptionsGroupId]) {
+                    const option = groupOptionsMap[attr.selectOptionsGroupId].find(opt => opt.value === val);
+                    valStr = option ? option.label : val;
+                } else {
+                    valStr = val;
+                }
                 const display = attr.unit ? `${valStr}${attr.unit}` : valStr;
                 const regex = new RegExp(`\\{${attr.fieldKey}\\}`, 'gi');
                 generatedDesc = generatedDesc.replace(regex, display);
-            } else {
-                const regex = new RegExp(`\\{${attr.fieldKey}\\}`, 'gi');
-                generatedDesc = generatedDesc.replace(regex, '');
             }
         });
+
+        // 2. Replace standard fields ONLY if placeholder still exists (fallback)
+        const typeDesc = selectedType.description || '';
+        if (generatedDesc.includes('{type}')) generatedDesc = generatedDesc.replace(/\{type\}/gi, typeDesc);
+        if (generatedDesc.includes('{brand}')) generatedDesc = generatedDesc.replace(/\{brand\}/gi, formData.brand || '');
+        if (generatedDesc.includes('{model}')) generatedDesc = generatedDesc.replace(/\{model\}/gi, formData.model || '');
+        if (generatedDesc.includes('{code}')) generatedDesc = generatedDesc.replace(/\{code\}/gi, formData.code || '');
+        if (generatedDesc.includes('{serial}')) generatedDesc = generatedDesc.replace(/\{serial\}/gi, formData.serial || '');
 
         // Clean up double spaces and trailing separators
         generatedDesc = generatedDesc.replace(/\s+/g, ' ').trim();
@@ -440,7 +439,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
             }
             return prev;
         });
-    }, [formData.typeId, formData.brand, formData.model, formData.code, attributeValues, assetTypes, attributes]);
+    }, [formData.typeId, formData.brand, formData.model, formData.code, attributeValues, assetTypes, attributes, groupOptionsMap]);
 
     // Load dynamic attributes when typeId changes
     useEffect(() => {
@@ -454,6 +453,19 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
             try {
                 const attrs = await dataService.getAssetAttributesByType(formData.typeId);
                 setAttributes(attrs);
+
+                // Load group options for select attributes (for naming pattern resolution)
+                const groupMap: Record<string, { value: string; label: string }[]> = {};
+                const selectAttrs = attrs.filter(a => a.dataType === 'select' && a.selectOptionsGroupId);
+                for (const attr of selectAttrs) {
+                    try {
+                        const options = await dataService.getAttributeOptionsAsSelect(attr.selectOptionsGroupId!);
+                        groupMap[attr.selectOptionsGroupId!] = options;
+                    } catch (err) {
+                        console.error('Error loading group options for naming:', err);
+                    }
+                }
+                setGroupOptionsMap(groupMap);
 
                 // Load existing values if editing
                 if (initialAsset?.id) {
@@ -553,21 +565,6 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
             return;
         }
 
-        if (!formData.brand) {
-            toast.error('Por favor, preencha o campo "Marca".');
-            return;
-        }
-
-        if (!formData.model) {
-            toast.error('Por favor, preencha o campo "Modelo".');
-            return;
-        }
-
-        if (!formData.serial) {
-            toast.error('Por favor, preencha o campo "Nº de Série".');
-            return;
-        }
-
         if (!formData.clientId) {
             toast.error('Por favor, selecione um cliente.');
             return;
@@ -613,7 +610,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
             setUploadProgress(0);
             await onSave(formData, attributeValues, imageFile || undefined, (progress) => {
                 setUploadProgress(progress);
-            });
+            }, cloneOptions);
         } finally {
             setIsSaving(false);
             setUploadProgress(0);
@@ -750,6 +747,8 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                         </div>
                     </div>
 
+                    {headerBottomSlot}
+
                     {/* Form Fields */}
                     <div className="px-6 space-y-8 mt-4">
                         {/* Identificação Section */}
@@ -780,45 +779,6 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                             value={formData.code || ''}
                                             onChange={e => setFormData({ ...formData, code: e.target.value })}
                                             placeholder="Ex: 2847"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-5">
-                                    <div className="space-y-1.5">
-                                        <Input
-                                            label="Marca"
-                                            type="text"
-                                            required
-                                            value={formData.brand || ''}
-                                            onChange={e => setFormData({ ...formData, brand: e.target.value })}
-                                            placeholder="Ex: WEG"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-5">
-                                    <div className="space-y-1.5">
-                                        <Input
-                                            label="Modelo"
-                                            type="text"
-                                            required
-                                            value={formData.model || ''}
-                                            onChange={e => setFormData({ ...formData, model: e.target.value })}
-                                            placeholder="Ex: W22 Premium"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-5">
-                                    <div className="space-y-1.5">
-                                        <Input
-                                            label="Nº de Série"
-                                            type="text"
-                                            required
-                                            value={formData.serial || ''}
-                                            onChange={e => setFormData({ ...formData, serial: e.target.value })}
-                                            placeholder="Ex: 567890-ABC"
                                         />
                                     </div>
                                 </div>
@@ -925,6 +885,15 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                             required
                                             value={formData.acquisitionAt ? formData.acquisitionAt.split('T')[0] : ''}
                                             onChange={e => setFormData({ ...formData, acquisitionAt: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 gap-5">
+                                    <div className="space-y-1.5">
+                                        <CurrencyInput
+                                            label="Valor de Aquisição"
+                                            value={formData.acquisitionValue ?? 0}
+                                            onChange={val => setFormData({ ...formData, acquisitionValue: val })}
                                         />
                                     </div>
                                 </div>

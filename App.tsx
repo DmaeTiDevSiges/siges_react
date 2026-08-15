@@ -80,6 +80,7 @@ const AssetStatusForm = React.lazy(() => import('./views/Settings/Assets/AssetSt
 const AssetPrioritiesList = React.lazy(() => import('./views/Settings/Assets/AssetPriorities/AssetPrioritiesList').then(m => ({ default: m.AssetPrioritiesList })));
 const AssetPriorityForm = React.lazy(() => import('./views/Settings/Assets/AssetPriorities/AssetPriorityForm').then(m => ({ default: m.AssetPriorityForm })));
 const AssetTypeAttributesScreen = React.lazy(() => import('./views/Settings/Assets/AssetTypeAttributes/AssetTypeAttributesScreen').then(m => ({ default: m.AssetTypeAttributesScreen })));
+const AssetAttributesBrandsScreen = React.lazy(() => import('./views/Settings/Assets/AssetTypeAttributes/AssetAttributesBrandsScreen').then(m => ({ default: m.AssetAttributesBrandsScreen })));
 const AssetTagsList = React.lazy(() => import('./views/Settings/Assets/AssetTags/AssetTagsList').then(m => ({ default: m.AssetTagsList })));
 const AssetTagForm = React.lazy(() => import('./views/Settings/Assets/AssetTags/AssetTagForm').then(m => ({ default: m.AssetTagForm })));
 const AssetTagSubsList = React.lazy(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubsList').then(m => ({ default: m.AssetTagSubsList })));
@@ -93,6 +94,7 @@ const UnitAssetTagAvailableDetails = React.lazy(() => import('./views/Units/Unit
 const AssetsSearch = React.lazy(() => import('./views/Assets/AssetsSearch').then(m => ({ default: m.AssetsSearch })));
 const AssetDetails = React.lazy(() => import('./views/Assets/AssetView').then(m => ({ default: m.AssetDetails })));
 const AssetForm = React.lazy(() => import('./views/Assets/AssetForm').then(m => ({ default: m.AssetForm })));
+const AssetCloneWizard = React.lazy(() => import('./views/Assets/AssetCloneWizard').then(m => ({ default: m.AssetCloneWizard })));
 const AssetsAlerts = React.lazy(() => import('./views/Assets/AssetsAlerts').then(m => ({ default: m.AssetsAlerts })));
 const AssetsAlertsHeaderWidget = React.lazy(() => import('./components/assets/AssetsAlertsHeaderWidget').then(m => ({ default: m.AssetsAlertsHeaderWidget })));
 const OrdersRequestsDashboardAdmin = React.lazy(() => import('./views/OrderRequest/OrdersRequestsDashboardAdmin').then(m => ({ default: m.OrdersRequestsDashboardAdmin })));
@@ -128,8 +130,8 @@ import { PermissionsProvider } from './contexts/PermissionsContext';
 const MaintenancePlansScreen = React.lazy(() => import('./views/Settings/MaintenancePlans/MaintenancePlansScreen').then(m => ({ default: m.MaintenancePlansScreen })));
 const ToolsMainView = React.lazy(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
 
-type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-duplicate' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar' | 'app-notices' | 'app-tips';
+type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar' | 'app-notices' | 'app-tips';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/imgproxyService';
@@ -406,6 +408,7 @@ const AppContent: React.FC = () => {
   const [selectedAssetTagSub, setSelectedAssetTagSub] = useState<AssetTagSub | null>(null);
   const [selectedTechnicalManual, setSelectedTechnicalManual] = useState<import('./types').TechnicalManual | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [cloneSourceAsset, setCloneSourceAsset] = useState<Asset | null>(null);
   const [lastAssetSource, setLastAssetSource] = useState<Screen>('assets-search');
   const [lastOrderSource, setLastOrderSource] = useState<Screen>('orders-dashboard');
   const [lastVisitSource, setLastVisitSource] = useState<Screen>('visits-dashboard');
@@ -1201,7 +1204,7 @@ const AppContent: React.FC = () => {
       setCurrentScreen('assets-search');
     } else if (currentScreen === 'asset-details') {
       setCurrentScreen(lastAssetSource);
-    } else if (currentScreen === 'asset-form' || currentScreen === 'asset-edit' || currentScreen === 'asset-duplicate') {
+    } else if (currentScreen === 'asset-form' || currentScreen === 'asset-edit' || currentScreen === 'asset-clone-wizard') {
       setCurrentScreen('asset-details');
     } else if (currentScreen === 'order-detail') {
       if (selectedOrder?.id === currentUser?.oIdInProgress) {
@@ -2280,6 +2283,8 @@ const AppContent: React.FC = () => {
         return selectedAssetPriority ? <AssetPriorityForm initialAssetPriority={selectedAssetPriority} onSave={handleSaveAssetPriority} onCancel={handleBack} /> : null;
       case 'asset-type-attributes':
         return <AssetTypeAttributesScreen />;
+      case 'asset-attributes-brands':
+        return <AssetAttributesBrandsScreen />;
       case 'asset-tags':
         return <AssetTagsList onAdd={() => setCurrentScreen('asset-tag-form')} onSelect={handleAssetTagSelect} />;
       case 'asset-tag-form':
@@ -2368,7 +2373,10 @@ const AppContent: React.FC = () => {
             asset={selectedAsset}
             onBack={handleBack}
             onEdit={() => setCurrentScreen('asset-edit')}
-            onDuplicate={() => setCurrentScreen('asset-duplicate')}
+            onDuplicate={() => {
+              setCloneSourceAsset(selectedAsset);
+              setCurrentScreen('asset-clone-wizard');
+            }}
             onViewReport={(ovaId) => {
               setSelectedOrderVisitAssetId(ovaId);
               setSelectedOrderVisitAsset(null);
@@ -2385,14 +2393,15 @@ const AppContent: React.FC = () => {
         return selectedAsset ? (
           <AssetForm initialAsset={selectedAsset} onSave={handleSaveAsset} onCancel={handleBack} onMaterialSelect={handleMaterialSelect} />
         ) : null;
-      case 'asset-duplicate':
-        return selectedAsset ? (
-          <AssetForm
-            initialAsset={selectedAsset}
-            isDuplicate={true}
-            onSave={handleSaveAsset}
+      case 'asset-clone-wizard':
+        return cloneSourceAsset ? (
+          <AssetCloneWizard
+            sourceAsset={cloneSourceAsset}
             onCancel={handleBack}
-            onMaterialSelect={handleMaterialSelect}
+            onComplete={() => {
+              setCloneSourceAsset(null);
+              setCurrentScreen('assets-search');
+            }}
           />
         ) : null;
       case 'notifications':
@@ -2778,7 +2787,7 @@ const AppContent: React.FC = () => {
       case 'assets-alerts': return 'Alertas de Ativos';
       case 'asset-details': return 'Ativo';
       case 'asset-form': return 'Novo Ativo';
-      case 'asset-duplicate': return 'Duplicar Ativo';
+      case 'asset-clone-wizard': return 'Clonar Ativo';
       case 'asset-edit': return 'Editar Ativo';
       case 'priorities': return 'Prioridades';
       case 'priority-form': return 'Nova Prioridade';
@@ -2799,6 +2808,7 @@ const AppContent: React.FC = () => {
       case 'asset-type-form': return 'Novo Tipo de Ativo';
       case 'asset-type-edit': return 'Editar Tipo de Ativo';
       case 'asset-type-attributes': return 'Dados Técnicos por Tipo';
+      case 'asset-attributes-brands': return 'Marcas e Modelos';
       case 'asset-statuses': return 'Situações de Ativos';
       case 'asset-status-form': return 'Nova Situação';
       case 'asset-status-edit': return 'Editar Situação';
@@ -2955,7 +2965,7 @@ const AppContent: React.FC = () => {
     currentScreen === 'asset-details' ||
     currentScreen === 'asset-form' ||
     currentScreen === 'asset-edit' ||
-    currentScreen === 'asset-duplicate' ||
+    currentScreen === 'asset-clone-wizard' ||
     currentScreen === 'unit-details' ||
     currentScreen === 'client-unit-form' ||
     currentScreen === 'unit-asset-tag-available' ||

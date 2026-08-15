@@ -10,16 +10,16 @@ export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, '.', '');
   const isDev = command === 'serve';
   const isElectronBuild = mode === 'electron' || process.env.BUILD_TARGET === 'electron';
-  // Try to read version from app_version.txt
-  let buildId = new Date().getTime().toString();
+  // Try to read version_app_mask from app_version.txt
+  let buildId = '0.0.1';
   try {
     const versionPath = path.resolve(__dirname, 'public/app_version.txt');
     if (fs.existsSync(versionPath)) {
       const data = JSON.parse(fs.readFileSync(versionPath, 'utf-8'));
-      buildId = data.version;
+      buildId = data.version_app_mask || '0.0.1';
     }
   } catch (e) {
-    console.warn('Could not read app_version.txt, using current timestamp');
+    console.warn('Could not read app_version.txt, using default version');
   }
 
   // Only use Electron plugins for explicit Electron builds.

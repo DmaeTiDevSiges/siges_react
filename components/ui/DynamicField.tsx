@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AssetAttribute } from '../../types';
+import { dataService } from '../../services/dataService';
 import { Input } from './Input';
-import { ActionIcon } from './ActionIcon';
 import { Select } from './Select';
 import { DecimalInput } from './DecimalInput';
 
@@ -12,6 +12,22 @@ interface DynamicFieldProps {
 }
 
 export const DynamicField: React.FC<DynamicFieldProps> = ({ attribute, value, onChange }) => {
+    const [groupOptions, setGroupOptions] = useState<{ value: string; label: string }[]>([]);
+    const [loadingOptions, setLoadingOptions] = useState(false);
+
+    useEffect(() => {
+        if (attribute.dataType === 'select' && attribute.selectOptionsGroupId) {
+            setLoadingOptions(true);
+            dataService.getAttributeOptionsAsSelect(attribute.selectOptionsGroupId)
+                .then(options => setGroupOptions(options))
+                .catch(err => {
+                    console.error('Error loading group options:', err);
+                    setGroupOptions([]);
+                })
+                .finally(() => setLoadingOptions(false));
+        }
+    }, [attribute.dataType, attribute.selectOptionsGroupId]);
+
     const label = attribute.unit ? `${attribute.label} (${attribute.unit})` : attribute.label;
 
     switch (attribute.dataType) {
@@ -61,8 +77,7 @@ export const DynamicField: React.FC<DynamicFieldProps> = ({ attribute, value, on
             );
 
         case 'select':
-            // For now, select fields will need options defined elsewhere
-            // This is a placeholder implementation
+            const options = attribute.selectOptionsGroupId ? groupOptions : (attribute.selectOptions || []);
             return (
                 <div className="space-y-1.5">
                     <Select
@@ -70,8 +85,8 @@ export const DynamicField: React.FC<DynamicFieldProps> = ({ attribute, value, on
                         required={attribute.required}
                         value={value || ''}
                         onChange={e => onChange(e.target.value)}
-                        options={[]}
-                        placeholder="Selecione..."
+                        options={options}
+                        placeholder={loadingOptions ? 'Carregando...' : 'Selecione...'}
                     />
                 </div>
             );

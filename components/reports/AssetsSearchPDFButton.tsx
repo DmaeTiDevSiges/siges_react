@@ -40,9 +40,10 @@ export const AssetsSearchPDFButton: React.FC<AssetsSearchPDFButtonProps> = ({
             const reportRows: AssetListRow[] = assets.map(a => ({
                 unitDescriptionFull: a.unitDescriptionFull || a.unitDescription || '',
                 tagName: a.tagName || a.assetTagDescription || '',
+                tagSubName: a.tagSubName || '',
                 code: a.code,
                 description: a.description,
-                statusCode: a.statusCode || a.statusId,
+                statusDescription: a.statusDescription || a.statusCode || a.statusId || '',
                 statusAt: a.statusAt,
                 typeDescription: a.typeId ? (typeMap.get(a.typeId.toString()) || '—') : '—'
             }));

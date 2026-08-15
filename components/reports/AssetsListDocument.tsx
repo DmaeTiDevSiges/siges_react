@@ -90,11 +90,12 @@ const styles = StyleSheet.create({
 // ---------------------------------------------------------------------------
 export interface AssetListRow {
     unitDescriptionFull?: string;
-    tagName?: string; // This usually contains "Sector › Position"
+    tagName?: string;
+    tagSubName?: string;
     typeDescription?: string;
     code?: string;
     description?: string;
-    statusCode?: string;
+    statusDescription?: string;
     statusAt?: string;
 }
 
@@ -117,13 +118,14 @@ const fmtDate = (val?: string) => {
 
 // Column widths — must sum to 100%
 const COL = {
-    unidade: '15%',
-    setores: '24%',
-    tipo: '12%',
-    codigo: '7%',
-    descricao: '23%',
+    unidade: '14%',
+    setor: '14%',
+    posicao: '14%',
+    codigo: '6%',
+    descricao: '22%',
     situacao: '10%',
-    data: '9%',
+    data: '10%',
+    tipo: '10%',
 };
 
 // ---------------------------------------------------------------------------
@@ -155,12 +157,13 @@ export const AssetsListDocument = ({ assets, generatedAt, logoBase64 }: { assets
                     {/* Table Header */}
                     <View style={styles.tableHeaderRow} fixed>
                         <Text style={[styles.th, { width: COL.unidade }]}>UNIDADES</Text>
-                        <Text style={[styles.th, { width: COL.setores }]}>SETORES / POSIÇÕES</Text>
-                        <Text style={[styles.th, { width: COL.tipo }]}>TIPOS</Text>
+                        <Text style={[styles.th, { width: COL.setor }]}>SETORES</Text>
+                        <Text style={[styles.th, { width: COL.posicao }]}>POSIÇÕES</Text>
                         <Text style={[styles.th, { width: COL.codigo }]}>CÓDIGOS</Text>
                         <Text style={[styles.th, { width: COL.descricao }]}>DESCRIÇÕES</Text>
                         <Text style={[styles.th, { width: COL.situacao }]}>SITUAÇÕES</Text>
                         <Text style={[styles.th, { width: COL.data }]}>DATAS SITUAÇÕES</Text>
+                        <Text style={[styles.th, { width: COL.tipo }]}>TIPOS</Text>
                     </View>
 
                     {/* Table Rows */}
@@ -171,12 +174,13 @@ export const AssetsListDocument = ({ assets, generatedAt, logoBase64 }: { assets
                             wrap={false}
                         >
                             <Text style={[styles.td, { width: COL.unidade }]}>{fmt(a.unitDescriptionFull)}</Text>
-                            <Text style={[styles.td, { width: COL.setores }]}>{fmt(a.tagName)}</Text>
-                            <Text style={[styles.td, { width: COL.tipo }]}>{fmt(a.typeDescription)}</Text>
+                            <Text style={[styles.td, { width: COL.setor }]}>{fmt(a.tagName)}</Text>
+                            <Text style={[styles.td, { width: COL.posicao }]}>{fmt(a.tagSubName)}</Text>
                             <Text style={[styles.td, { width: COL.codigo }]}>{fmt(a.code)}</Text>
                             <Text style={[styles.td, { width: COL.descricao }]}>{fmt(a.description)}</Text>
-                            <Text style={[styles.td, { width: COL.situacao }]}>{fmt(a.statusCode)}</Text>
+                            <Text style={[styles.td, { width: COL.situacao }]}>{fmt(a.statusDescription)}</Text>
                             <Text style={[styles.td, { width: COL.data }]}>{fmtDate(a.statusAt)}</Text>
+                            <Text style={[styles.td, { width: COL.tipo }]}>{fmt(a.typeDescription)}</Text>
                         </View>
                     ))}
                 </View>

@@ -581,6 +581,25 @@ export interface AssetAttribute {
   orderIndex: number;
   colSpan?: number;
   isAvailable: boolean;
+  selectOptions?: { value: string; label: string }[];
+  selectOptionsGroupId?: string | null;
+}
+
+export interface AssetAttributeGroup {
+  id: string;
+  group: string;
+  description?: string;
+  isAvailable: boolean;
+  parentId?: string | null;
+}
+
+export interface AssetAttributeGroupOption {
+  id: string;
+  groupId: string;
+  group: string;
+  description?: string;
+  isAvailable: boolean;
+  parentId?: string | null;
 }
 
 export interface AssetAttributeValue {
@@ -601,6 +620,8 @@ export interface TypeAttributeConfig {
   orderIndex: number;
   colSpan: number;
   isAvailable: boolean;
+  selectOptions?: { value: string; label: string }[];
+  selectOptionsGroupId?: string | null;
 }
 
 export interface AssetAlert {
@@ -652,6 +673,7 @@ export interface Asset {
   description: string;
   statusId?: string;
   statusCode?: string;
+  statusDescription?: string;
   statusColor?: string;
   tagId?: string;
   tagName?: string;

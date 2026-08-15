@@ -3,6 +3,8 @@
  *
  * Manages update attempt tracking using localStorage.
  * After 3 optional dismissals the 4th prompt becomes mandatory (unclosable).
+ *
+ * Version comparison uses semantic versioning (x.y.z).
  */
 
 const ATTEMPT_COUNT_KEY = 'siges_update_attempt_count';
@@ -41,11 +43,29 @@ export const getLastDismissedVersion = (): string | null => {
 };
 
 /**
+ * Compare two semantic version strings (e.g. "1.2.45" vs "1.1.99").
+ * Returns positive if a > b, negative if a < b, 0 if equal.
+ */
+const compareSemantic = (a: string, b: string): number => {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na !== nb) return na - nb;
+  }
+  return 0;
+};
+
+/**
  * Should the update modal be shown right now?
  *
  * Returns `{ show: true, mandatory: boolean }` when an update is pending.
  * - mandatory = false → first 3 dismissals (shows "Depois" button)
  * - mandatory = true  → 4th+ encounter (no "Depois", cannot close)
+ *
+ * Compares semantic versions (x.y.z). Remote > local = update available.
  */
 export const getUpdateModalState = (
   remoteVersion: string,
@@ -54,17 +74,21 @@ export const getUpdateModalState = (
   const remote = remoteVersion?.trim() || '';
   const local = localVersion?.trim() || '';
 
-  // Check if they are numeric (like timestamps used in __BUILD_ID__)
-  const remoteNum = Number(remote);
-  const localNum = Number(local);
-  const isNumeric = !isNaN(remoteNum) && !isNaN(localNum) && remote !== '' && local !== '';
-
-  if (!remote || remote === local || (isNumeric && remoteNum <= localNum)) {
-    // Versions match, or local is newer — reset counters if there was a pending update
+  if (!remote || !local || remote === local) {
     if (getLastDismissedVersion()) resetUpdateAttempts();
     return { show: false, mandatory: false };
   }
 
+  // Semantic comparison: remote > local means update is available
+  const cmp = compareSemantic(remote, local);
+
+  if (cmp <= 0) {
+    // Local is same or newer — reset counters if there was a pending update
+    if (getLastDismissedVersion()) resetUpdateAttempts();
+    return { show: false, mandatory: false };
+  }
+
+  // Remote is newer — show the modal
   const lastDismissed = getLastDismissedVersion();
   // If we have a new remote version that we haven't dismissed yet, reset the attempts!
   if (lastDismissed && lastDismissed !== remote) {

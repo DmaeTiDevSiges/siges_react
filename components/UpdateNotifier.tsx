@@ -103,7 +103,9 @@ const UpdateNotifier: React.FC = () => {
             try {
                 // Fetch the config from the database
                 const remoteConfig = await dataService.getAppConfig();
-                if (!remoteConfig || !remoteConfig.version_app) return;
+                // Prefer version_app_mask for semantic comparison, fallback to version_app
+                const remoteMask = remoteConfig.version_app_mask || remoteConfig.version_app;
+                if (!remoteMask) return;
 
                 setConfig({
                     version_app: remoteConfig.version_app,
@@ -111,8 +113,8 @@ const UpdateNotifier: React.FC = () => {
                     apk_url: remoteConfig.apk_url
                 });
 
-                // Compare with the hardcoded __BUILD_ID__ from Vite define
-                const { show, mandatory } = getUpdateModalState(remoteConfig.version_app, __BUILD_ID__);
+                // Compare semantic versions: remote version_app_mask vs local __BUILD_ID__
+                const { show, mandatory } = getUpdateModalState(remoteMask, __BUILD_ID__);
                 
                 if (show) {
                     setIsMandatory(mandatory);
@@ -145,12 +147,15 @@ const UpdateNotifier: React.FC = () => {
 
     // Auto-hide banner and increment reminder counter
     useEffect(() => {
-        if (!showBanner || !config?.version_app) return;
+        if (!showBanner || !config) return;
+        const remoteMask = config.version_app_mask || config.version_app;
         const t = setTimeout(() => {
             setShowBanner(false);
             try {
-                recordUpdateAttempt(config.version_app);
-                setReminderCount(getUpdateAttemptCount());
+                if (remoteMask) {
+                    recordUpdateAttempt(remoteMask);
+                    setReminderCount(getUpdateAttemptCount());
+                }
             } catch (e) {
                 // ignore
             }
@@ -196,8 +201,9 @@ const UpdateNotifier: React.FC = () => {
     };
 
     const handleLater = () => {
-        if (!config?.version_app) return;
-        recordUpdateAttempt(config.version_app);
+        const remoteMask = config?.version_app_mask || config?.version_app;
+        if (!remoteMask) return;
+        recordUpdateAttempt(remoteMask);
         setReminderCount(getUpdateAttemptCount());
         setShowModal(false);
         setShowBanner(false);

@@ -51,9 +51,10 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
             const reportRows: AssetListRow[] = assets.map(a => ({
                 unitDescriptionFull: a.unitDescriptionFull || unitName,
                 tagName: a.tagName,
+                tagSubName: a.tagSubName || '',
                 code: a.code,
                 description: a.description,
-                statusCode: a.statusCode,
+                statusDescription: a.statusDescription || a.statusCode || '',
                 statusAt: a.statusAt,
                 typeDescription: (a.typeId ? typeMap.get(a.typeId.toString()) : null) || '—'
             }));

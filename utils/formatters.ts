@@ -39,6 +39,13 @@ export const formatCurrency = (value: number): string => {
  * @returns Formatted date string (DD/MM/YYYY)
  */
 export const formatDate = (date: string | Date): string => {
+    if (typeof date === 'string') {
+        const dateOnlyMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (dateOnlyMatch) {
+            const [_, year, month, day] = dateOnlyMatch;
+            return `${day}/${month}/${year}`;
+        }
+    }
     const d = typeof date === 'string' ? new Date(date) : date;
     return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(d);
 };

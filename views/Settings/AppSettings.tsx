@@ -159,6 +159,13 @@ export const AppSettings: React.FC<{ onNavigate?: (screen: string) => void }> = 
                         subtitle="Configurar atributos técnicos por tipo"
                         onClick={() => onNavigate?.('asset-type-attributes')}
                     />
+                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                    <SettingItem
+                        icon="inventory_2"
+                        title="Marcas e Modelos"
+                        subtitle="Gerenciar marcas e modelos de ativos"
+                        onClick={() => onNavigate?.('asset-attributes-brands')}
+                    />
                 </div>
             </div>
 

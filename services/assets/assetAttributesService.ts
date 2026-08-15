@@ -17,15 +17,17 @@ export const assetAttributesService = {
                     label,
                     data_type,
                     unit,
-                    decimals
+                    decimals,
+                    select_options,
+                    select_options_group_id
                 )
             `)
             .eq('asset_type_id', assetTypeId)
-            .eq('is_available', 'true')
+            .eq('is_available', true)
             .order('order_index');
 
         if (error) {
-            console.error('Error fetching asset attributes:', error);
+            console.error('[assetAttributesService] Error fetching asset attributes:', error);
             throw error;
         }
 
@@ -42,7 +44,9 @@ export const assetAttributesService = {
                 required: !!item.is_required,
                 orderIndex: item.order_index || 0,
                 colSpan: item.col_span || 12,
-                isAvailable: !!item.is_available
+                isAvailable: !!item.is_available,
+                selectOptions: Array.isArray(attr.select_options) ? attr.select_options : undefined,
+                selectOptionsGroupId: attr.select_options_group_id ? String(attr.select_options_group_id) : null
             };
         });
     },
@@ -60,7 +64,9 @@ export const assetAttributesService = {
 
         const values: Record<string, string> = {};
         (data || []).forEach((item: any) => {
-            values[item.field_key] = item.value || '';
+            if (item.field_key) {
+                values[item.field_key] = item.value || '';
+            }
         });
 
         return values;
@@ -77,13 +83,16 @@ export const assetAttributesService = {
             throw deleteError;
         }
 
-        const rows = Object.entries(values)
-            .filter(([_, value]) => value !== '' && value !== null && value !== undefined)
-            .map(([fieldKey, value]) => ({
-                asset_id: parseInt(assetId),
-                field_key: fieldKey,
-                value: String(value)
-            }));
+        const entries = Object.entries(values)
+            .filter(([_, value]) => value !== '' && value !== null && value !== undefined);
+
+        if (entries.length === 0) return;
+
+        const rows = entries.map(([fieldKey, value]) => ({
+            asset_id: parseInt(assetId),
+            field_key: fieldKey,
+            value: String(value)
+        }));
 
         if (rows.length > 0) {
             const { error: insertError } = await supabase
@@ -106,6 +115,8 @@ export const assetAttributesService = {
                 data_type: attribute.dataType,
                 unit: attribute.unit,
                 decimals: attribute.decimals || 0,
+                select_options: attribute.selectOptions || null,
+                select_options_group_id: attribute.selectOptionsGroupId || null,
                 is_available: true,
                 is_deleted: false
             })
@@ -127,6 +138,8 @@ export const assetAttributesService = {
         if (attribute.dataType !== undefined) dbData.data_type = attribute.dataType;
         if (attribute.unit !== undefined) dbData.unit = attribute.unit;
         if (attribute.decimals !== undefined) dbData.decimals = attribute.decimals;
+        if (attribute.selectOptions !== undefined) dbData.select_options = attribute.selectOptions || null;
+        if (attribute.selectOptionsGroupId !== undefined) dbData.select_options_group_id = attribute.selectOptionsGroupId || null;
         if (attribute.isAvailable !== undefined) dbData.is_available = attribute.isAvailable;
 
         const { data, error } = await supabase
@@ -174,7 +187,9 @@ export const assetAttributesService = {
             dataType: item.data_type || 'text',
             unit: item.unit,
             decimals: item.decimals || 0,
-            isAvailable: !!item.is_available
+            isAvailable: !!item.is_available,
+            selectOptions: Array.isArray(item.select_options) ? item.select_options : undefined,
+            selectOptionsGroupId: item.select_options_group_id ? String(item.select_options_group_id) : null
         })) as AssetAttribute[];
     },
 
@@ -187,7 +202,7 @@ export const assetAttributesService = {
                 supabase.from('cfg_assets_types_attributes')
                     .select('attribute_id')
                     .eq('asset_type_id', assetTypeId)
-                    .eq('is_available', 'true')
+                    .eq('is_available', true)
             )
             .order('label');
 
@@ -203,7 +218,9 @@ export const assetAttributesService = {
             dataType: item.data_type || 'text',
             unit: item.unit,
             decimals: item.decimals || 0,
-            isAvailable: !!item.is_available
+            isAvailable: !!item.is_available,
+            selectOptions: Array.isArray(item.select_options) ? item.select_options : undefined,
+            selectOptionsGroupId: item.select_options_group_id ? String(item.select_options_group_id) : null
         })) as AssetAttribute[];
     },
 
@@ -224,11 +241,13 @@ export const assetAttributesService = {
                     label,
                     data_type,
                     unit,
-                    decimals
+                    decimals,
+                    select_options,
+                    select_options_group_id
                 )
             `)
             .eq('asset_type_id', assetTypeId)
-            .eq('is_available', 'true')
+            .eq('is_available', true)
             .order('order_index');
 
         if (error) {
@@ -249,7 +268,9 @@ export const assetAttributesService = {
                 isRequired: !!item.is_required,
                 orderIndex: item.order_index || 0,
                 colSpan: item.col_span || 12,
-                isAvailable: !!item.is_available
+                isAvailable: !!item.is_available,
+                selectOptions: Array.isArray(attr.select_options) ? attr.select_options : undefined,
+                selectOptionsGroupId: attr.select_options_group_id ? String(attr.select_options_group_id) : null
             };
         });
     },

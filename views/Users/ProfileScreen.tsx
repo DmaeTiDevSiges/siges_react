@@ -10,6 +10,7 @@ import { Modal } from '../../components/ui/Modal';
 import { FaceDetectionCamera } from '../../components/ui/FaceDetectionCamera';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
 import { ButtonSave } from '../../components/ui/ButtonSave';
+import { Card } from '../../components/ui/Card';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { SignaturePad } from '../../components/ui/SignaturePad';
 import { Loading } from '../../components/ui/Loading';
@@ -101,6 +102,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [showSignaturePad, setShowSignaturePad] = useState(false);
     const [isSavingSignature, setIsSavingSignature] = useState(false);
     const [signatureUploadProgress, setSignatureUploadProgress] = useState(0);
+    const [isLandscape, setIsLandscape] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return window.matchMedia('(orientation: landscape)').matches ||
+               window.matchMedia('(max-height: 500px)').matches;
+    });
 
     // Team Management State
     const [isTeamExpanded, setIsTeamExpanded] = useState(false);
@@ -239,6 +245,27 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             subscription.unsubscribe();
         };
     }, [initialUser]);
+
+    // Landscape detection (same as SignatureSection)
+    useEffect(() => {
+        const mqPortrait = window.matchMedia('(orientation: portrait)');
+        const mqLandscape = window.matchMedia('(orientation: landscape)');
+        const mqSmallHeight = window.matchMedia('(max-height: 500px)');
+
+        const update = () => {
+            setIsLandscape(mqLandscape.matches || mqSmallHeight.matches);
+        };
+
+        mqPortrait.addEventListener('change', update);
+        mqLandscape.addEventListener('change', update);
+        mqSmallHeight.addEventListener('change', update);
+
+        return () => {
+            mqPortrait.removeEventListener('change', update);
+            mqLandscape.removeEventListener('change', update);
+            mqSmallHeight.removeEventListener('change', update);
+        };
+    }, []);
 
     // Fetch initial vehicle details if user has one (assuming dataService can fetch it or it's in user object if we extend user)
     // The user object currently has vehicle_id. We might need to fetch the vehicle details.
@@ -1216,81 +1243,88 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
 
                         {/* ── Assinatura ── */}
                         {activeTab === 'signature' && (
-                            <div className="space-y-4">
+                            <section className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Assinatura Digital</h3>
+
                                 {user?.isTeamLeader ? (
-                                    <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
-                                        <div className="p-5">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                                                    <span className="material-symbols-outlined text-primary text-[20px]">draw</span>
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Assinatura Padrão</h3>
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400">Será aplicada automaticamente nas visitas</p>
-                                                </div>
+                                    <Card className="p-5 flex flex-col gap-4 relative overflow-hidden group hover:border-primary/30 transition-all border-dashed border-2">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="material-symbols-outlined text-slate-400 text-[18px]">badge</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assinatura Padrão</span>
                                             </div>
-
-                                            {/* Signature preview */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowSignaturePad(true)}
-                                                disabled={isSavingSignature}
-                                                className="w-full bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5 flex items-center justify-center overflow-hidden transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/50 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-                                                style={{ minHeight: '120px' }}
-                                            >
-                                                {signatureUrl ? (
-                                                    <img
-                                                        src={signatureUrl}
-                                                        alt="Assinatura Padrão"
-                                                        className="max-h-24 p-3 object-contain brightness-0 dark:invert pointer-events-none"
-                                                    />
-                                                ) : (
-                                                    <div className="flex flex-col items-center gap-2 opacity-30 py-6 pointer-events-none">
-                                                        <span className="material-symbols-outlined text-3xl">pending_actions</span>
-                                                        <span className="text-[10px] font-bold uppercase tracking-widest">Clique aqui para criar a sua assinatura.</span>
-                                                    </div>
-                                                )}
-                                            </button>
-
-                                            {/* Action buttons */}
                                             {signatureUrl && (
-                                                <div className="flex gap-3 mt-4">
-                                                    <button
-                                                        onClick={() => setShowSignaturePad(true)}
-                                                        disabled={isSavingSignature}
-                                                        className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary-dark rounded-xl transition-all shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50"
-                                                    >
-                                                        Alterar Assinatura
-                                                    </button>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full">
+                                                        <span className="material-symbols-outlined text-[14px]">verified</span>
+                                                        <span className="text-[8px] font-black uppercase tracking-widest">Salva</span>
+                                                    </div>
                                                     <button
                                                         onClick={() => {
                                                             if (!user?.uuid) return;
                                                             setConfirmDeleteSignature(true);
                                                         }}
                                                         disabled={isSavingSignature}
-                                                        className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-rose-500 bg-rose-500/10 hover:bg-rose-500 hover:text-white rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
+                                                        className="w-6 h-6 flex items-center justify-center bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                                        title="Excluir assinatura"
                                                     >
-                                                        Remover
+                                                        <span className="material-symbols-outlined text-[14px]">delete</span>
                                                     </button>
                                                 </div>
                                             )}
+                                        </div>
 
-                                            {/* Upload progress */}
-                                            {isSavingSignature && (
-                                                <div className="mt-3">
-                                                    <div className="h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-primary transition-all duration-300"
-                                                            style={{ width: `${signatureUploadProgress}%` }}
-                                                        />
-                                                    </div>
-                                                    <p className="text-[10px] text-center text-slate-400 mt-1 font-bold uppercase tracking-widest">
-                                                        Processando...
-                                                    </p>
+                                        <div className="h-28 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5 flex items-center justify-center overflow-hidden transition-colors group-hover:bg-slate-100/50 dark:group-hover:bg-slate-900/80">
+                                            {signatureUrl ? (
+                                                <img
+                                                    src={signatureUrl}
+                                                    alt="Assinatura Padrão"
+                                                    className="max-h-full p-2 object-contain brightness-0 dark:invert transition-transform duration-500 group-hover:scale-105"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2 opacity-30">
+                                                    <span className="material-symbols-outlined text-2xl">pending_actions</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest">Aguardando</span>
                                                 </div>
                                             )}
                                         </div>
-                                    </div>
+
+                                        {!signatureUrl ? (
+                                            <button
+                                                onClick={() => setShowSignaturePad(true)}
+                                                disabled={isSavingSignature}
+                                                className="w-full py-3 text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary-dark rounded-xl transition-all shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-[0.98]"
+                                            >
+                                                Assinar Agora
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => setShowSignaturePad(true)}
+                                                disabled={isSavingSignature}
+                                                className="w-full py-3 text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary-dark rounded-xl transition-all shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-[0.98]"
+                                            >
+                                                Alterar Assinatura
+                                            </button>
+                                        )}
+
+                                        {isSavingSignature && (
+                                            <div className="space-y-1">
+                                                <div className="h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-primary transition-all duration-300"
+                                                        style={{ width: `${signatureUploadProgress}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-[8px] text-center text-slate-400 font-bold uppercase tracking-widest">
+                                                    Processando...
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <p className="text-[8px] text-center font-bold text-slate-400 uppercase tracking-widest">
+                                            Será aplicada automaticamente nas visitas
+                                        </p>
+                                    </Card>
                                 ) : (
                                     <div className="bg-white dark:bg-card-dark rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
                                         <div className="flex flex-col items-center justify-center py-14 text-center px-6">
@@ -1302,7 +1336,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                         </div>
                                     </div>
                                 )}
-                            </div>
+                            </section>
                         )}
 
                         {/* ── Ranking ── */}
@@ -1590,11 +1624,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             <Modal
                 isOpen={showSignaturePad}
                 onClose={() => !isSavingSignature && setShowSignaturePad(false)}
-                title="Salvar Assinatura Padrão"
-                maxWidth="sm"
+                title={`Coleta de Assinatura`}
+                maxWidth={isLandscape ? '4xl' : 'sm'}
+                fullScreenMobile={isLandscape}
+                noPadding={isLandscape}
+                hideHeader={isLandscape}
+                className={isLandscape ? 'pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]' : ''}
             >
                 {isSavingSignature ? (
-                    <div className="flex flex-col items-center justify-center h-[300px] gap-4">
+                    <div className={`flex flex-col items-center justify-center ${isLandscape ? 'h-[200px]' : 'h-[300px]'} gap-4`}>
                         <div className="relative">
                             <div className="h-16 w-16 rounded-full border-4 border-slate-100 dark:border-slate-800 animate-pulse"></div>
                             <Loading size="xs" />
@@ -1602,7 +1640,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         <span className="text-xs font-black uppercase tracking-widest text-slate-500 animate-pulse">Processando Assinatura</span>
                     </div>
                 ) : (
-                    <div className="h-[55vh] sm:h-[60vh] flex flex-col">
+                    <div className={isLandscape ? 'h-[65vh] sm:h-[75vh] flex flex-col' : 'h-[55vh] sm:h-[60vh] flex flex-col'}>
                         <SignaturePad
                             onSave={async (base64) => {
                                 if (!user?.uuid) return;

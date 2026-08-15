@@ -54,7 +54,8 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
             !isEditable ||
             visit.ovSignatureLeaderPath ||
             !currentUser?.signatureImagePath ||
-            !currentUser?.signatureImageName
+            !currentUser?.signatureImageName ||
+            visit.ovTeamLeadId !== currentUser?.id
         ) {
             return;
         }

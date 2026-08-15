@@ -19,7 +19,7 @@ Write-Host ""
 Write-Host "[1/1] Gerando APK Debug (minificado)..." -ForegroundColor Yellow
 Push-Location android
 try {
-    .\gradlew.bat assembleDebug
+    .\gradlew.bat assembleDebug --warning-mode none
     if ($LASTEXITCODE -ne 0) { Write-Error "[ERRO] Gradle falhou!"; exit 1 }
 } finally {
     Pop-Location

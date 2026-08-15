@@ -8,7 +8,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { LoadMore } from '../../components/ui/LoadMore';
 import { toast } from 'sonner';
-import { formatDateTime, formatCurrency } from '../../utils/formatters';
+import { formatDateTime, formatCurrency, formatDate } from '../../utils/formatters';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
@@ -140,6 +140,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const [showMenu, setShowMenu] = useState(false);
     const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
     const [attributes, setAttributes] = useState<AssetAttribute[]>([]);
+    const [attributeGroupOptions, setAttributeGroupOptions] = useState<Record<string, { value: string; label: string }[]>>({});
     const [isFavorite, setIsFavorite] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -345,6 +346,25 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                     dataService.getAssetAttributeValues(asset.id)
                 ]);
                 setAttributes(attrs);
+
+                // Fetch group options for select attributes in parallel
+                const selectAttrs = attrs.filter(a => a.dataType === 'select' && a.selectOptionsGroupId);
+                const groupResults = await Promise.allSettled(
+                    selectAttrs.map(attr =>
+                        dataService.getAttributeOptionsAsSelect(attr.selectOptionsGroupId!).then(options => ({
+                            groupId: attr.selectOptionsGroupId!,
+                            options
+                        }))
+                    )
+                );
+                const groupOptionsMap: Record<string, { value: string; label: string }[]> = {};
+                groupResults.forEach(result => {
+                    if (result.status === 'fulfilled') {
+                        groupOptionsMap[result.value.groupId] = result.value.options;
+                    }
+                });
+                setAttributeGroupOptions(groupOptionsMap);
+
                 setAttributeValues(values);
             } catch (error) {
                 console.error('Error loading dynamic attributes for details:', error);
@@ -570,7 +590,25 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                         {/* Dynamic Attributes */}
                                         {attributes.map((attr, i) => {
                                             const value = attributeValues[attr.fieldKey];
-                                            const displayValue = value ? (attr.dataType === 'boolean' ? (value === 'true' ? 'Sim' : 'Não') : value) : '-';
+                                            let displayValue = '-';
+                                            if (value) {
+                                                if (attr.dataType === 'boolean') {
+                                                    displayValue = value === 'true' ? 'Sim' : 'Não';
+                                                } else if (attr.dataType === 'select') {
+                                                    let options = attr.selectOptions || [];
+                                                    if (attr.selectOptionsGroupId && attributeGroupOptions[attr.selectOptionsGroupId]) {
+                                                        options = attributeGroupOptions[attr.selectOptionsGroupId];
+                                                    }
+                                                    const option = options.find(opt => opt.value === value);
+                                                    displayValue = option ? option.label : value;
+                                                } else if (attr.fieldKey === 'acquisition_value') {
+                                                    displayValue = formatCurrency(Number(value));
+                                                } else if (attr.fieldKey === 'acquisition_at') {
+                                                    displayValue = formatDate(value);
+                                                } else {
+                                                    displayValue = value;
+                                                }
+                                            }
                                             const label = attr.unit ? `${attr.label} (${attr.unit})` : attr.label;
                                             const span = attr.colSpan || 12;
 
