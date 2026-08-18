@@ -194,6 +194,7 @@ export const usersService = {
             .from('cfg_teams')
             .select('*')
             .eq('department_id', departmentId)
+            .eq('is_available', true)
             .order('sort_order', { ascending: true })
             .order('description');
 
@@ -755,6 +756,7 @@ export const usersService = {
                     teamName: data.cfg_teams?.description,
                     departmentId: data.cfg_teams?.department_id?.toString(),
                     isAdminSuper: data.is_admin_super,
+                    isAdmin: data.is_admin,
                     notificationsAmount: data.notifications_amount || 0,
                     createdAt: data.created_at,
                     vehicleId: data.vehicle_id?.toString(),

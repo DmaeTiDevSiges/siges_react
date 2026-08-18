@@ -2,8 +2,7 @@ import { supabase } from '../supabase';
 import { usersService } from '../users/usersService';
 
 export const warehouseService = {
-    async getWarehouses(): Promise<{ id: string; code: string; description: string; address?: string }[]> {
-        const currentUser = await usersService.getCurrentUser();
+    async getWarehouses(companyId?: string): Promise<{ id: string; code: string; description: string; address?: string }[]> {
         let query = supabase
             .from('warehouses')
             .select('id, code, description, address')
@@ -11,29 +10,13 @@ export const warehouseService = {
             .eq('is_deleted', false)
             .order('description');
 
-        if (currentUser?.companyId) {
-            query = query.eq('company_id', parseInt(currentUser.companyId));
+        if (companyId) {
+            query = query.eq('company_id', parseInt(companyId));
         }
 
         const { data, error } = await query;
 
         if (error) throw error;
-
-        if ((!data || data.length === 0) && currentUser?.companyId) {
-            const { data: allData } = await supabase
-                .from('warehouses')
-                .select('id, code, description, address')
-                .eq('is_available', true)
-                .eq('is_deleted', false)
-                .order('description');
-
-            return (allData || []).map((item: any) => ({
-                id: item.id.toString(),
-                code: item.code,
-                description: item.description,
-                address: item.address || ''
-            }));
-        }
 
         return (data || []).map((item: any) => ({
             id: item.id.toString(),

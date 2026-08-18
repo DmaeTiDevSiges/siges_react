@@ -20,6 +20,12 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
     const [saving, setSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [initialPermissions, setInitialPermissions] = useState<string>('');
+    const [showNewProfileModal, setShowNewProfileModal] = useState(false);
+    const [newProfileName, setNewProfileName] = useState('');
+    const [creatingProfile, setCreatingProfile] = useState(false);
+    const [deletingProfile, setDeletingProfile] = useState(false);
+
+    const isSuperAdmin = currentUser?.isAdminSuper;
 
     // Initial Load
     useEffect(() => {
@@ -29,7 +35,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                 setLoading(true);
                 const [profilesData, routesData] = await Promise.all([
                     dataService.getCompanyProfiles(currentUser.companyId),
-                    dataService.getAllRoutes()
+                    isSuperAdmin ? dataService.getAllRoutesAdmin() : dataService.getAllRoutesForCompanyAdmin()
                 ]);
                 setProfiles(profilesData);
                 setRoutes(routesData);
@@ -41,7 +47,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
             }
         };
         loadInitialData();
-    }, [currentUser?.companyId]);
+    }, [currentUser?.companyId, isSuperAdmin]);
 
     // Load Permissions when Profile Changes
     useEffect(() => {
@@ -117,6 +123,20 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
         });
     };
 
+    const handleToggleRouteAvailability = async (route: Route) => {
+        const newAvailability = !route.isAvailable;
+        try {
+            await dataService.updateRouteAvailability(route.id, newAvailability);
+            setRoutes(prev =>
+                prev.map(r => r.id === route.id ? { ...r, isAvailable: newAvailability } : r)
+            );
+            toast.success(`Rota "${route.description}" ${newAvailability ? 'ativada' : 'desativada'}`);
+        } catch (error) {
+            console.error('Error toggling route:', error);
+            toast.error('Erro ao atualizar rota');
+        }
+    };
+
     const handleSave = async () => {
         if (!selectedProfileId) return;
         try {
@@ -132,6 +152,44 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
         }
     };
 
+    const handleCreateProfile = async () => {
+        if (!newProfileName.trim() || !currentUser?.companyId) return;
+        try {
+            setCreatingProfile(true);
+            await dataService.createCompanyProfile(currentUser.companyId, newProfileName.trim(), []);
+            const profilesData = await dataService.getCompanyProfiles(currentUser.companyId);
+            setProfiles(profilesData);
+            setShowNewProfileModal(false);
+            setNewProfileName('');
+            toast.success('Perfil criado com sucesso!');
+        } catch (error) {
+            console.error('Error creating profile:', error);
+            toast.error('Erro ao criar perfil');
+        } finally {
+            setCreatingProfile(false);
+        }
+    };
+
+    const handleDeleteProfile = async () => {
+        if (!selectedProfileId) return;
+        if (!window.confirm('Tem certeza que deseja excluir este perfil? As permissoes associadas serao removidas.')) return;
+        try {
+            setDeletingProfile(true);
+            await dataService.deleteCompanyProfile(selectedProfileId);
+            const profilesData = await dataService.getCompanyProfiles(currentUser!.companyId!);
+            setProfiles(profilesData);
+            setSelectedProfileId('');
+            setPermissions([]);
+            setInitialPermissions('');
+            toast.success('Perfil excluido com sucesso!');
+        } catch (error) {
+            console.error('Error deleting profile:', error);
+            toast.error('Erro ao excluir perfil');
+        } finally {
+            setDeletingProfile(false);
+        }
+    };
+
     const hasChanges = initialPermissions !== JSON.stringify(permissions);
 
     if (loading && profiles.length === 0) return <div className="p-8">Carregando...</div>;
@@ -140,10 +198,6 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center">
-                    {/* Back arrow removed - handled by global Layout */}
-                    {/* Title removed - handled by global Layout */}
-                </div>
                 <div className="flex items-center space-x-4">
                     <select
                         value={selectedProfileId}
@@ -162,6 +216,27 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Button
+                        onClick={() => setShowNewProfileModal(true)}
+                        variant="ghost"
+                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                        <span className="material-symbols-outlined text-base mr-1">add</span>
+                        Novo Perfil
+                    </Button>
+                    {selectedProfileId && (
+                        <Button
+                            onClick={handleDeleteProfile}
+                            disabled={deletingProfile}
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                            <span className="material-symbols-outlined text-base mr-1">delete</span>
+                            {deletingProfile ? 'Excluindo...' : 'Excluir Perfil'}
+                        </Button>
+                    )}
                     <Button
                         onClick={handleSave}
                         disabled={saving || !hasChanges}
@@ -190,11 +265,14 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24">Criar</th>
                                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24">Editar</th>
                                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24">Excluir</th>
+                                    {isSuperAdmin && (
+                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24">Ativa</th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {mergedData.map(({ route, canView, canCreate, canEdit, canDelete, canSearch }) => (
-                                    <tr key={route.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <tr key={route.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${!route.isAvailable && isSuperAdmin ? 'opacity-50' : ''}`}>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center">
                                                 {route.icon && <span className="material-symbols-outlined mr-2 text-gray-400">{route.icon}</span>}
@@ -216,6 +294,20 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                                         <td className="px-6 py-4 text-center">
                                             <input type="checkbox" checked={canDelete} onChange={() => handleTogglePermissionSafe(String(route.id), 'delete')} className="h-4 w-4 cursor-pointer" />
                                         </td>
+                                        {isSuperAdmin && (
+                                            <td className="px-6 py-4 text-center">
+                                                <button
+                                                    onClick={() => handleToggleRouteAvailability(route)}
+                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                                        route.isAvailable ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                                                    }`}
+                                                >
+                                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                                        route.isAvailable ? 'translate-x-4.5' : 'translate-x-0.5'
+                                                    }`} />
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>
@@ -223,6 +315,39 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                     </div>
                 )}
             </div>
+
+            {/* Modal: Novo Perfil */}
+            {showNewProfileModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Novo Perfil</h3>
+                        <input
+                            type="text"
+                            value={newProfileName}
+                            onChange={(e) => setNewProfileName(e.target.value)}
+                            placeholder="Nome do perfil..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            autoFocus
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleCreateProfile(); }}
+                        />
+                        <div className="flex justify-end gap-2 mt-4">
+                            <Button
+                                onClick={() => { setShowNewProfileModal(false); setNewProfileName(''); }}
+                                variant="ghost"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleCreateProfile}
+                                disabled={!newProfileName.trim() || creatingProfile}
+                                variant="primary"
+                            >
+                                {creatingProfile ? 'Criando...' : 'Criar Perfil'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

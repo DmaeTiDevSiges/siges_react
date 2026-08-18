@@ -60,31 +60,24 @@ export const AuthorizeOrderModal: React.FC<AuthorizeOrderModalProps> = ({
     const loadData = async () => {
         setIsLoading(true);
         try {
-            let providerCompanyId = order.providerCompanyId;
             let providerDepartmentId = order.providerDepartmentId;
 
             // Fallback: fetch contract details if missing provider info
-            if ((!providerCompanyId || !providerDepartmentId) && order.contractId) {
+            if (!providerDepartmentId && order.contractId) {
                 const contract = await dataService.getContractById(order.contractId);
                 if (contract) {
-                    if (!providerCompanyId) providerCompanyId = contract.providerCompanyId;
-                    if (!providerDepartmentId) providerDepartmentId = contract.providerDepartmentId;
+                    providerDepartmentId = contract.providerDepartmentId;
                 }
             }
 
-            // Default to order.companyId if no provider company found (internal service)
-            const targetCompanyId = providerCompanyId || order.companyId;
-
             const [teamsData, plansData] = await Promise.all([
-                dataService.getTeams(targetCompanyId),
+                providerDepartmentId
+                    ? dataService.getTeamsByDepartment(providerDepartmentId)
+                    : dataService.getTeams(),
                 dataService.getPlans()
             ]);
 
-            const filteredTeams = providerDepartmentId
-                ? teamsData.filter(t => t.departmentId == providerDepartmentId)
-                : teamsData;
-
-            setTeams(filteredTeams);
+            setTeams(teamsData);
             setPlans(plansData);
         } catch (error) {
             console.error('Error loading authorize modal data:', error);
@@ -135,7 +128,7 @@ export const AuthorizeOrderModal: React.FC<AuthorizeOrderModalProps> = ({
                 </div>
 
                 <Select
-                    label="Equipe Executora"
+                    label="Equipe Responsável"
                     options={teams.map(t => ({ value: t.id, label: t.code }))}
                     value={selectedTeamId}
                     onChange={(e) => setSelectedTeamId(e.target.value)}

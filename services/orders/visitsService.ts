@@ -4006,6 +4006,147 @@ export const visitsService = {
             console.error('[visitsService] Error deleting signature:', error);
             throw error;
         }
+    },
+
+    // -------------------------------------------------------------------------
+    // FINANCIAL APPROVAL
+    // -------------------------------------------------------------------------
+
+    /**
+     * Envia custos para aprovação financeira (pending → submitted)
+     */
+    async submitVisitCosts(visitId: string, userId: string): Promise<boolean> {
+        try {
+            const now = getBrazilTimestamp();
+            
+            const { error } = await supabase
+                .from('orders_visits')
+                .update({
+                    ov_costs_status: 'submitted',
+                    ov_costs_submitted_at: now,
+                    ov_costs_submitted_user_id: userId,
+                    updated_at: now,
+                    updated_user_id: userId
+                })
+                .eq('id', visitId)
+                .eq('ov_processing_id', 5); // Só permite quando visita está aprovada
+
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('[visitsService] Error submitting visit costs:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Aprova custos financeiros (submitted → approved)
+     */
+    async approveVisitFinancial(visitId: string, userId: string): Promise<boolean> {
+        try {
+            const now = getBrazilTimestamp();
+            
+            const { error } = await supabase
+                .from('orders_visits')
+                .update({
+                    ov_costs_status: 'approved',
+                    ov_costs_approved_at: now,
+                    ov_costs_approved_user_id: userId,
+                    updated_at: now,
+                    updated_user_id: userId
+                })
+                .eq('id', visitId)
+                .eq('ov_costs_status', 'submitted'); // Só permite quando custos foram enviados
+
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('[visitsService] Error approving visit financial:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Rejeita custos financeiros (submitted → rejected)
+     */
+    async rejectVisitFinancial(visitId: string, userId: string, reason: string): Promise<boolean> {
+        try {
+            const now = getBrazilTimestamp();
+            
+            const { error } = await supabase
+                .from('orders_visits')
+                .update({
+                    ov_costs_status: 'rejected',
+                    ov_costs_rejected_at: now,
+                    ov_costs_rejected_user_id: userId,
+                    ov_costs_rejection_reason: reason,
+                    updated_at: now,
+                    updated_user_id: userId
+                })
+                .eq('id', visitId)
+                .eq('ov_costs_status', 'submitted'); // Só permite quando custos foram enviados
+
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('[visitsService] Error rejecting visit financial:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Reseta status financeiro para pendente (rejected → submitted para correção)
+     */
+    async resetVisitCostsStatus(visitId: string, userId: string): Promise<boolean> {
+        try {
+            const now = getBrazilTimestamp();
+            
+            const { error } = await supabase
+                .from('orders_visits')
+                .update({
+                    ov_costs_status: 'submitted',
+                    ov_costs_submitted_at: now,
+                    ov_costs_submitted_user_id: userId,
+                    ov_costs_rejected_at: null,
+                    ov_costs_rejected_user_id: null,
+                    ov_costs_rejection_reason: null,
+                    updated_at: now,
+                    updated_user_id: userId
+                })
+                .eq('id', visitId)
+                .eq('ov_costs_status', 'rejected'); // Só permite quando custos foram rejeitados
+
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('[visitsService] Error resetting visit costs status:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Busca status financeiro de uma visita
+     */
+    async getVisitFinancialStatus(visitId: string): Promise<{
+        ov_costs_status: string | null;
+        ov_costs_submitted_at: string | null;
+        ov_costs_approved_at: string | null;
+        ov_costs_rejected_at: string | null;
+        ov_costs_rejection_reason: string | null;
+    } | null> {
+        try {
+            const { data, error } = await supabase
+                .from('orders_visits')
+                .select('ov_costs_status, ov_costs_submitted_at, ov_costs_approved_at, ov_costs_rejected_at, ov_costs_rejection_reason')
+                .eq('id', visitId)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('[visitsService] Error getting visit financial status:', error);
+            return null;
+        }
     }
 
 };

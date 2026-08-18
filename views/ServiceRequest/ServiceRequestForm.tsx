@@ -234,7 +234,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
 
-        if (!formData.clientId || !formData.unitId || !formData.orderTypeId || !formData.requestedServices) {
+        if (!formData.clientId || !formData.unitId || !formData.unitAssetTagId || !formData.orderTypeId || !formData.requestedServices) {
             toast.error("Preencha todos os campos obrigatórios");
             return;
         }
@@ -304,7 +304,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         }
     };
 
-    const isStep1Valid = !!(formData.clientId && formData.unitId);
+    const isStep1Valid = !!(formData.clientId && formData.unitId && formData.unitAssetTagId);
     const isStep2Valid = !!(formData.orderTypeId && formData.requestedServices && formData.requestedServices.trim().length >= 10);
 
     const handleNext = async () => {

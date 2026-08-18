@@ -77,6 +77,8 @@ const TypeGroup: React.FC<TypeGroupProps> = ({ type, purchases, total, onAuthori
                                 quantity={p.quantity}
                                 unit={p.material_unit || 'un'}
                                 total_price={p.total_price}
+                                cancel_reason_id={p.cancel_reason_id}
+                                cancel_reason_description={p.cancel_reason_description}
                                 cancel_reason={p.cancel_reason}
                                 authorizer_name={p.authorizer_name}
                                 authorized_at={p.authorized_at}
@@ -169,9 +171,9 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
         setShowCancelModal(true);
     }, []);
 
-    const handleCancel = useCallback(async (reason: string) => {
+    const handleCancel = useCallback(async (reasonId: number, reasonText?: string) => {
         if (!selectedPurchaseId) return;
-        await dataService.cancelMaterialPurchase(selectedPurchaseId, reason);
+        await dataService.cancelMaterialPurchase(selectedPurchaseId, reasonId, reasonText);
         toast.success('Compra cancelada');
         setShowCancelModal(false);
         await loadDashboard();

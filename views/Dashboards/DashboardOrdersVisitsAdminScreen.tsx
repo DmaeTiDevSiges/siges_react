@@ -59,6 +59,8 @@ interface OrderVisitExtended extends OrderVisit {
     typeCode?: string;
     typeSubCode?: string;
     sectorDescription?: string;
+    // Financial approval status
+    ov_costs_status?: string | null;
 }
 
 
@@ -875,6 +877,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 typeSubCode: row.o_type_sub_code || row.type_sub_code,
                 sectorDescription: row.o_asset_tag_description || row.asset_tag_description || row.o_system_description,
                 assetTagDescription: row.o_asset_tag_description || row.asset_tag_description,
+                ov_costs_status: row.ov_costs_status,
                 assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description,
                 contractDescription: row.o_contract_description || row.contract_description,
             });
@@ -1165,6 +1168,14 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         return baseFilteredVisits
             .filter(visit => {
                 if (activeOrderVisitProcessingIdSelected !== 'all') {
+                    // Card especial: Custos Pendentes (aguardando inclusão)
+                    if (activeOrderVisitProcessingIdSelected === 'costs-pending') {
+                        return visit.ovProcessingId === 5 && (!(visit as any).ov_costs_status || (visit as any).ov_costs_status === 'pending');
+                    }
+                    // Card especial: Aguardando Aprovação Financeira
+                    if (activeOrderVisitProcessingIdSelected === 'financial-pending') {
+                        return visit.ovProcessingId === 5 && (visit as any).ov_costs_status === 'submitted';
+                    }
                     if (visit.ovProcessingId !== parseInt(activeOrderVisitProcessingIdSelected)) return false;
                 }
                 return true;
@@ -1504,6 +1515,46 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 />
                             );
                         })}
+                        {/* Card especial: Custos Pendentes (aguardando inclusão) */}
+                        {(() => {
+                            const costsPendingVisits = baseFilteredVisits.filter(
+                                v => v.ovProcessingId === 5 && (!(v as any).ov_costs_status || (v as any).ov_costs_status === 'pending')
+                            );
+                            const costsPendingTotal = costsPendingVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0);
+                            return (
+                                <StatCard
+                                    key="costs-pending"
+                                    icon="receipt_long"
+                                    label="Custos Pendentes"
+                                    count={costsPendingVisits.length}
+                                    totalValue={costsPendingTotal}
+                                    color="text-slate-500"
+                                    active={activeOrderVisitProcessingIdSelected === 'costs-pending'}
+                                    onClick={() => setActiveOrderVisitProcessingIdSelected('costs-pending')}
+                                    visits={costsPendingVisits}
+                                />
+                            );
+                        })()}
+                        {/* Card especial: Aguardando Aprovação Financeira */}
+                        {(() => {
+                            const financialPendingVisits = baseFilteredVisits.filter(
+                                v => v.ovProcessingId === 5 && (v as any).ov_costs_status === 'submitted'
+                            );
+                            const financialPendingTotal = financialPendingVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0);
+                            return (
+                                <StatCard
+                                    key="financial-pending"
+                                    icon="account_balance"
+                                    label="Aprovação Financeira"
+                                    count={financialPendingVisits.length}
+                                    totalValue={financialPendingTotal}
+                                    color="text-amber-500"
+                                    active={activeOrderVisitProcessingIdSelected === 'financial-pending'}
+                                    onClick={() => setActiveOrderVisitProcessingIdSelected('financial-pending')}
+                                    visits={financialPendingVisits}
+                                />
+                            );
+                        })()}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 px-1 py-2 bg-slate-50/50 dark:bg-slate-800/10 rounded-[16px]">

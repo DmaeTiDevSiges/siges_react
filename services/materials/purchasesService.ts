@@ -3,6 +3,20 @@ import { usersService } from '../users/usersService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 export const purchasesService = {
+    async getCancelReasons(): Promise<{ id: number; description: string; is_available: boolean }[]> {
+        const { data, error } = await supabase
+            .from('cfg_materials_purchases_cancel_reasons')
+            .select('*')
+            .eq('is_available', true)
+            .order('description');
+
+        if (error) {
+            console.error('Error fetching purchase cancel reasons:', error);
+            return [];
+        }
+        return data || [];
+    },
+
     async createMaterialPurchase(data: { materialId: string; purchaseTypeId?: string; warehouseId?: string; quantity: number; unitPrice: number; justification: string; code?: string }): Promise<any> {
         const currentUser = await usersService.getCurrentUser();
         const totalPrice = data.quantity * data.unitPrice;
@@ -14,7 +28,7 @@ export const purchasesService = {
             total_price: totalPrice,
             justification: data.justification,
             status_id: 1,
-            requester_id: currentUser?.id ? parseInt(currentUser.id) : 0,
+            requester_user_id: currentUser?.id ? parseInt(currentUser.id) : 0,
             created_user_id: currentUser?.id ? parseInt(currentUser.id) : undefined,
             created_at: getBrazilTimestamp()
         };
@@ -121,7 +135,7 @@ export const purchasesService = {
 
         const { data: purchase, error: fetchError } = await supabase
             .from('materials_purchases')
-            .select('material_id, requester_id')
+            .select('material_id, requester_user_id')
             .eq('id', parseInt(id))
             .single();
 
@@ -147,7 +161,7 @@ export const purchasesService = {
             unit_price: data.unitPrice,
             total_price: totalPrice,
             justification: data.justification,
-            authorizer_id: currentUser?.id ? parseInt(currentUser.id) : undefined,
+            authorizer_user_id: currentUser?.id ? parseInt(currentUser.id) : undefined,
             authorized_at: getBrazilTimestamp(),
             updated_at: getBrazilTimestamp()
         };
@@ -169,7 +183,7 @@ export const purchasesService = {
             const timestamp = getBrazilTimestamp();
 
             await supabase.from('users_notifications').insert({
-                user_id_to: purchase.requester_id,
+                user_id_to: purchase.requester_user_id,
                 user_id_from: currentUser?.id ? parseInt(currentUser.id) : null,
                 title: 'Compra Aprovada',
                 body: `Sua solicitação de compra do material ${materialCode ? materialCode + ' - ' : ''}${materialDesc} foi aprovada.\nQuantidade: ${data.quantity}\nValor Total: ${totalPriceFormatted}`,
@@ -183,12 +197,12 @@ export const purchasesService = {
         }
     },
 
-    async cancelMaterialPurchase(id: string, cancelReason: string): Promise<void> {
+    async cancelMaterialPurchase(id: string, cancelReasonId: number, cancelReasonText?: string): Promise<void> {
         const currentUser = await usersService.getCurrentUser();
 
         const { data: purchase, error: fetchError } = await supabase
             .from('materials_purchases')
-            .select('material_id, requester_id')
+            .select('material_id, requester_user_id')
             .eq('id', parseInt(id))
             .single();
 
@@ -203,13 +217,27 @@ export const purchasesService = {
             .eq('id', purchase.material_id)
             .single();
 
+        const { data: reasonData } = await supabase
+            .from('cfg_materials_purchases_cancel_reasons')
+            .select('description')
+            .eq('id', cancelReasonId)
+            .single();
+
+        const reasonDescription = reasonData?.description || 'Não informado';
+
+        const updateData: any = {
+            status_id: 4,
+            cancel_reason_id: cancelReasonId,
+            updated_at: getBrazilTimestamp()
+        };
+
+        if (cancelReasonText) {
+            updateData.cancel_reason = cancelReasonText;
+        }
+
         const { error } = await supabase
             .from('materials_purchases')
-            .update({
-                status_id: 4,
-                cancel_reason: cancelReason,
-                updated_at: getBrazilTimestamp()
-            })
+            .update(updateData)
             .eq('id', parseInt(id));
 
         if (error) {
@@ -222,12 +250,15 @@ export const purchasesService = {
             const materialCode = materialData?.code || '';
             const cancellerName = currentUser?.nameShort || currentUser?.nameFull || 'Administrador';
             const timestamp = getBrazilTimestamp();
+            const reasonBody = cancelReasonText
+                ? `${reasonDescription} - ${cancelReasonText}`
+                : reasonDescription;
 
             await supabase.from('users_notifications').insert({
-                user_id_to: purchase.requester_id,
+                user_id_to: purchase.requester_user_id,
                 user_id_from: currentUser?.id ? parseInt(currentUser.id) : null,
                 title: 'Compra Cancelada',
-                body: `Sua solicitação de compra do material ${materialCode ? materialCode + ' - ' : ''}${materialDesc} foi cancelada por ${cancellerName}.\nMotivo: ${cancelReason}`,
+                body: `Sua solicitação de compra do material ${materialCode ? materialCode + ' - ' : ''}${materialDesc} foi cancelada por ${cancellerName}.\nMotivo: ${reasonBody}`,
                 type: 'Compra Cancelada',
                 material_id: purchase.material_id,
                 created_at: timestamp,
@@ -243,7 +274,7 @@ export const purchasesService = {
 
         const { data: purchase, error: fetchError } = await supabase
             .from('materials_purchases')
-            .select('material_id, quantity, unit_price, requester_id')
+            .select('material_id, quantity, unit_price, requester_user_id')
             .eq('id', parseInt(id))
             .single();
 
@@ -308,7 +339,7 @@ export const purchasesService = {
             const timestamp = getBrazilTimestamp();
 
             await supabase.from('users_notifications').insert({
-                user_id_to: purchase.requester_id,
+                user_id_to: purchase.requester_user_id,
                 user_id_from: currentUser?.id ? parseInt(currentUser.id) : null,
                 title: 'Compra Concluída',
                 body: `Sua solicitação de compra do material ${materialCode ? materialCode + ' - ' : ''}${materialDesc} foi concluída por ${completerName}.\nQuantidade: ${quantity}\nValor Total: ${totalPriceFormatted}`,

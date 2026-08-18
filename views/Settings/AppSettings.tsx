@@ -1,202 +1,214 @@
 
 import React from 'react';
+import { User } from '../../types';
 
-export const AppSettings: React.FC<{ onNavigate?: (screen: string) => void }> = ({ onNavigate }) => {
+interface AppSettingsProps {
+    currentUser?: User | null;
+    onNavigate?: (screen: string) => void;
+}
+
+export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigate }) => {
+    const isSuperAdmin = currentUser?.isAdminSuper;
+
     return (
         <div className="p-6 pb-32 space-y-4">
 
+            {/* ── Secoes visiveis APENAS para Super Admin ── */}
+            {isSuperAdmin && (
+                <>
+                    <div className="space-y-1 mt-6">
+                        <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            Unidades
+                        </h3>
+                        <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                            <SettingItem
+                                icon="rule"
+                                title="Situações"
+                                subtitle="Gerenciar estados e fluxos"
+                                onClick={() => { }}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="hub"
+                                title="Sistemas / Sub-sistemas"
+                                subtitle="Configurar módulos do sistema"
+                                onClick={() => onNavigate?.('systems')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="category"
+                                title="Tipos / Sub-tipos"
+                                subtitle="Categorização de registros"
+                                onClick={() => onNavigate?.('unit-types')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="sell"
+                                title="Setores"
+                                subtitle="Gerenciar setores (Asset Tags)"
+                                onClick={() => onNavigate?.('asset-tags')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="place"
+                                title="Posições"
+                                subtitle="Gerenciar posições (Asset Tag Subs)"
+                                onClick={() => onNavigate?.('asset-tag-subs')}
+                            />
+                        </div>
+                    </div>
 
+                    <div className="space-y-1 mt-6">
+                        <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            Ordens de Serviço
+                        </h3>
+                        <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                            <SettingItem
+                                icon="engineering"
+                                title="Atividades"
+                                subtitle="Gerenciar atividades de serviço"
+                                onClick={() => onNavigate?.('activities')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="flag"
+                                title="Prioridades"
+                                subtitle="Definir níveis de prioridade"
+                                onClick={() => onNavigate?.('priorities')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="category"
+                                title="Tipos de OS"
+                                subtitle="Configurar tipos e categorias"
+                                onClick={() => onNavigate?.('order-types')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="schema"
+                                title="Sub-Tipos de OS"
+                                subtitle="Configurar especializações"
+                                onClick={() => onNavigate?.('order-sub-types')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="assignment"
+                                title="Planos"
+                                subtitle="Gerenciar planos de manutenção"
+                                onClick={() => onNavigate?.('order-plans')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="inventory_2"
+                                title="Objetos"
+                                subtitle="Gerenciar objetos de serviço"
+                                onClick={() => onNavigate?.('order-objects')}
+                            />
+                        </div>
+                    </div>
 
-            <div className="space-y-1 mt-6">
-                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Unidades
-                </h3>
-                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                    <SettingItem
-                        icon="rule"
-                        title="Situações"
-                        subtitle="Gerenciar estados e fluxos"
-                        onClick={() => { }}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="hub"
-                        title="Sistemas / Sub-sistemas"
-                        subtitle="Configurar módulos do sistema"
-                        onClick={() => onNavigate?.('systems')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="category"
-                        title="Tipos / Sub-tipos"
-                        subtitle="Categorização de registros"
-                        onClick={() => onNavigate?.('unit-types')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="sell"
-                        title="Setores"
-                        subtitle="Gerenciar setores (Asset Tags)"
-                        onClick={() => onNavigate?.('asset-tags')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="place"
-                        title="Posições"
-                        subtitle="Gerenciar posições (Asset Tag Subs)"
-                        onClick={() => onNavigate?.('asset-tag-subs')}
-                    />
-                </div>
-            </div>
+                    <div className="space-y-1 mt-6">
+                        <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            Clientes
+                        </h3>
+                        <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                            <SettingItem
+                                icon="person_add"
+                                title="Cadastro"
+                                subtitle="Gerenciar clientes e contatos"
+                                onClick={() => onNavigate?.('clients')}
+                            />
+                        </div>
+                    </div>
 
-            <div className="space-y-1 mt-6">
-                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Ordens de Serviço
-                </h3>
-                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                    <SettingItem
-                        icon="engineering"
-                        title="Atividades"
-                        subtitle="Gerenciar atividades de serviço"
-                        onClick={() => onNavigate?.('activities')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="flag"
-                        title="Prioridades"
-                        subtitle="Definir níveis de prioridade"
-                        onClick={() => onNavigate?.('priorities')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="category"
-                        title="Tipos de OS"
-                        subtitle="Configurar tipos e categorias"
-                        onClick={() => onNavigate?.('order-types')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="schema"
-                        title="Sub-Tipos de OS"
-                        subtitle="Configurar especializações"
-                        onClick={() => onNavigate?.('order-sub-types')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="assignment"
-                        title="Planos"
-                        subtitle="Gerenciar planos de manutenção"
-                        onClick={() => onNavigate?.('order-plans')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="inventory_2"
-                        title="Objetos"
-                        subtitle="Gerenciar objetos de serviço"
-                        onClick={() => onNavigate?.('order-objects')}
-                    />
-                </div>
-            </div>
+                    <div className="space-y-1 mt-6">
+                        <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            Empresas
+                        </h3>
+                        <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                            <SettingItem
+                                icon="business"
+                                title="Cadastro"
+                                subtitle="Gerenciar empresas e parceiros"
+                                onClick={() => onNavigate?.('companies')}
+                            />
+                        </div>
+                    </div>
 
-            <div className="space-y-1 mt-6">
-                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Clientes
-                </h3>
-                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                    <SettingItem
-                        icon="person_add"
-                        title="Cadastro"
-                        subtitle="Gerenciar clientes e contatos"
-                        onClick={() => onNavigate?.('clients')}
-                    />
-                </div>
-            </div>
+                    <div className="space-y-1 mt-6">
+                        <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            Ativos
+                        </h3>
+                        <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                            <SettingItem
+                                icon="category"
+                                title="Tipos"
+                                subtitle="Gerenciar tipos de ativos"
+                                onClick={() => onNavigate?.('asset-types')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
 
-            <div className="space-y-1 mt-6">
-                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Empresas
-                </h3>
-                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                    <SettingItem
-                        icon="business"
-                        title="Cadastro"
-                        subtitle="Gerenciar empresas e parceiros"
-                        onClick={() => onNavigate?.('companies')}
-                    />
-                </div>
-            </div>
+                            <SettingItem
+                                icon="rule"
+                                title="Situações"
+                                subtitle="Gerenciar situações de ativos"
+                                onClick={() => onNavigate?.('asset-statuses')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="flag"
+                                title="Prioridades"
+                                subtitle="Gerenciar prioridades de ativos"
+                                onClick={() => onNavigate?.('asset-priorities')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="tune"
+                                title="Dados Técnicos"
+                                subtitle="Configurar atributos técnicos por tipo"
+                                onClick={() => onNavigate?.('asset-type-attributes')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="inventory_2"
+                                title="Marcas e Modelos"
+                                subtitle="Gerenciar marcas e modelos de ativos"
+                                onClick={() => onNavigate?.('asset-attributes-brands')}
+                            />
+                        </div>
+                    </div>
 
-            <div className="space-y-1 mt-6">
-                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Ativos
-                </h3>
-                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                    <SettingItem
-                        icon="category"
-                        title="Tipos"
-                        subtitle="Gerenciar tipos de ativos"
-                        onClick={() => onNavigate?.('asset-types')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                    <div className="space-y-1 mt-6">
+                        <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            Contratos
+                        </h3>
+                        <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                            <SettingItem
+                                icon="design_services"
+                                title="Serviços"
+                                subtitle="Gerenciar catálogo de serviços"
+                                onClick={() => onNavigate?.('services')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="inventory_2"
+                                title="Materiais"
+                                subtitle="Gerenciar catálogo de materiais"
+                                onClick={() => onNavigate?.('materials')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="rate_review"
+                                title="Requisitos para Avaliações"
+                                subtitle="Gerenciar requisitos de avaliação de serviços"
+                                onClick={() => onNavigate?.('evaluation-requirements')}
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
 
-                    <SettingItem
-                        icon="rule"
-                        title="Situações"
-                        subtitle="Gerenciar situações de ativos"
-                        onClick={() => onNavigate?.('asset-statuses')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="flag"
-                        title="Prioridades"
-                        subtitle="Gerenciar prioridades de ativos"
-                        onClick={() => onNavigate?.('asset-priorities')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="tune"
-                        title="Dados Técnicos"
-                        subtitle="Configurar atributos técnicos por tipo"
-                        onClick={() => onNavigate?.('asset-type-attributes')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="inventory_2"
-                        title="Marcas e Modelos"
-                        subtitle="Gerenciar marcas e modelos de ativos"
-                        onClick={() => onNavigate?.('asset-attributes-brands')}
-                    />
-                </div>
-            </div>
-
-            <div className="space-y-1 mt-6">
-                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Contratos
-                </h3>
-                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                    <SettingItem
-                        icon="design_services"
-                        title="Serviços"
-                        subtitle="Gerenciar catálogo de serviços"
-                        onClick={() => onNavigate?.('services')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="inventory_2"
-                        title="Materiais"
-                        subtitle="Gerenciar catálogo de materiais"
-                        onClick={() => onNavigate?.('materials')}
-                    />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="rate_review"
-                        title="Requisitos para Avaliações"
-                        subtitle="Gerenciar requisitos de avaliação de serviços"
-                        onClick={() => onNavigate?.('evaluation-requirements')}
-                    />
-                </div>
-            </div>
-
+            {/* ── Acesso e Segurança (visivel para Super Admin e Empresa Admin) ── */}
             <div className="space-y-1 mt-6">
                 <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                     Acesso e Segurança
@@ -215,36 +227,52 @@ export const AppSettings: React.FC<{ onNavigate?: (screen: string) => void }> = 
                         subtitle="Gerenciar permissões por perfil"
                         onClick={() => onNavigate?.('profile-permissions')}
                     />
+                    {isSuperAdmin && (
+                        <>
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="route"
+                                title="Gerenciar Rotas"
+                                subtitle="Ativar ou desativar rotas do sistema"
+                                onClick={() => onNavigate?.('route-management')}
+                            />
+                        </>
+                    )}
                 </div>
             </div>
 
-            <div className="space-y-1 mt-6">
-                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Aplicativo
-                </h3>
-                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                    <SettingItem
-                        icon="tips_and_updates"
-                        title="Dicas"
-                        subtitle="Gerenciar dicas do aplicativo"
-                        onClick={() => onNavigate?.('app-tips')}
-                    />
-                </div>
-            </div>
+            {/* ── Secoes visiveis APENAS para Super Admin ── */}
+            {isSuperAdmin && (
+                <>
+                    <div className="space-y-1 mt-6">
+                        <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            Aplicativo
+                        </h3>
+                        <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                            <SettingItem
+                                icon="tips_and_updates"
+                                title="Dicas"
+                                subtitle="Gerenciar dicas do aplicativo"
+                                onClick={() => onNavigate?.('app-tips')}
+                            />
+                        </div>
+                    </div>
 
-            <div className="space-y-1 mt-6">
-                <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Inteligência Artificial
-                </h3>
-                <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                    <SettingItem
-                        icon="psychology"
-                        title="Governança AI"
-                        subtitle="Alimentar RAG e manuais"
-                        onClick={() => onNavigate?.('ai-admin')}
-                    />
-                </div>
-            </div>
+                    <div className="space-y-1 mt-6">
+                        <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            Inteligência Artificial
+                        </h3>
+                        <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                            <SettingItem
+                                icon="psychology"
+                                title="Governança AI"
+                                subtitle="Alimentar RAG e manuais"
+                                onClick={() => onNavigate?.('ai-admin')}
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

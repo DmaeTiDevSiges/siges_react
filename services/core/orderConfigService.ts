@@ -657,8 +657,125 @@ export const orderConfigService = {
             icon: item.icon,
             parentId: item.parent_id?.toString(),
             orderIndex: item.order_index,
-            isAvailable: item.is_available
+            isAvailable: item.is_available,
+            isVisibleToAdmin: item.is_visible_to_admin ?? true
         })) as Route[];
+    },
+
+    async getAllRoutesForCompanyAdmin(): Promise<Route[]> {
+        const { data, error } = await supabase
+            .from('cfg_routes')
+            .select('*')
+            .eq('is_available', true)
+            .eq('is_visible_to_admin', true)
+            .order('order_index');
+
+        if (error) {
+            console.error('Error fetching routes for company admin:', error);
+            return [];
+        }
+
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            routeKey: item.route_key,
+            routePath: item.route_path,
+            description: item.description,
+            icon: item.icon,
+            parentId: item.parent_id?.toString(),
+            orderIndex: item.order_index,
+            isAvailable: item.is_available,
+            isVisibleToAdmin: item.is_visible_to_admin ?? true
+        })) as Route[];
+    },
+
+    async getAllRoutesAdmin(): Promise<Route[]> {
+        const { data, error } = await supabase
+            .from('cfg_routes')
+            .select('*')
+            .order('order_index');
+
+        if (error) {
+            console.error('Error fetching admin routes:', error);
+            return [];
+        }
+
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            routeKey: item.route_key,
+            routePath: item.route_path,
+            description: item.description,
+            icon: item.icon,
+            parentId: item.parent_id?.toString(),
+            orderIndex: item.order_index,
+            isAvailable: item.is_available,
+            isVisibleToAdmin: item.is_visible_to_admin ?? true
+        })) as Route[];
+    },
+
+    async updateRouteAvailability(routeId: string, isAvailable: boolean): Promise<void> {
+        const { error } = await supabase
+            .from('cfg_routes')
+            .update({ is_available: isAvailable, updated_at: new Date().toISOString() })
+            .eq('id', routeId);
+
+        if (error) {
+            console.error('Error updating route availability:', error);
+            throw error;
+        }
+    },
+
+    async createRoute(route: Partial<Route>): Promise<void> {
+        const { error } = await supabase
+            .from('cfg_routes')
+            .insert({
+                route_key: route.routeKey,
+                route_path: route.routePath,
+                description: route.description,
+                icon: route.icon || null,
+                parent_id: route.parentId ? parseInt(route.parentId) : null,
+                order_index: route.orderIndex ?? 0,
+                is_available: route.isAvailable ?? true,
+                is_visible_to_admin: route.isVisibleToAdmin ?? true
+            });
+
+        if (error) {
+            console.error('Error creating route:', error);
+            throw error;
+        }
+    },
+
+    async updateRoute(id: string, route: Partial<Route>): Promise<void> {
+        const { error } = await supabase
+            .from('cfg_routes')
+            .update({
+                route_key: route.routeKey,
+                route_path: route.routePath,
+                description: route.description,
+                icon: route.icon || null,
+                parent_id: route.parentId ? parseInt(route.parentId) : null,
+                order_index: route.orderIndex ?? 0,
+                is_available: route.isAvailable,
+                is_visible_to_admin: route.isVisibleToAdmin ?? true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error updating route:', error);
+            throw error;
+        }
+    },
+
+    async deleteRoute(id: string): Promise<void> {
+        const { error } = await supabase
+            .from('cfg_routes')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting route:', error);
+            throw error;
+        }
     },
 
     // ── Services (cfg_services) ─────────────────────────────────

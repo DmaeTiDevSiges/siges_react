@@ -125,13 +125,15 @@ import { useShiftMonitor } from './hooks/useShiftMonitor';
 import { Modal } from './components/ui/Modal';
 
 const ProfilePermissionsScreen = React.lazy(() => import('./views/Admin/ProfilePermissionsScreen').then(m => ({ default: m.ProfilePermissionsScreen })));
+const RouteManagementScreen = React.lazy(() => import('./views/Settings/RouteManagement').then(m => ({ default: m.RouteManagementScreen })));
+const RouteFormScreen = React.lazy(() => import('./views/Settings/RouteForm').then(m => ({ default: m.RouteForm })));
 const AIKnowledgeAdmin = React.lazy(() => import('./views/Settings/AIKnowledgeAdmin').then(m => ({ default: m.AIKnowledgeAdmin })));
 import { PermissionsProvider } from './contexts/PermissionsContext';
 const MaintenancePlansScreen = React.lazy(() => import('./views/Settings/MaintenancePlans/MaintenancePlansScreen').then(m => ({ default: m.MaintenancePlansScreen })));
 const ToolsMainView = React.lazy(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials' | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar' | 'app-notices' | 'app-tips';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/imgproxyService';
@@ -390,6 +392,7 @@ const AppContent: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedSystem, setSelectedSystem] = useState<import('./types').System | null>(null);
   const [selectedUnitType, setSelectedUnitType] = useState<import('./types').UnitType | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState<import('./types').Route | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<import('./types').Unit | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<import('./types').Activity | null>(null);
   const [selectedPriority, setSelectedPriority] = useState<Priority | null>(null);
@@ -1500,6 +1503,25 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const handleRouteSelect = (route: import('./types').Route) => {
+    setSelectedRoute(route);
+    setCurrentScreen('route-edit');
+  };
+
+  const handleSaveRoute = async (route: Partial<import('./types').Route>) => {
+    try {
+      if (selectedRoute?.id && currentScreen === 'route-edit') {
+        await dataService.updateRoute(selectedRoute.id, route);
+      } else {
+        await dataService.createRoute(route);
+      }
+      setCurrentScreen('route-management');
+    } catch (error) {
+      console.error("Error saving route", error);
+      toast.error("Erro ao salvar rota");
+    }
+  };
+
   const handleUnitSelect = async (unit: import('./types').Unit) => {
     setSelectedUnit(unit);
 
@@ -2105,12 +2127,7 @@ const AppContent: React.FC = () => {
           onStatusChange={handleUserStatusChange}
         />;
       case 'settings':
-        if (!currentUser?.isAdminSuper) {
-          setCurrentScreen('companies');
-          setActiveTab('companies');
-          return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
-        }
-        return <AppSettings onNavigate={(screen) => setCurrentScreen(screen as any)} />;
+        return <AppSettings currentUser={currentUser} onNavigate={(screen) => setCurrentScreen(screen as any)} />;
       case 'ai-admin':
         return <AIKnowledgeAdmin onBack={() => setCurrentScreen('settings')} />;
       case 'systems':
@@ -2712,6 +2729,12 @@ const AppContent: React.FC = () => {
         ) : null;
       case 'profile-permissions':
         return <ProfilePermissionsScreen currentUser={currentUser} onBack={() => setCurrentScreen('settings')} />;
+      case 'route-management':
+        return <RouteManagementScreen onAdd={() => setCurrentScreen('route-form')} onEdit={handleRouteSelect} onBack={() => setCurrentScreen('settings')} />;
+      case 'route-form':
+        return <RouteFormScreen onSave={handleSaveRoute} onCancel={() => setCurrentScreen('route-management')} />;
+      case 'route-edit':
+        return selectedRoute ? <RouteFormScreen initialRoute={selectedRoute} onSave={handleSaveRoute} onCancel={() => setCurrentScreen('route-management')} /> : null;
       default:
         return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
     }
@@ -2835,6 +2858,9 @@ const AppContent: React.FC = () => {
       case 'order-visit-asset-activities': return 'Intervenções';
       case 'order-visit-asset-materials': return 'Materiais';
       case 'profile-permissions': return 'Gestão Permissões';
+      case 'route-management': return 'Gerenciar Rotas';
+      case 'route-form': return 'Nova Rota';
+      case 'route-edit': return 'Editar Rota';
       case 'order-visit-approve': return 'Aprovação Visita';
       case 'order-visit-evaluation': return 'Avaliação da Visita';
       case 'maintenance-plans': return 'Planos Man Programada';
@@ -2979,6 +3005,7 @@ const AppContent: React.FC = () => {
         handleNavigate(path);
       }}
       isAdminSuper={currentUser?.isAdminSuper}
+      isAdmin={currentUser?.isAdmin}
       activeTab={activeTab}
       isCollapsed={isSidebarCollapsed}
       onToggleCollapse={toggleSidebarCollapse}
@@ -3095,6 +3122,7 @@ const AppContent: React.FC = () => {
               <BottomNav
                 activeTab={activeTab}
                 isAdminSuper={currentUser?.isAdminSuper}
+                isAdmin={currentUser?.isAdmin}
                 currentUser={currentUser}
                 setActiveTab={(tab) => {
                   if (tab === 'profile') setSelectedUser(null);

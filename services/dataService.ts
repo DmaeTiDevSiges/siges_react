@@ -279,6 +279,35 @@ export const dataService = {
     return visitsService.deleteOrderVisitSignature.apply(visitsService, arguments as any);
   },
 
+    // -------------------------------------------------------------------------
+    // FINANCIAL APPROVAL
+    // -------------------------------------------------------------------------
+
+    async submitVisitCosts(visitId: string, userId: string): Promise<boolean> {
+        return visitsService.submitVisitCosts.apply(visitsService, arguments as any);
+    },
+
+    async approveVisitFinancial(visitId: string, userId: string): Promise<boolean> {
+        return visitsService.approveVisitFinancial.apply(visitsService, arguments as any);
+    },
+
+    async rejectVisitFinancial(visitId: string, userId: string, reason: string): Promise<boolean> {
+        return visitsService.rejectVisitFinancial.apply(visitsService, arguments as any);
+    },
+
+    async resetVisitCostsStatus(visitId: string, userId: string): Promise<boolean> {
+        return visitsService.resetVisitCostsStatus.apply(visitsService, arguments as any);
+    },
+
+    async getVisitFinancialStatus(visitId: string): Promise<{
+        ov_costs_status: string | null;
+        ov_costs_submitted_at: string | null;
+        ov_costs_approved_at: string | null;
+        ov_costs_rejected_at: string | null;
+        ov_costs_rejection_reason: string | null;
+    } | null> {
+        return visitsService.getVisitFinancialStatus.apply(visitsService, arguments as any);
+    },
 
     // Private helper for mapping raw database items (v_orders) to Order type
     _mapOrder(
@@ -2071,7 +2100,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return materialsService.createMaterial.apply(materialsService, arguments as any);
     },
 
-    async getWarehouses(): Promise<{ id: string; code: string; description: string; address?: string }[]> {
+    async getWarehouses(companyId?: string): Promise<{ id: string; code: string; description: string; address?: string }[]> {
         return warehouseService.getWarehouses.apply(warehouseService, arguments as any);
     },
 
@@ -2170,6 +2199,30 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async getAllRoutes(): Promise<Route[]> {
         return orderConfigService.getAllRoutes.apply(orderConfigService, arguments as any);
+    },
+
+    async getAllRoutesForCompanyAdmin(): Promise<Route[]> {
+        return orderConfigService.getAllRoutesForCompanyAdmin.apply(orderConfigService, arguments as any);
+    },
+
+    async getAllRoutesAdmin(): Promise<Route[]> {
+        return orderConfigService.getAllRoutesAdmin.apply(orderConfigService, arguments as any);
+    },
+
+    async updateRouteAvailability(routeId: string, isAvailable: boolean): Promise<void> {
+        return orderConfigService.updateRouteAvailability.apply(orderConfigService, arguments as any);
+    },
+
+    async createRoute(route: Partial<Route>): Promise<void> {
+        return orderConfigService.createRoute.apply(orderConfigService, arguments as any);
+    },
+
+    async updateRoute(id: string, route: Partial<Route>): Promise<void> {
+        return orderConfigService.updateRoute.apply(orderConfigService, arguments as any);
+    },
+
+    async deleteRoute(id: string): Promise<void> {
+        return orderConfigService.deleteRoute.apply(orderConfigService, arguments as any);
     },
 
     async getUserPermissions(userId: string): Promise<Permission[]> {
@@ -2490,9 +2543,13 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return purchasesService.authorizeMaterialPurchase.apply(purchasesService, arguments as any);
     },
 
-      async cancelMaterialPurchase(id: string, cancelReason: string): Promise<void> {
-    return purchasesService.cancelMaterialPurchase.apply(purchasesService, arguments as any);
-  },
+    async getPurchaseCancelReasons(): Promise<{ id: number; description: string; is_available: boolean }[]> {
+        return purchasesService.getCancelReasons.apply(purchasesService, arguments as any);
+    },
+
+    async cancelMaterialPurchase(id: string, cancelReasonId: number, cancelReasonText?: string): Promise<void> {
+        return purchasesService.cancelMaterialPurchase.apply(purchasesService, arguments as any);
+    },
 
 
       async completeMaterialPurchase(id: string): Promise<void> {

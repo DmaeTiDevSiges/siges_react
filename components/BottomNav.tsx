@@ -6,10 +6,11 @@ interface BottomNavProps {
   activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'tools' | 'materials' | 'manuals' | 'app-notices';
   setActiveTab: (tab: any) => void;
   isAdminSuper?: boolean;
+  isAdmin?: boolean;
   currentUser?: any;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, isAdminSuper, currentUser }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, isAdminSuper, isAdmin, currentUser }) => {
   const { canView, canSearch, permissions } = usePermissions();
 
   // Definir visibilidade para cada aba
@@ -22,7 +23,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
                     canView('dashboard_contracts_evaluations');
   const showUnitsSearch = canSearch('units'); 
   const showAssetsSearch = canSearch('assets');
-  const showSettings = isAdminSuper; 
+  const showSettings = isAdminSuper || isAdmin;
   const showTools = isAdminSuper || canView('tools_create_edit_delete');
   const showMaterials = isAdminSuper || canView('materials_search');
   const showMaintenancePlans = isAdminSuper || canView('maintenance_plans');

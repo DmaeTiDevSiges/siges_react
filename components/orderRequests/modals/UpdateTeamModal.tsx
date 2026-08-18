@@ -62,28 +62,21 @@ export const UpdateTeamModal: React.FC<UpdateTeamModalProps> = ({
     const loadTeams = async () => {
         setIsLoading(true);
         try {
-            let providerCompanyId = order.providerCompanyId;
             let providerDepartmentId = order.providerDepartmentId;
 
             // Fallback: fetch contract details if missing provider info
-            if ((!providerCompanyId || !providerDepartmentId) && order.contractId) {
+            if (!providerDepartmentId && order.contractId) {
                 const contract = await dataService.getContractById(order.contractId);
                 if (contract) {
-                    if (!providerCompanyId) providerCompanyId = contract.providerCompanyId;
-                    if (!providerDepartmentId) providerDepartmentId = contract.providerDepartmentId;
+                    providerDepartmentId = contract.providerDepartmentId;
                 }
             }
 
-            // Default to order.companyId if no provider company found (internal service)
-            const targetCompanyId = providerCompanyId || order.companyId;
+            const data = await (providerDepartmentId
+                ? dataService.getTeamsByDepartment(providerDepartmentId)
+                : dataService.getTeams());
 
-            const data = await dataService.getTeams(targetCompanyId);
-
-            const filteredTeams = providerDepartmentId
-                ? data.filter(t => t.departmentId == providerDepartmentId)
-                : data;
-
-            setTeams(filteredTeams);
+            setTeams(data);
         } catch (error) {
             console.error('Error loading teams:', error);
             toast.error('Erro ao carregar equipes');

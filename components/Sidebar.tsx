@@ -4,6 +4,7 @@ import { usePermissions } from '../contexts/PermissionsContext';
 interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
+    isAdmin?: boolean;
     activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
@@ -13,6 +14,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
     onNavigate,
     isAdminSuper,
+    isAdmin,
     activeTab,
     isCollapsed = false,
     onToggleCollapse,
@@ -148,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => { onNavigate('app-notices'); }}
                     />
                 )}
-                {(isAdminSuper || canView('settings')) && (
+                {(isAdminSuper || isAdmin || canView('settings')) && (
                     <SidebarItem
                         icon="settings"
                         label="Ajustes"

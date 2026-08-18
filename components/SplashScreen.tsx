@@ -76,6 +76,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDarkMode = true })
                     <p className={`text-[10px] md:text-xs font-medium tracking-[0.4em] uppercase ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                         Sistema Gerenciador de Serviços
                     </p>
+                    <span className={`text-xs font-medium tracking-[0.2em] mt-3 ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                        v{__BUILD_ID__}
+                    </span>
                 </div>
 
                 {/* Progress Indicators */}

@@ -65,7 +65,7 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
     });
 
     const isSuperAdmin = currentUser?.isAdminSuper === true;
-
+    const isAdmin = currentUser?.isAdmin === true;
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -91,10 +91,15 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
         };
     }, []);
 
-    const uniqueTeams = Array.from(new Set(users.map(u => u.teamName).filter(Boolean))).sort() as string[];
-    const uniqueProfiles = Array.from(new Set(users.map(u => u.profileName).filter(Boolean))).sort() as string[];
+    const companyUsers = (!isSuperAdmin && isAdmin && currentUser?.companyId)
+        ? users.filter(u => u.companyId === currentUser.companyId)
+        : users;
 
-    const filteredUsers = users.filter(u => {
+    const uniqueTeams = Array.from(new Set(companyUsers.map(u => u.teamName).filter(Boolean))).sort() as string[];
+    const uniqueProfiles = Array.from(new Set(companyUsers.map(u => u.profileName).filter(Boolean))).sort() as string[];
+
+    const filteredUsers = companyUsers.filter(u => {
+
         const matchesSearch = (u.nameFull?.toLowerCase() || '').includes(search.toLowerCase()) ||
             (u.email?.toLowerCase() || '').includes(search.toLowerCase()) ||
             (u.nameShort && u.nameShort.toLowerCase().includes(search.toLowerCase()));

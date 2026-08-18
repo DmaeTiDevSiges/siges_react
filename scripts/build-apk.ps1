@@ -2,7 +2,14 @@
 # Gera o APK Android garantindo que JAVA_HOME e ANDROID_HOME estejam corretos.
 # O build do React e o cap sync sao feitos automaticamente pelo hook do Gradle.
 
+param([string]$Version)
+
 $ErrorActionPreference = "Stop"
+
+if ($Version) {
+    $env:APP_VERSION = $Version
+    Write-Host "[Version] $Version" -ForegroundColor Cyan
+}
 
 # Variaveis de ambiente
 $env:JAVA_HOME    = "C:\Program Files\Android\Android Studio\jbr"

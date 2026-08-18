@@ -12,6 +12,8 @@ interface MaterialPurchaseListItemProps {
     quantity: number;
     unit: string;
     total_price: number;
+    cancel_reason_id?: number;
+    cancel_reason_description?: string;
     cancel_reason?: string;
     authorizer_name?: string;
     authorized_at?: string;
@@ -58,6 +60,8 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
     quantity,
     unit,
     total_price,
+    cancel_reason_id,
+    cancel_reason_description,
     cancel_reason,
     authorizer_name,
     authorized_at,
@@ -126,10 +130,13 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
                 </div>
             </div>
 
-            {status_id === 4 && cancel_reason && (
+            {status_id === 4 && (cancel_reason_description || cancel_reason) && (
                 <div className="mx-4 mb-3 bg-red-50 dark:bg-red-900/20 rounded-lg p-2.5">
                     <p className="text-xs font-medium text-red-600 dark:text-red-400">Motivo do cancelamento</p>
-                    <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">{cancel_reason}</p>
+                    <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">
+                        {cancel_reason_description || cancel_reason}
+                        {cancel_reason_description && cancel_reason && ` - ${cancel_reason}`}
+                    </p>
                 </div>
             )}
 
@@ -144,33 +151,43 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
                     {status_id === 1 && canAuthorize && (
                         <div className="flex gap-2">
                             <button
+                                onClick={() => onCancel?.(id)}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold shadow-md shadow-red-500/20 hover:opacity-90 active:scale-95 transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button
                                 onClick={() => onAuthorize?.(id)}
                                 className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-bold shadow-md shadow-emerald-500/20 hover:opacity-90 active:scale-95 transition-all"
                             >
                                 Autorizar
                             </button>
+                        </div>
+                    )}
+
+                    {status_id === 2 && (
+                        <div className="flex gap-2">
                             <button
                                 onClick={() => onCancel?.(id)}
                                 className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold shadow-md shadow-red-500/20 hover:opacity-90 active:scale-95 transition-all"
                             >
                                 Cancelar
                             </button>
+                            {canComplete && (
+                                <button
+                                    onClick={() => onComplete?.(id, {
+                                        purchase_type_id: purchase_type_id || '',
+                                        warehouse_id: warehouse_id || '',
+                                        quantity,
+                                        unit_price: unit_price || 0,
+                                        justification
+                                    })}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+                                >
+                                    Concluir Entrada no Estoque
+                                </button>
+                            )}
                         </div>
-                    )}
-
-                    {status_id === 2 && canComplete && (
-                        <button
-                            onClick={() => onComplete?.(id, {
-                                purchase_type_id: purchase_type_id || '',
-                                warehouse_id: warehouse_id || '',
-                                quantity,
-                                unit_price: unit_price || 0,
-                                justification
-                            })}
-                            className="w-full px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
-                        >
-                            Concluir Entrada no Estoque
-                        </button>
                     )}
                 </div>
             )}

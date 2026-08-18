@@ -248,6 +248,7 @@ export interface Route {
   parentId?: string;
   orderIndex: number;
   isAvailable: boolean;
+  isVisibleToAdmin?: boolean;
 }
 
 export interface Permission {

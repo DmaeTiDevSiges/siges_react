@@ -21,6 +21,13 @@ if [ -z "$JAVA_HOME" ]; then
     fi
 fi
 
+# Versão do app (opcional: ./build-apk.sh 2.0.0)
+VERSION_ARG="${1:-}"
+if [ -n "$VERSION_ARG" ]; then
+    export APP_VERSION="$VERSION_ARG"
+    echo "[Version] $VERSION_ARG"
+fi
+
 echo ""
 echo "[Config] JAVA_HOME    = $JAVA_HOME"
 echo "[Config] ANDROID_HOME = $ANDROID_HOME"

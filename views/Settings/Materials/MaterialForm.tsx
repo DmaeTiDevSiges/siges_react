@@ -7,6 +7,7 @@ import { ButtonSave } from '../../../components/ui/ButtonSave';
 import { CurrencyInput } from '../../../components/ui/CurrencyInput';
 import { Modal } from '../../../components/ui/Modal';
 import { usePermissions } from '../../../contexts/PermissionsContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface MaterialFormProps {
     initialMaterial?: Partial<Material>;
@@ -20,6 +21,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
     onCancel
 }) => {
     const { canEdit } = usePermissions();
+    const { currentUser } = useAuth();
     const canSave = canEdit('materials_create_edit_delete');
     const isCreating = !initialMaterial?.id;
     const [isSaving, setIsSaving] = useState(false);
@@ -42,7 +44,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
 
     useEffect(() => {
         if (isCreating) {
-            dataService.getWarehouses().then(setWarehouses).catch(() => setWarehouses([]));
+            dataService.getWarehouses(currentUser?.companyId).then(setWarehouses).catch(() => setWarehouses([]));
         }
         dataService.getMaterialsStatuses().then(setStatuses).catch((err) => { console.error('Error loading statuses:', err); setStatuses([]); });
         dataService.getMaterialsTypes().then(setTypes).catch((err) => { console.error('Error loading types:', err); setTypes([]); });

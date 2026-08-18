@@ -712,7 +712,11 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 }
                 return (
                     <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                        <OrderVisitFinancialDetail visit={visit} />
+                        <OrderVisitFinancialDetail
+                            visit={visit}
+                            onVisitUpdated={refreshVisit}
+                            isApprover={isContractManager || Boolean(currentUser?.isAdminSuper) || Boolean(currentUser?.isAdmin)}
+                        />
                     </div>
                 );
             case 'chat':
