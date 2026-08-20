@@ -185,7 +185,8 @@ export const usersService = {
             code: item.code,
             status: item.is_available ? 'active' : 'inactive',
             sortOrder: item.sort_order ?? undefined,
-            companyId: item.company_id?.toString()
+            companyId: item.company_id?.toString(),
+            isEvaluable: item.is_evaluable ?? true
         })) as Team[];
     },
 
@@ -210,7 +211,8 @@ export const usersService = {
             name: item.description,
             code: item.code,
             status: item.is_available ? 'active' : 'inactive',
-            sortOrder: item.sort_order ?? undefined
+            sortOrder: item.sort_order ?? undefined,
+            isEvaluable: item.is_evaluable ?? true
         })) as Team[];
     },
 
@@ -248,7 +250,8 @@ export const usersService = {
             description: team.name,
             code: team.code,
             is_available: true,
-            sort_order: nextSortOrder
+            sort_order: nextSortOrder,
+            is_evaluable: team.isEvaluable ?? true
         };
 
         const { data, error } = await supabase
@@ -273,6 +276,7 @@ export const usersService = {
         if (team.parentId !== undefined) dbData.parent_id = team.parentId || null;
         if (team.departmentId !== undefined) dbData.department_id = team.departmentId;
         if (team.sortOrder !== undefined) dbData.sort_order = team.sortOrder;
+        if (team.isEvaluable !== undefined) dbData.is_evaluable = team.isEvaluable;
 
         const { data, error } = await supabase
             .from('cfg_teams')
@@ -419,6 +423,7 @@ export const usersService = {
                 ? getPublicImageUrl(item.img_file_path, item.img_file_name, { width: 400, height: 400, resize: 'cover' })
                 : undefined,
             isAvailable: item.is_available,
+            isTeamLeader: item.is_team_leader,
             ovIdInProgress: item.ov_id_in_progress
         })) as User[];
     },
@@ -1021,6 +1026,18 @@ export const usersService = {
             nameFull: data.name_full,
             email: data.email
         } as User;
+    },
+
+    async setTeamLeader(userId: string, isLeader: boolean): Promise<void> {
+        const { error } = await supabase
+            .from('users')
+            .update({ is_team_leader: isLeader })
+            .eq('id', userId);
+
+        if (error) {
+            console.error('Error updating team leader status:', error);
+            throw error;
+        }
     },
 
     async uploadUserAvatar(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {

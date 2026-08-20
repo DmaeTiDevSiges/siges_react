@@ -169,17 +169,22 @@ const styles = StyleSheet.create({
     // ── Photos In-Cell ───────────────────────────────────────────────────────
     photoGrid: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 5,
         marginTop: 5,
+        flexShrink: 0,
     },
     photoWrapper: {
         alignItems: 'center',
         width: 80,
+        height: 85,
+        flexShrink: 0,
     },
     photo: {
         width: 75,
         height: 75,
         borderRadius: 4,
+        flexShrink: 0,
     },
     compareComments: {
         fontSize: 8.5,
@@ -760,7 +765,7 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
 
                 {/* ── ATIVIDADES REALIZADAS (ASSETS) ──────────────────────── */}
                 {assets && assets.length > 0 ? (
-                    <View style={styles.section}>
+                    <View style={styles.section} break>
                         <Text style={styles.sectionTitle}>Atividades Realizadas</Text>
                         {assets.map((asset, assetIdx) => {
                             const activities = asset.activitiesDescription || (asset.activities ?? []).map(act => act.activityDescription).join(', ');
@@ -808,6 +813,35 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
                                             ) : null}
                                         </View>
                                     </View>
+
+                                    {/* ── FOTOS ANTES / DEPOIS POR ATIVO ──────────────── */}
+                                    {(() => {
+                                        const beforePhotos = (asset.initialPhotoUrls ?? []).filter(Boolean);
+                                        const afterPhotos = (asset.finalPhotoUrls ?? []).filter(Boolean);
+                                        if (beforePhotos.length === 0 && afterPhotos.length === 0) return null;
+                                        return (
+                                            <View style={[styles.assetCompareRow, { marginTop: 6 }]}>
+                                                <View style={styles.compareCol}>
+                                                    <View style={styles.photoGrid}>
+                                                        {beforePhotos.slice(0, 6).map((url, pi) => (
+                                                            <View key={pi} style={styles.photoWrapper}>
+                                                                <Image src={url as string} style={styles.photo} />
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                </View>
+                                                <View style={styles.compareCol}>
+                                                    <View style={styles.photoGrid}>
+                                                        {afterPhotos.slice(0, 6).map((url, pi) => (
+                                                            <View key={pi} style={styles.photoWrapper}>
+                                                                <Image src={url as string} style={styles.photo} />
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        );
+                                    })()}
 
                                     <View style={{ marginTop: 5 }}>
                                         <Text style={styles.tdCell}>
@@ -914,36 +948,7 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
                             );
                         })}
 
-                        {/* ── FOTOS AGRUPADAS ANTES / DEPOIS ──────────────────── */}
-                        {(() => {
-                            const allBefore = assets.flatMap(a => (a.initialPhotoUrls ?? []).filter(Boolean));
-                            const allAfter = assets.flatMap(a => (a.finalPhotoUrls ?? []).filter(Boolean));
-                            if (allBefore.length === 0 && allAfter.length === 0) return null;
-                            return (
-                                <View style={[styles.assetCompareRow, { marginTop: 10 }]}>
-                                    <View style={styles.compareCol}>
-                                        <Text style={styles.compareTitle}>ANTES</Text>
-                                        <View style={styles.photoGrid}>
-                                            {allBefore.slice(0, 6).map((url, pi) => (
-                                                <View key={pi} style={styles.photoWrapper}>
-                                                    <Image src={url as string} style={styles.photo} />
-                                                </View>
-                                            ))}
-                                        </View>
-                                    </View>
-                                    <View style={styles.compareCol}>
-                                        <Text style={styles.compareTitle}>DEPOIS</Text>
-                                        <View style={styles.photoGrid}>
-                                            {allAfter.slice(0, 6).map((url, pi) => (
-                                                <View key={pi} style={styles.photoWrapper}>
-                                                    <Image src={url as string} style={styles.photo} />
-                                                </View>
-                                            ))}
-                                        </View>
-                                    </View>
-                                </View>
-                            );
-                        })()}
+
                     </View>
                 ) : null}
 

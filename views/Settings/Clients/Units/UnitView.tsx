@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Unit, Asset, OrderVisitAssetView } from '../../../../types';
-import { IconButton } from '../../../../components/ui/IconButton';
 import { StatusBadge } from '../../../../components/ui/StatusBadge';
 import { Avatar } from '../../../../components/ui/Avatar';
 import { Marker } from '../../../../components/ui/Marker';
@@ -18,6 +17,7 @@ import { PhotoViewer } from '../../../../components/ui/PhotoViewer';
 import { toast } from 'sonner';
 import { apiN8nService } from '../../../../services/apiN8nService';
 import { Loading } from '../../../../components/ui/Loading';
+import { useDraggableScroll } from '../../../../hooks/useDraggableScroll';
 
 
 interface UnitDetailsProps {
@@ -111,6 +111,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     const [movedAssets, setMovedAssets] = useState<OrderVisitAssetView[]>([]);
     const [isLoadingMovedAssets, setIsLoadingMovedAssets] = useState(false);
     const [movedTagName, setMovedTagName] = useState('');
+    const sectorsScroll = useDraggableScroll();
     const [movedTagDetails, setMovedTagDetails] = useState('');
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
@@ -406,34 +407,24 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="flex items-center justify-between px-1">
                             <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Setores</h3>
                             <div className="flex items-center gap-2">
+                                <AssetsListExcelButton
+                                    unitId={unit.id}
+                                    unitName={unit.description}
+                                />
                                 <AssetsListPDFButton
                                     unitId={unit.id}
                                     unitName={unit.description}
                                 />
-                                <IconButton
-                                    icon="storage"
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-xl! border-blue-500/30! text-blue-500! hover:bg-blue-500/10!"
-                                />
-                                <IconButton
-                                    icon="table_chart"
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-xl! border-indigo-500/30! text-indigo-500! hover:bg-indigo-500/10!"
-                                />
-                                <IconButton
-                                    icon="add"
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-xl! border-primary/30! text-primary! hover:bg-primary/10!"
-                                />
                             </div>
                         </div>
 
-                        <div className="flex overflow-x-auto no-scrollbar gap-4 -mx-4 px-5 pb-2">
-                             {/* Initial spacer for scroll-snap feel */}
-                             <div className="w-1 shrink-0 px-0.5" />
+                        <div
+                            ref={sectorsScroll.ref}
+                            onMouseDown={sectorsScroll.onMouseDown}
+                            onTouchStart={sectorsScroll.onTouchStart}
+                            onClickCapture={sectorsScroll.onClickCapture}
+                            className="flex overflow-x-auto no-scrollbar gap-4 px-1 pb-2 cursor-grab active:cursor-grabbing"
+                        >
                              {sectors.map((sector) => (
                                 <div
                                     key={sector.id}
@@ -476,9 +467,6 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                     </div>
                                 </div>
                             ))}
-
-                            {/* Spacer to fix right margin in horizontal scroll */}
-                            <div className="w-5 shrink-0" />
 
                             {/* Add Sector Card */}
                             {canCreate('units_assets_tags') && (

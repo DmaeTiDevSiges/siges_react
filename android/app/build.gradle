@@ -17,6 +17,32 @@ task npmBuildAndSync(type: Exec) {
 preBuild.dependsOn npmBuildAndSync
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── Auto-increment versionCode ─────────────────────────────────────────────
+// Lê o version_app_mask do app_version.txt e gera versionCode automaticamente
+def getAppVersion = { ->
+    try {
+        def versionFile = file('../../public/app_version.txt')
+        if (versionFile.exists()) {
+            def json = new groovy.json.JsonSlurper().parseText(versionFile.text)
+            return json.version_app_mask ?: '1.0.0'
+        }
+    } catch (Exception e) {
+        println "Erro ao ler versão: ${e.message}"
+    }
+    return '1.0.0'
+}
+
+def getVersionCode = { ->
+    def version = getAppVersion()
+    def parts = version.split('\\.')
+    // Converte major*10000 + minor*100 + patch para versionCode
+    def major = parts.length > 0 ? Integer.parseInt(parts[0]) : 1
+    def minor = parts.length > 1 ? Integer.parseInt(parts[1]) : 0
+    def patch = parts.length > 2 ? Integer.parseInt(parts[2]) : 0
+    return major * 10000 + minor * 100 + patch
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 android {
     namespace = "com.ag.siges"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -24,8 +50,8 @@ android {
         applicationId "com.ag.siges"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode getVersionCode()
+        versionName getAppVersion()
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

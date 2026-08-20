@@ -2321,6 +2321,7 @@ export const visitsService = {
         statusId: number,
         statusDescription: string,
         suspendedReasonId: string | null,
+        causeReasonId: number,
         progress: number,
         user: User
     ): Promise<void> {
@@ -2368,12 +2369,9 @@ export const visitsService = {
         const orderUpdate: any = {
             status_id: statusId,
             status_at: timestamp,
-            progress: statusId === 8 ? 1 : (progress / 100)
+            progress: statusId === 8 ? 1 : (progress / 100),
+            cause_reason_id: causeReasonId
         };
-
-        if (statusId === 6 && suspendedReasonId) {
-            orderUpdate.cause_reason_id = parseInt(suspendedReasonId);
-        }
 
         const { data: order, error: orderUpdateError } = await supabase
             .from('orders')

@@ -17,6 +17,7 @@ interface CompanyDetailsProps {
   onSelectTeam?: (team: Team) => void;
   onAddTeam?: (departmentId: string) => void;
   onDeleteTeam?: (teamId: string) => void;
+  onToggleEvaluable?: (teamId: string, currentValue: boolean) => void;
   onAddUser?: () => void;
   onSelectUser?: (user: User) => void;
   onSelectContract?: (contract: Contract) => void;
@@ -32,6 +33,7 @@ export const CompanyDetails: React.FC<CompanyDetailsProps> = ({
   onSelectTeam,
   onAddTeam,
   onDeleteTeam,
+  onToggleEvaluable,
   onAddUser,
   onSelectUser,
   onSelectContract,
@@ -139,6 +141,7 @@ export const CompanyDetails: React.FC<CompanyDetailsProps> = ({
             onSelectTeam={onSelectTeam}
             onAddTeam={onAddTeam}
             onDeleteTeam={onDeleteTeam}
+            onToggleEvaluable={onToggleEvaluable}
           />
         </div>
       )}

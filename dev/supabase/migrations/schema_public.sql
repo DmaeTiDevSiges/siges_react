@@ -909,7 +909,8 @@ CREATE TABLE public.cfg_teams (
     deleted_user_id bigint,
     deleted_at timestamp without time zone,
     is_deleted boolean DEFAULT false,
-    version character varying DEFAULT 'live'::character varying
+    version character varying DEFAULT 'live'::character varying,
+    is_evaluable boolean DEFAULT true
 );
 
 
@@ -6260,7 +6261,8 @@ CREATE VIEW public.v_teams AS
     cfg_teams.deleted_user_id,
     cfg_teams.deleted_at,
     cfg_teams.is_deleted,
-    cfg_teams.version
+    cfg_teams.version,
+    cfg_teams.is_evaluable
    FROM public.cfg_teams
   WHERE (cfg_teams.is_deleted = false)
   ORDER BY cfg_teams.sort_order, cfg_teams.description;

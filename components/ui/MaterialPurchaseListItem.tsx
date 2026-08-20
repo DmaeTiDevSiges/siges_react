@@ -78,8 +78,9 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
     onCancel,
     onComplete,
 }) => {
-    const { canCreate } = usePermissions();
+    const { canCreate, canView } = usePermissions();
     const canAuthorize = canCreate('materials_purchases_authorizations');
+    const canViewAuthorizations = canView('materials_purchases_authorizations');
     const canComplete = canCreate('materials_purchases_complete');
 
     return (
@@ -148,7 +149,7 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
 
             {showActions && (status_id === 1 || status_id === 2) && (
                 <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
-                    {status_id === 1 && canAuthorize && (
+                    {status_id === 1 && canAuthorize && canViewAuthorizations && (
                         <div className="flex gap-2">
                             <button
                                 onClick={() => onCancel?.(id)}
@@ -165,7 +166,7 @@ export const MaterialPurchaseListItem: React.FC<MaterialPurchaseListItemProps> =
                         </div>
                     )}
 
-                    {status_id === 2 && (
+                    {status_id === 2 && canViewAuthorizations && (
                         <div className="flex gap-2">
                             <button
                                 onClick={() => onCancel?.(id)}

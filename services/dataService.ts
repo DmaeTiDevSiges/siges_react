@@ -972,6 +972,10 @@ export const dataService = {
         return evaluationService.deleteVisitEvaluations.apply(evaluationService, arguments as any);
     },
 
+    async canEvaluateVisit(ovId: string, userId: string): Promise<{ canEvaluate: boolean; reason?: string }> {
+        return evaluationService.canEvaluateVisit.apply(evaluationService, arguments as any);
+    },
+
     async getAssets(filter: 'all' | 'active' | 'inactive' = 'all', search: string = '', unitId?: string, unitAssetTagId?: string): Promise<Asset[]> {
         return assetsService.getAssets.apply(assetsService, arguments as any);
     },
@@ -1600,6 +1604,10 @@ export const dataService = {
 
     async getTeamLeader(teamId: string): Promise<User | null> {
         return usersService.getTeamLeader.apply(usersService, arguments as any);
+    },
+
+    async setTeamLeader(userId: string, isLeader: boolean): Promise<void> {
+        return usersService.setTeamLeader.apply(usersService, arguments as any);
     },
 
     async getOpenOrdersByUnit(unitId: string, filters: {
@@ -2246,6 +2254,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         statusId: number,
         statusDescription: string, // Passed from UI for notification
         suspendedReasonId: string | null,
+        causeReasonId: number,
         progress: number,
         user: User
     ): Promise<void> {

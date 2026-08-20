@@ -20,11 +20,22 @@ function readCurrentVersion() {
   return null;
 }
 
+function incrementPatch(version) {
+  const parts = version.split('.').map(Number);
+  while (parts.length < 3) parts.push(0);
+  parts[2] += 1;
+  return parts.join('.');
+}
+
 function promptUser(defaultMask) {
   return new Promise((resolve) => {
-    // 1. Argumento de linha de comando
+    // 1. Argumento de linha de comando (--auto ou versao)
     const argVersion = process.argv[2];
-    if (argVersion) {
+    if (argVersion === '--auto') {
+      resolve(incrementPatch(defaultMask));
+      return;
+    }
+    if (argVersion && argVersion !== '--auto') {
       resolve(argVersion);
       return;
     }
@@ -45,10 +56,14 @@ function promptUser(defaultMask) {
     }
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    rl.question(`\n  Versão do app (Enter para manter "${defaultMask}"): `, (answer) => {
+    rl.question(`\n  Versão do app (Enter para manter "${defaultMask}", "auto" para incrementar patch): `, (answer) => {
       rl.close();
-      const trimmed = answer.trim();
-      resolve(trimmed || defaultMask || '0.0.1');
+      const trimmed = answer.trim().toLowerCase();
+      if (trimmed === 'auto') {
+        resolve(incrementPatch(defaultMask));
+      } else {
+        resolve(trimmed || defaultMask || '0.0.1');
+      }
     });
   });
 }

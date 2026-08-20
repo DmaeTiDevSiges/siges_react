@@ -268,4 +268,73 @@ export const evaluationService = {
 
         return true;
     },
+
+    // -------------------------------------------------------------------------
+    // VERIFICAÇÃO DE PERMISSÃO DE AVALIAÇÃO
+    // -------------------------------------------------------------------------
+
+    /**
+     * Checks if a user can evaluate a visit.
+     * Returns { canEvaluate, reason } where reason explains why if denied.
+     */
+    async canEvaluateVisit(ovId: string, userId: string): Promise<{ canEvaluate: boolean; reason?: string }> {
+        // 1. Get the visit's team leader
+        const { data: visit, error: visitError } = await supabase
+            .from('orders_visits')
+            .select('ov_team_leader_id')
+            .eq('id', ovId)
+            .single();
+
+        if (visitError || !visit) {
+            return { canEvaluate: false, reason: 'Visita não encontrada' };
+        }
+
+        // 2. Get the team leader's team_id
+        const { data: leaderUser, error: leaderError } = await supabase
+            .from('users')
+            .select('team_id')
+            .eq('id', visit.ov_team_leader_id)
+            .single();
+
+        if (leaderError || !leaderUser?.team_id) {
+            return { canEvaluate: false, reason: 'Líder da equipe não encontrado' };
+        }
+
+        // 3. Check if the team is evaluable
+        const { data: team, error: teamError } = await supabase
+            .from('cfg_teams')
+            .select('is_evaluable')
+            .eq('id', leaderUser.team_id)
+            .single();
+
+        if (teamError || !team) {
+            return { canEvaluate: false, reason: 'Equipe não encontrada' };
+        }
+
+        if (team.is_evaluable === false) {
+            return { canEvaluate: false, reason: 'Esta equipe não está configurada para receber avaliações' };
+        }
+
+        // 4. Check if the current user is the team leader
+        const { data: currentUser, error: userError } = await supabase
+            .from('users')
+            .select('id, is_team_leader, team_id')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !currentUser) {
+            return { canEvaluate: false, reason: 'Usuário não encontrado' };
+        }
+
+        // User must be a team leader AND belong to the same team as the visit's leader
+        if (!currentUser.is_team_leader) {
+            return { canEvaluate: false, reason: 'Apenas líderes de equipe podem realizar avaliações' };
+        }
+
+        if (currentUser.team_id !== leaderUser.team_id) {
+            return { canEvaluate: false, reason: 'Apenas o líder da equipe responsável pela visita pode avaliá-la' };
+        }
+
+        return { canEvaluate: true };
+    },
 };

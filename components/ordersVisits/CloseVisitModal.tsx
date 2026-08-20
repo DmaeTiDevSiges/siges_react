@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
+import { Select } from '../ui/Select';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
-import { SuspendedReason } from '../../types';
+import { SuspendedReason, CauseReason } from '../../types';
 
 interface CloseVisitModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (data: { statusId: number; suspendedReasonId?: number; progress: number }) => Promise<void>;
+    onConfirm: (data: { statusId: number; suspendedReasonId?: number; causeReasonId: number; progress: number }) => Promise<void>;
     isLoading?: boolean;
     visit?: any; // To check signatures
 }
@@ -21,15 +22,32 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
 }) => {
     const [statusType, setStatusType] = useState<'concluded' | 'suspended' | null>(null);
     const [suspendedReasonId, setSuspendedReasonId] = useState<string>('');
+    const [causeReasonId, setCauseReasonId] = useState<string>('');
     const [progress, setProgress] = useState<number>(50); // Inicia no meio
     const [reasons, setReasons] = useState<SuspendedReason[]>([]);
+    const [causeReasons, setCauseReasons] = useState<CauseReason[]>([]);
     const [loadingReasons, setLoadingReasons] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && !statusType) {
+            loadCauseReasons();
+        }
+    }, [isOpen, statusType]);
 
     useEffect(() => {
         if (isOpen && statusType === 'suspended') {
             loadReasons();
         }
     }, [isOpen, statusType]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setStatusType(null);
+            setSuspendedReasonId('');
+            setCauseReasonId('');
+            setProgress(50);
+        }
+    }, [isOpen]);
 
     const loadReasons = async () => {
         setLoadingReasons(true);
@@ -44,12 +62,28 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
         }
     };
 
+    const loadCauseReasons = async () => {
+        try {
+            const data = await dataService.getOrderCauseReasons();
+            setCauseReasons(data);
+        } catch (error) {
+            console.error('Failed to load cause reasons', error);
+            toast.error('Erro ao carregar causas');
+        }
+    };
+
     const handleConfirm = () => {
         if (!statusType) return;
+
+        if (!causeReasonId) {
+            toast.error('Selecione a causa da OS');
+            return;
+        }
 
         if (statusType === 'concluded') {
             onConfirm({
                 statusId: 8, // Concluida
+                causeReasonId: Number(causeReasonId),
                 progress: 100
             });
         } else {
@@ -64,6 +98,7 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
             onConfirm({
                 statusId: 6, // Suspensa
                 suspendedReasonId: Number(suspendedReasonId),
+                causeReasonId: Number(causeReasonId),
                 progress: Number(progress)
             });
         }
@@ -142,22 +177,17 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                     {statusType === 'suspended' && (
                         <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                                    Motivo da Suspensão
-                                </label>
                                 {loadingReasons ? (
                                     <div className="text-center p-2 text-slate-400 text-sm">Carregando motivos...</div>
                                 ) : (
-                                    <select
+                                    <Select
+                                        label="Motivo da Suspensão"
+                                        required
                                         value={suspendedReasonId}
                                         onChange={(e) => setSuspendedReasonId(e.target.value)}
-                                        className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    >
-                                        <option value="">Selecione um motivo...</option>
-                                        {reasons.map(r => (
-                                            <option key={r.id} value={r.id}>{r.description}</option>
-                                        ))}
-                                    </select>
+                                        options={reasons.map(r => ({ value: String(r.id), label: r.description }))}
+                                        placeholder="Selecione um motivo..."
+                                    />
                                 )}
                             </div>
 
@@ -177,6 +207,20 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                                     <span className="font-black text-indigo-600 w-12 text-right">{progress}%</span>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Causa da OS */}
+                    {statusType && (
+                        <div className="animate-in slide-in-from-top-4 duration-300">
+                            <Select
+                                label="Causa da OS"
+                                required
+                                value={causeReasonId}
+                                onChange={(e) => setCauseReasonId(e.target.value)}
+                                options={causeReasons.map(r => ({ value: String(r.id), label: r.description }))}
+                                placeholder="Selecione a causa..."
+                            />
                         </div>
                     )}
 

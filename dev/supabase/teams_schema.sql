@@ -18,6 +18,7 @@ CREATE TABLE public.cfg_teams (
     deleted_at timestamp without time zone null,
     is_deleted boolean null default false,
     version character varying null default 'live'::character varying,
+    is_evaluable boolean null default true,
     constraint teams_pkey primary key (id),
     constraint teams_department_fkey foreign key (department_id) references public.cfg_departments(id) on delete cascade,
     constraint teams_company_fkey foreign key (company_id) references public.cfg_companies(id) on delete cascade

@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "node scripts/generate-version.js && vite build",
     "build:android": "node scripts/generate-version.js && vite build --mode android && npx cap sync android",
+    "build:android:auto": "node scripts/generate-version.js --auto && vite build --mode android && npx cap sync android",
     "apk": "bash scripts/build-apk.sh",
     "apk:win": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
     "preview": "vite preview --host 0.0.0.0 --port 3000",

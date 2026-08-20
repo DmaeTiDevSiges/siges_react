@@ -1436,6 +1436,16 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const handleToggleEvaluable = async (teamId: string, currentValue: boolean) => {
+    try {
+      await dataService.updateTeam(teamId, { isEvaluable: !currentValue });
+      toast.success(!currentValue ? 'Equipe marcada como avaliável' : 'Equipe marcada como não avaliável');
+    } catch (error) {
+      console.error("Error toggling team evaluable", error);
+      toast.error("Erro ao alterar configuração de avaliação");
+    }
+  };
+
 
   const handleEditDepartment = () => {
     setCurrentScreen('department-edit');
@@ -1994,6 +2004,7 @@ const AppContent: React.FC = () => {
             onSelectTeam={handleTeamSelect}
             onAddTeam={handleAddTeam}
             onDeleteTeam={handleDeleteTeamInline}
+            onToggleEvaluable={handleToggleEvaluable}
             onAddUser={handleAddUser}
             onSelectUser={handleUserSelect}
             onSelectContract={handleContractSelect}

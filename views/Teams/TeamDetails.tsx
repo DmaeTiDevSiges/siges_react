@@ -79,10 +79,19 @@ export const TeamDetails: React.FC<TeamDetailsProps> = ({ team, onEdit, onDelete
                     <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wide">
                         {team.code}
                     </span>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                        {team.departmentName && `${team.departmentName}`}
-                        {team.companyName && ` • ${team.companyName}`}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-slate-500 dark:text-slate-400 text-sm">
+                            {team.departmentName && `${team.departmentName}`}
+                            {team.companyName && ` • ${team.companyName}`}
+                        </p>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            team.isEvaluable !== false
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                        }`}>
+                            {team.isEvaluable !== false ? 'Avaliável' : 'Não avaliável'}
+                        </span>
+                    </div>
                 </div>
             </div>
 

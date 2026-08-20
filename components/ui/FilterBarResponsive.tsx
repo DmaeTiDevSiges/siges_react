@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { FilterSelect } from './FilterSelect';
 import { TreeFilterSelect } from './TreeFilterSelect';
 import { FilterSelectionContent } from './FilterSelectionContent';
@@ -101,14 +101,17 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
         openSelectionModal(key, label, options);
     }, [openSelectionModal]);
 
+    const onActiveFiltersChangeRef = useRef(onActiveFiltersChange);
+    onActiveFiltersChangeRef.current = onActiveFiltersChange;
+
     useImperativeHandle(ref, () => ({
         openMobileFilters: () => setIsMobileFiltersOpen(true),
         totalActiveFilters,
     }), [totalActiveFilters]);
 
     React.useEffect(() => {
-        onActiveFiltersChange?.(totalActiveFilters);
-    }, [totalActiveFilters, onActiveFiltersChange]);
+        onActiveFiltersChangeRef.current?.(totalActiveFilters);
+    }, [totalActiveFilters]);
 
     // ── DESKTOP: horizontal scrollable bar ──
     if (isDesktop) {

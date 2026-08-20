@@ -137,6 +137,7 @@ export interface Team {
   code: string; // code
   status: 'active' | 'inactive'; // is_available
   sortOrder?: number; // sort_order
+  isEvaluable?: boolean; // is_evaluable - controls if team can be evaluated
 
   // UI helpers
   departmentName?: string;

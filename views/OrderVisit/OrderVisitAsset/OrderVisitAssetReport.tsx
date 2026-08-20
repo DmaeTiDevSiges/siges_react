@@ -8,6 +8,7 @@ import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/orde
 import { OrderVisitAssetCardListItem } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardListItem';
 import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 import { OptimizedImage } from '../../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../../components/ui/PhotoViewer';
 import { Button } from '../../../components/ui/Button';
@@ -87,9 +88,34 @@ interface ImageGridProps {
     editImage: (type: 'initial' | 'final', index: number) => void;
     setPhotoActionSection: (section: 'initial' | 'final') => void;
     onUseAsCover?: (imageUrl: string) => void;
+    onFileDrop?: (type: 'initial' | 'final', file: File) => void;
 }
 
-const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, isVisitFiled, setExpandedImage, removeImage, editImage, setPhotoActionSection, onUseAsCover }) => {
+const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, isVisitFiled, setExpandedImage, removeImage, editImage, setPhotoActionSection, onUseAsCover, onFileDrop }) => {
+    const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+    const handleDragOver = (e: React.DragEvent, idx: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOverIdx(idx);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOverIdx(null);
+    };
+
+    const handleDrop = (e: React.DragEvent, idx: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOverIdx(null);
+        const file = e.dataTransfer.files?.[0];
+        if (file && file.type.startsWith('image/') && onFileDrop) {
+            onFileDrop(type, file);
+        }
+    };
+
     return (
         <div className="space-y-2 mt-3">
             <div className="grid grid-cols-3 gap-3">
@@ -143,24 +169,30 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, isVisit
                             </div>
                         );
                     } else if (!isReadOnly) {
+                        const isDragOver = dragOverIdx === idx;
                         return (
                             <div
                                 key={idx}
                                 onClick={() => setPhotoActionSection(type)}
-                                className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all group relative overflow-hidden ${images.length === 0 && idx === 0
-                                    ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:border-red-500'
-                                    : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-blue-500/50'
+                                onDragOver={(e) => onFileDrop ? handleDragOver(e, idx) : undefined}
+                                onDragLeave={onFileDrop ? handleDragLeave : undefined}
+                                onDrop={(e) => onFileDrop ? handleDrop(e, idx) : undefined}
+                                className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all group relative overflow-hidden ${isDragOver
+                                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30 scale-[1.02]'
+                                    : (images.length === 0 && idx === 0)
+                                        ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:border-red-500'
+                                        : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-blue-500/50'
                                     }`}
                                 style={{ height: '96px' }}
                             >
                                 <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center mb-1 shadow-sm">
-                                    <span className={`material-symbols-outlined text-xl ${(images.length === 0 && idx === 0) ? 'text-red-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`}>
-                                        add_a_photo
+                                    <span className={`material-symbols-outlined text-xl ${isDragOver ? 'text-blue-500' : (images.length === 0 && idx === 0) ? 'text-red-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`}>
+                                        {isDragOver ? 'upload_file' : 'add_a_photo'}
                                     </span>
                                 </div>
                                 <div className="text-center px-1">
-                                    <p className={`text-[8px] font-bold uppercase ${(images.length === 0 && idx === 0) ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                                        {(images.length === 0 && idx === 0) ? 'Obrigatório' : 'Adicionar'}
+                                    <p className={`text-[8px] font-bold uppercase ${isDragOver ? 'text-blue-600 dark:text-blue-400' : (images.length === 0 && idx === 0) ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                        {isDragOver ? 'Solte aqui' : (images.length === 0 && idx === 0) ? 'Obrigatório' : 'Adicionar'}
                                     </p>
                                     <p className="text-[7px] text-slate-400 dark:text-slate-600 font-medium italic">Foto {idx + 1}</p>
                                 </div>
@@ -807,6 +839,15 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         }
     };
 
+    const handleFileDrop = async (type: 'initial' | 'final', file: File) => {
+        const currentImages = type === 'initial' ? initialImages : finalImages;
+        if (currentImages.length >= 3) {
+            toast.error("Máximo de 3 fotos permitido");
+            return;
+        }
+        setEditingImage({ type, index: null, src: file });
+    };
+
     const removeImage = async (type: 'initial' | 'final', index: number) => {
         if (!asset) return;
         const currentImages = type === 'initial' ? initialImages : finalImages;
@@ -1077,6 +1118,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         editImage={handleEditImage}
                         setPhotoActionSection={setPhotoActionSection}
                         onUseAsCover={handleUseAsCover}
+                        onFileDrop={!Capacitor.isNativePlatform() ? handleFileDrop : undefined}
                     />
                 </div>
 
@@ -1349,6 +1391,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         editImage={handleEditImage}
                         setPhotoActionSection={setPhotoActionSection}
                         onUseAsCover={handleUseAsCover}
+                        onFileDrop={!Capacitor.isNativePlatform() ? handleFileDrop : undefined}
                     />
                 </div>
 

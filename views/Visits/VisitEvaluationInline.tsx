@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ContractEvaluationRequirement, OrderVisitEvaluation, OrderVisit } from '../../types';
+import { ContractEvaluationRequirement, OrderVisitEvaluation, OrderVisit, User } from '../../types';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
 import { SearchInput } from '../../components/ui/SearchInput';
@@ -21,11 +21,12 @@ interface EvaluationItem {
 interface VisitEvaluationInlineProps {
     visitId: string;
     visit: OrderVisit | null;
+    currentUser?: User | null;
     onRefresh?: () => void;
     onEvaluationCountChange?: (count: number) => void;
 }
 
-export const VisitEvaluationInline: React.FC<VisitEvaluationInlineProps> = ({ visitId, visit, onRefresh, onEvaluationCountChange }) => {
+export const VisitEvaluationInline: React.FC<VisitEvaluationInlineProps> = ({ visitId, visit, currentUser, onRefresh, onEvaluationCountChange }) => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [requirements, setRequirements] = useState<ContractEvaluationRequirement[]>([]);
@@ -35,6 +36,8 @@ export const VisitEvaluationInline: React.FC<VisitEvaluationInlineProps> = ({ vi
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [selectingId, setSelectingId] = useState<string | null>(null);
     const [pendingDelete, setPendingDelete] = useState<EvaluationItem | null>(null);
+    const [canEvaluate, setCanEvaluate] = useState<boolean>(true);
+    const [evaluationDeniedReason, setEvaluationDeniedReason] = useState<string>('');
     const dropdownRef = useRef<HTMLDivElement>(null);
     const notesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -67,6 +70,13 @@ export const VisitEvaluationInline: React.FC<VisitEvaluationInlineProps> = ({ vi
             }
             const evalData = await dataService.getVisitEvaluations(visitId);
             setExistingEvaluations(evalData);
+
+            // Check evaluation permission
+            if (currentUser?.id) {
+                const permission = await dataService.canEvaluateVisit(visitId, currentUser.id);
+                setCanEvaluate(permission.canEvaluate);
+                setEvaluationDeniedReason(permission.reason || '');
+            }
         } catch (error) {
             console.error('Error loading evaluation data:', error);
             toast.error('Erro ao carregar dados de avaliação');
@@ -170,6 +180,22 @@ export const VisitEvaluationInline: React.FC<VisitEvaluationInlineProps> = ({ vi
                 icon="rate_review"
                 message="Nenhum requisito vinculado a este contrato"
             />
+        );
+    }
+
+    // Show permission denied message
+    if (!canEvaluate && evaluationDeniedReason) {
+        return (
+            <div className="space-y-4">
+                <div className="text-center py-12 bg-white dark:bg-card-dark rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <span className="material-symbols-outlined text-4xl text-slate-200 dark:text-slate-800 mb-2">
+                        block
+                    </span>
+                    <p className="text-slate-400 dark:text-slate-500 text-sm font-medium">
+                        {evaluationDeniedReason}
+                    </p>
+                </div>
+            </div>
         );
     }
 

@@ -2844,10 +2844,28 @@ DROP VIEW IF EXISTS public.v_teams CASCADE;
 -- SELECT pg_get_viewdef('v_teams'::regclass, true);
 
 CREATE OR REPLACE VIEW public.v_teams AS
-SELECT 
-    -- Add your SELECT statement here
-    -- This is a placeholder - replace with actual view definition
-NULL as id;
+ SELECT cfg_teams.id,
+    cfg_teams.parent_id,
+    cfg_teams.code,
+    cfg_teams.description,
+    cfg_teams.department_id,
+    cfg_teams.is_available,
+    cfg_teams.sort_order,
+    cfg_teams.img_url,
+    cfg_teams.users_total,
+    cfg_teams.company_id,
+    cfg_teams.created_user_id,
+    cfg_teams.created_at,
+    cfg_teams.updated_user_id,
+    cfg_teams.updated_at,
+    cfg_teams.deleted_user_id,
+    cfg_teams.deleted_at,
+    cfg_teams.is_deleted,
+    cfg_teams.version,
+    cfg_teams.is_evaluable
+   FROM public.cfg_teams
+  WHERE (cfg_teams.is_deleted = false)
+  ORDER BY cfg_teams.sort_order, cfg_teams.description;
 
 -- Start File: 396-create-v_assets-view.sql
 -- =============================================================================
