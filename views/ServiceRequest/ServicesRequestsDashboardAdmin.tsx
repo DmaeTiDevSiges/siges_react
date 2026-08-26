@@ -388,6 +388,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             unitTypeParentId: appliedFilters.unitTypeParentId,
             unitTypeId: appliedFilters.unitTypeId,
             unitId: appliedFilters.unitId,
+            orderTypeId: appliedFilters.orderTypeId,
+            orderTypeSubId: appliedFilters.orderTypeSubId,
             assetTagId: appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
             period: selectedPeriod || appliedFilters.period,
@@ -465,6 +467,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                  unitTypeParentId: ordersListFilters.unitTypeParentId,
                  unitTypeId: ordersListFilters.unitTypeId,
                  unitId: ordersListFilters.unitId,
+                 orderTypeId: ordersListFilters.orderTypeId,
+                 orderTypeSubId: ordersListFilters.orderTypeSubId,
                  period: periodFromOverride ?? undefined,
                  search: searchQuery || undefined,
              };

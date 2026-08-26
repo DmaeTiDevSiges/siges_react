@@ -1,4 +1,4 @@
 {
-  "version_app_mask": "1.1.55",
-  "timestamp": "2026-08-20T01:23:00.872Z"
+  "version_app_mask": "1.1.57",
+  "timestamp": "2026-08-26T01:28:33.021Z"
 }

@@ -983,6 +983,7 @@ export const ordersService = {
             priorityColor: item.priority_color,
             objectCode: item.object_code,
             objectDescription: item.object_description,
+            causeReasonId: item.cause_reason_id ? Number(item.cause_reason_id) : undefined,
             causeReasonDescription: item.cause_reason_description || 'N/I',
             createdUserId: item.created_user_id?.toString(),
             teamId: item.team_id?.toString(),
@@ -1940,6 +1941,7 @@ export const ordersService = {
                 imgFileName: item.img_file_name,
                 imgFilesNames: item.img_files_names,
                 companyId: item.company_id?.toString(),
+                causeReasonId: item.cause_reason_id ? Number(item.cause_reason_id) : undefined,
                 causeReasonDescription: item.cause_reason_description,
                 providerCompanyName: item.provider_company_description || item.provider_company_name || company?.description,
                 providerLogo: getPublicImageUrl(
@@ -2070,6 +2072,7 @@ export const ordersService = {
                 imgFileName: item.img_file_name,
                 imgFilesNames: item.img_files_names,
                 companyId: item.company_id?.toString(),
+                causeReasonId: item.cause_reason_id ? Number(item.cause_reason_id) : undefined,
                 causeReasonDescription: item.cause_reason_description,
                 providerCompanyName: item.provider_company_description || item.provider_company_name || company?.description,
                 providerLogo: getPublicImageUrl(
@@ -2403,6 +2406,7 @@ export const ordersService = {
                 imgFileName: item.img_file_name,
                 imgFilesNames: item.img_files_names,
                 companyId: item.company_id?.toString(),
+                causeReasonId: item.cause_reason_id ? Number(item.cause_reason_id) : undefined,
                 causeReasonDescription: item.cause_reason_description,
                 providerCompanyName: item.provider_company_description || item.provider_company_name || company?.description,
                 providerLogo: getPublicImageUrl(

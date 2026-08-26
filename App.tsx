@@ -18,119 +18,138 @@ import { LoginScreen } from './views/Users/LoginScreen';
 import { Toaster, toast } from 'sonner';
 import { Company, Client, Department, Team, User, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Contract, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, Asset, UserNotification, Order, OrderVisit, OrderVisitAssetView } from './types';
 
-// Lazy Loaded Views (Fase 1 de Otimização de Performance)
-const CompaniesList = React.lazy(() => import('./views/Settings/Companies/CompaniesList').then(m => ({ default: m.CompaniesList })));
-const CompanyDetails = React.lazy(() => import('./views/Settings/Companies/CompanyDetails').then(m => ({ default: m.CompanyDetails })));
-const CompanyForm = React.lazy(() => import('./views/Settings/Companies/CompanyForm').then(m => ({ default: m.CompanyForm })));
-const DepartmentForm = React.lazy(() => import('./views/Departments/DepartmentForm').then(m => ({ default: m.DepartmentForm })));
-const DepartmentDetails = React.lazy(() => import('./views/Departments/DepartmentDetails').then(m => ({ default: m.DepartmentDetails })));
-const TeamForm = React.lazy(() => import('./views/Teams/TeamForm').then(m => ({ default: m.TeamForm })));
-const TeamDetails = React.lazy(() => import('./views/Teams/TeamDetails').then(m => ({ default: m.TeamDetails })));
-const ClientsList = React.lazy(() => import('./views/Settings/Clients/ClientsList').then(m => ({ default: m.ClientsList })));
-const ClientDetails = React.lazy(() => import('./views/Settings/Clients/ClientDetails').then(m => ({ default: m.ClientDetails })));
-const ClientForm = React.lazy(() => import('./views/Settings/Clients/ClientForm').then(m => ({ default: m.ClientForm })));
-const UserForm = React.lazy(() => import('./views/Users/UserForm').then(m => ({ default: m.UserForm })));
-const ProfileScreen = React.lazy(() => import('./views/Users/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
-const ForgotPasswordScreen = React.lazy(() => import('./views/Users/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
-const ResetPasswordScreen = React.lazy(() => import('./views/Users/ResetPasswordScreen').then(m => ({ default: m.ResetPasswordScreen })));
-const DashboardScreen = React.lazy(() => import('./views/Dashboards/DashboardOrdersUserScreen').then(m => ({ default: m.DashboardScreen })));
-const DashboardOrdersVisitsAdminScreen = React.lazy(() => import('./views/Dashboards/DashboardOrdersVisitsAdminScreen').then(m => ({ default: m.DashboardOrdersVisitsAdminScreen })));
-const DashboardOrdersVisitsTodayScreen = React.lazy(() => import('./views/Dashboards/DashboardOrdersVisitsTodayScreen').then(m => ({ default: m.DashboardOrdersVisitsTodayScreen })));
-const DashboardUnitsPowerElectric = React.lazy(() => import('./views/Dashboards/DashboardUnitsPowerElectric').then(m => ({ default: m.DashboardUnitsPowerElectric })));
-const DashboardUnitsAssetsTags = React.lazy(() => import('./views/Dashboards/DashboardUnitsAssetsTags').then(m => ({ default: m.DashboardUnitsAssetsTags })));
-const DashboardOrdersAdminCalendarScreen = React.lazy(() => import('./views/Dashboards/DashboardOrdersAdminCalendarScreen').then(m => ({ default: m.DashboardOrdersAdminCalendarScreen })));
-const DashboardServicesAdminScreen = React.lazy(() => import('./views/Dashboards/DashboardServicesAdminScreen').then(m => ({ default: m.DashboardServicesAdminScreen })));
-const DashboardAdminContractsEvaluationsRequirements = React.lazy(() => import('./views/Dashboards/DashboardAdminContractsEvaluationsRequirements').then(m => ({ default: m.DashboardAdminContractsEvaluationsRequirements })));
-const LeaderRankingDashboard = React.lazy(() => import('./views/Dashboards/LeaderRankingDashboard').then(m => ({ default: m.LeaderRankingDashboard })));
-const ServicesRequestsDashboardAdmin = React.lazy(() => import('./views/ServiceRequest/ServicesRequestsDashboardAdmin').then(m => ({ default: m.ServicesRequestsDashboardAdmin })));
-const SystemsList = React.lazy(() => import('./views/Settings/Systems/SystemsList').then(m => ({ default: m.SystemsList })));
-const SystemForm = React.lazy(() => import('./views/Settings/Systems/SystemForm').then(m => ({ default: m.SystemForm })));
-const UnitTypesList = React.lazy(() => import('./views/Settings/UnitTypes/UnitTypesList').then(m => ({ default: m.UnitTypesList })));
-const UnitTypeForm = React.lazy(() => import('./views/Settings/UnitTypes/UnitTypeForm').then(m => ({ default: m.UnitTypeForm })));
-const UnitsList = React.lazy(() => import('./views/Settings/Clients/Units/UnitsList').then(m => ({ default: m.UnitsList })));
-const UnitForm = React.lazy(() => import('./views/Settings/Clients/Units/UnitForm').then(m => ({ default: m.UnitForm })));
-const UnitDetails = React.lazy(() => import('./views/Settings/Clients/Units/UnitView').then(m => ({ default: m.UnitDetails })));
-const ActivitiesList = React.lazy(() => import('./views/Settings/Activities/ActivitiesList').then(m => ({ default: m.ActivitiesList })));
-const ActivityForm = React.lazy(() => import('./views/Settings/Activities/ActivityForm').then(m => ({ default: m.ActivityForm })));
-const ContractsList = React.lazy(() => import('./views/Contracts/ContractsList').then(m => ({ default: m.ContractsList })));
-const ContractForm = React.lazy(() => import('./views/Contracts/ContractForm').then(m => ({ default: m.ContractForm })));
-const ContractDetails = React.lazy(() => import('./views/Contracts/ContractDetails').then(m => ({ default: m.ContractDetails })));
-const ServicesList = React.lazy(() => import('./views/Settings/Services/ServicesList').then(m => ({ default: m.ServicesList })));
-const ServiceForm = React.lazy(() => import('./views/Settings/Services/ServiceForm').then(m => ({ default: m.ServiceForm })));
-const MaterialsList = React.lazy(() => import('./views/Settings/Materials/MaterialsList').then(m => ({ default: m.MaterialsList })));
-const MaterialsSearch = React.lazy(() => import('./views/Settings/Materials/MaterialsSearch').then(m => ({ default: m.MaterialsSearch })));
-const MaterialForm = React.lazy(() => import('./views/Settings/Materials/MaterialForm').then(m => ({ default: m.MaterialForm })));
-const MaterialDetails = React.lazy(() => import('./views/Settings/Materials/MaterialDetails').then(m => ({ default: m.MaterialDetails })));
-const MaterialsDashboard = React.lazy(() => import('./views/Settings/Materials/MaterialsDashboard').then(m => ({ default: m.MaterialsDashboard })));
-const EvaluationRequirementsScreen = React.lazy(() => import('./views/Settings/Evaluations/EvaluationRequirementsScreen').then(m => ({ default: m.EvaluationRequirementsScreen })));
-const PrioritiesList = React.lazy(() => import('./views/Settings/Orders/Priorities/OrderPrioritiesList').then(m => ({ default: m.PrioritiesList })));
-const PriorityForm = React.lazy(() => import('./views/Settings/Orders/Priorities/OrderPriorityForm').then(m => ({ default: m.PriorityForm })));
-const OrderTypesList = React.lazy(() => import('./views/Settings/Orders/OrderTypes/OrderTypesList').then(m => ({ default: m.OrderTypesList })));
-const OrderTypeForm = React.lazy(() => import('./views/Settings/Orders/OrderTypes/OrderTypeForm').then(m => ({ default: m.OrderTypeForm })));
-const OrderSubTypesList = React.lazy(() => import('./views/Settings/Orders/OrderSubTypes/OrderSubTypesList').then(m => ({ default: m.OrderSubTypesList })));
-const OrderSubTypeForm = React.lazy(() => import('./views/Settings/Orders/OrderSubTypes/OrderSubTypeForm').then(m => ({ default: m.OrderSubTypeForm })));
-const OrderPlansList = React.lazy(() => import('./views/Settings/Orders/Plans/OrderPlansList').then(m => ({ default: m.OrderPlansList })));
-const OrderPlanForm = React.lazy(() => import('./views/Settings/Orders/Plans/OrderPlanForm').then(m => ({ default: m.OrderPlanForm })));
-const OrderObjectsList = React.lazy(() => import('./views/Settings/Orders/OrderObjects/OrderObjectsList').then(m => ({ default: m.OrderObjectsList })));
-const OrderObjectForm = React.lazy(() => import('./views/Settings/Orders/OrderObjects/OrderObjectForm').then(m => ({ default: m.OrderObjectForm })));
-const AssetTypesList = React.lazy(() => import('./views/Settings/Assets/AssetTypes/AssetTypesList').then(m => ({ default: m.AssetTypesList })));
-const AssetTypeForm = React.lazy(() => import('./views/Settings/Assets/AssetTypes/AssetTypeForm').then(m => ({ default: m.AssetTypeForm })));
-const AssetStatusesList = React.lazy(() => import('./views/Settings/Assets/AssetStatuses/AssetStatusesList').then(m => ({ default: m.AssetStatusesList })));
-const AssetStatusForm = React.lazy(() => import('./views/Settings/Assets/AssetStatuses/AssetStatusForm').then(m => ({ default: m.AssetStatusForm })));
-const AssetPrioritiesList = React.lazy(() => import('./views/Settings/Assets/AssetPriorities/AssetPrioritiesList').then(m => ({ default: m.AssetPrioritiesList })));
-const AssetPriorityForm = React.lazy(() => import('./views/Settings/Assets/AssetPriorities/AssetPriorityForm').then(m => ({ default: m.AssetPriorityForm })));
-const AssetTypeAttributesScreen = React.lazy(() => import('./views/Settings/Assets/AssetTypeAttributes/AssetTypeAttributesScreen').then(m => ({ default: m.AssetTypeAttributesScreen })));
-const AssetAttributesBrandsScreen = React.lazy(() => import('./views/Settings/Assets/AssetTypeAttributes/AssetAttributesBrandsScreen').then(m => ({ default: m.AssetAttributesBrandsScreen })));
-const AssetTagsList = React.lazy(() => import('./views/Settings/Assets/AssetTags/AssetTagsList').then(m => ({ default: m.AssetTagsList })));
-const AssetTagForm = React.lazy(() => import('./views/Settings/Assets/AssetTags/AssetTagForm').then(m => ({ default: m.AssetTagForm })));
-const AssetTagSubsList = React.lazy(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubsList').then(m => ({ default: m.AssetTagSubsList })));
-const AssetTagSubForm = React.lazy(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubForm').then(m => ({ default: m.AssetTagSubForm })));
-const TechnicalManualsList = React.lazy(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualsList').then(m => ({ default: m.TechnicalManualsList })));
-const TechnicalManualForm = React.lazy(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualForm').then(m => ({ default: m.TechnicalManualForm })));
-const TechnicalManualDetails = React.lazy(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualDetails').then(m => ({ default: m.TechnicalManualDetails })));
-const UnitsSearch = React.lazy(() => import('./views/Units/UnitsSearch').then(m => ({ default: m.UnitsSearch })));
-const UnitAssetTagAvailableForm = React.lazy(() => import('./views/Units/UnitAssetTagAvailableForm').then(m => ({ default: m.UnitAssetTagAvailableForm })));
-const UnitAssetTagAvailableDetails = React.lazy(() => import('./views/Units/UnitAssetTagAvailableDetails').then(m => ({ default: m.UnitAssetTagAvailableDetails })));
-const AssetsSearch = React.lazy(() => import('./views/Assets/AssetsSearch').then(m => ({ default: m.AssetsSearch })));
-const AssetDetails = React.lazy(() => import('./views/Assets/AssetView').then(m => ({ default: m.AssetDetails })));
-const AssetForm = React.lazy(() => import('./views/Assets/AssetForm').then(m => ({ default: m.AssetForm })));
-const AssetCloneWizard = React.lazy(() => import('./views/Assets/AssetCloneWizard').then(m => ({ default: m.AssetCloneWizard })));
-const AssetsAlerts = React.lazy(() => import('./views/Assets/AssetsAlerts').then(m => ({ default: m.AssetsAlerts })));
-const AssetsAlertsHeaderWidget = React.lazy(() => import('./components/assets/AssetsAlertsHeaderWidget').then(m => ({ default: m.AssetsAlertsHeaderWidget })));
-const OrdersRequestsDashboardAdmin = React.lazy(() => import('./views/OrderRequest/OrdersRequestsDashboardAdmin').then(m => ({ default: m.OrdersRequestsDashboardAdmin })));
-const NotificationsList = React.lazy(() => import('./views/Notifications/NotificationsList').then(m => ({ default: m.NotificationsList })));
-const AppNoticesList = React.lazy(() => import('./views/AppNotices/AppNoticesList').then(m => ({ default: m.AppNoticesList })));
-const AppTipsList = React.lazy(() => import('./views/Settings/AppTips/AppTipsList').then(m => ({ default: m.AppTipsList })));
-const ServiceRequestDetail = React.lazy(() => import('./views/ServiceRequest/ServiceRequestDetail').then(m => ({ default: m.ServiceRequestDetail })));
-const ServiceRequestPage = React.lazy(() => import('./views/ServiceRequest/ServiceRequestScreen').then(m => ({ default: m.ServiceRequestPage })));
-const OrderRequestPage = React.lazy(() => import('./views/OrderRequest/OrderRequestScreen').then(m => ({ default: m.OrderRequestPage })));
-const OrderRequestApproveConfirm = React.lazy(() => import('./views/OrderRequest/OrderRequestApproveConfirm').then(m => ({ default: m.OrderRequestApproveConfirm })));
-const OrderRequestView = React.lazy(() => import('./views/OrderRequest/OrderRequestView').then(m => ({ default: m.OrderRequestView })));
-const OrderVisitPage = React.lazy(() => import('./views/OrderVisit/OrderVisitScreen').then(m => ({ default: m.OrderVisitPage })));
-const OrderVisitAssetReport = React.lazy(() => import('./views/OrderVisit/OrderVisitAsset/OrderVisitAssetReport').then(m => ({ default: m.OrderVisitAssetReport })));
-const OrderVisitAssetActivities = React.lazy(() => import('./views/OrderVisit/OrderVisitAsset/OrderVisitAssetActivities').then(m => ({ default: m.OrderVisitAssetActivities })));
-const OrderVisitAssetMaterials = React.lazy(() => import('./views/OrderVisit/OrderVisitAsset/OrderVisitAssetMaterials').then(m => ({ default: m.OrderVisitAssetMaterials })));
-const OrderVisitBottomNav = React.lazy(() => import('./components/ordersVisits/OrderVisitBottomNav').then(m => ({ default: m.OrderVisitBottomNav })));
-const VisitEvaluationPage = React.lazy(() => import('./views/Visits/VisitEvaluationPage').then(m => ({ default: m.VisitEvaluationPage })));
+function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any> }>, retries = 2) {
+  return React.lazy(() => {
+    return new Promise<{ default: React.ComponentType<any> }>((resolve, reject) => {
+      const attempt = (remaining: number) => {
+        factory()
+          .then(resolve)
+          .catch((err) => {
+            if (remaining > 0) {
+              setTimeout(() => attempt(remaining - 1), 1000);
+            } else {
+              reject(err);
+            }
+          });
+      };
+      attempt(retries);
+    });
+  });
+}
 
-const UsersTracker = React.lazy(() => import('./views/Users/UsersTracker').then(m => ({ default: m.UsersTracker })));
-const AllUsersList = React.lazy(() => import('./views/Admin/AllUsersList').then(m => ({ default: m.AllUsersList })));
-const UserViewScreen = React.lazy(() => import('./views/Admin/UserViewScreen').then(m => ({ default: m.UserViewScreen })));
+// Lazy Loaded Views (Fase 1 de Otimização de Performance)
+const CompaniesList = lazyWithRetry(() => import('./views/Settings/Companies/CompaniesList').then(m => ({ default: m.CompaniesList })));
+const CompanyDetails = lazyWithRetry(() => import('./views/Settings/Companies/CompanyDetails').then(m => ({ default: m.CompanyDetails })));
+const CompanyForm = lazyWithRetry(() => import('./views/Settings/Companies/CompanyForm').then(m => ({ default: m.CompanyForm })));
+const DepartmentForm = lazyWithRetry(() => import('./views/Departments/DepartmentForm').then(m => ({ default: m.DepartmentForm })));
+const DepartmentDetails = lazyWithRetry(() => import('./views/Departments/DepartmentDetails').then(m => ({ default: m.DepartmentDetails })));
+const TeamForm = lazyWithRetry(() => import('./views/Teams/TeamForm').then(m => ({ default: m.TeamForm })));
+const TeamDetails = lazyWithRetry(() => import('./views/Teams/TeamDetails').then(m => ({ default: m.TeamDetails })));
+const ClientsList = lazyWithRetry(() => import('./views/Settings/Clients/ClientsList').then(m => ({ default: m.ClientsList })));
+const ClientDetails = lazyWithRetry(() => import('./views/Settings/Clients/ClientDetails').then(m => ({ default: m.ClientDetails })));
+const ClientForm = lazyWithRetry(() => import('./views/Settings/Clients/ClientForm').then(m => ({ default: m.ClientForm })));
+const UserForm = lazyWithRetry(() => import('./views/Users/UserForm').then(m => ({ default: m.UserForm })));
+const ProfileScreen = lazyWithRetry(() => import('./views/Users/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
+const ForgotPasswordScreen = lazyWithRetry(() => import('./views/Users/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
+const ResetPasswordScreen = lazyWithRetry(() => import('./views/Users/ResetPasswordScreen').then(m => ({ default: m.ResetPasswordScreen })));
+const DashboardScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersUserScreen').then(m => ({ default: m.DashboardScreen })));
+const DashboardOrdersVisitsAdminScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersVisitsAdminScreen').then(m => ({ default: m.DashboardOrdersVisitsAdminScreen })));
+const DashboardOrdersVisitsTodayScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersVisitsTodayScreen').then(m => ({ default: m.DashboardOrdersVisitsTodayScreen })));
+const DashboardUnitsPowerElectric = lazyWithRetry(() => import('./views/Dashboards/DashboardUnitsPowerElectric').then(m => ({ default: m.DashboardUnitsPowerElectric })));
+const DashboardUnitsAssetsTags = lazyWithRetry(() => import('./views/Dashboards/DashboardUnitsAssetsTags').then(m => ({ default: m.DashboardUnitsAssetsTags })));
+const DashboardOrdersAdminCalendarScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersAdminCalendarScreen').then(m => ({ default: m.DashboardOrdersAdminCalendarScreen })));
+const DashboardServicesAdminScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardServicesAdminScreen').then(m => ({ default: m.DashboardServicesAdminScreen })));
+const DashboardAdminContractsEvaluationsRequirements = lazyWithRetry(() => import('./views/Dashboards/DashboardAdminContractsEvaluationsRequirements').then(m => ({ default: m.DashboardAdminContractsEvaluationsRequirements })));
+const LeaderRankingDashboard = lazyWithRetry(() => import('./views/Dashboards/LeaderRankingDashboard').then(m => ({ default: m.LeaderRankingDashboard })));
+const ServicesRequestsDashboardAdmin = lazyWithRetry(() => import('./views/ServiceRequest/ServicesRequestsDashboardAdmin').then(m => ({ default: m.ServicesRequestsDashboardAdmin })));
+const SystemsList = lazyWithRetry(() => import('./views/Settings/Systems/SystemsList').then(m => ({ default: m.SystemsList })));
+const SystemForm = lazyWithRetry(() => import('./views/Settings/Systems/SystemForm').then(m => ({ default: m.SystemForm })));
+const UnitTypesList = lazyWithRetry(() => import('./views/Settings/UnitTypes/UnitTypesList').then(m => ({ default: m.UnitTypesList })));
+const UnitTypeForm = lazyWithRetry(() => import('./views/Settings/UnitTypes/UnitTypeForm').then(m => ({ default: m.UnitTypeForm })));
+const UnitsList = lazyWithRetry(() => import('./views/Settings/Clients/Units/UnitsList').then(m => ({ default: m.UnitsList })));
+const UnitForm = lazyWithRetry(() => import('./views/Settings/Clients/Units/UnitForm').then(m => ({ default: m.UnitForm })));
+const UnitDetails = lazyWithRetry(() => import('./views/Settings/Clients/Units/UnitView').then(m => ({ default: m.UnitDetails })));
+const ActivitiesList = lazyWithRetry(() => import('./views/Settings/Activities/ActivitiesList').then(m => ({ default: m.ActivitiesList })));
+const ActivityForm = lazyWithRetry(() => import('./views/Settings/Activities/ActivityForm').then(m => ({ default: m.ActivityForm })));
+const ContractsList = lazyWithRetry(() => import('./views/Contracts/ContractsList').then(m => ({ default: m.ContractsList })));
+const ContractForm = lazyWithRetry(() => import('./views/Contracts/ContractForm').then(m => ({ default: m.ContractForm })));
+const ContractDetails = lazyWithRetry(() => import('./views/Contracts/ContractDetails').then(m => ({ default: m.ContractDetails })));
+const ServicesList = lazyWithRetry(() => import('./views/Settings/Services/ServicesList').then(m => ({ default: m.ServicesList })));
+const ServiceForm = lazyWithRetry(() => import('./views/Settings/Services/ServiceForm').then(m => ({ default: m.ServiceForm })));
+const MaterialsList = lazyWithRetry(() => import('./views/Settings/Materials/MaterialsList').then(m => ({ default: m.MaterialsList })));
+const MaterialsSearch = lazyWithRetry(() => import('./views/Settings/Materials/MaterialsSearch').then(m => ({ default: m.MaterialsSearch })));
+const MaterialForm = lazyWithRetry(() => import('./views/Settings/Materials/MaterialForm').then(m => ({ default: m.MaterialForm })));
+const MaterialDetails = lazyWithRetry(() => import('./views/Settings/Materials/MaterialDetails').then(m => ({ default: m.MaterialDetails })));
+const MaterialsDashboard = lazyWithRetry(() => import('./views/Settings/Materials/MaterialsDashboard').then(m => ({ default: m.MaterialsDashboard })));
+const EvaluationRequirementsScreen = lazyWithRetry(() => import('./views/Settings/Evaluations/EvaluationRequirementsScreen').then(m => ({ default: m.EvaluationRequirementsScreen })));
+const PrioritiesList = lazyWithRetry(() => import('./views/Settings/Orders/Priorities/OrderPrioritiesList').then(m => ({ default: m.PrioritiesList })));
+const PriorityForm = lazyWithRetry(() => import('./views/Settings/Orders/Priorities/OrderPriorityForm').then(m => ({ default: m.PriorityForm })));
+const OrderTypesList = lazyWithRetry(() => import('./views/Settings/Orders/OrderTypes/OrderTypesList').then(m => ({ default: m.OrderTypesList })));
+const OrderTypeForm = lazyWithRetry(() => import('./views/Settings/Orders/OrderTypes/OrderTypeForm').then(m => ({ default: m.OrderTypeForm })));
+const OrderSubTypesList = lazyWithRetry(() => import('./views/Settings/Orders/OrderSubTypes/OrderSubTypesList').then(m => ({ default: m.OrderSubTypesList })));
+const OrderSubTypeForm = lazyWithRetry(() => import('./views/Settings/Orders/OrderSubTypes/OrderSubTypeForm').then(m => ({ default: m.OrderSubTypeForm })));
+const OrderPlansList = lazyWithRetry(() => import('./views/Settings/Orders/Plans/OrderPlansList').then(m => ({ default: m.OrderPlansList })));
+const OrderPlanForm = lazyWithRetry(() => import('./views/Settings/Orders/Plans/OrderPlanForm').then(m => ({ default: m.OrderPlanForm })));
+const OrderObjectsList = lazyWithRetry(() => import('./views/Settings/Orders/OrderObjects/OrderObjectsList').then(m => ({ default: m.OrderObjectsList })));
+const OrderObjectForm = lazyWithRetry(() => import('./views/Settings/Orders/OrderObjects/OrderObjectForm').then(m => ({ default: m.OrderObjectForm })));
+const AssetTypesList = lazyWithRetry(() => import('./views/Settings/Assets/AssetTypes/AssetTypesList').then(m => ({ default: m.AssetTypesList })));
+const AssetTypeForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetTypes/AssetTypeForm').then(m => ({ default: m.AssetTypeForm })));
+const AssetStatusesList = lazyWithRetry(() => import('./views/Settings/Assets/AssetStatuses/AssetStatusesList').then(m => ({ default: m.AssetStatusesList })));
+const AssetStatusForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetStatuses/AssetStatusForm').then(m => ({ default: m.AssetStatusForm })));
+const AssetPrioritiesList = lazyWithRetry(() => import('./views/Settings/Assets/AssetPriorities/AssetPrioritiesList').then(m => ({ default: m.AssetPrioritiesList })));
+const AssetPriorityForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetPriorities/AssetPriorityForm').then(m => ({ default: m.AssetPriorityForm })));
+const AssetTypeAttributesScreen = lazyWithRetry(() => import('./views/Settings/Assets/AssetTypeAttributes/AssetTypeAttributesScreen').then(m => ({ default: m.AssetTypeAttributesScreen })));
+const AssetAttributesBrandsScreen = lazyWithRetry(() => import('./views/Settings/Assets/AssetTypeAttributes/AssetAttributesBrandsScreen').then(m => ({ default: m.AssetAttributesBrandsScreen })));
+const AssetTagsList = lazyWithRetry(() => import('./views/Settings/Assets/AssetTags/AssetTagsList').then(m => ({ default: m.AssetTagsList })));
+const AssetTagForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetTags/AssetTagForm').then(m => ({ default: m.AssetTagForm })));
+const AssetTagSubsList = lazyWithRetry(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubsList').then(m => ({ default: m.AssetTagSubsList })));
+const AssetTagSubForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubForm').then(m => ({ default: m.AssetTagSubForm })));
+const TechnicalManualsList = lazyWithRetry(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualsList').then(m => ({ default: m.TechnicalManualsList })));
+const TechnicalManualForm = lazyWithRetry(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualForm').then(m => ({ default: m.TechnicalManualForm })));
+const TechnicalManualDetails = lazyWithRetry(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualDetails').then(m => ({ default: m.TechnicalManualDetails })));
+const UnitsSearch = lazyWithRetry(() => import('./views/Units/UnitsSearch').then(m => ({ default: m.UnitsSearch })));
+const UnitAssetTagAvailableForm = lazyWithRetry(() => import('./views/Units/UnitAssetTagAvailableForm').then(m => ({ default: m.UnitAssetTagAvailableForm })));
+const UnitAssetTagAvailableDetails = lazyWithRetry(() => import('./views/Units/UnitAssetTagAvailableDetails').then(m => ({ default: m.UnitAssetTagAvailableDetails })));
+const AssetsSearch = lazyWithRetry(() => import('./views/Assets/AssetsSearch').then(m => ({ default: m.AssetsSearch })));
+const AssetDetails = lazyWithRetry(() => import('./views/Assets/AssetView').then(m => ({ default: m.AssetDetails })));
+const AssetForm = lazyWithRetry(() => import('./views/Assets/AssetForm').then(m => ({ default: m.AssetForm })));
+const AssetCloneWizard = lazyWithRetry(() => import('./views/Assets/AssetCloneWizard').then(m => ({ default: m.AssetCloneWizard })));
+const AssetsAlerts = lazyWithRetry(() => import('./views/Assets/AssetsAlerts').then(m => ({ default: m.AssetsAlerts })));
+const AssetsAlertsHeaderWidget = lazyWithRetry(() => import('./components/assets/AssetsAlertsHeaderWidget').then(m => ({ default: m.AssetsAlertsHeaderWidget })));
+const OrdersRequestsDashboardAdmin = lazyWithRetry(() => import('./views/OrderRequest/OrdersRequestsDashboardAdmin').then(m => ({ default: m.OrdersRequestsDashboardAdmin })));
+const NotificationsList = lazyWithRetry(() => import('./views/Notifications/NotificationsList').then(m => ({ default: m.NotificationsList })));
+const AppNoticesList = lazyWithRetry(() => import('./views/AppNotices/AppNoticesList').then(m => ({ default: m.AppNoticesList })));
+const AppTipsList = lazyWithRetry(() => import('./views/Settings/AppTips/AppTipsList').then(m => ({ default: m.AppTipsList })));
+const ServiceRequestDetail = lazyWithRetry(() => import('./views/ServiceRequest/ServiceRequestDetail').then(m => ({ default: m.ServiceRequestDetail })));
+const ServiceRequestPage = lazyWithRetry(() => import('./views/ServiceRequest/ServiceRequestScreen').then(m => ({ default: m.ServiceRequestPage })));
+const OrderRequestPage = lazyWithRetry(() => import('./views/OrderRequest/OrderRequestScreen').then(m => ({ default: m.OrderRequestPage })));
+const OrderRequestApproveConfirm = lazyWithRetry(() => import('./views/OrderRequest/OrderRequestApproveConfirm').then(m => ({ default: m.OrderRequestApproveConfirm })));
+const OrderRequestView = lazyWithRetry(() => import('./views/OrderRequest/OrderRequestView').then(m => ({ default: m.OrderRequestView })));
+const OrderVisitPage = lazyWithRetry(() => import('./views/OrderVisit/OrderVisitScreen').then(m => ({ default: m.OrderVisitPage })));
+const OrderVisitAssetReport = lazyWithRetry(() => import('./views/OrderVisit/OrderVisitAsset/OrderVisitAssetReport').then(m => ({ default: m.OrderVisitAssetReport })));
+const OrderVisitAssetActivities = lazyWithRetry(() => import('./views/OrderVisit/OrderVisitAsset/OrderVisitAssetActivities').then(m => ({ default: m.OrderVisitAssetActivities })));
+const OrderVisitAssetMaterials = lazyWithRetry(() => import('./views/OrderVisit/OrderVisitAsset/OrderVisitAssetMaterials').then(m => ({ default: m.OrderVisitAssetMaterials })));
+const OrderVisitBottomNav = lazyWithRetry(() => import('./components/ordersVisits/OrderVisitBottomNav').then(m => ({ default: m.OrderVisitBottomNav })));
+const VisitEvaluationPage = lazyWithRetry(() => import('./views/Visits/VisitEvaluationPage').then(m => ({ default: m.VisitEvaluationPage })));
+
+const UsersTracker = lazyWithRetry(() => import('./views/Users/UsersTracker').then(m => ({ default: m.UsersTracker })));
+const AllUsersList = lazyWithRetry(() => import('./views/Admin/AllUsersList').then(m => ({ default: m.AllUsersList })));
+const UserViewScreen = lazyWithRetry(() => import('./views/Admin/UserViewScreen').then(m => ({ default: m.UserViewScreen })));
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
-const LocationBlockedScreen = React.lazy(() => import('./views/System/LocationBlockedScreen').then(m => ({ default: m.LocationBlockedScreen })));
-const UserUnavailableScreen = React.lazy(() => import('./views/System/UserUnavailableScreen').then(m => ({ default: m.UserUnavailableScreen })));
+const LocationBlockedScreen = lazyWithRetry(() => import('./views/System/LocationBlockedScreen').then(m => ({ default: m.LocationBlockedScreen })));
+const UserUnavailableScreen = lazyWithRetry(() => import('./views/System/UserUnavailableScreen').then(m => ({ default: m.UserUnavailableScreen })));
 import { Capacitor } from '@capacitor/core';
 import { useShiftMonitor } from './hooks/useShiftMonitor';
 import { Modal } from './components/ui/Modal';
 
-const ProfilePermissionsScreen = React.lazy(() => import('./views/Admin/ProfilePermissionsScreen').then(m => ({ default: m.ProfilePermissionsScreen })));
-const RouteManagementScreen = React.lazy(() => import('./views/Settings/RouteManagement').then(m => ({ default: m.RouteManagementScreen })));
-const RouteFormScreen = React.lazy(() => import('./views/Settings/RouteForm').then(m => ({ default: m.RouteForm })));
-const AIKnowledgeAdmin = React.lazy(() => import('./views/Settings/AIKnowledgeAdmin').then(m => ({ default: m.AIKnowledgeAdmin })));
+const ProfilePermissionsScreen = lazyWithRetry(() => import('./views/Admin/ProfilePermissionsScreen').then(m => ({ default: m.ProfilePermissionsScreen })));
+const RouteManagementScreen = lazyWithRetry(() => import('./views/Settings/RouteManagement').then(m => ({ default: m.RouteManagementScreen })));
+const RouteFormScreen = lazyWithRetry(() => import('./views/Settings/RouteForm').then(m => ({ default: m.RouteForm })));
+const AIKnowledgeAdmin = lazyWithRetry(() => import('./views/Settings/AIKnowledgeAdmin').then(m => ({ default: m.AIKnowledgeAdmin })));
 import { PermissionsProvider } from './contexts/PermissionsContext';
-const MaintenancePlansScreen = React.lazy(() => import('./views/Settings/MaintenancePlans/MaintenancePlansScreen').then(m => ({ default: m.MaintenancePlansScreen })));
-const ToolsMainView = React.lazy(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
+const MaintenancePlansScreen = lazyWithRetry(() => import('./views/Settings/MaintenancePlans/MaintenancePlansScreen').then(m => ({ default: m.MaintenancePlansScreen })));
+const ToolsMainView = lazyWithRetry(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
 
 type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit';
@@ -3035,7 +3054,17 @@ const AppContent: React.FC = () => {
                 <Loading size="md" />
               </div>
             }>
-              {renderContent()}
+              <ErrorBoundary fallback={
+                <div className="flex flex-col items-center justify-center h-full p-8">
+                  <span className="material-symbols-outlined text-red-500 text-3xl mb-3">error</span>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">Falha ao carregar esta tela</p>
+                  <button onClick={() => window.location.reload()} className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg">
+                    Recarregar
+                  </button>
+                </div>
+              }>
+                {renderContent()}
+              </ErrorBoundary>
             </React.Suspense>
           </div>
         ) : (
@@ -3051,7 +3080,17 @@ const AppContent: React.FC = () => {
                     <Loading size="md" />
                   </div>
                 }>
-                  {renderContent()}
+                  <ErrorBoundary fallback={
+                    <div className="flex flex-col items-center justify-center h-full p-8">
+                      <span className="material-symbols-outlined text-red-500 text-3xl mb-3">error</span>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">Falha ao carregar esta tela</p>
+                      <button onClick={() => window.location.reload()} className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg">
+                        Recarregar
+                      </button>
+                    </div>
+                  }>
+                    {renderContent()}
+                  </ErrorBoundary>
                 </React.Suspense>
               </div>
             </div>
@@ -3122,7 +3161,17 @@ const AppContent: React.FC = () => {
                   <Loading size="md" />
                 </div>
               }>
-                {renderContent()}
+                <ErrorBoundary fallback={
+                  <div className="flex flex-col items-center justify-center h-full p-8">
+                    <span className="material-symbols-outlined text-red-500 text-3xl mb-3">error</span>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">Falha ao carregar esta tela</p>
+                    <button onClick={() => window.location.reload()} className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg">
+                      Recarregar
+                    </button>
+                  </div>
+                }>
+                  {renderContent()}
+                </ErrorBoundary>
               </React.Suspense>
             </Layout>
           )}
