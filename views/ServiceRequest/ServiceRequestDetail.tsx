@@ -11,6 +11,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { Loading } from '../../components/ui/Loading';
 import { TabsBar } from '../../components/ui/TabsBar';
 import { CloneServiceRequestModal } from '../../components/serviceRequests/modals/CloneServiceRequestModal';
+import { usePermissions } from '../../contexts/PermissionsContext';
 
 
 interface ServiceRequestDetailProps {
@@ -40,6 +41,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
     onSelectVisit,
     onRefreshOrder
 }) => {
+    const { canView } = usePermissions();
     const [currentUser, setCurrentUser] = React.useState<User | null>(null);
     const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
 
@@ -48,6 +50,27 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
             if (user) setCurrentUser(user);
         });
     }, []);
+
+    if (!canView('services_requests')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-background-light dark:bg-background-dark">
+                <div className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-4">
+                    <span className="material-symbols-outlined text-red-500 text-[40px]">lock</span>
+                </div>
+                <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-2">Acesso Negado</h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs mb-6">
+                    Você não tem permissão para visualizar esta Solicitação de Serviço.
+                    Entre em contato com o administrador se acreditar que isso é um erro.
+                </p>
+                <button
+                    onClick={onBack}
+                    className="px-6 py-2 bg-primary text-white rounded-full font-bold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+                >
+                    Voltar
+                </button>
+            </div>
+        );
+    }
 
     const { isOrderFollowed, toggleFollow } = useOrderFollow(currentUser?.id);
 

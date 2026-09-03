@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { dataService } from '../../services/dataService';
+import { supabase } from '../../services/supabase';
 import { Contract, Client, OrderVisit, EvaluationRequirement, ContractEvaluationRequirement, OrderVisitEvaluation } from '../../types';
 import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';
@@ -224,13 +225,45 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                     return;
                 }
 
-                // Fetch evaluations for each visit
-                const visitsWithEvaluations = await Promise.all(
-                    visits.map(async (visit) => {
-                        const evaluations = await dataService.getVisitEvaluations(visit.id);
-                        return { visit, evaluations };
-                    })
-                );
+                // Fetch evaluations for each visit and team evaluable status
+                const [visitsWithEvaluations, teamsResult, usersResult] = await Promise.all([
+                    Promise.all(
+                        visits.map(async (visit) => {
+                            const evaluations = await dataService.getVisitEvaluations(visit.id);
+                            return { visit, evaluations };
+                        })
+                    ),
+                    supabase.from('cfg_teams').select('id, code, description, is_evaluable'),
+                    supabase.from('users').select('id, team_id')
+                ]);
+
+                // Map non-evaluable teams (is_evaluable === false)
+                const nonEvaluableTeamIds = new Set<string>();
+                const nonEvaluableTeamIdentifiers = new Set<string>();
+                if (teamsResult.data) {
+                    teamsResult.data.forEach((t: any) => {
+                        if (t.is_evaluable === false) {
+                            if (t.id != null) nonEvaluableTeamIds.add(t.id.toString());
+                            if (t.code) {
+                                nonEvaluableTeamIds.add(t.code.toString());
+                                nonEvaluableTeamIdentifiers.add(t.code.toString().trim().toLowerCase());
+                            }
+                            if (t.description) {
+                                nonEvaluableTeamIdentifiers.add(t.description.toString().trim().toLowerCase());
+                            }
+                        }
+                    });
+                }
+
+                // Map user ID -> team_id
+                const userTeamIdMap = new Map<string, string>();
+                if (usersResult.data) {
+                    usersResult.data.forEach((u: any) => {
+                        if (u.id != null && u.team_id != null) {
+                            userTeamIdMap.set(u.id.toString(), u.team_id.toString());
+                        }
+                    });
+                }
 
                 const leaderMap = new Map<string, {
                     leaderId: string;
@@ -258,6 +291,16 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                     const leaderId = visit.ovTeamLeadId || visit.teamLeaderName || 'desc';
                     const leaderName = visit.teamLeaderName || 'Líder Desconhecido';
                     const teamName = visit.teamCode || 'Equipe Desconhecida';
+
+                    // Filter out non-evaluable teams and their leaders
+                    const isTeamNameNonEvaluable = nonEvaluableTeamIdentifiers.has(teamName.trim().toLowerCase());
+                    const leaderTeamId = userTeamIdMap.get(leaderId);
+                    const isLeaderTeamNonEvaluable = leaderTeamId ? nonEvaluableTeamIds.has(leaderTeamId) : false;
+
+                    if (isTeamNameNonEvaluable || isLeaderTeamNonEvaluable) {
+                        continue;
+                    }
+
                     const orderMask = visit.orderMask || (visit.oId ? `OS #${visit.oId}` : `OS #${visit.id}`);
 
                     let totalEvaluations = 0;
@@ -271,7 +314,6 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                             totalEvaluations++;
                             if (evaluation.wasApplied) {
                                 appliedWeight += evaluation.weight;
-                            } else {
                                 failedEvaluations++;
                             }
                         }

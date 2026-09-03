@@ -221,50 +221,55 @@ export const companiesService = {
             return [];
         }
 
-        const [companiesData, departmentsData, clientsData] = await Promise.all([
-            companiesService.getCompanies(),
-            usersService.getDepartments(),
-            companiesService.getClients()
-        ]);
-
+        const companiesData = await companiesService.getCompanies();
         const companyMap = new Map<string, Company>(companiesData.map(c => [c.id, c]));
-        const deptMap = new Map<string, Department>(departmentsData.map(d => [d.id, d]));
-        const clientMap = new Map<string, Client>(clientsData.map(c => [c.id, c]));
 
-        return data.map((item: any) => ({
-            id: item.id.toString(),
-            clientCompanyId: item.client_company_id?.toString(),
-            clientDepartmentId: item.client_department_id?.toString(),
-            providerCompanyId: item.provider_company_id?.toString(),
-            providerDepartmentId: item.provider_department_id?.toString(),
-            clientId: item.client_id?.toString(),
-            description: item.description,
-            object: item.object,
-            isAvailable: item.is_available ?? true,
-            isDeleted: item.is_deleted,
-            code: item.code,
-            statusId: item.status_id,
-            createdUserId: item.created_user_id?.toString(),
-            createdDate: item.created_date,
-            updatedUserId: item.updated_user_id?.toString(),
-            updatedDate: item.updated_date,
-            deletedUserId: item.deleted_user_id?.toString(),
-            deletedDate: item.deleted_date,
-            isDev: item.is_dev,
-            version: item.version,
-            defaultOvAssetId: item.default_ov_asset_id?.toString(),
-            defaultActivityId: item.default_activity_id?.toString(),
-            dateStart: item.date_start,
-            dateEnd: item.date_end,
-            totalValue: item.total_value,
-            clientCompanyName: companyMap.get(item.client_company_id?.toString())?.name || 'N/A',
-            providerCompanyName: companyMap.get(item.provider_company_id?.toString())?.name || 'N/A',
-            providerCompanyCode: companyMap.get(item.provider_company_id?.toString())?.providerCompanyCode || companyMap.get(item.provider_company_id?.toString())?.code,
-            clientDepartmentName: deptMap.get(item.client_department_id?.toString())?.name,
-            providerDepartmentName: deptMap.get(item.provider_department_id?.toString())?.name,
-            clientName: clientMap.get(item.client_id?.toString())?.name,
-            logoUrl: companyMap.get(item.provider_company_id?.toString())?.logoUrl
-        })) as Contract[];
+        return data.map((item: any) => {
+            const providerCompany = companyMap.get(item.provider_company_id?.toString());
+            const providerCode = providerCompany?.providerCompanyCode || providerCompany?.code || '';
+            const description = item.description && providerCode
+                ? `${item.description} (${providerCode})`
+                : item.description || item.code || 'S/N';
+
+            let logoUrl = undefined;
+            if (providerCompany?.logoUrl) {
+                logoUrl = providerCompany.logoUrl;
+            }
+
+            return {
+                id: item.id.toString(),
+                clientCompanyId: item.client_company_id?.toString(),
+                clientDepartmentId: item.client_department_id?.toString(),
+                providerCompanyId: item.provider_company_id?.toString(),
+                providerDepartmentId: item.provider_department_id?.toString(),
+                clientId: item.client_id?.toString(),
+                description,
+                object: item.object,
+                isAvailable: item.is_available ?? true,
+                isDeleted: item.is_deleted,
+                code: item.code,
+                statusId: item.status_id,
+                createdUserId: item.created_user_id?.toString(),
+                createdDate: item.created_date,
+                updatedUserId: item.updated_user_id?.toString(),
+                updatedDate: item.updated_date,
+                deletedUserId: item.deleted_user_id?.toString(),
+                deletedDate: item.deleted_date,
+                isDev: item.is_dev,
+                version: item.version,
+                defaultOvAssetId: item.default_ov_asset_id?.toString(),
+                defaultActivityId: item.default_activity_id?.toString(),
+                dateStart: item.date_start,
+                dateEnd: item.date_end,
+                totalValue: item.total_value,
+                clientCompanyName: companyMap.get(item.client_company_id?.toString())?.name || 'N/A',
+                providerCompanyName: providerCompany?.name || 'N/A',
+                providerCompanyCode: providerCode,
+                clientDepartmentName: companyMap.get(item.client_department_id?.toString())?.name,
+                providerDepartmentName: companyMap.get(item.provider_department_id?.toString())?.name,
+                logoUrl
+            };
+        }) as Contract[];
     },
 
     async getContractById(id: string): Promise<Contract | null> {
@@ -295,26 +300,25 @@ export const companiesService = {
         } as Contract;
     },
 
-    async getContractsByClientDepartmentId(clientDepartmentId: string): Promise<Contract[]> {
-        const { data, error } = await supabase
-            .from('contracts')
+    async getContractsByClientDepartmentId(clientDepartmentId: string, clientId?: string): Promise<Contract[]> {
+        const isClientDept = Number(clientDepartmentId) === 9;
+        let query = supabase
+            .from('v_contracts')
             .select('*')
-            .eq('client_department_id', clientDepartmentId)
+            .eq(isClientDept ? 'client_department_id' : 'provider_department_id', clientDepartmentId)
             .eq('is_available', true)
             .eq('is_deleted', false);
+
+        if (clientId) {
+            query = query.eq('client_id', clientId);
+        }
+
+        const { data, error } = await query.order('description');
 
         if (error) {
             console.error('Error fetching contracts by client:', error);
             return [];
         }
-
-        const [companiesData, departmentsData] = await Promise.all([
-            companiesService.getCompanies(),
-            usersService.getDepartments()
-        ]);
-
-        const companyMap = new Map<string, Company>(companiesData.map(c => [c.id, c]));
-        const deptMap = new Map<string, Department>(departmentsData.map(d => [d.id, d]));
 
         return data.map((item: any) => ({
             id: item.id.toString(),
@@ -323,7 +327,7 @@ export const companiesService = {
             providerCompanyId: item.provider_company_id?.toString(),
             providerDepartmentId: item.provider_department_id?.toString(),
             clientId: item.client_id?.toString(),
-            description: item.description,
+            description: item.description || item.code || 'S/N',
             object: item.object,
             isAvailable: item.is_available ?? true,
             isDeleted: item.is_deleted,
@@ -342,80 +346,49 @@ export const companiesService = {
             dateStart: item.date_start,
             dateEnd: item.date_end,
             totalValue: item.total_value,
-            clientCompanyName: companyMap.get(item.client_company_id?.toString())?.name || 'N/A',
-            providerCompanyName: companyMap.get(item.provider_company_id?.toString())?.name || 'N/A',
-            providerCompanyCode: companyMap.get(item.provider_company_id?.toString())?.providerCompanyCode || companyMap.get(item.provider_company_id?.toString())?.code,
-            clientDepartmentName: deptMap.get(item.client_department_id?.toString())?.name,
-            providerDepartmentName: deptMap.get(item.provider_department_id?.toString())?.name,
-            logoUrl: companyMap.get(item.provider_company_id?.toString())?.logoUrl
+            clientCompanyName: item.client_company_description || 'N/A',
+            providerCompanyName: item.provider_company_description || 'N/A',
+            providerCompanyCode: item.provider_company_code || '',
+            clientDepartmentName: undefined,
+            providerDepartmentName: undefined,
+            logoUrl: item.provider_company_img_file_path
+                ? item.provider_company_img_file_path
+                : undefined
         })) as Contract[];
     },
 
     async getContractsByClientId(clientId: string): Promise<Contract[]> {
         try {
-            const { data: clientData } = await supabase
-                .from('clients')
-                .select('company_id')
-                .eq('id', clientId)
-                .maybeSingle();
+            const user = await usersService.getCurrentUser();
+            if (!user?.departmentId) return [];
 
-            const companyId = clientData?.company_id;
-
-            let contractsByClient: any[] = [];
-            let contractsByCompany: any[] = [];
-
-            const { data: byClient, error: errClient } = await supabase
-                .from('contracts')
+            const isClientDept = Number(user.departmentId) === 9;
+            const { data, error } = await supabase
+                .from('v_contracts')
                 .select('*')
+                .eq(isClientDept ? 'client_department_id' : 'provider_department_id', user.departmentId)
                 .eq('client_id', clientId)
                 .eq('is_available', true)
-                .eq('is_deleted', false);
+                .eq('is_deleted', false)
+                .order('description');
 
-            if (!errClient && byClient) {
-                contractsByClient = byClient;
-            } else if (errClient) {
-                console.error("Erro ao buscar contratos por cliente:", errClient);
-            }
-
-            if (companyId) {
-                const { data: byCompany, error: errCompany } = await supabase
-                    .from('contracts')
-                    .select('*')
-                    .eq('client_company_id', companyId)
-                    .eq('is_available', true)
-                    .eq('is_deleted', false);
-
-                if (!errCompany && byCompany) {
-                    contractsByCompany = byCompany;
-                } else if (errCompany) {
-                    console.error("Erro ao buscar contratos por empresa:", errCompany);
-                }
-            }
-
-            const allContracts = [...contractsByClient, ...contractsByCompany];
-            const uniqueContracts = Array.from(new Map(allContracts.map(item => [item['id'], item])).values());
-
-            if (uniqueContracts.length === 0) {
+            if (error) {
+                console.error('Error fetching contracts by client:', error);
                 return [];
             }
 
-            const [companiesData, departmentsData] = await Promise.all([
-                companiesService.getCompanies(),
-                usersService.getDepartments()
-            ]);
+            if (!data || data.length === 0) return [];
 
-            const companyMap = new Map<string, Company>(companiesData.map(c => [c.id, c]));
-            const deptMap = new Map<string, Department>(departmentsData.map(d => [d.id, d]));
-
-            return uniqueContracts.map((item: any) => ({
+            return data.map((item: any) => ({
                 id: item.id.toString(),
                 clientCompanyId: item.client_company_id?.toString(),
                 clientDepartmentId: item.client_department_id?.toString(),
                 providerCompanyId: item.provider_company_id?.toString(),
                 providerDepartmentId: item.provider_department_id?.toString(),
                 clientId: item.client_id?.toString(),
-                description: item.description,
-                isAvailable: item.is_available,
+                description: item.description || item.code || 'S/N',
+                object: item.object,
+                isAvailable: item.is_available ?? true,
                 isDeleted: item.is_deleted,
                 code: item.code,
                 statusId: item.status_id,
@@ -432,12 +405,14 @@ export const companiesService = {
                 dateStart: item.date_start,
                 dateEnd: item.date_end,
                 totalValue: item.total_value,
-                clientCompanyName: companyMap.get(item.client_company_id?.toString())?.name || 'N/A',
-                providerCompanyName: companyMap.get(item.provider_company_id?.toString())?.name || 'N/A',
-                clientDepartmentName: deptMap.get(item.client_department_id?.toString())?.name,
-                providerDepartmentName: deptMap.get(item.provider_department_id?.toString())?.name,
-                logoUrl: companyMap.get(item.provider_company_id?.toString())?.logoUrl,
-                providerCompanyCode: companyMap.get(item.provider_company_id?.toString())?.providerCompanyCode || companyMap.get(item.provider_company_id?.toString())?.code
+                clientCompanyName: item.client_company_description || 'N/A',
+                providerCompanyName: item.provider_company_description || 'N/A',
+                providerCompanyCode: item.provider_company_code || '',
+                clientDepartmentName: undefined,
+                providerDepartmentName: undefined,
+                logoUrl: item.provider_company_img_file_path
+                    ? item.provider_company_img_file_path
+                    : undefined
             })) as Contract[];
 
         } catch (error) {
@@ -790,7 +765,8 @@ export const companiesService = {
                 managerEmail: user?.email,
                 managerAvatarUrl: user?.img_file_name
                     ? getPublicImageUrl(user.img_file_path, user.img_file_name)
-                    : undefined
+                    : undefined,
+                isAdminSuper: user?.is_admin_super ?? false
             };
         });
     },

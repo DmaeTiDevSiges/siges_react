@@ -18,7 +18,7 @@ export const isFinancialApprovalEnabled = (): boolean => {
 /**
  * Status possíveis para aprovação financeira de visitas
  */
-export type VisitCostsStatus = 'pending' | 'submitted' | 'approved' | 'rejected';
+export type VisitCostsStatus = 'pending' | 'waiting' | 'approved' | 'rejected';
 
 /**
  * Configuração dos status de aprovação financeira
@@ -33,7 +33,7 @@ export const VISIT_COSTS_STATUS_CONFIG: Record<VisitCostsStatus, {
     color: 'text-gray-600',
     bgColor: 'bg-gray-100'
   },
-  submitted: {
+  waiting: {
     label: 'Custos Enviados',
     color: 'text-blue-600',
     bgColor: 'bg-blue-100'

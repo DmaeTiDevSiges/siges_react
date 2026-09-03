@@ -103,6 +103,7 @@ export const VisitEvaluationPage: React.FC<VisitEvaluationPageProps> = ({ visitI
 
         try {
             setSaving(true);
+            const currentUser = await dataService.getCurrentUser();
             await dataService.saveVisitEvaluations(
                 visitId,
                 evaluations.map(e => ({
@@ -110,7 +111,7 @@ export const VisitEvaluationPage: React.FC<VisitEvaluationPageProps> = ({ visitI
                     wasApplied: e.wasApplied,
                     notes: e.notes,
                 })),
-                visit?.ovTeamLeadId || ''
+                currentUser?.id || visit?.ovTeamLeadId || ''
             );
             toast.success('Avaliações salvas com sucesso');
 

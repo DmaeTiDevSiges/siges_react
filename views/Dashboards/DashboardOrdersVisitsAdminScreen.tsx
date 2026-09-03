@@ -59,8 +59,6 @@ interface OrderVisitExtended extends OrderVisit {
     typeCode?: string;
     typeSubCode?: string;
     sectorDescription?: string;
-    // Financial approval status
-    ov_costs_status?: string | null;
 }
 
 
@@ -877,7 +875,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 typeSubCode: row.o_type_sub_code || row.type_sub_code,
                 sectorDescription: row.o_asset_tag_description || row.asset_tag_description || row.o_system_description,
                 assetTagDescription: row.o_asset_tag_description || row.asset_tag_description,
-                ov_costs_status: row.ov_costs_status,
+                ovCostsStatus: row.ov_costs_status,
                 assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description,
                 contractDescription: row.o_contract_description || row.contract_description,
             });
@@ -1156,9 +1154,15 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         const newStats: Record<number, { count: number; total: number }> = {};
         processingStages.forEach(stage => {
             const filtered = baseFilteredVisits.filter(v => v.ovProcessingId === stage.id);
+            // Contagem: todas as visitas do stage
+            const count = filtered.length;
+            // Soma de valores: apenas stage 5 (Aprovada) com costsStatus = 'approved'
+            const total = stage.id === 5 
+                ? filtered.filter(v => v.ovCostsStatus === 'approved').reduce((acc, v) => acc + (v.totalValue || 0), 0)
+                : filtered.reduce((acc, v) => acc + (v.totalValue || 0), 0);
             newStats[stage.id] = {
-                count: filtered.length,
-                total: filtered.reduce((acc, v) => acc + (v.totalValue || 0), 0)
+                count,
+                total
             };
         });
         return newStats;
@@ -1170,11 +1174,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                 if (activeOrderVisitProcessingIdSelected !== 'all') {
                     // Card especial: Custos Pendentes (aguardando inclusão)
                     if (activeOrderVisitProcessingIdSelected === 'costs-pending') {
-                        return visit.ovProcessingId === 5 && (!(visit as any).ov_costs_status || (visit as any).ov_costs_status === 'pending');
-                    }
-                    // Card especial: Aguardando Aprovação Financeira
-                    if (activeOrderVisitProcessingIdSelected === 'financial-pending') {
-                        return visit.ovProcessingId === 5 && (visit as any).ov_costs_status === 'submitted';
+                        return visit.ovProcessingId === 5 && (!visit.ovCostsStatus || visit.ovCostsStatus === 'pending' || visit.ovCostsStatus === 'waiting');
                     }
                     if (visit.ovProcessingId !== parseInt(activeOrderVisitProcessingIdSelected)) return false;
                 }
@@ -1306,12 +1306,18 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
         return () => {
             if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
         };
-    }, [filteredVisits, loading]);
+    }, [filteredVisits, loading, activeOrderVisitProcessingIdSelected]);
 
     const fetchAppropriationData = async () => {
         try {
             setIsFetchingAppropriation(true);
-            const ovIds = filteredVisits.map(v => v.id);
+            const isAprovadaSelected = activeOrderVisitProcessingIdSelected === '5';
+            const isCostsPendingSelected = activeOrderVisitProcessingIdSelected === 'costs-pending';
+            const ovIds = isAprovadaSelected
+                ? filteredVisits.filter(v => v.ovCostsStatus === 'approved').map(v => v.id)
+                : isCostsPendingSelected
+                    ? filteredVisits.filter(v => !v.ovCostsStatus || v.ovCostsStatus === 'pending' || v.ovCostsStatus === 'waiting').map(v => v.id)
+                    : filteredVisits.map(v => v.id);
             if (!ovIds.length) return;
 
             const [servicesRaw, materialsRaw, vehiclesRaw, movedAssetsRaw] = await Promise.all([
@@ -1501,60 +1507,45 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             const isHex = stage.icon_color && stage.icon_color.startsWith('#');
                             const stageVisits = baseFilteredVisits.filter(v => v.ovProcessingId === stage.id);
                             return (
-                                <StatCard
-                                    key={stage.id}
-                                    icon={stage.icon || 'circle'}
-                                    label={stage.description}
-                                    count={stats[stage.id]?.count || 0}
-                                    totalValue={stats[stage.id]?.total || 0}
-                                    color={!isHex ? stage.icon_color : ''}
-                                    styleColor={isHex ? stage.icon_color : undefined}
-                                    active={activeOrderVisitProcessingIdSelected === String(stage.id)}
-                                    onClick={() => setActiveOrderVisitProcessingIdSelected(String(stage.id))}
-                                    visits={stageVisits}
-                                />
+                                <React.Fragment key={stage.id}>
+                                    <StatCard
+                                        icon={stage.icon || 'circle'}
+                                        label={stage.description}
+                                        count={stats[stage.id]?.count || 0}
+                                        totalValue={stats[stage.id]?.total || 0}
+                                        color={!isHex ? stage.icon_color : ''}
+                                        styleColor={isHex ? stage.icon_color : undefined}
+                                        active={activeOrderVisitProcessingIdSelected === String(stage.id)}
+                                        onClick={() => setActiveOrderVisitProcessingIdSelected(String(stage.id))}
+                                        visits={stageVisits}
+                                    />
+                                    {stage.id === 5 && (
+                                        <>
+                                            {/* Card especial: Custos Pendentes (após Rejeitada) */}
+                                            {(() => {
+                                                const costsPendingVisits = baseFilteredVisits.filter(
+                                                    v => v.ovProcessingId === 5 && (!v.ovCostsStatus || v.ovCostsStatus === 'pending')
+                                                );
+                                                const costsPendingTotal = costsPendingVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0);
+                                                return (
+                                                    <StatCard
+                                                        key="costs-pending"
+                                                        icon="receipt_long"
+                                                        label="Custos Pendentes"
+                                                        count={costsPendingVisits.length}
+                                                        totalValue={costsPendingTotal}
+                                                        color="text-slate-500"
+                                                        active={activeOrderVisitProcessingIdSelected === 'costs-pending'}
+                                                        onClick={() => setActiveOrderVisitProcessingIdSelected('costs-pending')}
+                                                        visits={costsPendingVisits}
+                                                    />
+                                                );
+                                            })()}
+                                        </>
+                                    )}
+                                </React.Fragment>
                             );
                         })}
-                        {/* Card especial: Custos Pendentes (aguardando inclusão) */}
-                        {(() => {
-                            const costsPendingVisits = baseFilteredVisits.filter(
-                                v => v.ovProcessingId === 5 && (!(v as any).ov_costs_status || (v as any).ov_costs_status === 'pending')
-                            );
-                            const costsPendingTotal = costsPendingVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0);
-                            return (
-                                <StatCard
-                                    key="costs-pending"
-                                    icon="receipt_long"
-                                    label="Custos Pendentes"
-                                    count={costsPendingVisits.length}
-                                    totalValue={costsPendingTotal}
-                                    color="text-slate-500"
-                                    active={activeOrderVisitProcessingIdSelected === 'costs-pending'}
-                                    onClick={() => setActiveOrderVisitProcessingIdSelected('costs-pending')}
-                                    visits={costsPendingVisits}
-                                />
-                            );
-                        })()}
-                        {/* Card especial: Aguardando Aprovação Financeira */}
-                        {(() => {
-                            const financialPendingVisits = baseFilteredVisits.filter(
-                                v => v.ovProcessingId === 5 && (v as any).ov_costs_status === 'submitted'
-                            );
-                            const financialPendingTotal = financialPendingVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0);
-                            return (
-                                <StatCard
-                                    key="financial-pending"
-                                    icon="account_balance"
-                                    label="Aprovação Financeira"
-                                    count={financialPendingVisits.length}
-                                    totalValue={financialPendingTotal}
-                                    color="text-amber-500"
-                                    active={activeOrderVisitProcessingIdSelected === 'financial-pending'}
-                                    onClick={() => setActiveOrderVisitProcessingIdSelected('financial-pending')}
-                                    visits={financialPendingVisits}
-                                />
-                            );
-                        })()}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 px-1 py-2 bg-slate-50/50 dark:bg-slate-800/10 rounded-[16px]">

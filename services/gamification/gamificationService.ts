@@ -537,17 +537,21 @@ export const gamificationService = {
         year: number,
         month: number
     ): Promise<TeamRankingEntry[]> {
-        // Busca líderes do departamento com suas equipes
+        // Busca líderes do departamento com suas equipes avaliáveis
         const { data: leaders, error: leadersError } = await supabase
             .from('cfg_users')
-            .select('id, name_full, team_id, cfg_teams(id, description)')
+            .select('id, name_full, team_id, cfg_teams(id, description, is_evaluable)')
             .eq('cfg_teams.department_id', departmentId)
             .eq('is_leader', true);
 
         if (leadersError || !leaders || leaders.length === 0) return [];
 
+        // Filtra equipes não avaliáveis (is_evaluable === false)
+        const evaluableLeaders = leaders.filter((l: any) => l.cfg_teams?.is_evaluable !== false);
+        if (evaluableLeaders.length === 0) return [];
+
         // Busca scores dos líderes
-        const leaderIds = leaders.map((l: any) => l.id.toString());
+        const leaderIds = evaluableLeaders.map((l: any) => l.id.toString());
         const { data: scores } = await supabase
             .from('leader_monthly_scores')
             .select('*')
@@ -565,7 +569,7 @@ export const gamificationService = {
             scores: any[];
         }>();
 
-        leaders.forEach((leader: any) => {
+        evaluableLeaders.forEach((leader: any) => {
             const teamId = leader.team_id?.toString();
             if (!teamId) return;
             const teamName = leader.cfg_teams?.description || 'Sem equipe';

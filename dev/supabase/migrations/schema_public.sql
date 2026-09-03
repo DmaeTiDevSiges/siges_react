@@ -678,6 +678,8 @@ CREATE VIEW public.v_contracts_services AS
     cfg_services.unit,
     contracts_services.value_unit,
     contracts_services.discount,
+    contracts_services.amount,
+    contracts_services.value_total,
     contracts_services.version_mode
    FROM (public.contracts_services
      JOIN public.cfg_services ON ((contracts_services.service_id = cfg_services.id)))
@@ -4510,7 +4512,8 @@ CREATE TABLE public.orders_visits_assets_materials (
     deleted_user_id bigint,
     deleted_at timestamp without time zone,
     is_deleted boolean DEFAULT false,
-    ova_id bigint
+    ova_id bigint,
+    ov_costs_status character varying DEFAULT 'pending'::character varying NOT NULL
 );
 
 
@@ -4629,7 +4632,8 @@ CREATE TABLE public.orders_visits_services (
     updated_at timestamp without time zone,
     deleted_user_id bigint,
     deleted_at timestamp without time zone,
-    is_deleted boolean DEFAULT false
+    is_deleted boolean DEFAULT false,
+    ov_costs_status character varying DEFAULT 'pending'::character varying NOT NULL
 );
 
 
@@ -4696,7 +4700,8 @@ CREATE TABLE public.orders_visits_vehicles (
     updated_user_id bigint,
     updated_at timestamp without time zone,
     is_deleted boolean DEFAULT false,
-    version_mode character varying DEFAULT 'live'::character varying
+    version_mode character varying DEFAULT 'live'::character varying,
+    ov_costs_status character varying DEFAULT 'pending'::character varying NOT NULL
 );
 
 
@@ -5796,6 +5801,7 @@ SELECT
   orders_visits_assets.asset_id,
   assets.code,
   assets.description,
+  assets.type_id AS asset_type_id,
   orders_visits_assets.is_moved,
   orders_visits_assets.before_unit_id,
   before_units.code AS before_unit_code,

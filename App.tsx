@@ -2986,11 +2986,6 @@ const AppContent: React.FC = () => {
   const handleUserStatusChange = async (isAvailable: boolean, ovIdInProgress: string | null) => {
     if (!currentUser) return;
 
-    if (!isAvailable && currentUser.isOvInProgress) {
-      toast.error("Você não pode ficar Indisponível enquanto possui uma visita em aberto.");
-      return;
-    }
-
     try {
       await dataService.updateUserAvailability(currentUser.id, isAvailable, ovIdInProgress);
 

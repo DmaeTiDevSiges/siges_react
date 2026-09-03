@@ -485,16 +485,20 @@ export const ordersService = {
                 throw new Error('O parent informado não é uma Solicitação de Serviço (SS). O parent deve ser uma SS, não outra OS.');
             }
 
+            let contractCompanyId = null;
+            let contractDepartmentId = null;
             let providerCompanyId = null;
             let providerDepartmentId = null;
             if (order.contractId) {
                 const { data: contractData } = await supabase
                     .from('contracts')
-                    .select('provider_company_id, provider_department_id')
+                    .select('client_company_id, client_department_id, provider_company_id, provider_department_id')
                     .eq('id', order.contractId)
                     .single();
 
                 if (contractData) {
+                    contractCompanyId = contractData.client_company_id;
+                    contractDepartmentId = contractData.client_department_id;
                     providerCompanyId = contractData.provider_company_id;
                     providerDepartmentId = contractData.provider_department_id;
                 }
@@ -558,7 +562,7 @@ export const ordersService = {
                 counter_parent: parentOrder.counter_parent,
                 counter_child: childCounter,
                 year: currentYear,
-                company_id: parentOrder.company_id, 
+                company_id: contractCompanyId || parentOrder.company_id,
 
                 type_id: parseInt(order.typeId),
                 type_sub_id: order.typeSubId ? parseInt(order.typeSubId) : null,
@@ -572,7 +576,7 @@ export const ordersService = {
                 provider_company_id: providerCompanyId,
                 provider_department_id: providerDepartmentId,
 
-                department_id: userTeam?.department_id || null,
+                department_id: contractDepartmentId || userTeam?.department_id || null,
                 requester_name: currentUser.nameShort || currentUser.nameFull,
                 requester_team_id: currentUser.teamId ? parseInt(currentUser.teamId) : null,
                 requester_phone: currentUser.mobileMask || currentUser.mobile || null,
@@ -692,7 +696,7 @@ export const ordersService = {
         if (order.contractId) {
             const { data: contractData } = await supabase
                 .from('contracts')
-                .select('provider_company_id, provider_department_id')
+                .select('client_company_id, client_department_id, provider_company_id, provider_department_id')
                 .eq('id', order.contractId)
                 .single();
 
@@ -700,6 +704,8 @@ export const ordersService = {
                 await supabase
                     .from('orders')
                     .update({
+                        company_id: contractData.client_company_id,
+                        department_id: contractData.client_department_id,
                         provider_company_id: contractData.provider_company_id,
                         provider_department_id: contractData.provider_department_id
                     })

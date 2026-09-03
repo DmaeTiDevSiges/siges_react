@@ -36,7 +36,20 @@ export const evaluationService = {
         }));
     },
 
-    async createEvaluationRequirement(data: { description: string; code?: string }): Promise<EvaluationRequirement | null> {
+    async createEvaluationRequirement(data: { description: string; code?: string }): Promise<EvaluationRequirement | { error: string }> {
+        if (data.code) {
+            const { data: existing } = await supabase
+                .from('cfg_evaluation_requirements')
+                .select('id')
+                .eq('code', data.code)
+                .eq('is_deleted', false)
+                .maybeSingle();
+
+            if (existing) {
+                return { error: `Já existe um requisito com o código "${data.code}"` };
+            }
+        }
+
         const { data: result, error } = await supabase
             .from('cfg_evaluation_requirements')
             .insert({
@@ -48,7 +61,7 @@ export const evaluationService = {
 
         if (error) {
             console.error('Error creating evaluation requirement:', error);
-            return null;
+            return { error: 'Erro ao criar requisito' };
         }
 
         return {
@@ -278,47 +291,42 @@ export const evaluationService = {
      * Returns { canEvaluate, reason } where reason explains why if denied.
      */
     async canEvaluateVisit(ovId: string, userId: string): Promise<{ canEvaluate: boolean; reason?: string }> {
-        // 1. Get the visit's team leader
+        // 1. Fetch visit to get its contract_id and team_leader_id
         const { data: visit, error: visitError } = await supabase
-            .from('orders_visits')
-            .select('ov_team_leader_id')
+            .from('v_orders_visits')
+            .select('id, o_contract_id, ov_team_leader_id')
             .eq('id', ovId)
-            .single();
+            .maybeSingle();
 
         if (visitError || !visit) {
             return { canEvaluate: false, reason: 'Visita não encontrada' };
         }
 
-        // 2. Get the team leader's team_id
-        const { data: leaderUser, error: leaderError } = await supabase
-            .from('users')
-            .select('team_id')
-            .eq('id', visit.ov_team_leader_id)
-            .single();
+        // 2. Check if team is evaluable (if visit has a team leader)
+        if (visit.ov_team_leader_id) {
+            const { data: leaderUser } = await supabase
+                .from('users')
+                .select('team_id')
+                .eq('id', visit.ov_team_leader_id)
+                .maybeSingle();
 
-        if (leaderError || !leaderUser?.team_id) {
-            return { canEvaluate: false, reason: 'Líder da equipe não encontrado' };
+            if (leaderUser?.team_id) {
+                const { data: team } = await supabase
+                    .from('cfg_teams')
+                    .select('is_evaluable')
+                    .eq('id', leaderUser.team_id)
+                    .maybeSingle();
+
+                if (team && team.is_evaluable === false) {
+                    return { canEvaluate: false, reason: 'Esta equipe não está configurada para receber avaliações' };
+                }
+            }
         }
 
-        // 3. Check if the team is evaluable
-        const { data: team, error: teamError } = await supabase
-            .from('cfg_teams')
-            .select('is_evaluable')
-            .eq('id', leaderUser.team_id)
-            .single();
-
-        if (teamError || !team) {
-            return { canEvaluate: false, reason: 'Equipe não encontrada' };
-        }
-
-        if (team.is_evaluable === false) {
-            return { canEvaluate: false, reason: 'Esta equipe não está configurada para receber avaliações' };
-        }
-
-        // 4. Check if the current user is the team leader
+        // 3. Get current user info
         const { data: currentUser, error: userError } = await supabase
             .from('users')
-            .select('id, is_team_leader, team_id')
+            .select('id, is_admin_super')
             .eq('id', userId)
             .single();
 
@@ -326,13 +334,28 @@ export const evaluationService = {
             return { canEvaluate: false, reason: 'Usuário não encontrado' };
         }
 
-        // User must be a team leader AND belong to the same team as the visit's leader
-        if (!currentUser.is_team_leader) {
-            return { canEvaluate: false, reason: 'Apenas líderes de equipe podem realizar avaliações' };
+        // Super admins can always evaluate
+        if (currentUser.is_admin_super) {
+            return { canEvaluate: true };
         }
 
-        if (currentUser.team_id !== leaderUser.team_id) {
-            return { canEvaluate: false, reason: 'Apenas o líder da equipe responsável pela visita pode avaliá-la' };
+        // 4. Check if current user is a contract manager for this visit's contract
+        const contractId = visit.o_contract_id?.toString();
+        if (!contractId) {
+            return { canEvaluate: false, reason: 'Contrato da visita não encontrado' };
+        }
+
+        const { data: managerRel, error: managerError } = await supabase
+            .from('contracts_managers')
+            .select('id')
+            .eq('contract_id', contractId)
+            .eq('manager_id', userId)
+            .eq('role', 'manager')
+            .eq('is_deleted', false)
+            .maybeSingle();
+
+        if (managerError || !managerRel) {
+            return { canEvaluate: false, reason: 'Apenas o gestor do contrato pode realizar a avaliação da visita' };
         }
 
         return { canEvaluate: true };

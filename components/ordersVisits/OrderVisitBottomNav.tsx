@@ -34,7 +34,7 @@ export const OrderVisitBottomNav: React.FC<OrderVisitBottomNavProps> = ({
         { id: 'assets', label: 'Ativos', icon: 'inventory_2' },
         { id: 'services', label: 'Serviços', icon: 'construction', permission: 'orders_visits_services' },
         { id: 'costs', label: 'Custos', icon: 'payments', permission: 'orders_visits_costs' },
-        { id: 'evaluation', label: 'Avaliação', icon: 'rate_review' },
+        { id: 'evaluation', label: 'Avaliação', icon: 'rate_review', permission: 'orders_visits_evaluations' },
         { id: 'chat', label: 'Chat', icon: 'forum' },
         { id: 'assistant', label: 'Assistente', icon: 'support_agent', adminOnly: true },
     ];

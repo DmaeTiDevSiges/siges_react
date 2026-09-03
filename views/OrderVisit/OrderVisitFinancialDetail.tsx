@@ -15,6 +15,7 @@ interface OrderVisitFinancialDetailProps {
 export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps> = ({ visit, onVisitUpdated, isApprover = false }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
+    const [showZeroCostModal, setShowZeroCostModal] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
 
     const items = [
@@ -41,23 +42,34 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
         }
     ];
 
-    const costsStatus = (visit as any).ov_costs_status as VisitCostsStatus | null;
+const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
     // Quem envia custos (contratada): visita aprovada tecnicamente e custos ainda não enviados
+    // Botão "Enviar para Aprovação" só aparece quando costsStatus é null ou pending
     const canSubmitCosts = isFinancialApprovalEnabled() && 
-                           visit.ovProcessingId === 5 && 
-                           (!costsStatus || costsStatus === 'pending' || costsStatus === 'rejected');
+                            visit.ovProcessingId === 5 && 
+                            (costsStatus === null || costsStatus === 'pending');
     // Quem já enviou e está aguardando a aprovação da contratante (não é aprovador)
     const isAwaitingApproval = isFinancialApprovalEnabled() && 
-                               costsStatus === 'submitted' &&
-                               !isApprover;
-    // Quem pode aprovar financeiramente (contratante): custos enviados
+                                (costsStatus === 'pending' || costsStatus === 'waiting') &&
+                                !isApprover;
+    // Quem pode aprovar financeiramente (contratante): apenas quando waiting
     const canApproveFinancial = isFinancialApprovalEnabled() && 
-                                costsStatus === 'submitted' &&
+                                costsStatus === 'waiting' &&
                                 isApprover;
+
+    const totalValue = (visit.servicesValue || 0) + (visit.materialsValue || 0) + (visit.vehiclesValue || 0);
 
     const handleSubmitCosts = async () => {
         if (!visit.id) return;
         
+        // Sempre abre modal de confirmação
+        setShowZeroCostModal(true);
+    };
+
+    const confirmSubmitCosts = async () => {
+        if (!visit.id) return;
+        
+        setShowZeroCostModal(false);
         setIsLoading(true);
         try {
             await dataService.submitVisitCosts(visit.id, visit.ovCreatedUserId || '');
@@ -129,10 +141,10 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
             {isFinancialApprovalEnabled() && costsStatus && (
                 <OrderVisitFinancialStatus
                     costsStatus={costsStatus}
-                    submittedAt={(visit as any).ov_costs_submitted_at}
-                    approvedAt={(visit as any).ov_costs_approved_at}
-                    rejectedAt={(visit as any).ov_costs_rejected_at}
-                    rejectionReason={(visit as any).ov_costs_rejection_reason}
+                    waitingAt={visit.ovCostsWaitingAt}
+                    approvedAt={visit.ovCostsApprovedAt}
+                    rejectedAt={visit.ovCostsRejectedAt}
+                    rejectionReason={visit.ovCostsRejectionReason}
                 />
             )}
 
@@ -166,9 +178,11 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
             {/* Financial Approval Actions (Feature Flag) */}
             {isFinancialApprovalEnabled() && (canSubmitCosts || canApproveFinancial || isAwaitingApproval) && (
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-100 dark:border-white/5 shadow-sm">
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">
-                        Aprovação Financeira
-                    </h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                            Aprovação Financeira
+                        </h3>
+                    </div>
                     
                     <div className="flex flex-col gap-3">
                         {isAwaitingApproval && (
@@ -223,6 +237,43 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                     Para detalhes, consulte as abas de <strong>Serviços</strong> e <strong>Transporte</strong>.
                 </p>
             </div>
+
+            {/* Submit Costs Confirmation Modal */}
+            {showZeroCostModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                <span className="material-symbols-outlined text-blue-500">send</span>
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                                Enviar para Aprovação
+                            </h3>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">
+                            Confirma o envio dos custos desta visita para aprovação financeira?
+                        </p>
+                        <p className="text-slate-900 dark:text-white font-bold text-lg mb-6">
+                            {formatCurrency(totalValue)}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowZeroCostModal(false)}
+                                className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmSubmitCosts}
+                                disabled={isLoading}
+                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-colors"
+                            >
+                                {isLoading ? 'Enviando...' : 'Confirmar Envio'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Reject Modal */}
             {showRejectModal && (

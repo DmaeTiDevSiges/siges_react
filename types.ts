@@ -16,6 +16,7 @@ export interface ContractManager {
   managerName?: string;
   managerAvatarUrl?: string;
   managerEmail?: string;
+  isAdminSuper?: boolean;
 }
 
 export interface Contract {
@@ -199,6 +200,7 @@ export interface User {
   isAdminSuper?: boolean;
   isTeamLeader?: boolean;
   isAvailable?: boolean;
+  isLoggedOutWithVisit?: boolean;
   shiftStart?: string;
   shiftEnd?: string;
 
@@ -1026,11 +1028,22 @@ export interface OrderVisit {
   ovSignatureRequesterName?: string;
   ovSignatureRequesterAt?: string;
 
+  // Financial approval (costs)
+  ovCostsStatus?: 'pending' | 'waiting' | 'approved' | 'rejected' | null;
+  ovCostsWaitingAt?: string | null;
+  ovCostsWaitingUserId?: string | null;
+  ovCostsApprovedAt?: string | null;
+  ovCostsApprovedUserId?: string | null;
+  ovCostsRejectedAt?: string | null;
+  ovCostsRejectedUserId?: string | null;
+  ovCostsRejectionReason?: string | null;
+
   // Chat status
   chatStatus?: 'open' | 'closed';
   chatClosedAt?: string;
   chatClosedUserId?: string;
   chatCreatedUserId?: string;
+  hasOpenChat?: boolean;
 }
 
 export interface OrderVisitTeam {

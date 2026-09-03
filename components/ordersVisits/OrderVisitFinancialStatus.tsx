@@ -3,7 +3,7 @@ import { isFinancialApprovalEnabled, VISIT_COSTS_STATUS_CONFIG, type VisitCostsS
 
 interface OrderVisitFinancialStatusProps {
   costsStatus: VisitCostsStatus | null | undefined;
-  submittedAt?: string | null;
+  waitingAt?: string | null;
   approvedAt?: string | null;
   rejectedAt?: string | null;
   rejectionReason?: string | null;
@@ -12,7 +12,7 @@ interface OrderVisitFinancialStatusProps {
 
 export const OrderVisitFinancialStatus: React.FC<OrderVisitFinancialStatusProps> = ({
   costsStatus,
-  submittedAt,
+  waitingAt,
   approvedAt,
   rejectedAt,
   rejectionReason,
@@ -44,9 +44,9 @@ export const OrderVisitFinancialStatus: React.FC<OrderVisitFinancialStatusProps>
         {config.label}
       </span>
       
-      {costsStatus === 'submitted' && submittedAt && (
+      {costsStatus === 'waiting' && waitingAt && (
         <span className="text-xs text-gray-500">
-          em {new Date(submittedAt).toLocaleDateString('pt-BR')}
+          em {new Date(waitingAt).toLocaleDateString('pt-BR')}
         </span>
       )}
       

@@ -89,9 +89,11 @@ interface ImageGridProps {
     setPhotoActionSection: (section: 'initial' | 'final') => void;
     onUseAsCover?: (imageUrl: string) => void;
     onFileDrop?: (type: 'initial' | 'final', file: File) => void;
+    isContractManagerAdminSuper?: boolean;
+    isAdminSuper?: boolean;
 }
 
-const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, isVisitFiled, setExpandedImage, removeImage, editImage, setPhotoActionSection, onUseAsCover, onFileDrop }) => {
+const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, isVisitFiled, setExpandedImage, removeImage, editImage, setPhotoActionSection, onUseAsCover, onFileDrop, isContractManagerAdminSuper, isAdminSuper }) => {
     const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
     const handleDragOver = (e: React.DragEvent, idx: number) => {
@@ -153,7 +155,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, isVisit
                                         <p className="text-[8px] text-white font-bold uppercase tracking-wider">Foto {idx + 1}</p>
                                     </div>
                                 </div>
-                                {!isVisitFiled && onUseAsCover && (
+                                {!isVisitFiled && onUseAsCover && (isContractManagerAdminSuper || isAdminSuper) && (
                                     <button
                                         type="button"
                                         onClick={(e) => {
@@ -238,6 +240,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [isVisitFiled, setIsVisitFiled] = useState(!!initialVisit?.isFiled);
     const [editingImage, setEditingImage] = useState<{ type: 'initial' | 'final', index: number | null, src: string | File } | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
+    const [isContractManagerAdminSuper, setIsContractManagerAdminSuper] = useState(false);
     const [maintenanceProgress, setMaintenanceProgress] = useState<number>(initialAsset?.maintenancePlanProgress || 0);
     const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
     const [reportAssetAlerts, setReportAssetAlerts] = useState<AssetAlert[]>([]);
@@ -347,6 +350,13 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 if (!readOnly && user && data.oContractId) {
                     try {
                         isManager = await dataService.isUserContractManager(user.id, data.oContractId);
+                        // Check if user is contract manager with is_admin_super
+                        const managers = await dataService.getContractManagers(data.oContractId);
+                        const currentManager = managers.find(m =>
+                            String(m.managerId) === String(user.id) &&
+                            m.role?.toLowerCase() === 'manager'
+                        );
+                        setIsContractManagerAdminSuper(currentManager?.isAdminSuper ?? false);
                     } catch (mError) {
                         console.warn('Could not verify contract manager status', mError);
                     }
@@ -1119,6 +1129,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         setPhotoActionSection={setPhotoActionSection}
                         onUseAsCover={handleUseAsCover}
                         onFileDrop={!Capacitor.isNativePlatform() ? handleFileDrop : undefined}
+                        isContractManagerAdminSuper={isContractManagerAdminSuper}
+                        isAdminSuper={currentUserIsAdminSuper}
                     />
                 </div>
 
@@ -1392,6 +1404,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         setPhotoActionSection={setPhotoActionSection}
                         onUseAsCover={handleUseAsCover}
                         onFileDrop={!Capacitor.isNativePlatform() ? handleFileDrop : undefined}
+                        isContractManagerAdminSuper={isContractManagerAdminSuper}
+                        isAdminSuper={currentUserIsAdminSuper}
                     />
                 </div>
 
@@ -1673,8 +1687,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         </div>
                     )}
 
-                    {/* Botão Trocar Ativo (condições específicas: Status Reportado/Revisado/Aprovado, não movido e não arquivado) */}
-                    {[2, 3, 5].includes(Number(asset.processingId)) && !isMoved && asset.isFiled === false && (
+                    {/* Botão Trocar Ativo (condições específicas: Status Reportado/Revisado/Rejeitado, não movido e não arquivado) */}
+                    {[2, 3, 4].includes(Number(visitProcessingId)) && !isMoved && asset.isFiled === false && (
                         <div className="flex flex-col gap-3 mt-4">
                             <button
                                 type="button"
@@ -1686,7 +1700,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         </div>
                     )}
 
-                    {(!asset.isFiled || !isMoved) && (
+                    {Number(visitProcessingId) !== 5 && (!asset.isFiled || !isMoved) && (
                         <div className="flex flex-col gap-3">
                             <button
                                 type="button"

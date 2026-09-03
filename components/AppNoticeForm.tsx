@@ -148,9 +148,9 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
             placeholder="Descreva o aviso..."
             rows={3}
             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
-            maxLength={600}
+            maxLength={1500}
           />
-          <p className="text-xs text-slate-500 mt-1">{message.length}/600</p>
+          <p className="text-xs text-slate-500 mt-1">{message.length}/1500</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

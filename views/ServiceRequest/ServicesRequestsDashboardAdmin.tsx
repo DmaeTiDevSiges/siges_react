@@ -1510,7 +1510,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                         </button>
                     </form>
 
-                    {canCreate('services_requests') && (
+                    {canCreate('services_requests_create') && (
                         <button
                             onClick={() => onCreateServiceRequest?.()}
                             className="flex items-center gap-2 px-5 py-3.5 bg-blue-600 dark:bg-blue-500 text-white rounded-full font-bold shadow-lg shadow-blue-600/30 hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-xl hover:shadow-blue-600/40 active:scale-95 transition-all duration-200 group"

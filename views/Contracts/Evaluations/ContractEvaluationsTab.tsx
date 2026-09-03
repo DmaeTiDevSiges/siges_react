@@ -111,6 +111,11 @@ export const ContractEvaluationsTab: React.FC<ContractEvaluationsTabProps> = ({ 
                 code: newRequirement.code || undefined,
             });
 
+            if (created && 'error' in created) {
+                toast.error(created.error);
+                return;
+            }
+
             if (created) {
                 toast.success('Requisito criado com sucesso');
                 setShowNewRequirementForm(false);

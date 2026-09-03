@@ -194,13 +194,24 @@ ALTER TABLE orders_visits_evaluations
 
 ## 🔐 Controles de Acesso (RBAC)
 
-### Permissões Novas
+### Permissões Novas (usando sistema existente: cfg_routes + cfg_profiles_access)
 
 ```sql
-INSERT INTO permissions (code, description) VALUES
-('orders_visits_costs_submit', 'Enviar custos para aprovação financeira'),
-('orders_visits_financial_approve', 'Aprovar custos financeiros'),
-('orders_visits_financial_reject', 'Rejeitar custos financeiros');
+-- Inserir rotas na tabela cfg_routes
+INSERT INTO cfg_routes (route_key, route_path, description, icon, parent_id, order_index, is_available)
+VALUES 
+  ('orders_visits_costs_submit', '/orders/visits/costs', 'Enviar Custos para Aprovação', 'receipt_long', 
+   (SELECT id FROM cfg_routes WHERE route_key = 'orders_visits'), 50, true),
+  ('orders_visits_financial_approve', '/orders/visits/financial', 'Aprovar/Rejeitar Custos Financeiros', 'account_balance', 
+   (SELECT id FROM cfg_routes WHERE route_key = 'orders_visits'), 51, true)
+ON CONFLICT (route_key) DO NOTHING;
+
+-- Exemplo: Conceder permissão ao perfil de Supervisor da Contratada (profile_id = X)
+-- INSERT INTO cfg_profiles_access (profile_id, route_id, can_view, can_create, can_edit, can_delete)
+-- SELECT 
+--   (SELECT id FROM cfg_profiles WHERE description = 'Supervisor Contratada'),
+--   (SELECT id FROM cfg_routes WHERE route_key = 'orders_visits_costs_submit'),
+--   true, true, false, false;
 ```
 
 ### Matriz de Permissões
@@ -361,7 +372,8 @@ Mantém os 5 status existentes (1-5).
 - [ ] Criar componente OrderVisitFinancialStatus
 - [ ] Atualizar OrderVisitFinancialDetail (usando feature flag)
 - [ ] Atualizar OrderVisitScreen (usando feature flag)
-- [ ] Adicionar controle de acesso
+- [ ] Criar migration com rotas em cfg_routes (orders_visits_costs_submit, orders_visits_financial_approve)
+- [ ] Conceder permissões em cfg_profiles_access para perfis adequados
 - [ ] Testar fluxo completo
 - [ ] Documentar API
 - [ ] Treinar usuários

@@ -413,21 +413,35 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     };
 
     const [loggingOut, setLoggingOut] = useState(false);
+    const [confirmLogoutModal, setConfirmLogoutModal] = useState(false);
 
     const handleLogout = async () => {
-        if (user?.isOvInProgress || (user?.ovIdInProgress && Number(user.ovIdInProgress) > 0)) {
-            setModal({
-                isOpen: true,
-                title: 'Visita em andamento',
-                message: 'Você possui uma visita em andamento. Encerre-a antes de sair.',
-                type: 'warning'
-            });
+        const hasActiveVisit = user?.isOvInProgress || (user?.ovIdInProgress && Number(user.ovIdInProgress) > 0);
+        if (hasActiveVisit) {
+            setConfirmLogoutModal(true);
             return;
         }
         setLoggingOut(true);
         try {
             await new Promise(resolve => setTimeout(resolve, 600));
-            await dataService.signOut(user?.uuid);
+            await dataService.signOut(user?.uuid, false);
+        } catch (error) {
+            setLoggingOut(false);
+            setModal({
+                isOpen: true,
+                title: 'Erro',
+                message: 'Falha ao sair do aplicativo. Tente novamente.',
+                type: 'error'
+            });
+        }
+    };
+
+    const confirmLogout = async () => {
+        setConfirmLogoutModal(false);
+        setLoggingOut(true);
+        try {
+            await new Promise(resolve => setTimeout(resolve, 600));
+            await dataService.signOut(user?.uuid, true);
         } catch (error) {
             setLoggingOut(false);
             setModal({
@@ -653,18 +667,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
 
     const handleStatusChange = async (newStatus: UserStatus) => {
         if (!onStatusChange || !user?.uuid) return;
-
-        const isInProgress = user.isOvInProgress || (user as any).is_ov_in_progress;
-        if (newStatus === 'unavailable' && (isInProgress === true || isInProgress === 1 || isInProgress === 'true')) {
-            setShowStatusModal(false);
-            setModal({
-                isOpen: true,
-                title: 'Ação Bloqueada',
-                message: 'Você não pode ficar Indisponível enquanto possui uma visita em aberto.',
-                type: 'error'
-            });
-            return;
-        }
 
         setIsUpdatingStatus(true);
         try {
@@ -1530,6 +1532,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 title={modal.title}
                 message={modal.message}
                 type={modal.type}
+            />
+
+            {/* Confirm Logout with Active Visit Modal */}
+            <Modal
+                isOpen={confirmLogoutModal}
+                onClose={() => setConfirmLogoutModal(false)}
+                onConfirm={confirmLogout}
+                title="Visita em andamento"
+                message="Você possui uma visita em andamento. Ao sair, sua visita será mantida e poderá ser retomada ao entrar novamente. Deseja continuar?"
+                confirmLabel="Sair"
+                type="warning"
             />
 
             {/* Confirm Delete Signature Modal */}

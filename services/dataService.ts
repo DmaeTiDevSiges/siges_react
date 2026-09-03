@@ -301,7 +301,7 @@ export const dataService = {
 
     async getVisitFinancialStatus(visitId: string): Promise<{
         ov_costs_status: string | null;
-        ov_costs_submitted_at: string | null;
+        ov_costs_waiting_at: string | null;
         ov_costs_approved_at: string | null;
         ov_costs_rejected_at: string | null;
         ov_costs_rejection_reason: string | null;
@@ -711,7 +711,7 @@ export const dataService = {
         return usersService.subscribeToAuthChanges.apply(usersService, arguments as any);
     },
 
-    async signOut(userUuid?: string): Promise<void> {
+    async signOut(userUuid?: string, hasActiveVisit?: boolean): Promise<void> {
         return usersService.signOut.apply(usersService, arguments as any);
     },
 

@@ -1,12 +1,14 @@
 -- ============================================================================
--- FIX: Adicionar maintenance_plan_id e maintenance_plan_progress à view
---       v_orders_visits_assets
+-- FIX: Adicionar maintenance_plan_id, maintenance_plan_progress e
+--       asset_type_id à view v_orders_visits_assets
 -- Motivo: A view foi recriada (20260814) sem incluir essas colunas,
 --   causando undefined em todas as consultas que dependem delas.
---   Isso impediu que as atividades dos planos de manutenção aparecessem
---   nos PDFs dos relatórios de visita técnica.
+--   asset_type_id era necessário para filtrar planos de manutenção por tipo
+--   de ativo, mas estava faltando no SELECT da view.
 -- Como aplicar: abrir o SQL editor do Supabase e executar este arquivo inteiro.
 -- ============================================================================
+
+DROP VIEW IF EXISTS public.v_orders_visits_assets CASCADE;
 
 CREATE OR REPLACE VIEW public.v_orders_visits_assets AS
 SELECT
@@ -29,6 +31,7 @@ SELECT
   orders_visits_assets.asset_id,
   assets.code,
   assets.description,
+  assets.type_id AS asset_type_id,
   orders_visits_assets.is_moved,
   orders_visits_assets.before_unit_id,
   before_units.code AS before_unit_code,

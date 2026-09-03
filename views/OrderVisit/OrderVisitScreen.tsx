@@ -82,6 +82,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [totalRequirements, setTotalRequirements] = useState(0);
     const [fullOrderData, setFullOrderData] = useState<Order | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
+    const [isContractManagerAdminSuper, setIsContractManagerAdminSuper] = useState(false);
     const [unreadChatCount, setUnreadChatCount] = useState(0);
     const [vehiclesCount, setVehiclesCount] = useState(0);
     const [servicesCount, setServicesCount] = useState(0);
@@ -117,11 +118,12 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 if (visitData?.contractId && user?.id) {
                     try {
                         const managers = await dataService.getContractManagers(visitData.contractId);
-                        const isMgr = managers.some(m =>
+                        const currentManager = managers.find(m =>
                             String(m.managerId) === String(user.id) &&
                             m.role?.toLowerCase() === 'manager'
                         );
-                        setIsContractManager(isMgr);
+                        setIsContractManager(!!currentManager);
+                        setIsContractManagerAdminSuper(currentManager?.isAdminSuper ?? false);
                     } catch (err) {
                         console.error('Error checking manager status:', err);
                     }
@@ -622,19 +624,19 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                                 )
                             ) ? handleReportVisit : undefined}
                             onApproveVisit={(
-                                (isContractManager || currentUser?.isAdminSuper || currentUser?.isAdmin) &&
+                                isContractManagerAdminSuper &&
                                 (visit.ovProcessingId || 1) !== 5 &&
                                 (visit.ovAssetsAmount || 0) > 0 &&
                                 (visit.ovAssetsAmount || 0) === (visit.ovAssetsApprovedAmount || 0)
                             ) ? handleApproveVisit : undefined}
                             onDisapproveVisit={(
-                                (isContractManager || currentUser?.isAdminSuper || currentUser?.isAdmin) &&
+                                isContractManagerAdminSuper &&
                                 (visit.ovProcessingId || 1) !== 5 &&
                                 (visit.ovProcessingId || 1) !== 4 &&
                                 (visit.ovAssetsDisapprovedAmount || 0) > 0
                             ) ? handleDisapproveVisit : undefined}
                             onFileVisit={(
-                                (isContractManager || currentUser?.isAdminSuper || currentUser?.isAdmin) &&
+                                isContractManagerAdminSuper &&
                                 (visit.ovProcessingId || 1) === 5 &&
                                 !visit.isFiled &&
                                 (visit.ovAssetsAmount || 0) > 0 &&
@@ -650,7 +652,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             ) ? handleMarkAsRevised : undefined}
                             isRevising={isRevising}
                             onReverseApproval={(
-                                (isContractManager || currentUser?.isAdminSuper || currentUser?.isAdmin) &&
+                                isContractManagerAdminSuper &&
                                 (visit.ovProcessingId || 1) === 5 &&
                                 !visit.isFiled
                             ) ? handleReverseApprovalClick : undefined}
@@ -716,7 +718,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                         <OrderVisitFinancialDetail
                             visit={visit}
                             onVisitUpdated={refreshVisit}
-                            isApprover={isContractManager || Boolean(currentUser?.isAdminSuper) || Boolean(currentUser?.isAdmin)}
+                            isApprover={isContractManagerAdminSuper}
                         />
                     </div>
                 );

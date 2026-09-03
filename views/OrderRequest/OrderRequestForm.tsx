@@ -177,7 +177,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
             try {
                 const user = await dataService.getCurrentUser();
                 if (user && user.departmentId) {
-                    const contractsByDept = await dataService.getContractsByClientDepartmentId(user.departmentId);
+                    const contractsByDept = await dataService.getContractsByClientDepartmentId(user.departmentId, formData.clientId || undefined);
                     const validContracts = contractsByDept.filter(c => Number(c.statusId) === 1);
                     setContracts(validContracts);
                 }
@@ -186,7 +186,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
             }
         };
         loadContracts();
-    }, []);
+    }, [formData.clientId]);
 
     useEffect(() => {
         if (formData.unitId) {
@@ -667,7 +667,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                     required
                                     value={formData.contractId}
                                     onChange={(e) => setFormData(prev => ({ ...prev, contractId: e.target.value }))}
-                                    options={contracts.map(c => ({ value: c.id, label: `${c.description || c.code || 'S/N'}${c.providerCompanyCode ? ` (${c.providerCompanyCode})` : ''}` }))}
+                                    options={contracts.map(c => ({ value: c.id, label: c.description || c.code || 'S/N' }))}
                                 />
 
                                 <Select

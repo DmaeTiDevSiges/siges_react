@@ -398,7 +398,8 @@ export const usersService = {
             name: item.description,
             code: item.code,
             status: item.is_available ? 'active' : 'inactive',
-            sortOrder: item.sort_order ?? undefined
+            sortOrder: item.sort_order ?? undefined,
+            isEvaluable: item.is_evaluable ?? true
         })) as Team[];
     },
 
@@ -787,6 +788,7 @@ export const usersService = {
                     ovIdInProgressBigInt: data.ov_id_in_progress,
                     oIdInProgressBigInt: data.o_id_in_progress,
                     opIdInProgressBigInt: data.op_id_in_progress,
+                    isLoggedOutWithVisit: data.is_logged_out_with_visit,
                     latitude: data.latitude,
                     longitude: data.longitude,
                     shiftStart: data.shift_start,
@@ -1160,7 +1162,13 @@ export const usersService = {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
 
+        // Clear is_logged_out_with_visit flag on login
         if (data.user) {
+            await supabase
+                .from('users')
+                .update({ is_logged_out_with_visit: false })
+                .eq('uuid', data.user.id);
+
             try {
                 const { data: existingUser } = await supabase
                     .from('users')
@@ -1247,15 +1255,28 @@ export const usersService = {
         });
     },
 
-    async signOut(userUuid?: string): Promise<void> {
+    async signOut(userUuid?: string, hasActiveVisit?: boolean): Promise<void> {
         try {
-            // Set user as unavailable before signing out
             if (userUuid) {
-                const { error: updateError } = await supabase
-                    .from('users')
-                    .update({ is_available: false })
-                    .eq('uuid', userUuid);
-                if (updateError) console.warn('Warning: could not update availability on sign out:', updateError);
+                const updatePayload: Record<string, any> = {};
+
+                // Only set unavailable if user has no active visit
+                if (!hasActiveVisit) {
+                    updatePayload.is_available = false;
+                }
+
+                // Flag user as logged out with active visit for WhatsApp reminder
+                if (hasActiveVisit) {
+                    updatePayload.is_logged_out_with_visit = true;
+                }
+
+                if (Object.keys(updatePayload).length > 0) {
+                    const { error: updateError } = await supabase
+                        .from('users')
+                        .update(updatePayload)
+                        .eq('uuid', userUuid);
+                    if (updateError) console.warn('Warning: could not update user state on sign out:', updateError);
+                }
             }
 
             const { error } = await supabase.auth.signOut();

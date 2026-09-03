@@ -65,10 +65,16 @@ export const EvaluationRequirementsScreen: React.FC<EvaluationRequirementsScreen
                 });
                 toast.success('Requisito atualizado');
             } else {
-                await dataService.createEvaluationRequirement({
+                const result = await dataService.createEvaluationRequirement({
                     description: formData.description,
                     code: formData.code || undefined,
                 });
+
+                if (result && 'error' in result) {
+                    toast.error(result.error);
+                    return;
+                }
+
                 toast.success('Requisito criado');
             }
             setShowForm(false);

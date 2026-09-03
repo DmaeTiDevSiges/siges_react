@@ -130,52 +130,93 @@ export const visitsService = {
     },
 
     async getVisitsByLeader(leaderId: string): Promise<OrderVisit[]> {
-        const { data, error } = await supabase
-            .from('v_orders_visits')
-            .select('*')
-            .eq('ov_team_leader_id', leaderId)
-            .order('ov_started_at', { ascending: true });
+        const numLeaderId = parseInt(leaderId);
+
+        // Find visits where user is leader, team member, chat participant, or sent a chat message
+        const [
+            { data: teamVisits },
+            { data: chatPartVisits },
+            { data: chatMsgVisits }
+        ] = await Promise.all([
+            numLeaderId ? supabase.from('orders_visits_teams').select('ov_id').eq('user_id', numLeaderId) : { data: [] },
+            numLeaderId ? supabase.from('orders_visits_chat_participants').select('ov_id').eq('user_id', numLeaderId) : { data: [] },
+            numLeaderId ? supabase.from('orders_visits_chat').select('ov_id').eq('user_id', numLeaderId) : { data: [] }
+        ]);
+
+        const extraOvIds = new Set<number>();
+        (teamVisits || []).forEach((r: any) => r.ov_id && extraOvIds.add(r.ov_id));
+        (chatPartVisits || []).forEach((r: any) => r.ov_id && extraOvIds.add(r.ov_id));
+        (chatMsgVisits || []).forEach((r: any) => r.ov_id && extraOvIds.add(r.ov_id));
+
+        let query = supabase.from('v_orders_visits').select('*');
+        if (extraOvIds.size > 0) {
+            const ovIdList = Array.from(extraOvIds).join(',');
+            query = query.or(`ov_team_leader_id.eq.${leaderId},id.in.(${ovIdList})`);
+        } else {
+            query = query.eq('ov_team_leader_id', leaderId);
+        }
+
+        const { data, error } = await query.order('ov_started_at', { ascending: true });
 
         if (error) {
             console.error('Error fetching visits by leader:', error);
             return [];
         }
 
-        return (data || []).map((row: any) => ({
-            id: row.id.toString(),
-            oId: row.o_id?.toString(),
-            ovMask: row.ov_mask,
-            ovStatusId: row.ov_status_id,
-            ovProcessingId: row.ov_processing_id,
-            ovCreatedAt: row.ov_created_at,
-            ovCreatedUserId: row.ov_created_user_id?.toString(),
-            ovTeamLeadId: row.ov_team_leader_id?.toString(),
-            ovStartedAt: row.ov_started_at,
-            ovEndedAt: row.ov_ended_at,
+        const visitIds = (data || []).map((row: any) => parseInt(row.id)).filter(Boolean);
+        let visitsWithChat = new Set<string>();
 
-            unitDescription: row.o_unit_description,
-            systemDescription: row.o_system_description,
-            clientName: row.o_client_name,
-            teamLeaderName: row.ov_team_leader_name_short,
-            statusDescription: row.ov_status_description,
-            processingDescription: row.ov_processing_description,
+        if (visitIds.length > 0) {
+            const { data: chatRows } = await supabase
+                .from('orders_visits_chat')
+                .select('ov_id')
+                .in('ov_id', visitIds);
 
-            unitId: row.o_unit_id?.toString(),
-            orderMask: row.o_mask,
-            teamCode: row.o_team_code,
-            requestedServices: row.o_requested_services,
-            contractDescription: row.o_contract_description,
-            planDescription: row.o_plan_description,
-            progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
-            ovOStatusId: row.ov_o_status_id,
-            ovOStatusDescription: row.ov_o_status_description,
-            ovOSuspendedReasonId: row.ov_o_suspended_reason_id,
-            ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
-            chatStatus: row.chat_status || 'open',
-            chatClosedAt: row.chat_closed_at,
-            chatClosedUserId: row.chat_closed_user_id?.toString(),
-            chatCreatedUserId: row.chat_created_user_id?.toString()
-        })) as OrderVisit[];
+            if (chatRows) {
+                chatRows.forEach((c: any) => visitsWithChat.add(c.ov_id.toString()));
+            }
+        }
+
+        return (data || []).map((row: any) => {
+            const idStr = row.id.toString();
+            const hasChat = visitsWithChat.has(idStr) || Boolean(row.chat_created_user_id);
+            return {
+                id: idStr,
+                oId: row.o_id?.toString(),
+                ovMask: row.ov_mask,
+                ovStatusId: row.ov_status_id,
+                ovProcessingId: row.ov_processing_id,
+                ovCreatedAt: row.ov_created_at,
+                ovCreatedUserId: row.ov_created_user_id?.toString(),
+                ovTeamLeadId: row.ov_team_leader_id?.toString(),
+                ovStartedAt: row.ov_started_at,
+                ovEndedAt: row.ov_ended_at,
+
+                unitDescription: row.o_unit_description,
+                systemDescription: row.o_system_description,
+                clientName: row.o_client_name,
+                teamLeaderName: row.ov_team_leader_name_short,
+                statusDescription: row.ov_status_description,
+                processingDescription: row.ov_processing_description,
+
+                unitId: row.o_unit_id?.toString(),
+                orderMask: row.o_mask,
+                teamCode: row.o_team_code,
+                requestedServices: row.o_requested_services,
+                contractDescription: row.o_contract_description,
+                planDescription: row.o_plan_description,
+                progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
+                ovOStatusId: row.ov_o_status_id,
+                ovOStatusDescription: row.ov_o_status_description,
+                ovOSuspendedReasonId: row.ov_o_suspended_reason_id,
+                ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
+                chatStatus: row.chat_status || 'open',
+                chatClosedAt: row.chat_closed_at,
+                chatClosedUserId: row.chat_closed_user_id?.toString(),
+                chatCreatedUserId: row.chat_created_user_id?.toString() || (hasChat ? '1' : undefined),
+                hasOpenChat: (row.chat_status || 'open') === 'open' && hasChat
+            };
+        }) as OrderVisit[];
     },
 
     async getVisitsByChatCreator(userId: string): Promise<OrderVisit[]> {
@@ -396,6 +437,15 @@ export const visitsService = {
             ovSignatureRequesterPath: data.ov_signature_requester_path,
             ovSignatureRequesterName: data.ov_signature_requester_name,
             ovSignatureRequesterAt: data.ov_signature_requester_at,
+            // Financial approval (costs)
+            ovCostsStatus: data.ov_costs_status || 'pending',
+            ovCostsWaitingAt: data.ov_costs_waiting_at || null,
+            ovCostsWaitingUserId: data.ov_costs_waiting_user_id?.toString() || null,
+            ovCostsApprovedAt: data.ov_costs_approved_at || null,
+            ovCostsApprovedUserId: data.ov_costs_approved_user_id?.toString() || null,
+            ovCostsRejectedAt: data.ov_costs_rejected_at || null,
+            ovCostsRejectedUserId: data.ov_costs_rejected_user_id?.toString() || null,
+            ovCostsRejectionReason: data.ov_costs_rejection_reason || null,
             chatStatus: data.chat_status || 'open',
             chatClosedAt: data.chat_closed_at,
             chatClosedUserId: data.chat_closed_user_id?.toString(),
@@ -1193,19 +1243,8 @@ export const visitsService = {
             }
         }
 
-        let assetTypeId: string | undefined;
-        try {
-            const { data: assetData } = await supabase
-                .from('assets')
-                .select('type_id')
-                .eq('id', data.asset_id)
-                .single();
-            if (assetData) {
-                assetTypeId = assetData.type_id?.toString();
-            }
-        } catch (e) {
-            console.warn('Could not fetch type_id from assets', e);
-        }
+        // asset_type_id now comes from the view (assets.type_id AS asset_type_id)
+        const assetTypeId = data.asset_type_id?.toString();
 
         const ensureArray = (val: any): string[] => {
             if (Array.isArray(val)) {
@@ -2253,62 +2292,32 @@ export const visitsService = {
     // -------------------------------------------------------------------------
 
     async getOrderVisitAssetsMaterialsByVisit(visitId: string): Promise<OrderVisitAssetMaterial[]> {
-        // 1. Get all asset IDs for this visit
-        const { data: assets, error: assetsError } = await supabase
-            .from('orders_visits_assets')
-            .select('id')
+        const { data, error } = await supabase
+            .from('v_orders_visits_assets_materials')
+            .select('*')
             .eq('ov_id', parseInt(visitId));
 
-        if (assetsError || !assets || assets.length === 0) {
-            if (assetsError) console.error('Error fetching assets for materials:', assetsError);
-            return [];
-        }
-
-        const ovaIds = assets.map(a => a.id);
-
-        // 2. Fetch materials records (WITHOUT JOINS)
-        const { data, error } = await supabase
-            .from('orders_visits_assets_materials')
-            .select('*')
-            .in('ova_id', ovaIds)
-            .eq('is_deleted', false);
-
         if (error) {
-            console.error('Error fetching materials records:', error);
+            console.error('Error fetching materials by visit:', error);
             return [];
         }
 
-        // 3. Fetch materials catalog info for manual merge
-        const materialIds = Array.from(new Set(data.map(item => item.material_id)));
-        const { data: materialsCatalog, error: matError } = await supabase
-            .from('materials')
-            .select('*')
-            .in('id', materialIds);
-
-        const materialsMap: Record<string, any> = (materialsCatalog || []).reduce((acc, curr) => {
-            acc[curr.id.toString()] = curr;
-            return acc;
-        }, {} as any);
-
-        return (data || []).map((item: any) => {
-            const matInfo = materialsMap[item.material_id.toString()];
-            return {
-                id: item.id.toString(),
-                ovaId: item.ova_id.toString(),
-                orderVisitAssetId: item.ova_id.toString(),
-                materialId: item.material_id.toString(),
-                amount: item.amount,
-                valueUnit: item.value_unit,
-                discount: item.discount,
-                valueTotal: item.value_total,
-                isDeleted: item.is_deleted,
-                createdUserId: item.created_user_id?.toString(),
-                createdAt: item.created_at,
-                materialDescription: matInfo?.description,
-                materialCode: matInfo?.code,
-                materialUnit: matInfo?.unit
-            };
-        });
+        return (data || []).map((item: any) => ({
+            id: item.id?.toString(),
+            ovaId: item.ova_id?.toString(),
+            orderVisitAssetId: item.ova_id?.toString(),
+            materialId: undefined,
+            amount: item.amount || 0,
+            valueUnit: item.value_unit || 0,
+            discount: item.discount || 0,
+            valueTotal: item.value_total || 0,
+            isDeleted: false,
+            createdUserId: undefined,
+            createdAt: undefined,
+            materialDescription: item.description || 'Sem descrição',
+            materialCode: item.code || '---',
+            materialUnit: item.unit || 'un'
+        }));
     },
 
     // -------------------------------------------------------------------------
@@ -4011,7 +4020,7 @@ export const visitsService = {
     // -------------------------------------------------------------------------
 
     /**
-     * Envia custos para aprovação financeira (pending → submitted)
+     * Envia custos para aprovação financeira (pending → waiting)
      */
     async submitVisitCosts(visitId: string, userId: string): Promise<boolean> {
         try {
@@ -4020,9 +4029,9 @@ export const visitsService = {
             const { error } = await supabase
                 .from('orders_visits')
                 .update({
-                    ov_costs_status: 'submitted',
-                    ov_costs_submitted_at: now,
-                    ov_costs_submitted_user_id: userId,
+                    ov_costs_status: 'waiting',
+                    ov_costs_waiting_at: now,
+                    ov_costs_waiting_user_id: userId,
                     updated_at: now,
                     updated_user_id: userId
                 })
@@ -4038,7 +4047,7 @@ export const visitsService = {
     },
 
     /**
-     * Aprova custos financeiros (submitted → approved)
+     * Aprova custos financeiros (waiting → approved)
      */
     async approveVisitFinancial(visitId: string, userId: string): Promise<boolean> {
         try {
@@ -4054,7 +4063,7 @@ export const visitsService = {
                     updated_user_id: userId
                 })
                 .eq('id', visitId)
-                .eq('ov_costs_status', 'submitted'); // Só permite quando custos foram enviados
+                .eq('ov_costs_status', 'waiting'); // Só permite quando custos foram enviados
 
             if (error) throw error;
             return true;
@@ -4065,7 +4074,7 @@ export const visitsService = {
     },
 
     /**
-     * Rejeita custos financeiros (submitted → rejected)
+     * Rejeita custos financeiros (waiting → rejected)
      */
     async rejectVisitFinancial(visitId: string, userId: string, reason: string): Promise<boolean> {
         try {
@@ -4082,7 +4091,7 @@ export const visitsService = {
                     updated_user_id: userId
                 })
                 .eq('id', visitId)
-                .eq('ov_costs_status', 'submitted'); // Só permite quando custos foram enviados
+                .eq('ov_costs_status', 'waiting'); // Só permite quando custos foram enviados
 
             if (error) throw error;
             return true;
@@ -4093,7 +4102,7 @@ export const visitsService = {
     },
 
     /**
-     * Reseta status financeiro para pendente (rejected → submitted para correção)
+     * Reseta status financeiro para pendente (rejected → waiting para correção)
      */
     async resetVisitCostsStatus(visitId: string, userId: string): Promise<boolean> {
         try {
@@ -4102,9 +4111,9 @@ export const visitsService = {
             const { error } = await supabase
                 .from('orders_visits')
                 .update({
-                    ov_costs_status: 'submitted',
-                    ov_costs_submitted_at: now,
-                    ov_costs_submitted_user_id: userId,
+                    ov_costs_status: 'waiting',
+                    ov_costs_waiting_at: now,
+                    ov_costs_waiting_user_id: userId,
                     ov_costs_rejected_at: null,
                     ov_costs_rejected_user_id: null,
                     ov_costs_rejection_reason: null,
@@ -4127,7 +4136,7 @@ export const visitsService = {
      */
     async getVisitFinancialStatus(visitId: string): Promise<{
         ov_costs_status: string | null;
-        ov_costs_submitted_at: string | null;
+        ov_costs_waiting_at: string | null;
         ov_costs_approved_at: string | null;
         ov_costs_rejected_at: string | null;
         ov_costs_rejection_reason: string | null;
@@ -4135,7 +4144,7 @@ export const visitsService = {
         try {
             const { data, error } = await supabase
                 .from('orders_visits')
-                .select('ov_costs_status, ov_costs_submitted_at, ov_costs_approved_at, ov_costs_rejected_at, ov_costs_rejection_reason')
+                .select('ov_costs_status, ov_costs_waiting_at, ov_costs_approved_at, ov_costs_rejected_at, ov_costs_rejection_reason')
                 .eq('id', visitId)
                 .single();
 

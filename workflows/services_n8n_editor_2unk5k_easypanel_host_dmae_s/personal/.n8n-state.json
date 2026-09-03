@@ -24,6 +24,11 @@
       "lastSyncedHash": "f1d4f1ab7476e89668501835503e66e1e42ecc8af3821d6fdc0eb783eaa7a962",
       "lastSyncedAt": "2026-08-06T02:02:22.870Z",
       "filename": "SigesAiVisit.workflow.ts"
+    },
+    "4s7Mr2NjC84tAHYd": {
+      "lastSyncedHash": "3e4859437298804de07312557627b51c0a833fe9e570eb2e856cb1792370e1c3",
+      "lastSyncedAt": "2026-09-02T21:19:33.944Z",
+      "filename": "SigesWhatsAppVisitReminder.workflow.ts"
     }
   }
 }

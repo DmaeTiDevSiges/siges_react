@@ -256,7 +256,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                     </div>
                 </div>
 
-                {canCreate('orders_requests') && (
+                {canCreate('orders_requests_create') && (
                     <div className="relative">
                         <IconButton
                             icon="more_vert"
@@ -290,7 +290,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                             </div>
 
                             <div className="flex flex-col gap-3">
-                                {onClone && (
+                                {onClone && canCreate('services_requests_create') && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setShowMenu(false); onClone?.(); }}
                                         className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all active:scale-[0.98] group"

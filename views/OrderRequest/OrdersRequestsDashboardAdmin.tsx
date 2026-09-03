@@ -1762,7 +1762,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         )}
                     </button>
 
-                    {canCreate('services_requests') && (
+                    {canCreate('services_requests_create') && (
                         <button
                             onClick={() => onCreateServiceRequest?.()}
                             className="inline-flex items-center justify-center h-12 px-4 font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/20 active:scale-[0.98]"

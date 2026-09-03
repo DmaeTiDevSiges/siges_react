@@ -185,11 +185,20 @@ export const BatchVisitReportPDFButton = ({
                     team: team || [],
                     vehicles: vehicles || [],
                     services: services || [],
-                    assets: assetsWithDetails.map(a => ({
-                        ...a,
-                        maintenancePlanName: a.maintenancePlanId ? planMetaMap[a.maintenancePlanId]?.description : undefined,
-                        maintenancePlanCode: a.maintenancePlanId ? planMetaMap[a.maintenancePlanId]?.code : undefined,
+                assets: assetsWithDetails.map(a => ({
+                    ...a,
+                    maintenancePlanName: a.maintenancePlanId ? planMetaMap[a.maintenancePlanId]?.description : undefined,
+                    maintenancePlanCode: a.maintenancePlanId ? planMetaMap[a.maintenancePlanId]?.code : undefined,
+                    materials: (a.materials ?? []).map((m: any) => ({
+                        description: m.materialDescription || m.description,
+                        code: m.materialCode || m.code,
+                        amount: m.amount,
+                        unit: m.materialUnit || m.unit,
+                        valueUnit: m.valueUnit,
+                        discount: m.discount,
+                        valueTotal: m.valueTotal,
                     })),
+                })),
                 };
 
                 // Convert all images to Base64 (Essential for PDF rendering in batch)

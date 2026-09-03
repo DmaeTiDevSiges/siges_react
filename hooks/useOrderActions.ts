@@ -24,7 +24,7 @@ export interface OrderAction {
  * Hook to determine available actions for an order based on current status and type
  */
 export const useOrderActions = (order: Order | undefined | null, currentUser: User | null) => {
-    const { canCreate } = usePermissions();
+    const { permissions, canCreate, canView, canEdit } = usePermissions();
 
     const actions = useMemo(() => {
         if (!order || !currentUser) return [];
@@ -32,11 +32,16 @@ export const useOrderActions = (order: Order | undefined | null, currentUser: Us
         const availableActions: OrderAction[] = [];
         const statusId = order.statusId ? Number(order.statusId) : 0;
         const isSS = !order.parentId;
+        const canCancelSS = canView('services_requests_cancel');
+        const canSchedule = canCreate('orders_requests_scheduling');
+        const canChangeTeam = canEdit('orders_requests_change_team_leader');
 
         // 1. SS Não Programada
         if (statusId === 1 && isSS) {
             availableActions.push({ id: 'GENERATE_OS', label: 'Gerar OS', description: 'Converter solicitação em OS', icon: 'assignment_add', variant: 'primary' });
-            availableActions.push({ id: 'CANCEL', label: 'Cancelar', description: 'Encerrar esta solicitação', icon: 'cancel', variant: 'danger' });
+            if (canCancelSS) {
+                availableActions.push({ id: 'CANCEL', label: 'Cancelar SS', description: 'Encerrar solicitação', icon: 'cancel', variant: 'danger' });
+            }
         }
 
         // 1b. OS Não Programada (edge case - OS criada mas não autorizada ainda)
@@ -53,14 +58,20 @@ export const useOrderActions = (order: Order | undefined | null, currentUser: Us
 
         // 3. OS Autorizada
         if (statusId === 3 && !isSS) {
-            availableActions.push({ id: 'SCHEDULE', label: 'Agendar', description: 'Definir data para execução', icon: 'event', variant: 'default' });
-            availableActions.push({ id: 'UPDATE_TEAM', label: 'Alterar Equipe', description: 'Modificar equipe responsável', icon: 'groups', variant: 'default' });
+            if (canSchedule) {
+                availableActions.push({ id: 'SCHEDULE', label: 'Agendar', description: 'Definir data para execução', icon: 'event', variant: 'default' });
+            }
+            if (canChangeTeam) {
+                availableActions.push({ id: 'UPDATE_TEAM', label: 'Alterar Equipe', description: 'Modificar equipe responsável', icon: 'groups', variant: 'default' });
+            }
             availableActions.push({ id: 'CANCEL', label: 'Cancelar', description: 'Encerrar esta solicitação', icon: 'cancel', variant: 'danger' });
         }
 
         // 4. OS Agendada
         if (statusId === 4 && !isSS) {
-            availableActions.push({ id: 'RESCHEDULE', label: 'Reagendar', description: 'Alterar data agendada', icon: 'event_repeat', variant: 'default' });
+            if (canSchedule) {
+                availableActions.push({ id: 'RESCHEDULE', label: 'Reagendar', description: 'Alterar data agendada', icon: 'event_repeat', variant: 'default' });
+            }
             availableActions.push({ id: 'CANCEL', label: 'Cancelar', description: 'Encerrar esta solicitação', icon: 'cancel', variant: 'danger' });
         }
 
@@ -72,7 +83,7 @@ export const useOrderActions = (order: Order | undefined | null, currentUser: Us
         }
 
         return availableActions;
-    }, [order, currentUser, canCreate]);
+    }, [order, currentUser, permissions, canCreate, canView, canEdit]);
 
     return { actions };
 };

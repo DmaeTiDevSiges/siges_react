@@ -141,13 +141,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
             reportadas: visits.filter(v => v.ovProcessingId === 2).length,
             revisadas: visits.filter(v => v.ovProcessingId === 3).length,
             reprovadas: visits.filter(v => v.ovProcessingId === 4).length,
-            chatPendentes: visits.filter(v => v.chatStatus === 'open' && String(v.chatCreatedUserId) === String(currentUser?.id)).length,
+            chatPendentes: visits.filter(v => v.chatStatus === 'open' && (v.hasOpenChat || Boolean(v.chatCreatedUserId))).length,
         };
-    }, [visits, currentUser?.id]);
+    }, [visits]);
 
     const filteredVisits = useMemo(() => {
         if (selectedVisitStatus === 'chats') {
-            return visits.filter(v => v.chatStatus === 'open' && String(v.chatCreatedUserId) === String(currentUser?.id));
+            return visits.filter(v => v.chatStatus === 'open' && (v.hasOpenChat || Boolean(v.chatCreatedUserId)));
         }
         const statusMap: Record<string, number> = {
             'rascunho': 1,
