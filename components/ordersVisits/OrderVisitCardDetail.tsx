@@ -362,7 +362,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                     ) : (
                         <span className="material-symbols-outlined">rebase_edit</span>
                     )}
-                    {isDisapproveLoading ? 'REJEITANDO...' : 'REJEITAR VISITA (AJUSTAR)'}
+                    {isDisapproveLoading ? 'REJEITANDO...' : 'REJEITAR VISITA'}
                 </button>
             )}
 

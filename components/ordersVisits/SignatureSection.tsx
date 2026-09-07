@@ -172,10 +172,10 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                     
                     <div className="h-28 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5 flex items-center justify-center overflow-hidden transition-colors group-hover:bg-slate-100/50 dark:group-hover:bg-slate-900/80">
                         {leaderSignatureUrl ? (
-                            <img 
-                                src={leaderSignatureUrl} 
-                                alt="Assinatura Líder" 
-                                className="max-h-full p-2 object-contain brightness-0 dark:invert transition-transform duration-500 group-hover:scale-105" 
+                            <img
+                                src={leaderSignatureUrl}
+                                alt="Assinatura Líder"
+                                className="max-h-full p-2 object-contain dark:invert"
                             />
                         ) : (
                             <div className="flex flex-col items-center gap-2 opacity-30">
@@ -232,10 +232,10 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                     
                     <div className="h-28 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5 flex items-center justify-center overflow-hidden transition-colors group-hover:bg-slate-100/50 dark:group-hover:bg-slate-900/80">
                         {requesterSignatureUrl ? (
-                            <img 
-                                src={requesterSignatureUrl} 
-                                alt="Assinatura Requisitante" 
-                                className="max-h-full p-2 object-contain brightness-0 dark:invert transition-transform duration-500 group-hover:scale-105" 
+                            <img
+                                src={requesterSignatureUrl}
+                                alt="Assinatura Requisitante"
+                                className="max-h-full p-2 object-contain dark:invert"
                             />
                         ) : (
                             <div className="flex flex-col items-center gap-2 opacity-30">

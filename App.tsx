@@ -1915,6 +1915,7 @@ const AppContent: React.FC = () => {
               setCurrentScreen('order-create');
             }}
             activeTab={ordersDashboardTab}
+            providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
           />
         );
       case 'visits-dashboard':
@@ -1934,6 +1935,7 @@ const AppContent: React.FC = () => {
               setCurrentScreen('order-create');
             }}
             activeTab="VISITAS"
+            providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
           />
         );
       case 'visits-today':
@@ -2510,6 +2512,7 @@ const AppContent: React.FC = () => {
         return selectedOrder ? (
           <OrderRequestView
             order={selectedOrder}
+            currentUser={currentUser}
             onRefreshOrder={() => handleRefreshOrder(selectedOrder.id)}
             onBack={() => {
               if (selectedOrder.id === currentUser?.oIdInProgress) {

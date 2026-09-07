@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(android.os.Bundle savedInstanceState) {
         registerPlugin(LocationServicePlugin.class);
+        registerPlugin(PhoneInfoPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Create notification channels early — required for foreground services

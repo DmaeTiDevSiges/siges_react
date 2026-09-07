@@ -1259,6 +1259,8 @@ export interface OrderFilters {
   orderMask?: string;
   /** Filtro de setor exclusivo do carrossel de OS abertas (dashboard admin). */
   osAssetTagId?: string | string[];
+  /** Filtro por empresa provedora (provider_company_id). Usado para dashboards de company_id != 1. */
+  providerCompanyId?: string | string[];
 }
 
 export interface OrderVisitChatMessage {

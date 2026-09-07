@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { r2Service } from '../r2Service';
+import { compressForUpload } from '../imageCompressionService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { getPublicImageUrl } from '../imageUtils';
 import { formatRelativeTime } from '../../utils/formatters';
@@ -1519,7 +1520,9 @@ export const visitsService = {
     // -------------------------------------------------------------------------
 
     async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after', onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const fileExt = file.name.split('.').pop();
+        const compressed = await compressForUpload(file);
+        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
+        const fileExt = uploadFile.name.split('.').pop();
         // Add random suffix to prevent duplicate names when uploading multiple files simultaneously
         const randomSuffix = Math.random().toString(36).substring(2, 8);
         const fileName = `${type}_${Date.now()}_${randomSuffix}.${fileExt}`;
@@ -1570,7 +1573,7 @@ export const visitsService = {
 
         // 2. Upload to Cloudflare R2
         try {
-            await r2Service.uploadFile(file, fullPath, onProgress);
+            await r2Service.uploadFile(uploadFile, fullPath, onProgress);
         } catch (uploadError) {
             console.error('Error uploading to R2:', uploadError);
             throw uploadError;
@@ -2911,7 +2914,7 @@ export const visitsService = {
     // -------------------------------------------------------------------------
 
     async getMaintenancePlans(assetTypeId?: string): Promise<MaintenancePlan[]> {
-        let query = supabase.from('maintenances_plans').select('*').eq('is_deleted', false);
+        let query = supabase.from('maintenances_plans').select('*').eq('is_deleted', false).eq('is_available', true);
         if (assetTypeId) {
             query = query.or(`asset_type_id.eq.${assetTypeId},asset_type_id.is.null`);
         }
@@ -3400,8 +3403,11 @@ export const visitsService = {
     },
 
     async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
+        const compressed = await compressForUpload(file);
+        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
+
         // Ensure file extension is standard
-        let fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpeg';
+        let fileExt = uploadFile.name.split('.').pop()?.toLowerCase() || 'jpeg';
         if (fileExt === 'jpg') fileExt = 'jpeg';
 
         const uniqueSuffix = Math.random().toString(36).substring(7);
@@ -3422,7 +3428,7 @@ export const visitsService = {
         const fullPath = `${folderPath}/${fileName}`.replace(/\s+/g, '_');
 
         // We use a new File object if we need to force the MIME type, but r2Service just needs the blob and path
-        await r2Service.uploadFile(file, fullPath, onProgress);
+        await r2Service.uploadFile(uploadFile, fullPath, onProgress);
         return { path: folderPath, filename: fileName };
     },
 

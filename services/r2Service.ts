@@ -60,6 +60,12 @@ export const uploadFile = async (file: File | Blob, path: string, onProgress?: (
         throw new Error('Nome do bucket R2 não configurado.');
     }
 
+    // Log diagnóstico em dev
+    if (import.meta.env.DEV) {
+        const sizeKB = (file.size / 1024).toFixed(1);
+        console.log(`[r2Service] Upload: ${sizeKB} KB | ${file.type || 'unknown'} | → ${path}`);
+    }
+
     try {
         const client = getR2Client();
 

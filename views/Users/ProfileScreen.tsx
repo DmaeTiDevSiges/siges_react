@@ -227,6 +227,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                             const members = await dataService.getTeamMembers(currentUserToEdit.teamId);
                             setTeamMembers(members.filter(m => m.uuid !== currentUserToEdit.uuid));
                         }
+
                     }
                 } catch (error) {
                     console.error("Error loading profile to edit", error);

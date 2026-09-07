@@ -463,7 +463,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
         setUploadingItem(activityId);
         try {
             const image = await Camera.getPhoto({
-                quality: 90,
+                quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Base64,
                 source: source

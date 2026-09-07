@@ -78,7 +78,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
     const handleTakePhoto = async (source: CameraSource) => {
         try {
             const image = await Camera.getPhoto({
-                quality: 90,
+                quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,
                 source: source

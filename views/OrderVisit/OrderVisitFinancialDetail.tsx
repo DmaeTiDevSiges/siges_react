@@ -50,7 +50,7 @@ const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
                             (costsStatus === null || costsStatus === 'pending');
     // Quem já enviou e está aguardando a aprovação da contratante (não é aprovador)
     const isAwaitingApproval = isFinancialApprovalEnabled() && 
-                                (costsStatus === 'pending' || costsStatus === 'waiting') &&
+                                costsStatus === 'waiting' &&
                                 !isApprover;
     // Quem pode aprovar financeiramente (contratante): apenas quando waiting
     const canApproveFinancial = isFinancialApprovalEnabled() && 

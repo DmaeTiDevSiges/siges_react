@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { r2Service } from '../r2Service';
+import { compressForUpload } from '../imageCompressionService';
 import { Asset, AssetAlert, AssetHistoryItem } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { unitsService } from '../core/unitsService';
@@ -467,14 +468,16 @@ export const assetsService = {
 
     // ── Asset Images ─────────────────────────────────────────────
     async uploadAssetImage(assetId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const fileExt = file.name.split('.').pop();
+        const compressed = await compressForUpload(file);
+        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
+        const fileExt = uploadFile.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
         const companyId = 1;
         const folderPath = `companies/${companyId}/assets/${assetId}`;
         const fullPath = `${folderPath}/${fileName}`;
 
         try {
-            await r2Service.uploadFile(file, fullPath, onProgress);
+            await r2Service.uploadFile(uploadFile, fullPath, onProgress);
         } catch (uploadError) {
             console.error('Error uploading asset image to R2:', uploadError);
             throw uploadError;

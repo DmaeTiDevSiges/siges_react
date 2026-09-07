@@ -40,11 +40,14 @@ interface OrdersRequestsDashboardAdminProps {
     activeTab?: 'OS' | 'VISITAS';
     onFilterBarRef?: (ref: FilterBarResponsiveHandle | null) => void;
     onMobileFilterCountChange?: (tab: 'OS' | 'VISITAS', count: number) => void;
+    /** Filtro por empresa provedora. Quando definido, todas as queries filtram por provider_company_id. */
+    providerCompanyId?: string;
 }
 
-export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS', onFilterBarRef, onMobileFilterCountChange }) => {
+export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS', onFilterBarRef, onMobileFilterCountChange, providerCompanyId }) => {
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
+    const isProviderMode = !!providerCompanyId;
     const unscheduledSSScroll = useDraggableScroll();
     const openOSScroll = useDraggableScroll();
     const osSectorScroll = useDraggableScroll();
@@ -351,6 +354,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     orderTeamId: appliedFilters.orderTeamId,
                     assetTagId: appliedFilters.assetTagId,
                     assetTagSubId: appliedFilters.assetTagSubId,
+                    ...(providerCompanyId ? { providerCompanyId } : {}),
                 });
                 setCompletedOS(result);
             } catch (error) {
@@ -393,6 +397,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             orderTeamId: appliedFilters.orderTeamId,
                             assetTagId: appliedFilters.assetTagId,
                             assetTagSubId: appliedFilters.assetTagSubId,
+                            ...(providerCompanyId ? { providerCompanyId } : {}),
                         });
                         return { period: p, count: res.total };
                     })
@@ -668,6 +673,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             statusId: statusIdFromOverride ?? undefined,
             period: statusIdFromOverride ? undefined : (periodFromOverride ?? undefined),
             assetTagId: statusIdFromOverride ? undefined : ssAssetTagFromOverride,
+            ...(providerCompanyId ? { providerCompanyId } : {}),
         };
         delete ordersListFilters.osAssetTagId;
 
@@ -1327,6 +1333,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     )}
 
                     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-6">
+                        {!isProviderMode && (
                         <div className="mx-4 mb-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-200/50 dark:border-slate-700/30 p-4">
                             <section className="pt-1 pb-0">
                                 <div className="flex items-center gap-2 mb-2 px-1">
@@ -1452,6 +1459,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </section>
                             )}
                         </div>
+                        )}
 
                         <div className="mx-4 mb-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/30 p-4">
                             <section className="py-0 mt-0">
@@ -1762,7 +1770,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         )}
                     </button>
 
-                    {canCreate('services_requests_create') && (
+                    {canCreate('services_requests_create') && !isProviderMode && (
                         <button
                             onClick={() => onCreateServiceRequest?.()}
                             className="inline-flex items-center justify-center h-12 px-4 font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/20 active:scale-[0.98]"

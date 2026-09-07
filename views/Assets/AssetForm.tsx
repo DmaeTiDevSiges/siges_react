@@ -340,7 +340,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
     const takePhoto = async (source: CameraSource) => {
         try {
             const image = await Camera.getPhoto({
-                quality: 90,
+                quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,
                 source: source

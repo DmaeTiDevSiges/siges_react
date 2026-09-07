@@ -350,13 +350,13 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 if (!readOnly && user && data.oContractId) {
                     try {
                         isManager = await dataService.isUserContractManager(user.id, data.oContractId);
-                        // Check if user is contract manager with is_admin_super
+                        // Check if user is contract manager/viewer or is admin super
                         const managers = await dataService.getContractManagers(data.oContractId);
                         const currentManager = managers.find(m =>
                             String(m.managerId) === String(user.id) &&
-                            m.role?.toLowerCase() === 'manager'
+                            (m.role?.toLowerCase() === 'manager' || m.role?.toLowerCase() === 'viewer')
                         );
-                        setIsContractManagerAdminSuper(currentManager?.isAdminSuper ?? false);
+                        setIsContractManagerAdminSuper(!!currentManager || !!user.isAdminSuper);
                     } catch (mError) {
                         console.warn('Could not verify contract manager status', mError);
                     }
@@ -1523,7 +1523,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                                 <input
                                                     type="checkbox"
                                                     checked={checked}
-                                                    disabled={isUpdatingStatus || localEditMode === null}
+                                                    disabled={isUpdatingStatus || (localEditMode === null && Number(asset.processingId) !== 1)}
                                                     onChange={() => toggleCompletedAlert(alert.id)}
                                                     className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
                                                 />

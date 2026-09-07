@@ -23,7 +23,7 @@ interface ServiceRequestCardDetailProps {
 }
 
 export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> = ({ order: req, onClick, isFollowed, onToggleFollow, onEdit, onGenerateOS, onCancelSS, onClone, currentUser }) => {
-    const { canCreate } = usePermissions();
+    const { canCreate, canView, canEdit, canDelete } = usePermissions();
     const [showMenu, setShowMenu] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const statusCfg = getStatusConfig(req.statusId);
@@ -290,22 +290,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                             </div>
 
                             <div className="flex flex-col gap-3">
-                                {onClone && canCreate('services_requests_create') && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); setShowMenu(false); onClone?.(); }}
-                                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all active:scale-[0.98] group"
-                                    >
-                                        <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shadow-sm transition-transform group-hover:scale-110">
-                                            <span className="material-symbols-outlined text-[28px]">content_copy</span>
-                                        </div>
-                                        <div className="flex flex-col items-start text-left">
-                                            <span className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Clonar Solicitação</span>
-                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Duplicar esta solicitação</span>
-                                        </div>
-                                    </button>
-                                )}
-
-                                {onGenerateOS && (
+                                {onGenerateOS && canCreate('orders_requests_create') && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setShowMenu(false); onGenerateOS?.(); }}
                                         className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all active:scale-[0.98] group"
@@ -320,7 +305,22 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                                     </button>
                                 )}
 
-                                {onEdit && currentUser?.isAdminSuper && (
+                                {onClone && canCreate('services_requests_create') && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowMenu(false); onClone?.(); }}
+                                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all active:scale-[0.98] group"
+                                    >
+                                        <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shadow-sm transition-transform group-hover:scale-110">
+                                            <span className="material-symbols-outlined text-[28px]">content_copy</span>
+                                        </div>
+                                        <div className="flex flex-col items-start text-left">
+                                            <span className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Clonar SS</span>
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Duplicar esta solicitação</span>
+                                        </div>
+                                    </button>
+                                )}
+
+                                {onEdit && canEdit('services_requests_edit') && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setShowMenu(false); onEdit?.(); }}
                                         className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all active:scale-[0.98] group"
@@ -335,7 +335,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                                     </button>
                                 )}
 
-                                {onCancelSS && (
+                                {onCancelSS && canView('services_requests_cancel') && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();

@@ -114,16 +114,20 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 setCurrentUser(user);
                 setLoading(false); // Liberar a tela para o usuário imediatamente após o carregamento primário!
 
-                // Check if current user is a manager for this contract silently in the background
+                // Check if current user is a manager/viewer for this contract or is admin super
                 if (visitData?.contractId && user?.id) {
                     try {
                         const managers = await dataService.getContractManagers(visitData.contractId);
                         const currentManager = managers.find(m =>
                             String(m.managerId) === String(user.id) &&
+                            (m.role?.toLowerCase() === 'manager' || m.role?.toLowerCase() === 'viewer')
+                        );
+                        const isManagerOnly = managers.some(m =>
+                            String(m.managerId) === String(user.id) &&
                             m.role?.toLowerCase() === 'manager'
                         );
                         setIsContractManager(!!currentManager);
-                        setIsContractManagerAdminSuper(currentManager?.isAdminSuper ?? false);
+                        setIsContractManagerAdminSuper(isManagerOnly || !!user.isAdminSuper);
                     } catch (err) {
                         console.error('Error checking manager status:', err);
                     }

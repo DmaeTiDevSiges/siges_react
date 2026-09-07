@@ -3,6 +3,7 @@ import { apiN8nService } from '../apiN8nService';
 import { User, UserStatus, Permission, Team, Department, Vehicle } from '../../types';
 import { getPublicImageUrl } from '../imageUtils';
 import { r2Service } from '../r2Service';
+import { compressForUpload, compressForAvatar } from '../imageCompressionService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 let currentUserPromise: Promise<User | null> | null = null;
@@ -954,6 +955,28 @@ export const usersService = {
         }
     },
 
+    async updatePhoneNumber(userUuid: string, mobile: string, phone?: string): Promise<void> {
+        const mobileClean = mobile.replace(/\D/g, '') || '';
+        const updateData: Record<string, any> = {
+            mobile: mobileClean,
+            phone: phone || mobile,
+        };
+
+        if (mobileClean.length >= 10 && mobileClean.length <= 11) {
+            const mobileFull = '55' + mobileClean;
+            updateData.mobile_full = mobileFull;
+            updateData.mobile_mask = phone || mobile;
+            updateData.mobile_whatsapp = mobileFull.slice(0, 4) + mobileFull.slice(5) + '@s.whatsapp.net';
+        }
+
+        const { error } = await supabase
+            .from('users')
+            .update(updateData)
+            .eq('uuid', userUuid);
+
+        if (error) throw error;
+    },
+
     async updateUserStatus(userId: string, statusId: number): Promise<string> {
         const { error } = await supabase
             .from('users')
@@ -1043,13 +1066,15 @@ export const usersService = {
     },
 
     async uploadUserAvatar(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const fileExt = (file as File).name ? (file as File).name.split('.').pop() : 'jpg';
+        const compressed = await compressForAvatar(file);
+        const uploadFile = compressed instanceof File ? compressed : compressed;
+        const fileExt = (uploadFile as File).name ? (uploadFile as File).name.split('.').pop() : 'jpg';
         const fileName = `avatar_${Date.now()}.${fileExt}`;
         const folderPath = `users/${userId}/avatar`;
         const fullPath = `${folderPath}/${fileName}`;
 
         try {
-            await r2Service.uploadFile(file as any, fullPath, onProgress);
+            await r2Service.uploadFile(uploadFile as any, fullPath, onProgress);
             return { path: folderPath, filename: fileName };
         } catch (uploadError) {
             console.error('❌ Error uploading user avatar to R2:', uploadError);
@@ -1058,13 +1083,16 @@ export const usersService = {
     },
 
     async uploadUserSignature(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const fileExt = (file as File).name ? (file as File).name.split('.').pop() : 'png';
+        // Assinaturas são PNGs — apenas redimensiona, mantém formato para preservar transparência
+        const compressed = await compressForUpload(file, { maxDimension: 1200, format: 'jpeg', quality: 0.90 });
+        const uploadFile = compressed instanceof File ? compressed : compressed;
+        const fileExt = (uploadFile as File).name ? (uploadFile as File).name.split('.').pop() : 'png';
         const fileName = `signature_${Date.now()}.${fileExt}`;
         const folderPath = `users/${userId}/signature`;
         const fullPath = `${folderPath}/${fileName}`;
 
         try {
-            await r2Service.uploadFile(file as any, fullPath, onProgress);
+            await r2Service.uploadFile(uploadFile as any, fullPath, onProgress);
             return { path: folderPath, filename: fileName };
         } catch (uploadError) {
             console.error('❌ Error uploading user signature to R2:', uploadError);
@@ -1172,7 +1200,7 @@ export const usersService = {
             try {
                 const { data: existingUser } = await supabase
                     .from('users')
-                    .select('uuid')
+                    .select('uuid, mobile')
                     .eq('email', email)
                     .single();
 
@@ -1185,6 +1213,14 @@ export const usersService = {
                     if (updateError) {
                         console.error('Error syncing UUID:', updateError);
                     }
+                }
+
+                // Sync phone number from device
+                try {
+                    const { syncPhoneNumber } = await import('../phoneService');
+                    await syncPhoneNumber(data.user.id, existingUser?.mobile);
+                } catch (phoneErr) {
+                    console.error('Phone sync failed:', phoneErr);
                 }
             } catch (syncError) {
                 console.error('Failed to sync user UUID:', syncError);

@@ -9,6 +9,7 @@ import { getProcessingStatus } from '../../components/ordersVisits/OrderVisitPro
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 import { Loading } from '../../components/ui/Loading';
 import { TabsBar } from '../../components/ui/TabsBar';
+import { syncPhoneNumber } from '../../services/phoneService';
 
 interface DashboardScreenProps {
     currentUser: User | null;
@@ -93,6 +94,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     useEffect(() => {
         loadDashboardData(true);
     }, [loadDashboardData]);
+
+    // Sync phone number from device (Android only)
+    useEffect(() => {
+        if (currentUser?.uuid) {
+            syncPhoneNumber(currentUser.uuid, currentUser.mobile).catch(() => {});
+        }
+    }, [currentUser?.uuid]);
 
     // Escuta evento global de refresh (ex: vindo de uma notificação em tempo real)
     useEffect(() => {

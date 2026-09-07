@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { IconButton } from './IconButton';
 import { Button } from './Button';
 import { imgproxyService } from '../../services/imgproxyService';
+import { compressForUpload } from '../../services/imageCompressionService';
 import { FileUtils } from '../../utils/FileUtils';
 
 
@@ -437,9 +438,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
     const handleExport = async () => {
         setIsSaving(true);
         try {
-            const blob = await generateEditedBlob(0.90);
+            const blob = await generateEditedBlob(0.92);
             if (blob) {
-                const file = new File([blob], `edited_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                const rawFile = new File([blob], `edited_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                const compressed = await compressForUpload(rawFile, { maxDimension: 2048, quality: 0.80, format: 'webp' });
+                const file = compressed instanceof File ? compressed : new File([compressed], rawFile.name.replace(/\.jpg$/, '.webp'), { type: 'image/webp' });
                 onSave(file);
             } else {
                 throw new Error("toBlob returned null");

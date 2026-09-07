@@ -28,6 +28,7 @@ import { OrderVisitAssetView } from '../../types';
 
 interface OrderRequestViewProps {
     order: Order;
+    currentUser?: User | null;
     onBack: () => void;
     onEdit?: () => void;
     onCancel?: () => void;
@@ -41,6 +42,7 @@ interface OrderRequestViewProps {
 
 export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     order,
+    currentUser: currentUserProp,
     onBack,
     onEdit,
     onCancel,
@@ -90,13 +92,17 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     const [isLoadingAlerts, setIsLoadingAlerts] = useState(false);
 
     // Get current user for logic and follow hook
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [currentUser, setCurrentUser] = useState<User | null>(currentUserProp ?? null);
 
     useEffect(() => {
+        if (currentUserProp) {
+            setCurrentUser(currentUserProp);
+            return;
+        }
         dataService.getCurrentUser().then(user => {
             if (user) setCurrentUser(user);
         });
-    }, []);
+    }, [currentUserProp?.id]);
 
     // Use the custom hook for follow functionality
     const { isOrderFollowed, toggleFollow } = useOrderFollow(currentUser?.id);

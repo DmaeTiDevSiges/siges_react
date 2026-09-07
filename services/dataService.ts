@@ -1,6 +1,7 @@
 // Data Service for SIGES application
 import { supabase } from './supabase';
 import { r2Service } from './r2Service';
+import { compressForUpload } from './imageCompressionService';
 import { materialsService } from './materials/materialsService';
 import { warehouseService } from './materials/warehouseService';
 import { purchasesService } from './materials/purchasesService';
@@ -231,7 +232,7 @@ export const dataService = {
     },
 
     getSignatureUrl(path: string, name: string): string {
-        return this.getPublicImageUrl(path, name, { width: 600, height: 300, resize: 'fit' });
+        return this.getPublicImageUrl(path, name, { format: 'origin' });
     },
 
     async saveOrderVisitSignature(ovId: string, type: 'leader' | 'requester', base64: string, onProgress?: (progress: number) => void): Promise<void> {
@@ -241,11 +242,12 @@ export const dataService = {
         const fileName = `${type}_${Date.now()}.png`;
         const fullPath = `${folderPath}/${fileName}`;
 
-        // Convert base64 to Blob
+        // Convert base64 to Blob and upload as-is (signatures are small PNGs from SignaturePad)
         try {
             const res = await fetch(base64);
             const blob = await res.blob();
-            await r2Service.uploadFile(blob as any, fullPath, onProgress);
+            const uploadFile = new File([blob], `signature_${type}.png`, { type: 'image/png' });
+            await r2Service.uploadFile(uploadFile as any, fullPath, onProgress);
 
             const updateData: any = {};
             if (type === 'leader') {
@@ -660,6 +662,10 @@ export const dataService = {
 
     async updateProfile(userUuid: string, user: Partial<User>, onProgress?: (progress: number) => void): Promise<void> {
         return usersService.updateProfile.apply(usersService, arguments as any);
+    },
+
+    async updatePhoneNumber(userUuid: string, mobile: string, phone?: string): Promise<void> {
+        return usersService.updatePhoneNumber.apply(usersService, arguments as any);
     },
 
     async updateUserStatus(userId: string, statusId: number): Promise<string> {
@@ -1401,8 +1407,9 @@ export const dataService = {
         // Importar r2Service dinamicamente para evitar problemas de dependência circular se houver
         // r2Service is now static
 
-
-        const fileExt = file.name.split('.').pop();
+        const compressed = await compressForUpload(file);
+        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
+        const fileExt = uploadFile.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
         const folderPath = `clients/${clientId}/units/${unitId}`;
         const fullPath = `${folderPath}/${fileName}`;
@@ -1424,7 +1431,7 @@ export const dataService = {
         }
 
         try {
-            await r2Service.uploadFile(file, fullPath, onProgress);
+            await r2Service.uploadFile(uploadFile, fullPath, onProgress);
             return { path: folderPath, filename: fileName };
         } catch (uploadError) {
             console.error('❌ Error uploading unit image to R2:', uploadError);

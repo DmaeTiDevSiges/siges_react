@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { r2Service } from '../r2Service';
+import { compressForUpload } from '../imageCompressionService';
 import { AssetTag, AssetTagSub, Company } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { getPublicImageUrl } from '../imageUtils';
@@ -434,12 +435,14 @@ export const assetTagsService = {
     },
 
     async uploadAssetAvailableImageAfterInsert(assetAvailableId: number, unitId: number, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const fileExt = file.name.split('.').pop();
+        const compressed = await compressForUpload(file);
+        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
+        const fileExt = uploadFile.name.split('.').pop();
         const filename = `${assetAvailableId}.${fileExt}`;
         const path = `companies/1/units/${unitId}/assets_available`;
 
         try {
-            await r2Service.uploadFile(file as any, `${path}/${filename}`);
+            await r2Service.uploadFile(uploadFile as any, `${path}/${filename}`);
             
             return { path, filename };
         } catch (error) {
@@ -472,12 +475,14 @@ export const assetTagsService = {
     },
 
     async uploadUnitAssetTagImage(unitAssetTagId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const fileExt = file.name.split('.').pop();
+        const compressed = await compressForUpload(file);
+        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
+        const fileExt = uploadFile.name.split('.').pop();
         const filename = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
         const path = `units_assets_tags/${unitAssetTagId}/${filename}`;
 
         try {
-            await r2Service.uploadFile(file as any, path, onProgress);
+            await r2Service.uploadFile(uploadFile as any, path, onProgress);
             
             return { path, filename };
         } catch (error) {

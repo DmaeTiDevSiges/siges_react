@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { r2Service } from '../r2Service';
+import { compressForUpload } from '../imageCompressionService';
 import type { Order, User, OrderFilters, SuspendedReason, CauseReason, ServiceHistoryItem, AssetAlert } from '../../types';
 import { getPublicImageUrl } from '../imageUtils';
 import { usersService } from '../users/usersService';
@@ -209,13 +210,15 @@ export const ordersService = {
     },
 
     async uploadOrderImage(companyId: string, orderId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
-        const fileExt = file.name.split('.').pop();
+        const compressed = await compressForUpload(file);
+        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
+        const fileExt = uploadFile.name.split('.').pop();
         const uniqueSuffix = Math.random().toString(36).substring(7);
         const fileName = `${Date.now()}-${uniqueSuffix}.${fileExt}`;
         const folderPath = `companies/${companyId}/orders/${orderId}/images`;
         const fullPath = `${folderPath}/${fileName}`;
 
-        await r2Service.uploadFile(file, fullPath, onProgress);
+        await r2Service.uploadFile(uploadFile, fullPath, onProgress);
 
         return { path: folderPath, filename: fileName };
     },
@@ -1193,6 +1196,7 @@ export const ordersService = {
             applyFilter('team_id', filters.orderTeamId);
             applyFilter('requester_team_id', filters.requesterTeamId);
             applyFilter('priority_id', filters.priorityId);
+            applyFilter('provider_company_id', filters.providerCompanyId);
             if (filters.parentId !== undefined) {
                 if (filters.parentId === null) {
                     query = query.or('parent_id.eq.0,parent_id.is.null');
@@ -1854,6 +1858,7 @@ export const ordersService = {
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
+            applyFilter('provider_company_id', filters.providerCompanyId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;
@@ -2011,6 +2016,7 @@ export const ordersService = {
             applyFilter('team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('status_id', filters.statusId);
+            applyFilter('provider_company_id', filters.providerCompanyId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;
@@ -2286,6 +2292,7 @@ export const ordersService = {
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
         priorityId?: string | string[];
+        providerCompanyId?: string | string[];
     }): Promise<{ data: Order[]; total: number }> {
         const page = filters?.page ?? 0;
         const pageSize = filters?.pageSize ?? 20;
@@ -2337,6 +2344,7 @@ export const ordersService = {
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
+            applyFilter('provider_company_id', filters.providerCompanyId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;

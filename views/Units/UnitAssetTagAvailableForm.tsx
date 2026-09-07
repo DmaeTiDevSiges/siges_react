@@ -99,7 +99,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
         if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
         try {
             const image = await Camera.getPhoto({
-                quality: 90,
+                quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,
                 source: source

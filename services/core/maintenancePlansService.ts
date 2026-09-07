@@ -6,7 +6,7 @@ import { r2Service } from '../r2Service';
 export const maintenancePlansService = {
     // ── Plans ───────────────────────────────────────────────────
     async getMaintenancePlans(assetTypeId?: string): Promise<MaintenancePlan[]> {
-        let query = supabase.from('maintenances_plans').select('*').eq('is_deleted', false);
+        let query = supabase.from('maintenances_plans').select('*').eq('is_deleted', false).eq('is_available', true);
         if (assetTypeId) {
             query = query.or(`asset_type_id.eq.${assetTypeId},asset_type_id.is.null`);
         }

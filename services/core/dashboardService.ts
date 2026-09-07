@@ -50,6 +50,7 @@ export const dashboardService = {
             applyFilter('plan_id', f.orderPlanId);
             applyFilter('team_id', f.orderTeamId);
             applyFilter('priority_id', f.priorityId);
+            applyFilter('provider_company_id', f.providerCompanyId);
 
             if (f.search) {
                 const s = `%${f.search}%`;
@@ -216,6 +217,7 @@ export const dashboardService = {
         applyFilter('o_asset_tag_sub_id', filters?.assetTagSubId);
         applyFilter('o_plan_id', filters?.orderPlanId);
         applyFilter('o_team_id', filters?.orderTeamId);
+        applyFilter('o_provider_company_id', filters?.providerCompanyId);
 
         if (filters?.searchQuery) {
             const search = `%${filters.searchQuery}%`;

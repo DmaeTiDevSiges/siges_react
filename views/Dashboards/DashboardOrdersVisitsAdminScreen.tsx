@@ -1508,23 +1508,12 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             const stageVisits = baseFilteredVisits.filter(v => v.ovProcessingId === stage.id);
                             return (
                                 <React.Fragment key={stage.id}>
-                                    <StatCard
-                                        icon={stage.icon || 'circle'}
-                                        label={stage.description}
-                                        count={stats[stage.id]?.count || 0}
-                                        totalValue={stats[stage.id]?.total || 0}
-                                        color={!isHex ? stage.icon_color : ''}
-                                        styleColor={isHex ? stage.icon_color : undefined}
-                                        active={activeOrderVisitProcessingIdSelected === String(stage.id)}
-                                        onClick={() => setActiveOrderVisitProcessingIdSelected(String(stage.id))}
-                                        visits={stageVisits}
-                                    />
                                     {stage.id === 5 && (
                                         <>
-                                            {/* Card especial: Custos Pendentes (após Rejeitada) */}
+                                            {/* Card especial: Custos Pendentes (antes de Aprovada) */}
                                             {(() => {
                                                 const costsPendingVisits = baseFilteredVisits.filter(
-                                                    v => v.ovProcessingId === 5 && (!v.ovCostsStatus || v.ovCostsStatus === 'pending')
+                                                    v => v.ovProcessingId === 5 && (!v.ovCostsStatus || v.ovCostsStatus === 'pending' || v.ovCostsStatus === 'waiting')
                                                 );
                                                 const costsPendingTotal = costsPendingVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0);
                                                 return (
@@ -1543,6 +1532,17 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                             })()}
                                         </>
                                     )}
+                                    <StatCard
+                                        icon={stage.icon || 'circle'}
+                                        label={stage.description}
+                                        count={stats[stage.id]?.count || 0}
+                                        totalValue={stats[stage.id]?.total || 0}
+                                        color={!isHex ? stage.icon_color : ''}
+                                        styleColor={isHex ? stage.icon_color : undefined}
+                                        active={activeOrderVisitProcessingIdSelected === String(stage.id)}
+                                        onClick={() => setActiveOrderVisitProcessingIdSelected(String(stage.id))}
+                                        visits={stageVisits}
+                                    />
                                 </React.Fragment>
                             );
                         })}
