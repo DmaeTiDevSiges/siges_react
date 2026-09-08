@@ -1146,13 +1146,13 @@ export const ordersService = {
         }
     },
 
-    async getOrdersFilters(filters?: OrderFilters & { page?: number; pageSize?: number }): Promise<{ data: Order[]; hasMore: boolean; total: number }> {
+    async getOrdersFilters(filters?: OrderFilters & { page?: number; pageSize?: number; viewName?: string }): Promise<{ data: Order[]; hasMore: boolean; total: number }> {
         const page = filters?.page ?? 0;
         const pageSize = filters?.pageSize ?? 20;
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
-        const viewName = 'v_orders';
+        const viewName = filters?.viewName || 'v_orders';
 
         let query = supabase
             .from(viewName)
@@ -1673,22 +1673,30 @@ export const ordersService = {
     async getDashboardStats(
         filters?: OrderFilters,
         ssFiltersOverride?: OrderFilters,
-        osFiltersOverride?: OrderFilters
+        osFiltersOverride?: OrderFilters,
+        viewName?: string
     ): Promise<{
         ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number; between16And30: number; moreThan30: number };
         osCounts: Record<number, number>;
         ssSectorCounts?: Array<{ id: string, label: string, count: number }>;
         osSectorCounts?: Array<{ id: string, label: string, count: number }>;
     }> {
-        let ssUnscheduledQuery = supabase.from('v_orders')
+        const ssViewName = viewName || 'v_orders';
+        const osViewName = viewName || 'v_orders';
+        
+        let ssUnscheduledQuery = supabase.from(ssViewName)
             .select('requested_at, asset_tag_id, unit_asset_tag_id, asset_tag_description')
             .eq('status_id', 1)
             .is('parent_id', null);
 
-        let osQuery = supabase.from('v_orders')
-            .select('status_id, parent_id, asset_tag_id, asset_tag_description')
-            .not('status_id', 'in', '(7,8)')
-            .not('parent_id', 'is', null);
+        let osQuery = supabase.from(osViewName)
+            .select('status_id, parent_id, asset_tag_id, asset_tag_description');
+
+        if (osViewName === 'v_orders_parent') {
+            osQuery = osQuery.in('status_id', [2, 3, 4, 5, 6]).is('parent_id', null);
+        } else {
+            osQuery = osQuery.not('status_id', 'in', '(7,8)').not('parent_id', 'is', null);
+        }
 
         const applyFiltersToQuery = (query: any, f: OrderFilters) => {
             const applyFilter = (column: string, val: any) => {
@@ -1823,12 +1831,22 @@ export const ordersService = {
         return { ssCounts, osCounts, ssSectorCounts, osSectorCounts };
     },
 
-    async getUnscheduledSS(filters?: OrderFilters): Promise<Order[]> {
+    async getUnscheduledSS(filters?: OrderFilters & { viewName?: string; startDate?: string; endDate?: string }): Promise<Order[]> {
+        const viewName = filters?.viewName || 'v_orders';
         let query = supabase
-            .from('v_orders')
+            .from(viewName)
             .select('*')
             .eq('status_id', 1)
             .is('parent_id', null);
+
+        if (filters?.startDate) {
+            query = query.gte('requested_at', filters.startDate);
+        }
+        if (filters?.endDate) {
+            const endDateTime = new Date(filters.endDate);
+            endDateTime.setHours(23, 59, 59, 999);
+            query = query.lte('requested_at', endDateTime.toISOString());
+        }
 
         if (filters) {
             const applyFilter = (column: string, val: any) => {
@@ -1850,7 +1868,7 @@ export const ordersService = {
             applyFilter('unit_type_parent_id', filters.unitTypeParentId);
             applyFilter('unit_type_id', filters.unitTypeId);
             applyFilter('unit_id', filters.unitId);
-            applyFilter('asset_tag_id', filters.assetTagId);
+            // asset_tag_id intentionally NOT applied here — filtered client-side
             applyFilter('object_id', filters.orderObjectId);
             applyFilter('type_id', filters.orderTypeId);
             applyFilter('type_sub_id', filters.orderTypeSubId);
@@ -1870,33 +1888,6 @@ export const ordersService = {
         if (error) { console.error('Error fetching unscheduled SS:', error); return []; }
 
         let filteredData = data || [];
-
-        if (filters?.period) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const yesterday = new Date(today);
-            yesterday.setDate(today.getDate() - 1);
-            const sevenDaysAgo = new Date(today);
-            sevenDaysAgo.setDate(today.getDate() - 7);
-            const fifteenDaysAgo = new Date(today);
-            fifteenDaysAgo.setDate(today.getDate() - 15);
-            const thirtyDaysAgo = new Date(today);
-            thirtyDaysAgo.setDate(today.getDate() - 30);
-
-            const parseDate = (d: string) => d ? new Date(d) : null;
-
-            filteredData = filteredData.filter((item: any) => {
-                const itemDate = parseDate(item.requested_at);
-                if (!itemDate) return false;
-                if (filters.period === 'Hoje') return itemDate >= today;
-                if (filters.period === 'Ontem') return itemDate >= yesterday && itemDate < today;
-                if (filters.period === '2-7 dias') return itemDate >= sevenDaysAgo && itemDate < yesterday;
-                if (filters.period === '8-15 dias') return itemDate >= fifteenDaysAgo && itemDate < sevenDaysAgo;
-                if (filters.period === '16-30 dias') return itemDate >= thirtyDaysAgo && itemDate < fifteenDaysAgo;
-                if (filters.period === '> 30 dias') return itemDate < thirtyDaysAgo;
-                return true;
-            });
-        }
 
         const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
@@ -1980,12 +1971,31 @@ export const ordersService = {
         });
     },
 
-    async getOpenOS(filters?: OrderFilters): Promise<Order[]> {
+    async getOpenSS(filters?: OrderFilters & { viewName?: string; startDate?: string; endDate?: string }): Promise<Order[]> {
+        const viewName = filters?.viewName || 'v_orders_parent';
         let query = supabase
-            .from('v_orders')
-            .select('*')
-            .not('status_id', 'in', '(7,8)')
-            .not('parent_id', 'is', null);
+            .from(viewName)
+            .select('*');
+
+        // Apply status filter: use provided statusId if set, otherwise default to all open statuses
+        if (filters?.statusId) {
+            const statusIds = Array.isArray(filters.statusId) ? filters.statusId : [filters.statusId];
+            const filteredStatusIds = statusIds.filter((s: any) => s !== null && s !== undefined && s !== '');
+            if (filteredStatusIds.length > 0) {
+                query = query.in('status_id', filteredStatusIds);
+            }
+        } else {
+            query = query.in('status_id', [2, 3, 4, 5, 6]);
+        }
+
+        if (filters?.startDate) {
+            query = query.gte('requested_at', filters.startDate);
+        }
+        if (filters?.endDate) {
+            const endDateTime = new Date(filters.endDate);
+            endDateTime.setHours(23, 59, 59, 999);
+            query = query.lte('requested_at', endDateTime.toISOString());
+        }
 
         if (filters) {
             const applyFilter = (column: string, val: any) => {
@@ -2007,7 +2017,7 @@ export const ordersService = {
             applyFilter('unit_type_parent_id', filters.unitTypeParentId);
             applyFilter('unit_type_id', filters.unitTypeId);
             applyFilter('unit_id', filters.unitId);
-            applyFilter('asset_tag_id', filters.assetTagId);
+            // asset_tag_id intentionally NOT applied here — filtered client-side by displayedOpenOS
             applyFilter('object_id', filters.orderObjectId);
             applyFilter('type_id', filters.orderTypeId);
             applyFilter('type_sub_id', filters.orderTypeSubId);
@@ -2015,17 +2025,16 @@ export const ordersService = {
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
-            applyFilter('status_id', filters.statusId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;
-                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+                query = query.or(`order_mask.ilike.${s},unit_description.ilike.${s},unit_description_full.ilike.${s},type_description.ilike.${s},requested_services.ilike.${s}`);
             }
         }
 
         const { data, error } = await query.order('requested_at', { ascending: false });
-        if (error) { console.error('Error fetching open OS:', error); return []; }
+        if (error) { console.error('Error fetching open SS:', error); return []; }
 
         const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
@@ -2113,6 +2122,151 @@ export const ordersService = {
         });
     },
 
+    async getOpenOS(filters?: OrderFilters & { viewName?: string }): Promise<Order[]> {
+        const viewName = filters?.viewName || 'v_orders';
+        let query = supabase
+            .from(viewName)
+            .select('*')
+            .not('status_id', 'in', '(7,8)')
+            .not('parent_id', 'is', null);
+
+        if (filters) {
+            const applyFilter = (column: string, val: any) => {
+                if (!val) return;
+                if (Array.isArray(val)) {
+                    const filteredVal = val.filter((v: any) =>
+                        v !== null && v !== undefined && v !== '' &&
+                        String(v).toLowerCase() !== 'null' &&
+                        String(v).toLowerCase() !== 'undefined'
+                    );
+                    if (filteredVal.length > 0) query = query.in(column, filteredVal);
+                } else {
+                    query = query.eq(column, val);
+                }
+            };
+
+            applyFilter('system_parent_id', filters.systemParentId);
+            applyFilter('system_id', filters.systemId);
+            applyFilter('unit_type_parent_id', filters.unitTypeParentId);
+            applyFilter('unit_type_id', filters.unitTypeId);
+            applyFilter('unit_id', filters.unitId);
+            applyFilter('asset_tag_id', filters.assetTagId);
+            applyFilter('object_id', filters.orderObjectId);
+            applyFilter('type_id', filters.orderTypeId);
+            applyFilter('type_sub_id', filters.orderTypeSubId);
+            applyFilter('contract_id', filters.contractId);
+            applyFilter('plan_id', filters.orderPlanId);
+            applyFilter('team_id', filters.orderTeamId);
+            applyFilter('priority_id', filters.priorityId);
+            applyFilter('status_id', filters.statusId);
+            applyFilter('provider_company_id', filters.providerCompanyId);
+
+            if (filters.search) {
+                const s = `%${filters.search}%`;
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+            }
+        }
+
+        const { data, error } = await query.order('requested_at', { ascending: false });
+        if (error) { console.error('Error fetching open OS:', error); return []; }
+
+        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
+
+        return (data || []).map((item: any) => {
+            const providerCompanyIdStr = item.provider_company_id?.toString();
+            const company = providerCompanyIdStr ? companyMap.get(providerCompanyIdStr) : null;
+
+            return {
+                id: item.id.toString(),
+                orderMask: item.order_mask,
+                typeId: item.type_id?.toString(),
+                typeSubId: item.type_sub_id?.toString(),
+                typeCode: item.type_code,
+                typeSubCode: item.type_sub_code,
+                typeDescription: item.type_description,
+                objectCode: item.object_code,
+                objectDescription: item.object_description,
+                orderObjectId: item.object_id?.toString(),
+                systemParentDescription: item.system_parent_description,
+                systemDescription: item.system_description,
+                unitTypeParentDescription: item.unit_type_parent_description,
+                unitTypeDescription: item.unit_type_description,
+                unitDescription: item.unit_description,
+                unitAddress: item.unit_address,
+                unitId: item.unit_id?.toString(),
+                companyId: item.company_id?.toString(),
+                companyName: item.company_description,
+                logo: getPublicImageUrl(
+                    item.company_img_file_path,
+                    item.company_img_file_name,
+                    { width: 100, height: 100, resize: 'contain' }
+                ),
+                clientId: item.client_id?.toString(),
+                clientName: item.client_name,
+                contractId: item.contract_id?.toString(),
+                contractDescription: item.contract_description,
+                contractCode: item.contract_code,
+                planId: item.plan_id?.toString(),
+                planDescription: item.plan_description,
+                planCode: item.plan_code,
+                requesterName: item.requester_name,
+                requesterPhone: item.requester_phone,
+                requesterTeamCode: item.requester_team_code,
+                requestedAt: item.requested_at,
+                statusId: item.status_id ? Number(item.status_id) : 1,
+                statusCode: item.status_code,
+                statusDescription: item.status_description,
+                statusAt: item.status_at,
+                priorityId: item.priority_id?.toString(),
+                priorityCode: item.priority_code,
+                priorityDescription: item.priority_description,
+                teamLeaderId: item.team_leader_id?.toString(),
+                teamLeaderNameShort: item.team_leader_name_short,
+                teamId: item.team_id?.toString(),
+                teamCode: item.team_code,
+                teamDescription: item.team_description,
+                assetTagId: item.asset_tag_id?.toString(),
+                assetTagDescription: item.asset_tag_description,
+                unitAssetTagDescription: item.asset_tag_description,
+                assetTagSubDescription: item.asset_tag_sub_description,
+                unitAssetTagSubDescription: item.asset_tag_sub_description,
+                year: item.year,
+                counterParent: item.counter_parent,
+                counterChild: item.counter_child,
+                causeReasonId: item.cause_reason_id ? Number(item.cause_reason_id) : undefined,
+                causeReasonDescription: item.cause_reason_description,
+                suspendedReasonDescription: item.suspended_reason_description,
+                cancelReasonDescription: item.cancel_reason_description,
+                canceledTeamCode: item.canceled_team_code,
+                canceledUserNameShort: item.canceled_user_name_short,
+                servicesValue: item.services_value,
+                materialsValue: item.materials_value,
+                vehiclesValue: item.vehicles_value,
+                totalValue: item.total_value,
+                versionMode: item.version_mode,
+                createdUserId: item.created_user_id,
+                ovCounter: item.ov_counter,
+                progress: item.progress ? `${Math.round(parseFloat(String(item.progress)) * 100)}%` : '0%',
+                unitCode: item.unit_code,
+                imgFilePath: item.img_file_path,
+                imgFileName: item.img_file_name,
+                imgFilesNames: item.img_files_names,
+                providerCompanyId: item.provider_company_id?.toString(),
+                providerCompanyName: item.provider_company_description || company?.description,
+                providerLogo: getPublicImageUrl(
+                    item.provider_company_img_file_path || company?.img_file_path,
+                    item.provider_company_img_file_name || company?.img_file_name,
+                    { width: 100, height: 100, resize: 'contain' }
+                ),
+                unitLatitude: item.unit_latitude,
+                unitLongitude: item.unit_longitude,
+                parentId: item.parent_id,
+                requestedServices: item.requested_services
+            } as Order;
+        });
+    },
+
     async getOrdersByTeam(teamId: string): Promise<Order[]> {
         const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
@@ -2122,7 +2276,7 @@ export const ordersService = {
             .select('*')
             .eq('team_id', teamId);
 
-        if (error) { console.error('Error fetching orders by team:', error); return []; }
+        if (error) { console.error('Error fetching orders by leader:', error); return []; }
 
         return (data || []).map((row: any) => {
             const providerCompanyIdStr = row.provider_company_id?.toString();
@@ -2245,17 +2399,12 @@ export const ordersService = {
                 unitLatitude: row.unit_latitude,
                 unitLongitude: row.unit_longitude,
                 teamCode: row.team_code,
-                statusName: row.status_name,
                 statusDescription: row.status_description,
-                statusIcon: row.status_icon,
-                iconColor: row.icon_color,
-                statusBackgroundColor: row.status_background_color,
                 progress: row.progress ? `${Math.round(parseFloat(String(row.progress)) * 100)}%` : '0%',
                 unitDescription: row.unit_description,
                 unitDescriptionFull: row.unit_description_full,
                 typeDescription: row.type_description,
                 priorityDescription: row.priority_description,
-                priorityColor: row.priority_color,
                 assetTagDescription: row.asset_tag_description || row.unit_asset_tag_description,
                 unitAssetTagDescription: row.asset_tag_description || row.unit_asset_tag_description,
                 assetTagSubDescription: row.asset_tag_sub_description || row.unit_asset_tag_sub_description,
@@ -2272,6 +2421,7 @@ export const ordersService = {
             } as Order;
         });
     },
+
     async getCompletedOS(filters?: {
         startDate?: string;
         endDate?: string;
@@ -2293,17 +2443,24 @@ export const ordersService = {
         orderTeamId?: string | string[];
         priorityId?: string | string[];
         providerCompanyId?: string | string[];
+        viewName?: string;
     }): Promise<{ data: Order[]; total: number }> {
         const page = filters?.page ?? 0;
         const pageSize = filters?.pageSize ?? 20;
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
+        const viewName = filters?.viewName || 'v_orders';
+
         let query = supabase
-            .from('v_orders')
-            .select('*', { count: 'exact' })
-            .gt('parent_id', 0)
-            .eq('status_id', 8);
+            .from(viewName)
+            .select('*', { count: 'exact' });
+
+        if (viewName === 'v_orders_parent') {
+            query = query.eq('status_id', 8);
+        } else {
+            query = query.gt('parent_id', 0).eq('status_id', 8);
+        }
 
         const applyFilter = (column: string, val: any) => {
             if (val === null) { query = query.is(column, null); return; }

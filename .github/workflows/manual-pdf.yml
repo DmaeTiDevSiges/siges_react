@@ -1,0 +1,161 @@
+name: Build Manual PDF
+
+on:
+  push:
+    paths:
+      - 'docs/manual/**'
+    branches: [main, develop]
+  pull_request:
+    paths:
+      - 'docs/manual/**'
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for the PDF (optional)'
+        required: false
+        type: string
+
+jobs:
+  build-pdf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install system dependencies (pandoc + LaTeX)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pandoc \
+            texlive-xetex \
+            texlive-fonts-recommended \
+            texlive-plain-generic \
+            texlive-lang-portuguese \
+            fonts-dejavu-core \
+            fonts-liberation2
+      
+      - name: Verify pandoc installation
+        run: |
+          pandoc --version
+          xelatex --version
+      
+      - name: Build PDF
+        id: build
+        run: |
+          cd docs/manual
+          
+          # List chapters in order
+          CHAPTERS=(
+            "INDICE.md"
+            "01-introducao.md"
+            "02-solicitacoes-servico.md"
+            "03-ordens-servico.md"
+            "04-visitas-tecnicas.md"
+            "05-ativos-equipamentos.md"
+            "06-unidades-clientes.md"
+            "07-almoxarifado.md"
+            "08-equipes-colaboradores.md"
+            "09-dashboard-relatorios.md"
+            "10-configuracoes.md"
+            "11-faq-glossario.md"
+          )
+          
+          # Verify all files exist
+          for f in "${CHAPTERS[@]}"; do
+            if [[ ! -f "$f" ]]; then
+              echo "❌ Missing: $f"
+              exit 1
+            fi
+            echo "✅ Found: $f"
+          done
+          
+          # Build PDF with pandoc
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          DATE=$(date '+%Y-%m-%d')
+          
+          pandoc "${CHAPTERS[@]}" \
+            -o "../../SIGES-Manual-Operacao-v${VERSION}-${DATE}.pdf" \
+            --pdf-engine=xelatex \
+            -V geometry:margin=2cm \
+            -V fontsize=11pt \
+            -V lang=pt-BR \
+            -V documentclass=report \
+            -V classoption=oneside \
+            --toc \
+            --toc-depth=3 \
+            --number-sections \
+            --resource-path=.:assets \
+            --metadata=title:"SIGES — Manual de Operação" \
+            --metadata=author:"Equipe SIGES" \
+            --metadata=date:"${DATE}" \
+            --metadata=version:"${VERSION}"
+          
+          # Verify output
+          if [[ -f "../../SIGES-Manual-Operacao-v${VERSION}-${DATE}.pdf" ]]; then
+            SIZE=$(stat -c%s "../../SIGES-Manual-Operacao-v${VERSION}-${DATE}.pdf")
+            echo "✅ PDF generated successfully (${SIZE} bytes)"
+            echo "PDF_FILE=SIGES-Manual-Operacao-v${VERSION}-${DATE}.pdf" >> $GITHUB_OUTPUT
+          else
+            echo "❌ PDF generation failed"
+            exit 1
+          fi
+      
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SIGES-Manual-Operacao
+          path: SIGES-Manual-Operacao-*.pdf
+          retention-days: 30
+          if-no-files-found: error
+      
+      - name: Create Release (on version tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: SIGES-Manual-Operacao-*.pdf
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Optional: Validate markdown syntax
+  validate-markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install markdownlint
+        run: npm install -g markdownlint-cli
+      
+      - name: Lint markdown files
+        run: |
+          cd docs/manual
+          markdownlint "**/*.md" \
+            --config ../../.markdownlint.json \
+            --disable MD013 MD033 MD041 || true
+
+  # Optional: Check for broken internal links
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install link checker
+        run: npm install -g markdown-link-check
+      
+      - name: Check internal links
+        run: |
+          cd docs/manual
+          markdown-link-check "*.md" \
+            --config ../../.markdown-link-check.json \
+            --quiet || true

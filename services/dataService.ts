@@ -1632,7 +1632,7 @@ export const dataService = {
         return ordersService.getOrderByMask.apply(ordersService, arguments as any);
     },
 
-    async getOrdersFilters(filters?: OrderFilters & { page?: number; pageSize?: number }): Promise<{ data: Order[]; hasMore: boolean; total: number }> {
+    async getOrdersFilters(filters?: OrderFilters & { page?: number; pageSize?: number; viewName?: string }): Promise<{ data: Order[]; hasMore: boolean; total: number }> {
         return ordersService.getOrdersFilters.apply(ordersService, arguments as any);
     },
 
@@ -1757,7 +1757,8 @@ export const dataService = {
      async getDashboardStats(
          filters?: OrderFilters,
          ssFiltersOverride?: OrderFilters,
-         osFiltersOverride?: OrderFilters
+         osFiltersOverride?: OrderFilters,
+         viewName?: string
      ): Promise<{
          ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number; between16And30: number; moreThan30: number };
          osCounts: Record<number, number>;
@@ -1768,11 +1769,15 @@ export const dataService = {
      },
 
 
-    async getUnscheduledSS(filters?: OrderFilters): Promise<Order[]> {
+    async getUnscheduledSS(filters?: OrderFilters & { viewName?: string; startDate?: string; endDate?: string }): Promise<Order[]> {
         return ordersService.getUnscheduledSS.apply(ordersService, arguments as any);
     },
 
-    async getOpenOS(filters?: OrderFilters): Promise<Order[]> {
+    async getOpenSS(filters?: OrderFilters & { viewName?: string; startDate?: string; endDate?: string }): Promise<Order[]> {
+        return ordersService.getOpenSS.apply(ordersService, arguments as any);
+    },
+
+    async getOpenOS(filters?: OrderFilters & { viewName?: string }): Promise<Order[]> {
         return ordersService.getOpenOS.apply(ordersService, arguments as any);
     },
 
@@ -1796,6 +1801,7 @@ export const dataService = {
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
         priorityId?: string | string[];
+        viewName?: string;
     }): Promise<{ data: Order[]; total: number }> {
         return ordersService.getCompletedOS.apply(ordersService, arguments as any);
     },

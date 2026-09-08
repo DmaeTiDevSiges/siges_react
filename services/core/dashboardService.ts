@@ -5,22 +5,30 @@ export const dashboardService = {
     async getDashboardStats(
         filters?: OrderFilters,
         ssFiltersOverride?: OrderFilters,
-        osFiltersOverride?: OrderFilters
+        osFiltersOverride?: OrderFilters,
+        viewName?: string
     ): Promise<{
         ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number; between16And30: number; moreThan30: number };
         osCounts: Record<number, number>;
         ssSectorCounts?: Array<{ id: string, label: string, count: number }>;
         osSectorCounts?: Array<{ id: string, label: string, count: number }>;
     }> {
-        let ssUnscheduledQuery = supabase.from('v_orders')
+        const ssViewName = viewName || 'v_orders';
+        const osViewName = viewName || 'v_orders';
+        const isParentView = viewName === 'v_orders_parent';
+        
+        let ssUnscheduledQuery = supabase.from(ssViewName)
             .select('requested_at, asset_tag_id, unit_asset_tag_id, asset_tag_description')
             .eq('status_id', 1)
             .is('parent_id', null);
 
-        let osQuery = supabase.from('v_orders')
+        let osQuery = supabase.from(osViewName)
             .select('status_id, parent_id, asset_tag_id, asset_tag_description')
-            .not('status_id', 'in', '(7,8)')
-            .not('parent_id', 'is', null);
+            .not('status_id', 'in', '(7,8)');
+
+        if (!isParentView) {
+            osQuery = osQuery.not('parent_id', 'is', null);
+        }
 
         const applyFiltersToQuery = (query: any, f: OrderFilters) => {
             const applyFilter = (column: string, val: any) => {
@@ -101,7 +109,7 @@ export const dashboardService = {
 
         const osCounts: Record<number, number> = {};
         osDataList.forEach((o: any) => {
-            if (o.parent_id && o.status_id) {
+            if (o.status_id) {
                 osCounts[o.status_id] = (osCounts[o.status_id] || 0) + 1;
             }
         });
@@ -129,7 +137,7 @@ export const dashboardService = {
             if (!ssSectorMap[id]) ssSectorMap[id] = { id, label, count: 0 };
             ssSectorMap[id].count += 1;
         });
-        const ssSectorCounts = Object.values(ssSectorMap).sort((a, b) => b.count - a.count);
+        const ssSectorCounts = Object.values(ssSectorMap).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
 
         const osStatusFilter = osFiltersOverride?.statusId;
         let osSectorCountSource = osDataList;
@@ -147,7 +155,7 @@ export const dashboardService = {
             if (!osSectorMap[id]) osSectorMap[id] = { id, label, count: 0 };
             osSectorMap[id].count += 1;
         });
-        const osSectorCounts = Object.values(osSectorMap).sort((a, b) => b.count - a.count);
+        const osSectorCounts = Object.values(osSectorMap).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
 
         return { ssCounts, osCounts, ssSectorCounts, osSectorCounts };
     },

@@ -151,7 +151,7 @@ import { PermissionsProvider } from './contexts/PermissionsContext';
 const MaintenancePlansScreen = lazyWithRetry(() => import('./views/Settings/MaintenancePlans/MaintenancePlansScreen').then(m => ({ default: m.MaintenancePlansScreen })));
 const ToolsMainView = lazyWithRetry(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
 
-type Screen = 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
+type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit';
 
 import { ActionIcon } from './components/ui/ActionIcon';
@@ -265,7 +265,7 @@ const AppContent: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices'>(() => {
+  const [activeTab, setActiveTab] = useState<'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices'>(() => {
     const saved = localStorage.getItem('app_active_tab');
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
@@ -289,7 +289,9 @@ const AppContent: React.FC = () => {
     localStorage.setItem('app_active_tab', normalizedTab);
 
     // Navigate to appropriate screen
-    if (normalizedTab === 'orders') {
+    if (normalizedTab === 'ss') {
+      setCurrentScreen('ss-dashboard');
+    } else if (normalizedTab === 'orders') {
       setCurrentScreen('orders-dashboard');
     } else if (normalizedTab === 'visits') {
       setCurrentScreen('visits-dashboard');
@@ -555,7 +557,8 @@ const AppContent: React.FC = () => {
 
 
   const getTabNavigation = () => {
-    const isDashboardScreen = currentScreen === 'orders-dashboard' ||
+    const isDashboardScreen = currentScreen === 'ss-dashboard' ||
+      currentScreen === 'orders-dashboard' ||
       currentScreen === 'visits-dashboard' ||
       currentScreen === 'dashboard-units-power-electric' ||
       currentScreen === 'dashboard-units-assets-tags' ||
@@ -1898,6 +1901,35 @@ const AppContent: React.FC = () => {
             }}
           />
         );
+      case 'ss-dashboard':
+        return (
+          <ServicesRequestsDashboardAdmin
+            currentUser={currentUser}
+            onSelectOrder={(order) => {
+              setLastOrderSource('ss-dashboard');
+              setSelectedOrder(order);
+              const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
+              if (isOS) {
+                setOrderDetailActiveTab('SS');
+                setCurrentScreen('order-detail');
+              } else {
+                setSsDetailActiveTab('OS');
+                setCurrentScreen('service-request-detail');
+              }
+            }}
+            onSelectVisit={handleVisitSelect}
+            onTrackUsers={handleTrackUsers}
+            onCreateServiceRequest={() => {
+              setSelectedOrder(null);
+              setCurrentScreen('service-request-create');
+            }}
+            onNavigate={handleNavigate}
+            onEdit={(order) => {
+              setSelectedOrder(order);
+              setCurrentScreen('order-create');
+            }}
+          />
+        );
       case 'orders-dashboard':
         return (
           <OrdersRequestsDashboardAdmin
@@ -3097,6 +3129,7 @@ const AppContent: React.FC = () => {
               title={getTitle()}
               showBackButton={
                 (currentScreen as string) !== 'dashboard' &&
+                (currentScreen as string) !== 'ss-dashboard' &&
                 (currentScreen as string) !== 'orders-dashboard' &&
                 (currentScreen as string) !== 'visits-dashboard' &&
                 (currentScreen as string) !== 'dashboard-units-power-electric' &&

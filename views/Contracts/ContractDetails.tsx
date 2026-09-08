@@ -8,6 +8,7 @@ import { ContractServicesList } from './Services/ContractServicesList';
 import { ContractEvaluationsTab } from './Evaluations/ContractEvaluationsTab';
 import { Loading } from '../../components/ui/Loading';
 import { TabsBar } from '../../components/ui/TabsBar';
+import { AIContextualBar } from '../../components/ai/AIContextualBar';
 
 
 interface ContractDetailsProps {
@@ -157,6 +158,9 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
 
     return (
         <div className="flex flex-col p-4 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+            {/* AI Suggestions - disabled */}
+            {/* <AIContextualBar context={{ route: 'contracts', entityType: 'contract', entityId: String(contract.id), entityName: contract.providerCompanyName }} maxSuggestions={3} /> */}
+
             {/* Main Card */}
             <div className="relative flex flex-col p-4 bg-white dark:bg-card-dark rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
 

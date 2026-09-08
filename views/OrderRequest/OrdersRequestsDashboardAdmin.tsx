@@ -231,6 +231,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
+    const [ssAssetTagId, setSsAssetTagId] = useState<string[]>([]);
 
     const [stats, setStats] = useState(() => {
         try {
@@ -563,16 +564,11 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     // Client-side filter for the unscheduled SS carousel by selected sector (assetTagId)
     const displayedUnscheduledSS = React.useMemo(() => {
-        const activeTagIds = Array.isArray(appliedFilters.assetTagId)
-            ? appliedFilters.assetTagId
-            : appliedFilters.assetTagId
-                ? [appliedFilters.assetTagId]
-                : [];
-        if (activeTagIds.length === 0) return unscheduledSS;
+        if (ssAssetTagId.length === 0) return unscheduledSS;
         return unscheduledSS.filter(ss =>
-            ss.assetTagId != null && activeTagIds.includes(ss.assetTagId.toString())
+            ss.assetTagId != null && ssAssetTagId.includes(ss.assetTagId.toString())
         );
-    }, [unscheduledSS, appliedFilters.assetTagId]);
+    }, [unscheduledSS, ssAssetTagId]);
 
     const displayedOpenOS = React.useMemo(() => {
         if (osAssetTagId.length === 0) return openOS;
@@ -1214,7 +1210,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </button>
                             </div>
 
-                            {/* Cards de Empresas / Líderes — dentro do header */}
+                            {/* Cards de Empresas / Líderes — removido conforme solicitado */}
+                            {/*
                             <div
                                 className="flex gap-3 overflow-x-auto no-scrollbar px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                 ref={leadersScroll.ref}
@@ -1295,6 +1292,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     </div>
                                 ))}
                             </div>
+                            */}
                         </div>
                     </div>
 
@@ -1405,22 +1403,14 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             onTouchStart={ssSectorScroll.onTouchStart}
                                             onClickCapture={ssSectorScroll.onClickCapture}>
                                             {stats.ssSectorCounts.map((item, idx) => {
-                                                const currentAssetTagIds = Array.isArray(advancedOrdersFilters.assetTagId)
-                                                    ? advancedOrdersFilters.assetTagId
-                                                    : advancedOrdersFilters.assetTagId
-                                                        ? [advancedOrdersFilters.assetTagId]
-                                                        : [];
-                                                const isSelected = currentAssetTagIds.includes(item.id);
+                                                const isSelected = ssAssetTagId.includes(item.id);
 
                                                 return (
                                                     <div key={idx} onClick={() => {
                                                         const newAssetTagId = isSelected
-                                                            ? currentAssetTagIds.filter((id) => id !== item.id)
-                                                            : [...currentAssetTagIds, item.id];
-                                                        setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: newAssetTagId }));
-                                                        setAppliedFilters((prev: OrderFilters) => ({ ...prev, assetTagId: newAssetTagId }));
-                                                        // Pass period explicitly so it is not lost in the override merge
-                                                        fetchData(false, true, { ...appliedFilters, period: selectedPeriod, assetTagId: newAssetTagId });
+                                                            ? ssAssetTagId.filter((id) => id !== item.id)
+                                                            : [...ssAssetTagId, item.id];
+                                                        setSsAssetTagId(newAssetTagId);
                                                     }}
                                                         className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer flex items-center justify-between gap-3
                                                     ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}

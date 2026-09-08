@@ -1,0 +1,22 @@
+{
+  "replacementPatterns": [
+    {
+      "pattern": "^\\./",
+      "replacement": ""
+    },
+    {
+      "pattern": "^\\.\\./",
+      "replacement": ""
+    }
+  ],
+  "ignorePatterns": [
+    "^https?://github.com/",
+    "^https?://gitlab.com/",
+    "^mailto:",
+    "^#"
+  ],
+  "aliveStatusCodes": [200, 206],
+  "retryOn429": true,
+  "retryCount": 3,
+  "fallbackRetryDelay": 1000
+}

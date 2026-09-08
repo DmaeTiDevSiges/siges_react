@@ -22,6 +22,7 @@ import {
   ScreenContext,
   fireSuggestionSelected,
 } from '../../services/aiSuggestionEngine';
+import { getPageHelp } from '../../services/aiPageHelpMap';
 
 // ─── Props ──────────────────────────────────────────────────────────
 
@@ -62,8 +63,23 @@ export const AIContextualBar: React.FC<AIContextualBarProps> = ({
     async function load() {
       setLoadingSuggestions(true);
       try {
+        // Busca sugestões do engine de rota
         const result = await aiSuggestionEngine.getSuggestions(context, maxSuggestions);
-        if (!cancelled) setSuggestions(result);
+
+        // Se o engine não retornou nada, usa o page help map como fallback
+        if (result.length === 0 && context.route) {
+          const pageHelp = getPageHelp(context.route);
+          const fallbackSuggestions: Suggestion[] = pageHelp.suggestions.slice(0, maxSuggestions).map((s, idx) => ({
+            id: `page_help_${idx}`,
+            label: s.label,
+            prompt: s.prompt,
+            icon: s.icon || 'help',
+            category: 'quick_info' as const,
+          }));
+          if (!cancelled) setSuggestions(fallbackSuggestions);
+        } else {
+          if (!cancelled) setSuggestions(result);
+        }
       } catch (err) {
         console.error('[AIContextualBar] Erro ao carregar sugestões:', err);
         if (!cancelled) setSuggestions([]);
@@ -126,13 +142,19 @@ export const AIContextualBar: React.FC<AIContextualBarProps> = ({
     return null;
   }
 
+  // Nome da página para exibir no cabeçalho
+  const pageHelp = context.route ? getPageHelp(context.route) : null;
+  const headerLabel = pageHelp && pageHelp.label !== 'SIGES'
+    ? `Assistente IA • ${pageHelp.label}`
+    : 'Assistente IA • Sugestões para esta tela';
+
   return (
     <div className="mb-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
       {/* Cabeçalho */}
       <div className="flex items-center gap-1.5 mb-2 px-1">
         <div className="w-1 h-4 bg-primary rounded-full"></div>
         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-          Assistente IA • Sugestões para esta tela
+          {headerLabel}
         </span>
         {loadingSuggestions && (
           <div className="flex gap-0.5 ml-1">

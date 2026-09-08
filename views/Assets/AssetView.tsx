@@ -22,6 +22,7 @@ import { AssetAlertListItem } from './AssetAlertListItem';
 import QRCode from 'react-qr-code';
 import { Loading } from '../../components/ui/Loading';
 import { TabsBar } from '../../components/ui/TabsBar';
+import { AIContextualBar } from '../../components/ai/AIContextualBar';
 
 
 
@@ -565,6 +566,9 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                 <div className={`p-4 space-y-8 pb-32 relative md:max-w-5xl md:mx-auto transition-all duration-700 ease-in-out ${isHeaderExpanded ? 'translate-y-20 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
                     }`}>
+                    {/* AI Suggestions - disabled */}
+                    {/* <AIContextualBar context={{ route: 'assets', entityType: 'asset', entityId: String(asset.id), entityCode: asset.code, entityName: asset.description }} maxSuggestions={3} /> */}
+
                     {/* Floating Asset Card */}
                     <AssetCardDetail asset={asset} onMaterialSelect={onMaterialSelect} />
 

@@ -18,6 +18,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
 }) => {
   const { canView } = usePermissions();
 
+  const hasServices = canView('dashboard_services');
   const hasOrders = canView('dashboard_orders');
   const hasVisits = canView('dashboard_orders_visits');
   const hasUnits = canView('dashboard_units_assets_tags');
@@ -25,6 +26,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   const hasEvaluations = canView('dashboard_contracts_evaluations');
 
   const isDashboardScreen =
+    currentScreen === 'ss-dashboard' ||
     currentScreen === 'orders-dashboard' ||
     currentScreen === 'visits-dashboard' ||
     currentScreen === 'dashboard-units-power-electric' ||
@@ -41,6 +43,17 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
       <h1 className="hidden md:block text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Gestão</h1>
       <div className="hidden md:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
       <div className="flex items-center no-scrollbar overflow-x-auto gap-4">
+        {hasServices && (
+          <button
+            onClick={() => setCurrentScreen('ss-dashboard')}
+            className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${currentScreen === 'ss-dashboard' ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}
+          >
+            SS's
+            {currentScreen === 'ss-dashboard' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+            )}
+          </button>
+        )}
         {hasOrders && (
           <button
             onClick={() => { setOrdersDashboardTab('OS'); setCurrentScreen('orders-dashboard'); }}

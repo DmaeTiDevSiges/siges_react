@@ -10,6 +10,7 @@ import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCard
 import { Loading } from '../../components/ui/Loading';
 import { TabsBar } from '../../components/ui/TabsBar';
 import { syncPhoneNumber } from '../../services/phoneService';
+import { AIContextualBar } from '../../components/ai/AIContextualBar';
 
 interface DashboardScreenProps {
     currentUser: User | null;
@@ -179,6 +180,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 bg-background-light dark:bg-background-dark safe-area-bottom pt-4">
             {/* Navigation Tabs */}
             <TabsBar tabs={['Serviços', 'Visitas']} activeTab={activeTab === 'services' ? 'Serviços' : 'Visitas'} onTabChange={(tab) => handleTabChange(tab === 'Serviços' ? 'services' : 'visits')} className="px-4" />
+
+            {/* AI Suggestions - disabled */}
+            <div className="px-4">
+                {/* <AIContextualBar context={{ route: 'dashboard', entityType: 'dashboard' }} maxSuggestions={3} /> */}
+            </div>
 
             {/* Content Area */}
             <div className="flex-1 overflow-hidden relative flex flex-col">

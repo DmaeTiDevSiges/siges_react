@@ -41,6 +41,7 @@ import { OrderRequestForm } from '../OrderRequest/OrderRequestForm';
 import { Loading } from '../../components/ui/Loading';
 import { OrderVisitChatTab } from './OrderVisitChat/OrderVisitChatTab';
 import { AIVisitAssistantTab } from '../../components/ai/AIVisitAssistantTab';
+import { AIContextualBar } from '../../components/ai/AIContextualBar';
 import { AlertModal } from '../../components/ui/AlertModal';
 import { VisitEvaluationInline } from '../Visits/VisitEvaluationInline';
 
@@ -589,6 +590,9 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
             case 'home':
                 return (
                     <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 space-y-4">
+                        {/* AI Suggestions - disabled */}
+                        {/* <AIContextualBar context={{ route: 'visits', entityType: 'visit', entityId: String(visitId) }} maxSuggestions={3} /> */}
+
                         <Card className="px-4 py-2.5 flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl shadow-lg">
                             <OrderVisitProcessingButton
                                 processingId={visit.ovProcessingId}

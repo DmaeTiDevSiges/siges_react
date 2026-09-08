@@ -84,13 +84,18 @@ export const apiN8nService = {
 
             const text = await response.text();
             if (!text || text.trim() === '') {
-                return { output: 'Servidor retornou resposta vazia.' };
+                // Resposta vazia do n8n geralmente significa workflow não ativo ou não encontrado
+                throw new Error('O webhook retornou resposta vazia. Verifique se o workflow está ATIVO no n8n (botão toggle azul).');
             }
             return JSON.parse(text);
         } catch (error: any) {
             if (error.name === 'AbortError') {
                 toast.error('Tempo limite excedido. Tente novamente.');
                 throw new Error('Request timeout');
+            }
+            // Se já é um erro nosso com mensagem clara, relança
+            if (error.message.includes('webhook retornou')) {
+                throw error;
             }
             console.error('Erro ao disparar webhook n8n:', error);
             toast.error('Erro na integração com serviço externo n8n');

@@ -1,0 +1,26 @@
+diff --git a/node_modules/html-to-image/lib/embed-webfonts.js b/node_modules/html-to-image/lib/embed-webfonts.js
+index c91538b..b5f3300 100644
+--- a/node_modules/html-to-image/lib/embed-webfonts.js
++++ b/node_modules/html-to-image/lib/embed-webfonts.js
+@@ -233,7 +233,7 @@ function parseWebFontRules(node, options) {
+     });
+ }
+ function normalizeFontFamily(font) {
+-    return font.trim().replace(/["']/g, '');
++    return (font || '').trim().replace(/["']/g, '');
+ }
+ function getUsedFonts(node) {
+     var fonts = new Set();
+diff --git a/node_modules/html-to-image/es/embed-webfonts.js b/node_modules/html-to-image/es/embed-webfonts.js
+index abcdef1..1234567 100644
+--- a/node_modules/html-to-image/es/embed-webfonts.js
++++ b/node_modules/html-to-image/es/embed-webfonts.js
+@@ -153,7 +153,7 @@ function parseWebFontRules(node, options) {
+     });
+ }
+ function normalizeFontFamily(font) {
+-    return font.trim().replace(/["']/g, '');
++    return (font || '').trim().replace(/["']/g, '');
+ }
+ function getUsedFonts(node) {
+     const fonts = new Set();

@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { AIChatWindow } from './AIChatWindow.tsx';
 
-export const AIAssistantBubble: React.FC = () => {
+interface AIAssistantBubbleProps {
+  currentScreen?: string;
+}
+
+export const AIAssistantBubble: React.FC<AIAssistantBubbleProps> = ({ currentScreen }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -16,7 +20,7 @@ export const AIAssistantBubble: React.FC = () => {
             </button>
 
             {/* Chat Window */}
-            <AIChatWindow isOpen={isOpen} onClose={() => setIsOpen(false)} />
+            <AIChatWindow isOpen={isOpen} onClose={() => setIsOpen(false)} currentScreen={currentScreen} />
         </>
     );
 };

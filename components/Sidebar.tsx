@@ -5,7 +5,7 @@ interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
     isAdmin?: boolean;
-    activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices';
+    activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -61,12 +61,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <nav className={`flex-1 p-4 space-y-2 overflow-y-auto ${isCollapsed ? 'px-2' : 'p-4'}`}>
                 <SidebarItem
                     icon="grid_view"
-                    label="Painel"
+                    label="Meu Painel"
                     isActive={activeTab === 'dashboard'}
                     isCollapsed={isCollapsed}
                     onClick={() => { onNavigate('dashboard'); }}
                 />
                 {(isAdminSuper || 
+                  canView('dashboard_services') || 
                   canView('dashboard_orders') || 
                   canView('dashboard_orders_visits') || 
                   canView('dashboard_units_assets_tags') || 
@@ -75,11 +76,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <SidebarItem
                         icon="assignment_add"
                         label="Gestão"
-                        isActive={activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking'}
+                        isActive={activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking'}
                         isCollapsed={isCollapsed}
                         onClick={() => { 
                             // Navegar para a primeira aba permitida
-                            if (canView('dashboard_orders')) onNavigate('orders');
+                            if (canView('dashboard_services')) onNavigate('ss');
+                            else if (canView('dashboard_orders')) onNavigate('orders');
                             else if (canView('dashboard_orders_visits')) onNavigate('visits');
                             else if (canView('dashboard_units_assets_tags')) onNavigate('dashboard-units-assets-tags');
                             else if (canView('dashboard_units_power_electric')) onNavigate('dashboard-units-power-electric');

@@ -3,7 +3,7 @@ import React from 'react';
 import { usePermissions } from '../contexts/PermissionsContext';
 
 interface BottomNavProps {
-  activeTab: 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'tools' | 'materials' | 'manuals' | 'app-notices';
+  activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'tools' | 'materials' | 'manuals' | 'app-notices';
   setActiveTab: (tab: any) => void;
   isAdminSuper?: boolean;
   isAdmin?: boolean;
@@ -16,6 +16,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
   // Definir visibilidade para cada aba
   const showDashboard = true; 
   const showGestao = isAdminSuper || 
+                    canView('dashboard_services') || 
                     canView('dashboard_orders') || 
                     canView('dashboard_orders_visits') || 
                     canView('dashboard_units_assets_tags') || 
@@ -42,22 +43,23 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
           <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'dashboard' ? '"FILL" 1' : '' }}>
             grid_view
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-widest">Painel</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest">Meu Painel</span>
         </button>
       )}
 
       {showGestao && (
         <button
           onClick={() => {
-            if (canView('dashboard_orders')) setActiveTab('orders');
+            if (canView('dashboard_services')) setActiveTab('ss');
+            else if (canView('dashboard_orders')) setActiveTab('orders');
             else if (canView('dashboard_orders_visits')) setActiveTab('visits');
             else if (canView('dashboard_units_assets_tags')) setActiveTab('dashboard-units-assets-tags');
             else if (canView('dashboard_units_power_electric')) setActiveTab('dashboard-units-power-electric');
             else if (canView('dashboard_contracts_evaluations')) setActiveTab('dashboard-contracts-evaluations');
           }}
-          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
         >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: (activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking') ? '"FILL" 1' : '' }}>
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: (activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking') ? '"FILL" 1' : '' }}>
             assignment
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest text-center truncate w-full">Gestão</span>

@@ -24,6 +24,7 @@ import { OrderVisitAssetCardListItem } from '../../components/ordersVisits/order
 import { OrderAssetAlerts } from './OrderAssetAlerts';
 import { OrderVisitAssetReport } from '../OrderVisit/OrderVisitAsset/OrderVisitAssetReport';
 import { OrderVisitAssetView } from '../../types';
+import { AIContextualBar } from '../../components/ai/AIContextualBar';
 
 
 interface OrderRequestViewProps {
@@ -407,6 +408,9 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                 )}
 
                 <div className={`p-4 space-y-8 pb-32 relative md:max-w-5xl md:mx-auto transition-all duration-700 ease-in-out`}>
+
+                    {/* AI Suggestions - disabled */}
+                    {/* <AIContextualBar context={{ route: 'orders', entityType: 'order', entityId: String(order.id) }} maxSuggestions={3} /> */}
 
                     {/* Start Visit Confirmation Modal */}
                     {showConfirmVisit && createPortal(

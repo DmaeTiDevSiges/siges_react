@@ -23,7 +23,10 @@
     "db:export:rest:complete": "node scripts/export-database-structure-rest-complete.js",
     "db:restore": "node scripts/restore-database.js",
     "db:validate": "node scripts/validate-schema.js",
-    "db:backup": "node scripts/full-backup.js"
+    "db:backup": "node scripts/full-backup.js",
+    "postinstall": "patch-package",
+    "manual:build": "cd docs/manual && pandoc INDICE.md 01-introducao.md 02-solicitacoes-servico.md 03-ordens-servico.md 04-visitas-tecnicas.md 05-ativos-equipamentos.md 06-unidades-clientes.md 07-almoxarifado.md 08-equipes-colaboradores.md 09-dashboard-relatorios.md 10-configuracoes.md 11-faq-glossario.md -o ../../SIGES-Manual-Operacao.pdf --pdf-engine=xelatex -V geometry:margin=2cm -V fontsize=11pt -V lang=pt-BR -V documentclass=report -V classoption=oneside --toc --toc-depth=3 --number-sections --resource-path=.:assets --metadata=title:\"SIGES — Manual de Operação\" --metadata=author:\"Equipe SIGES\" --metadata=date:\"$(date '+%Y-%m-%d')\" --metadata=version:\"1.0.0\"",
+    "manual:dev": "npm run manual:build && xdg-open SIGES-Manual-Operacao.pdf 2>/dev/null || open SIGES-Manual-Operacao.pdf 2>/dev/null || echo 'PDF gerado: SIGES-Manual-Operacao.pdf'"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.700.0",
@@ -60,6 +63,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
     "file-saver": "^2.0.5",
+    "html-to-image": "^1.11.13",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
     "leaflet-routing-machine": "^3.2.12",
