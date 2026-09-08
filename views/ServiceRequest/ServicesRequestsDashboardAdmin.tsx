@@ -288,14 +288,14 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     // Selection Modal State
     const [unscheduledSS, setUnscheduledSS] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('cachedUnscheduledSS_v3');
+            const saved = localStorage.getItem('ssdash_cachedUnscheduledSS');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
 
     const [openOS, setOpenOS] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('cachedOpenOS_v1');
+            const saved = localStorage.getItem('ssdash_cachedOpenOS');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
@@ -305,7 +305,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     const [stats, setStats] = useState(() => {
         try {
-            const saved = localStorage.getItem('cachedStats');
+            const saved = localStorage.getItem('ssdash_cachedStats');
             if (saved) return JSON.parse(saved);
         } catch (e) { console.warn('Error reading stats from cache', e); }
 
@@ -332,7 +332,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     });
 
     useEffect(() => {
-        localStorage.setItem('cachedStats', JSON.stringify(stats));
+        localStorage.setItem('ssdash_cachedStats', JSON.stringify(stats));
     }, [stats]);
 
     // Persist Filter State
@@ -355,9 +355,9 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             localStorage.setItem('cachedCurrentPage_v2', String(currentPage));
             localStorage.setItem('cachedHasMore_v2', String(hasMore));
             localStorage.setItem('cachedTotalOrders_v2', String(totalOrders));
-            localStorage.setItem('cachedUnscheduledSS_v3', JSON.stringify(unscheduledSS));
-            localStorage.setItem('cachedOpenOS_v1', JSON.stringify(openOS));
-            localStorage.setItem('cachedOsAssetTagId_v1', JSON.stringify(osAssetTagId));
+            localStorage.setItem('ssdash_cachedUnscheduledSS', JSON.stringify(unscheduledSS));
+            localStorage.setItem('ssdash_cachedOpenOS', JSON.stringify(openOS));
+            localStorage.setItem('ssdash_cachedOsAssetTagId', JSON.stringify(osAssetTagId));
             localStorage.setItem('cachedTeams', JSON.stringify(teams));
             localStorage.setItem('cachedUsers', JSON.stringify(users));
             localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
@@ -408,7 +408,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         startCompletedTransition(async () => {
             try {
                 const range = getCompletedTemporalDateRange(completedTemporalFilter);
-                const result = await dataService.getCompletedOS({
+                const result = await dataService.getCompletedSS({
                     startDate: range.start,
                     endDate: range.end,
                     pageSize: 200,
@@ -452,7 +452,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 const countResults = await Promise.all(
                     periods.map(async (p) => {
                         const r = getCompletedTemporalDateRange(p);
-                        const res = await dataService.getCompletedOS({
+                        const res = await dataService.getCompletedSS({
                             startDate: r.start,
                             endDate: r.end,
                             pageSize: 1,
@@ -830,9 +830,11 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                         { search: searchQuery, ...appliedFilters },
                         restrictedSSFilters,
                         statsOSFilters,
-                        'v_orders_parent'
+                        'v_orders_parent',
+                        dateRange.start,
+                        dateRange.end
                     ),
-                    dataService.getUnscheduledSS({ ...unscheduledSSFilters, viewName: 'v_orders_parent' }),
+                    dataService.getUnscheduledSS({ ...unscheduledSSFilters, viewName: 'v_orders_parent', startDate: dateRange.start, endDate: dateRange.end }),
                     dataService.getOpenSS({ ...openOSFilters, viewName: 'v_orders_parent', startDate: dateRange.start, endDate: dateRange.end })
                 ]);
 
@@ -905,7 +907,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             setIsFiltering(false);
             isLoadingMoreRef.current = false;
         }
-    }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length]);
+    }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length, dateRange]);
 
     useEffect(() => {
         const loadOptions = async () => {
@@ -1730,7 +1732,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                             filters={completedOSEffectiveFilters}
                                             searchQuery={searchQuery}
                                             totalCount={completedOS.total}
-                                            fetchData={(opts) => dataService.getCompletedOS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
+                                            fetchData={(opts) => dataService.getCompletedSS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
                                         />
                                         <ExcelExportButton
                                             filters={completedOSEffectiveFilters}
@@ -1738,7 +1740,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                             filename="relatorio-os-concluidas"
                                             title="EXCEL"
                                             totalCount={completedOS.total}
-                                            fetchData={(opts) => dataService.getCompletedOS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
+                                            fetchData={(opts) => dataService.getCompletedSS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
                                         />
                                     </div>
                                 </div>

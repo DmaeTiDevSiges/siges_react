@@ -1758,14 +1758,16 @@ export const dataService = {
          filters?: OrderFilters,
          ssFiltersOverride?: OrderFilters,
          osFiltersOverride?: OrderFilters,
-         viewName?: string
+         viewName?: string,
+         startDate?: string,
+         endDate?: string
      ): Promise<{
          ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number; between16And30: number; moreThan30: number };
          osCounts: Record<number, number>;
          ssSectorCounts?: Array<{ id: string, label: string, count: number }>;
          osSectorCounts?: Array<{ id: string, label: string, count: number }>;
      }> {
-         return dashboardService.getDashboardStats.apply(dashboardService, arguments as any);
+         return ordersService.getDashboardStats.apply(ordersService, arguments as any);
      },
 
 
@@ -1804,6 +1806,31 @@ export const dataService = {
         viewName?: string;
     }): Promise<{ data: Order[]; total: number }> {
         return ordersService.getCompletedOS.apply(ordersService, arguments as any);
+    },
+
+    async getCompletedSS(filters?: {
+        startDate?: string;
+        endDate?: string;
+        page?: number;
+        pageSize?: number;
+        search?: string;
+        systemParentId?: string | string[];
+        systemId?: string | string[];
+        unitTypeParentId?: string | string[];
+        unitTypeId?: string | string[];
+        unitId?: string | string[];
+        assetTagId?: string | string[];
+        assetTagSubId?: string | string[];
+        orderObjectId?: string | string[];
+        orderTypeId?: string | string[];
+        orderTypeSubId?: string | string[];
+        contractId?: string | string[];
+        orderPlanId?: string | string[];
+        orderTeamId?: string | string[];
+        priorityId?: string | string[];
+        viewName?: string;
+    }): Promise<{ data: Order[]; total: number }> {
+        return ordersService.getCompletedSS.apply(ordersService, arguments as any);
     },
 
     async updateSystem(id: string, data: Partial<System>): Promise<void> {

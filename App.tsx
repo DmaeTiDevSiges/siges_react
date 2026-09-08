@@ -539,6 +539,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('materials-search');
     } else if (path === 'manuals' || path === 'technical-manuals') {
       setCurrentScreen('technical-manuals');
+    } else if (path === 'ss') {
+      setCurrentScreen('ss-dashboard');
     } else if (path === 'orders') {
       setCurrentScreen('orders-dashboard');
     } else if (path === 'visits') {

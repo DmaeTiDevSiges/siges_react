@@ -213,21 +213,21 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     // Selection Modal State
     const [unscheduledSS, setUnscheduledSS] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('cachedUnscheduledSS_v3');
+            const saved = localStorage.getItem('osdash_cachedUnscheduledSS');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
 
     const [openOS, setOpenOS] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('cachedOpenOS_v1');
+            const saved = localStorage.getItem('osdash_cachedOpenOS');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
 
     const [osAssetTagId, setOsAssetTagId] = useState<string[]>(() => {
         try {
-            const saved = localStorage.getItem('cachedOsAssetTagId_v1');
+            const saved = localStorage.getItem('osdash_cachedOsAssetTagId');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
@@ -235,7 +235,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     const [stats, setStats] = useState(() => {
         try {
-            const saved = localStorage.getItem('cachedStats');
+            const saved = localStorage.getItem('osdash_cachedStats');
             if (saved) return JSON.parse(saved);
         } catch (e) { console.warn('Error reading stats from cache', e); }
 
@@ -262,7 +262,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     });
 
     useEffect(() => {
-        localStorage.setItem('cachedStats', JSON.stringify(stats));
+        localStorage.setItem('osdash_cachedStats', JSON.stringify(stats));
     }, [stats]);
 
     // Persist Filter State
@@ -285,9 +285,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             localStorage.setItem('cachedCurrentPage_v2', String(currentPage));
             localStorage.setItem('cachedHasMore_v2', String(hasMore));
             localStorage.setItem('cachedTotalOrders_v2', String(totalOrders));
-            localStorage.setItem('cachedUnscheduledSS_v3', JSON.stringify(unscheduledSS));
-            localStorage.setItem('cachedOpenOS_v1', JSON.stringify(openOS));
-            localStorage.setItem('cachedOsAssetTagId_v1', JSON.stringify(osAssetTagId));
+            localStorage.setItem('osdash_cachedUnscheduledSS', JSON.stringify(unscheduledSS));
+            localStorage.setItem('osdash_cachedOpenOS', JSON.stringify(openOS));
+            localStorage.setItem('osdash_cachedOsAssetTagId', JSON.stringify(osAssetTagId));
             localStorage.setItem('cachedTeams', JSON.stringify(teams));
             localStorage.setItem('cachedUsers', JSON.stringify(users));
             localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
