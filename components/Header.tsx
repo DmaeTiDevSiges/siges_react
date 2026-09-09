@@ -96,8 +96,8 @@ export const Header: React.FC<HeaderProps> = ({
                                     {subtitle}
                                 </p>
                             )}
-                            <span className="text-[9px] text-slate-400 dark:text-slate-600 font-mono leading-none mt-0.5 select-all">
-                                v{__BUILD_ID__}
+                            <span className="text-[9px] text-slate-500 dark:text-slate-500 font-mono leading-none mt-0.5 select-all">
+                                SIGES v{__BUILD_ID__}
                             </span>
                         </>
                     ) : (
