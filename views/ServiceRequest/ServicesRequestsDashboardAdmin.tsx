@@ -85,17 +85,15 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     });
 
     // --- Completed OS ---
-    type CompletedTemporalFilter = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
-    const [completedTemporalFilter, setCompletedTemporalFilter] = useState<CompletedTemporalFilter>(() => {
-        const saved = localStorage.getItem('orders_dashboard_completed_temporal_filter');
-        return (saved as CompletedTemporalFilter) || 'thisMonth';
-    });
     const [completedOS, setCompletedOS] = useState<{ data: Order[]; total: number }>({ data: [], total: 0 });
-    const [completedOSCounts, setCompletedOSCounts] = useState<Record<CompletedTemporalFilter, number>>({
-        today: 0, yesterday: 0, thisWeek: 0, lastWeek: 0, thisMonth: 0, lastMonth: 0
-    });
+    const [completedAssetTagId, setCompletedAssetTagId] = useState<string[]>([]);
     const completedOSScroll = useDraggableScroll();
     const completedOSCardsScroll = useDraggableScroll();
+    // --- Canceled OS ---
+    const [canceledOS, setCanceledOS] = useState<{ data: Order[]; total: number }>({ data: [], total: 0 });
+    const [canceledAssetTagId, setCanceledAssetTagId] = useState<string[]>([]);
+    const canceledOSScroll = useDraggableScroll();
+    const canceledOSCardsScroll = useDraggableScroll();
     const [teams, setTeams] = useState<any[]>(() => {
         try {
             const saved = localStorage.getItem('cachedTeams');
@@ -191,6 +189,10 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     });
     const [isOsConcluidasOpen, setIsOsConcluidasOpen] = useState(() => {
         const saved = localStorage.getItem('ordersSection_osConcluidasOpen');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [isCanceledSSOpen, setIsCanceledSSOpen] = useState(() => {
+        const saved = localStorage.getItem('ordersSection_canceledSSOpen');
         return saved !== null ? JSON.parse(saved) : true;
     });
     const [isNaoProgramadasOpen, setIsNaoProgramadasOpen] = useState(() => {
@@ -366,51 +368,14 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         }
     }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, teams, users, filterOptions]);
 
-    // --- Completed OS: Temporal Helper & Load ---
-    const getCompletedTemporalDateRange = useCallback((filter: CompletedTemporalFilter): { start: string; end: string } => {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const endOfDay = (d: Date) => { const e = new Date(d); e.setHours(23, 59, 59, 999); return e.toISOString(); };
-
-        switch (filter) {
-            case 'today':
-                return { start: today.toISOString(), end: endOfDay(today) };
-            case 'yesterday': {
-                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-                return { start: yesterday.toISOString(), end: endOfDay(yesterday) };
-            }
-            case 'thisWeek': {
-                const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-                return { start: monday.toISOString(), end: endOfDay(today) };
-            }
-            case 'lastWeek': {
-                const lastMonday = new Date(today); lastMonday.setDate(today.getDate() - ((today.getDay() + 6) % 7) - 7);
-                const lastSunday = new Date(lastMonday); lastSunday.setDate(lastMonday.getDate() + 6);
-                return { start: lastMonday.toISOString(), end: endOfDay(lastSunday) };
-            }
-            case 'thisMonth': {
-                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-                return { start: firstDay.toISOString(), end: endOfDay(today) };
-            }
-            case 'lastMonth': {
-                const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-                return { start: firstDayLastMonth.toISOString(), end: endOfDay(lastDayLastMonth) };
-            }
-            default:
-                return { start: today.toISOString(), end: endOfDay(today) };
-        }
-    }, []);
-
     const [isPendingCompleted, startCompletedTransition] = useTransition();
 
     const loadCompletedOS = useCallback(async () => {
         startCompletedTransition(async () => {
             try {
-                const range = getCompletedTemporalDateRange(completedTemporalFilter);
                 const result = await dataService.getCompletedSS({
-                    startDate: range.start,
-                    endDate: range.end,
+                    startDate: dateRange.start,
+                    endDate: dateRange.end,
                     pageSize: 200,
                     systemParentId: appliedFilters.systemParentId,
                     systemId: appliedFilters.systemId,
@@ -433,59 +398,47 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 console.error('Error loading completed OS:', error);
             }
         });
-    }, [completedTemporalFilter, getCompletedTemporalDateRange, appliedFilters, startCompletedTransition]);
-
-    useEffect(() => {
-        localStorage.setItem('orders_dashboard_completed_temporal_filter', completedTemporalFilter);
-    }, [completedTemporalFilter]);
+    }, [dateRange, appliedFilters, startCompletedTransition]);
 
     useEffect(() => {
         loadCompletedOS();
     }, [loadCompletedOS, appliedFilters]);
 
-    // Load counts on mount and when filters change
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
+    const [isPendingCanceled, startCanceledTransition] = useTransition();
+
+    const loadCanceledOS = useCallback(async () => {
+        startCanceledTransition(async () => {
             try {
-                const periods: CompletedTemporalFilter[] = ['today', 'yesterday', 'thisWeek', 'lastWeek', 'thisMonth', 'lastMonth'];
-                const countResults = await Promise.all(
-                    periods.map(async (p) => {
-                        const r = getCompletedTemporalDateRange(p);
-                        const res = await dataService.getCompletedSS({
-                            startDate: r.start,
-                            endDate: r.end,
-                            pageSize: 1,
-                            systemParentId: appliedFilters.systemParentId,
-                            systemId: appliedFilters.systemId,
-                            unitTypeParentId: appliedFilters.unitTypeParentId,
-                            unitTypeId: appliedFilters.unitTypeId,
-                            unitId: appliedFilters.unitId,
-                            orderObjectId: appliedFilters.orderObjectId,
-                            orderTypeId: appliedFilters.orderTypeId,
-                            orderTypeSubId: appliedFilters.orderTypeSubId,
-                            contractId: appliedFilters.contractId,
-                            orderPlanId: appliedFilters.orderPlanId,
-                            orderTeamId: appliedFilters.orderTeamId,
-                            assetTagId: appliedFilters.assetTagId,
-                            assetTagSubId: appliedFilters.assetTagSubId,
-                            ...(providerCompanyId ? { providerCompanyId } : {}),
-                            viewName: 'v_orders_parent',
-                        });
-                        return { period: p, count: res.total };
-                    })
-                );
-                if (!cancelled) {
-                    const counts: Record<CompletedTemporalFilter, number> = { today: 0, yesterday: 0, thisWeek: 0, lastWeek: 0, thisMonth: 0, lastMonth: 0 };
-                    countResults.forEach(c => { counts[c.period] = c.count; });
-                    setCompletedOSCounts(counts);
-                }
+                const result = await dataService.getCanceledSS({
+                    startDate: dateRange.start,
+                    endDate: dateRange.end,
+                    pageSize: 200,
+                    systemParentId: appliedFilters.systemParentId,
+                    systemId: appliedFilters.systemId,
+                    unitTypeParentId: appliedFilters.unitTypeParentId,
+                    unitTypeId: appliedFilters.unitTypeId,
+                    unitId: appliedFilters.unitId,
+                    orderObjectId: appliedFilters.orderObjectId,
+                    orderTypeId: appliedFilters.orderTypeId,
+                    orderTypeSubId: appliedFilters.orderTypeSubId,
+                    contractId: appliedFilters.contractId,
+                    orderPlanId: appliedFilters.orderPlanId,
+                    orderTeamId: appliedFilters.orderTeamId,
+                    assetTagId: appliedFilters.assetTagId,
+                    assetTagSubId: appliedFilters.assetTagSubId,
+                    ...(providerCompanyId ? { providerCompanyId } : {}),
+                    viewName: 'v_orders_parent',
+                });
+                setCanceledOS(result);
             } catch (error) {
-                console.error('Error loading completed OS counts:', error);
+                console.error('Error loading canceled SS:', error);
             }
-        })();
-        return () => { cancelled = true; };
-    }, [getCompletedTemporalDateRange, appliedFilters]);
+        });
+    }, [dateRange, appliedFilters, startCanceledTransition]);
+
+    useEffect(() => {
+        loadCanceledOS();
+    }, [loadCanceledOS, appliedFilters]);
 
     const leadersByCompany = React.useMemo(() => {
         const selectedContractIds = Array.isArray(appliedFilters.contractId)
@@ -636,18 +589,32 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     // Client-side filter for the unscheduled SS carousel by selected sector (assetTagId)
     const displayedUnscheduledSS = React.useMemo(() => {
-        if (ssAssetTagId.length === 0) return unscheduledSS;
+        const activeAssetTagIds = ssAssetTagId.length > 0
+            ? ssAssetTagId
+            : appliedFilters.assetTagId
+                ? Array.isArray(appliedFilters.assetTagId)
+                    ? appliedFilters.assetTagId.filter(v => v != null && String(v) !== '')
+                    : [appliedFilters.assetTagId]
+                : [];
+        if (activeAssetTagIds.length === 0) return unscheduledSS;
         return unscheduledSS.filter(ss =>
-            ss.assetTagId != null && ssAssetTagId.includes(ss.assetTagId.toString())
+            ss.assetTagId != null && activeAssetTagIds.includes(ss.assetTagId.toString())
         );
-    }, [unscheduledSS, ssAssetTagId]);
+    }, [unscheduledSS, ssAssetTagId, appliedFilters.assetTagId]);
 
     const displayedOpenOS = React.useMemo(() => {
-        if (osAssetTagId.length === 0) return openOS;
+        const activeAssetTagIds = osAssetTagId.length > 0
+            ? osAssetTagId
+            : appliedFilters.assetTagId
+                ? Array.isArray(appliedFilters.assetTagId)
+                    ? appliedFilters.assetTagId.filter(v => v != null && String(v) !== '')
+                    : [appliedFilters.assetTagId]
+                : [];
+        if (activeAssetTagIds.length === 0) return openOS;
         return openOS.filter(os =>
-            os.assetTagId != null && osAssetTagId.includes(os.assetTagId.toString())
+            os.assetTagId != null && activeAssetTagIds.includes(os.assetTagId.toString())
         );
-    }, [openOS, osAssetTagId]);
+    }, [openOS, osAssetTagId, appliedFilters.assetTagId]);
 
     // Effective filters for reports - combining persisted filters with interactive dashboard filters
     const effectiveFilters = React.useMemo(() => {
@@ -695,7 +662,49 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     }, [appliedFilters, selectedStatusId, osAssetTagId]);
 
     const completedOSEffectiveFilters = React.useMemo(() => {
-        const range = getCompletedTemporalDateRange(completedTemporalFilter);
+        return {
+            systemParentId: appliedFilters.systemParentId,
+            systemId: appliedFilters.systemId,
+            unitTypeParentId: appliedFilters.unitTypeParentId,
+            unitTypeId: appliedFilters.unitTypeId,
+            unitId: appliedFilters.unitId,
+            orderObjectId: appliedFilters.orderObjectId,
+            orderTypeId: appliedFilters.orderTypeId,
+            orderTypeSubId: appliedFilters.orderTypeSubId,
+            contractId: appliedFilters.contractId,
+            orderPlanId: appliedFilters.orderPlanId,
+            orderTeamId: appliedFilters.orderTeamId,
+            priorityId: appliedFilters.priorityId,
+            statusId: 8,
+            assetTagId: appliedFilters.assetTagId,
+            assetTagSubId: appliedFilters.assetTagSubId,
+            startDate: dateRange.start,
+            endDate: dateRange.end,
+        };
+    }, [appliedFilters, dateRange]);
+
+    const completedSectorCounts = React.useMemo(() => {
+        const map: Record<string, { id: string; label: string; count: number }> = {};
+        completedOS.data.forEach((o: any) => {
+            const id = o.assetTagId ? o.assetTagId.toString() : 'null';
+            const label = o.assetTagDescription || 'Sem Setor';
+            if (!map[id]) {
+                map[id] = { id, label, count: 0 };
+            }
+            map[id].count += 1;
+        });
+        return Object.values(map).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    }, [completedOS.data]);
+
+    const displayedCompletedOS = React.useMemo(() => {
+        if (completedAssetTagId.length === 0) return completedOS.data;
+        return completedOS.data.filter((o: any) => {
+            const id = o.assetTagId ? o.assetTagId.toString() : 'null';
+            return completedAssetTagId.includes(id);
+        });
+    }, [completedOS.data, completedAssetTagId]);
+
+    const canceledOSEffectiveFilters = React.useMemo(() => {
         return {
             systemParentId: appliedFilters.systemParentId,
             systemId: appliedFilters.systemId,
@@ -712,10 +721,31 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             statusId: 7,
             assetTagId: appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
-            startDate: range.start,
-            endDate: range.end,
+            startDate: dateRange.start,
+            endDate: dateRange.end,
         };
-    }, [appliedFilters, completedTemporalFilter, getCompletedTemporalDateRange]);
+    }, [appliedFilters, dateRange]);
+
+    const canceledSectorCounts = React.useMemo(() => {
+        const map: Record<string, { id: string; label: string; count: number }> = {};
+        canceledOS.data.forEach((o: any) => {
+            const id = o.assetTagId ? o.assetTagId.toString() : 'null';
+            const label = o.assetTagDescription || 'Sem Setor';
+            if (!map[id]) {
+                map[id] = { id, label, count: 0 };
+            }
+            map[id].count += 1;
+        });
+        return Object.values(map).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    }, [canceledOS.data]);
+
+    const displayedCanceledOS = React.useMemo(() => {
+        if (canceledAssetTagId.length === 0) return canceledOS.data;
+        return canceledOS.data.filter((o: any) => {
+            const id = o.assetTagId ? o.assetTagId.toString() : 'null';
+            return canceledAssetTagId.includes(id);
+        });
+    }, [canceledOS.data, canceledAssetTagId]);
 
     const fetchData = useCallback(async (
         loadMore: boolean = false,
@@ -774,6 +804,9 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 unitId: ordersListFilters.unitId,
                 orderTypeId: ordersListFilters.orderTypeId,
                 orderTypeSubId: ordersListFilters.orderTypeSubId,
+                orderTeamId: ordersListFilters.orderTeamId,
+                assetTagId: ordersListFilters.assetTagId,
+                assetTagSubId: ordersListFilters.assetTagSubId,
                 period: periodFromOverride ?? undefined,
                 search: searchQuery || undefined,
             };
@@ -784,7 +817,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 assetTagSubId: ordersListFilters.assetTagSubId,
             };
 
-            // statsOSFilters: WITHOUT assetTagId so sector cards always show all sectors
             const statsOSFilters = {
                 systemParentId: ordersListFilters.systemParentId,
                 systemId: ordersListFilters.systemId,
@@ -796,14 +828,16 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 orderTeamId: ordersListFilters.orderTeamId,
                 priorityId: ordersListFilters.priorityId,
                 statusId: statusIdFromOverride ?? undefined,
-                // assetTagId intentionally omitted — sector cards must always show all sectors
+                assetTagId: ordersListFilters.assetTagId,
                 search: searchQuery || undefined,
             };
 
             // openOSFilters: WITH assetTagId and assetTagSubId to filter the carousel by selected sector/position
             const openOSFilters = {
                 ...statsOSFilters,
-                assetTagId: osAssetTagFromOverride?.length ? osAssetTagFromOverride : undefined,
+                assetTagId: osAssetTagFromOverride?.length
+                    ? osAssetTagFromOverride
+                    : ssAssetTagFromOverride,
                 assetTagSubId: ordersListFilters.assetTagSubId,
             };
 
@@ -1295,7 +1329,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         <span className="material-symbols-outlined text-[20px]">calendar_month</span>
                                     </div>
                                     <div className="flex flex-col items-start justify-center">
-                                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-none opacity-80" style={{ marginBottom: '-2px' }}>Período</span>
+                                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-none opacity-80" style={{ marginBottom: '-2px' }}>Período de Solicitação</span>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[12px] font-black text-slate-700 dark:text-slate-200 tracking-tight">
                                                 {formatDateDisplay(dateRange.start)}
@@ -1437,24 +1471,30 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                 <div className="flex items-center gap-2 mb-2 px-1">
                                     <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">SS's Não Programadas</h2>
                                     <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                        <RequestsListPDFButton
-                                            filters={ssEffectiveFilters}
-                                            searchQuery={searchQuery}
-                                            totalCount={displayedUnscheduledSS.length}
-                                        />
-                                        <RequestsExcelExportButton
-                                            filters={ssEffectiveFilters}
-                                            searchQuery={searchQuery}
-                                            filename="relatorio-ss"
-                                            title="EXCEL"
-                                            totalCount={displayedUnscheduledSS.length}
-                                        />
+                                        {displayedUnscheduledSS.length > 0 && (
+                                            <>
+                                                <RequestsListPDFButton
+                                                    filters={ssEffectiveFilters}
+                                                    searchQuery={searchQuery}
+                                                    totalCount={displayedUnscheduledSS.length}
+                                                />
+                                                <RequestsExcelExportButton
+                                                    filters={ssEffectiveFilters}
+                                                    searchQuery={searchQuery}
+                                                    filename="relatorio-ss"
+                                                    title="EXCEL"
+                                                    totalCount={displayedUnscheduledSS.length}
+                                                />
+                                            </>
+                                        )}
                                     </div>
+                                    {displayedUnscheduledSS.length > 0 && (
                                     <ChevronButton
                                         isOpen={isNaoProgramadasOpen}
                                         onToggle={() => setIsNaoProgramadasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_naoProgramadasOpen', JSON.stringify(next)); return next; })}
                                         className="shrink-0"
                                     />
+                                    )}
                                 </div>
 
                                 {isNaoProgramadasOpen && stats.ssSectorCounts && stats.ssSectorCounts.length > 0 && (
@@ -1490,7 +1530,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                 )}
                             </section>
 
-                            {isNaoProgramadasOpen && displayedUnscheduledSS.length > 0 && (
+                            {isNaoProgramadasOpen && (
+                                displayedUnscheduledSS.length > 0 ? (
                                 <section className="py-0">
 
                                     <div className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
@@ -1510,6 +1551,15 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         ))}
                                     </div>
                                 </section>
+                                ) : (
+                                    <div className="w-full flex items-center justify-center py-10">
+                                        <div className="flex flex-col items-center">
+                                            <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">check_circle</span>
+                                            <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma SS não programada neste período</h3>
+                                            <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
+                                        </div>
+                                    </div>
+                                )
                             )}
                         </div>
                         )}
@@ -1532,11 +1582,13 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         <>
                                             <div className="flex items-center gap-2 mb-2 px-1">
                                                 <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">SS's Abertas</h2>
+                                                {displayedOpenOS.length > 0 && (
                                                 <ChevronButton
                                                     isOpen={isOsAbertasOpen}
                                                     onToggle={() => setIsOsAbertasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_osAbertasOpen', JSON.stringify(next)); return next; })}
                                                     className="shrink-0 ml-auto"
                                                 />
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 cursor-grab active:cursor-grabbing touch-auto w-full"
                                                 ref={openOSScroll.ref}
@@ -1573,18 +1625,22 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                                 </div>
 
                                                 <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                                    <OrdersListPDFButton
-                                                        filters={osEffectiveFilters}
-                                                        searchQuery={searchQuery}
-                                                        totalCount={osTotalCount}
-                                                    />
-                                                    <ExcelExportButton
-                                                        filters={osEffectiveFilters}
-                                                        searchQuery={searchQuery}
-                                                        filename="relatorio-os"
-                                                        title="EXCEL"
-                                                        totalCount={osTotalCount}
-                                                    />
+                                                    {osTotalCount > 0 && (
+                                                        <>
+                                                            <OrdersListPDFButton
+                                                                filters={osEffectiveFilters}
+                                                                searchQuery={searchQuery}
+                                                                totalCount={osTotalCount}
+                                                            />
+                                                            <ExcelExportButton
+                                                                filters={osEffectiveFilters}
+                                                                searchQuery={searchQuery}
+                                                                filename="relatorio-os"
+                                                                title="EXCEL"
+                                                                totalCount={osTotalCount}
+                                                            />
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </>
@@ -1637,7 +1693,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                 )}
                             </section>
 
-                            {isOsAbertasOpen && displayedOpenOS.length > 0 && (
+                            {isOsAbertasOpen && (
                                 <section className="py-0">
                                     <div
                                         className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
@@ -1658,9 +1714,9 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         ) : (
                                             <div className="w-full flex items-center justify-center py-10">
                                                 <div className="flex flex-col items-center">
-                                                    <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">inventory_2</span>
-                                                    <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma Ordem de Serviço encontrada</h3>
-                                                    <p className="text-slate-400">Tente ajustar sua busca ou filtros.</p>
+                                                    <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">check_circle</span>
+                                                    <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma SS aberta neste período</h3>
+                                                    <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
                                                 </div>
                                             </div>
                                         )}
@@ -1674,11 +1730,13 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                             <section className="py-0 mt-0">
                                 <div className="flex items-center gap-2 mb-2 px-1">
                                     <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">SS's Concluídas</h2>
+                                    {completedOS.total > 0 && (
                                     <ChevronButton
                                         isOpen={isOsConcluidasOpen}
                                         onToggle={() => setIsOsConcluidasOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_osConcluidasOpen', JSON.stringify(next)); return next; })}
                                         className="shrink-0 ml-auto"
                                     />
+                                    )}
                                 </div>
                                 <div
                                     className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
@@ -1687,66 +1745,57 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                     onTouchStart={completedOSScroll.onTouchStart}
                                     onClickCapture={completedOSScroll.onClickCapture}
                                 >
-                                    {/* Temporal filter buttons */}
-                                    <div className="flex gap-2 shrink-0">
-                                        {([
-                                            { value: 'today' as CompletedTemporalFilter, label: 'Hoje', icon: 'today', color: 'text-primary' },
-                                            { value: 'yesterday' as CompletedTemporalFilter, label: 'Ontem', icon: 'history', color: 'text-primary' },
-                                            { value: 'thisWeek' as CompletedTemporalFilter, label: 'Esta Semana', icon: 'date_range', color: 'text-primary' },
-                                            { value: 'lastWeek' as CompletedTemporalFilter, label: 'Semana Passada', icon: 'date_range', color: 'text-primary' },
-                                            { value: 'thisMonth' as CompletedTemporalFilter, label: 'Este Mês', icon: 'calendar_month', color: 'text-primary' },
-                                            { value: 'lastMonth' as CompletedTemporalFilter, label: 'Mês Passado', icon: 'calendar_month', color: 'text-primary' },
-                                        ]).map((opt) => (
-                                            <div
-                                                key={opt.value}
-                                                onClick={() => {
-                                                    setCompletedTemporalFilter(opt.value);
-                                                    setIsOsConcluidasOpen(true);
-                                                    localStorage.setItem('ordersSection_osConcluidasOpen', JSON.stringify(true));
-                                                    fetchData(false, true, { ...appliedFilters });
-                                                }}
-                                                className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-max cursor-pointer flex items-center gap-2 relative
-                                                ${completedTemporalFilter === opt.value
-                                                        ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900'
-                                                        : (opt.label === 'Hoje' && completedOSCounts[opt.value] > 0
-                                                            ? 'bg-white dark:bg-slate-800/40 border-green-500'
-                                                            : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5')
-                                                    }
-                                            `}
-                                            >
-                                                <span className={`material-symbols-outlined text-[16px] ${completedTemporalFilter === opt.value ? 'text-primary' : 'text-slate-400'} ${opt.color}`}>{opt.icon}</span>
-                                                <p className={`text-[10px] font-bold ${completedTemporalFilter === opt.value ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>{opt.label}</p>
-                                                <span className={`text-[14px] leading-none font-black ${completedTemporalFilter !== opt.value && opt.label === 'Hoje' && completedOSCounts[opt.value] > 0 ? 'text-green-500' : 'text-slate-900 dark:text-white'}`}>{completedOSCounts[opt.value]}</span>
-                                                {opt.label === 'Hoje' && completedOSCounts[opt.value] > 0 && (
-                                                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                                                    </span>
-                                                )}
+                                    {completedSectorCounts.length > 0 && (
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
+                                            <div className="flex gap-3 overflow-x-auto no-scrollbar px-1 py-1.5 cursor-grab active:cursor-grabbing touch-auto flex-1 min-w-0">
+                                                {completedSectorCounts.map((item, idx) => {
+                                                    const isSelected = completedAssetTagId.includes(item.id);
+                                                    return (
+                                                        <div key={idx} onClick={() => {
+                                                            const newAssetTagId = isSelected
+                                                                ? completedAssetTagId.filter((id) => id !== item.id)
+                                                                : [...completedAssetTagId, item.id];
+                                                            setCompletedAssetTagId(newAssetTagId);
+                                                        }}
+                                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer flex items-center justify-between gap-3
+                                                        ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                    `}>
+                                                            <p className={`text-[10px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
+                                                                {item.label}
+                                                            </p>
+                                                            <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    )}
 
                                     <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                        <OrdersListPDFButton
-                                            filters={completedOSEffectiveFilters}
-                                            searchQuery={searchQuery}
-                                            totalCount={completedOS.total}
-                                            fetchData={(opts) => dataService.getCompletedSS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
-                                        />
-                                        <ExcelExportButton
-                                            filters={completedOSEffectiveFilters}
-                                            searchQuery={searchQuery}
-                                            filename="relatorio-os-concluidas"
-                                            title="EXCEL"
-                                            totalCount={completedOS.total}
-                                            fetchData={(opts) => dataService.getCompletedSS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
-                                        />
+                                        {completedOS.total > 0 && (
+                                            <>
+                                                <OrdersListPDFButton
+                                                    filters={completedOSEffectiveFilters}
+                                                    searchQuery={searchQuery}
+                                                    totalCount={completedOS.total}
+                                                    fetchData={(opts) => dataService.getCompletedSS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
+                                                />
+                                                <ExcelExportButton
+                                                    filters={completedOSEffectiveFilters}
+                                                    searchQuery={searchQuery}
+                                                    filename="relatorio-os-concluidas"
+                                                    title="EXCEL"
+                                                    totalCount={completedOS.total}
+                                                    fetchData={(opts) => dataService.getCompletedSS({ ...opts, startDate: completedOSEffectiveFilters.startDate, endDate: completedOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
+                                                />
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
                                 {isOsConcluidasOpen && (
-                                    completedOS.data.length > 0 ? (
+                                    displayedCompletedOS.length > 0 ? (
                                         <div
                                             className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                             ref={completedOSCardsScroll.ref}
@@ -1754,7 +1803,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                             onTouchStart={completedOSCardsScroll.onTouchStart}
                                             onClickCapture={completedOSCardsScroll.onClickCapture}
                                         >
-                                            {completedOS.data.map((os) => (
+                                            {displayedCompletedOS.map((os) => (
                                                 <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
                                                     <ServiceRequestCardListItem
                                                         order={os}
@@ -1767,7 +1816,107 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         <div className="w-full flex items-center justify-center py-10">
                                             <div className="flex flex-col items-center">
                                                 <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">task_alt</span>
-                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma OS concluída neste período</h3>
+                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma SS concluída neste período</h3>
+                                                <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
+                                            </div>
+                                        </div>
+                                    ) : null
+                                )}
+                            </section>
+                        </div>
+
+                        {/* SS's Canceladas Section */}
+                        <div className="mx-4 mb-4 rounded-2xl bg-red-50/50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-800/30 p-4">
+                            <section className="py-0 mt-0">
+                                <div className="flex items-center gap-2 mb-2 px-1">
+                                    <h2 className="font-extrabold text-slate-900 dark:text-white text-lg shrink-0">SS's Canceladas</h2>
+                                    {canceledOS.total > 0 && (
+                                    <ChevronButton
+                                        isOpen={isCanceledSSOpen}
+                                        onToggle={() => setIsCanceledSSOpen(prev => { const next = !prev; localStorage.setItem('ordersSection_canceledSSOpen', JSON.stringify(next)); return next; })}
+                                        className="shrink-0 ml-auto"
+                                    />
+                                    )}
+                                </div>
+                                <div
+                                    className="flex items-center gap-4 overflow-x-auto no-scrollbar pt-3 pb-3 px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                    ref={canceledOSScroll.ref}
+                                    onMouseDown={canceledOSScroll.onMouseDown}
+                                    onTouchStart={canceledOSScroll.onTouchStart}
+                                    onClickCapture={canceledOSScroll.onClickCapture}
+                                >
+                                    {canceledSectorCounts.length > 0 && (
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">Setores</span>
+                                            <div className="flex gap-3 overflow-x-auto no-scrollbar px-1 py-1.5 cursor-grab active:cursor-grabbing touch-auto flex-1 min-w-0">
+                                                {canceledSectorCounts.map((item, idx) => {
+                                                    const isSelected = canceledAssetTagId.includes(item.id);
+                                                    return (
+                                                        <div key={idx} onClick={() => {
+                                                            const newAssetTagId = isSelected
+                                                                ? canceledAssetTagId.filter((id) => id !== item.id)
+                                                                : [...canceledAssetTagId, item.id];
+                                                            setCanceledAssetTagId(newAssetTagId);
+                                                        }}
+                                                            className={`backdrop-blur-sm p-2 px-3 rounded-[12px] border shadow-sm hover:shadow-md transition-all group shrink-0 w-auto min-w-[140px] max-w-[200px] cursor-pointer flex items-center justify-between gap-3
+                                                        ${isSelected ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5'}
+                                                    `}>
+                                                            <p className={`text-[10px] font-bold truncate flex-1 ${isSelected ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`} title={item.label}>
+                                                                {item.label}
+                                                            </p>
+                                                            <span className="text-[14px] leading-none font-black text-slate-900 dark:text-white shrink-0">{item.count}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                        {canceledOS.total > 0 && (
+                                            <>
+                                                <OrdersListPDFButton
+                                                    filters={canceledOSEffectiveFilters}
+                                                    searchQuery={searchQuery}
+                                                    totalCount={canceledOS.total}
+                                                    fetchData={(opts) => dataService.getCanceledSS({ ...opts, startDate: canceledOSEffectiveFilters.startDate, endDate: canceledOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
+                                                />
+                                                <ExcelExportButton
+                                                    filters={canceledOSEffectiveFilters}
+                                                    searchQuery={searchQuery}
+                                                    filename="relatorio-os-canceladas"
+                                                    title="EXCEL"
+                                                    totalCount={canceledOS.total}
+                                                    fetchData={(opts) => dataService.getCanceledSS({ ...opts, startDate: canceledOSEffectiveFilters.startDate, endDate: canceledOSEffectiveFilters.endDate, viewName: 'v_orders_parent' })}
+                                                />
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {isCanceledSSOpen && (
+                                    displayedCanceledOS.length > 0 ? (
+                                        <div
+                                            className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
+                                            ref={canceledOSCardsScroll.ref}
+                                            onMouseDown={canceledOSCardsScroll.onMouseDown}
+                                            onTouchStart={canceledOSCardsScroll.onTouchStart}
+                                            onClickCapture={canceledOSCardsScroll.onClickCapture}
+                                        >
+                                            {displayedCanceledOS.map((os) => (
+                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                                    <ServiceRequestCardListItem
+                                                        order={os}
+                                                        onClick={() => onSelectOrder?.(os)}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : !isPendingCanceled ? (
+                                        <div className="w-full flex items-center justify-center py-10">
+                                            <div className="flex flex-col items-center">
+                                                <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">cancel</span>
+                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma SS cancelada neste período</h3>
                                                 <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
                                             </div>
                                         </div>
@@ -1939,7 +2088,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                             className="flex-1 py-3 bg-primary text-white rounded-xl font-bold font-['Inter'] shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
                         >
                             <span className="material-symbols-outlined">check</span>
-                            Aplicar Período
+                            Aplicar Período de Solicitação
                         </button>
                     </div>
                 </div>

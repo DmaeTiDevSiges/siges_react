@@ -1193,7 +1193,7 @@ export const ordersService = {
             applyFilter('type_sub_id', filters.orderTypeSubId);
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
-            applyFilter('team_id', filters.orderTeamId);
+            applyFilter('requester_team_id', filters.orderTeamId);
             applyFilter('requester_team_id', filters.requesterTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
@@ -1726,7 +1726,7 @@ export const ordersService = {
             applyFilter('type_sub_id', f.orderTypeSubId);
             applyFilter('contract_id', f.contractId);
             applyFilter('plan_id', f.orderPlanId);
-            applyFilter('team_id', f.orderTeamId);
+            applyFilter('requester_team_id', f.orderTeamId);
             applyFilter('priority_id', f.priorityId);
 
             if (f.search) {
@@ -1787,7 +1787,7 @@ export const ordersService = {
 
         const osCounts: Record<number, number> = {};
         osDataList.forEach((o: any) => {
-            if (o.parent_id && o.status_id) {
+            if (o.status_id) {
                 osCounts[o.status_id] = (osCounts[o.status_id] || 0) + 1;
             }
         });
@@ -1863,13 +1863,13 @@ export const ordersService = {
             applyFilter('unit_type_parent_id', filters.unitTypeParentId);
             applyFilter('unit_type_id', filters.unitTypeId);
             applyFilter('unit_id', filters.unitId);
-            // asset_tag_id intentionally NOT applied here — filtered client-side
+            applyFilter('asset_tag_id', filters.assetTagId);
             applyFilter('object_id', filters.orderObjectId);
             applyFilter('type_id', filters.orderTypeId);
             applyFilter('type_sub_id', filters.orderTypeSubId);
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
-            applyFilter('team_id', filters.orderTeamId);
+            applyFilter('requester_team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 
@@ -2010,13 +2010,13 @@ export const ordersService = {
             applyFilter('unit_type_parent_id', filters.unitTypeParentId);
             applyFilter('unit_type_id', filters.unitTypeId);
             applyFilter('unit_id', filters.unitId);
-            // asset_tag_id intentionally NOT applied here — filtered client-side by displayedOpenOS
+            applyFilter('asset_tag_id', filters.assetTagId);
             applyFilter('object_id', filters.orderObjectId);
             applyFilter('type_id', filters.orderTypeId);
             applyFilter('type_sub_id', filters.orderTypeSubId);
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
-            applyFilter('team_id', filters.orderTeamId);
+            applyFilter('requester_team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 
@@ -2149,7 +2149,7 @@ export const ordersService = {
             applyFilter('type_sub_id', filters.orderTypeSubId);
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
-            applyFilter('team_id', filters.orderTeamId);
+            applyFilter('requester_team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('status_id', filters.statusId);
             applyFilter('provider_company_id', filters.providerCompanyId);
@@ -2490,7 +2490,7 @@ export const ordersService = {
             applyFilter('type_sub_id', filters.orderTypeSubId);
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
-            applyFilter('team_id', filters.orderTeamId);
+            applyFilter('requester_team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 
@@ -2652,10 +2652,10 @@ export const ordersService = {
 
         if (filters) {
             if (filters.startDate) {
-                query = query.gte('status_at', `${filters.startDate}T00:00:00`);
+                query = query.gte('requested_at', `${filters.startDate}T00:00:00`);
             }
             if (filters.endDate) {
-                query = query.lte('status_at', `${filters.endDate}T23:59:59`);
+                query = query.lte('requested_at', `${filters.endDate}T23:59:59`);
             }
 
             applyFilter('system_parent_id', filters.systemParentId);
@@ -2670,7 +2670,7 @@ export const ordersService = {
             applyFilter('type_sub_id', filters.orderTypeSubId);
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
-            applyFilter('team_id', filters.orderTeamId);
+            applyFilter('requester_team_id', filters.orderTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 
@@ -2771,6 +2771,186 @@ export const ordersService = {
                 systemDescription: item.system_description,
                 system: item.system_description,
                 statusId: item.status_id ? Number(item.status_id) : 8,
+                parentId: null,
+                ovCounter: item.ov_counter
+            } as Order;
+        });
+
+        return { data: orders, total };
+    },
+
+    async getCanceledSS(filters?: {
+        startDate?: string;
+        endDate?: string;
+        page?: number;
+        pageSize?: number;
+        search?: string;
+        systemParentId?: string | string[];
+        systemId?: string | string[];
+        unitTypeParentId?: string | string[];
+        unitTypeId?: string | string[];
+        unitId?: string | string[];
+        assetTagId?: string | string[];
+        assetTagSubId?: string | string[];
+        orderObjectId?: string | string[];
+        orderTypeId?: string | string[];
+        orderTypeSubId?: string | string[];
+        contractId?: string | string[];
+        orderPlanId?: string | string[];
+        orderTeamId?: string | string[];
+        priorityId?: string | string[];
+        providerCompanyId?: string | string[];
+        viewName?: string;
+    }): Promise<{ data: Order[]; total: number }> {
+        const page = filters?.page ?? 0;
+        const pageSize = filters?.pageSize ?? 20;
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
+        const viewName = filters?.viewName || 'v_orders_parent';
+
+        let query = supabase
+            .from(viewName)
+            .select('*', { count: 'exact' })
+            .eq('status_id', 7)
+            .is('parent_id', null);
+
+        const applyFilter = (column: string, val: any) => {
+            if (val === null) { query = query.is(column, null); return; }
+            if (val === undefined || val === '') return;
+            if (Array.isArray(val)) {
+                const filteredVal = val.filter((v: any) =>
+                    v !== null && v !== undefined && v !== '' &&
+                    String(v).toLowerCase() !== 'null' &&
+                    String(v).toLowerCase() !== 'undefined'
+                );
+                if (filteredVal.length > 0) query = query.in(column, filteredVal);
+            } else {
+                query = query.eq(column, val);
+            }
+        };
+
+        if (filters) {
+            if (filters.startDate) {
+                query = query.gte('requested_at', `${filters.startDate}T00:00:00`);
+            }
+            if (filters.endDate) {
+                query = query.lte('requested_at', `${filters.endDate}T23:59:59`);
+            }
+
+            applyFilter('system_parent_id', filters.systemParentId);
+            applyFilter('system_id', filters.systemId);
+            applyFilter('unit_type_parent_id', filters.unitTypeParentId);
+            applyFilter('unit_type_id', filters.unitTypeId);
+            applyFilter('unit_id', filters.unitId);
+            applyFilter('asset_tag_id', filters.assetTagId);
+            applyFilter('asset_tag_sub_id', filters.assetTagSubId);
+            applyFilter('object_id', filters.orderObjectId);
+            applyFilter('type_id', filters.orderTypeId);
+            applyFilter('type_sub_id', filters.orderTypeSubId);
+            applyFilter('contract_id', filters.contractId);
+            applyFilter('plan_id', filters.orderPlanId);
+            applyFilter('requester_team_id', filters.orderTeamId);
+            applyFilter('priority_id', filters.priorityId);
+            applyFilter('provider_company_id', filters.providerCompanyId);
+
+            if (filters.search) {
+                const s = `%${filters.search}%`;
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+            }
+        }
+
+        query = query.order('status_at', { ascending: false }).range(from, to);
+
+        const { data, error, count } = await query;
+
+        if (error) {
+            console.error('Error fetching canceled SS:', error);
+            return { data: [], total: 0 };
+        }
+
+        const total = count || 0;
+
+        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
+
+        const orders = (data || []).map((item: any) => {
+            const providerCompanyIdStr = item.provider_company_id?.toString();
+            const company = providerCompanyIdStr ? companyMap.get(providerCompanyIdStr) : null;
+
+            return {
+                id: item.id.toString(),
+                orderMask: item.order_mask,
+                typeId: item.type_id?.toString(),
+                typeSubId: item.type_sub_id?.toString(),
+                objectId: item.object_id?.toString(),
+                contractId: item.contract_id?.toString(),
+                planId: item.plan_id?.toString(),
+                unitId: item.unit_id?.toString(),
+                clientId: item.client_id?.toString(),
+                departmentId: item.department_id?.toString(),
+                unitAssetTagId: item.unit_asset_tag_id?.toString(),
+                assetTagId: item.asset_tag_id?.toString(),
+                systemId: item.system_id?.toString(),
+                teamId: item.team_id?.toString(),
+                typeCode: item.type_code,
+                typeSubCode: item.type_sub_code,
+                objectCode: item.object_code,
+                unitDescription: item.unit_description,
+                title: item.unit_description,
+                requestedServices: item.requested_services,
+                requestedAt: item.requested_at,
+                createdAt: item.created_at,
+                statusAt: item.status_at,
+                statusDescription: item.status_description,
+                statusIcon: item.status_icon,
+                iconColor: item.icon_color,
+                statusBackgroundColor: item.background_color,
+                statusColor: item.status_color,
+                priorityId: item.priority_id?.toString(),
+                priorityDescription: item.priority_description,
+                priorityCode: item.priority_code,
+                priorityColor: item.priority_color,
+                typeDescription: item.type_description,
+                typeName: item.type_description,
+                typeIcon: item.type_icon,
+                typeColor: item.type_color,
+                requesterName: item.requester_name,
+                requesterNameShort: item.requester_name_short,
+                requesterTeamCode: item.requester_team_code,
+                requesterPhone: item.requester_phone,
+                phone: item.requester_phone,
+                clientName: item.client_name,
+                contractDescription: item.contract_description,
+                planDescription: item.plan_description,
+                progress: item.progress ? `${Math.round(parseFloat(String(item.progress)) * 100)}%` : '0%',
+                imgFilePath: item.img_file_path,
+                imgFileName: item.img_file_name,
+                imgFilesNames: item.img_files_names,
+                companyId: item.company_id?.toString(),
+                causeReasonId: item.cause_reason_id ? Number(item.cause_reason_id) : undefined,
+                causeReasonDescription: item.cause_reason_description,
+                providerCompanyName: item.provider_company_description || item.provider_company_name || company?.description,
+                providerLogo: getPublicImageUrl(
+                    item.provider_company_img_file_path || item.provider_company_img_path || company?.img_file_path,
+                    item.provider_company_img_file_name || item.provider_company_img_name || company?.img_file_name,
+                    { width: 100, height: 100, resize: 'contain' }
+                ),
+                unitLatitude: item.unit_latitude,
+                unitLongitude: item.unit_longitude,
+                teamLeaderLatitude: item.team_leader_latitude,
+                teamLeaderLongitude: item.team_leader_longitude,
+                teamLeaderNameShort: item.team_leader_name_short,
+                assetTagDescription: item.asset_tag_description,
+                unitAssetTagDescription: item.asset_tag_description,
+                assetTagSubDescription: item.asset_tag_sub_description,
+                unitAssetTagSubDescription: item.asset_tag_sub_description,
+                teamCode: item.team_code,
+                teamDescription: item.team_description,
+                team: item.team_code || item.team_description,
+                systemDescription: item.system_description,
+                system: item.system_description,
+                statusId: item.status_id ? Number(item.status_id) : 7,
                 parentId: null,
                 ovCounter: item.ov_counter
             } as Order;

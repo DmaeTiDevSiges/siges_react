@@ -1210,8 +1210,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </button>
                             </div>
 
-                            {/* Cards de Empresas / Líderes — removido conforme solicitado */}
-                            {/*
+                            {/* Cards de Empresas / Líderes */}
                             <div
                                 className="flex gap-3 overflow-x-auto no-scrollbar px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                 ref={leadersScroll.ref}
@@ -1292,7 +1291,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     </div>
                                 ))}
                             </div>
-                            */}
                         </div>
                     </div>
 

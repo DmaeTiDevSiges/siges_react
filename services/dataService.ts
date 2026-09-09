@@ -1833,6 +1833,32 @@ export const dataService = {
         return ordersService.getCompletedSS.apply(ordersService, arguments as any);
     },
 
+    async getCanceledSS(filters?: {
+        startDate?: string;
+        endDate?: string;
+        page?: number;
+        pageSize?: number;
+        search?: string;
+        systemParentId?: string | string[];
+        systemId?: string | string[];
+        unitTypeParentId?: string | string[];
+        unitTypeId?: string | string[];
+        unitId?: string | string[];
+        assetTagId?: string | string[];
+        assetTagSubId?: string | string[];
+        orderObjectId?: string | string[];
+        orderTypeId?: string | string[];
+        orderTypeSubId?: string | string[];
+        contractId?: string | string[];
+        orderPlanId?: string | string[];
+        orderTeamId?: string | string[];
+        priorityId?: string | string[];
+        providerCompanyId?: string | string[];
+        viewName?: string;
+    }): Promise<{ data: Order[]; total: number }> {
+        return ordersService.getCanceledSS.apply(ordersService, arguments as any);
+    },
+
     async updateSystem(id: string, data: Partial<System>): Promise<void> {
         return settingsService.updateSystem.apply(settingsService, arguments as any);
     },
