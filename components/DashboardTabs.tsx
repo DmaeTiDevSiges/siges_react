@@ -40,7 +40,12 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
 
   return (
     <div className="flex items-center gap-4 h-full mt-1">
-      <h1 className="hidden md:block text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Gestão</h1>
+      <div className="hidden md:flex flex-col">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Gestão</h1>
+        <span className="text-[9px] text-slate-500 dark:text-slate-500 font-mono leading-none mt-0.5 select-all">
+          SIGES v{__BUILD_ID__}
+        </span>
+      </div>
       <div className="hidden md:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
       <div className="flex items-center no-scrollbar overflow-x-auto gap-4">
         {hasServices && (
