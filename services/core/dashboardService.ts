@@ -178,6 +178,7 @@ export const dashboardService = {
         assetTagSubId?: string | string[];
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
+        responsibleTeamId?: string | string[];
         searchQuery?: string;
     }) {
         const pageSize = filters?.pageSize ?? 100;
@@ -225,6 +226,7 @@ export const dashboardService = {
         applyFilter('o_asset_tag_sub_id', filters?.assetTagSubId);
         applyFilter('o_plan_id', filters?.orderPlanId);
         applyFilter('o_team_id', filters?.orderTeamId);
+        applyFilter('o_team_id', filters?.responsibleTeamId);
         applyFilter('o_provider_company_id', filters?.providerCompanyId);
 
         if (filters?.searchQuery) {

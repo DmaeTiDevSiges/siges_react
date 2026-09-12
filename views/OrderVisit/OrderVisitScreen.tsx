@@ -727,6 +727,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             visit={visit}
                             onVisitUpdated={refreshVisit}
                             isApprover={isContractManagerAdminSuper}
+                            currentUser={currentUser}
                         />
                     </div>
                 );

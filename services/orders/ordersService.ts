@@ -1195,6 +1195,7 @@ export const ordersService = {
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('requester_team_id', filters.orderTeamId);
             applyFilter('requester_team_id', filters.requesterTeamId);
+            applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
             if (filters.parentId !== undefined) {
@@ -1727,6 +1728,7 @@ export const ordersService = {
             applyFilter('contract_id', f.contractId);
             applyFilter('plan_id', f.orderPlanId);
             applyFilter('requester_team_id', f.orderTeamId);
+            applyFilter('team_id', f.responsibleTeamId);
             applyFilter('priority_id', f.priorityId);
 
             if (f.search) {
@@ -1870,6 +1872,7 @@ export const ordersService = {
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('requester_team_id', filters.orderTeamId);
+            applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 
@@ -2017,6 +2020,7 @@ export const ordersService = {
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('requester_team_id', filters.orderTeamId);
+            applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 
@@ -2150,6 +2154,7 @@ export const ordersService = {
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('requester_team_id', filters.orderTeamId);
+            applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('status_id', filters.statusId);
             applyFilter('provider_company_id', filters.providerCompanyId);
@@ -2491,6 +2496,7 @@ export const ordersService = {
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('requester_team_id', filters.orderTeamId);
+            applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 
@@ -2671,6 +2677,7 @@ export const ordersService = {
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('requester_team_id', filters.orderTeamId);
+            applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 
@@ -2851,6 +2858,7 @@ export const ordersService = {
             applyFilter('contract_id', filters.contractId);
             applyFilter('plan_id', filters.orderPlanId);
             applyFilter('requester_team_id', filters.orderTeamId);
+            applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
 

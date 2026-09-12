@@ -20,7 +20,7 @@ import { pdf } from '@react-pdf/renderer';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { FaFilePdf } from 'react-icons/fa';
 
-interface DashboardOrdersVisitsAdminScreenProps {
+interface OrdersVisitsDashboardAdminProps {
     currentUser: User;
     onSelectVisit: (visit: OrderVisit) => void;
     currentFilters?: OrderFilters;
@@ -458,7 +458,7 @@ const InsightsMovementsBar: React.FC<{ data: { label: string; value: number; col
     );
 };
 
-export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdminScreenProps> = ({ 
+export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProps> = ({ 
     currentUser, 
     onSelectVisit, 
     currentFilters, 
@@ -541,7 +541,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             }
         }
         localStorage.setItem('advancedOrdersFilters', JSON.stringify(advancedFilters));
-    }, [advancedFilters, currentFilters, onFiltersChange]);
+    }, [advancedFilters, onFiltersChange]);
 
     useEffect(() => {
         if (onAppliedFiltersChange && appliedFiltersProp) {
@@ -550,7 +550,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             }
         }
         localStorage.setItem('appliedOrdersFilters', JSON.stringify(appliedFilters));
-    }, [appliedFilters, appliedFiltersProp, onAppliedFiltersChange]);
+    }, [appliedFilters, onAppliedFiltersChange]);
     const [visits, setVisits] = useState<OrderVisitExtended[]>([]);
 
     const todayStr = useMemo(() => {
@@ -691,13 +691,43 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const [loading, setLoading] = useState(true);
     const initialLoadDone = React.useRef(false);
     const fetchIdRef = useRef(0);
-    const [activeOrderVisitProcessingIdSelected, setActiveOrderVisitProcessingIdSelected] = useState<string>(() => {
-        const saved = localStorage.getItem('visits_dashboard_processing_id');
-        return saved || 'all';
+    const [activeOrderVisitProcessingIdSelected, setActiveOrderVisitProcessingIdSelected] = useState<string[]>(() => {
+        try {
+            const saved = localStorage.getItem('visits_dashboard_processing_id');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch { /* fallback */ }
+        return ['all'];
     });
 
+    const allStageIds = React.useMemo(() => {
+        return ['all', ...processingStages.map(s => String(s.id)), 'costs-pending'];
+    }, [processingStages]);
+
+    const toggleProcessingSelection = (value: string) => {
+        setActiveOrderVisitProcessingIdSelected(prev => {
+            if (value === 'all') {
+                const allSelected = prev.includes('all') || prev.length === allStageIds.length;
+                return allSelected ? [] : [...allStageIds];
+            }
+            const isSelected = prev.includes(value);
+            let next = isSelected ? prev.filter(v => v !== value) : [...prev, value];
+            const specificIds = allStageIds.filter(id => id !== 'all');
+            if (next.length === 0) {
+                next = ['all'];
+            } else if (specificIds.every(id => next.includes(id))) {
+                next = ['all'];
+            } else if (next.includes('all')) {
+                next = next.filter(v => v !== 'all');
+            }
+            return next;
+        });
+    };
+
     useEffect(() => {
-        localStorage.setItem('visits_dashboard_processing_id', activeOrderVisitProcessingIdSelected);
+        localStorage.setItem('visits_dashboard_processing_id', JSON.stringify(activeOrderVisitProcessingIdSelected));
     }, [activeOrderVisitProcessingIdSelected]);
     const [visitTeams, setVisitTeams] = useState<Record<string, OrderVisitTeam[]>>({});
     const [appropriationData, setAppropriationData] = useState<{
@@ -1145,6 +1175,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
             if (!checkFilter('contractId', 'contractId')) return false;
             if (!checkFilter('orderPlanId', 'planId')) return false;
             if (!checkFilter('orderTeamId', 'teamId')) return false;
+            if (!checkFilter('responsibleTeamId', 'teamId')) return false;
 
             return true;
         });
@@ -1171,14 +1202,21 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const filteredVisits = useMemo(() => {
         return baseFilteredVisits
             .filter(visit => {
-                if (activeOrderVisitProcessingIdSelected !== 'all') {
-                    // Card especial: Custos Pendentes (aguardando inclusão)
-                    if (activeOrderVisitProcessingIdSelected === 'costs-pending') {
-                        return visit.ovProcessingId === 5 && (!visit.ovCostsStatus || visit.ovCostsStatus === 'pending' || visit.ovCostsStatus === 'waiting');
-                    }
-                    if (visit.ovProcessingId !== parseInt(activeOrderVisitProcessingIdSelected)) return false;
+                if (activeOrderVisitProcessingIdSelected.length === 0) return false;
+                const allSelected = activeOrderVisitProcessingIdSelected.includes('all') || activeOrderVisitProcessingIdSelected.length === allStageIds.length;
+                if (allSelected) return true;
+                const isCostsPendingSelected = activeOrderVisitProcessingIdSelected.includes('costs-pending');
+                const isAprovadaSelected = activeOrderVisitProcessingIdSelected.includes('5');
+                if (isCostsPendingSelected && visit.ovProcessingId === 5 && (!visit.ovCostsStatus || visit.ovCostsStatus === 'pending' || visit.ovCostsStatus === 'waiting')) {
+                    return true;
                 }
-                return true;
+                if (activeOrderVisitProcessingIdSelected.includes(String(visit.ovProcessingId))) {
+                    if (visit.ovProcessingId === 5 && isCostsPendingSelected && !isAprovadaSelected) {
+                        return !(visit.ovCostsStatus === 'pending' || visit.ovCostsStatus === 'waiting' || !visit.ovCostsStatus);
+                    }
+                    return true;
+                }
+                return false;
             })
             .sort((a, b) => {
                 const dateA = a.ovStartedAt ? new Date(a.ovStartedAt).getTime() : (a.ovCreatedAt ? new Date(a.ovCreatedAt).getTime() : 0);
@@ -1190,7 +1228,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                     ? String(a.id).localeCompare(String(b.id), undefined, { numeric: true })
                     : String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
             });
-    }, [baseFilteredVisits, activeOrderVisitProcessingIdSelected, sortOrder]);
+    }, [baseFilteredVisits, activeOrderVisitProcessingIdSelected, sortOrder, allStageIds]);
 
     const financialTotals = useMemo(() => {
         return {
@@ -1311,8 +1349,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
     const fetchAppropriationData = async () => {
         try {
             setIsFetchingAppropriation(true);
-            const isAprovadaSelected = activeOrderVisitProcessingIdSelected === '5';
-            const isCostsPendingSelected = activeOrderVisitProcessingIdSelected === 'costs-pending';
+            const isAprovadaSelected = activeOrderVisitProcessingIdSelected.includes('5');
+            const isCostsPendingSelected = activeOrderVisitProcessingIdSelected.includes('costs-pending');
             const ovIds = isAprovadaSelected
                 ? filteredVisits.filter(v => v.ovCostsStatus === 'approved').map(v => v.id)
                 : isCostsPendingSelected
@@ -1424,6 +1462,7 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                 unitSubTypes={unitSubTypes}
                                 assetTagSubOptions={assetTagSubOptions}
                                 orderSubTypes={orderSubTypes}
+                                hiddenFilters={['orderTeamId']}
                                 onActiveFiltersChange={(count) => { setVisitFilterCount(count); onActiveFiltersChange?.(count); }}
                                 onApply={() => {
                                     const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];
@@ -1499,8 +1538,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                             count={baseFilteredVisits.length}
                             totalValue={baseFilteredVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0)}
                             color="text-slate-400"
-                            active={activeOrderVisitProcessingIdSelected === 'all'}
-                            onClick={() => setActiveOrderVisitProcessingIdSelected('all')}
+                            active={activeOrderVisitProcessingIdSelected.includes('all') || activeOrderVisitProcessingIdSelected.length === allStageIds.length}
+                            onClick={() => toggleProcessingSelection('all')}
                             visits={baseFilteredVisits}
                         />
                         {processingStages.map(stage => {
@@ -1524,8 +1563,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                                         count={costsPendingVisits.length}
                                                         totalValue={costsPendingTotal}
                                                         color="text-slate-500"
-                                                        active={activeOrderVisitProcessingIdSelected === 'costs-pending'}
-                                                        onClick={() => setActiveOrderVisitProcessingIdSelected('costs-pending')}
+                                                        active={activeOrderVisitProcessingIdSelected.includes('costs-pending')}
+                                                        onClick={() => toggleProcessingSelection('costs-pending')}
                                                         visits={costsPendingVisits}
                                                     />
                                                 );
@@ -1539,8 +1578,8 @@ export const DashboardOrdersVisitsAdminScreen: React.FC<DashboardOrdersVisitsAdm
                                         totalValue={stats[stage.id]?.total || 0}
                                         color={!isHex ? stage.icon_color : ''}
                                         styleColor={isHex ? stage.icon_color : undefined}
-                                        active={activeOrderVisitProcessingIdSelected === String(stage.id)}
-                                        onClick={() => setActiveOrderVisitProcessingIdSelected(String(stage.id))}
+                                        active={activeOrderVisitProcessingIdSelected.includes(String(stage.id))}
+                                        onClick={() => toggleProcessingSelection(String(stage.id))}
                                         visits={stageVisits}
                                     />
                                 </React.Fragment>

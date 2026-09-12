@@ -82,7 +82,8 @@ export const TreeFilterSelect: React.FC<{
     onClear: () => void;
     disabled?: boolean;
     required?: boolean;
-}> = ({ label, value, options, onChange, onClear, disabled, required }) => {
+    hidden?: boolean;
+}> = ({ label, value, options, onChange, onClear, disabled, required, hidden }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [tempValue, setTempValue] = useState<string[]>([]);
@@ -211,6 +212,8 @@ export const TreeFilterSelect: React.FC<{
             </React.Fragment>
         );
     };
+
+    if (hidden) return null;
 
     return (
         <>

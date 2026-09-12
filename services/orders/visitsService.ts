@@ -131,33 +131,11 @@ export const visitsService = {
     },
 
     async getVisitsByLeader(leaderId: string): Promise<OrderVisit[]> {
-        const numLeaderId = parseInt(leaderId);
-
-        // Find visits where user is leader, team member, chat participant, or sent a chat message
-        const [
-            { data: teamVisits },
-            { data: chatPartVisits },
-            { data: chatMsgVisits }
-        ] = await Promise.all([
-            numLeaderId ? supabase.from('orders_visits_teams').select('ov_id').eq('user_id', numLeaderId) : { data: [] },
-            numLeaderId ? supabase.from('orders_visits_chat_participants').select('ov_id').eq('user_id', numLeaderId) : { data: [] },
-            numLeaderId ? supabase.from('orders_visits_chat').select('ov_id').eq('user_id', numLeaderId) : { data: [] }
-        ]);
-
-        const extraOvIds = new Set<number>();
-        (teamVisits || []).forEach((r: any) => r.ov_id && extraOvIds.add(r.ov_id));
-        (chatPartVisits || []).forEach((r: any) => r.ov_id && extraOvIds.add(r.ov_id));
-        (chatMsgVisits || []).forEach((r: any) => r.ov_id && extraOvIds.add(r.ov_id));
-
-        let query = supabase.from('v_orders_visits').select('*');
-        if (extraOvIds.size > 0) {
-            const ovIdList = Array.from(extraOvIds).join(',');
-            query = query.or(`ov_team_leader_id.eq.${leaderId},id.in.(${ovIdList})`);
-        } else {
-            query = query.eq('ov_team_leader_id', leaderId);
-        }
-
-        const { data, error } = await query.order('ov_started_at', { ascending: true });
+        const { data, error } = await supabase
+            .from('v_orders_visits')
+            .select('*')
+            .eq('ov_team_leader_id', leaderId)
+            .order('ov_started_at', { ascending: true });
 
         if (error) {
             console.error('Error fetching visits by leader:', error);
@@ -444,8 +422,10 @@ export const visitsService = {
             ovCostsWaitingUserId: data.ov_costs_waiting_user_id?.toString() || null,
             ovCostsApprovedAt: data.ov_costs_approved_at || null,
             ovCostsApprovedUserId: data.ov_costs_approved_user_id?.toString() || null,
+            ovCostsApprovedUserNameShort: data.ov_costs_approved_user_name_short || null,
             ovCostsRejectedAt: data.ov_costs_rejected_at || null,
             ovCostsRejectedUserId: data.ov_costs_rejected_user_id?.toString() || null,
+            ovCostsRejectedUserNameShort: data.ov_costs_rejected_user_name_short || null,
             ovCostsRejectionReason: data.ov_costs_rejection_reason || null,
             chatStatus: data.chat_status || 'open',
             chatClosedAt: data.chat_closed_at,
@@ -2877,7 +2857,12 @@ export const visitsService = {
                 ov_processing_id: 2,
                 ov_assets_approved_no_filed_amount: 0,
                 ov_approved_at: null,
-                ov_approved_user_id: null
+                ov_approved_user_id: null,
+                ov_costs_status: 'pending',
+                ov_costs_waiting_at: null,
+                ov_costs_approved_at: null,
+                ov_costs_rejected_at: null,
+                ov_costs_rejection_reason: null
             })
             .eq('id', parseInt(visitId));
 

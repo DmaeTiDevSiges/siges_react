@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
-import { OrderVisit } from '../../types';
+import { OrderVisit, User } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
-import { isFinancialApprovalEnabled, VISIT_COSTS_STATUS_CONFIG, type VisitCostsStatus } from '../../features';
+import { isFinancialApprovalEnabled, type VisitCostsStatus } from '../../features';
 import { dataService } from '../../services/dataService';
-import { OrderVisitFinancialStatus } from '../../components/ordersVisits/OrderVisitFinancialStatus';
 
 interface OrderVisitFinancialDetailProps {
     visit: OrderVisit;
     onVisitUpdated?: () => void;
     /** Indica se o usuário atual pode aprovar financeiramente (contratante/gestor do contrato) */
     isApprover?: boolean;
+    currentUser?: User | null;
 }
 
-export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps> = ({ visit, onVisitUpdated, isApprover = false }) => {
+export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps> = ({ visit, onVisitUpdated, isApprover = false, currentUser }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const [showRejectModal, setShowRejectModal] = useState(false);
     const [showZeroCostModal, setShowZeroCostModal] = useState(false);
+    const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
+
+    const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
 
     const items = [
         {
@@ -42,7 +44,6 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
         }
     ];
 
-const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
     // Quem envia custos (contratada): visita aprovada tecnicamente e custos ainda não enviados
     // Botão "Enviar para Aprovação" só aparece quando costsStatus é null ou pending
     const canSubmitCosts = isFinancialApprovalEnabled() && 
@@ -67,12 +68,12 @@ const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
     };
 
     const confirmSubmitCosts = async () => {
-        if (!visit.id) return;
+        if (!visit.id || !currentUser?.id) return;
         
         setShowZeroCostModal(false);
         setIsLoading(true);
         try {
-            await dataService.submitVisitCosts(visit.id, visit.ovCreatedUserId || '');
+            await dataService.submitVisitCosts(visit.id, currentUser.id);
             onVisitUpdated?.();
         } catch (error: any) {
             console.error('Error submitting costs:', error);
@@ -84,11 +85,11 @@ const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
     };
 
     const handleApproveFinancial = async () => {
-        if (!visit.id) return;
+        if (!visit.id || !currentUser?.id) return;
         
         setIsLoading(true);
         try {
-            await dataService.approveVisitFinancial(visit.id, visit.ovCreatedUserId || '');
+            await dataService.approveVisitFinancial(visit.id, currentUser.id);
             onVisitUpdated?.();
         } catch (error) {
             console.error('Error approving financial:', error);
@@ -99,11 +100,11 @@ const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
     };
 
     const handleRejectFinancial = async () => {
-        if (!visit.id || !rejectionReason.trim()) return;
+        if (!visit.id || !rejectionReason.trim() || !currentUser?.id) return;
         
         setIsLoading(true);
         try {
-            await dataService.rejectVisitFinancial(visit.id, visit.ovCreatedUserId || '', rejectionReason);
+            await dataService.rejectVisitFinancial(visit.id, currentUser.id, rejectionReason);
             setShowRejectModal(false);
             setRejectionReason('');
             onVisitUpdated?.();
@@ -123,13 +124,60 @@ const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
                     <p className="text-indigo-200 dark:text-indigo-100 text-xs font-black uppercase tracking-[0.2em] mb-2">
                         Total Geral da Visita
                     </p>
-                    <h2 className="text-4xl font-black mb-1">
+                    <h2 className="text-4xl font-black mb-4">
                         {formatCurrency(visit.totalValue || 0)}
                     </h2>
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full mt-4 backdrop-blur-md">
-                        <span className="material-symbols-outlined text-sm">info</span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Valores calculados automaticamente</span>
-                    </div>
+
+                    {isFinancialApprovalEnabled() && canSubmitCosts && (
+                        <button
+                            onClick={handleSubmitCosts}
+                            disabled={isLoading}
+                            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-colors"
+                        >
+                            {isLoading ? 'Enviando...' : 'Enviar para Aprovação'}
+                        </button>
+                    )}
+
+                    {isAwaitingApproval && (
+                        <button
+                            disabled
+                            className="w-full px-4 py-3 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            <span className="material-symbols-outlined text-lg animate-pulse">hourglass_top</span>
+                            Aguardando Aprovação
+                        </button>
+                    )}
+
+                    {canApproveFinancial && (
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowRejectModal(true)}
+                                disabled={isLoading}
+                                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium rounded-xl transition-colors"
+                            >
+                                REJEITAR
+                            </button>
+                            <button
+                                onClick={handleApproveFinancial}
+                                disabled={isLoading}
+                                className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-xl transition-colors"
+                            >
+                                {isLoading ? 'Processando...' : 'APROVAR'}
+                            </button>
+                        </div>
+                    )}
+
+                    {isFinancialApprovalEnabled() && costsStatus === 'approved' && visit.ovCostsApprovedAt && (
+                        <p className="text-indigo-200 dark:text-indigo-100 text-xs font-medium mt-2">
+                            Aprovado por {visit.ovCostsApprovedUserNameShort || '...'} em {new Date(visit.ovCostsApprovedAt).toLocaleDateString('pt-BR')} {new Date(visit.ovCostsApprovedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                        </p>
+                    )}
+
+                    {isFinancialApprovalEnabled() && costsStatus === 'rejected' && visit.ovCostsRejectedAt && (
+                        <p className="text-red-200 dark:text-red-100 text-xs font-medium mt-2">
+                            Rejeitado por {visit.ovCostsRejectedUserNameShort || '...'} em {new Date(visit.ovCostsRejectedAt).toLocaleDateString('pt-BR')} {new Date(visit.ovCostsRejectedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                        </p>
+                    )}
                 </div>
 
                 {/* Decorative background elements */}
@@ -137,23 +185,12 @@ const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/20 rounded-full -ml-16 -mb-16 blur-3xl" />
             </div>
 
-            {/* Financial Status (Feature Flag) */}
-            {isFinancialApprovalEnabled() && costsStatus && (
-                <OrderVisitFinancialStatus
-                    costsStatus={costsStatus}
-                    waitingAt={visit.ovCostsWaitingAt}
-                    approvedAt={visit.ovCostsApprovedAt}
-                    rejectedAt={visit.ovCostsRejectedAt}
-                    rejectionReason={visit.ovCostsRejectionReason}
-                />
-            )}
-
             {/* Summary Cards */}
             <div className="grid grid-cols-1 gap-4">
                 {items.map((item, index) => (
                     <div
                         key={index}
-                        className="bg-white dark:bg-slate-900 rounded-2xl px-6 border border-slate-100 dark:border-white/5 flex items-center justify-between shadow-sm h-[80px]"
+                        className="bg-white dark:bg-slate-900 rounded-2xl px-6 border border-slate-100 dark:border-white/5 flex items-center shadow-sm h-[80px]"
                     >
                         <div className="flex items-center gap-4">
                             <div className={`${item.bgColor} ${item.color} w-12 h-12 rounded-2xl flex items-center justify-center`}>
@@ -168,64 +205,9 @@ const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
                                 </p>
                             </div>
                         </div>
-                        <span className={`material-symbols-outlined ${item.color} opacity-20 text-4xl`}>
-                            {item.icon}
-                        </span>
                     </div>
                 ))}
             </div>
-
-            {/* Financial Approval Actions (Feature Flag) */}
-            {isFinancialApprovalEnabled() && (canSubmitCosts || canApproveFinancial || isAwaitingApproval) && (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-100 dark:border-white/5 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                            Aprovação Financeira
-                        </h3>
-                    </div>
-                    
-                    <div className="flex flex-col gap-3">
-                        {isAwaitingApproval && (
-                            <button
-                                disabled
-                                className="w-full px-4 py-3 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                <span className="material-symbols-outlined text-lg animate-pulse">hourglass_top</span>
-                                Aguardando Aprovação
-                            </button>
-                        )}
-
-                        {canSubmitCosts && (
-                            <button
-                                onClick={handleSubmitCosts}
-                                disabled={isLoading}
-                                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-colors"
-                            >
-                                {isLoading ? 'Enviando...' : 'Enviar para Aprovação'}
-                            </button>
-                        )}
-                        
-                        {canApproveFinancial && (
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={handleApproveFinancial}
-                                    disabled={isLoading}
-                                    className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-xl transition-colors"
-                                >
-                                    {isLoading ? 'Processando...' : 'Aprovar'}
-                                </button>
-                                <button
-                                    onClick={() => setShowRejectModal(true)}
-                                    disabled={isLoading}
-                                    className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium rounded-xl transition-colors"
-                                >
-                                    Rejeitar
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
 
             {/* Info Message */}
             <div className="bg-indigo-50 dark:bg-indigo-500/5 rounded-2xl p-4 flex gap-4 items-start border border-indigo-100/50 dark:border-indigo-500/10">

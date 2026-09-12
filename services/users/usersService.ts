@@ -379,6 +379,52 @@ export const usersService = {
         })) as User[];
     },
 
+    async getUsersByProfile(profileId: string, companyId: string): Promise<User[]> {
+        const { data, error } = await supabase
+            .from('users')
+            .select(`
+                *,
+                cfg_users_statuses (
+                     id,
+                     description
+                ),
+                cfg_profiles (
+                    description
+                ),
+                cfg_teams!inner (
+                    description,
+                    company_id
+                )
+            `)
+            .eq('profile_id', profileId)
+            .eq('cfg_teams.company_id', companyId)
+            .order('name_full');
+
+        if (error) {
+            console.error('Error fetching users by profile:', error);
+            throw error;
+        }
+
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            uuid: item.uuid,
+            email: item.email,
+            nameFull: item.name_full,
+            nameShort: item.name_short,
+            statusId: item.status_id,
+            statusName: item.cfg_users_statuses?.description || 'Desconhecido',
+            profileId: item.profile_id?.toString(),
+            profileName: item.cfg_profiles?.description,
+            avatarUrl: item.img_file_name
+                ? getPublicImageUrl(item.img_file_path, item.img_file_name, { width: 70, height: 70, resize: 'cover' })
+                : undefined,
+            companyId: item.cfg_teams?.company_id?.toString(),
+            teamId: item.team_id?.toString(),
+            teamName: item.cfg_teams?.description,
+            name: item.name_full
+        })) as User[];
+    },
+
     async getTeamsByCompany(companyId: string): Promise<Team[]> {
         const { data, error } = await supabase
             .from('cfg_teams')

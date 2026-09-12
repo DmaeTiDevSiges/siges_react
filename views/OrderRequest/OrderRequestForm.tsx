@@ -672,6 +672,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
 
                                 <Select
                                     label="Plano"
+                                    clearable
                                     value={formData.orderPlanId}
                                     onChange={(e) => setFormData(prev => ({ ...prev, orderPlanId: e.target.value }))}
                                     options={orderPlans.map(p => ({ value: p.id, label: p.description }))}

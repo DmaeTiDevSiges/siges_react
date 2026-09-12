@@ -372,6 +372,7 @@ export const dataService = {
         assetTagSubId?: string | string[];
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
+        responsibleTeamId?: string | string[];
         searchQuery?: string;
     }) {
         return dashboardService.getOrdersVisitsView.apply(dashboardService, arguments as any);
@@ -614,6 +615,10 @@ export const dataService = {
 
     async getUsersByCompany(companyId: string): Promise<User[]> {
         return usersService.getUsersByCompany.apply(usersService, arguments as any);
+    },
+
+    async getUsersByProfile(profileId: string, companyId: string): Promise<User[]> {
+        return usersService.getUsersByProfile.apply(usersService, arguments as any);
     },
 
     async getTeamsByCompany(companyId: string): Promise<Team[]> {

@@ -29,7 +29,7 @@ export const VISIT_COSTS_STATUS_CONFIG: Record<VisitCostsStatus, {
   bgColor: string;
 }> = {
   pending: {
-    label: 'Aguardando Custos',
+    label: 'Aguardando',
     color: 'text-gray-600',
     bgColor: 'bg-gray-100'
   },

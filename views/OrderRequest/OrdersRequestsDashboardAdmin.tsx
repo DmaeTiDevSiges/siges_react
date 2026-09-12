@@ -15,7 +15,7 @@ import { ServiceRequestCardListItem } from '../../components/serviceRequests/Ser
 import { Avatar } from '../../components/ui/Avatar';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { useOrderFollow } from '../../hooks/useOrderFollow';
-import { DashboardOrdersVisitsAdminScreen } from '../../views/Dashboards/DashboardOrdersVisitsAdminScreen';
+import { OrdersVisitsDashboardAdmin } from '../../views/Dashboards/OrdersVisitsDashboardAdmin';
 import { OrderVisit, OrderVisitTeam } from '../../types';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { OrdersListPDFButton } from '../../components/reports/OrdersListPDFButton';
@@ -353,6 +353,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     contractId: appliedFilters.contractId,
                     orderPlanId: appliedFilters.orderPlanId,
                     orderTeamId: appliedFilters.orderTeamId,
+                    responsibleTeamId: appliedFilters.responsibleTeamId,
                     assetTagId: appliedFilters.assetTagId,
                     assetTagSubId: appliedFilters.assetTagSubId,
                     ...(providerCompanyId ? { providerCompanyId } : {}),
@@ -396,6 +397,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             contractId: appliedFilters.contractId,
                             orderPlanId: appliedFilters.orderPlanId,
                             orderTeamId: appliedFilters.orderTeamId,
+                            responsibleTeamId: appliedFilters.responsibleTeamId,
                             assetTagId: appliedFilters.assetTagId,
                             assetTagSubId: appliedFilters.assetTagSubId,
                             ...(providerCompanyId ? { providerCompanyId } : {}),
@@ -615,6 +617,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             contractId: appliedFilters.contractId,
             orderPlanId: appliedFilters.orderPlanId,
             orderTeamId: appliedFilters.orderTeamId,
+            responsibleTeamId: appliedFilters.responsibleTeamId,
             priorityId: appliedFilters.priorityId,
             statusId: selectedStatusId ?? undefined,
             assetTagId: osAssetTagId.length > 0 ? osAssetTagId : appliedFilters.assetTagId,
@@ -636,6 +639,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             contractId: appliedFilters.contractId,
             orderPlanId: appliedFilters.orderPlanId,
             orderTeamId: appliedFilters.orderTeamId,
+            responsibleTeamId: appliedFilters.responsibleTeamId,
             priorityId: appliedFilters.priorityId,
             statusId: 7,
             assetTagId: appliedFilters.assetTagId,
@@ -722,6 +726,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 contractId: ordersListFilters.contractId,
                 orderPlanId: ordersListFilters.orderPlanId,
                 orderTeamId: ordersListFilters.orderTeamId,
+                responsibleTeamId: ordersListFilters.responsibleTeamId,
                 priorityId: ordersListFilters.priorityId,
                 statusId: statusIdFromOverride ?? undefined,
                 // assetTagId intentionally omitted — sector cards must always show all sectors
@@ -1138,7 +1143,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             {/* VISITS VIEW */}
             {activeTab === 'VISITAS' && currentUser && (
                 <div className="flex-1 overflow-hidden">
-                    <DashboardOrdersVisitsAdminScreen
+                    <OrdersVisitsDashboardAdmin
                         currentUser={currentUser}
                         onSelectVisit={onSelectVisit || (() => { })}
                         currentFilters={advancedOrdersFilters}

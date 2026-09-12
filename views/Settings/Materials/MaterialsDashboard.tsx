@@ -5,6 +5,7 @@ import { CancelPurchaseModal } from '../../../components/ui/CancelPurchaseModal'
 import { MaterialPurchaseAuthorizeModal } from './MaterialPurchaseAuthorizeModal';
 import { MaterialPurchaseCompleteModal } from './MaterialPurchaseCompleteModal';
 import { MaterialPurchaseListItem } from '../../../components/ui/MaterialPurchaseListItem';
+import { MaterialsPurchasesPDFButton } from '../../../components/reports/MaterialsPurchasesPDFButton';
 import { toast } from 'sonner';
 
 interface MaterialsDashboardProps {
@@ -124,6 +125,7 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
     } | null>(null);
     const [selectedAlerts, setSelectedAlerts] = useState(false);
     const [activePurchases, setActivePurchases] = useState<Record<number, { hasPending: boolean; hasAuthorized: boolean }>>({});
+    const [purchaseCodeFilter, setPurchaseCodeFilter] = useState('');
 
     const loadDashboard = useCallback(async () => {
         try {
@@ -203,9 +205,16 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
         }
     }, [completePurchase, loadDashboard]);
 
+    const filteredByCodePurchases = useMemo(() => {
+        const code = (purchaseCodeFilter || '').trim();
+        if (!code) return allPurchases;
+        const lower = code.toLowerCase();
+        return allPurchases.filter((p: any) => String(p.purchase_code || '').toLowerCase().includes(lower));
+    }, [allPurchases, purchaseCodeFilter]);
+
     const stats = useMemo(() => {
         const counts = { pending: 0, authorized: 0, completed: 0, cancelled: 0, pending_value: 0, authorized_value: 0 };
-        for (const p of allPurchases) {
+        for (const p of filteredByCodePurchases) {
             const totalPrice = p.total_price || 0;
             if (p.status_id === 1) { counts.pending++; counts.pending_value += totalPrice; }
             else if (p.status_id === 2) { counts.authorized++; counts.authorized_value += totalPrice; }
@@ -213,13 +222,15 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
             else if (p.status_id === 4) counts.cancelled++;
         }
         return counts;
-    }, [allPurchases]);
+    }, [filteredByCodePurchases]);
 
     const filteredPurchases = useMemo(() => {
-        return selectedStatus !== null
-            ? allPurchases.filter(p => p.status_id === selectedStatus)
-            : [];
-    }, [allPurchases, selectedStatus]);
+        if (selectedStatus !== null) {
+            return filteredByCodePurchases.filter(p => p.status_id === selectedStatus);
+        }
+        const hasCodeFilter = (purchaseCodeFilter || '').trim().length > 0;
+        return hasCodeFilter ? filteredByCodePurchases : [];
+    }, [filteredByCodePurchases, selectedStatus, purchaseCodeFilter]);
 
     const filteredTotal = useMemo(() => {
         return filteredPurchases.reduce((sum: number, p: any) => sum + (p.total_price || 0), 0);
@@ -247,9 +258,35 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
     return (
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
             <div className="px-4 pt-4 pb-2">
-                <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Compras</h1>
+                <div className="flex items-center justify-between gap-3">
+                    <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Compras</h1>
+                    <MaterialsPurchasesPDFButton
+                        purchases={filteredByCodePurchases}
+                        purchaseCodeFilter={purchaseCodeFilter}
+                        className="self-start"
+                    />
+                </div>
             </div>
             <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-4 space-y-4">
+                <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">search</span>
+                    <input
+                        type="text"
+                        value={purchaseCodeFilter}
+                        onChange={(e) => setPurchaseCodeFilter(e.target.value)}
+                        placeholder="Filtrar por código da autorização (compra)"
+                        className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                    />
+                    {purchaseCodeFilter && (
+                        <button
+                            onClick={() => setPurchaseCodeFilter('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">close</span>
+                        </button>
+                    )}
+                </div>
+
                 <div className="grid grid-cols-3 gap-3">
                     <button
                         onClick={() => setSelectedStatus(selectedStatus === 1 ? null : 1)}
@@ -291,11 +328,11 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                     </button>
                 </div>
 
-                {selectedStatus !== null && filteredPurchases.length > 0 && (
+                {(selectedStatus !== null || (purchaseCodeFilter || '').trim()) && filteredPurchases.length > 0 && (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between px-1">
                             <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                                {selectedStatus === 1 ? 'Pendentes' : selectedStatus === 2 ? 'Autorizadas' : 'Canceladas'}
+                                {selectedStatus === 1 ? 'Pendentes' : selectedStatus === 2 ? 'Autorizadas' : (selectedStatus === null && (purchaseCodeFilter || '').trim() ? 'Filtro por código' : 'Canceladas')}
                             </h2>
                             <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                                 {filteredPurchases.length} • {formatCurrency(filteredTotal)}
@@ -315,9 +352,13 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                     </div>
                 )}
 
-                {selectedStatus !== null && filteredPurchases.length === 0 && (
+                {(selectedStatus !== null || (purchaseCodeFilter || '').trim()) && filteredPurchases.length === 0 && (
                     <div className="text-center py-8 text-slate-400">
-                        <p className="text-sm">Nenhuma compra {selectedStatus === 1 ? 'pendente' : selectedStatus === 2 ? 'autorizada' : 'cancelada'} encontrada.</p>
+                        <p className="text-sm">
+                            {(purchaseCodeFilter || '').trim()
+                                ? 'Nenhuma compra encontrada para o filtro informado.'
+                                : `Nenhuma compra ${selectedStatus === 1 ? 'pendente' : selectedStatus === 2 ? 'autorizada' : 'cancelada'} encontrada.`}
+                        </p>
                     </div>
                 )}
 

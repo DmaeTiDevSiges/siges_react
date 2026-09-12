@@ -14,7 +14,7 @@ import { ServiceRequestCardListItem } from '../../components/serviceRequests/Ser
 import { Avatar } from '../../components/ui/Avatar';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { useOrderFollow } from '../../hooks/useOrderFollow';
-import { DashboardOrdersVisitsAdminScreen } from '../../views/Dashboards/DashboardOrdersVisitsAdminScreen';
+import { OrdersVisitsDashboardAdmin } from '../../views/Dashboards/OrdersVisitsDashboardAdmin';
 import { OrderVisit, OrderVisitTeam } from '../../types';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { OrdersListPDFButton } from '../../components/reports/OrdersListPDFButton';
@@ -1249,7 +1249,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             {/* VISITS VIEW */}
             {activeTab === 'VISITAS' && currentUser && (
                 <div className="flex-1 overflow-hidden">
-                    <DashboardOrdersVisitsAdminScreen
+                    <OrdersVisitsDashboardAdmin
                         currentUser={currentUser}
                         onSelectVisit={onSelectVisit || (() => { })}
                         currentFilters={advancedOrdersFilters}
@@ -1285,7 +1285,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                     assetTagSubOptions={assetTagSubs}
                                     orderSubTypes={orderSubTypes}
                                     onActiveFiltersChange={(count) => { setOsFilterCount(count); onMobileFilterCountChange?.('OS', count); }}
-                                    hiddenFilters={['orderObjectId', 'contractId', 'orderPlanId']}
+                                    hiddenFilters={['orderObjectId', 'contractId', 'orderPlanId', 'responsibleTeamId']}
                                     onApply={() => {
                                         const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
                                         const newFilters = { ...advancedOrdersFilters };

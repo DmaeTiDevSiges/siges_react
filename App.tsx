@@ -53,7 +53,7 @@ const ProfileScreen = lazyWithRetry(() => import('./views/Users/ProfileScreen').
 const ForgotPasswordScreen = lazyWithRetry(() => import('./views/Users/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
 const ResetPasswordScreen = lazyWithRetry(() => import('./views/Users/ResetPasswordScreen').then(m => ({ default: m.ResetPasswordScreen })));
 const DashboardScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersUserScreen').then(m => ({ default: m.DashboardScreen })));
-const DashboardOrdersVisitsAdminScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersVisitsAdminScreen').then(m => ({ default: m.DashboardOrdersVisitsAdminScreen })));
+const OrdersVisitsDashboardAdmin = lazyWithRetry(() => import('./views/Dashboards/OrdersVisitsDashboardAdmin').then(m => ({ default: m.OrdersVisitsDashboardAdmin })));
 const DashboardOrdersVisitsTodayScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersVisitsTodayScreen').then(m => ({ default: m.DashboardOrdersVisitsTodayScreen })));
 const DashboardUnitsPowerElectric = lazyWithRetry(() => import('./views/Dashboards/DashboardUnitsPowerElectric').then(m => ({ default: m.DashboardUnitsPowerElectric })));
 const DashboardUnitsAssetsTags = lazyWithRetry(() => import('./views/Dashboards/DashboardUnitsAssetsTags').then(m => ({ default: m.DashboardUnitsAssetsTags })));

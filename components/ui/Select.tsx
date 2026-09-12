@@ -16,10 +16,11 @@ interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>
     onChange?: (e: any) => void;
     onSearchChange?: (val: string) => void;
     multiple?: boolean;
+    clearable?: boolean;
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-    ({ label, error, className = '', leftIcon, children, options: optionsProp, value, onChange, onSearchChange, placeholder, disabled, multiple, id, ...props }, ref) => {
+    ({ label, error, className = '', leftIcon, children, options: optionsProp, value, onChange, onSearchChange, placeholder, disabled, multiple, id, clearable, ...props }, ref) => {
         const generatedId = React.useId();
         const selectId = id || generatedId;
         const [isOpen, setIsOpen] = useState(false);
@@ -233,6 +234,20 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                         </span>
 
                         <div className={`ml-2 transition-colors ${disabled ? 'text-slate-400 dark:text-slate-600' : 'text-slate-400 group-focus-within:text-primary'}`}>
+                            {clearable && !disabled && value && value !== '' && !(Array.isArray(value) && value.length === 0) && (
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const newValue = multiple ? [] : '';
+                                        const event = { target: { value: newValue, name: props.name }, persist: () => {} };
+                                        onChange?.(event);
+                                    }}
+                                    className="mr-1 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-[16px]">close</span>
+                                </button>
+                            )}
                             <span className={`material-symbols-outlined text-xl transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
                                 {disabled ? 'lock' : 'expand_more'}
                             </span>

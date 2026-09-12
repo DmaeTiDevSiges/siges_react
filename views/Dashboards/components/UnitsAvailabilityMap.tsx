@@ -51,9 +51,8 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
                 attributionControl: false
             }).setView([-29.98, -51.18], 16); // Default center (usually overridden by bounds)
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; CartoDB',
-                subdomains: 'abcd',
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
                 maxZoom: 20
             }).addTo(leafletMap.current);
 

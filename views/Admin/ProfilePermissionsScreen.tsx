@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Profile, Permission, Route, User } from '../../types';
+import { Profile, Permission, Route, User, Company } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Button } from '../../components/ui/Button';
 import { SearchInput } from '../../components/ui/SearchInput';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import { toast } from 'sonner';
 
 interface ProfilePermissionsScreenProps {
@@ -24,17 +25,45 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
     const [newProfileName, setNewProfileName] = useState('');
     const [creatingProfile, setCreatingProfile] = useState(false);
     const [deletingProfile, setDeletingProfile] = useState(false);
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
+    const [profileUsers, setProfileUsers] = useState<User[]>([]);
 
     const isSuperAdmin = currentUser?.isAdminSuper;
 
-    // Initial Load
+    // Load companies for super admin
+    useEffect(() => {
+        const loadCompanies = async () => {
+            if (!isSuperAdmin) {
+                setSelectedCompanyId(currentUser?.companyId || '');
+                return;
+            }
+            try {
+                const companiesData = await dataService.getCompanies();
+                setCompanies(companiesData);
+                if (!selectedCompanyId && currentUser?.companyId) {
+                    setSelectedCompanyId(currentUser.companyId);
+                }
+            } catch (error) {
+                console.error('Error loading companies:', error);
+                toast.error('Erro ao carregar empresas');
+            }
+        };
+        loadCompanies();
+    }, [isSuperAdmin, currentUser?.companyId]);
+
+    // Load profiles and routes when company changes
     useEffect(() => {
         const loadInitialData = async () => {
-            if (!currentUser?.companyId) return;
+            const companyId = isSuperAdmin ? selectedCompanyId : currentUser?.companyId;
+            if (!companyId) return;
             try {
                 setLoading(true);
+                setSelectedProfileId('');
+                setPermissions([]);
+                setInitialPermissions('');
                 const [profilesData, routesData] = await Promise.all([
-                    dataService.getCompanyProfiles(currentUser.companyId),
+                    dataService.getCompanyProfiles(companyId),
                     isSuperAdmin ? dataService.getAllRoutesAdmin() : dataService.getAllRoutesForCompanyAdmin()
                 ]);
                 setProfiles(profilesData);
@@ -47,22 +76,28 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
             }
         };
         loadInitialData();
-    }, [currentUser?.companyId, isSuperAdmin]);
+    }, [selectedCompanyId, currentUser?.companyId, isSuperAdmin]);
 
     // Load Permissions when Profile Changes
     useEffect(() => {
         if (!selectedProfileId) {
             setPermissions([]);
             setInitialPermissions('');
+            setProfileUsers([]);
             return;
         }
 
         const loadPermissions = async () => {
             try {
                 setLoading(true);
-                const perms = await dataService.getProfilePermissions(selectedProfileId);
+                const companyId = isSuperAdmin ? selectedCompanyId : currentUser?.companyId;
+                const [perms, users] = await Promise.all([
+                    dataService.getProfilePermissions(selectedProfileId),
+                    companyId ? dataService.getUsersByProfile(selectedProfileId, companyId) : Promise.resolve([])
+                ]);
                 setPermissions(perms);
                 setInitialPermissions(JSON.stringify(perms));
+                setProfileUsers(users);
             } catch (error) {
                 console.error('Error loading permissions:', error);
                 toast.error('Erro ao carregar permissões');
@@ -71,7 +106,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
             }
         };
         loadPermissions();
-    }, [selectedProfileId]);
+    }, [selectedProfileId, selectedCompanyId, currentUser?.companyId, isSuperAdmin]);
 
     // Derived data for the table
     const mergedData = useMemo(() => {
@@ -153,11 +188,12 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
     };
 
     const handleCreateProfile = async () => {
-        if (!newProfileName.trim() || !currentUser?.companyId) return;
+        const companyId = isSuperAdmin ? selectedCompanyId : currentUser?.companyId;
+        if (!newProfileName.trim() || !companyId) return;
         try {
             setCreatingProfile(true);
-            await dataService.createCompanyProfile(currentUser.companyId, newProfileName.trim(), []);
-            const profilesData = await dataService.getCompanyProfiles(currentUser.companyId);
+            await dataService.createCompanyProfile(companyId, newProfileName.trim(), []);
+            const profilesData = await dataService.getCompanyProfiles(companyId);
             setProfiles(profilesData);
             setShowNewProfileModal(false);
             setNewProfileName('');
@@ -176,7 +212,8 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
         try {
             setDeletingProfile(true);
             await dataService.deleteCompanyProfile(selectedProfileId);
-            const profilesData = await dataService.getCompanyProfiles(currentUser!.companyId!);
+            const companyId = isSuperAdmin ? selectedCompanyId : currentUser?.companyId;
+            const profilesData = await dataService.getCompanyProfiles(companyId!);
             setProfiles(profilesData);
             setSelectedProfileId('');
             setPermissions([]);
@@ -199,6 +236,18 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-4">
+                    {isSuperAdmin && (
+                        <select
+                            value={selectedCompanyId}
+                            onChange={(e) => setSelectedCompanyId(e.target.value)}
+                            className="form-select block w-56 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Selecione uma empresa...</option>
+                            {companies.map(company => (
+                                <option key={company.id} value={company.id}>{company.name}</option>
+                            ))}
+                        </select>
+                    )}
                     <select
                         value={selectedProfileId}
                         onChange={(e) => setSelectedProfileId(e.target.value)}
@@ -255,7 +304,48 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                         <p>Selecione um perfil para gerenciar as permissões</p>
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                    <>
+                        {/* User Avatars Section */}
+                        {profileUsers.length > 0 && (
+                            <div className="mb-4 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="material-symbols-outlined text-gray-500">group</span>
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Usuários neste perfil ({profileUsers.length})
+                                    </span>
+                                </div>
+                                <div className="flex gap-3 overflow-x-auto no-scrollbar px-1 -mx-1">
+                                    {profileUsers.map(user => (
+                                        <div
+                                            key={user.id}
+                                            className="flex flex-col items-center shrink-0"
+                                            title={user.nameFull || user.name}
+                                        >
+                                            <UserAvatar
+                                                src={user.avatarUrl}
+                                                name={user.nameShort || user.nameFull || user.name || ''}
+                                                size="sm"
+                                                className="shadow-sm"
+                                            />
+                                            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-none mt-1 truncate w-12 h-[14px] overflow-hidden">
+                                                {user.nameShort || user.nameFull}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {profileUsers.length === 0 && !loading && (
+                            <div className="mb-4 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+                                <div className="flex items-center gap-2 text-gray-500">
+                                    <span className="material-symbols-outlined text-gray-400">person_off</span>
+                                    <span className="text-sm">Nenhum usuário vinculado a este perfil</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Permissions Table */}
+                        <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
@@ -313,6 +403,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                             </tbody>
                         </table>
                     </div>
+                    </>
                 )}
             </div>
 

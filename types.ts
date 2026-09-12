@@ -1034,8 +1034,10 @@ export interface OrderVisit {
   ovCostsWaitingUserId?: string | null;
   ovCostsApprovedAt?: string | null;
   ovCostsApprovedUserId?: string | null;
+  ovCostsApprovedUserNameShort?: string | null;
   ovCostsRejectedAt?: string | null;
   ovCostsRejectedUserId?: string | null;
+  ovCostsRejectedUserNameShort?: string | null;
   ovCostsRejectionReason?: string | null;
 
   // Chat status
@@ -1247,6 +1249,7 @@ export interface OrderFilters {
   useGeneralView?: boolean;
   orderPlanId?: string | string[];
   orderTeamId?: string | string[];
+  responsibleTeamId?: string | string[];
   requesterTeamId?: string | string[];
   priorityId?: string | string[];
   search?: string;
