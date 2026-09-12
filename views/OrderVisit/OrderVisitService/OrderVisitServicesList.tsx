@@ -5,6 +5,7 @@ import { Card } from '../../../components/ui/Card';
 import { ButtonDelete } from '../../../components/ui/ButtonDelete';
 import { ButtonNew } from '../../../components/ui/ButtonNew';
 import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
+import { CalculatorModal } from '../../../components/ui/CalculatorModal';
 import { toast } from 'sonner';
 import { Loading } from '../../../components/ui/Loading';
 
@@ -138,6 +139,10 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
 
     // State to track raw input values during typing
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
+
+    // Calculator state
+    const [showCalculator, setShowCalculator] = useState(false);
+    const [calculatorServiceId, setCalculatorServiceId] = useState<string | null>(null);
 
     const handleUpdateField = async (ovServiceId: string, field: 'amount' | 'discount' | 'valueUnit', value: string) => {
         // 1. MASK LOGIC: Sanitize input to allow only numbers and ONE decimal separator
@@ -346,7 +351,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                                         QUANTIDADE
                                     </label>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1">
                                         <input
                                             type="text"
                                             inputMode="decimal"
@@ -358,9 +363,21 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                                                 delete news[`${vs.id}_amount`];
                                                 return news;
                                             })}
-                                            className="w-full bg-slate-50 dark:bg-black/20 border-none rounded-lg text-sm font-bold text-slate-700 dark:text-white p-2 focus:ring-1 focus:ring-indigo-500"
+                                            className="flex-1 min-w-0 bg-slate-50 dark:bg-black/20 border-none rounded-lg text-sm font-bold text-slate-700 dark:text-white p-2 focus:ring-1 focus:ring-indigo-500"
                                         />
-                                        <span className="text-xs font-bold text-slate-400">{vs.serviceUnit}</span>
+                                        {isEditable && (
+                                            <button
+                                                onClick={() => {
+                                                    setCalculatorServiceId(vs.id);
+                                                    setShowCalculator(true);
+                                                }}
+                                                className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 flex items-center justify-center transition-colors shrink-0"
+                                                title="Calculadora"
+                                            >
+                                                <span className="material-symbols-outlined text-sm">calculate</span>
+                                            </button>
+                                        )}
+                                        <span className="text-xs font-bold text-slate-400 shrink-0">{vs.serviceUnit}</span>
                                     </div>
                                 </div>
 
@@ -443,6 +460,27 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                     ) : undefined
                 }
                 isLoading={isDeleting}
+            />
+
+            {/* Calculator Modal */}
+            <CalculatorModal
+                isOpen={showCalculator}
+                currentValue={
+                    calculatorServiceId
+                        ? visitServices.find(vs => vs.id === calculatorServiceId)?.amount || 0
+                        : 0
+                }
+                onApply={(result) => {
+                    if (calculatorServiceId) {
+                        handleUpdateField(calculatorServiceId, 'amount', result.toString());
+                    }
+                    setShowCalculator(false);
+                    setCalculatorServiceId(null);
+                }}
+                onClose={() => {
+                    setShowCalculator(false);
+                    setCalculatorServiceId(null);
+                }}
             />
         </div>
     );
