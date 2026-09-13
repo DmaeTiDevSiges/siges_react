@@ -8146,6 +8146,24 @@ ALTER TABLE public.contracts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contracts_managers ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: contracts_evaluation_requirements; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.contracts_evaluation_requirements ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: orders_visits_evaluations; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.orders_visits_evaluations ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: cfg_evaluation_requirements; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cfg_evaluation_requirements ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: units; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -8721,7 +8739,7 @@ CREATE POLICY "Admins can manage tips"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.uuid = auth.uid()
+            WHERE users.uuid = (select auth.uid())
             AND users.is_admin_super = true
         )
     );
@@ -8738,7 +8756,7 @@ CREATE POLICY "Users can view own dismissals"
     TO authenticated
     USING (
         user_id = (
-            SELECT id FROM public.users WHERE uuid = auth.uid()
+            SELECT id FROM public.users WHERE uuid = (select auth.uid())
         )
     );
 
@@ -8748,7 +8766,7 @@ CREATE POLICY "Users can insert own dismissals"
     TO authenticated
     WITH CHECK (
         user_id = (
-            SELECT id FROM public.users WHERE uuid = auth.uid()
+            SELECT id FROM public.users WHERE uuid = (select auth.uid())
         )
     );
 
@@ -8759,7 +8777,7 @@ CREATE POLICY "Admins can manage all dismissals"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.uuid = auth.uid()
+            WHERE users.uuid = (select auth.uid())
             AND users.is_admin_super = true
         )
     );

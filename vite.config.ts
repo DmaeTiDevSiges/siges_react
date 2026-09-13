@@ -87,6 +87,12 @@ export default defineConfig(({ mode, command }) => {
           target: 'https://services-n8n-webhook.2unk5k.easypanel.host',
           changeOrigin: true,
           secure: false,
+        },
+        '/realtime': {
+          target: 'https://vps.supabase.siges-app.com.br',
+          changeOrigin: true,
+          secure: false,
+          ws: true,
         }
       }
     },

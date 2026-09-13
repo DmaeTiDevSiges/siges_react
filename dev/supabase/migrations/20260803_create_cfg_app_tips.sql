@@ -37,16 +37,18 @@ CREATE INDEX IF NOT EXISTS idx_cfg_app_tips_dismissals_user_id ON cfg_app_tips_d
 -- RLS: cfg_app_tips
 ALTER TABLE cfg_app_tips ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view active tips" ON cfg_app_tips;
 CREATE POLICY "Anyone can view active tips"
     ON cfg_app_tips FOR SELECT
     USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage tips" ON cfg_app_tips;
 CREATE POLICY "Admins can manage tips"
     ON cfg_app_tips FOR ALL
     USING (
         EXISTS (
             SELECT 1 FROM users
-            WHERE users.uuid = auth.uid()
+            WHERE users.uuid = (select auth.uid())
             AND users.is_admin_super = true
         )
     );
@@ -54,28 +56,31 @@ CREATE POLICY "Admins can manage tips"
 -- RLS: cfg_app_tips_dismissals
 ALTER TABLE cfg_app_tips_dismissals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own dismissals" ON cfg_app_tips_dismissals;
 CREATE POLICY "Users can view own dismissals"
     ON cfg_app_tips_dismissals FOR SELECT
     USING (
         user_id = (
-            SELECT id FROM users WHERE uuid = auth.uid()
+            SELECT id FROM users WHERE uuid = (select auth.uid())
         )
     );
 
+DROP POLICY IF EXISTS "Users can insert own dismissals" ON cfg_app_tips_dismissals;
 CREATE POLICY "Users can insert own dismissals"
     ON cfg_app_tips_dismissals FOR INSERT
     WITH CHECK (
         user_id = (
-            SELECT id FROM users WHERE uuid = auth.uid()
+            SELECT id FROM users WHERE uuid = (select auth.uid())
         )
     );
 
+DROP POLICY IF EXISTS "Admins can manage all dismissals" ON cfg_app_tips_dismissals;
 CREATE POLICY "Admins can manage all dismissals"
     ON cfg_app_tips_dismissals FOR ALL
     USING (
         EXISTS (
             SELECT 1 FROM users
-            WHERE users.uuid = auth.uid()
+            WHERE users.uuid = (select auth.uid())
             AND users.is_admin_super = true
         )
     );

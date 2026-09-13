@@ -1198,6 +1198,7 @@ export const ordersService = {
             applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
+            applyFilter('cause_reason_id', filters.causeReasonId);
             if (filters.parentId !== undefined) {
                 if (filters.parentId === null) {
                     query = query.or('parent_id.eq.0,parent_id.is.null');
@@ -1875,6 +1876,7 @@ export const ordersService = {
             applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
+            applyFilter('cause_reason_id', filters.causeReasonId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;
@@ -2023,6 +2025,7 @@ export const ordersService = {
             applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
+            applyFilter('cause_reason_id', filters.causeReasonId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;
@@ -2158,6 +2161,7 @@ export const ordersService = {
             applyFilter('priority_id', filters.priorityId);
             applyFilter('status_id', filters.statusId);
             applyFilter('provider_company_id', filters.providerCompanyId);
+            applyFilter('cause_reason_id', filters.causeReasonId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;
@@ -2499,6 +2503,7 @@ export const ordersService = {
             applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
+            applyFilter('cause_reason_id', filters.causeReasonId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;
@@ -2680,6 +2685,7 @@ export const ordersService = {
             applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
+            applyFilter('cause_reason_id', filters.causeReasonId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;
@@ -2861,6 +2867,7 @@ export const ordersService = {
             applyFilter('team_id', filters.responsibleTeamId);
             applyFilter('priority_id', filters.priorityId);
             applyFilter('provider_company_id', filters.providerCompanyId);
+            applyFilter('cause_reason_id', filters.causeReasonId);
 
             if (filters.search) {
                 const s = `%${filters.search}%`;

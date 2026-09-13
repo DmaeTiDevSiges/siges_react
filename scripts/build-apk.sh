@@ -13,12 +13,19 @@ if [ -z "$ANDROID_HOME" ]; then
     fi
 fi
 
-# Auto-detectar JAVA_HOME se não estiver definido
-if [ -z "$JAVA_HOME" ]; then
-    JAVA_HOME_BIN=$(readlink -f "$(which java)" 2>/dev/null | sed 's|/bin/java||')
-    if [ -n "$JAVA_HOME_BIN" ]; then
-        export JAVA_HOME="$JAVA_HOME_BIN"
-    fi
+# Auto-detectar JAVA_HOME — sempre validar se é válido
+JAVA_HOME_CANDIDATE=""
+if [ -d "/usr/lib/jvm/java-17-openjdk-amd64" ]; then
+    JAVA_HOME_CANDIDATE="/usr/lib/jvm/java-17-openjdk-amd64"
+elif command -v java &>/dev/null; then
+    JAVA_HOME_CANDIDATE=$(readlink -f "$(which java)" 2>/dev/null | sed 's|/bin/java||')
+fi
+
+if [ -n "$JAVA_HOME_CANDIDATE" ] && [ -x "$JAVA_HOME_CANDIDATE/bin/java" ]; then
+    export JAVA_HOME="$JAVA_HOME_CANDIDATE"
+elif [ -z "$JAVA_HOME" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
+    echo "ERROR: JAVA_HOME não encontrado. Instale: sudo apt install openjdk-17-jdk"
+    exit 1
 fi
 
 # Versão do app (opcional: ./build-apk.sh 2.0.0)
@@ -33,9 +40,16 @@ echo "[Config] JAVA_HOME    = $JAVA_HOME"
 echo "[Config] ANDROID_HOME = $ANDROID_HOME"
 echo ""
 
+# Corrigir symlinks do node_modules/.bin caso o projeto esteja em partição NTFS compartilhada com Windows
+node scripts/fix-bin-symlinks.js
+
+# Cache do Gradle no SSD Linux nativo para evitar erros de I/O e locks na partição NTFS
+GRADLE_CACHE_DIR="${GRADLE_USER_HOME:-$HOME/.gradle}/caches/siges-project-cache"
+mkdir -p "$GRADLE_CACHE_DIR"
+
 echo "[1/1] Gerando APK Debug..."
 cd android
-./gradlew assembleDebug --warning-mode none
+./gradlew assembleDebug --warning-mode none --project-cache-dir "$GRADLE_CACHE_DIR"
 cd ..
 
 echo ""

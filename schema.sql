@@ -3477,19 +3477,53 @@ CREATE INDEX IF NOT EXISTS idx_cfg_app_notices_date_range ON public.cfg_app_noti
 CREATE INDEX IF NOT EXISTS idx_cfg_app_notices_dashboards ON public.cfg_app_notices USING GIN (dashboards);
 
 ALTER TABLE public.cfg_app_notices ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Notices: view active" ON public.cfg_app_notices
+-- Fix: [PERF-0003] auth_rls_initplan + [PERF-0006] multiple_permissive_policies
+-- Estratégia: 1 SELECT (ativos + admin) + INSERT/UPDATE/DELETE separados para admin
+CREATE POLICY "Notices: view" ON public.cfg_app_notices
     FOR SELECT TO authenticated
     USING (
-        is_active = TRUE
-        AND start_date <= (NOW() AT TIME ZONE 'America/Sao_Paulo')
-        AND end_date >= (NOW() AT TIME ZONE 'America/Sao_Paulo')
+        (
+            is_active = TRUE
+            AND start_date <= (NOW() AT TIME ZONE 'America/Sao_Paulo')
+            AND end_date >= (NOW() AT TIME ZONE 'America/Sao_Paulo')
+        )
+        OR EXISTS (
+            SELECT 1 FROM public.users
+            WHERE uuid = (SELECT auth.uid())
+            AND is_admin_super = TRUE
+        )
     );
-CREATE POLICY "Notices: super admin" ON public.cfg_app_notices
-    FOR ALL TO authenticated
+CREATE POLICY "Notices: insert" ON public.cfg_app_notices
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE uuid = (SELECT auth.uid())
+            AND is_admin_super = TRUE
+        )
+    );
+CREATE POLICY "Notices: update" ON public.cfg_app_notices
+    FOR UPDATE TO authenticated
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE uuid = auth.uid()
+            WHERE uuid = (SELECT auth.uid())
+            AND is_admin_super = TRUE
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE uuid = (SELECT auth.uid())
+            AND is_admin_super = TRUE
+        )
+    );
+CREATE POLICY "Notices: delete" ON public.cfg_app_notices
+    FOR DELETE TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE uuid = (SELECT auth.uid())
             AND is_admin_super = TRUE
         )
     );
@@ -3655,3 +3689,323 @@ WHERE cer.is_deleted = false AND er.is_deleted = false;
 
 COMMENT ON VIEW public.v_contracts_evaluation_requirements IS 'View de requisitos de avaliação vinculados a contratos';
 
+-- =============================================================================
+-- Section: App Tips – Segmentação (Companies, Departments, Profiles, Dismissals)
+-- Tabelas adicionadas em: 20260803_create_cfg_app_tips.sql + 20260804_add_tip_targeting.sql
+-- Fix RLS: [PERF-0003] auth_rls_initplan + [PERF-0006] multiple_permissive_policies
+-- Migration de correção: 20260913_fix_rls_tips_notices_and_duplicate_indexes.sql
+-- ESTRATÉGIA: Nunca usar FOR ALL junto a SELECT separado. Admin de escrita usa
+--             FOR INSERT + FOR UPDATE + FOR DELETE separados para evitar sobreposição.
+-- =============================================================================
+
+-- Empresas-alvo dos tips
+CREATE TABLE IF NOT EXISTS public.cfg_app_tips_companies (
+    id SERIAL PRIMARY KEY,
+    tip_id INTEGER NOT NULL REFERENCES public.cfg_app_tips(id) ON DELETE CASCADE,
+    company_id INTEGER NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(tip_id, company_id)
+);
+
+ALTER TABLE public.cfg_app_tips_companies ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view tip companies"
+    ON public.cfg_app_tips_companies FOR SELECT
+    USING (true);
+
+CREATE POLICY "Admins can insert tip companies"
+    ON public.cfg_app_tips_companies FOR INSERT
+    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true));
+
+CREATE POLICY "Admins can update tip companies"
+    ON public.cfg_app_tips_companies FOR UPDATE
+    USING (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true));
+
+CREATE POLICY "Admins can delete tip companies"
+    ON public.cfg_app_tips_companies FOR DELETE
+    USING (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true));
+
+-- Departamentos-alvo dos tips
+CREATE TABLE IF NOT EXISTS public.cfg_app_tips_departments (
+    id SERIAL PRIMARY KEY,
+    tip_id INTEGER NOT NULL REFERENCES public.cfg_app_tips(id) ON DELETE CASCADE,
+    department_id INTEGER NOT NULL REFERENCES public.departments(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(tip_id, department_id)
+);
+
+ALTER TABLE public.cfg_app_tips_departments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view tip departments"
+    ON public.cfg_app_tips_departments FOR SELECT
+    USING (true);
+
+CREATE POLICY "Admins can insert tip departments"
+    ON public.cfg_app_tips_departments FOR INSERT
+    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true));
+
+CREATE POLICY "Admins can update tip departments"
+    ON public.cfg_app_tips_departments FOR UPDATE
+    USING (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true));
+
+CREATE POLICY "Admins can delete tip departments"
+    ON public.cfg_app_tips_departments FOR DELETE
+    USING (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true));
+
+-- Perfis-alvo dos tips
+CREATE TABLE IF NOT EXISTS public.cfg_app_tips_profiles (
+    id SERIAL PRIMARY KEY,
+    tip_id INTEGER NOT NULL REFERENCES public.cfg_app_tips(id) ON DELETE CASCADE,
+    profile_id INTEGER NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(tip_id, profile_id)
+);
+
+ALTER TABLE public.cfg_app_tips_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view tip profiles"
+    ON public.cfg_app_tips_profiles FOR SELECT
+    USING (true);
+
+CREATE POLICY "Admins can insert tip profiles"
+    ON public.cfg_app_tips_profiles FOR INSERT
+    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true));
+
+CREATE POLICY "Admins can update tip profiles"
+    ON public.cfg_app_tips_profiles FOR UPDATE
+    USING (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true));
+
+CREATE POLICY "Admins can delete tip profiles"
+    ON public.cfg_app_tips_profiles FOR DELETE
+    USING (EXISTS (SELECT 1 FROM public.users WHERE users.uuid = (SELECT auth.uid()) AND users.is_admin_super = true));
+
+-- Dispensas de tips por usuário
+CREATE TABLE IF NOT EXISTS public.cfg_app_tips_dismissals (
+    id BIGSERIAL PRIMARY KEY,
+    tip_id INTEGER NOT NULL REFERENCES public.cfg_app_tips(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    dismissed_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(tip_id, user_id)
+);
+
+ALTER TABLE public.cfg_app_tips_dismissals ENABLE ROW LEVEL SECURITY;
+
+-- SELECT único: usuário vê as próprias OU admin vê todas (evita multiple_permissive SELECT)
+CREATE POLICY "View dismissals"
+    ON public.cfg_app_tips_dismissals FOR SELECT
+    USING (
+        user_id = (SELECT id FROM public.users WHERE uuid = (SELECT auth.uid()))
+        OR EXISTS (SELECT 1 FROM public.users WHERE uuid = (SELECT auth.uid()) AND is_admin_super = true)
+    );
+
+-- INSERT único: usuário insere as próprias OU admin insere qualquer (evita multiple_permissive INSERT)
+CREATE POLICY "Insert dismissals"
+    ON public.cfg_app_tips_dismissals FOR INSERT
+    WITH CHECK (
+        user_id = (SELECT id FROM public.users WHERE uuid = (SELECT auth.uid()))
+        OR EXISTS (SELECT 1 FROM public.users WHERE uuid = (SELECT auth.uid()) AND is_admin_super = true)
+    );
+
+CREATE POLICY "Admins can update dismissals"
+    ON public.cfg_app_tips_dismissals FOR UPDATE
+    USING (EXISTS (SELECT 1 FROM public.users WHERE uuid = (SELECT auth.uid()) AND is_admin_super = true))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.users WHERE uuid = (SELECT auth.uid()) AND is_admin_super = true));
+
+CREATE POLICY "Admins can delete dismissals"
+    ON public.cfg_app_tips_dismissals FOR DELETE
+    USING (EXISTS (SELECT 1 FROM public.users WHERE uuid = (SELECT auth.uid()) AND is_admin_super = true));
+
+-- =============================================================================
+-- Section: cfg_materials_purchases_cancel_reasons – RLS
+-- Adicionada em: 20260817_create_cfg_materials_purchases_cancel_reasons.sql
+-- Fix RLS: [PERF-0003] auth_rls_initplan
+-- Problema original: usava auth.role() diretamente (re-avaliado por linha)
+-- Solução: TO authenticated + USING (true) — role check no planejador, não por linha
+-- =============================================================================
+
+ALTER TABLE public.cfg_materials_purchases_cancel_reasons ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all authenticated read"
+    ON public.cfg_materials_purchases_cancel_reasons FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- =============================================================================
+-- Section: Duplicate Index Cleanup
+-- Fix: [PERF-0009] duplicate_index
+-- Detalhes:
+--   - leader_scores_history: idx_leader_scores_history_dept_period é idêntico a
+--     idx_leader_scores_history_leader_period → manter somente o último
+--   - orders_visits_assets: idx_ov_assets_asset_id é idêntico a idx_ova_asset_id
+--     → manter somente idx_ova_asset_id
+-- Nota: DROP INDEX IF EXISTS é idempotente (seguro rodar mais de uma vez)
+-- =============================================================================
+
+DROP INDEX IF EXISTS public.idx_leader_scores_history_dept_period;
+DROP INDEX IF EXISTS public.idx_ov_assets_asset_id;
+
+-- =============================================================================
+-- Section: Unindexed Foreign Keys – CREATE INDEX
+-- Fix: [INFO-0001] unindexed_foreign_keys
+-- Migration: 20260913_fix_unindexed_fkeys_pk_and_unused_indexes.sql
+-- =============================================================================
+
+-- assets_alerts
+CREATE INDEX IF NOT EXISTS idx_assets_alerts_ova_id ON public.assets_alerts(ova_id);
+
+-- cfg_app_notices
+CREATE INDEX IF NOT EXISTS idx_cfg_app_notices_created_user_id ON public.cfg_app_notices(created_user_id);
+
+-- cfg_app_tips
+CREATE INDEX IF NOT EXISTS idx_cfg_app_tips_created_by ON public.cfg_app_tips(created_by);
+
+-- cfg_assets_attributes
+CREATE INDEX IF NOT EXISTS idx_cfg_assets_attributes_select_options_group_id ON public.cfg_assets_attributes(select_options_group_id);
+
+-- cfg_routes
+CREATE INDEX IF NOT EXISTS idx_cfg_routes_parent_id ON public.cfg_routes(parent_id);
+
+-- contracts_evaluation_requirements
+CREATE INDEX IF NOT EXISTS idx_contracts_eval_req_evaluation_id ON public.contracts_evaluation_requirements(evaluation_id);
+
+-- materials_purchases
+CREATE INDEX IF NOT EXISTS idx_materials_purchases_cancel_reason_id ON public.materials_purchases(cancel_reason_id);
+
+-- orders_visits – cost/audit user FKs
+CREATE INDEX IF NOT EXISTS idx_ov_chat_closed_user_id ON public.orders_visits(chat_closed_user_id);
+CREATE INDEX IF NOT EXISTS idx_ov_costs_waiting_user_id ON public.orders_visits(ov_costs_waiting_user_id);
+CREATE INDEX IF NOT EXISTS idx_ov_costs_approved_user_id ON public.orders_visits(ov_costs_approved_user_id);
+CREATE INDEX IF NOT EXISTS idx_ov_costs_rejected_user_id ON public.orders_visits(ov_costs_rejected_user_id);
+
+-- orders_visits_chat
+CREATE INDEX IF NOT EXISTS idx_orders_visits_chat_ov_id ON public.orders_visits_chat(ov_id);
+CREATE INDEX IF NOT EXISTS idx_orders_visits_chat_user_id ON public.orders_visits_chat(user_id);
+
+-- orders_visits_chat_reads
+CREATE INDEX IF NOT EXISTS idx_orders_visits_chat_reads_user_id ON public.orders_visits_chat_reads(user_id);
+
+-- orders_visits_evaluations
+CREATE INDEX IF NOT EXISTS idx_ove_contract_evaluation_id ON public.orders_visits_evaluations(contract_evaluation_id);
+
+-- orders_visits_extras
+CREATE INDEX IF NOT EXISTS idx_ove_unit_id ON public.orders_visits_extras(unit_id);
+CREATE INDEX IF NOT EXISTS idx_ove_o_type_id ON public.orders_visits_extras(o_type_id);
+CREATE INDEX IF NOT EXISTS idx_ove_asset_tag_id ON public.orders_visits_extras(asset_tag_id);
+CREATE INDEX IF NOT EXISTS idx_ove_priority_id ON public.orders_visits_extras(priority_id);
+CREATE INDEX IF NOT EXISTS idx_ove_team_leader_id ON public.orders_visits_extras(team_leader_id);
+CREATE INDEX IF NOT EXISTS idx_ove_team_id ON public.orders_visits_extras(team_id);
+CREATE INDEX IF NOT EXISTS idx_ove_system_parent_id ON public.orders_visits_extras(system_parent_id);
+CREATE INDEX IF NOT EXISTS idx_ove_system_id ON public.orders_visits_extras(system_id);
+CREATE INDEX IF NOT EXISTS idx_ove_o_type_sub_id ON public.orders_visits_extras(o_type_sub_id);
+CREATE INDEX IF NOT EXISTS idx_ove_unit_type_parent_id ON public.orders_visits_extras(unit_type_parent_id);
+CREATE INDEX IF NOT EXISTS idx_ove_unit_type_id ON public.orders_visits_extras(unit_type_id);
+CREATE INDEX IF NOT EXISTS idx_ove_o_cause_reason_id ON public.orders_visits_extras(o_cause_reason_id);
+CREATE INDEX IF NOT EXISTS idx_ove_processing_id ON public.orders_visits_extras(processing_id);
+
+-- orders_visits_extras_followers
+CREATE INDEX IF NOT EXISTS idx_ovef_user_id ON public.orders_visits_extras_followers(user_id);
+CREATE INDEX IF NOT EXISTS idx_ovef_ove_id ON public.orders_visits_extras_followers(ove_id);
+
+-- orders_visits_extras_teams
+CREATE INDEX IF NOT EXISTS idx_ovet_ove_id ON public.orders_visits_extras_teams(ove_id);
+CREATE INDEX IF NOT EXISTS idx_ovet_user_id ON public.orders_visits_extras_teams(user_id);
+
+-- orders_visits_vehicles
+CREATE INDEX IF NOT EXISTS idx_orders_visits_vehicles_vehicle_id ON public.orders_visits_vehicles(vehicle_id);
+
+-- units
+CREATE INDEX IF NOT EXISTS idx_units_unit_type_id ON public.units(unit_type_id);
+
+-- users_tools
+CREATE INDEX IF NOT EXISTS idx_users_tools_user_id ON public.users_tools(user_id);
+
+-- =============================================================================
+-- Section: No Primary Key – ADD PK
+-- Fix: [INFO-0004] no_primary_key
+-- =============================================================================
+
+-- orders_visits_extras_followers
+ALTER TABLE public.orders_visits_extras_followers
+    ADD COLUMN IF NOT EXISTS id BIGSERIAL PRIMARY KEY;
+
+-- technicals_manuals_assets
+ALTER TABLE public.technicals_manuals_assets
+    ADD COLUMN IF NOT EXISTS id BIGSERIAL PRIMARY KEY;
+
+-- =============================================================================
+-- Section: Unused Indexes – DROP
+-- Fix: [INFO-0005] unused_index
+-- Nota: DROP IF EXISTS é idempotente e seguro de re-executar.
+-- =============================================================================
+
+DROP INDEX IF EXISTS public.idx_cuat_active_unit;
+DROP INDEX IF EXISTS public.idx_orders_visits_status_started;
+DROP INDEX IF EXISTS public.idx_orders_visits_leader_status;
+DROP INDEX IF EXISTS public.idx_ov_ended_at;
+DROP INDEX IF EXISTS public.idx_ov_in_progress;
+DROP INDEX IF EXISTS public.idx_orders_provider_status_date;
+DROP INDEX IF EXISTS public.idx_orders_cancel_reason_id;
+DROP INDEX IF EXISTS public.idx_orders_active;
+DROP INDEX IF EXISTS public.idx_orders_open;
+DROP INDEX IF EXISTS public.idx_cfg_app_notices_category;
+DROP INDEX IF EXISTS public.idx_cfg_app_notices_severity;
+DROP INDEX IF EXISTS public.idx_cfg_app_notices_dashboards;
+DROP INDEX IF EXISTS public.idx_cfg_app_tips_is_active;
+DROP INDEX IF EXISTS public.idx_cfg_app_tips_companies_company_id;
+DROP INDEX IF EXISTS public.idx_cfg_app_tips_departments_department_id;
+DROP INDEX IF EXISTS public.idx_cfg_app_tips_profiles_profile_id;
+DROP INDEX IF EXISTS public.idx_leader_scores_history_leader_period;
+DROP INDEX IF EXISTS public.idx_cfg_app_tips_dismissals_tip_id;
+DROP INDEX IF EXISTS public.idx_orders_visits_evaluations_evaluated_by;
+DROP INDEX IF EXISTS public.idx_ai_chat_sessions_user_id;
+DROP INDEX IF EXISTS public.idx_ai_messages_session_id;
+DROP INDEX IF EXISTS public.idx_assets_company_owner_id;
+DROP INDEX IF EXISTS public.idx_tags_description;
+DROP INDEX IF EXISTS public.idx_tags_subs_description;
+DROP INDEX IF EXISTS public.idx_assets_alerts_asset_id;
+DROP INDEX IF EXISTS public.idx_assets_alerts_priority_id;
+DROP INDEX IF EXISTS public.idx_assets_alerts_done_created;
+DROP INDEX IF EXISTS public.idx_assets_available_asset_tag_id;
+DROP INDEX IF EXISTS public.idx_cfg_profiles_department_id;
+DROP INDEX IF EXISTS public.idx_contracts_managers_contract_id;
+DROP INDEX IF EXISTS public.idx_maintenances_plans_sections_plan_id;
+DROP INDEX IF EXISTS public.idx_technicals_manuals_files_tm_category_id;
+DROP INDEX IF EXISTS public.idx_technicals_manuals_files_tm_id;
+DROP INDEX IF EXISTS public.idx_tools_created_user_id;
+DROP INDEX IF EXISTS public.idx_tools_deleted_user_id;
+DROP INDEX IF EXISTS public.idx_tools_updated_user_id;
+DROP INDEX IF EXISTS public.idx_users_tools_created_user_id;
+DROP INDEX IF EXISTS public.idx_users_tools_movements_created_user_id;
+DROP INDEX IF EXISTS public.idx_users_tools_movements_from_user_id;
+DROP INDEX IF EXISTS public.idx_users_tools_movements_to_user_id;
+DROP INDEX IF EXISTS public.idx_warehouses_materials_deleted_user_id;
+DROP INDEX IF EXISTS public.idx_warehouses_materials_updated_user_id;
+DROP INDEX IF EXISTS public.idx_trgm_units_description;
+DROP INDEX IF EXISTS public.idx_units_searchable;
+DROP INDEX IF EXISTS public.idx_materials_searchable;
+
+-- =============================================================================
+-- Performance Optimization: Top Application Queries (v_orders & users)
+-- Date: 2026-09-13
+-- =============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_orders_requested_at_desc 
+    ON public.orders (requested_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_orders_parent_not_null_requested_at 
+    ON public.orders (requested_at DESC, status_id) 
+    WHERE parent_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_orders_contract_parent_requested 
+    ON public.orders (contract_id, requested_at DESC) 
+    WHERE parent_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_orders_asset_tag_parent_requested 
+    ON public.orders (asset_tag_id, requested_at DESC) 
+    WHERE parent_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_users_name_full_asc 
+    ON public.users (name_full ASC);

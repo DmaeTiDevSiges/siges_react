@@ -1264,6 +1264,8 @@ export interface OrderFilters {
   osAssetTagId?: string | string[];
   /** Filtro por empresa provedora (provider_company_id). Usado para dashboards de company_id != 1. */
   providerCompanyId?: string | string[];
+  /** Filtro por causa/reason (cause_reason_id). */
+  causeReasonId?: string | string[];
 }
 
 export interface OrderVisitChatMessage {

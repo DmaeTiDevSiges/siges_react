@@ -203,7 +203,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             orderObjects: [] as any[],
             contracts: [] as any[],
             plans: [] as any[],
-            teams: [] as any[]
+            teams: [] as any[],
+            causeReasons: [] as any[]
         };
     });
 
@@ -584,7 +585,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         return {
             ...appliedFilters,
             statusId: selectedStatusId || appliedFilters.statusId,
-            period: selectedPeriod || appliedFilters.period
+            period: selectedPeriod || appliedFilters.period,
+            causeReasonId: appliedFilters.causeReasonId,
         };
     }, [appliedFilters, selectedStatusId, selectedPeriod]);
 
@@ -601,6 +603,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             assetTagId: appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
             period: selectedPeriod || appliedFilters.period,
+            causeReasonId: appliedFilters.causeReasonId,
         };
     }, [appliedFilters, selectedPeriod]);
 
@@ -622,6 +625,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             statusId: selectedStatusId ?? undefined,
             assetTagId: osAssetTagId.length > 0 ? osAssetTagId : appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
+            causeReasonId: appliedFilters.causeReasonId,
         };
     }, [appliedFilters, selectedStatusId, osAssetTagId]);
 
@@ -646,6 +650,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             assetTagSubId: appliedFilters.assetTagSubId,
             startDate: range.start,
             endDate: range.end,
+            causeReasonId: appliedFilters.causeReasonId,
         };
     }, [appliedFilters, completedTemporalFilter, getCompletedTemporalDateRange]);
 
@@ -849,7 +854,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     currentUser ? dataService.getManagedContracts(currentUser.id.toString()) : dataService.getContracts(),
                     dataService.getTeams(undefined, currentUser?.departmentId),
                     dataService.getUnits('active'),
-                    dataService.getAssetTags('active')
+                    dataService.getAssetTags('active'),
+                    dataService.getOrderCauseReasons()
                 ]);
 
                 const getVal = (res: any, name: string) => {
@@ -872,7 +878,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     contracts,
                     teams: getVal(results[6], 'teams'),
                     units: getVal(results[7], 'units'),
-                    sectors: getVal(results[8], 'sectors')
+                    sectors: getVal(results[8], 'sectors'),
+                    causeReasons: getVal(results[9], 'causeReasons')
                 }));
 
                 // Pré-selecionar todos os contratos gerenciados se o usuário não definiu nenhum

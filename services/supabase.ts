@@ -9,14 +9,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('Supabase credentials missing. Check your .env file.');
 }
 
-// For Easypanel/self-hosted Supabase, we need to configure WebSocket properly
-const isEasypanel = supabaseUrl?.includes('easypanel.host');
-
-
 let url = supabaseUrl || 'https://placeholder.supabase.co';
 if (url && !url.startsWith('http')) {
     url = `https://${url}`;
 }
+// Remove trailing slash to avoid double-slash in constructed URLs (e.g. //realtime/v1/websocket)
+url = url.replace(/\/+$/, '');
 
 // Custom Storage implementation for Capacitor/Native environment
 // Uses SharedPreferences on Android and UserDefaults on iOS, which persists reliably across app updates
@@ -53,13 +51,7 @@ export const supabase = globalForSupabase.supabase ?? createClient(
     url,
     supabaseAnonKey || 'placeholder',
     {
-        realtime: isEasypanel ? {
-            // For Easypanel, use wss:// protocol with the same host
-            // Easypanel typically routes WebSocket through the same URL
-            params: {
-                eventsPerSecond: 10
-            }
-        } : {
+        realtime: {
             params: {
                 eventsPerSecond: 10
             }

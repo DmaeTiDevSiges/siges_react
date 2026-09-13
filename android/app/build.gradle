@@ -6,6 +6,10 @@ task npmBuildAndSync(type: Exec) {
     description = 'Roda npm run build e npx cap sync antes de gerar o APK'
     workingDir '../../'  // raiz do projeto React
 
+    onlyIf {
+        !project.hasProperty('skipNpmBuild') && System.getenv('SKIP_NPM_BUILD') != '1'
+    }
+
     def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
     if (isWindows) {
         commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-Command', 'npm run build:android'
