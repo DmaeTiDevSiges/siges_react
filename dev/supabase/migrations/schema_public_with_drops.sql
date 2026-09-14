@@ -3723,6 +3723,7 @@ CREATE TABLE public.cfg_profiles_access (
     can_create boolean DEFAULT false NOT NULL,
     can_edit boolean DEFAULT false NOT NULL,
     can_delete boolean DEFAULT false NOT NULL,
+    can_search boolean DEFAULT false NOT NULL,
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone,
     created_user_id bigint,

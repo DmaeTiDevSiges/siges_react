@@ -1607,7 +1607,7 @@ $$;
 
 DROP FUNCTION IF EXISTS public.fc_get_profile_permissions;
 
-CREATE FUNCTION public.fc_get_profile_permissions(p_profile_id bigint) RETURNS TABLE(permission_id bigint, route_id bigint, route_key character varying, route_path character varying, route_description character varying, can_view boolean, can_create boolean, can_edit boolean, can_delete boolean)
+CREATE FUNCTION public.fc_get_profile_permissions(p_profile_id bigint) RETURNS TABLE(permission_id bigint, route_id bigint, route_key character varying, route_path character varying, route_description character varying, can_view boolean, can_create boolean, can_edit boolean, can_delete boolean, can_search boolean)
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
 BEGIN
@@ -1637,7 +1637,7 @@ $$;
 
 DROP FUNCTION IF EXISTS public.fc_get_user_permissions;
 
-CREATE FUNCTION public.fc_get_user_permissions(p_user_id bigint) RETURNS TABLE(route_id bigint, route_key character varying, route_path character varying, route_description character varying, route_icon character varying, can_view boolean, can_create boolean, can_edit boolean, can_delete boolean)
+CREATE FUNCTION public.fc_get_user_permissions(p_user_id bigint) RETURNS TABLE(route_id bigint, route_key character varying, route_path character varying, route_description character varying, route_icon character varying, can_view boolean, can_create boolean, can_edit boolean, can_delete boolean, can_search boolean)
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
 BEGIN
@@ -3859,6 +3859,7 @@ CREATE TABLE public.cfg_profiles_access (
     can_create boolean DEFAULT false NOT NULL,
     can_edit boolean DEFAULT false NOT NULL,
     can_delete boolean DEFAULT false NOT NULL,
+    can_search boolean DEFAULT false NOT NULL,
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone,
     created_user_id bigint,
