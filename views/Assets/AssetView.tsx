@@ -17,6 +17,7 @@ import type { AssetAlertFormHandle } from './AssetAlertForm';
 import { AssetAlert } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import { AssetDetailsPDFButton } from '../../components/reports/AssetDetailsPDFButton';
+import { AssetHistoryPDFButton } from '../../components/reports/AssetHistoryPDFButton';
 import { AssetAlertListItem } from './AssetAlertListItem';
 
 import QRCode from 'react-qr-code';
@@ -809,7 +810,9 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                     <div className="flex items-center justify-between mb-6">
                                         <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Histórico</h3>
                                         
-                                        {(totalCosts > 0 || totalServices > 0) && (
+                                        <div className="flex items-center gap-2">
+                                            <AssetHistoryPDFButton asset={asset} history={history} />
+                                            {(totalCosts > 0 || totalServices > 0) && (
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <div className="flex flex-col gap-0.5 px-2.5 py-1.5 bg-blue-500/5 border border-blue-500/10 rounded-xl min-w-[70px]">
                                                     <span className="text-[8px] font-black text-blue-500 dark:text-blue-400/70 uppercase leading-none">Serviços</span>
@@ -831,6 +834,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                 </div>
                                             </div>
                                         )}
+                                        </div>
                                     </div>
 
                                 <div className="space-y-0 relative">

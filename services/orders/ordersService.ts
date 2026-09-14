@@ -1731,6 +1731,7 @@ export const ordersService = {
             applyFilter('requester_team_id', f.orderTeamId);
             applyFilter('team_id', f.responsibleTeamId);
             applyFilter('priority_id', f.priorityId);
+            applyFilter('cause_reason_id', f.causeReasonId);
 
             if (f.search) {
                 const s = `%${f.search}%`;

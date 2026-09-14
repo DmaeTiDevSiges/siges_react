@@ -357,6 +357,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     responsibleTeamId: appliedFilters.responsibleTeamId,
                     assetTagId: appliedFilters.assetTagId,
                     assetTagSubId: appliedFilters.assetTagSubId,
+                    causeReasonId: appliedFilters.causeReasonId,
                     ...(providerCompanyId ? { providerCompanyId } : {}),
                 });
                 setCompletedOS(result);
@@ -401,6 +402,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             responsibleTeamId: appliedFilters.responsibleTeamId,
                             assetTagId: appliedFilters.assetTagId,
                             assetTagSubId: appliedFilters.assetTagSubId,
+                            causeReasonId: appliedFilters.causeReasonId,
                             ...(providerCompanyId ? { providerCompanyId } : {}),
                         });
                         return { period: p, count: res.total };
@@ -733,6 +735,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 orderTeamId: ordersListFilters.orderTeamId,
                 responsibleTeamId: ordersListFilters.responsibleTeamId,
                 priorityId: ordersListFilters.priorityId,
+                causeReasonId: ordersListFilters.causeReasonId,
                 statusId: statusIdFromOverride ?? undefined,
                 // assetTagId intentionally omitted — sector cards must always show all sectors
                 search: searchQuery || undefined,
