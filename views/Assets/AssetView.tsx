@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile, Material, AssetMaterial } from '../../types';
+import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile, Material, AssetMaterial, AssetLoan } from '../../types';
 import { dataService } from '../../services/dataService';
 import { getPublicImageUrl } from '../../services/imageUtils';
 import { IconButton } from '../../components/ui/IconButton';
@@ -19,6 +19,9 @@ import { Modal } from '../../components/ui/Modal';
 import { AssetDetailsPDFButton } from '../../components/reports/AssetDetailsPDFButton';
 import { AssetHistoryPDFButton } from '../../components/reports/AssetHistoryPDFButton';
 import { AssetAlertListItem } from './AssetAlertListItem';
+import { AssetLoanCard } from '../../components/assetLoans/AssetLoanCard';
+import { AssetLoanForm } from '../../components/assetLoans/AssetLoanForm';
+import { AssetLoanDetails } from '../../components/assetLoans/AssetLoanDetails';
 
 import QRCode from 'react-qr-code';
 import { Loading } from '../../components/ui/Loading';
@@ -152,7 +155,14 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const [alertFilter, setAlertFilter] = useState<'abertos' | 'resolvidos' | 'todos'>('abertos');
     const alertFormRef = useRef<AssetAlertFormHandle>(null);
 
-    const tabs = ['Dados', 'Histórico', 'Manuais', 'Componentes', 'Alertas', 'QR CODE'];
+    // Asset Loans state
+    const [assetLoans, setAssetLoans] = useState<AssetLoan[]>([]);
+    const [isLoadingLoans, setIsLoadingLoans] = useState(false);
+    const [showLoanForm, setShowLoanForm] = useState(false);
+    const [selectedLoan, setSelectedLoan] = useState<AssetLoan | null>(null);
+    const [showLoanImpedimentModal, setShowLoanImpedimentModal] = useState(false);
+
+    const tabs = ['Dados', 'Histórico', 'Manuais', 'Componentes', 'Alertas', 'Empréstimos', 'QR CODE'];
 
     useEffect(() => {
         const fetchAlerts = async () => {
@@ -166,6 +176,22 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
             }
         };
         fetchAlerts();
+    }, [activeTab, asset.id]);
+
+    useEffect(() => {
+        const fetchLoans = async () => {
+            if (activeTab !== 'Empréstimos') return;
+            setIsLoadingLoans(true);
+            try {
+                const data = await dataService.getAssetLoansByAssetId(asset.id);
+                setAssetLoans(data);
+            } catch (error) {
+                console.error('Error fetching asset loans:', error);
+            } finally {
+                setIsLoadingLoans(false);
+            }
+        };
+        fetchLoans();
     }, [activeTab, asset.id]);
 
     const handleAlertSave = async (alertData: Partial<AssetAlert>) => {
@@ -795,6 +821,111 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                         )}
                                     </>
                                 )}
+                            </section>
+                        )}
+
+                        {activeTab === 'Empréstimos' && (
+                            <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                                        Empréstimos deste Ativo
+                                    </h3>
+                                    {canCreate('assets_loans_create_update_delete') && (
+                                    <button
+                                        onClick={() => {
+                                            const hasOpenLoans = assetLoans.some(loan => loan.status !== 'closed');
+                                            if (hasOpenLoans) {
+                                                setShowLoanImpedimentModal(true);
+                                                return;
+                                            }
+                                            setShowLoanForm(true);
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-lg">add</span>
+                                        Novo Empréstimo
+                                    </button>
+                                    )}
+                                </div>
+
+                                {isLoadingLoans ? (
+                                    <div className="flex justify-center py-12">
+                                        <Loading size="md" />
+                                    </div>
+                                ) : assetLoans.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 px-6 bg-slate-500/5 rounded-3xl border border-dashed border-slate-200 dark:border-white/10">
+                                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                                            <span className="material-symbols-outlined text-slate-400 text-3xl">handshake</span>
+                                        </div>
+                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-200">Nenhum empréstimo registrado</p>
+                                        <p className="text-[11px] text-slate-500 mt-1">Clique em "Novo Empréstimo" para começar</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {assetLoans.map((loan) => (
+                                            <AssetLoanCard
+                                                key={loan.id}
+                                                loan={loan}
+                                                onViewDetails={() => setSelectedLoan(loan)}
+                                                onStatusChange={() => {
+                                                    dataService.getAssetLoansByAssetId(asset.id).then(setAssetLoans);
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Modal Formulário */}
+                                {showLoanForm && (
+                                    <Modal
+                                        isOpen={showLoanForm}
+                                        onClose={() => setShowLoanForm(false)}
+                                        title="Novo Empréstimo"
+                                        maxWidth="lg"
+                                    >
+                                        <AssetLoanForm
+                                            assetId={asset.id}
+                                            assetName={`${asset.code} - ${asset.description}`}
+                                            onSave={() => {
+                                                setShowLoanForm(false);
+                                                dataService.getAssetLoansByAssetId(asset.id).then(setAssetLoans);
+                                            }}
+                                            onCancel={() => setShowLoanForm(false)}
+                                        />
+                                    </Modal>
+                                )}
+
+                                {/* Modal Detalhes */}
+                                {selectedLoan && (
+                                    <Modal
+                                        isOpen={!!selectedLoan}
+                                        onClose={() => setSelectedLoan(null)}
+                                        title="Detalhes do Empréstimo"
+                                        maxWidth="lg"
+                                    >
+                                        <AssetLoanDetails
+                                            loan={selectedLoan}
+                                            onClose={() => setSelectedLoan(null)}
+                                            onStatusChange={() => {
+                                                dataService.getAssetLoansByAssetId(asset.id).then(setAssetLoans);
+                                                setSelectedLoan(null);
+                                            }}
+                                        />
+                                    </Modal>
+                                )}
+
+                                {/* Modal Impedimento Novo Empréstimo */}
+                                <Modal
+                                    isOpen={showLoanImpedimentModal}
+                                    onClose={() => setShowLoanImpedimentModal(false)}
+                                    title="Novo Empréstimo"
+                                    message="Existe(m) empréstimo(s) ativo(s) neste ativo. Todos os empréstimos devem estar encerrados antes de criar um novo empréstimo."
+                                    type="warning"
+                                    maxWidth="sm"
+                                    confirmLabel="Entendido"
+                                    onConfirm={() => setShowLoanImpedimentModal(false)}
+                                    hideCancelButton
+                                />
                             </section>
                         )}
 

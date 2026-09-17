@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
-
+import { FaFilePdf } from 'react-icons/fa';
 import { toast } from 'sonner';
 import { AssetDetailsDocument } from './AssetDetailsDocument';
 import { Asset, AssetAttribute } from '../../types';
+import { Loading } from '../ui/Loading';
 
 interface PDFButtonProps {
     asset: Asset;
@@ -27,11 +28,9 @@ export const AssetDetailsPDFButton = ({ asset, attributes, attributeValues, clas
         });
 
         try {
-            // Document creation
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             const fileName = `Ficha_Tecnica_${asset.code || asset.id}_${timestamp}.pdf`;
 
-            // Wait a small delay to ensure UI doesn't freeze awkwardly
             await new Promise(resolve => setTimeout(resolve, 100));
 
             const blob = await pdf(
@@ -58,24 +57,14 @@ export const AssetDetailsPDFButton = ({ asset, attributes, attributeValues, clas
             onClick={handleGeneratePDF}
             disabled={isGenerating}
             title="Baixar Ficha Técnica"
-            className={`flex items-center gap-2 bg-slate-100/80 dark:bg-white/10 backdrop-blur-md border border-white/20 dark:border-white/5 rounded-full py-2 px-4 shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)] hover:bg-slate-200/80 dark:hover:bg-white/20 active:scale-95 transition-all outline-none focus:outline-none ${isGenerating ? 'opacity-70 cursor-wait' : 'cursor-pointer'} ${className || ''}`}
+            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${isGenerating ? 'animate-pulse' : ''} ${className || ''}`}
         >
             {isGenerating ? (
-                <span className="material-symbols-outlined text-[20px] animate-spin text-slate-400">
-                    progress_activity
-                </span>
+                <Loading size="xs" />
             ) : (
-                <div className="relative w-5 h-5 flex items-center justify-center">
-                    {/* Fundo deslocado (sombra vermelha/borda vermelha esquerda-baixo) */}
-                    <div className="absolute top-[3px] left-px w-[13px] h-[13px] border-2 border-red-500 rounded-sm rounded-tr-none rounded-bl-md" />
-                    <div className="absolute top-[3px] left-px w-[13px] h-[13px] border-l-[3px] border-b-[3px] border-white/80 dark:border-slate-800 rounded-bl-sm z-0" style={{ transform: 'translate(1px, -1px)' }}/>
-                    {/* Quadrado principal vermelho */}
-                    <div className="absolute top-px right-px w-[14px] h-[14px] bg-red-500 rounded-sm flex items-center justify-center z-10">
-                         <span className="text-[5px] font-black text-white leading-none tracking-tighter" style={{ fontFamily: 'Arial, sans-serif' }}>PDF</span>
-                    </div>
-                </div>
+                <FaFilePdf className="text-[14px]" />
             )}
-            <span className="text-[13px] font-black text-slate-700 dark:text-white tracking-wide">PDF</span>
+            <span>PDF</span>
         </button>
     );
 };

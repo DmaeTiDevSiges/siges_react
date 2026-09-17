@@ -1277,7 +1277,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                             )}
                                         </div>
 
-                                        <div className="h-28 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5 flex items-center justify-center overflow-hidden transition-colors group-hover:bg-slate-100/50 dark:group-hover:bg-slate-900/80">
+                                        <div className="h-28 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden transition-colors group-hover:bg-slate-100/50 dark:group-hover:bg-slate-900">
                                             {signatureUrl ? (
                                                 <img
                                                     src={signatureUrl}

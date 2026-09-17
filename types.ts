@@ -1731,3 +1731,144 @@ export interface OrderVisitScore {
   maxPossibleScore: number;
   complianceScore: number;
 }
+
+// ===== ASSET LOANS =====
+
+export interface AssetLoan {
+  id: string;
+  assetId: string;
+  borrowerName: string;
+  lenderUserId: string;
+  expectedReturnDate: string;
+  actualReturnDate?: string;
+  status: 'analysis' | 'pending' | 'closed' | 'overdue';
+  notes?: string;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  createdUserId?: string;
+
+  // Signature fields
+  signatureDeliveryPath?: string;
+  signatureDeliveryName?: string;
+  signatureDeliveryAt?: string;
+  signatureDeliverySignerName?: string;
+  signatureReturnPath?: string;
+  signatureReturnName?: string;
+  signatureReturnAt?: string;
+  signatureReturnSignerName?: string;
+
+  // Inspector fields
+  inspectorDeliveryUserId?: string;
+  inspectorReturnUserId?: string;
+  itemsChecklistsDivergentCount?: number;
+
+  // UI Helpers (from v_asset_loans)
+  assetCode?: string;
+  assetDescription?: string;
+  assetSerial?: string;
+  assetBrand?: string;
+  assetModel?: string;
+  assetImgUrl?: string;
+  assetTypeName?: string;
+  lenderName?: string;
+  lenderNameShort?: string;
+  inspectorDeliveryName?: string;
+  inspectorReturnName?: string;
+  computedStatus?: string;
+}
+
+export interface LoansChecklist {
+  id: string;
+  description: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+
+  // UI Helpers
+  assetTypeNames?: string[];
+}
+
+export interface AssetLoanChecklistType {
+  id: string;
+  assetTypeId: string;
+  checklistId?: string;
+  itemDescription: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+
+  // UI Helpers
+  assetTypeName?: string;
+}
+
+export interface AssetLoanChecklist {
+  id: string;
+  loanId: string;
+  checklistTypeId?: string;
+  phase: 'before' | 'after';
+  status: 'pending' | 'ok' | 'damaged' | 'missing' | 'not_applicable';
+  customItemDescription?: string;
+  notes?: string;
+  filledByUserId?: string;
+  filledAt?: string;
+  createdAt?: string;
+  isDivergent?: boolean;
+
+  // UI Helpers
+  itemDescription?: string;
+  filledByName?: string;
+}
+
+export interface AssetLoanChecklistImage {
+  id: string;
+  checklistId: string;
+  imageUrl: string;
+  imageType: 'photo' | 'document' | 'damage';
+  uploadedByUserId?: string;
+  createdAt?: string;
+
+  // UI Helpers
+  uploadedByName?: string;
+}
+
+// Input types for creating/updating
+export interface CreateAssetLoanInput {
+  assetId: string;
+  borrowerName: string;
+  lenderUserId: string;
+  expectedReturnDate: string;
+  notes?: string;
+}
+
+export interface UpdateAssetLoanInput {
+  borrowerName?: string;
+  lenderUserId?: string;
+  expectedReturnDate?: string;
+  notes?: string;
+}
+
+export interface SaveChecklistItemInput {
+  checklistTypeId?: string;
+  customItemDescription?: string;
+  status: 'pending' | 'ok' | 'damaged' | 'missing' | 'not_applicable';
+  notes?: string;
+}
+
+export interface CreateChecklistTypeInput {
+  assetTypeId: string;
+  itemDescription: string;
+  sortOrder?: number;
+}
+
+export interface CreateLoansChecklistInput {
+  description: string;
+  sortOrder?: number;
+}
+
+export interface UpdateLoansChecklistInput {
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}

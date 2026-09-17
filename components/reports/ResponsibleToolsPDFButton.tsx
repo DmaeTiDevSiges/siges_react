@@ -50,13 +50,13 @@ export const ResponsibleToolsPDFButton: React.FC<ResponsibleToolsPDFButtonProps>
         <button
             onClick={generatePDF}
             disabled={isGenerating}
-            className={`flex items-center gap-1.5 px-2 py-1 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${isGenerating ? 'animate-pulse' : ''} ${className}`}
+            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${isGenerating ? 'animate-pulse' : ''} ${className}`}
             title={`Exportar PDF - ${userName}`}
         >
             {isGenerating ? (
                 <Loading size="xs" />
             ) : (
-                <FaFilePdf className="text-[12px]" />
+                <FaFilePdf className="text-[14px]" />
             )}
             <span>PDF</span>
         </button>

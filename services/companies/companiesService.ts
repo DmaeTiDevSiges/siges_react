@@ -977,7 +977,7 @@ export const companiesService = {
 
         return data.map((item: any) => ({
             id: item.id.toString(),
-            companyId: item.company_id.toString(),
+            companyId: item.company_id?.toString() || '',
             description: item.description,
             isAvailable: item.is_available,
             createdAt: item.created_at
@@ -1008,6 +1008,7 @@ export const companiesService = {
         const { data: profile, error: profileError } = await supabase
             .from('cfg_profiles')
             .insert({
+                company_id: parseInt(companyId),
                 department_id: parseInt(companyId),
                 description,
                 is_available: true

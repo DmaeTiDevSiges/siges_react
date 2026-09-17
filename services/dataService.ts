@@ -27,7 +27,10 @@ import { technicalManualsService } from './assets/technicalManualsService';
 import { appNoticesService } from './core/appNoticesService';
 import { appTipsService } from './core/appTipsService';
 import { gamificationService } from './gamification/gamificationService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial } from '../types';
+import { assetLoansService } from './assets/assetLoansService';
+import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
+import { loansChecklistService } from './assets/loansChecklistService';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
 
 
 
@@ -2891,7 +2894,163 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async getDepartmentsWithLeaders(): Promise<{ departmentId: string; departmentName: string; leaderCount: number }[]> {
         return gamificationService.getDepartmentsWithLeaders.apply(gamificationService, arguments as any);
-    }
+    },
+
+    // ===== ASSET LOANS =====
+
+    async getAssetLoansByAssetId(assetId: string): Promise<AssetLoan[]> {
+        return assetLoansService.getLoansByAssetId.apply(assetLoansService, arguments as any);
+    },
+
+    async getAssetLoanById(id: string): Promise<AssetLoan> {
+        return assetLoansService.getLoanById.apply(assetLoansService, arguments as any);
+    },
+
+    async createAssetLoan(input: CreateAssetLoanInput, userId: string): Promise<AssetLoan> {
+        return assetLoansService.createLoan.apply(assetLoansService, arguments as any);
+    },
+
+    async updateAssetLoan(id: string, input: UpdateAssetLoanInput): Promise<AssetLoan> {
+        return assetLoansService.updateLoan.apply(assetLoansService, arguments as any);
+    },
+
+    async activateAssetLoan(id: string, userId: string): Promise<void> {
+        return assetLoansService.activateLoan.apply(assetLoansService, arguments as any);
+    },
+
+    async returnAssetLoan(id: string, userId: string): Promise<void> {
+        return assetLoansService.returnLoan.apply(assetLoansService, arguments as any);
+    },
+
+    async deleteAssetLoan(id: string, userId: string): Promise<void> {
+        return assetLoansService.deleteLoan.apply(assetLoansService, arguments as any);
+    },
+
+    async getAssetLoanChecklists(loanId: string, phase: 'before' | 'after'): Promise<AssetLoanChecklist[]> {
+        return assetLoansService.getChecklists.apply(assetLoansService, arguments as any);
+    },
+
+    async saveAssetLoanChecklist(loanId: string, phase: string, items: SaveChecklistItemInput[], userId: string): Promise<{ id: number; checklistTypeId: string | null; customItemDescription?: string }[]> {
+        return assetLoansService.saveChecklist.apply(assetLoansService, arguments as any);
+    },
+
+    async updateAssetLoanChecklistItem(checklistId: number, status: string, notes: string, userId: string): Promise<void> {
+        return assetLoansService.updateChecklistItem.apply(assetLoansService, arguments as any);
+    },
+
+    async isAssetLoanChecklistComplete(loanId: string, phase: 'before'): Promise<boolean> {
+        return assetLoansService.isChecklistComplete.apply(assetLoansService, arguments as any);
+    },
+
+    async getAssetLoanChecklistItemsCount(loanId: string, phase: 'before'): Promise<{ total: number; filled: number }> {
+        return assetLoansService.getChecklistItemsCount.apply(assetLoansService, arguments as any);
+    },
+
+    async getAssetLoanChecklistImages(checklistId: string): Promise<AssetLoanChecklistImage[]> {
+        return assetLoansService.getChecklistImages.apply(assetLoansService, arguments as any);
+    },
+
+    async uploadAssetLoanChecklistImage(checklistId: string, imageUrl: string, imageType: string, userId: string): Promise<AssetLoanChecklistImage> {
+        return assetLoansService.uploadChecklistImage.apply(assetLoansService, arguments as any);
+    },
+
+    async uploadAssetLoanChecklistImageFromPending(checklistDbId: number, file: File, userId: string, loanId: string): Promise<AssetLoanChecklistImage> {
+        const compressedFile = await compressForUpload(file, 1200, 0.8);
+        const fileName = `companies/1/assets_loans/${loanId}/checklist_${checklistDbId}_${Date.now()}.${compressedFile.name.split('.').pop()}`;
+        
+        await r2Service.uploadFile(compressedFile, fileName);
+        const imageUrl = r2Service.getPublicUrl(fileName);
+        
+        return assetLoansService.uploadChecklistImage(checklistDbId.toString(), imageUrl, 'photo', userId);
+    },
+
+    async deleteAssetLoanChecklistImage(id: string): Promise<void> {
+        return assetLoansService.deleteChecklistImage.apply(assetLoansService, arguments as any);
+    },
+
+    async getOverdueAssetLoans(): Promise<AssetLoan[]> {
+        return assetLoansService.getOverdueLoans.apply(assetLoansService, arguments as any);
+    },
+
+    async getActiveAssetLoansCount(): Promise<number> {
+        return assetLoansService.getActiveLoansCount.apply(assetLoansService, arguments as any);
+    },
+
+    async saveAssetLoanSignature(loanId: string, type: 'delivery' | 'return', base64: string): Promise<void> {
+        return assetLoansService.saveLoanSignature.apply(assetLoansService, arguments as any);
+    },
+
+    async deleteAssetLoanSignature(loanId: string, type: 'delivery' | 'return'): Promise<void> {
+        return assetLoansService.deleteLoanSignature.apply(assetLoansService, arguments as any);
+    },
+
+    // ===== CHECKLIST TYPES (N:N associations) =====
+
+    async getChecklistTypes(): Promise<AssetLoanChecklistType[]> {
+        return assetsTypesChecklistService.getChecklistTypes.apply(assetsTypesChecklistService, arguments as any);
+    },
+
+    async getChecklistTypesByAssetType(assetTypeId: string): Promise<AssetLoanChecklistType[]> {
+        return assetsTypesChecklistService.getChecklistTypesByAssetType.apply(assetsTypesChecklistService, arguments as any);
+    },
+
+    async getChecklistTypeById(id: string): Promise<AssetLoanChecklistType> {
+        return assetsTypesChecklistService.getChecklistTypeById.apply(assetsTypesChecklistService, arguments as any);
+    },
+
+    async createChecklistTypeAssociation(assetTypeId: string, checklistId: string): Promise<AssetLoanChecklistType> {
+        return assetsTypesChecklistService.createChecklistType.apply(assetsTypesChecklistService, arguments as any);
+    },
+
+    async deleteChecklistType(id: string): Promise<void> {
+        return assetsTypesChecklistService.deleteChecklistType.apply(assetsTypesChecklistService, arguments as any);
+    },
+
+    // ===== LOANS CHECKLISTS (generic catalog) =====
+
+    async getLoansChecklists(): Promise<LoansChecklist[]> {
+        return loansChecklistService.getChecklists.apply(loansChecklistService, arguments as any);
+    },
+
+    async getLoansChecklistById(id: string): Promise<LoansChecklist> {
+        return loansChecklistService.getChecklistById.apply(loansChecklistService, arguments as any);
+    },
+
+    async createLoansChecklist(input: CreateLoansChecklistInput): Promise<LoansChecklist> {
+        return loansChecklistService.createChecklist.apply(loansChecklistService, arguments as any);
+    },
+
+    async updateLoansChecklist(id: string, input: UpdateLoansChecklistInput): Promise<LoansChecklist> {
+        return loansChecklistService.updateChecklist.apply(loansChecklistService, arguments as any);
+    },
+
+    async deleteLoansChecklist(id: string): Promise<void> {
+        return loansChecklistService.deleteChecklist.apply(loansChecklistService, arguments as any);
+    },
+
+    async getLoansChecklistAssetTypes(checklistId: string): Promise<string[]> {
+        return loansChecklistService.getChecklistAssetTypes.apply(loansChecklistService, arguments as any);
+    },
+
+    async setLoansChecklistAssetTypes(checklistId: string, assetTypeIds: string[]): Promise<void> {
+        return loansChecklistService.setChecklistAssetTypes.apply(loansChecklistService, arguments as any);
+    },
+
+    async isLoansChecklistInUse(checklistId: string): Promise<boolean> {
+        return loansChecklistService.isChecklistInUse.apply(loansChecklistService, arguments as any);
+    },
+
+    async reorderChecklistTypes(assetTypeId: string, orderedIds: string[]): Promise<void> {
+        return assetsTypesChecklistService.reorderChecklistTypes.apply(assetsTypesChecklistService, arguments as any);
+    },
+
+    async getAvailableChecklistsForAssetType(assetTypeId: string): Promise<{ id: string; description: string }[]> {
+        return assetsTypesChecklistService.getAvailableChecklistsForAssetType.apply(assetsTypesChecklistService, arguments as any);
+    },
+
+    async addChecklistsToAssetType(assetTypeId: string, checklistIds: string[]): Promise<void> {
+        return assetsTypesChecklistService.addChecklistsToAssetType.apply(assetsTypesChecklistService, arguments as any);
+    },
 };
 
 

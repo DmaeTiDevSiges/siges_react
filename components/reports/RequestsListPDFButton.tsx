@@ -71,19 +71,14 @@ export const RequestsListPDFButton = ({
         <button
             onClick={handleDownload}
             disabled={isGenerating}
-            className={`flex items-center gap-2 px-4 py-1.5 bg-slate-800/40 border border-slate-700 text-slate-300 rounded-full hover:bg-slate-700 disabled:opacity-50 transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm ${className}`}
+            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${className}`}
         >
             {isGenerating ? (
-                <>
-                    <Loading size="xs" />
-                    <span>Processando...</span>
-                </>
+                <Loading size="xs" />
             ) : (
-                <>
-                    <FaFilePdf size={12} className="text-red-500" />
-                    <span>PDF {totalCount !== undefined ? `(${totalCount})` : ''}</span>
-                </>
+                <FaFilePdf className="text-[14px]" />
             )}
+            <span>PDF {totalCount !== undefined ? `(${totalCount})` : ''}</span>
         </button>
     );
 };

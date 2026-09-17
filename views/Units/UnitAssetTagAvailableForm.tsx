@@ -224,7 +224,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                 const assetTagDescription =
                     assetTag.asset_tag_tag_sub_description ||
                     assetTag.description ||
-                    'Setor / posiÃ§Ã£o nÃ£o identificado';
+                    'Setor / posição não identificado';
 
                 // Format reported_at as in the flow: dd/MM/yyyy HH:mmh
                 const now = new Date();
@@ -270,14 +270,14 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
 
                         <div className="flex items-center justify-between relative z-10 w-full">
                             <div className="flex flex-col py-1">
-                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] leading-none mb-1.5 opacity-80">
+                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] leading-none mb-1 opacity-80">
                                     {assetTag?.client_name || 'CLIENTE NÃO INFORMADO'}
                                 </span>
                                 <span className="text-[18px] font-black text-slate-900 dark:text-white uppercase leading-tight tracking-tight">
                                     {assetTag?.unit_description || 'UNIDADE'}
                                 </span>
-                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1.5 opacity-80">
-                                    {assetTag?.asset_tag_tag_sub_description || 'SETOR'}
+                                <span className="text-[14px] font-black text-white dark:text-white uppercase tracking-widest leading-none mt-1.5">
+                                    {assetTag?.asset_tag_tag_sub_description || 'SETOR / POSIÇÃO'}
                                 </span>
                             </div>
 

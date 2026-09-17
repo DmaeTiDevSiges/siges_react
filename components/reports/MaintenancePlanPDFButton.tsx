@@ -91,22 +91,17 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
             <button
                 onClick={handleExport}
                 disabled={loading}
-                className={`flex items-center gap-2.5 px-4 h-9 bg-[#0f172a] dark:bg-slate-900 border border-white/20 dark:border-white/10 rounded-full hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-black/20 ${className}`}
+                className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${className}`}
                 title="Gerar Relatório PDF"
             >
                 {loading ? (
-                    <>
-                        <Loading size="xs" />
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-tighter">Processando...</span>
-                    </>
+                    <Loading size="xs" />
                 ) : (
-                    <>
-                        <FaFilePdf size={15} className="text-red-500" />
-                        <span className="text-[12px] font-black text-slate-200 uppercase tracking-tight">
-                            {label || 'PDF'}
-                        </span>
-                    </>
+                    <FaFilePdf className="text-[14px]" />
                 )}
+                <span className="font-black uppercase tracking-tight">
+                    {label || 'PDF'}
+                </span>
             </button>
         );
     }
@@ -117,13 +112,13 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
             <button
                 onClick={handleExport}
                 disabled={loading}
-                className={`flex items-center justify-center w-10 h-10 rounded-[14px] bg-[#334155] border border-slate-600/50 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-600 transition-all active:scale-90 disabled:opacity-50 ${className}`}
+                className={`flex items-center justify-center w-8 h-8 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
                 title="Exportar PDF do Plano"
             >
                 {loading ? (
                     <Loading size="xs" />
                 ) : (
-                    <FaFilePdf size={20} className="text-red-500" />
+                    <FaFilePdf className="text-[14px]" />
                 )}
             </button>
         );
@@ -134,19 +129,16 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
         <button
             onClick={handleExport}
             disabled={loading}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 hover:border-red-200 transition-all active:scale-95 disabled:opacity-50 shadow-sm ${className}`}
+            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${className}`}
         >
             {loading ? (
-                <>
-                    <Loading size="xs" />
-                    <span>Gerando…</span>
-                </>
+                <Loading size="xs" />
             ) : (
-                <>
-                    <FaFilePdf className="text-red-500" />
-                    <span>{label || 'Exportar PDF'}</span>
-                </>
+                <FaFilePdf className="text-[14px]" />
             )}
+            <span className="font-black uppercase tracking-tight">
+                {label || 'PDF'}
+            </span>
         </button>
     );
 };

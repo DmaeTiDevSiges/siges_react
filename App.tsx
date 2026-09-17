@@ -107,6 +107,10 @@ const AssetTagSubForm = lazyWithRetry(() => import('./views/Settings/Assets/Asse
 const TechnicalManualsList = lazyWithRetry(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualsList').then(m => ({ default: m.TechnicalManualsList })));
 const TechnicalManualForm = lazyWithRetry(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualForm').then(m => ({ default: m.TechnicalManualForm })));
 const TechnicalManualDetails = lazyWithRetry(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualDetails').then(m => ({ default: m.TechnicalManualDetails })));
+const AssetLoanChecklistTypesList = lazyWithRetry(() => import('./views/Settings/Assets/AssetLoanChecklists/AssetLoanChecklistTypesList').then(m => ({ default: m.AssetLoanChecklistTypesList })));
+const AssetLoanChecklistTypeForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetLoanChecklists/AssetLoanChecklistTypeForm').then(m => ({ default: m.AssetLoanChecklistTypeForm })));
+const LoansChecklistsList = lazyWithRetry(() => import('./views/Settings/Assets/AssetLoanChecklists/LoansChecklistsList').then(m => ({ default: m.LoansChecklistsList })));
+const LoansChecklistForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetLoanChecklists/LoansChecklistForm').then(m => ({ default: m.LoansChecklistForm })));
 const UnitsSearch = lazyWithRetry(() => import('./views/Units/UnitsSearch').then(m => ({ default: m.UnitsSearch })));
 const UnitAssetTagAvailableForm = lazyWithRetry(() => import('./views/Units/UnitAssetTagAvailableForm').then(m => ({ default: m.UnitAssetTagAvailableForm })));
 const UnitAssetTagAvailableDetails = lazyWithRetry(() => import('./views/Units/UnitAssetTagAvailableDetails').then(m => ({ default: m.UnitAssetTagAvailableDetails })));
@@ -152,6 +156,8 @@ const MaintenancePlansScreen = lazyWithRetry(() => import('./views/Settings/Main
 const ToolsMainView = lazyWithRetry(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
 
 type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
+  | 'asset-loan-checklist-types' | 'asset-loan-checklist-type-form' | 'asset-loan-checklist-type-edit'
+  | 'loans-checklists' | 'loans-checklist-form' | 'loans-checklist-edit'
   | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit';
 
 import { ActionIcon } from './components/ui/ActionIcon';
@@ -431,6 +437,8 @@ const AppContent: React.FC = () => {
   const [selectedAssetTag, setSelectedAssetTag] = useState<AssetTag | null>(null);
   const [selectedAssetTagSub, setSelectedAssetTagSub] = useState<AssetTagSub | null>(null);
   const [selectedTechnicalManual, setSelectedTechnicalManual] = useState<import('./types').TechnicalManual | null>(null);
+  const [selectedChecklistType, setSelectedChecklistType] = useState<import('./types').AssetLoanChecklistType | null>(null);
+  const [selectedLoansChecklist, setSelectedLoansChecklist] = useState<import('./types').LoansChecklist | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [cloneSourceAsset, setCloneSourceAsset] = useState<Asset | null>(null);
   const [lastAssetSource, setLastAssetSource] = useState<Screen>('assets-search');
@@ -1146,6 +1154,14 @@ const AppContent: React.FC = () => {
       setCurrentScreen('technical-manuals');
     } else if (currentScreen === 'technical-manual-details') {
       setCurrentScreen('technical-manuals');
+    } else if (currentScreen === 'asset-loan-checklist-types') {
+      setCurrentScreen('settings');
+    } else if (currentScreen === 'asset-loan-checklist-type-form' || currentScreen === 'asset-loan-checklist-type-edit') {
+      setCurrentScreen('asset-loan-checklist-types');
+    } else if (currentScreen === 'loans-checklists') {
+      setCurrentScreen('settings');
+    } else if (currentScreen === 'loans-checklist-form' || currentScreen === 'loans-checklist-edit') {
+      setCurrentScreen('loans-checklists');
     } else if (currentScreen === 'app-notices') {
       const lastTab = localStorage.getItem('last_main_tab') || 'dashboard';
       handleMainTabChange(lastTab);
@@ -2388,6 +2404,18 @@ const AppContent: React.FC = () => {
         return selectedTechnicalManual ? <TechnicalManualForm initialManual={selectedTechnicalManual} onSave={handleSaveTechnicalManual} onCancel={handleBack} /> : null;
       case 'technical-manual-details':
         return selectedTechnicalManual ? <TechnicalManualDetails manual={selectedTechnicalManual} onEdit={() => setCurrentScreen('technical-manual-edit')} onDelete={handleDeleteTechnicalManual} onSelectAsset={async (assetId) => { try { const asset = await dataService.getAssetById(assetId); if (asset) handleAssetSelect(asset); } catch (e) { console.error(e); } }} /> : null;
+      case 'asset-loan-checklist-types':
+        return <AssetLoanChecklistTypesList onAdd={() => setCurrentScreen('asset-loan-checklist-type-form')} onSelect={(item) => { setSelectedChecklistType(item); setCurrentScreen('asset-loan-checklist-type-edit'); }} />;
+      case 'asset-loan-checklist-type-form':
+        return <AssetLoanChecklistTypeForm onSave={() => setCurrentScreen('asset-loan-checklist-types')} onCancel={handleBack} />;
+      case 'asset-loan-checklist-type-edit':
+        return selectedChecklistType ? <AssetLoanChecklistTypeForm item={selectedChecklistType} onSave={() => setCurrentScreen('asset-loan-checklist-types')} onCancel={handleBack} /> : null;
+      case 'loans-checklists':
+        return <LoansChecklistsList onAdd={() => setCurrentScreen('loans-checklist-form')} onSelect={(item) => { setSelectedLoansChecklist(item); setCurrentScreen('loans-checklist-edit'); }} />;
+      case 'loans-checklist-form':
+        return <LoansChecklistForm onSave={() => setCurrentScreen('loans-checklists')} onCancel={handleBack} />;
+      case 'loans-checklist-edit':
+        return selectedLoansChecklist ? <LoansChecklistForm item={selectedLoansChecklist} onSave={() => setCurrentScreen('loans-checklists')} onCancel={handleBack} /> : null;
       case 'app-notices':
         return <AppNoticesList onBack={handleBack} />;
       case 'app-tips':
@@ -2915,6 +2943,12 @@ const AppContent: React.FC = () => {
       case 'technical-manual-form': return 'Novo Manual';
       case 'technical-manual-edit': return 'Editar Manual';
       case 'technical-manual-details': return 'Detalhes do Manual';
+      case 'asset-loan-checklist-types': return 'Checklists por Tipo de Ativo';
+      case 'asset-loan-checklist-type-form': return 'Novo Vínculo';
+      case 'asset-loan-checklist-type-edit': return 'Editar Vínculo';
+      case 'loans-checklists': return 'Itens de Checklist';
+      case 'loans-checklist-form': return 'Novo Item de Checklist';
+      case 'loans-checklist-edit': return 'Editar Item de Checklist';
       case 'notifications': return 'Notificações';
       case 'service-request-detail': return 'Detalhes da SS';
       case 'service-request-create': return selectedOrder?.id ? 'Edição SS' : 'Nova SS';

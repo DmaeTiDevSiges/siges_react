@@ -175,6 +175,20 @@ export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigat
                                 subtitle="Gerenciar marcas e modelos de ativos"
                                 onClick={() => onNavigate?.('asset-attributes-brands')}
                             />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="checklist"
+                                title="Empréstimos: Itens Checklist"
+                                subtitle="Criar e gerenciar itens de checklist"
+                                onClick={() => onNavigate?.('loans-checklists')}
+                            />
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="link"
+                                title="Empréstimos: Checklists por Tipo de Ativo"
+                                subtitle="Vincular itens de checklist a tipos de ativo"
+                                onClick={() => onNavigate?.('asset-loan-checklist-types')}
+                            />
                         </div>
                     </div>
 

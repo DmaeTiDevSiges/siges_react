@@ -307,13 +307,25 @@ export const assetTagsService = {
             ? await supabase.from('units').select('latitude, longitude, client_id').eq('id', item.unit_id).single()
             : { data: null };
 
+        let clientName: string | null = null;
+        const clientId = item.client_id ?? unitData?.client_id ?? null;
+        if (clientId) {
+            const { data: clientData } = await supabase
+                .from('clients')
+                .select('name')
+                .eq('id', clientId)
+                .single();
+            clientName = clientData?.name ?? null;
+        }
+
         const companyLogoUrl = item.last_provider_company_file_path && item.last_provider_company_file_name
             ? getPublicImageUrl(item.last_provider_company_file_path, item.last_provider_company_file_name, { width: 100, height: 100, resize: 'contain' })
             : null;
 
         return {
             ...item,
-            client_id: item.client_id ?? unitData?.client_id ?? null,
+            client_id: clientId,
+            client_name: clientName,
             isAvailable: item.last_is_available ?? null,
             last_reported_by_name: item.last_user_full_name || item.last_user_name,
             last_reported_user_name_short: item.last_reported_user_name_short,

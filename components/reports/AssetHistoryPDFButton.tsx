@@ -67,12 +67,12 @@ export const AssetHistoryPDFButton = ({ asset, history, className }: AssetHistor
             onClick={handleGeneratePDF}
             disabled={isGenerating || history.length === 0}
             title={history.length === 0 ? 'Nenhum histórico para exportar' : 'Exportar histórico em PDF'}
-            className={`flex items-center gap-2 px-4 py-1.5 bg-slate-800/40 border border-slate-700 text-slate-300 rounded-full hover:bg-slate-700 disabled:opacity-50 transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm ${isGenerating ? 'animate-pulse' : ''} ${className || ''}`}
+            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${isGenerating ? 'animate-pulse' : ''} ${className || ''}`}
         >
             {isGenerating ? (
                 <Loading size="xs" />
             ) : (
-                <FaFilePdf size={12} className="text-red-500" />
+                <FaFilePdf className="text-[14px]" />
             )}
             <span>PDF {history.length > 0 ? `(${history.length})` : ''}</span>
         </button>

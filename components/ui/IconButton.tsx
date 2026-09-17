@@ -17,7 +17,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
     ariaLabel,
     ...props
 }) => {
-    const baseClasses = "flex items-center justify-center rounded-full transition-all duration-200 active:scale-[0.97] active:brightness-95 font-bold flex-shrink-0 cursor-pointer select-none";
+    const baseClasses = "flex items-center justify-center rounded-full transition-all duration-200 active:scale-[0.97] active:brightness-95 font-bold flex-shrink-0 cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 disabled:active:brightness-100";
 
     const variants = {
         ghost: "text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800",

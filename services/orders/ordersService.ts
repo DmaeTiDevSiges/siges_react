@@ -1797,7 +1797,21 @@ export const ordersService = {
         });
 
         const ssSectorMap: Record<string, { id: string, label: string, count: number }> = {};
-        const sectorDataList = ssDataList;
+        const selectedPeriod = (ssFiltersOverride || filters)?.period;
+        let sectorDataList = ssDataList;
+        if (selectedPeriod && selectedPeriod !== 'Todas') {
+            sectorDataList = ssDataList.filter((o: any) => {
+                const d = parseDate(o.requested_at);
+                if (!d) return false;
+                if (selectedPeriod === 'Hoje') return d >= today;
+                if (selectedPeriod === 'Ontem') return d >= yesterday && d < today;
+                if (selectedPeriod === '2-7 dias') return d >= sevenDaysAgo && d < yesterday;
+                if (selectedPeriod === '8-15 dias') return d >= fifteenDaysAgo && d < sevenDaysAgo;
+                if (selectedPeriod === '16-30 dias') return d >= thirtyDaysAgo && d < fifteenDaysAgo;
+                if (selectedPeriod === '> 30 dias') return d < thirtyDaysAgo;
+                return true;
+            });
+        }
 
         sectorDataList.forEach((o: any) => {
             const id = o.asset_tag_id ? o.asset_tag_id.toString() : 'null';
@@ -1839,6 +1853,37 @@ export const ordersService = {
             .select('*')
             .eq('status_id', 1)
             .is('parent_id', null);
+
+        // Handle period filter
+        if (filters?.period && !filters?.startDate && !filters?.endDate) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const fifteenDaysAgo = new Date(today);
+            fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const toISODate = (d: Date) => d.toISOString().split('T')[0];
+
+            if (filters.period === 'Hoje') {
+                query = query.gte('requested_at', `${toISODate(today)}T00:00:00`);
+            } else if (filters.period === 'Ontem') {
+                query = query.gte('requested_at', `${toISODate(yesterday)}T00:00:00`).lt('requested_at', `${toISODate(today)}T00:00:00`);
+            } else if (filters.period === '2-7 dias') {
+                query = query.gte('requested_at', `${toISODate(sevenDaysAgo)}T00:00:00`).lt('requested_at', `${toISODate(yesterday)}T00:00:00`);
+            } else if (filters.period === '8-15 dias') {
+                query = query.gte('requested_at', `${toISODate(fifteenDaysAgo)}T00:00:00`).lt('requested_at', `${toISODate(sevenDaysAgo)}T00:00:00`);
+            } else if (filters.period === '16-30 dias') {
+                query = query.gte('requested_at', `${toISODate(thirtyDaysAgo)}T00:00:00`).lt('requested_at', `${toISODate(fifteenDaysAgo)}T00:00:00`);
+            } else if (filters.period === '> 30 dias') {
+                query = query.lt('requested_at', `${toISODate(thirtyDaysAgo)}T00:00:00`);
+            }
+            // 'Todas' = no date filter
+        }
 
         if (filters?.startDate) {
             query = query.gte('requested_at', `${filters.startDate}T00:00:00`);
