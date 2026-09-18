@@ -24,6 +24,7 @@ interface AlertFilters {
     tagSubName?: string[];
     orderTypeName?: string[];
     priorityName?: string[];
+    assetTypeName?: string[];
 }
 
 interface SelectionModal {
@@ -77,6 +78,7 @@ export const AssetsAlerts: React.FC<AssetsAlertsProps> = ({ onSelectAsset, onSel
             positions: extract('tagSubName'),
             orderTypes: extract('orderTypeName'),
             priorities: extract('priorityName'),
+            assetTypes: extract('assetTypeName'),
         };
     }, [alerts]);
 
@@ -93,6 +95,7 @@ export const AssetsAlerts: React.FC<AssetsAlertsProps> = ({ onSelectAsset, onSel
             if (f.tagSubName?.length && !f.tagSubName.includes(alert.tagSubName || '')) return false;
             if (f.orderTypeName?.length && !f.orderTypeName.includes(alert.orderTypeName || '')) return false;
             if (f.priorityName?.length && !f.priorityName.includes(alert.priorityName || '')) return false;
+            if (f.assetTypeName?.length && !f.assetTypeName.includes(alert.assetTypeName || '')) return false;
 
             return true;
         });
@@ -249,6 +252,12 @@ export const AssetsAlerts: React.FC<AssetsAlertsProps> = ({ onSelectAsset, onSel
                             value={advancedFilters.priorityName || []}
                             onClick={() => openSelectionModal('priorityName', 'PRIORIDADE', uniqueOptions.priorities)}
                             onClear={() => setAdvancedFilters(prev => ({ ...prev, priorityName: [] }))}
+                        />
+                        <FilterSelect
+                            label="TIPO ATIVO"
+                            value={advancedFilters.assetTypeName || []}
+                            onClick={() => openSelectionModal('assetTypeName', 'TIPO ATIVO', uniqueOptions.assetTypes)}
+                            onClear={() => setAdvancedFilters(prev => ({ ...prev, assetTypeName: [] }))}
                         />
                     </div>
                 </div>

@@ -8,14 +8,14 @@ const C = {
     primary: '#003B71',
     headerBg: '#003B71',
     headerText: '#FFFFFF',
-    rowEven: '#F7FAFC',
-    rowOdd: '#FFFFFF',
     border: '#D1D5DB',
     text: '#1F2937',
     textMuted: '#6B7280',
     footerText: '#A0B4CC',
-    totalRow: '#EBF5FB',
-    totalText: '#003B71',
+    groupBg: '#EBF5FB',
+    groupBorder: '#003B71',
+    alertRowEven: '#F8FAFC',
+    alertRowOdd: '#FFFFFF',
 };
 
 // ---------------------------------------------------------------------------
@@ -58,17 +58,36 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         paddingHorizontal: 2,
     },
-    tableRow: {
+    th: { fontSize: 6.5, fontWeight: 'bold', color: C.headerText },
+    td: { fontSize: 6.5, color: C.text },
+
+    // ── Group Header ────────────────────────────────────────────────────────
+    groupHeader: {
         flexDirection: 'row',
-        paddingVertical: 3.5,
+        backgroundColor: C.groupBg,
+        paddingVertical: 4,
         paddingHorizontal: 2,
+        borderTopWidth: 1,
+        borderTopColor: C.groupBorder,
         borderBottomWidth: 0.5,
         borderBottomColor: C.border,
     },
-    tableRowEven: { backgroundColor: C.rowEven },
-    tableRowOdd: { backgroundColor: C.rowOdd },
-    th: { fontSize: 6.5, fontWeight: 'bold', color: C.headerText },
-    td: { fontSize: 6.5, color: C.text },
+    groupTd: { fontSize: 6.5, fontWeight: 'bold', color: C.primary },
+    groupSub: { fontSize: 6, color: C.textMuted, marginTop: 1 },
+
+    // ── Alert Row ───────────────────────────────────────────────────────────
+    alertRow: {
+        flexDirection: 'row',
+        paddingVertical: 3,
+        paddingHorizontal: 2,
+        borderBottomWidth: 0.5,
+        borderBottomColor: C.border,
+        paddingLeft: 6,
+    },
+    alertRowEven: { backgroundColor: C.alertRowEven },
+    alertRowOdd: { backgroundColor: C.alertRowOdd },
+    alertTd: { fontSize: 6.5, color: C.text },
+    alertTdDesc: { fontSize: 6.5, color: C.text, paddingLeft: 4 },
 
     // ── Footer ───────────────────────────────────────────────────────────────
     footer: {
@@ -121,12 +140,10 @@ const fmtDate = (val?: string) => {
 
 // Column widths — must sum to 100%
 const COL = {
-    ativo: '16%',
-    unidade: '15%',
-    setor: '15%',
-    alerta: '26%',
-    prioridade: '10%',
-    status: '8%',
+    ativo: '30%',
+    alerta: '30%',
+    prioridade: '14%',
+    situacao: '10%',
     data: '10%',
 };
 
@@ -137,6 +154,28 @@ export const AssetsAlertsListDocument = ({ alerts, generatedAt, logoBase64, titl
     const now = new Date();
     const genStr = generatedAt || `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
+    // Group alerts by assetCode + unitDescription + tagStr
+    const groups = React.useMemo(() => {
+        const map = new Map<string, { key: string; assetCode?: string; assetDescription?: string; unitDescription?: string; tagStr?: string; alerts: AssetAlertListRow[] }>();
+        for (const a of alerts) {
+            const groupKey = `${a.assetCode || ''}|${a.unitDescription || ''}|${a.tagStr || ''}`;
+            if (!map.has(groupKey)) {
+                map.set(groupKey, {
+                    key: groupKey,
+                    assetCode: a.assetCode,
+                    assetDescription: a.assetDescription,
+                    unitDescription: a.unitDescription,
+                    tagStr: a.tagStr,
+                    alerts: [],
+                });
+            }
+            map.get(groupKey)!.alerts.push(a);
+        }
+        return Array.from(map.values());
+    }, [alerts]);
+
+    const totalGroups = groups.length;
+
     return (
         <Document title={titleStr}>
             <Page size="A4" orientation="landscape" style={styles.page}>
@@ -146,7 +185,7 @@ export const AssetsAlertsListDocument = ({ alerts, generatedAt, logoBase64, titl
                     <View style={styles.header}>
                         <View>
                             <Text style={styles.title}>{titleStr}</Text>
-                            <Text style={styles.subtitle}>{alerts.length} alerta(s)</Text>
+                            <Text style={styles.subtitle}>{alerts.length} alerta(s) em {totalGroups} ativo(s)</Text>
                         </View>
                         {logoBase64 ? <Image src={logoBase64} style={styles.logo} /> : null}
                     </View>
@@ -159,32 +198,46 @@ export const AssetsAlertsListDocument = ({ alerts, generatedAt, logoBase64, titl
                     {/* Table Header */}
                     <View style={styles.tableHeaderRow} fixed>
                         <Text style={[styles.th, { width: COL.ativo }]}>ATIVO</Text>
-                        <Text style={[styles.th, { width: COL.unidade }]}>UNIDADE</Text>
-                        <Text style={[styles.th, { width: COL.setor }]}>SETOR</Text>
                         <Text style={[styles.th, { width: COL.alerta }]}>ALERTA / DESCRIÇÃO</Text>
                         <Text style={[styles.th, { width: COL.prioridade }]}>PRIORIDADE / TIPO</Text>
-                        <Text style={[styles.th, { width: COL.status }]}>STATUS</Text>
+                        <Text style={[styles.th, { width: COL.situacao }]}>SITUAÇÃO</Text>
                         <Text style={[styles.th, { width: COL.data }]}>DATA</Text>
                     </View>
 
-                    {/* Table Rows */}
-                    {alerts.map((a, idx) => {
-                        const ativoStr = a.assetCode ? `${a.assetCode} - ${a.assetDescription || ''}` : (a.assetDescription || '—');
-                        const prioTypeStr = `${fmt(a.priorityName)}\n${fmt(a.orderTypeName, '')}`;
-                        
+                    {/* Grouped Rows */}
+                    {groups.map((group, gIdx) => {
+                        const ativoStr = group.assetCode ? `${group.assetCode} - ${group.assetDescription || ''}` : (group.assetDescription || '—');
+                        const subLine = [group.unitDescription, group.tagStr].filter(Boolean).join(' › ');
+
                         return (
-                            <View
-                                key={idx}
-                                style={[styles.tableRow, idx % 2 === 0 ? styles.tableRowEven : styles.tableRowOdd]}
-                                wrap={false}
-                            >
-                                <Text style={[styles.td, { width: COL.ativo }]}>{fmt(ativoStr)}</Text>
-                                <Text style={[styles.td, { width: COL.unidade }]}>{fmt(a.unitDescription)}</Text>
-                                <Text style={[styles.td, { width: COL.setor }]}>{fmt(a.tagStr)}</Text>
-                                <Text style={[styles.td, { width: COL.alerta }]}>{fmt(a.description)}</Text>
-                                <Text style={[styles.td, { width: COL.prioridade }]}>{prioTypeStr.trim()}</Text>
-                                <Text style={[styles.td, { width: COL.status }]}>{a.isDone ? 'Resolvido' : 'Aberto'}</Text>
-                                <Text style={[styles.td, { width: COL.data }]}>{a.isDone ? fmtDate(a.resolvedAt) : fmtDate(a.createdAt)}</Text>
+                            <View key={gIdx} wrap={false}>
+                                {/* Group Header Row */}
+                                <View style={styles.groupHeader}>
+                                    <View style={{ width: COL.ativo }}>
+                                        <Text style={styles.groupTd}>{fmt(ativoStr)}</Text>
+                                        {subLine ? <Text style={styles.groupSub}>{subLine}</Text> : null}
+                                    </View>
+                                    <Text style={[styles.groupTd, { width: COL.alerta + COL.prioridade + COL.situacao + COL.data }]}>
+                                        {group.alerts.length} alerta(s)
+                                    </Text>
+                                </View>
+
+                                {/* Alert sub-rows */}
+                                {group.alerts.map((a, aIdx) => {
+                                    const prioTypeStr = `${fmt(a.priorityName)}\n${fmt(a.orderTypeName, '')}`;
+                                    return (
+                                        <View
+                                            key={aIdx}
+                                            style={[styles.alertRow, aIdx % 2 === 0 ? styles.alertRowEven : styles.alertRowOdd]}
+                                        >
+                                            <Text style={[styles.td, { width: COL.ativo }]} />
+                                            <Text style={[styles.alertTdDesc, { width: COL.alerta }]}>{fmt(a.description)}</Text>
+                                            <Text style={[styles.alertTd, { width: COL.prioridade }]}>{prioTypeStr.trim()}</Text>
+                                            <Text style={[styles.alertTd, { width: COL.situacao }]}>{a.isDone ? 'Resolvido' : 'Aberto'}</Text>
+                                            <Text style={[styles.alertTd, { width: COL.data }]}>{a.isDone ? fmtDate(a.resolvedAt) : fmtDate(a.createdAt)}</Text>
+                                        </View>
+                                    );
+                                })}
                             </View>
                         );
                     })}

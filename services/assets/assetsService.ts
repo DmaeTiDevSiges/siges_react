@@ -794,6 +794,7 @@ export const assetsService = {
                 clientName: clientByAssetId.get(item.asset_id?.toString()) || assetData?.client_name || assetData?.client_description,
                 tagName: assetData?.tag_name || assetData?.tag_description || assetData?.asset_tag_description || assetData?.unit_asset_tag_description,
                 tagSubName: assetData?.tag_sub_name || assetData?.tag_sub_description || assetData?.asset_tag_sub_description || assetData?.unit_asset_tag_sub_description,
+                assetTypeName: assetData?.type_description,
                 resolvedAt,
                 orderId: item.orders?.id?.toString() || null,
                 orderMask: item.orders?.order_mask || null,

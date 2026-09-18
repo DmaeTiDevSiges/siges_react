@@ -660,6 +660,7 @@ export interface AssetAlert {
   imgFilePath?: string;
   imgFileName?: string;
   systemParentName?: string;
+  assetTypeName?: string;
 
   // Link to OS
   orderId?: string;
