@@ -58,8 +58,8 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         paddingHorizontal: 2,
     },
-    th: { fontSize: 6.5, fontWeight: 'bold', color: C.headerText },
-    td: { fontSize: 6.5, color: C.text },
+    th: { fontSize: 6.5, fontWeight: 'bold', color: C.headerText, paddingHorizontal: 6 },
+    td: { fontSize: 6.5, color: C.text, paddingHorizontal: 6 },
 
     // ── Group Header ────────────────────────────────────────────────────────
     groupHeader: {
@@ -72,8 +72,8 @@ const styles = StyleSheet.create({
         borderBottomWidth: 0.5,
         borderBottomColor: C.border,
     },
-    groupTd: { fontSize: 6.5, fontWeight: 'bold', color: C.primary },
-    groupSub: { fontSize: 6, color: C.textMuted, marginTop: 1 },
+    groupTd: { fontSize: 6.5, fontWeight: 'bold', color: C.primary, paddingHorizontal: 6 },
+    groupSub: { fontSize: 6, color: C.textMuted, marginTop: 1, paddingHorizontal: 6 },
 
     // ── Alert Row ───────────────────────────────────────────────────────────
     alertRow: {
@@ -86,8 +86,8 @@ const styles = StyleSheet.create({
     },
     alertRowEven: { backgroundColor: C.alertRowEven },
     alertRowOdd: { backgroundColor: C.alertRowOdd },
-    alertTd: { fontSize: 6.5, color: C.text },
-    alertTdDesc: { fontSize: 6.5, color: C.text, paddingLeft: 4 },
+    alertTd: { fontSize: 6.5, color: C.text, paddingHorizontal: 6 },
+    alertTdDesc: { fontSize: 6.5, color: C.text, paddingLeft: 10, paddingRight: 6 },
 
     // ── Footer ───────────────────────────────────────────────────────────────
     footer: {
@@ -119,6 +119,7 @@ export interface AssetAlertListRow {
     isDone?: boolean;
     createdAt?: string;
     resolvedAt?: string;
+    location?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -139,9 +140,10 @@ const fmtDate = (val?: string) => {
 };
 
 // Column widths — must sum to 100%
+// ATIVO and ALERTA/DESCRIÇÃO are flexible, the rest are fixed to the right
 const COL = {
-    ativo: '30%',
-    alerta: '30%',
+    ativo: '28%',
+    alerta: '38%',
     prioridade: '14%',
     situacao: '10%',
     data: '10%',
@@ -156,7 +158,7 @@ export const AssetsAlertsListDocument = ({ alerts, generatedAt, logoBase64, titl
 
     // Group alerts by assetCode + unitDescription + tagStr
     const groups = React.useMemo(() => {
-        const map = new Map<string, { key: string; assetCode?: string; assetDescription?: string; unitDescription?: string; tagStr?: string; alerts: AssetAlertListRow[] }>();
+        const map = new Map<string, { key: string; assetCode?: string; assetDescription?: string; unitDescription?: string; tagStr?: string; location?: string; alerts: AssetAlertListRow[] }>();
         for (const a of alerts) {
             const groupKey = `${a.assetCode || ''}|${a.unitDescription || ''}|${a.tagStr || ''}`;
             if (!map.has(groupKey)) {
@@ -166,6 +168,7 @@ export const AssetsAlertsListDocument = ({ alerts, generatedAt, logoBase64, titl
                     assetDescription: a.assetDescription,
                     unitDescription: a.unitDescription,
                     tagStr: a.tagStr,
+                    location: a.location,
                     alerts: [],
                 });
             }
@@ -216,6 +219,7 @@ export const AssetsAlertsListDocument = ({ alerts, generatedAt, logoBase64, titl
                                     <View style={{ width: COL.ativo }}>
                                         <Text style={styles.groupTd}>{fmt(ativoStr)}</Text>
                                         {subLine ? <Text style={styles.groupSub}>{subLine}</Text> : null}
+                                        {group.location ? <Text style={styles.groupSub}>{group.location}</Text> : null}
                                     </View>
                                     <Text style={[styles.groupTd, { width: COL.alerta + COL.prioridade + COL.situacao + COL.data }]}>
                                         {group.alerts.length} alerta(s)

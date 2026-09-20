@@ -795,6 +795,7 @@ export const assetsService = {
                 tagName: assetData?.tag_name || assetData?.tag_description || assetData?.asset_tag_description || assetData?.unit_asset_tag_description,
                 tagSubName: assetData?.tag_sub_name || assetData?.tag_sub_description || assetData?.asset_tag_sub_description || assetData?.unit_asset_tag_sub_description,
                 assetTypeName: assetData?.type_description,
+                location: assetData?.location,
                 resolvedAt,
                 orderId: item.orders?.id?.toString() || null,
                 orderMask: item.orders?.order_mask || null,

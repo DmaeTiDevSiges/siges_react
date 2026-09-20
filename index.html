@@ -7,8 +7,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://storage.googleapis.com; worker-src 'self' blob: data:; child-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https: wss: blob: data:;">
+    <!-- Content Security Policy. Cloudflare challenge/beacon hosts are allowlisted so the
+         Managed Challenge ("Verificando se você é humano") and Turnstile can load their
+         scripts/iframes. Without them the challenge spins forever on mobile UAs. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://storage.googleapis.com https://challenges.cloudflare.com https://ajax.cloudflare.com https://static.cloudflareinsights.com; worker-src 'self' blob: data:; child-src 'self' blob: https://challenges.cloudflare.com; frame-src 'self' blob: https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https: wss: blob: data: https://challenges.cloudflare.com https://cloudflareinsights.com;">
     <!-- Updated viewport settings for better keyboard handling on mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <title>SIGES - Sistema de Gestão de Serviços</title>
@@ -69,8 +71,13 @@
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
+        // Single service-worker registration (scope "/"). UpdateNotifier.tsx must NOT
+        // register a second SW (it used to register /sw-update.js, same scope — the two
+        // registrations raced and clients could end up with a stale cache). updateViaCache
+        // "none" guarantees the browser revalidates sw.js on every navigation, so a new
+        // deploy's hashed chunks are picked up instead of serving stale index.html.
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(function() {});
+            navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function() {});
         }
     </script>
 </body>

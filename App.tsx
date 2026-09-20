@@ -18,13 +18,59 @@ import { LoginScreen } from './views/Users/LoginScreen';
 import { Toaster, toast } from 'sonner';
 import { Company, Client, Department, Team, User, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Contract, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, Asset, UserNotification, Order, OrderVisit, OrderVisitAssetView } from './types';
 
+export function isChunkLoadError(err: unknown): boolean {
+  const msg =
+    (err instanceof Error ? `${err.name}: ${err.message}` : String(err)) +
+    ((err as { stack?: string })?.stack || '');
+  return (
+    msg.includes('Failed to fetch dynamically imported module') ||
+    msg.includes('Importing a module script failed') ||
+    msg.includes('Loading chunk') ||
+    msg.includes('Loading CSS chunk') ||
+    msg.includes('ChunkLoadError')
+  );
+}
+
+function forceCleanReloadOnce(): boolean {
+  // A new deploy deletes old hashed chunks (e.g. OrdersRequestsDashboardAdmin-<old>.js).
+  // A client holding a stale index.html/SW cache retries the SAME dead URL forever,
+  // so retrying import() is useless — reload once (guarded) to fetch the new index.html.
+  try {
+    const key = 'siges-chunk-reload';
+    if (sessionStorage.getItem(key)) return false;
+    sessionStorage.setItem(key, String(Date.now()));
+  } catch {
+    // sessionStorage unavailable (private mode) — still reload, ErrorBoundary guards loops.
+  }
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('t', Date.now().toString());
+    window.location.replace(url.toString());
+  } catch {
+    window.location.reload();
+  }
+  return true;
+}
+
 function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any> }>, retries = 2) {
   return React.lazy(() => {
     return new Promise<{ default: React.ComponentType<any> }>((resolve, reject) => {
       const attempt = (remaining: number) => {
         factory()
-          .then(resolve)
+          .then((mod) => {
+            try {
+              sessionStorage.removeItem('siges-chunk-reload');
+            } catch {}
+            resolve(mod);
+          })
           .catch((err) => {
+            if (isChunkLoadError(err)) {
+              // Stale hashed chunk (new deploy) or Cloudflare challenge HTML served
+              // as JS: retrying the URL won't help — do one clean reload.
+              if (forceCleanReloadOnce()) return;
+              reject(err);
+              return;
+            }
             if (remaining > 0) {
               setTimeout(() => attempt(remaining - 1), 1000);
             } else {

@@ -42,7 +42,8 @@ export const AssetsAlertsPDFButton: React.FC<AssetsAlertsPDFButtonProps> = ({
                 description: a.description,
                 isDone: a.isDone,
                 createdAt: a.createdAt,
-                resolvedAt: a.resolvedAt
+                resolvedAt: a.resolvedAt,
+                location: a.location,
             }));
 
             // Get company logo in base64

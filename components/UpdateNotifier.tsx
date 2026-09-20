@@ -90,14 +90,10 @@ const UpdateNotifier: React.FC = () => {
             return;
         }
 
-        // Register a lightweight service worker for PWA update flows (non-blocking)
-        if ('serviceWorker' in navigator) {
-            try {
-                navigator.serviceWorker.register('/sw-update.js').catch(() => {});
-            } catch (e) {
-                // ignore
-            }
-        }
+        // NOTE: service worker is registered once in index.html (/sw.js, scope "/").
+        // Do NOT register /sw-update.js here — a second registration on the same
+        // scope races with /sw.js and can leave clients with a stale cache
+        // (stale index.html -> "Failed to fetch dynamically imported module").
 
         const checkVersion = async () => {
             try {
