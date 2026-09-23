@@ -1,7 +1,6 @@
 import { supabase } from '../supabase';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { r2Service } from '../r2Service';
-import { compressForUpload } from '../imageCompressionService';
 import type { Order, User, OrderFilters, SuspendedReason, CauseReason, ServiceHistoryItem, AssetAlert } from '../../types';
 import { getPublicImageUrl } from '../imageUtils';
 import { usersService } from '../users/usersService';
@@ -210,27 +209,31 @@ export const ordersService = {
     },
 
     async uploadOrderImage(companyId: string, orderId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
-        const compressed = await compressForUpload(file);
-        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
-        const fileExt = uploadFile.name.split('.').pop();
         const uniqueSuffix = Math.random().toString(36).substring(7);
-        const fileName = `${Date.now()}-${uniqueSuffix}.${fileExt}`;
+        const fileName = `${Date.now()}-${uniqueSuffix}.webp`;
         const folderPath = `companies/${companyId}/orders/${orderId}/images`;
         const fullPath = `${folderPath}/${fileName}`;
 
-        await r2Service.uploadFile(uploadFile, fullPath, onProgress);
+        const result = await r2Service.uploadImageWithVariants(file, fullPath, onProgress);
 
-        return { path: folderPath, filename: fileName };
+        return { path: folderPath, filename: result.filename };
     },
 
     async copyImagesFromOrderToOrder(srcCompanyId: string, srcOrderId: string, destCompanyId: string, destOrderId: string, files: string[]): Promise<void> {
         const srcFolder = `companies/${srcCompanyId}/orders/${srcOrderId}/images`;
         const destFolder = `companies/${destCompanyId}/orders/${destOrderId}/images`;
 
-        if (r2Service.isR2Configured()) {
-            const promises = files.map(filename => {
-                return r2Service.copyFile(`${srcFolder}/${filename}`, `${destFolder}/${filename}`);
+        const { addVariantToPath } = await import('../imageUtils');
+        const allKeys = (folder: string) =>
+            files.flatMap((filename) => {
+                const base = `${folder}/${filename}`;
+                return [base, addVariantToPath(base, 'thumb'), addVariantToPath(base, 'medium')];
             });
+
+        if (r2Service.isR2Configured()) {
+            const keys = allKeys(destFolder);
+            const srcKeys = allKeys(srcFolder);
+            const promises = srcKeys.map((srcKey, i) => r2Service.copyFile(srcKey, keys[i]).catch(() => undefined));
             await Promise.all(promises);
         } else {
             const bucketName = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'siges';

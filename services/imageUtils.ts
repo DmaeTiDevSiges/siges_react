@@ -14,6 +14,46 @@ export interface PublicImageUrlOptions {
     cacheBust?: number;
 }
 
+export type ImageVariant = 'original' | 'thumb' | 'medium';
+
+/**
+ * Insere o sufixo de variante antes da extensão final.
+ * `companies/1/a.webp` → `companies/1/a.thumb.webp` (idempotente).
+ */
+export function addVariantToPath(filePath: string, variant: ImageVariant): string {
+    if (!filePath || variant === 'original') return filePath;
+    const stripped = filePath.replace(/\.(thumb|medium)(\.[^./?]+)$/, '$1');
+    return stripped.replace(/(\.[^./?]+)$/, `.${variant}$1`);
+}
+
+/**
+ * Deriva a URL de uma variante pré-gerada a partir da URL do original.
+ * Imagens locais (blob/data) e 'original' retornam sem alteração.
+ * Imagens antigas sem variante farão 404 — o consumidor deve ter fallback.
+ */
+export function getVariantUrl(url: string, variant: ImageVariant): string {
+    if (!url || variant === 'original') return url;
+    if (url.startsWith('blob:') || url.startsWith('data:')) return url;
+
+    const qIndex = url.indexOf('?');
+    const query = qIndex >= 0 ? url.slice(qIndex) : '';
+    const pathPart = qIndex >= 0 ? url.slice(0, qIndex) : url;
+    return addVariantToPath(pathPart, variant) + query;
+}
+
+/**
+ * Gera srcSet a partir das variantes pré-geradas (thumb/medium/original).
+ * Retorna undefined para URLs locais.
+ */
+export function buildVariantSrcSet(url: string): string | undefined {
+    if (!url || url.startsWith('blob:') || url.startsWith('data:')) return undefined;
+    return [
+        `${getVariantUrl(url, 'thumb')} 400w`,
+        `${getVariantUrl(url, 'medium')} 800w`,
+        `${url} 1600w`,
+    ].join(', ');
+}
+
 /**
  * Gera URL pública para imagem no Supabase Storage ou Cloudflare R2.
  * Extração de dataService.getPublicImageUrl para evitar dependências circulares.

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ManusVisit, ManusReport, ManusImage } from '../../types/manus';
+import { OptimizedImage } from '../ui/OptimizedImage';
 
 interface ImageClassification {
     reportIndex: number;
@@ -109,10 +110,12 @@ export const ManusImageSelectionModal: React.FC<ManusImageSelectionModalProps> =
                                         <div key={iIdx} className="flex gap-4 p-3 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-white/5 items-center">
                                             {/* Thumbnail */}
                                             <div className="w-[100px] h-[100px] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200 dark:border-white/10">
-                                                <img 
-                                                    src={imgUrl} 
-                                                    alt="Manus" 
+                                                <OptimizedImage
+                                                    src={imgUrl}
+                                                    alt="Manus"
+                                                    preset="thumbnail"
                                                     className="w-full h-full object-cover"
+                                                    useSrcSet={false}
                                                 />
                                             </div>
 

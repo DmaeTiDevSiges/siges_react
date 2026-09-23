@@ -808,7 +808,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                     </div>
                                     {/* Avatar da empresa */}
                                     {company.logoUrl && !company.logoUrl.includes('placeholder') ? (
-                                        <img src={company.logoUrl} alt={company.name} className="w-10 h-10 rounded-xl object-cover border-2 border-white/30" />
+                                        <OptimizedImage src={company.logoUrl} alt={company.name} preset="thumbnail" className="w-10 h-10 rounded-xl object-cover border-2 border-white/30" useSrcSet={false} />
                                     ) : (
                                         <div className="w-10 h-10 rounded-xl bg-slate-700 border-2 border-white/30 flex items-center justify-center">
                                             <span className="material-symbols-outlined text-white/70 text-[20px]">apartment</span>
@@ -1005,10 +1005,12 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                                     return (
                                                         <div className="relative group/leader">
                                                             {leaderTeam.userAvatarUrl ? (
-                                                                <img
+                                                                <OptimizedImage
                                                                     src={leaderTeam.userAvatarUrl}
                                                                     alt={leaderTeam.userName}
+                                                                    preset="thumbnail"
                                                                     className="h-5 w-5 rounded-full object-cover ring-2 shadow-sm"
+                                                                    useSrcSet={false}
                                                                     style={{ borderColor: borderColor, outline: `2px solid ${borderColor}` }}
                                                                 />
                                                             ) : (

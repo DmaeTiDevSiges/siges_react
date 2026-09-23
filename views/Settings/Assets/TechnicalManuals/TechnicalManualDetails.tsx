@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { TechnicalManual, TechnicalManualFile, TechnicalManualAsset, TechnicalManualCategory } from '../../../../types';
 import { dataService } from '../../../../services/dataService';
 import { getPublicImageUrl } from '../../../../services/imageUtils';
+import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { Button } from '../../../../components/ui/Button';
 import { SearchInput } from '../../../../components/ui/SearchInput';
 import { Select } from '../../../../components/ui/Select';
@@ -418,10 +419,11 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                                             {/* Image Preview */}
                                             {isImage && (
                                                 <div className="w-full h-40 bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                                    <img
+                                                    <OptimizedImage
                                                         src={getPublicImageUrl(file.docFilePath, file.docFileName, { width: 600, height: 300, resize: 'cover' })}
                                                         alt={file.docFileName}
                                                         className="w-full h-full object-cover"
+                                                        preset="medium"
                                                     />
                                                 </div>
                                             )}

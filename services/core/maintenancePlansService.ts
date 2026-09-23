@@ -556,26 +556,23 @@ export const maintenancePlansService = {
     },
 
     async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
-        let fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpeg';
-        if (fileExt === 'jpg') fileExt = 'jpeg';
-
         const uniqueSuffix = Math.random().toString(36).substring(7);
-        
+
         const cleanOvAssetId = String(ovAssetId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
         const cleanActivityId = String(activityId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
         const cleanCompanyId = String(companyId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
         const cleanAssetId = String(assetId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
 
-        const fileName = `checklist_${cleanOvAssetId}_${cleanActivityId}_${Date.now()}_${uniqueSuffix}.${fileExt}`;
-        
-        const folderPath = (cleanCompanyId && cleanAssetId && cleanCompanyId !== 'undefined' && cleanAssetId !== 'undefined') 
-            ? `companies/${cleanCompanyId}/assets/${cleanAssetId}` 
+        const fileName = `checklist_${cleanOvAssetId}_${cleanActivityId}_${Date.now()}_${uniqueSuffix}.webp`;
+
+        const folderPath = (cleanCompanyId && cleanAssetId && cleanCompanyId !== 'undefined' && cleanAssetId !== 'undefined')
+            ? `companies/${cleanCompanyId}/assets/${cleanAssetId}`
             : `checklist/${cleanOvAssetId}/${cleanActivityId}`;
-            
+
         const fullPath = `${folderPath}/${fileName}`.replace(/\s+/g, '_');
 
-        await r2Service.uploadFile(file, fullPath, onProgress);
-        return { path: folderPath, filename: fileName };
+        const result = await r2Service.uploadImageWithVariants(file, fullPath, onProgress);
+        return { path: folderPath, filename: result.filename };
     },
 
     async removeChecklistImage(ovAssetId: string, planId: string, activityId: string, fileName: string, userId: string): Promise<OrderVisitAssetActivity | null> {

@@ -6,6 +6,7 @@ import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';
 import { FilterSelect } from '../../components/ui/FilterSelect';
 import { FilterSelectionContent } from '../../components/ui/FilterSelectionContent';
+import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { toast } from 'sonner';
 
 interface DashboardAdminContractsEvaluationsRequirementsProps {
@@ -662,9 +663,11 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                                                 {/* Left: Company Avatar & Code */}
                                                 <div className="flex items-center gap-2 min-w-0" title={companyCode}>
                                                     {companyLogo ? (
-                                                        <img
+                                                        <OptimizedImage
                                                             src={companyLogo}
                                                             alt={companyCode}
+                                                            preset="thumbnail"
+                                                            useSrcSet={false}
                                                             className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm"
                                                         />
                                                     ) : (

@@ -112,6 +112,87 @@ export const compressForUpload = async (
     }
 };
 
+export interface ImageVariantFiles {
+    original: File | Blob;
+    medium: File | Blob;
+    thumb: File | Blob;
+}
+
+const MEDIUM_MAX_DIM = 800;
+const THUMB_MAX_DIM = 400;
+
+const encodeFromImage = async (
+    img: HTMLImageElement,
+    sourceFile: File | Blob,
+    maxDim: number,
+    quality: number,
+    format: 'webp' | 'jpeg'
+): Promise<File | Blob> => {
+    const { width, height } = calculateResize(img.naturalWidth, img.naturalHeight, maxDim);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D context indisponível');
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const mimeType = format === 'webp' ? 'image/webp' : 'image/jpeg';
+    const blob = await canvasToBlob(canvas, mimeType, quality);
+    if (!blob) throw new Error('canvas.toBlob retornou null');
+
+    if (sourceFile instanceof File) {
+        const ext = format === 'webp' ? 'webp' : 'jpg';
+        return new File([blob], `${sourceFile.name.replace(/\.[^.]+$/, '')}.${ext}`, {
+            type: mimeType,
+        });
+    }
+    return blob;
+};
+
+/**
+ * Gera original + medium (≤800) + thumb (≤400) com um único decode.
+ * Se a dimensão já está dentro do limite, reusa o blob do original.
+ */
+export const compressAndGenerateVariants = async (
+    file: File | Blob,
+    options?: CompressionOptions
+): Promise<ImageVariantFiles> => {
+    const opts = { ...DEFAULT_OPTIONS, ...options };
+
+    if (opts.skip || !shouldCompress(file)) {
+        return { original: file, medium: file, thumb: file };
+    }
+
+    try {
+        const img = await loadImage(file);
+        const original = await encodeFromImage(img, file, opts.maxDimension, opts.quality, opts.format);
+
+        const medium =
+            img.naturalWidth <= MEDIUM_MAX_DIM && img.naturalHeight <= MEDIUM_MAX_DIM
+                ? original
+                : await encodeFromImage(img, file, MEDIUM_MAX_DIM, 0.80, 'webp');
+
+        const thumb =
+            img.naturalWidth <= THUMB_MAX_DIM && img.naturalHeight <= THUMB_MAX_DIM
+                ? original
+                : await encodeFromImage(img, file, THUMB_MAX_DIM, 0.75, 'webp');
+
+        if (import.meta.env.DEV) {
+            const sizeOf = (f: File | Blob) => (f instanceof File ? f.size : (f as Blob).size);
+            console.log(
+                `[imageCompression] variants: original=${formatBytes(sizeOf(original))} ` +
+                `medium=${formatBytes(sizeOf(medium))} thumb=${formatBytes(sizeOf(thumb))} ` +
+                `| ${img.naturalWidth}x${img.naturalHeight}`
+            );
+        }
+
+        return { original, medium, thumb };
+    } catch (error) {
+        console.warn('[imageCompression] Falha ao gerar variantes — enviando original:', error);
+        return { original: file, medium: file, thumb: file };
+    }
+};
+
 /**
  * Compressão com opções pré-definidas para diferentes contextos.
  */
@@ -175,6 +256,7 @@ const formatBytes = (bytes: number): string => {
 
 export const imageCompressionService = {
     compressForUpload,
+    compressAndGenerateVariants,
     compressForThumbnail,
     compressForAvatar,
     compressPng,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Avatar } from './Avatar';
+import { OptimizedImage } from './OptimizedImage';
 
 export type UserStatus = 'available' | 'unavailable' | 'busy';
 
@@ -90,9 +91,11 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
                 imageClassName={imageClassName}
             />
             {badgeSrc && (
-                <img
+                <OptimizedImage
                     src={badgeSrc}
                     alt={badgeAlt}
+                    preset="thumbnail"
+                    useSrcSet={false}
                     className={`absolute -bottom-0.5 -right-0.5 ${badgeSizeClasses[size]} rounded-full object-cover border-2 border-white dark:border-slate-900 shadow-sm`}
                 />
             )}

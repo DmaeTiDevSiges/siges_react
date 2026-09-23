@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
-import { saveAs } from 'file-saver';
 import { FaFilePdf } from 'react-icons/fa';
 import { toast } from 'sonner';
 import { AssetDetailsDocument } from './AssetDetailsDocument';
 import { Asset, AssetAttribute } from '../../types';
+import { FileUtils } from '../../utils/FileUtils';
 import { Loading } from '../ui/Loading';
 
 interface PDFButtonProps {
@@ -41,7 +41,7 @@ export const AssetDetailsPDFButton = ({ asset, attributes, attributeValues, clas
                 />
             ).toBlob();
 
-            saveAs(blob, fileName);
+            await FileUtils.downloadFile(blob, fileName);
             toast.success('O download iniciará em instantes.', { id: toastId });
 
         } catch (error) {

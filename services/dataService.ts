@@ -1,7 +1,6 @@
 // Data Service for SIGES application
 import { supabase } from './supabase';
 import { r2Service } from './r2Service';
-import { compressForUpload } from './imageCompressionService';
 import { materialsService } from './materials/materialsService';
 import { warehouseService } from './materials/warehouseService';
 import { purchasesService } from './materials/purchasesService';
@@ -1412,13 +1411,7 @@ export const dataService = {
     },
 
     async uploadUnitImage(clientId: string, unitId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        // Importar r2Service dinamicamente para evitar problemas de dependência circular se houver
-        // r2Service is now static
-
-        const compressed = await compressForUpload(file);
-        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
-        const fileExt = uploadFile.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
+        const fileName = `${Date.now()}.webp`;
         const folderPath = `clients/${clientId}/units/${unitId}`;
         const fullPath = `${folderPath}/${fileName}`;
 
@@ -1432,15 +1425,20 @@ export const dataService = {
 
             if (existingUnit?.img_file_path && existingUnit?.img_file_name) {
                 const oldPath = `${existingUnit.img_file_path}/${existingUnit.img_file_name}`;
-                await r2Service.deleteFile(oldPath);
+                const { addVariantToPath } = await import('./imageUtils');
+                await r2Service.deleteFiles([
+                    oldPath,
+                    addVariantToPath(oldPath, 'thumb'),
+                    addVariantToPath(oldPath, 'medium'),
+                ]);
             }
         } catch (cleanupError) {
             console.warn('⚠️ Could not delete old image (may not exist or permission error):', cleanupError);
         }
 
         try {
-            await r2Service.uploadFile(uploadFile, fullPath, onProgress);
-            return { path: folderPath, filename: fileName };
+            const result = await r2Service.uploadImageWithVariants(file, fullPath, onProgress);
+            return { path: folderPath, filename: result.filename };
         } catch (uploadError) {
             console.error('❌ Error uploading unit image to R2:', uploadError);
             throw uploadError;
@@ -2955,13 +2953,11 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
     },
 
     async uploadAssetLoanChecklistImageFromPending(checklistDbId: number, file: File, userId: string, loanId: string): Promise<AssetLoanChecklistImage> {
-        const compressedFile = await compressForUpload(file, 1200, 0.8);
-        const fileName = `companies/1/assets_loans/${loanId}/checklist_${checklistDbId}_${Date.now()}.${compressedFile.name.split('.').pop()}`;
-        
-        await r2Service.uploadFile(compressedFile, fileName);
-        const imageUrl = r2Service.getPublicUrl(fileName);
-        
-        return assetLoansService.uploadChecklistImage(checklistDbId.toString(), imageUrl, 'photo', userId);
+        const fileName = `companies/1/assets_loans/${loanId}/checklist_${checklistDbId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
+
+        const result = await r2Service.uploadImageWithVariants(file, fileName, undefined, { maxDimension: 1200, quality: 0.8 });
+
+        return assetLoansService.uploadChecklistImage(checklistDbId.toString(), result.publicUrl, 'photo', userId);
     },
 
     async deleteAssetLoanChecklistImage(id: string): Promise<void> {

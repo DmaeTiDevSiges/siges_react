@@ -14,6 +14,7 @@ interface AssetLoanChecklistFormProps {
     hideSaveButton?: boolean;
     canSave?: boolean;
     userId?: string;
+    canDeleteImages?: boolean;
     items?: ChecklistItemState[];
     onItemsLoad?: (phase: string, items: ChecklistItemState[]) => void;
     onSave?: () => void;
@@ -41,6 +42,7 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
     hideSaveButton = false,
     canSave = true,
     userId,
+    canDeleteImages = true,
     items: externalItems,
     onItemsLoad,
     onSave,
@@ -156,17 +158,24 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
                     );
                 }
             }
-            
+
+            const imageUploads: Promise<unknown>[] = [];
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
                 if (item.pendingImageFiles.length > 0 && item.checklistDbId) {
                     for (const file of item.pendingImageFiles) {
-                        try {
-                            await dataService.uploadAssetLoanChecklistImageFromPending(item.checklistDbId, file, userId || '1', loanId);
-                        } catch (imgError) {
-                        }
+                        imageUploads.push(
+                            dataService
+                                .uploadAssetLoanChecklistImageFromPending(item.checklistDbId, file, userId || '1', loanId)
+                                .catch((imgError) => {
+                                    console.error('Error uploading checklist image:', imgError);
+                                })
+                        );
                     }
                 }
+            }
+            if (imageUploads.length > 0) {
+                await Promise.allSettled(imageUploads);
             }
             
             toast.success('Checklist salvo com sucesso!');
@@ -264,6 +273,8 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
                             readonly={readonly}
                             deferredUpload={!item.checklistDbId}
                             onPendingImageAdd={(file) => handlePendingImageAdd(index, file)}
+                            pendingImagesCount={item.pendingImageFiles.length}
+                            canDeleteImages={canDeleteImages}
                         />
                     </div>
                 ))}

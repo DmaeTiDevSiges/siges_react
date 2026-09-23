@@ -117,13 +117,13 @@ export const companiesService = {
                 const res = await fetch(company.logoUrl);
                 const blob = await res.blob();
 
-                await r2Service.uploadFile(blob as any, fullPath, onProgress);
+                const uploadResult = await r2Service.uploadImageWithVariants(blob as any, fullPath, onProgress);
 
                 const { error: updateError } = await supabase
                     .from('cfg_companies')
                     .update({
                         img_file_path: folderPath,
-                        img_file_name: fileName
+                        img_file_name: uploadResult.filename
                     })
                     .eq('id', companyId);
 
@@ -178,13 +178,13 @@ export const companiesService = {
                 const res = await fetch(company.logoUrl);
                 const blob = await res.blob();
 
-                await r2Service.uploadFile(blob as any, fullPath, onProgress);
+                const uploadResult = await r2Service.uploadImageWithVariants(blob as any, fullPath, onProgress);
 
                 await supabase
                     .from('cfg_companies')
                     .update({
                         img_file_path: folderPath,
-                        img_file_name: fileName
+                        img_file_name: uploadResult.filename
                     })
                     .eq('id', id);
 
@@ -562,13 +562,13 @@ export const companiesService = {
                 const res = await fetch(client.logoUrl);
                 const blob = await res.blob();
 
-                await r2Service.uploadFile(blob as any, fullPath, onProgress);
+                const uploadResult = await r2Service.uploadImageWithVariants(blob as any, fullPath, onProgress);
 
                 await supabase
                     .from('clients')
                     .update({
                         img_file_path: folderPath,
-                        img_file_name: fileName
+                        img_file_name: uploadResult.filename
                     })
                     .eq('id', clientId);
             } catch (err) {
@@ -610,13 +610,13 @@ export const companiesService = {
                 const res = await fetch(client.logoUrl);
                 const blob = await res.blob();
 
-                await r2Service.uploadFile(blob as any, fullPath, onProgress);
+                const uploadResult = await r2Service.uploadImageWithVariants(blob as any, fullPath, onProgress);
 
                 await supabase
                     .from('clients')
                     .update({
                         img_file_path: folderPath,
-                        img_file_name: fileName
+                        img_file_name: uploadResult.filename
                     })
                     .eq('id', id);
             } catch (err) {

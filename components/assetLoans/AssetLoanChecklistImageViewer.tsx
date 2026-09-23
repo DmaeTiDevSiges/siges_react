@@ -6,7 +6,6 @@ import { ImageUploadSheet } from '../ui/ImageUploadSheet';
 import { ImageEditorModal } from '../ui/ImageEditorModal';
 import { Loading } from '../ui/Loading';
 import { Modal } from '../ui/Modal';
-import { compressForUpload } from '../../services/imageCompressionService';
 import { r2Service } from '../../services/r2Service';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
@@ -19,6 +18,8 @@ interface AssetLoanChecklistImageViewerProps {
     readonly?: boolean;
     deferredUpload?: boolean;
     onPendingImageAdd?: (file: File) => void;
+    pendingImagesCount?: number;
+    canDeleteImages?: boolean;
 }
 
 const MAX_IMAGES_PER_ITEM = 3;
@@ -31,6 +32,8 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
     readonly = false,
     deferredUpload = false,
     onPendingImageAdd,
+    pendingImagesCount = 0,
+    canDeleteImages = true,
 }) => {
     const [isUploadSheetOpen, setIsUploadSheetOpen] = useState(false);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -39,6 +42,10 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
     const [editingImage, setEditingImage] = useState<File | string | null>(null);
     const [editingImageId, setEditingImageId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
+
+    const totalImages = images.length + pendingImagesCount;
+    const remainingSlots = MAX_IMAGES_PER_ITEM - totalImages;
 
     const handleDeleteImage = async (imageId: string) => {
         setImageToDelete(imageId);
@@ -59,13 +66,78 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
         }
     };
 
-    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            setEditingImage(file);
-            setEditingImageId(null);
-        }
+    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files || []);
         event.target.value = '';
+        if (files.length === 0) return;
+
+        // Single file: keep the existing edit flow
+        if (files.length === 1) {
+            setEditingImage(files[0]);
+            setEditingImageId(null);
+            return;
+        }
+
+        // Multi-file: cap to remaining slots and upload directly
+        const accepted = files.slice(0, remainingSlots);
+        if (accepted.length < files.length) {
+            toast.warning(`Máximo de ${MAX_IMAGES_PER_ITEM} imagens por checklist`);
+        }
+
+        setIsUploading(true);
+        try {
+            const newImages = [...images];
+            let uploadedCount = 0;
+
+            const uploads = accepted.map(async (file, index) => {
+                if (deferredUpload && onPendingImageAdd) {
+                    onPendingImageAdd(file);
+                    return 'pending' as const;
+                }
+
+                try {
+                    const fileName = `companies/1/assets_loans/${loanId}/checklist_${checklistId}_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 8)}.webp`;
+                    const uploadResult = await r2Service.uploadImageWithVariants(
+                        file,
+                        fileName,
+                        undefined,
+                        { maxDimension: 1200, quality: 0.8 }
+                    );
+                    const newImage = await dataService.uploadAssetLoanChecklistImage(
+                        checklistId, uploadResult.publicUrl, 'photo', '1'
+                    );
+                    return newImage;
+                } catch (error) {
+                    console.error('Error uploading image:', error);
+                    return null;
+                }
+            });
+
+            const results = await Promise.all(uploads);
+
+            for (const result of results) {
+                if (result === 'pending') {
+                    uploadedCount++;
+                } else if (result) {
+                    newImages.push(result);
+                    uploadedCount++;
+                }
+            }
+
+            if (newImages.length !== images.length) {
+                onImagesChange(newImages);
+            }
+
+            if (uploadedCount > 0) {
+                if (deferredUpload && onPendingImageAdd) {
+                    toast.success('Fotos serão enviadas ao salvar o checklist');
+                } else {
+                    toast.success(`${uploadedCount} ${uploadedCount === 1 ? 'imagem enviada' : 'imagens enviadas'} com sucesso!`);
+                }
+            }
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const handleSaveEditedImage = async (editedFile: File) => {
@@ -81,26 +153,32 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
 
             if (editingImageId) {
                 // Replacing existing image
-                const compressedFile = await compressForUpload(editedFile, 1200, 0.8);
-                const fileName = `companies/1/assets_loans/${loanId}/checklist_${checklistId}_${Date.now()}.${compressedFile.name.split('.').pop()}`;
-                const uploadResult = await r2Service.uploadFile(compressedFile, fileName);
-                const imageUrl = r2Service.getPublicUrl(fileName);
+                const fileName = `companies/1/assets_loans/${loanId}/checklist_${checklistId}_${Date.now()}.webp`;
+                const uploadResult = await r2Service.uploadImageWithVariants(
+                    editedFile,
+                    fileName,
+                    undefined,
+                    { maxDimension: 1200, quality: 0.8 }
+                );
 
                 await dataService.deleteAssetLoanChecklistImage(editingImageId);
                 const newImage = await dataService.uploadAssetLoanChecklistImage(
-                    checklistId, imageUrl, 'photo', '1'
+                    checklistId, uploadResult.publicUrl, 'photo', '1'
                 );
                 onImagesChange(images.map(img => img.id === editingImageId ? newImage : img));
                 toast.success('Imagem atualizada com sucesso!');
             } else {
                 // New image
-                const compressedFile = await compressForUpload(editedFile, 1200, 0.8);
-                const fileName = `companies/1/assets_loans/${loanId}/checklist_${checklistId}_${Date.now()}.${compressedFile.name.split('.').pop()}`;
-                const uploadResult = await r2Service.uploadFile(compressedFile, fileName);
-                const imageUrl = r2Service.getPublicUrl(fileName);
+                const fileName = `companies/1/assets_loans/${loanId}/checklist_${checklistId}_${Date.now()}.webp`;
+                const uploadResult = await r2Service.uploadImageWithVariants(
+                    editedFile,
+                    fileName,
+                    undefined,
+                    { maxDimension: 1200, quality: 0.8 }
+                );
 
                 const newImage = await dataService.uploadAssetLoanChecklistImage(
-                    checklistId, imageUrl, 'photo', '1'
+                    checklistId, uploadResult.publicUrl, 'photo', '1'
                 );
                 onImagesChange([...images, newImage]);
                 toast.success('Imagem enviada com sucesso!');
@@ -120,6 +198,15 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+            />
+            <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
                 onChange={handleFileSelect}
                 className="hidden"
             />
@@ -144,7 +231,7 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
                                     }
                                 }}
                             />
-                            {!readonly && (
+                            {!readonly && canDeleteImages && (
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -160,7 +247,7 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
                 </div>
             )}
 
-            {!readonly && images.length < MAX_IMAGES_PER_ITEM && (
+            {!readonly && remainingSlots > 0 && (
                 <button
                     onClick={() => setIsUploadSheetOpen(true)}
                     disabled={isUploading}
@@ -182,8 +269,8 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
                 onClose={() => setIsUploadSheetOpen(false)}
                 onTakeCamera={() => {
                     setIsUploadSheetOpen(false);
-                    // Trigger camera capture
-                    fileInputRef.current?.click();
+                    // Trigger camera directly (capture attribute forces device camera in APK)
+                    cameraInputRef.current?.click();
                 }}
                 onSelectGallery={() => {
                     setIsUploadSheetOpen(false);

@@ -91,8 +91,7 @@ export const unitsService = {
         const logoUrl = getPublicImageUrl(unitData.img_file_path, unitData.img_file_name, {
             width: 800,
             height: 800,
-            resize: 'contain',
-            cacheBust: Date.now()
+            resize: 'contain'
         });
 
         const mapped: Unit = {

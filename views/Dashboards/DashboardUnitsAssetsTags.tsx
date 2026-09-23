@@ -818,10 +818,12 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
                                     {systemSummary.latestAvatar && (
                                         <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-white dark:border-slate-800 overflow-hidden shadow-sm" title={systemSummary.latestUser}>
-                                            <img
+                                            <OptimizedImage
                                                 src={systemSummary.latestAvatar}
                                                 alt={systemSummary.latestUser}
+                                                preset="thumbnail"
                                                 className="w-full h-full object-cover"
+                                                useSrcSet={false}
                                             />
                                         </div>
                                     )}

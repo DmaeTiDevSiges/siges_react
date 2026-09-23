@@ -4,6 +4,7 @@ import { toolsService } from '../../services/toolsService';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
+import { OptimizedImage } from '../ui/OptimizedImage';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 
@@ -97,9 +98,9 @@ export const TransferToolForm: React.FC<TransferToolFormProps> = ({ userTool, co
 
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-xl overflow-hidden mb-6">
                     <div className="flex items-center gap-3 px-4 py-3 bg-slate-100 dark:bg-slate-700/50">
-                        {userTool.user_avatar ? (
-                            <img src={userTool.user_avatar} alt={userTool.user_name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                        ) : (
+                            {userTool.user_avatar ? (
+                                <OptimizedImage src={userTool.user_avatar} alt={userTool.user_name} preset="thumbnail" className="w-8 h-8 rounded-full object-cover flex-shrink-0" useSrcSet={false} />
+                            ) : (
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                                 <span className="material-symbols-outlined text-base text-primary">person</span>
                             </div>

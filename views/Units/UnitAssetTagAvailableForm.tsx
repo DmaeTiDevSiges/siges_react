@@ -10,6 +10,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
+import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { Loading } from '../../components/ui/Loading';
 
 
@@ -342,9 +343,11 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                             <div className="flex gap-3">
                                 {imagePreview ? (
                                     <div className="relative w-32 h-32 rounded-[20px] overflow-hidden group shadow-sm border border-slate-100 dark:border-slate-800">
-                                        <img
+                                        <OptimizedImage
                                             src={imagePreview}
                                             alt="Preview"
+                                            preset="thumbnail"
+                                            useSrcSet={false}
                                             className="w-full h-full object-cover cursor-zoom-in"
                                             onClick={() => setIsPreviewOpen(true)}
                                         />

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
-import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 import { FaFilePdf } from 'react-icons/fa';
 import { AssetHistoryDocument } from './AssetHistoryDocument';
 import { Asset, AssetHistoryItem } from '../../types';
 import { urlsToBase64 } from '../../utils/PdfImageUtils';
 import { imgproxyService } from '../../services/imgproxyService';
+import { FileUtils } from '../../utils/FileUtils';
 import { Loading } from '../ui/Loading';
 
 interface AssetHistoryPDFButtonProps {
@@ -51,7 +51,7 @@ export const AssetHistoryPDFButton = ({ asset, history, className }: AssetHistor
                 />
             ).toBlob();
 
-            saveAs(blob, fileName);
+            await FileUtils.downloadFile(blob, fileName);
             toast.success('O download iniciará em instantes.', { id: toastId });
 
         } catch (error) {

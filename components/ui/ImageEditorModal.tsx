@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { IconButton } from './IconButton';
 import { Button } from './Button';
 import { imgproxyService } from '../../services/imgproxyService';
-import { compressForUpload } from '../../services/imageCompressionService';
 import { FileUtils } from '../../utils/FileUtils';
 
 
@@ -371,7 +370,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
         setObjects(prev => prev.slice(0, -1));
     };
 
-    const generateEditedBlob = async (quality = 0.90): Promise<Blob | null> => {
+    const generateEditedBlob = async (
+        quality = 0.80,
+        maxDimension = 2048
+    ): Promise<Blob | null> => {
         if (!image) return null;
 
         // 1. Create an offscreen canvas with exact image dimensions
@@ -430,19 +432,30 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 
         octx.restore();
 
+        // 5. Single-pass downscale + encode (sem segundo canvas de compressão)
+        let outCanvas = offCanvas;
+        if (exportWidth > maxDimension || exportHeight > maxDimension) {
+            const ratio = Math.min(maxDimension / exportWidth, maxDimension / exportHeight);
+            const scaled = document.createElement('canvas');
+            scaled.width = Math.round(exportWidth * ratio);
+            scaled.height = Math.round(exportHeight * ratio);
+            const sctx = scaled.getContext('2d');
+            if (!sctx) return null;
+            sctx.drawImage(offCanvas, 0, 0, scaled.width, scaled.height);
+            outCanvas = scaled;
+        }
+
         return new Promise((resolve) => {
-            offCanvas.toBlob(resolve, 'image/jpeg', quality);
+            outCanvas.toBlob(resolve, 'image/webp', quality);
         });
     };
 
     const handleExport = async () => {
         setIsSaving(true);
         try {
-            const blob = await generateEditedBlob(0.92);
+            const blob = await generateEditedBlob(0.80, 2048);
             if (blob) {
-                const rawFile = new File([blob], `edited_${Date.now()}.jpg`, { type: 'image/jpeg' });
-                const compressed = await compressForUpload(rawFile, { maxDimension: 2048, quality: 0.80, format: 'webp' });
-                const file = compressed instanceof File ? compressed : new File([compressed], rawFile.name.replace(/\.jpg$/, '.webp'), { type: 'image/webp' });
+                const file = new File([blob], `edited_${Date.now()}.webp`, { type: 'image/webp' });
                 onSave(file);
             } else {
                 throw new Error("toBlob returned null");
@@ -458,9 +471,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
     const handleDownload = async () => {
         setIsSaving(true);
         try {
-            const blob = await generateEditedBlob(0.95);
+            const blob = await generateEditedBlob(0.95, 4096);
             if (blob) {
-                await FileUtils.downloadFile(blob, `siges_imagem_${Date.now()}.jpg`);
+                await FileUtils.downloadFile(blob, `siges_imagem_${Date.now()}.webp`);
             } else {
                 throw new Error("Blob is null");
             }

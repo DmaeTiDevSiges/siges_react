@@ -1,6 +1,5 @@
 import { supabase } from '../supabase';
 import { r2Service } from '../r2Service';
-import { compressForUpload } from '../imageCompressionService';
 import { AssetTag, AssetTagSub, Company } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { getPublicImageUrl } from '../imageUtils';
@@ -447,16 +446,12 @@ export const assetTagsService = {
     },
 
     async uploadAssetAvailableImageAfterInsert(assetAvailableId: number, unitId: number, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const compressed = await compressForUpload(file);
-        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
-        const fileExt = uploadFile.name.split('.').pop();
-        const filename = `${assetAvailableId}.${fileExt}`;
+        const filename = `${assetAvailableId}.webp`;
         const path = `companies/1/units/${unitId}/assets_available`;
 
         try {
-            await r2Service.uploadFile(uploadFile as any, `${path}/${filename}`);
-            
-            return { path, filename };
+            const result = await r2Service.uploadImageWithVariants(file, `${path}/${filename}`, onProgress);
+            return { path, filename: result.filename };
         } catch (error) {
             console.error('Error uploading generated asset available image to R2', error);
             throw error;
@@ -487,16 +482,12 @@ export const assetTagsService = {
     },
 
     async uploadUnitAssetTagImage(unitAssetTagId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const compressed = await compressForUpload(file);
-        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
-        const fileExt = uploadFile.name.split('.').pop();
-        const filename = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const filename = `${Math.random().toString(36).substring(2)}_${Date.now()}.webp`;
         const path = `units_assets_tags/${unitAssetTagId}/${filename}`;
 
         try {
-            await r2Service.uploadFile(uploadFile as any, path, onProgress);
-            
-            return { path, filename };
+            const result = await r2Service.uploadImageWithVariants(file, path, onProgress);
+            return { path, filename: result.filename };
         } catch (error) {
             console.error('Error uploading unit asset tag image to R2', error);
             throw error;

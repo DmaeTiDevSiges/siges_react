@@ -139,10 +139,12 @@ export const UnitAssetTagAvailableDetails: React.FC<UnitAssetTagAvailableDetails
                                 </div>
                             )}
                             {assetTag?.last_reported_by_company_logo && (
-                                <img 
-                                    src={assetTag.last_reported_by_company_logo} 
-                                    alt="Empresa" 
+                                <OptimizedImage
+                                    src={assetTag.last_reported_by_company_logo}
+                                    alt="Empresa"
                                     className="h-14 w-14 rounded-2xl object-contain bg-white dark:bg-slate-900 p-2 border border-slate-100 dark:border-slate-800/80 shadow-sm"
+                                    preset="thumbnail"
+                                    useSrcSet={false}
                                 />
                             )}
                         </div>

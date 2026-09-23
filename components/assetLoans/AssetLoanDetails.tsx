@@ -229,6 +229,10 @@ export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
     const hasDeliverySignature = !!loan.signatureDeliveryPath && !!loan.signatureDeliveryName;
     const hasReturnSignature = !!loan.signatureReturnPath && !!loan.signatureReturnName;
 
+    const canDeleteImages =
+        (activeTab === 'before' && isPending) ||
+        (activeTab === 'after' && isActive);
+
     return (
         <div className="space-y-6">
             <div className="flex items-start justify-between">
@@ -241,7 +245,7 @@ export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {isReturned && (
+                    {(isActive || isReturned) && (
                         <AssetLoanReportPDFButton
                             loan={loan}
                             asset={asset}
@@ -362,6 +366,7 @@ export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
                     phase={activeTab}
                     assetTypeId={asset.typeId || ''}
                     readonly={isReturned || (activeTab === 'before' && isActive)}
+                    canDeleteImages={canDeleteImages}
                     hideSaveButton={(activeTab === 'before' && hasDeliverySignature) || (activeTab === 'after' && hasReturnSignature)}
                     canSave={canCreate('assets_loans_create_update_delete')}
                     userId={currentUser?.id}

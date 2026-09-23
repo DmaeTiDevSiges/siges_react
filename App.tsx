@@ -1674,7 +1674,7 @@ const AppContent: React.FC = () => {
             });
             console.log('✅ Unit updated with image:', updatedWithImage);
             // Force manual update to ensure fresh image paths AND URL
-            const freshUrl = dataService.getPublicImageUrl(path, filename, { width: 400, height: 400, resize: 'cover', cacheBust: Date.now() });
+            const freshUrl = dataService.getPublicImageUrl(path, filename, { width: 400, height: 400, resize: 'cover' });
             savedUnit = { ...updatedWithImage, imgFilePath: path, imgFileName: filename, logoUrl: freshUrl };
           } catch (uploadError) {
             console.error("❌ Error uploading unit image", uploadError);
@@ -1707,8 +1707,7 @@ const AppContent: React.FC = () => {
             logoUrl: dataService.getPublicImageUrl(savedUnit.imgFilePath || '', savedUnit.imgFileName || '', {
               width: 800,
               height: 800,
-              resize: 'contain',
-              cacheBust: Date.now()
+              resize: 'contain'
             })
           };
 

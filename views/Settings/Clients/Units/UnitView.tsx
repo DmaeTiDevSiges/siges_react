@@ -14,6 +14,7 @@ import { AssetsListExcelButton } from '../../../../components/reports/AssetsList
 import { UnitAssetTagAvailableForm } from '../../../Units/UnitAssetTagAvailableForm';
 import { UnitAssetTagForm } from '../../../Units/UnitAssetTagForm';
 import { PhotoViewer } from '../../../../components/ui/PhotoViewer';
+import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { toast } from 'sonner';
 import { apiN8nService } from '../../../../services/apiN8nService';
 import { Loading } from '../../../../components/ui/Loading';
@@ -612,10 +613,11 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                                     className="w-12 h-12 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shrink-0" 
                                                     title="Foto do Reporte"
                                                 >
-                                                    <img 
-                                                        src={item.reportedImage} 
-                                                        alt="Foto Reporte" 
-                                                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" 
+                                                    <OptimizedImage
+                                                        src={item.reportedImage}
+                                                        alt="Foto Reporte"
+                                                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer"
+                                                        preset="thumbnail"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setLightboxImage(item.reportedImageOriginal || item.reportedImage);

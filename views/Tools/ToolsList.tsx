@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Loading } from '../../components/ui/Loading';
 import { ToolForm } from '../../components/tools/ToolForm';
+import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
 interface ToolsListProps {
@@ -125,7 +126,7 @@ export const ToolsList: React.FC<ToolsListProps> = () => {
                             {tool.status === 'EM_USO' && ut && (
                                 <div className="flex items-center gap-2 px-4 py-2 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-800">
                                     {ut.user_avatar ? (
-                                        <img src={ut.user_avatar} alt={ut.user_name} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                                        <OptimizedImage src={ut.user_avatar} alt={ut.user_name} preset="thumbnail" className="w-5 h-5 rounded-full object-cover flex-shrink-0" useSrcSet={false} />
                                     ) : (
                                         <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                                             <span className="material-symbols-outlined text-xs text-primary">person</span>

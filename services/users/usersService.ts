@@ -3,7 +3,7 @@ import { apiN8nService } from '../apiN8nService';
 import { User, UserStatus, Permission, Team, Department, Vehicle } from '../../types';
 import { getPublicImageUrl } from '../imageUtils';
 import { r2Service } from '../r2Service';
-import { compressForUpload, compressForAvatar } from '../imageCompressionService';
+import { compressForUpload } from '../imageCompressionService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 let currentUserPromise: Promise<User | null> | null = null;
@@ -736,7 +736,8 @@ export const usersService = {
                         cfg_teams!left (
                             description,
                             company_id,
-                            department_id
+                            department_id,
+                            is_evaluable
                         )
                     `)
                     .eq('uuid', authUser.id)
@@ -808,6 +809,7 @@ export const usersService = {
                     teamId: data.team_id?.toString(),
                     teamName: data.cfg_teams?.description,
                     departmentId: data.cfg_teams?.department_id?.toString(),
+                    teamIsEvaluable: data.cfg_teams?.is_evaluable !== false,
                     isAdminSuper: data.is_admin_super,
                     isAdmin: data.is_admin,
                     notificationsAmount: data.notifications_amount || 0,
@@ -1112,16 +1114,16 @@ export const usersService = {
     },
 
     async uploadUserAvatar(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const compressed = await compressForAvatar(file);
-        const uploadFile = compressed instanceof File ? compressed : compressed;
-        const fileExt = (uploadFile as File).name ? (uploadFile as File).name.split('.').pop() : 'jpg';
-        const fileName = `avatar_${Date.now()}.${fileExt}`;
+        const fileName = `avatar_${Date.now()}.webp`;
         const folderPath = `users/${userId}/avatar`;
         const fullPath = `${folderPath}/${fileName}`;
 
         try {
-            await r2Service.uploadFile(uploadFile as any, fullPath, onProgress);
-            return { path: folderPath, filename: fileName };
+            const result = await r2Service.uploadImageWithVariants(file, fullPath, onProgress, {
+                maxDimension: 512,
+                quality: 0.80,
+            });
+            return { path: folderPath, filename: result.filename };
         } catch (uploadError) {
             console.error('❌ Error uploading user avatar to R2:', uploadError);
             throw uploadError;

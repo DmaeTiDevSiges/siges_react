@@ -8,6 +8,7 @@ import { LoadMore } from '../../components/ui/LoadMore';
 import { Modal } from '../../components/ui/Modal';
 import { IconButton } from '../../components/ui/IconButton';
 import { Loading } from '../../components/ui/Loading';
+import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { toast } from 'sonner';
 import {
     DndContext,
@@ -338,9 +339,11 @@ const DraggableUserItem: React.FC<DraggableUserItemProps> = ({ user, teamId }) =
                 <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
             </div>
             {user.avatarUrl ? (
-                <img
+                <OptimizedImage
                     src={user.avatarUrl}
                     alt={user.nameShort || user.nameFull}
+                    preset="thumbnail"
+                    useSrcSet={false}
                     className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover shrink-0"
                 />
             ) : (
@@ -819,9 +822,11 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                                                 <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-card-dark rounded-lg border border-primary shadow-lg opacity-90">
                                                     <span className="material-symbols-outlined text-primary text-[14px]">person</span>
                                                     {activeUser.user.avatarUrl ? (
-                                                        <img
+                                                        <OptimizedImage
                                                             src={activeUser.user.avatarUrl}
                                                             alt={activeUser.user.nameShort || activeUser.user.nameFull}
+                                                            preset="thumbnail"
+                                                            useSrcSet={false}
                                                             className="w-6 h-6 rounded-full object-cover"
                                                         />
                                                     ) : (

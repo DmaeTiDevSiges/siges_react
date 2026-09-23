@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
-import { saveAs } from 'file-saver';
 import { FaFilePdf } from 'react-icons/fa';
 import { AssetLoanReportDocument } from './AssetLoanReportDocument';
 import { AssetLoan, Asset } from '../../types';
@@ -8,6 +7,7 @@ import { ChecklistItemState } from '../assetLoans/AssetLoanChecklistForm';
 import { getLogoBase64, addWhiteBackgroundToImage } from '../../utils/PdfImageUtils';
 import { dataService } from '../../services/dataService';
 import { imgproxyService } from '../../services/imgproxyService';
+import { FileUtils } from '../../utils/FileUtils';
 import { toast } from 'sonner';
 import { Loading } from '../ui/Loading';
 
@@ -128,7 +128,7 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
                 />
             ).toBlob();
 
-            saveAs(blob, fileName);
+            await FileUtils.downloadFile(blob, fileName);
             toast.success('O download iniciará em instantes.', { id: toastId });
         } catch (error) {
             console.error('Erro ao gerar PDF do empréstimo:', error);

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { dataService } from '../services/dataService';
 import { Company, User } from '../types';
 import { getInitials } from '../utils/formatters';
+import { OptimizedImage } from './ui/OptimizedImage';
 
 const getRelativeTimeShort = (isoString?: string): string => {
     if (!isoString) return '·';
@@ -158,7 +159,7 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
                                 >
                                     <div className="w-8 h-8 rounded-full overflow-hidden bg-white">
                                         {hasAvatar ? (
-                                            <img src={tech.avatarUrl} alt={tech.nameShort} className="w-full h-full object-cover" />
+                                            <OptimizedImage src={tech.avatarUrl} alt={tech.nameShort} preset="thumbnail" className="w-full h-full object-cover" useSrcSet={false} />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-700 text-[10px] font-bold text-slate-500 dark:text-slate-300">
                                                 {initials}

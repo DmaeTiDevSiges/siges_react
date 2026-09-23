@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Loading } from '../../components/ui/Loading';
 import { ResponsibleToolsPDFButton } from '../../components/reports/ResponsibleToolsPDFButton';
+import { OptimizedImage } from '../../components/ui/OptimizedImage';
 
 export const ResponsibleToolsView: React.FC = () => {
     const [userTools, setUserTools] = useState<UserTool[]>([]);
@@ -63,9 +64,9 @@ export const ResponsibleToolsView: React.FC = () => {
                     <div key={userId} className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 overflow-hidden">
                         {/* User Header */}
                         <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800">
-                            {userAvatar ? (
-                                <img src={userAvatar} alt={userName} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                            ) : (
+                                    {userAvatar ? (
+                                        <OptimizedImage src={userAvatar} alt={userName} preset="thumbnail" className="w-8 h-8 rounded-full object-cover flex-shrink-0" useSrcSet={false} />
+                                    ) : (
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                                     <span className="material-symbols-outlined text-base text-primary">person</span>
                                 </div>

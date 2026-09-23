@@ -600,10 +600,11 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                             className="relative aspect-video rounded-[14px] overflow-hidden group cursor-pointer shadow-sm min-h-[140px] bg-slate-900 border border-slate-200 dark:border-white/10"
                                             onClick={() => setExpandedImageUrl(photo.url)}
                                         >
-                                            <img
+                                            <OptimizedImage
                                                 src={photo.url}
                                                 alt={`Evidência ${index + 1}`}
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                preset="medium"
                                             />
                                             
                                             <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 z-20">

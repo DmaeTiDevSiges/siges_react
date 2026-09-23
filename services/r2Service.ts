@@ -5,9 +5,14 @@
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
+import { compressAndGenerateVariants, CompressionOptions } from './imageCompressionService';
+import { addVariantToPath } from './imageUtils';
 
-// Configuração do cliente S3 para Cloudflare R2
-const getR2Client = () => {
+// Cliente S3 singleton — reusa conexão/TLS entre uploads
+let cachedClient: S3Client | null = null;
+let cachedEndpoint: string | null = null;
+
+const getR2Client = (): S3Client => {
     const accountId = import.meta.env.VITE_R2_ACCOUNT_ID;
     const accessKeyId = import.meta.env.VITE_R2_ACCESS_KEY_ID;
     const secretAccessKey = import.meta.env.VITE_R2_SECRET_ACCESS_KEY;
@@ -16,14 +21,21 @@ const getR2Client = () => {
         throw new Error('Credenciais do R2 não configuradas. Verifique as variáveis de ambiente.');
     }
 
-    return new S3Client({
+    const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+    if (cachedClient && cachedEndpoint === endpoint) {
+        return cachedClient;
+    }
+
+    cachedClient = new S3Client({
         region: 'auto',
-        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+        endpoint,
         credentials: {
             accessKeyId,
             secretAccessKey,
         },
     });
+    cachedEndpoint = endpoint;
+    return cachedClient;
 };
 
 export interface UploadResult {
@@ -37,10 +49,13 @@ const COMPRESSIBLE_TYPES = new Set([
     'application/xml',
 ]);
 
-export const maybeCompress = async (file: File | Blob): Promise<{ body: Uint8Array; contentEncoding?: string }> => {
+export const maybeCompress = async (
+    file: File | Blob
+): Promise<{ body: File | Blob | Uint8Array; contentEncoding?: string }> => {
     const isCompressible = COMPRESSIBLE_TYPES.has(file.type) || file.type.startsWith('text/');
+    // Imagens/binários: passa o Blob direto ao SDK (evita cópia via arrayBuffer)
+    if (!isCompressible) return { body: file };
     const raw = new Uint8Array(await file.arrayBuffer());
-    if (!isCompressible) return { body: raw };
     const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'));
     const gzipped = new Uint8Array(await new Response(stream).arrayBuffer());
     return { body: gzipped, contentEncoding: 'gzip' };
@@ -195,10 +210,96 @@ export const deleteFiles = async (paths: string[]): Promise<void> => {
     }
 };
 
+export interface UploadFileInput {
+    file: File | Blob;
+    path: string;
+}
+
 /**
- * Copia um arquivo dentro do Cloudflare R2
+ * Upload paralelo de N arquivos com progresso agregado (0-100).
+ */
+export const uploadFiles = async (
+    files: UploadFileInput[],
+    onProgress?: (progress: number) => void
+): Promise<UploadResult[]> => {
+    if (files.length === 0) return [];
+    if (files.length === 1) {
+        return [await uploadFile(files[0].file, files[0].path, onProgress)];
+    }
+
+    const sizes = files.map((f) => f.file.size || 0);
+    const totalBytes = sizes.reduce((a, b) => a + b, 0) || 1;
+    const loaded = new Array(files.length).fill(0);
+
+    const report = () => {
+        if (!onProgress) return;
+        const done = loaded.reduce((a, b) => a + b, 0);
+        onProgress(Math.min(99, Math.round((done / totalBytes) * 100)));
+    };
+
+    try {
+        const results = await Promise.all(
+            files.map((item, index) =>
+                uploadFile(item.file, item.path, (p) => {
+                    loaded[index] = (sizes[index] * p) / 100;
+                    report();
+                }).then((result) => {
+                    loaded[index] = sizes[index];
+                    report();
+                    return result;
+                })
+            )
+        );
+        onProgress?.(100);
+        return results;
+    } catch (error) {
+        console.error('Erro em uploadFiles:', error);
+        throw error;
+    }
+};
+
+const extensionForType = (mime: string, fallbackPath: string): string => {
+    if (mime === 'image/webp') return 'webp';
+    if (mime === 'image/png') return 'png';
+    if (mime === 'image/jpeg' || mime === 'image/jpg') return 'jpg';
+    const m = fallbackPath.match(/\.([a-zA-Z0-9]+)$/);
+    return m ? m[1].toLowerCase() : 'webp';
+};
+
+/**
+ * Comprime e sobe original + variantes (.medium / .thumb) em paralelo.
+ * A normalização de extensão garante que o path do banco bate com o arquivo real.
+ */
+export const uploadImageWithVariants = async (
+    file: File | Blob,
+    originalPath: string,
+    onProgress?: (progress: number) => void,
+    compressionOptions?: CompressionOptions
+): Promise<UploadResult & { filename: string }> => {
+    const variants = await compressAndGenerateVariants(file, compressionOptions);
+    const ext = extensionForType(variants.original.type, originalPath);
+    const normalizedPath = originalPath.replace(/(\.[^./?]+)$/, `.${ext}`);
+
+    const jobs: UploadFileInput[] = [
+        { file: variants.original, path: normalizedPath },
+        { file: variants.medium, path: addVariantToPath(normalizedPath, 'medium') },
+        { file: variants.thumb, path: addVariantToPath(normalizedPath, 'thumb') },
+    ];
+
+    await uploadFiles(jobs, onProgress);
+
+    const filename = normalizedPath.split('/').pop() || normalizedPath;
+    return {
+        path: normalizedPath,
+        filename,
+        publicUrl: getPublicUrl(normalizedPath),
+    };
+};
+
+/**
+ * Copia um arquivo (e variantes, se existirem) dentro do Cloudflare R2
  * @param srcKey - Caminho do arquivo de origem (ex: companies/1/orders/1/images/img.jpg)
- * @param destKey - Caminho do arquivo de destino
+ * @param destKey - Caminho de destino
  */
 export const copyFile = async (srcKey: string, destKey: string): Promise<void> => {
     const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
@@ -225,6 +326,8 @@ export const copyFile = async (srcKey: string, destKey: string): Promise<void> =
 
 export const r2Service = {
     uploadFile,
+    uploadFiles,
+    uploadImageWithVariants,
     copyFile,
     deleteFile,
     deleteFiles,

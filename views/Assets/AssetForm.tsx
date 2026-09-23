@@ -325,18 +325,6 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
         setMaterialResults([]);
     };
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setImageFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
     const takePhoto = async (source: CameraSource) => {
         try {
             const image = await Camera.getPhoto({

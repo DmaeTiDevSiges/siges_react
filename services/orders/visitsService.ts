@@ -1,6 +1,5 @@
 import { supabase } from '../supabase';
 import { r2Service } from '../r2Service';
-import { compressForUpload } from '../imageCompressionService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { getPublicImageUrl } from '../imageUtils';
 import { formatRelativeTime } from '../../utils/formatters';
@@ -1500,12 +1499,9 @@ export const visitsService = {
     // -------------------------------------------------------------------------
 
     async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after', onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        const compressed = await compressForUpload(file);
-        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
-        const fileExt = uploadFile.name.split('.').pop();
         // Add random suffix to prevent duplicate names when uploading multiple files simultaneously
         const randomSuffix = Math.random().toString(36).substring(2, 8);
-        const fileName = `${type}_${Date.now()}_${randomSuffix}.${fileExt}`;
+        const fileName = `${type}_${Date.now()}_${randomSuffix}.webp`;
 
         // 1. Fetch current record to get metadata and current lists
         // Note: Fetching from table directly to avoid view lag
@@ -1517,26 +1513,25 @@ export const visitsService = {
 
         if (fetchError || !assetData) throw fetchError || new Error('Asset report not found');
 
-        // Fetch companyId from visit view (o_company_id is a view field, not in the base table)
-        let companyId: any = null;
-        if (assetData.ov_id) {
-            const { data: visitData } = await supabase
-                .from('v_orders_visits')
-                .select('o_provider_company_id')
-                .eq('id', assetData.ov_id)
-                .single();
-            companyId = visitData?.o_provider_company_id;
-        }
+        // Fetch companyId in parallel (visit view + assets fallback)
+        const [visitResult, assetInfoResult] = await Promise.all([
+            assetData.ov_id
+                ? supabase
+                    .from('v_orders_visits')
+                    .select('o_provider_company_id')
+                    .eq('id', assetData.ov_id)
+                    .single()
+                : Promise.resolve({ data: null as any }),
+            assetData.asset_id
+                ? supabase
+                    .from('assets')
+                    .select('company_owner_id')
+                    .eq('id', assetData.asset_id)
+                    .single()
+                : Promise.resolve({ data: null as any }),
+        ]);
 
-        // Fallback: try to get company from the asset record via assets table
-        if (!companyId && assetData.asset_id) {
-            const { data: assetInfo } = await supabase
-                .from('assets')
-                .select('company_owner_id')
-                .eq('id', assetData.asset_id)
-                .single();
-            companyId = assetInfo?.company_owner_id;
-        }
+        const companyId = visitResult.data?.o_provider_company_id || assetInfoResult.data?.company_owner_id;
 
         if (!companyId) throw new Error('Company ID not found for asset path');
 
@@ -1551,18 +1546,22 @@ export const visitsService = {
         const folderPath = `companies/${companyId}/assets/${assetId}`;
         const fullPath = `${folderPath}/${fileName}`;
 
-        // 2. Upload to Cloudflare R2
+        // 2. Upload original + variantes to Cloudflare R2
+        let uploadedFilename = fileName;
         try {
-            await r2Service.uploadFile(uploadFile, fullPath, onProgress);
+            const uploadResult = await r2Service.uploadImageWithVariants(file, fullPath, onProgress);
+            uploadedFilename = uploadResult.filename;
         } catch (uploadError) {
             console.error('Error uploading to R2:', uploadError);
             throw uploadError;
         }
 
+        const finalList = uploadedFilename === fileName ? newList : [...currentList, uploadedFilename];
+
         const { error: dbError } = await supabase
             .from('orders_visits_assets')
             .update({
-                [column]: newList,
+                [column]: finalList,
                 [pathColumn]: folderPath,
                 updated_at: new Date().toISOString()
             })
@@ -1573,7 +1572,7 @@ export const visitsService = {
             throw dbError;
         }
 
-        return { path: folderPath, filename: fileName };
+        return { path: folderPath, filename: uploadedFilename };
     },
 
     async removeOrderVisitAssetPhoto(ovAssetId: string, type: 'before' | 'after', fileName: string): Promise<void> {
@@ -1774,13 +1773,18 @@ export const visitsService = {
         }
 
         const folderPath = `companies/${ova.o_company_id}/${ova.asset_id}`;
+        const { addVariantToPath } = await import('../imageUtils');
+        const expandWithVariants = (names: string[]) =>
+            names.flatMap((name) => {
+                const base = `${folderPath}/${name}`;
+                return [base, addVariantToPath(base, 'thumb'), addVariantToPath(base, 'medium')];
+            });
 
         // 2. Storage Cleanup R2: before_img_files_names
         const beforePhotos = ova.before_img_files_names || [];
         if (beforePhotos.length > 0) {
-            const pathsToDel = beforePhotos.map((name: string) => `${folderPath}/${name}`);
             try {
-                await r2Service.deleteFiles(pathsToDel);
+                await r2Service.deleteFiles(expandWithVariants(beforePhotos));
             } catch (e) {
                 console.warn('Could not delete before photos from R2:', e);
             }
@@ -1789,9 +1793,8 @@ export const visitsService = {
         // 3. Storage Cleanup R2: after_img_files_names
         const afterPhotos = ova.after_img_files_names || [];
         if (afterPhotos.length > 0) {
-            const pathsToDel = afterPhotos.map((name: string) => `${folderPath}/${name}`);
             try {
-                await r2Service.deleteFiles(pathsToDel);
+                await r2Service.deleteFiles(expandWithVariants(afterPhotos));
             } catch (e) {
                 console.warn('Could not delete after photos from R2:', e);
             }
@@ -3388,13 +3391,6 @@ export const visitsService = {
     },
 
     async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
-        const compressed = await compressForUpload(file);
-        const uploadFile = compressed instanceof File ? compressed : new File([compressed], file.name, { type: compressed.type || file.type });
-
-        // Ensure file extension is standard
-        let fileExt = uploadFile.name.split('.').pop()?.toLowerCase() || 'jpeg';
-        if (fileExt === 'jpg') fileExt = 'jpeg';
-
         const uniqueSuffix = Math.random().toString(36).substring(7);
 
         // Ensure no spaces or special characters in IDs and paths
@@ -3403,7 +3399,7 @@ export const visitsService = {
         const cleanCompanyId = String(companyId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
         const cleanAssetId = String(assetId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
 
-        const fileName = `checklist_${cleanOvAssetId}_${cleanActivityId}_${Date.now()}_${uniqueSuffix}.${fileExt}`;
+        const fileName = `checklist_${cleanOvAssetId}_${cleanActivityId}_${Date.now()}_${uniqueSuffix}.webp`;
 
         // Pattern: companies/{companyId}/assets/{assetId}
         const folderPath = (cleanCompanyId && cleanAssetId && cleanCompanyId !== 'undefined' && cleanAssetId !== 'undefined')
@@ -3412,9 +3408,8 @@ export const visitsService = {
 
         const fullPath = `${folderPath}/${fileName}`.replace(/\s+/g, '_');
 
-        // We use a new File object if we need to force the MIME type, but r2Service just needs the blob and path
-        await r2Service.uploadFile(uploadFile, fullPath, onProgress);
-        return { path: folderPath, filename: fileName };
+        const result = await r2Service.uploadImageWithVariants(file, fullPath, onProgress);
+        return { path: folderPath, filename: result.filename };
     },
 
     async removeChecklistImage(ovAssetId: string, planId: string, activityId: string, fileName: string, userId: string): Promise<OrderVisitAssetActivity | null> {
@@ -3433,13 +3428,18 @@ export const visitsService = {
         const currentList: string[] = existing.img_files_names || [];
         const newList = currentList.filter(f => f !== fileName);
 
-        // 3. Try to delete from R2
+        // 3. Try to delete from R2 (original + variantes)
         try {
             // Replicate the path logic from the component/upload to ensure consistency
             const folderPath = existing.img_file_path || `checklist/${ovAssetId}/${activityId}`;
             const fullPath = `${folderPath}/${fileName}`.replace(/\/+/g, '/');
+            const { addVariantToPath } = await import('../imageUtils');
 
-            await r2Service.deleteFile(fullPath);
+            await r2Service.deleteFiles([
+                fullPath,
+                addVariantToPath(fullPath, 'thumb'),
+                addVariantToPath(fullPath, 'medium'),
+            ]);
         } catch (r2Error) {
             console.warn('Não foi possível excluir do R2, continuando com atualização do Banco:', r2Error);
         }
