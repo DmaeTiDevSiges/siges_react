@@ -243,10 +243,8 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                      const hasStoredStatusId = advancedFilters.statusId && Array.isArray(advancedFilters.statusId) && advancedFilters.statusId.length > 0;
                      
                      if (!hasStoredStatusId) {
-                         const usoStatus = statuses.find((s: any) => s.description?.toUpperCase() === 'USO' || s.description?.toUpperCase() === 'EM USO' || s.code?.toUpperCase() === 'USO');
-                         if (usoStatus) {
-                             setAdvancedFilters((prev: any) => ({ ...prev, statusId: [usoStatus.id] }));
-                         }
+                         const allStatusIds = statuses.map((s: any) => String(s.id));
+                         setAdvancedFilters((prev: any) => ({ ...prev, statusId: allStatusIds }));
                      }
                      initializedDefaults.current = true;
                 }

@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
 import { dataService } from '../../services/dataService';
+import { captureCardImage } from '../../services/screenshotService';
+import { copyImageWithFallback } from '../../utils/imageClipboard';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';
 import { IconButton } from '../ui/IconButton';
@@ -124,6 +127,29 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
         }
     };
 
+    const [isCopying, setIsCopying] = useState(false);
+
+    const handleCopyImage = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isCopying) return;
+        setIsCopying(true);
+        try {
+            const image = await captureCardImage(`service-request-detail-${req.id}`);
+            const result = await copyImageWithFallback(image, `SS-${req.orderMask || req.id}.png`);
+            if (result === 'copied') {
+                toast.success('Imagem copiada! Disponível para colar (Ctrl+V) onde quiser.');
+            } else {
+                toast.warning('Não foi possível copiar — imagem baixada. Anexe onde quiser.');
+            }
+        } catch (error: any) {
+            if (error?.name !== 'AbortError') {
+                toast.error(`Não foi possível gerar a imagem do card${error?.message ? `: ${error.message}` : '.'}`);
+            }
+        } finally {
+            setIsCopying(false);
+        }
+    };
+
     return (
         <Card
             id={`service-request-detail-${req.id}`}
@@ -144,24 +170,47 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                     </div>
                 </div>
 
-                <button
-                    className={`transition-all active:scale-90 ${isFollowed ? 'text-yellow-400' : 'text-slate-300 hover:text-yellow-400'}`}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (onToggleFollow) onToggleFollow(e);
-                    }}
-                >
-                    <span
-                        key={isFollowed ? 'followed' : 'unfollowed'}
-                        className={`material-symbols-outlined ${isFollowed ? 'animate-star-pop' : ''}`}
-                        style={{
-                            fontSize: '36px',
-                            fontVariationSettings: isFollowed ? "'FILL' 1" : "'FILL' 0"
+                <div className="flex items-center gap-1">
+                    <button
+                        title={isCopying ? 'Gerando imagem...' : 'Copiar imagem da SS (Ctrl+C)'}
+                        aria-label="Copiar imagem da SS"
+                        disabled={isCopying}
+                        className={`transition-all active:scale-90 disabled:opacity-60 ${isCopying ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
+                        onClick={handleCopyImage}
+                    >
+                        {isCopying ? (
+                            <span
+                                className="material-symbols-outlined animate-spin"
+                                style={{ fontSize: '28px' }}
+                            >
+                                progress_activity
+                            </span>
+                        ) : (
+                            <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>
+                                content_copy
+                            </span>
+                        )}
+                    </button>
+
+                    <button
+                        className={`transition-all active:scale-90 ${isFollowed ? 'text-yellow-400' : 'text-slate-300 hover:text-yellow-400'}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onToggleFollow) onToggleFollow(e);
                         }}
                     >
-                        star
-                    </span>
-                </button>
+                        <span
+                            key={isFollowed ? 'followed' : 'unfollowed'}
+                            className={`material-symbols-outlined ${isFollowed ? 'animate-star-pop' : ''}`}
+                            style={{
+                                fontSize: '36px',
+                                fontVariationSettings: isFollowed ? "'FILL' 1" : "'FILL' 0"
+                            }}
+                        >
+                            star
+                        </span>
+                    </button>
+                </div>
             </div>
 
             {/* Client Name */}

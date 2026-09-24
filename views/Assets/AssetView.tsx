@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile, Material, AssetMaterial, AssetLoan } from '../../types';
 import { dataService } from '../../services/dataService';
 import { getPublicImageUrl } from '../../services/imageUtils';
@@ -12,10 +12,10 @@ import { formatDateTime, formatCurrency, formatDate } from '../../utils/formatte
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
-import { AssetAlertForm } from './AssetAlertForm';
-import type { AssetAlertFormHandle } from './AssetAlertForm';
+import { AssetAlertModal } from './AssetAlertModal';
 import { AssetAlert } from '../../types';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 import { AssetDetailsPDFButton } from '../../components/reports/AssetDetailsPDFButton';
 import { AssetHistoryPDFButton } from '../../components/reports/AssetHistoryPDFButton';
 import { AssetAlertListItem } from './AssetAlertListItem';
@@ -152,8 +152,22 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const [alerts, setAlerts] = useState<AssetAlert[]>([]);
     const [isAddingAlert, setIsAddingAlert] = useState(false);
     const [editingAlert, setEditingAlert] = useState<AssetAlert | null>(null);
+    const [alertToDeleteId, setAlertToDeleteId] = useState<string | null>(null);
+    const [isDeletingAlert, setIsDeletingAlert] = useState(false);
     const [alertFilter, setAlertFilter] = useState<'abertos' | 'resolvidos' | 'todos'>('abertos');
-    const alertFormRef = useRef<AssetAlertFormHandle>(null);
+    const [currentUserIsAdminSuper, setCurrentUserIsAdminSuper] = useState(false);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const user = await dataService.getCurrentUser();
+                if (user) setCurrentUserIsAdminSuper(!!user.isAdminSuper);
+            } catch (e) {
+                console.error('Error fetching current user:', e);
+            }
+        };
+        fetchUser();
+    }, []);
 
     // Asset Loans state
     const [assetLoans, setAssetLoans] = useState<AssetLoan[]>([]);
@@ -194,37 +208,29 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
         fetchLoans();
     }, [activeTab, asset.id]);
 
-    const handleAlertSave = async (alertData: Partial<AssetAlert>) => {
-        try {
-            if (editingAlert) {
-                await dataService.updateAssetAlert(editingAlert.id, alertData);
-                toast.success('Alerta atualizado com sucesso!');
-            } else {
-                await dataService.createAssetAlert({
-                    ...alertData,
-                    assetId: asset.id
-                });
-                toast.success('Alerta criado com sucesso!');
-            }
-            setIsAddingAlert(false);
-            setEditingAlert(null);
-            // Refresh list
-            const data = await dataService.getAssetAlerts(asset.id);
-            setAlerts(data);
-        } catch (error) {
-            console.error('Error saving alert:', error);
-            toast.error('Erro ao salvar alerta.');
-        }
+    const refreshAlerts = async () => {
+        setIsAddingAlert(false);
+        setEditingAlert(null);
+        const data = await dataService.getAssetAlerts(asset.id);
+        setAlerts(data);
     };
 
     const handleAlertDelete = async (id: string) => {
-        if (!window.confirm('Tem certeza que deseja excluir este alerta?')) return;
+        setAlertToDeleteId(id);
+    };
+
+    const confirmAlertDelete = async () => {
+        if (!alertToDeleteId) return;
+        setIsDeletingAlert(true);
         try {
-            await dataService.deleteAssetAlert(id);
+            await dataService.deleteAssetAlert(alertToDeleteId);
             toast.success('Alerta excluído.');
-            setAlerts(prev => prev.filter(a => a.id !== id));
+            setAlerts(prev => prev.filter(a => a.id !== alertToDeleteId));
         } catch (error) {
             toast.error('Erro ao excluir alerta.');
+        } finally {
+            setIsDeletingAlert(false);
+            setAlertToDeleteId(null);
         }
     };
 
@@ -719,42 +725,36 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                         {activeTab === 'Alertas' && (
                             <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Modal
+                                <AssetAlertModal
                                     isOpen={!!(isAddingAlert || editingAlert)}
                                     onClose={() => { setIsAddingAlert(false); setEditingAlert(null); }}
-                                    onConfirm={async () => {
-                                        if (alertFormRef.current) {
-                                            const success = await alertFormRef.current.submit();
-                                            if (success) {
-                                                setIsAddingAlert(false);
-                                                setEditingAlert(null);
-                                            }
-                                        }
-                                    }}
-                                    title={editingAlert ? 'Editar Alerta' : 'Novo Alerta'}
-                                    confirmLabel="Salvar"
-                                    maxWidth="sm"
-                                >
-                                    <AssetAlertForm
-                                        ref={alertFormRef}
-                                        assetId={asset.id}
-                                        initialAlert={editingAlert || undefined}
-                                        onSave={handleAlertSave}
-                                        onCancel={() => { setIsAddingAlert(false); setEditingAlert(null); }}
-                                    />
-                                </Modal>
+                                    assetId={asset.id}
+                                    initialAlert={editingAlert || undefined}
+                                    onSaved={refreshAlerts}
+                                />
+
+                                <ConfirmDeleteModal
+                                    isOpen={!!alertToDeleteId}
+                                    onClose={() => setAlertToDeleteId(null)}
+                                    onConfirm={confirmAlertDelete}
+                                    title="Excluir Alerta"
+                                    description="Tem certeza que deseja excluir este alerta? Esta ação não pode ser desfeita."
+                                    isLoading={isDeletingAlert}
+                                />
 
                                 {!isAddingAlert && !editingAlert && (
                                     <>
                                         <div className="flex items-center justify-between mb-6">
                                             <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Alertas</h3>
-                                            <button
-                                                className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-full transition-all active:scale-95 border-none cursor-pointer"
-                                                onClick={() => setIsAddingAlert(true)}
-                                            >
-                                                <span className="material-symbols-outlined text-[20px]">add_alert</span>
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Incluir Alerta</span>
-                                            </button>
+                                            {currentUserIsAdminSuper && canCreate('assets_alerts') && (
+                                                <button
+                                                    className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-full transition-all active:scale-95 border-none cursor-pointer"
+                                                    onClick={() => setIsAddingAlert(true)}
+                                                >
+                                                    <span className="material-symbols-outlined text-[20px]">add_alert</span>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Incluir Alerta</span>
+                                                </button>
+                                            )}
                                         </div>
 
                                         {/* Filtros de Alertas */}
@@ -806,12 +806,13 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                         tagName: asset.tagName,
                                                         tagSubName: asset.tagSubName
                                                     };
+                                                    const canEditDelete = !alert.isDone && currentUserIsAdminSuper && canEdit('assets_alerts') && canDelete('assets_alerts');
                                                     return (
                                                         <AssetAlertListItem
                                                             key={alert.id}
                                                             alert={enrichedAlert}
-                                                            onEdit={setEditingAlert}
-                                                            onDelete={handleAlertDelete}
+                                                            onEdit={canEditDelete ? setEditingAlert : undefined}
+                                                            onDelete={canEditDelete ? handleAlertDelete : undefined}
                                                             onViewReport={onViewReport}
                                                             hideAssetIdentification={true}
                                                         />
@@ -830,16 +831,9 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">
                                         Empréstimos deste Ativo
                                     </h3>
-                                    {canCreate('assets_loans_create_update_delete') && (
+                                    {canCreate('assets_loans') && !assetLoans.some(loan => loan.status !== 'closed') && (
                                     <button
-                                        onClick={() => {
-                                            const hasOpenLoans = assetLoans.some(loan => loan.status !== 'closed');
-                                            if (hasOpenLoans) {
-                                                setShowLoanImpedimentModal(true);
-                                                return;
-                                            }
-                                            setShowLoanForm(true);
-                                        }}
+                                        onClick={() => setShowLoanForm(true)}
                                         className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors"
                                     >
                                         <span className="material-symbols-outlined text-lg">add</span>

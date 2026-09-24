@@ -11,6 +11,8 @@ import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { DuplicateServiceRequestWarning } from '../../components/serviceRequests/DuplicateServiceRequestWarning';
+import { AINaturalLanguageForm } from '../../components/ai/AINaturalLanguageForm';
+import { SSSuggestion } from '../../services/aiSsCreationService';
 
 interface ServiceRequestFormProps {
     onBack: () => void;
@@ -50,6 +52,14 @@ const withSelectedOption = (
 export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, onSubmit, initialData, initialContext, onSelectOrder }) => {
     // State
     const [step, setStep] = useState(initialContext ? 2 : 1);
+    const [showAiForm, setShowAiForm] = useState(false);
+    const [aiSuggestionLabels, setAiSuggestionLabels] = useState<{
+        clientName?: string;
+        unitDescription?: string;
+        sectorDescription?: string;
+        orderTypeDescription?: string;
+        priorityDescription?: string;
+    } | null>(null);
     const [clients, setClients] = useState<Client[]>([]);
     const [units, setUnits] = useState<Unit[]>([]);
     const [assetTags, setAssetTags] = useState<AssetTag[]>([]);
@@ -358,32 +368,80 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
         else onBack();
     };
 
+    const handleApplyAiSuggestion = async (suggestion: SSSuggestion) => {
+        // Salva os labels da sugestão para exibição nos selects
+        setAiSuggestionLabels({
+            clientName: suggestion.clientName,
+            unitDescription: suggestion.unitDescription,
+            sectorDescription: suggestion.sectorDescription,
+            orderTypeDescription: suggestion.orderTypeDescription,
+            priorityDescription: suggestion.priorityDescription,
+        });
+
+        // Carrega unidades ANTES de setar o formData (se tem cliente)
+        let loadedUnits = units;
+        if (suggestion.clientId) {
+            try {
+                loadedUnits = await dataService.getUnitsByClient(suggestion.clientId);
+                setUnits(loadedUnits);
+            } catch (err) {
+                console.error("Error loading units after AI suggestion", err);
+            }
+        }
+
+        // Carrega setores ANTES de setar o formData (se tem unidade)
+        let loadedAssetTags = assetTags;
+        if (suggestion.unitId) {
+            try {
+                loadedAssetTags = await dataService.getUnitsAssetsByUnit(suggestion.unitId);
+                setAssetTags(loadedAssetTags);
+            } catch (err) {
+                console.error("Error loading asset tags after AI suggestion", err);
+            }
+        }
+
+        // Agora seta o formData com as listas já carregadas
+        setFormData(prev => ({
+            ...prev,
+            clientId: suggestion.clientId || prev.clientId,
+            unitId: suggestion.unitId || prev.unitId,
+            unitAssetTagId: suggestion.sectorId || prev.unitAssetTagId,
+            orderTypeId: suggestion.orderTypeId || prev.orderTypeId,
+            priorityId: suggestion.priorityId || prev.priorityId,
+            requestedServices: suggestion.requestedServices || prev.requestedServices,
+        }));
+
+        // Mantém no step 1 com campos preenchidos - usuário clica "Próximo" para avançar
+        setShowAiForm(false);
+        toast.success('Campos preenchidos pela IA. Clique em "Próximo" para continuar.');
+    };
+
     const isUnitDisabled = !formData.clientId;
     const initialOrder = initialData as InitialOrderData | undefined;
     const clientOptions = withSelectedOption(
         clients.map(c => ({ value: c.id, label: c.name })),
         formData.clientId,
-        initialOrder?.clientName ?? initialOrder?.client_name
+        aiSuggestionLabels?.clientName ?? initialOrder?.clientName ?? initialOrder?.client_name
     );
     const unitOptions = withSelectedOption(
         units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })),
         formData.unitId,
-        initialOrder?.unitDescriptionFull ?? initialOrder?.description_full ?? initialOrder?.unitDescription ?? initialOrder?.unit_description
+        aiSuggestionLabels?.unitDescription ?? initialOrder?.unitDescriptionFull ?? initialOrder?.description_full ?? initialOrder?.unitDescription ?? initialOrder?.unit_description
     );
     const assetTagOptions = withSelectedOption(
         assetTags.map(s => ({ value: s.id, label: s.description })),
         formData.unitAssetTagId,
-        initialOrder?.unitAssetTagDescription ?? initialOrder?.unit_asset_tag_description ?? initialOrder?.assetTagDescription ?? initialOrder?.asset_tag_description
+        aiSuggestionLabels?.sectorDescription ?? initialOrder?.unitAssetTagDescription ?? initialOrder?.unit_asset_tag_description ?? initialOrder?.assetTagDescription ?? initialOrder?.asset_tag_description
     );
     const orderTypeOptions = withSelectedOption(
         orderTypes.map(t => ({ value: t.id, label: t.description })),
         formData.orderTypeId,
-        initialOrder?.typeDescription ?? initialOrder?.type_description
+        aiSuggestionLabels?.orderTypeDescription ?? initialOrder?.typeDescription ?? initialOrder?.type_description
     );
     const priorityOptions = withSelectedOption(
         priorities.map(p => ({ value: p.id, label: p.description })),
         formData.priorityId,
-        initialOrder?.priorityDescription ?? initialOrder?.priority_description
+        aiSuggestionLabels?.priorityDescription ?? initialOrder?.priorityDescription ?? initialOrder?.priority_description
     );
 
     return (
@@ -465,6 +523,14 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                     </div>
 
                     <div className="px-4 py-4 space-y-5 animate-in slide-in-from-right-4 duration-300">
+                        {/* Assistente de IA por Linguagem Natural */}
+                        {showAiForm && step === 1 && (
+                            <AINaturalLanguageForm
+                                onApply={handleApplyAiSuggestion}
+                                disabled={isLoading}
+                            />
+                        )}
+
                         {step === 1 && (
                             <section className="space-y-5">
                                 <div className="space-y-4">

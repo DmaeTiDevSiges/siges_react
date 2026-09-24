@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
 import { CompanyAvatar } from '../ui/CompanyAvatar';
 import { formatDateTime, getPriorityColor, getStatusConfig } from '../../utils/formatters';
 import { OrderActionManager } from './OrderActionManager';
 import { dataService } from '../../services/dataService';
+import { captureCardImage } from '../../services/screenshotService';
+import { copyImageWithFallback } from '../../utils/imageClipboard';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';
 import { Loading } from '../ui/Loading';
@@ -73,6 +76,29 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
         setShowViewer(true);
     };
 
+    const [isCopying, setIsCopying] = useState(false);
+
+    const handleCopyImage = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isCopying) return;
+        setIsCopying(true);
+        try {
+            const image = await captureCardImage(`order-${req.id}`);
+            const result = await copyImageWithFallback(image, `OS-${req.orderMask || (req as any).order_mask || req.id}.png`);
+            if (result === 'copied') {
+                toast.success('Imagem copiada! Disponível para colar (Ctrl+V) onde quiser.');
+            } else {
+                toast.warning('Não foi possível copiar — imagem baixada. Anexe onde quiser.');
+            }
+        } catch (error: any) {
+            if (error?.name !== 'AbortError') {
+                toast.error(`Não foi possível gerar a imagem do card${error?.message ? `: ${error.message}` : '.'}`);
+            }
+        } finally {
+            setIsCopying(false);
+        }
+    };
+
     return (
         <Card
             id={`order-${req.id}`}
@@ -93,6 +119,26 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        title={isCopying ? 'Gerando imagem...' : 'Copiar imagem da OS (Ctrl+C)'}
+                        aria-label="Copiar imagem da OS"
+                        disabled={isCopying}
+                        className={`transition-all active:scale-90 disabled:opacity-60 ${isCopying ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
+                        onClick={handleCopyImage}
+                    >
+                        {isCopying ? (
+                            <span
+                                className="material-symbols-outlined animate-spin"
+                                style={{ fontSize: '28px' }}
+                            >
+                                progress_activity
+                            </span>
+                        ) : (
+                            <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>
+                                content_copy
+                            </span>
+                        )}
+                    </button>
                     <CompanyAvatar src={req.providerLogo || (req as any).provider_logo || undefined} name={req.providerCompanyName || (req as any).provider_company_name || 'Provider'} size="md" className="shadow-lg transform group-hover:scale-110 transition-transform" />
                 </div>
             </div>

@@ -1,0 +1,4 @@
+auth.oauth_authorizations
+auth.oauth_clients
+auth.oauth_consents
+public.assets_loans_checklists

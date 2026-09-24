@@ -994,6 +994,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         window.addEventListener('focus', handleWindowFocus);
 
         // 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
+        // Mostrar overlay de loading enquanto os dados mais recentes são buscados
+        setIsFiltering(true);
         fetchDataRef.current(false, false);
         setIsLoading(false);
 
@@ -1336,7 +1338,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="text-[13px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Atualizando dados</span>
-                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wide">Aplicando filtros selecionados...</span>
+                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wide">Carregando dados...</span>
                                     </div>
                                 </div>
                             </div>

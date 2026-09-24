@@ -10,9 +10,10 @@ interface TabsBarProps {
     activeTab: string;
     onTabChange: (tabId: string) => void;
     className?: string;
+    leftContent?: React.ReactNode;
 }
 
-export const TabsBar: React.FC<TabsBarProps> = ({ tabs, activeTab, onTabChange, className = '' }) => {
+export const TabsBar: React.FC<TabsBarProps> = ({ tabs, activeTab, onTabChange, className = '', leftContent }) => {
     const normalizedTabs = tabs.map(t => typeof t === 'string' ? { id: t, label: t } : t);
 
     return (
@@ -33,6 +34,7 @@ export const TabsBar: React.FC<TabsBarProps> = ({ tabs, activeTab, onTabChange, 
                     )}
                 </button>
             ))}
+            {leftContent && <div className="flex-shrink-0 ml-auto">{leftContent}</div>}
         </div>
     );
 };

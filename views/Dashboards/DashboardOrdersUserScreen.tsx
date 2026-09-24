@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { User, Order, OrderVisit } from '../../types';
 import { UserServicesPanel } from '../../components/ui/UserServicesPanel';
 import { UserVisitsPanel } from '../../components/ui/UserVisitsPanel';
+import { GamificationBadge } from '../../components/ui/GamificationBadge';
+import { GamificationHistoryModal } from '../../components/ui/GamificationHistoryModal';
 import { dataService } from '../../services/dataService';
 import { supabase } from '../../services/supabase';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
@@ -20,9 +22,10 @@ interface DashboardScreenProps {
     onEdit?: (order: Order) => void;
     initialTab?: 'services' | 'visits';
     onTabChange?: (tab: 'services' | 'visits') => void;
+    onNavigate?: (screen: string) => void;
 }
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onSelectVisit, onEdit, initialTab = 'services', onTabChange }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onSelectVisit, onEdit, initialTab = 'services', onTabChange, onNavigate }) => {
     // Persistence keys
     const STORAGE_KEYS = {
         TAB: 'dashboard_active_tab',
@@ -46,6 +49,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     const [selectedVisitStatus, setSelectedVisitStatus] = useState<string>(() => {
         return localStorage.getItem(STORAGE_KEYS.VISIT_STATUS) || 'rascunho';
     });
+
+    const [teamGamification, setTeamGamification] = useState<{
+        complianceScore: number;
+        position: number;
+        totalTeams: number;
+        trend: 'up' | 'down' | 'stable';
+    } | null>(null);
+
+    const [showGamificationModal, setShowGamificationModal] = useState(false);
 
     // Sync internal state if initialTab changes (optional, but good for forcing)
     useEffect(() => {
@@ -85,12 +97,32 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
             ]);
             setOrders(teamOrders);
             setVisits(teamVisits);
+
+            // Fetch team gamification data (previous month) if team is evaluable
+            if (currentUser.teamIsEvaluable && currentUser.departmentId && currentUser.teamId) {
+                const now = new Date();
+                const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+                const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+                const teamRanking = await dataService.getTeamRanking(
+                    currentUser.departmentId, prevYear, prevMonth
+                );
+                const myTeam = teamRanking.find(t => t.teamId === currentUser.teamId);
+                if (myTeam) {
+                    setTeamGamification({
+                        complianceScore: myTeam.avgComplianceScore,
+                        position: myTeam.position,
+                        totalTeams: teamRanking.length,
+                        trend: myTeam.trend,
+                    });
+                }
+            }
         } catch (error) {
             console.error('Error fetching dashboard orders:', error);
         } finally {
             if (showLoading) setIsLoading(false);
         }
-    }, [currentUser?.id, currentUser?.teamId]);
+    }, [currentUser?.id, currentUser?.teamId, currentUser?.departmentId, currentUser?.teamIsEvaluable]);
 
     useEffect(() => {
         loadDashboardData(true);
@@ -179,7 +211,23 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     return (
         <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 bg-background-light dark:bg-background-dark safe-area-bottom pt-4">
             {/* Navigation Tabs */}
-            <TabsBar tabs={['Serviços', 'Visitas']} activeTab={activeTab === 'services' ? 'Serviços' : 'Visitas'} onTabChange={(tab) => handleTabChange(tab === 'Serviços' ? 'services' : 'visits')} className="px-4" />
+            <TabsBar
+                tabs={['Serviços', 'Visitas']}
+                activeTab={activeTab === 'services' ? 'Serviços' : 'Visitas'}
+                onTabChange={(tab) => handleTabChange(tab === 'Serviços' ? 'services' : 'visits')}
+                className="px-4"
+                leftContent={
+                    teamGamification ? (
+                        <GamificationBadge
+                            complianceScore={teamGamification.complianceScore}
+                            position={teamGamification.position}
+                            totalTeams={teamGamification.totalTeams}
+                            trend={teamGamification.trend}
+                            onClick={() => setShowGamificationModal(true)}
+                        />
+                    ) : undefined
+                }
+            />
 
             {/* AI Suggestions - disabled */}
             <div className="px-4">
@@ -308,6 +356,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                     </div>
                 )}
             </div>
+
+            {/* Gamification History Modal */}
+            {currentUser?.departmentId && currentUser?.teamId && (
+                <GamificationHistoryModal
+                    isOpen={showGamificationModal}
+                    onClose={() => setShowGamificationModal(false)}
+                    departmentId={currentUser.departmentId}
+                    teamId={currentUser.teamId}
+                />
+            )}
         </div>
     );
 };

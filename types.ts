@@ -189,6 +189,7 @@ export interface User {
   companyId?: string;
   departmentId?: string;
   profileId?: string;
+  teamIsEvaluable?: boolean;
 
   // Signature
   signatureImagePath?: string;

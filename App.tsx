@@ -394,6 +394,12 @@ const AppContent: React.FC = () => {
     if (savedTab === 'contracts') return 'contracts';
     if (savedTab === 'materials' || savedTab === 'materials-search') return 'materials-search';
     if (savedTab === 'manuals') return 'technical-manuals';
+    if (savedTab === 'ss') return 'ss-dashboard';
+    if (savedTab === 'leader-ranking') return 'leader-ranking';
+    if (savedTab === 'dashboard-units-assets-tags') return 'dashboard-units-assets-tags';
+    if (savedTab === 'dashboard-units-power-electric') return 'dashboard-units-power-electric';
+    if (savedTab === 'dashboard-contracts-evaluations') return 'dashboard-contracts-evaluations';
+    if (savedTab === 'app-notices') return 'app-notices';
     return 'dashboard';
   });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -1962,6 +1968,7 @@ const AppContent: React.FC = () => {
               setSelectedOrder(order);
               setCurrentScreen('order-create');
             }}
+            onNavigate={(screen) => setCurrentScreen(screen as any)}
           />
         );
       case 'ss-dashboard':

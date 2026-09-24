@@ -537,21 +537,38 @@ export const gamificationService = {
         year: number,
         month: number
     ): Promise<TeamRankingEntry[]> {
-        // Busca líderes do departamento com suas equipes avaliáveis
+        // Busca equipes do departamento (etapa 1)
+        const { data: teams, error: teamsError } = await supabase
+            .from('cfg_teams')
+            .select('id, description, is_evaluable')
+            .eq('department_id', departmentId)
+            .eq('is_available', true);
+
+        if (teamsError || !teams || teams.length === 0) return [];
+
+        // Filtra equipes avaliáveis
+        const evaluableTeams = teams.filter((t: any) => t.is_evaluable !== false);
+        if (evaluableTeams.length === 0) return [];
+
+        const evaluableTeamIds = evaluableTeams.map((t: any) => t.id);
+
+        // Busca líderes dessas equipes (etapa 2)
         const { data: leaders, error: leadersError } = await supabase
-            .from('cfg_users')
-            .select('id, name_full, team_id, cfg_teams(id, description, is_evaluable)')
-            .eq('cfg_teams.department_id', departmentId)
-            .eq('is_leader', true);
+            .from('v_users')
+            .select('id, name_full, team_id')
+            .in('team_id', evaluableTeamIds)
+            .eq('is_team_leader', true);
 
         if (leadersError || !leaders || leaders.length === 0) return [];
 
-        // Filtra equipes não avaliáveis (is_evaluable === false)
-        const evaluableLeaders = leaders.filter((l: any) => l.cfg_teams?.is_evaluable !== false);
-        if (evaluableLeaders.length === 0) return [];
+        // Mapa de equipes para lookup rápido
+        const teamNameById: Record<string, string> = {};
+        evaluableTeams.forEach((t: any) => {
+            teamNameById[t.id.toString()] = t.description || 'Sem equipe';
+        });
 
         // Busca scores dos líderes
-        const leaderIds = evaluableLeaders.map((l: any) => l.id.toString());
+        const leaderIds = leaders.map((l: any) => l.id.toString());
         const { data: scores } = await supabase
             .from('leader_monthly_scores')
             .select('*')
@@ -569,10 +586,10 @@ export const gamificationService = {
             scores: any[];
         }>();
 
-        evaluableLeaders.forEach((leader: any) => {
+        leaders.forEach((leader: any) => {
             const teamId = leader.team_id?.toString();
             if (!teamId) return;
-            const teamName = leader.cfg_teams?.description || 'Sem equipe';
+            const teamName = teamNameById[teamId] || 'Sem equipe';
             if (!teamMap.has(teamId)) {
                 teamMap.set(teamId, { teamId, teamName, leaders: [], scores: [] });
             }

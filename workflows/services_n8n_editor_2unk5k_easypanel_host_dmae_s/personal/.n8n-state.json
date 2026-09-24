@@ -34,6 +34,11 @@
       "lastSyncedHash": "9b3d602f2ecf6dd644a1364afb70364f3902aafb03f42dcf615cc5926010f891",
       "lastSyncedAt": "2026-09-10T21:25:37.949Z",
       "filename": "SigesSupabaseBackup.workflow.ts"
+    },
+    "4C1vGD90e5C2e9LM": {
+      "lastSyncedHash": "b37e0d725a8b8f340b149d2278dad4d942d879fa14ddb57d0bbfe255628c532e",
+      "lastSyncedAt": "2026-09-21T01:30:06.697Z",
+      "filename": "siges-ss-creation-assistant.workflow.ts"
     }
   }
 }

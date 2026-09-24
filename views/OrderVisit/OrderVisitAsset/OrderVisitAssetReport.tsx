@@ -16,6 +16,7 @@ import { ButtonNew } from '../../../components/ui/ButtonNew';
 import { AIAssetPanel } from '../../../components/ai/AIAssetPanel';
 import { createPortal } from 'react-dom';
 import { usePermissions } from '../../../contexts/PermissionsContext';
+import { AssetAlertModal } from '../../Assets/AssetAlertModal';
 import { Select } from '../../../components/ui/Select';
 import { Modal } from '../../../components/ui/Modal';
 import { getProcessingStatus } from '../../../components/ordersVisits/OrderVisitProcessingButton';
@@ -245,6 +246,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
     const [reportAssetAlerts, setReportAssetAlerts] = useState<AssetAlert[]>([]);
     const [completedAlertIds, setCompletedAlertIds] = useState<string[]>([]);
+    const [isAddingAlert, setIsAddingAlert] = useState(false);
 
     // Cover photo state
     const [showCoverConfirmModal, setShowCoverConfirmModal] = useState(false);
@@ -287,7 +289,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [statusesList, setStatusesList] = useState<any[]>([]);
     const [prioritiesList, setPrioritiesList] = useState<any[]>([]);
 
-    const { canView } = usePermissions();
+    const { canView, canCreate } = usePermissions();
 
     const isApproved = asset ? (Number(asset.processingId) === 3 || Number(asset.processingId) === 5) : false;
 
@@ -683,6 +685,16 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         await Promise.all(updates);
 
         setReportAssetAlerts(prev => prev.filter(alert => completedAlertIds.includes(alert.id)));
+    };
+
+    const refreshAlerts = async () => {
+        if (!asset?.assetId) return;
+        setIsAddingAlert(false);
+        const alerts = await dataService.getAssetAlerts(asset.assetId);
+        const visibleAlerts = alerts.filter(a =>
+            !a.isDeleted && (!a.isDone || a.ovaId === asset.id)
+        );
+        setReportAssetAlerts(visibleAlerts);
     };
 
     const handleRemoveAsset = async () => {
@@ -1498,10 +1510,31 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     )}
                 </div>
 
+                <AssetAlertModal
+                    isOpen={isAddingAlert}
+                    onClose={() => setIsAddingAlert(false)}
+                    assetId={asset?.assetId || ''}
+                    ovaId={asset?.id}
+                    onSaved={refreshAlerts}
+                />
+
                 {/* Action Buttons */}
                 {!readOnly && (
                     <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
-                        <SectionHeader icon="notifications" title="ALERTAS RESOLVIDOS" />
+                        <SectionHeader
+                            icon="notifications"
+                            title="ALERTAS RESOLVIDOS"
+                            action={
+                                canCreate('assets_alerts') && !!localEditMode && (
+                                    <button
+                                        onClick={() => setIsAddingAlert(true)}
+                                        className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all cursor-pointer"
+                                    >
+                                        <span className="material-symbols-outlined text-lg">add_alert</span>
+                                    </button>
+                                )
+                            }
+                        />
 
                         {reportAssetAlerts.length > 0 ? (
                             <div className="space-y-3">

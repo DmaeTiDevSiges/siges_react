@@ -6,16 +6,23 @@ import { dataService } from '../../services/dataService';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';
 import { getPriorityColor, getStatusConfig } from '../../utils/formatters';
+import { useAuth } from '../../contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface ServiceRequestCardListItemProps {
     order: Order;
     onClick?: () => void;
     isFollowed?: boolean;
     onToggleFollow?: (e: React.MouseEvent) => void;
+    showSyncStatusButton?: boolean;
+    onStatusSynced?: () => void;
 }
 
-export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProps> = ({ order: req, onClick, isFollowed, onToggleFollow }) => {
+export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProps> = ({ order: req, onClick, isFollowed, onToggleFollow, showSyncStatusButton = false, onStatusSynced }) => {
     const [expanded, setExpanded] = useState(false);
+    const { currentUser } = useAuth();
+    const isSuperAdmin = currentUser?.isAdminSuper === true;
+    const [isSyncingStatus, setIsSyncingStatus] = useState(false);
     const statusCfg = getStatusConfig(req.statusId);
     
     // Parse date for Badge (Day.Month.Year - No padding based on image Step 1020)
@@ -100,6 +107,22 @@ export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProp
         e.stopPropagation(); // Avoid opening detail
         setViewerIndex(index);
         setShowViewer(true);
+    };
+
+    const handleSyncStatus = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isSyncingStatus) return;
+        setIsSyncingStatus(true);
+        try {
+            await dataService.updateServiceRequestStatus(String(req.id));
+            toast.success('Situação da SS recalculada pelas OSs');
+            onStatusSynced?.();
+        } catch (err) {
+            console.error('Erro ao recalc. situação da SS:', err);
+            toast.error('Falha ao atualizar situação da SS');
+        } finally {
+            setIsSyncingStatus(false);
+        }
     };
 
     return (
@@ -202,6 +225,20 @@ export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProp
                     <span className={`text-xs font-bold ${statusCfg.color}`}>{req.statusDescription || statusCfg.label}</span>
                     <span className="text-[10px] text-slate-500">{formatGridDate(req.statusAt)}</span>
                 </div>
+                {showSyncStatusButton && isSuperAdmin && (
+                    <button
+                        type="button"
+                        title="Recalcular situação da SS pelas OSs"
+                        aria-label="Recalcular situação da SS pelas OSs"
+                        onClick={handleSyncStatus}
+                        disabled={isSyncingStatus}
+                        className="ml-auto w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white/70 dark:hover:bg-slate-700/60 transition-all active:scale-90 disabled:opacity-50 disabled:cursor-wait shrink-0"
+                    >
+                        <span className={`material-symbols-outlined text-[20px] ${isSyncingStatus ? 'animate-spin' : ''}`}>
+                            {isSyncingStatus ? 'progress_activity' : 'sync'}
+                        </span>
+                    </button>
+                )}
             </div>
 
             {/* Photo Viewer */}

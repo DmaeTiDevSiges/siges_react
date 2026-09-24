@@ -1,0 +1,2347 @@
+;
+; Archive created at 2026-09-23 02:45:08 -03
+;     dbname: postgres
+;     TOC Entries: 2339
+;     Compression: gzip
+;     Dump Version: 1.14-0
+;     Format: CUSTOM
+;     Integer: 4 bytes
+;     Offset: 8 bytes
+;     Dumped from database version: 15.8
+;     Dumped by pg_dump version: 15.15 (Debian 15.15-1.pgdg12+1)
+;
+;
+; Selected TOC Entries:
+;
+41; 2615 16457 SCHEMA - auth supabase_admin
+7908; 0 0 ACL - SCHEMA auth supabase_admin
+212; 2615 2200 SCHEMA - public pg_database_owner
+7909; 0 0 COMMENT - SCHEMA public pg_database_owner
+7910; 0 0 ACL - SCHEMA public pg_database_owner
+39; 2615 16505 SCHEMA - storage supabase_admin
+7911; 0 0 ACL - SCHEMA storage supabase_admin
+2197; 1247 17086 TYPE auth aal_level supabase_auth_admin
+2227; 1247 17227 TYPE auth code_challenge_method supabase_auth_admin
+2194; 1247 17080 TYPE auth factor_status supabase_auth_admin
+2188; 1247 17074 TYPE auth factor_type supabase_auth_admin
+2445; 1247 266614 TYPE auth oauth_authorization_status supabase_auth_admin
+2460; 1247 266687 TYPE auth oauth_client_type supabase_auth_admin
+2221; 1247 266593 TYPE auth oauth_registration_type supabase_auth_admin
+2448; 1247 266624 TYPE auth oauth_response_type supabase_auth_admin
+2233; 1247 17269 TYPE auth one_time_token_type supabase_auth_admin
+2553; 1247 266739 TYPE storage buckettype supabase_storage_admin
+851; 1255 16503 FUNCTION auth email() supabase_auth_admin
+7912; 0 0 COMMENT auth FUNCTION email() supabase_auth_admin
+7913; 0 0 ACL auth FUNCTION email() supabase_auth_admin
+1040; 1255 17056 FUNCTION auth jwt() supabase_auth_admin
+7914; 0 0 ACL auth FUNCTION jwt() supabase_auth_admin
+936; 1255 16502 FUNCTION auth role() supabase_auth_admin
+7915; 0 0 COMMENT auth FUNCTION role() supabase_auth_admin
+7916; 0 0 ACL auth FUNCTION role() supabase_auth_admin
+850; 1255 16501 FUNCTION auth uid() supabase_auth_admin
+7917; 0 0 COMMENT auth FUNCTION uid() supabase_auth_admin
+7918; 0 0 ACL auth FUNCTION uid() supabase_auth_admin
+1457; 1255 282555 FUNCTION public change_updated_at() postgres
+7919; 0 0 ACL public FUNCTION change_updated_at() postgres
+468; 1259 18053 TABLE public cfg_activities supabase_admin
+7920; 0 0 ACL public TABLE cfg_activities supabase_admin
+635; 1259 41852 VIEW public v_activities supabase_admin
+7921; 0 0 ACL public TABLE v_activities supabase_admin
+1468; 1255 41958 FUNCTION public fc_activities_search(text) supabase_admin
+7922; 0 0 ACL public FUNCTION fc_activities_search(srch_terms text) supabase_admin
+1358; 1255 270468 FUNCTION public fc_api_key_validate(text) supabase_admin
+7923; 0 0 ACL public FUNCTION fc_api_key_validate(p_api_key text) supabase_admin
+461; 1259 18003 TABLE public assets supabase_admin
+7924; 0 0 ACL public TABLE assets supabase_admin
+478; 1259 18099 TABLE public cfg_assets_couplings_models supabase_admin
+7925; 0 0 ACL public TABLE cfg_assets_couplings_models supabase_admin
+480; 1259 18110 TABLE public cfg_assets_priorities supabase_admin
+7926; 0 0 ACL public TABLE cfg_assets_priorities supabase_admin
+482; 1259 18118 TABLE public cfg_assets_statuses supabase_admin
+7927; 0 0 ACL public TABLE cfg_assets_statuses supabase_admin
+483; 1259 18127 TABLE public cfg_assets_tags supabase_admin
+7928; 0 0 ACL public TABLE cfg_assets_tags supabase_admin
+484; 1259 18135 TABLE public cfg_assets_tags_subs supabase_admin
+7929; 0 0 ACL public TABLE cfg_assets_tags_subs supabase_admin
+485; 1259 18143 TABLE public cfg_assets_types supabase_admin
+7930; 0 0 ACL public TABLE cfg_assets_types supabase_admin
+459; 1259 17991 TABLE public cfg_companies supabase_admin
+7931; 0 0 ACL public TABLE cfg_companies supabase_admin
+661; 1259 208113 TABLE public clients supabase_admin
+7932; 0 0 ACL public TABLE clients supabase_admin
+542; 1259 18468 TABLE public materials supabase_admin
+7933; 0 0 ACL public TABLE materials supabase_admin
+562; 1259 18614 TABLE public units supabase_admin
+7934; 0 0 ACL public TABLE units supabase_admin
+639; 1259 84432 VIEW public v_assets supabase_admin
+7935; 0 0 ACL public TABLE v_assets supabase_admin
+1398; 1255 84481 FUNCTION public fc_assets_search_filters(integer[], integer[], integer[], integer[], integer[], text, text, integer, integer) supabase_admin
+7936; 0 0 ACL public FUNCTION fc_assets_search_filters(units_ids integer[], statuses_ids integer[], tags_ids integer[], tags_subs_ids integer[], types_ids integer[], search_terms text, app_version_mode text, limit_value integer, offset_value integer) supabase_admin
+1399; 1255 84480 FUNCTION public fc_assets_search_type(text, integer) supabase_admin
+7937; 0 0 ACL public FUNCTION fc_assets_search_type(search_terms text, asset_type_id integer) supabase_admin
+1400; 1255 84478 FUNCTION public fc_assets_search_unit(text, integer, text) supabase_admin
+7938; 0 0 ACL public FUNCTION fc_assets_search_unit(search_terms text, unit_id integer, app_version_mode text) supabase_admin
+1428; 1255 151960 FUNCTION public fc_assets_searchable(text, text) supabase_admin
+7939; 0 0 ACL public FUNCTION fc_assets_searchable(search_terms text, app_version_mode text) supabase_admin
+1464; 1255 205398 FUNCTION public fc_assets_searchable_update() supabase_admin
+7940; 0 0 ACL public FUNCTION fc_assets_searchable_update() supabase_admin
+1485; 1255 169574 FUNCTION public fc_cfg_units_assets_tags_set_last_values_when_processing_2() supabase_admin
+7941; 0 0 ACL public FUNCTION fc_cfg_units_assets_tags_set_last_values_when_processing_2() supabase_admin
+1461; 1255 385587 FUNCTION public fc_check_user_permission(bigint, character varying, character varying) supabase_admin
+7942; 0 0 ACL public FUNCTION fc_check_user_permission(p_user_id bigint, p_route_key character varying, p_action character varying) supabase_admin
+523; 1259 18322 TABLE public cfg_services supabase_admin
+7943; 0 0 ACL public TABLE cfg_services supabase_admin
+539; 1259 18410 TABLE public contracts_services supabase_admin
+7944; 0 0 ACL public TABLE contracts_services supabase_admin
+810; 1259 379166 VIEW public v_contracts_services supabase_admin
+7945; 0 0 ACL public TABLE v_contracts_services supabase_admin
+1382; 1255 379171 FUNCTION public fc_contracts_services_search(text, integer) supabase_admin
+7946; 0 0 ACL public FUNCTION fc_contracts_services_search(search_terms text, contract_id_value integer) supabase_admin
+493; 1259 18182 TABLE public cfg_orders_causes_reasons supabase_admin
+7947; 0 0 ACL public TABLE cfg_orders_causes_reasons supabase_admin
+501; 1259 18221 TABLE public cfg_orders_priorities supabase_admin
+7948; 0 0 ACL public TABLE cfg_orders_priorities supabase_admin
+507; 1259 18248 TABLE public cfg_orders_types supabase_admin
+7949; 0 0 ACL public TABLE cfg_orders_types supabase_admin
+511; 1259 18268 TABLE public cfg_orders_types_subs supabase_admin
+7950; 0 0 ACL public TABLE cfg_orders_types_subs supabase_admin
+513; 1259 18278 TABLE public cfg_orders_visits_extras_processing supabase_admin
+7951; 0 0 ACL public TABLE cfg_orders_visits_extras_processing supabase_admin
+525; 1259 18333 TABLE public cfg_systems supabase_admin
+7952; 0 0 ACL public TABLE cfg_systems supabase_admin
+527; 1259 18344 TABLE public cfg_teams supabase_admin
+7953; 0 0 ACL public TABLE cfg_teams supabase_admin
+531; 1259 18363 TABLE public cfg_units_types supabase_admin
+7954; 0 0 ACL public TABLE cfg_units_types supabase_admin
+564; 1259 18626 TABLE public orders_visits_extras supabase_admin
+7955; 0 0 ACL public TABLE orders_visits_extras supabase_admin
+560; 1259 18586 TABLE public users supabase_admin
+7956; 0 0 COMMENT public COLUMN users.shift_start supabase_admin
+7957; 0 0 COMMENT public COLUMN users.shift_end supabase_admin
+7958; 0 0 COMMENT public COLUMN users.tracker_heartbeat_at supabase_admin
+7959; 0 0 COMMENT public COLUMN users.tracker_accuracy supabase_admin
+7960; 0 0 ACL public TABLE users supabase_admin
+602; 1259 19108 VIEW public v_orders_visits_extras supabase_admin
+7961; 0 0 ACL public TABLE v_orders_visits_extras supabase_admin
+1401; 1255 19113 FUNCTION public fc_dash_admin_orders_extras_filters(timestamp without time zone, timestamp without time zone, integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[]) supabase_admin
+7962; 0 0 ACL public FUNCTION fc_dash_admin_orders_extras_filters(date_start timestamp without time zone, date_end timestamp without time zone, o_types_ids integer[], teams_ids integer[], units_ids integer[], assets_tags_ids integer[], o_types_subs_ids integer[], systems_parents_ids integer[], systems_ids integer[], units_types_parents_ids integer[], units_types_ids integer[], o_causes_reasons_ids integer[]) supabase_admin
+603; 1259 19114 VIEW public v_orders_visits_extras_no_archived supabase_admin
+7963; 0 0 ACL public TABLE v_orders_visits_extras_no_archived supabase_admin
+1048; 1255 19119 FUNCTION public fc_dash_admin_orders_extras_no_archived_filters(integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[]) supabase_admin
+7964; 0 0 ACL public FUNCTION fc_dash_admin_orders_extras_no_archived_filters(o_types_ids integer[], teams_ids integer[], units_ids integer[], assets_tags_ids integer[], o_types_subs_ids integer[], systems_parents_ids integer[], systems_ids integer[], units_types_parents_ids integer[], units_types_ids integer[], o_causes_reasons_ids integer[]) supabase_admin
+491; 1259 18172 TABLE public cfg_orders_cancel_reasons supabase_admin
+7965; 0 0 ACL public TABLE cfg_orders_cancel_reasons supabase_admin
+497; 1259 18203 TABLE public cfg_orders_objects supabase_admin
+7966; 0 0 ACL public TABLE cfg_orders_objects supabase_admin
+499; 1259 18211 TABLE public cfg_orders_plans supabase_admin
+7967; 0 0 ACL public TABLE cfg_orders_plans supabase_admin
+503; 1259 18229 TABLE public cfg_orders_statuses supabase_admin
+7968; 0 0 ACL public TABLE cfg_orders_statuses supabase_admin
+505; 1259 18238 TABLE public cfg_orders_suspended_reasons supabase_admin
+7969; 0 0 ACL public TABLE cfg_orders_suspended_reasons supabase_admin
+535; 1259 18381 TABLE public contracts supabase_admin
+7970; 0 0 ACL public TABLE contracts supabase_admin
+546; 1259 18486 TABLE public orders supabase_admin
+7971; 0 0 ACL public TABLE orders supabase_admin
+684; 1259 271030 VIEW public v_orders supabase_admin
+7972; 0 0 ACL public TABLE v_orders supabase_admin
+688; 1259 271635 VIEW public v_dash_admin_orders_filters_open supabase_admin
+7973; 0 0 ACL public TABLE v_dash_admin_orders_filters_open supabase_admin
+1402; 1255 271640 FUNCTION public fc_dash_admin_orders_filters_open(integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[], integer[], text) supabase_admin
+7974; 0 0 ACL public FUNCTION fc_dash_admin_orders_filters_open(systems_parents_ids integer[], systems_ids integer[], units_types_parents_ids integer[], units_ids integer[], assets_tags_ids integer[], orders_types_ids integer[], orders_types_subs_ids integer[], contracts_ids integer[], companies_ids integer[], orders_objects_ids integer[], orders_plans_ids integer[], teams_ids integer[], app_version_mode text) supabase_admin
+686; 1259 271623 VIEW public v_dash_admin_orders_parent_filters_open supabase_admin
+7975; 0 0 ACL public TABLE v_dash_admin_orders_parent_filters_open supabase_admin
+1403; 1255 271628 FUNCTION public fc_dash_admin_orders_parent_filters_open(integer[], integer[], integer[], integer[], integer[], integer[], integer[], text) supabase_admin
+7976; 0 0 ACL public FUNCTION fc_dash_admin_orders_parent_filters_open(systems_parents_ids integer[], systems_ids integer[], units_types_parents_ids integer[], units_types_ids integer[], units_ids integer[], orders_types_ids integer[], assets_tags_ids integer[], app_version_mode text) supabase_admin
+1454; 1255 363615 FUNCTION public fc_dashboard_stats(bigint, bigint) supabase_admin
+7977; 0 0 ACL public FUNCTION fc_dashboard_stats(p_company_id bigint, p_team_id bigint) supabase_admin
+1429; 1255 365409 FUNCTION public fc_durations_hours_decimals() supabase_admin
+7978; 0 0 ACL public FUNCTION fc_durations_hours_decimals() supabase_admin
+1325; 1255 205898 FUNCTION public fc_financial_orders_visits_materials_sum(integer[]) supabase_admin
+7979; 0 0 ACL public FUNCTION fc_financial_orders_visits_materials_sum(ov_ids integer[]) supabase_admin
+847; 1255 205664 FUNCTION public fc_financial_orders_visits_services_sum(integer[]) supabase_admin
+7980; 0 0 ACL public FUNCTION fc_financial_orders_visits_services_sum(ov_ids integer[]) supabase_admin
+1425; 1255 273901 FUNCTION public fc_financial_orders_visits_vehicles_sum(integer[]) supabase_admin
+7981; 0 0 ACL public FUNCTION fc_financial_orders_visits_vehicles_sum(ov_ids integer[]) supabase_admin
+1459; 1255 385585 FUNCTION public fc_get_profile_permissions(bigint) supabase_admin
+7982; 0 0 ACL public FUNCTION fc_get_profile_permissions(p_profile_id bigint) supabase_admin
+1458; 1255 385584 FUNCTION public fc_get_user_permissions(bigint) supabase_admin
+7983; 0 0 ACL public FUNCTION fc_get_user_permissions(p_user_id bigint) supabase_admin
+1404; 1255 166296 FUNCTION public fc_imgproxy_sign_url(text, text, text, text, text, boolean) supabase_admin
+7984; 0 0 ACL public FUNCTION fc_imgproxy_sign_url(key_hex text, salt_hex text, transforms text, img_url text, imgproxy_url text, is_web boolean) supabase_admin
+1447; 1255 154168 FUNCTION public fc_import_orders_visits_contracts_update_finger_print() supabase_admin
+7985; 0 0 ACL public FUNCTION fc_import_orders_visits_contracts_update_finger_print() supabase_admin
+1408; 1255 373120 FUNCTION public fc_leader_tracker_interval() supabase_admin
+7986; 0 0 COMMENT public FUNCTION fc_leader_tracker_interval() supabase_admin
+7987; 0 0 ACL public FUNCTION fc_leader_tracker_interval() supabase_admin
+1484; 1255 170616 FUNCTION public fc_materials_searchable() supabase_admin
+7988; 0 0 ACL public FUNCTION fc_materials_searchable() supabase_admin
+1384; 1255 384922 FUNCTION public fc_order_counter_increment(bigint, integer, text) supabase_admin
+7989; 0 0 ACL public FUNCTION fc_order_counter_increment(p_company_id bigint, p_year integer, p_version text) supabase_admin
+1424; 1255 287834 FUNCTION public fc_order_status_inheritance() supabase_admin
+7990; 0 0 COMMENT public FUNCTION fc_order_status_inheritance() supabase_admin
+7991; 0 0 ACL public FUNCTION fc_order_status_inheritance() supabase_admin
+1386; 1255 363977 FUNCTION public fc_orders_op_counter_trigger() supabase_admin
+7992; 0 0 ACL public FUNCTION fc_orders_op_counter_trigger() supabase_admin
+1379; 1255 384848 FUNCTION public fc_orders_replace_special_chars() supabase_admin
+7993; 0 0 ACL public FUNCTION fc_orders_replace_special_chars() supabase_admin
+509; 1259 18258 TABLE public cfg_orders_types_activities supabase_admin
+7994; 0 0 ACL public TABLE cfg_orders_types_activities supabase_admin
+596; 1259 19019 VIEW public v_orders_types_activities supabase_admin
+7995; 0 0 ACL public TABLE v_orders_types_activities supabase_admin
+1385; 1255 384923 FUNCTION public fc_orders_types_activities_search(text, text) supabase_admin
+7996; 0 0 ACL public FUNCTION fc_orders_types_activities_search(srch_terms text, srch_version_mode text) supabase_admin
+1469; 1255 289456 FUNCTION public fc_orders_visits_assets_activities_description() supabase_admin
+7997; 0 0 ACL public FUNCTION fc_orders_visits_assets_activities_description() supabase_admin
+1394; 1255 384968 FUNCTION public fc_orders_visits_assets_materials_update_value_total() supabase_admin
+7998; 0 0 ACL public FUNCTION fc_orders_visits_assets_materials_update_value_total() supabase_admin
+1451; 1255 257174 FUNCTION public fc_orders_visits_assets_update_activities_searchable() supabase_admin
+7999; 0 0 ACL public FUNCTION fc_orders_visits_assets_update_activities_searchable() supabase_admin
+1405; 1255 171016 FUNCTION public fc_orders_visits_assets_update_materials_value() supabase_admin
+8000; 0 0 ACL public FUNCTION fc_orders_visits_assets_update_materials_value() supabase_admin
+1108; 1255 19092 FUNCTION public fc_orders_visits_assets_update_services_value() supabase_admin
+8001; 0 0 ACL public FUNCTION fc_orders_visits_assets_update_services_value() supabase_admin
+1380; 1255 19094 FUNCTION public fc_orders_visits_assets_update_vehicles_value() supabase_admin
+8002; 0 0 ACL public FUNCTION fc_orders_visits_assets_update_vehicles_value() supabase_admin
+1019; 1255 19125 FUNCTION public fc_orders_visits_extras_teams_update() supabase_admin
+8003; 0 0 ACL public FUNCTION fc_orders_visits_extras_teams_update() supabase_admin
+1388; 1255 252924 FUNCTION public fc_orders_visits_services_amount_update() supabase_admin
+8004; 0 0 ACL public FUNCTION fc_orders_visits_services_amount_update() supabase_admin
+1376; 1255 19131 FUNCTION public fc_orders_visits_services_update_services_value() supabase_admin
+8005; 0 0 ACL public FUNCTION fc_orders_visits_services_update_services_value() supabase_admin
+1319; 1255 252700 FUNCTION public fc_orders_visits_services_update_value_unit() supabase_admin
+8006; 0 0 ACL public FUNCTION fc_orders_visits_services_update_value_unit() supabase_admin
+1415; 1255 19137 FUNCTION public fc_orders_visits_teams_update() supabase_admin
+8007; 0 0 ACL public FUNCTION fc_orders_visits_teams_update() supabase_admin
+1052; 1255 19090 FUNCTION public fc_orders_visits_update_total_value() supabase_admin
+8008; 0 0 ACL public FUNCTION fc_orders_visits_update_total_value() supabase_admin
+1426; 1255 273897 FUNCTION public fc_orders_visits_vehicles_before_save() supabase_admin
+8009; 0 0 ACL public FUNCTION fc_orders_visits_vehicles_before_save() supabase_admin
+1427; 1255 273899 FUNCTION public fc_orders_visits_vehicles_update_vehicles_value() supabase_admin
+8010; 0 0 ACL public FUNCTION fc_orders_visits_vehicles_update_vehicles_value() supabase_admin
+1383; 1255 375046 FUNCTION public fc_regenerate_asset_description(bigint) supabase_admin
+8011; 0 0 ACL public FUNCTION fc_regenerate_asset_description(p_asset_id bigint) supabase_admin
+1416; 1255 266970 FUNCTION public fc_set_ov_started_date_parts() supabase_admin
+8012; 0 0 ACL public FUNCTION fc_set_ov_started_date_parts() supabase_admin
+1387; 1255 380374 FUNCTION public fc_sync_ov_costs_status() supabase_admin
+8013; 0 0 ACL public FUNCTION fc_sync_ov_costs_status() supabase_admin
+1452; 1255 334888 FUNCTION public fc_system_parent_id_10_at_id_33_46_uata_rate() supabase_admin
+8014; 0 0 ACL public FUNCTION fc_system_parent_id_10_at_id_33_46_uata_rate() supabase_admin
+1320; 1255 19165 FUNCTION public fc_team_descendants(bigint) supabase_admin
+8015; 0 0 ACL public FUNCTION fc_team_descendants(team_id bigint) supabase_admin
+1397; 1255 270742 FUNCTION public fc_tgr_units_searchable() supabase_admin
+8016; 0 0 ACL public FUNCTION fc_tgr_units_searchable() supabase_admin
+576; 1259 18810 TABLE public technicals_manuals supabase_admin
+8017; 0 0 ACL public TABLE technicals_manuals supabase_admin
+741; 1259 361286 VIEW public v_technicals_manuals supabase_admin
+8018; 0 0 ACL public TABLE v_technicals_manuals supabase_admin
+1406; 1255 361290 FUNCTION public fc_tm_assets_types_search_terms(text, integer) supabase_admin
+8019; 0 0 ACL public FUNCTION fc_tm_assets_types_search_terms(search_terms text, src_asset_type_id integer) supabase_admin
+1407; 1255 365540 FUNCTION public fc_total_value_update() supabase_admin
+8020; 0 0 ACL public FUNCTION fc_total_value_update() supabase_admin
+1443; 1255 272542 FUNCTION public fc_unit_05_assets_tags_available_rate() supabase_admin
+8021; 0 0 ACL public FUNCTION fc_unit_05_assets_tags_available_rate() supabase_admin
+617; 1259 19295 TABLE public cfg_units_assets_tags supabase_admin
+8022; 0 0 ACL public TABLE cfg_units_assets_tags supabase_admin
+758; 1259 362975 VIEW public v_units_by_assets_tags supabase_admin
+8023; 0 0 ACL public TABLE v_units_by_assets_tags supabase_admin
+1381; 1255 363002 FUNCTION public fc_units_assets_tags_available_rate_search_filters(integer, integer[], integer[], integer[], integer[], integer, integer, integer) supabase_admin
+8024; 0 0 ACL public FUNCTION fc_units_assets_tags_available_rate_search_filters(system_parent_id_value integer, systems_ids integer[], units_types_parent_ids integer[], units_types_ids integer[], units_ids integer[], asset_tag_id_value integer, offset_value integer, limit_value integer) supabase_admin
+621; 1259 19439 TABLE public cfg_assets_available_processing supabase_admin
+8025; 0 0 ACL public TABLE cfg_assets_available_processing supabase_admin
+619; 1259 19347 TABLE public cfg_assets_unavailable_reasons supabase_admin
+8026; 0 0 ACL public TABLE cfg_assets_unavailable_reasons supabase_admin
+757; 1259 362970 VIEW public v_units_assets_tags supabase_admin
+8027; 0 0 ACL public TABLE v_units_assets_tags supabase_admin
+1409; 1255 363001 FUNCTION public fc_units_assets_tags_search_filters(integer) supabase_admin
+8028; 0 0 ACL public FUNCTION fc_units_assets_tags_search_filters(system_parent_id_value integer) supabase_admin
+1053; 1255 290174 FUNCTION public fc_units_assets_tags_update_asset_tag_description() supabase_admin
+8029; 0 0 ACL public FUNCTION fc_units_assets_tags_update_asset_tag_description() supabase_admin
+1082; 1255 290236 FUNCTION public fc_units_assets_tags_update_asset_tag_sub_description() supabase_admin
+8030; 0 0 ACL public FUNCTION fc_units_assets_tags_update_asset_tag_sub_description() supabase_admin
+1396; 1255 241156 FUNCTION public fc_units_assets_tags_update_op_counter() supabase_admin
+8031; 0 0 ACL public FUNCTION fc_units_assets_tags_update_op_counter() supabase_admin
+529; 1259 18355 TABLE public cfg_units_statuses supabase_admin
+8032; 0 0 ACL public TABLE cfg_units_statuses supabase_admin
+640; 1259 86296 VIEW public v_units supabase_admin
+8033; 0 0 ACL public TABLE v_units supabase_admin
+1455; 1255 86301 FUNCTION public fc_units_search(character varying, character varying) supabase_admin
+8034; 0 0 ACL public FUNCTION fc_units_search(search_terms character varying, search_version character varying) supabase_admin
+1430; 1255 267200 FUNCTION public fc_units_search_filters(integer[], integer[], integer[], integer[], integer, text, text) supabase_admin
+8035; 0 0 ACL public FUNCTION fc_units_search_filters(systems_parent_ids integer[], systems_ids integer[], units_types_parent_ids integer[], units_types_ids integer[], unit_status_id integer, search_terms text, app_version_mode text) supabase_admin
+1456; 1255 86303 FUNCTION public fc_units_search_filters(integer[], integer[], integer[], integer[], integer, text, text, integer, integer) supabase_admin
+8036; 0 0 ACL public FUNCTION fc_units_search_filters(systems_parent_ids integer[], systems_ids integer[], units_types_parent_ids integer[], units_types_ids integer[], unit_status_id integer, search_terms text, app_version_mode text, offset_value integer, limit_value integer) supabase_admin
+1410; 1255 365549 FUNCTION public fc_update_after_img_file_name() supabase_admin
+8037; 0 0 ACL public FUNCTION fc_update_after_img_file_name() supabase_admin
+1411; 1255 365545 FUNCTION public fc_update_after_img_files_names() supabase_admin
+8038; 0 0 ACL public FUNCTION fc_update_after_img_files_names() supabase_admin
+1412; 1255 365547 FUNCTION public fc_update_before_img_file_name() supabase_admin
+8039; 0 0 ACL public FUNCTION fc_update_before_img_file_name() supabase_admin
+1413; 1255 365543 FUNCTION public fc_update_before_img_files_names() supabase_admin
+8040; 0 0 ACL public FUNCTION fc_update_before_img_files_names() supabase_admin
+1414; 1255 363976 FUNCTION public fc_update_op_counter(bigint) supabase_admin
+8041; 0 0 ACL public FUNCTION fc_update_op_counter(p_unit_asset_tag_id bigint) supabase_admin
+1460; 1255 385586 FUNCTION public fc_update_profile_routes(bigint, jsonb) supabase_admin
+8042; 0 0 ACL public FUNCTION fc_update_profile_routes(p_profile_id bigint, p_routes jsonb) supabase_admin
+1417; 1255 251212 FUNCTION public flow_order_visit_close_v2(jsonb) supabase_admin
+8043; 0 0 ACL public FUNCTION flow_order_visit_close_v2(payload jsonb) supabase_admin
+1462; 1255 251790 FUNCTION public flow_order_visit_create_v2(jsonb) supabase_admin
+8044; 0 0 ACL public FUNCTION flow_order_visit_create_v2(payload jsonb) supabase_admin
+1465; 1255 376048 FUNCTION public fn_audit_visit_costs_status() supabase_admin
+8045; 0 0 ACL public FUNCTION fn_audit_visit_costs_status() supabase_admin
+1432; 1255 360349 FUNCTION public generate_impersonation_link(bigint, text, text) supabase_admin
+8046; 0 0 ACL public FUNCTION generate_impersonation_link(p_target_user_id bigint, p_redirect_to text, p_service_role_key text) supabase_admin
+858; 1255 308315 FUNCTION public get_users_within_distance(double precision, double precision, double precision, integer, integer) supabase_admin
+8047; 0 0 ACL public FUNCTION get_users_within_distance(user_lat double precision, user_lon double precision, max_dist_km double precision, min_age integer, max_age integer) supabase_admin
+1418; 1255 369458 FUNCTION public handle_followers_orders_status_changed() supabase_admin
+8048; 0 0 COMMENT public FUNCTION handle_followers_orders_status_changed() supabase_admin
+8049; 0 0 ACL public FUNCTION handle_followers_orders_status_changed() supabase_admin
+1419; 1255 206227 FUNCTION public handle_new_user() supabase_admin
+8050; 0 0 ACL public FUNCTION handle_new_user() supabase_admin
+1420; 1255 214285 FUNCTION public handle_notifications_count() supabase_admin
+8051; 0 0 ACL public FUNCTION handle_notifications_count() supabase_admin
+1389; 1255 214284 FUNCTION public handle_profile_photo_change_notification() supabase_admin
+8052; 0 0 ACL public FUNCTION handle_profile_photo_change_notification() supabase_admin
+1421; 1255 206225 FUNCTION public handle_updated_at() supabase_admin
+8053; 0 0 ACL public FUNCTION handle_updated_at() supabase_admin
+1463; 1255 152579 FUNCTION public match_documents(extensions.vector, integer, jsonb) supabase_admin
+8054; 0 0 ACL public FUNCTION match_documents(query_embedding extensions.vector, match_count integer, filter jsonb) supabase_admin
+1431; 1255 274064 FUNCTION public match_knowledge(extensions.vector, double precision, integer) supabase_admin
+8055; 0 0 ACL public FUNCTION match_knowledge(query_embedding extensions.vector, match_threshold double precision, match_count integer) supabase_admin
+1393; 1255 384967 FUNCTION public nearby_units(double precision, double precision, double precision, text) supabase_admin
+8056; 0 0 ACL public FUNCTION nearby_units(user_lat double precision, user_lng double precision, radius_meters double precision, status_filter text) supabase_admin
+1392; 1255 384966 FUNCTION public recalculate_all_scores(integer, integer) supabase_admin
+8057; 0 0 ACL public FUNCTION recalculate_all_scores(p_year integer, p_month integer) supabase_admin
+1391; 1255 384965 FUNCTION public recalculate_department_scores(bigint, integer, integer) supabase_admin
+8058; 0 0 ACL public FUNCTION recalculate_department_scores(p_department_id bigint, p_year integer, p_month integer) supabase_admin
+1390; 1255 384964 FUNCTION public recalculate_leader_monthly_score(bigint, integer, integer) supabase_admin
+8059; 0 0 ACL public FUNCTION recalculate_leader_monthly_score(p_leader_id bigint, p_year integer, p_month integer) supabase_admin
+1422; 1255 360350 FUNCTION public restore_original_password(uuid) supabase_admin
+8060; 0 0 ACL public FUNCTION restore_original_password(p_user_uuid uuid) supabase_admin
+1395; 1255 384970 FUNCTION public update_cfg_app_notices_updated_at() supabase_admin
+8061; 0 0 ACL public FUNCTION update_cfg_app_notices_updated_at() supabase_admin
+1423; 1255 370705 FUNCTION public update_cfg_app_tips_updated_at() supabase_admin
+8062; 0 0 ACL public FUNCTION update_cfg_app_tips_updated_at() supabase_admin
+1109; 1255 368450 FUNCTION public update_system_notices_updated_at() supabase_admin
+8063; 0 0 ACL public FUNCTION update_system_notices_updated_at() supabase_admin
+1348; 1255 287223 FUNCTION public update_unit_asset_tag_availability(integer, boolean, integer, text, integer, text, text, integer, integer, integer, numeric, text, text, double precision, double precision, double precision, double precision, double precision, integer, boolean) supabase_admin
+8064; 0 0 ACL public FUNCTION update_unit_asset_tag_availability(p_unit_asset_tag_id integer, p_is_available boolean, p_reason_id integer, p_comments text, p_reported_by_id integer, p_file_path text, p_file_name text, p_unit_id integer, p_asset_tag_id integer, p_asset_tag_sub_id integer, p_operation_record numeric, p_created_at text, p_reported_at text, p_reported_latitude double precision, p_reported_longitude double precision, p_unit_latitude double precision, p_unit_longitude double precision, p_unit_reported_distance double precision, p_provider_company_id integer, p_is_web boolean) supabase_admin
+1033; 1255 16864 FUNCTION storage add_prefixes(text, text) supabase_storage_admin
+1026; 1255 16790 FUNCTION storage can_insert_object(text, text, uuid, jsonb) supabase_storage_admin
+1365; 1255 266798 FUNCTION storage delete_leaf_prefixes(text[], text[]) supabase_storage_admin
+1008; 1255 16865 FUNCTION storage delete_prefix(text, text) supabase_storage_admin
+1011; 1255 16868 FUNCTION storage delete_prefix_hierarchy_trigger() supabase_storage_admin
+1022; 1255 16888 FUNCTION storage enforce_bucket_name_length() supabase_storage_admin
+1020; 1255 16759 FUNCTION storage extension(text) supabase_storage_admin
+1017; 1255 16758 FUNCTION storage filename(text) supabase_storage_admin
+1018; 1255 16757 FUNCTION storage foldername(text) supabase_storage_admin
+1030; 1255 16846 FUNCTION storage get_level(text) supabase_storage_admin
+1031; 1255 16862 FUNCTION storage get_prefix(text) supabase_storage_admin
+1032; 1255 16863 FUNCTION storage get_prefixes(text) supabase_storage_admin
+1039; 1255 16886 FUNCTION storage get_size_by_bucket() supabase_storage_admin
+1028; 1255 16829 FUNCTION storage list_multipart_uploads_with_delimiter(text, text, text, integer, text, text) supabase_storage_admin
+1027; 1255 16792 FUNCTION storage list_objects_with_delimiter(text, text, text, integer, text, text) supabase_storage_admin
+1350; 1255 266796 FUNCTION storage lock_top_prefixes(text[], text[]) supabase_storage_admin
+1352; 1255 266799 FUNCTION storage objects_delete_cleanup() supabase_storage_admin
+1010; 1255 16867 FUNCTION storage objects_insert_prefix_trigger() supabase_storage_admin
+1362; 1255 266800 FUNCTION storage objects_update_cleanup() supabase_storage_admin
+1364; 1255 266807 FUNCTION storage objects_update_level_trigger() supabase_storage_admin
+1021; 1255 16887 FUNCTION storage objects_update_prefix_trigger() supabase_storage_admin
+1029; 1255 16845 FUNCTION storage operation() supabase_storage_admin
+1363; 1255 266802 FUNCTION storage prefixes_delete_cleanup() supabase_storage_admin
+1009; 1255 16866 FUNCTION storage prefixes_insert_trigger() supabase_storage_admin
+1038; 1255 16774 FUNCTION storage search(text, text, integer, integer, integer, text, text, text) supabase_storage_admin
+1037; 1255 16884 FUNCTION storage search_legacy_v1(text, text, integer, integer, integer, text, text, text) supabase_storage_admin
+1036; 1255 16883 FUNCTION storage search_v1_optimised(text, text, integer, integer, integer, text, text, text) supabase_storage_admin
+1349; 1255 266792 FUNCTION storage search_v2(text, text, integer, integer, text, text, text, text) supabase_storage_admin
+1025; 1255 16780 FUNCTION storage update_updated_at_column() supabase_storage_admin
+426; 1259 16488 TABLE auth audit_log_entries supabase_auth_admin
+8065; 0 0 COMMENT auth TABLE audit_log_entries supabase_auth_admin
+8066; 0 0 ACL auth TABLE audit_log_entries supabase_auth_admin
+456; 1259 17231 TABLE auth flow_state supabase_auth_admin
+8067; 0 0 COMMENT auth TABLE flow_state supabase_auth_admin
+8068; 0 0 ACL auth TABLE flow_state supabase_auth_admin
+447; 1259 17028 TABLE auth identities supabase_auth_admin
+8069; 0 0 COMMENT auth TABLE identities supabase_auth_admin
+8070; 0 0 COMMENT auth COLUMN identities.email supabase_auth_admin
+8071; 0 0 ACL auth TABLE identities supabase_auth_admin
+425; 1259 16481 TABLE auth instances supabase_auth_admin
+8072; 0 0 COMMENT auth TABLE instances supabase_auth_admin
+8073; 0 0 ACL auth TABLE instances supabase_auth_admin
+451; 1259 17118 TABLE auth mfa_amr_claims supabase_auth_admin
+8074; 0 0 COMMENT auth TABLE mfa_amr_claims supabase_auth_admin
+8075; 0 0 ACL auth TABLE mfa_amr_claims supabase_auth_admin
+450; 1259 17106 TABLE auth mfa_challenges supabase_auth_admin
+8076; 0 0 COMMENT auth TABLE mfa_challenges supabase_auth_admin
+8077; 0 0 ACL auth TABLE mfa_challenges supabase_auth_admin
+449; 1259 17093 TABLE auth mfa_factors supabase_auth_admin
+8078; 0 0 COMMENT auth TABLE mfa_factors supabase_auth_admin
+8079; 0 0 COMMENT auth COLUMN mfa_factors.last_webauthn_challenge_data supabase_auth_admin
+8080; 0 0 ACL auth TABLE mfa_factors supabase_auth_admin
+673; 1259 266627 TABLE auth oauth_authorizations supabase_auth_admin
+8081; 0 0 ACL auth TABLE oauth_authorizations supabase_auth_admin
+672; 1259 266597 TABLE auth oauth_clients supabase_auth_admin
+8082; 0 0 ACL auth TABLE oauth_clients supabase_auth_admin
+674; 1259 266660 TABLE auth oauth_consents supabase_auth_admin
+8083; 0 0 ACL auth TABLE oauth_consents supabase_auth_admin
+457; 1259 17281 TABLE auth one_time_tokens supabase_auth_admin
+8084; 0 0 ACL auth TABLE one_time_tokens supabase_auth_admin
+424; 1259 16470 TABLE auth refresh_tokens supabase_auth_admin
+8085; 0 0 COMMENT auth TABLE refresh_tokens supabase_auth_admin
+8086; 0 0 ACL auth TABLE refresh_tokens supabase_auth_admin
+423; 1259 16469 SEQUENCE auth refresh_tokens_id_seq supabase_auth_admin
+8087; 0 0 SEQUENCE OWNED BY auth refresh_tokens_id_seq supabase_auth_admin
+8088; 0 0 ACL auth SEQUENCE refresh_tokens_id_seq supabase_auth_admin
+454; 1259 17160 TABLE auth saml_providers supabase_auth_admin
+8089; 0 0 COMMENT auth TABLE saml_providers supabase_auth_admin
+8090; 0 0 ACL auth TABLE saml_providers supabase_auth_admin
+455; 1259 17178 TABLE auth saml_relay_states supabase_auth_admin
+8091; 0 0 COMMENT auth TABLE saml_relay_states supabase_auth_admin
+8092; 0 0 ACL auth TABLE saml_relay_states supabase_auth_admin
+427; 1259 16496 TABLE auth schema_migrations supabase_auth_admin
+8093; 0 0 COMMENT auth TABLE schema_migrations supabase_auth_admin
+8094; 0 0 ACL auth TABLE schema_migrations supabase_auth_admin
+448; 1259 17058 TABLE auth sessions supabase_auth_admin
+8095; 0 0 COMMENT auth TABLE sessions supabase_auth_admin
+8096; 0 0 COMMENT auth COLUMN sessions.not_after supabase_auth_admin
+8097; 0 0 COMMENT auth COLUMN sessions.refresh_token_hmac_key supabase_auth_admin
+8098; 0 0 COMMENT auth COLUMN sessions.refresh_token_counter supabase_auth_admin
+8099; 0 0 ACL auth TABLE sessions supabase_auth_admin
+453; 1259 17145 TABLE auth sso_domains supabase_auth_admin
+8100; 0 0 COMMENT auth TABLE sso_domains supabase_auth_admin
+8101; 0 0 ACL auth TABLE sso_domains supabase_auth_admin
+452; 1259 17136 TABLE auth sso_providers supabase_auth_admin
+8102; 0 0 COMMENT auth TABLE sso_providers supabase_auth_admin
+8103; 0 0 COMMENT auth COLUMN sso_providers.resource_id supabase_auth_admin
+8104; 0 0 ACL auth TABLE sso_providers supabase_auth_admin
+422; 1259 16458 TABLE auth users supabase_auth_admin
+8105; 0 0 COMMENT auth TABLE users supabase_auth_admin
+8106; 0 0 COMMENT auth COLUMN users.is_sso_user supabase_auth_admin
+8107; 0 0 ACL auth TABLE users supabase_auth_admin
+736; 1259 357227 TABLE public ai_chat_histories supabase_admin
+8108; 0 0 ACL public TABLE ai_chat_histories supabase_admin
+735; 1259 357226 SEQUENCE public ai_chat_histories_id_seq supabase_admin
+8109; 0 0 SEQUENCE OWNED BY public ai_chat_histories_id_seq supabase_admin
+8110; 0 0 ACL public SEQUENCE ai_chat_histories_id_seq supabase_admin
+691; 1259 274033 TABLE public ai_chat_sessions supabase_admin
+8111; 0 0 ACL public TABLE ai_chat_sessions supabase_admin
+690; 1259 274022 TABLE public ai_knowledge supabase_admin
+8112; 0 0 ACL public TABLE ai_knowledge supabase_admin
+692; 1259 274048 TABLE public ai_messages supabase_admin
+8113; 0 0 ACL public TABLE ai_messages supabase_admin
+681; 1259 267829 TABLE public api_keys supabase_admin
+8114; 0 0 ACL public TABLE api_keys supabase_admin
+680; 1259 267828 SEQUENCE public api_keys_id_seq supabase_admin
+8115; 0 0 ACL public SEQUENCE api_keys_id_seq supabase_admin
+699; 1259 283757 TABLE public assets_alerts supabase_admin
+8116; 0 0 ACL public TABLE assets_alerts supabase_admin
+700; 1259 283760 SEQUENCE public assets_alerts_id_seq supabase_admin
+8117; 0 0 ACL public SEQUENCE assets_alerts_id_seq supabase_admin
+662; 1259 209678 TABLE public assets_attributes_values supabase_admin
+8118; 0 0 ACL public TABLE assets_attributes_values supabase_admin
+615; 1259 19285 TABLE public assets_available supabase_admin
+8119; 0 0 ACL public TABLE assets_available supabase_admin
+614; 1259 19284 SEQUENCE public assets_available_id_seq supabase_admin
+8120; 0 0 ACL public SEQUENCE assets_available_id_seq supabase_admin
+463; 1259 18024 TABLE public assets_followers supabase_admin
+8121; 0 0 ACL public TABLE assets_followers supabase_admin
+462; 1259 18023 SEQUENCE public assets_followers_id_seq supabase_admin
+8122; 0 0 ACL public SEQUENCE assets_followers_id_seq supabase_admin
+460; 1259 18002 SEQUENCE public assets_id_seq supabase_admin
+8123; 0 0 ACL public SEQUENCE assets_id_seq supabase_admin
+819; 1259 388063 TABLE public assets_loans supabase_admin
+8124; 0 0 ACL public TABLE assets_loans supabase_admin
+825; 1259 388787 TABLE public assets_loans_checklists supabase_admin
+8125; 0 0 ACL public TABLE assets_loans_checklists supabase_admin
+824; 1259 388786 SEQUENCE public assets_loans_checklists_id_seq supabase_admin
+8126; 0 0 SEQUENCE OWNED BY public assets_loans_checklists_id_seq supabase_admin
+8127; 0 0 ACL public SEQUENCE assets_loans_checklists_id_seq supabase_admin
+821; 1259 388140 TABLE public assets_loans_checklists_images supabase_admin
+8128; 0 0 ACL public TABLE assets_loans_checklists_images supabase_admin
+820; 1259 388139 SEQUENCE public assets_loans_checklists_images_id_seq supabase_admin
+8129; 0 0 SEQUENCE OWNED BY public assets_loans_checklists_images_id_seq supabase_admin
+8130; 0 0 ACL public SEQUENCE assets_loans_checklists_images_id_seq supabase_admin
+818; 1259 388062 SEQUENCE public assets_loans_id_seq supabase_admin
+8131; 0 0 SEQUENCE OWNED BY public assets_loans_id_seq supabase_admin
+8132; 0 0 ACL public SEQUENCE assets_loans_id_seq supabase_admin
+465; 1259 18033 TABLE public assets_materials supabase_admin
+8133; 0 0 ACL public TABLE assets_materials supabase_admin
+464; 1259 18032 SEQUENCE public assets_materials_id_seq supabase_admin
+8134; 0 0 ACL public SEQUENCE assets_materials_id_seq supabase_admin
+541; 1259 18460 TABLE public audits_logs supabase_admin
+8135; 0 0 ACL public TABLE audits_logs supabase_admin
+467; 1259 18044 TABLE public carts_materials supabase_admin
+8136; 0 0 ACL public TABLE carts_materials supabase_admin
+466; 1259 18043 SEQUENCE public carts_materials_id_seq supabase_admin
+8137; 0 0 ACL public SEQUENCE carts_materials_id_seq supabase_admin
+636; 1259 54600 SEQUENCE public cfg_activities_id_seq supabase_admin
+8138; 0 0 ACL public SEQUENCE cfg_activities_id_seq supabase_admin
+470; 1259 18063 TABLE public cfg_app supabase_admin
+8139; 0 0 ACL public TABLE cfg_app supabase_admin
+469; 1259 18062 SEQUENCE public cfg_app_id_seq supabase_admin
+8140; 0 0 ACL public SEQUENCE cfg_app_id_seq supabase_admin
+776; 1259 368395 TABLE public cfg_app_notices supabase_admin
+8141; 0 0 COMMENT public TABLE cfg_app_notices supabase_admin
+8142; 0 0 COMMENT public COLUMN cfg_app_notices.category_id supabase_admin
+8143; 0 0 COMMENT public COLUMN cfg_app_notices.severity_id supabase_admin
+8144; 0 0 COMMENT public COLUMN cfg_app_notices.dashboards supabase_admin
+8145; 0 0 ACL public TABLE cfg_app_notices supabase_admin
+772; 1259 368365 TABLE public cfg_app_notices_categories supabase_admin
+8146; 0 0 COMMENT public TABLE cfg_app_notices_categories supabase_admin
+8147; 0 0 ACL public TABLE cfg_app_notices_categories supabase_admin
+774; 1259 368380 TABLE public cfg_app_notices_severities supabase_admin
+8148; 0 0 COMMENT public TABLE cfg_app_notices_severities supabase_admin
+8149; 0 0 ACL public TABLE cfg_app_notices_severities supabase_admin
+472; 1259 18072 TABLE public cfg_app_offline_updates supabase_admin
+8150; 0 0 ACL public TABLE cfg_app_offline_updates supabase_admin
+471; 1259 18071 SEQUENCE public cfg_app_offline_updates_id_seq supabase_admin
+8151; 0 0 ACL public SEQUENCE cfg_app_offline_updates_id_seq supabase_admin
+474; 1259 18082 TABLE public cfg_app_pages supabase_admin
+8152; 0 0 ACL public TABLE cfg_app_pages supabase_admin
+473; 1259 18081 SEQUENCE public cfg_app_pages_id_seq supabase_admin
+8153; 0 0 ACL public SEQUENCE cfg_app_pages_id_seq supabase_admin
+778; 1259 370658 TABLE public cfg_app_tips supabase_admin
+8154; 0 0 COMMENT public COLUMN cfg_app_tips.target_mode supabase_admin
+8155; 0 0 ACL public TABLE cfg_app_tips supabase_admin
+784; 1259 371272 TABLE public cfg_app_tips_companies supabase_admin
+8156; 0 0 ACL public TABLE cfg_app_tips_companies supabase_admin
+783; 1259 371271 SEQUENCE public cfg_app_tips_companies_id_seq supabase_admin
+8157; 0 0 SEQUENCE OWNED BY public cfg_app_tips_companies_id_seq supabase_admin
+8158; 0 0 ACL public SEQUENCE cfg_app_tips_companies_id_seq supabase_admin
+786; 1259 371293 TABLE public cfg_app_tips_departments supabase_admin
+8159; 0 0 ACL public TABLE cfg_app_tips_departments supabase_admin
+785; 1259 371292 SEQUENCE public cfg_app_tips_departments_id_seq supabase_admin
+8160; 0 0 SEQUENCE OWNED BY public cfg_app_tips_departments_id_seq supabase_admin
+8161; 0 0 ACL public SEQUENCE cfg_app_tips_departments_id_seq supabase_admin
+782; 1259 371114 TABLE public cfg_app_tips_dismissals supabase_admin
+8162; 0 0 ACL public TABLE cfg_app_tips_dismissals supabase_admin
+781; 1259 371113 SEQUENCE public cfg_app_tips_dismissals_id_seq supabase_admin
+8163; 0 0 SEQUENCE OWNED BY public cfg_app_tips_dismissals_id_seq supabase_admin
+8164; 0 0 ACL public SEQUENCE cfg_app_tips_dismissals_id_seq supabase_admin
+780; 1259 371102 SEQUENCE public cfg_app_tips_new_id_seq supabase_admin
+8165; 0 0 SEQUENCE OWNED BY public cfg_app_tips_new_id_seq supabase_admin
+8166; 0 0 ACL public SEQUENCE cfg_app_tips_new_id_seq supabase_admin
+788; 1259 371314 TABLE public cfg_app_tips_profiles supabase_admin
+8167; 0 0 ACL public TABLE cfg_app_tips_profiles supabase_admin
+787; 1259 371313 SEQUENCE public cfg_app_tips_profiles_id_seq supabase_admin
+8168; 0 0 SEQUENCE OWNED BY public cfg_app_tips_profiles_id_seq supabase_admin
+8169; 0 0 ACL public SEQUENCE cfg_app_tips_profiles_id_seq supabase_admin
+476; 1259 18091 TABLE public cfg_app_versions_update supabase_admin
+8170; 0 0 ACL public TABLE cfg_app_versions_update supabase_admin
+475; 1259 18090 SEQUENCE public cfg_app_versions_update_id_seq supabase_admin
+8171; 0 0 ACL public SEQUENCE cfg_app_versions_update_id_seq supabase_admin
+664; 1259 209707 TABLE public cfg_assets_attributes supabase_admin
+8172; 0 0 COMMENT public COLUMN cfg_assets_attributes.select_options supabase_admin
+8173; 0 0 COMMENT public COLUMN cfg_assets_attributes.select_options_group_id supabase_admin
+8174; 0 0 ACL public TABLE cfg_assets_attributes supabase_admin
+806; 1259 374107 TABLE public cfg_assets_attributes_groups supabase_admin
+8175; 0 0 ACL public TABLE cfg_assets_attributes_groups supabase_admin
+805; 1259 374106 SEQUENCE public cfg_assets_attributes_groups_id_seq supabase_admin
+8176; 0 0 SEQUENCE OWNED BY public cfg_assets_attributes_groups_id_seq supabase_admin
+8177; 0 0 ACL public SEQUENCE cfg_assets_attributes_groups_id_seq supabase_admin
+663; 1259 209706 SEQUENCE public cfg_assets_attributes_id_seq supabase_admin
+8178; 0 0 ACL public SEQUENCE cfg_assets_attributes_id_seq supabase_admin
+620; 1259 19438 SEQUENCE public cfg_assets_available_processing_id_seq supabase_admin
+8179; 0 0 ACL public SEQUENCE cfg_assets_available_processing_id_seq supabase_admin
+477; 1259 18098 SEQUENCE public cfg_assets_couplings_models_id_seq supabase_admin
+8180; 0 0 ACL public SEQUENCE cfg_assets_couplings_models_id_seq supabase_admin
+479; 1259 18109 SEQUENCE public cfg_assets_priorities_id_seq supabase_admin
+8181; 0 0 ACL public SEQUENCE cfg_assets_priorities_id_seq supabase_admin
+481; 1259 18117 SEQUENCE public cfg_assets_statuses_id_seq supabase_admin
+8182; 0 0 ACL public SEQUENCE cfg_assets_statuses_id_seq supabase_admin
+666; 1259 209765 TABLE public cfg_assets_types_attributes supabase_admin
+8183; 0 0 ACL public TABLE cfg_assets_types_attributes supabase_admin
+665; 1259 209764 SEQUENCE public cfg_assets_types_attributes_id_seq supabase_admin
+8184; 0 0 ACL public SEQUENCE cfg_assets_types_attributes_id_seq supabase_admin
+823; 1259 388472 TABLE public cfg_assets_types_loans_checklists supabase_admin
+8185; 0 0 ACL public TABLE cfg_assets_types_loans_checklists supabase_admin
+822; 1259 388471 SEQUENCE public cfg_assets_types_loans_checklists_id_seq supabase_admin
+8186; 0 0 SEQUENCE OWNED BY public cfg_assets_types_loans_checklists_id_seq supabase_admin
+8187; 0 0 ACL public SEQUENCE cfg_assets_types_loans_checklists_id_seq supabase_admin
+618; 1259 19346 SEQUENCE public cfg_assets_unavailable_reasons_id_seq supabase_admin
+8188; 0 0 ACL public SEQUENCE cfg_assets_unavailable_reasons_id_seq supabase_admin
+458; 1259 17990 SEQUENCE public cfg_companies_id_seq supabase_admin
+8189; 0 0 ACL public SEQUENCE cfg_companies_id_seq supabase_admin
+487; 1259 18152 TABLE public cfg_contracts_statuses supabase_admin
+8190; 0 0 ACL public TABLE cfg_contracts_statuses supabase_admin
+486; 1259 18151 SEQUENCE public cfg_contracts_statuses_id_seq supabase_admin
+8191; 0 0 ACL public SEQUENCE cfg_contracts_statuses_id_seq supabase_admin
+489; 1259 18160 TABLE public cfg_departments supabase_admin
+8192; 0 0 ACL public TABLE cfg_departments supabase_admin
+488; 1259 18159 SEQUENCE public cfg_departments_id_seq supabase_admin
+8193; 0 0 ACL public SEQUENCE cfg_departments_id_seq supabase_admin
+790; 1259 372075 TABLE public cfg_evaluation_requirements supabase_admin
+8194; 0 0 ACL public TABLE cfg_evaluation_requirements supabase_admin
+789; 1259 372074 SEQUENCE public cfg_evaluation_requirements_id_seq supabase_admin
+8195; 0 0 ACL public SEQUENCE cfg_evaluation_requirements_id_seq supabase_admin
+817; 1259 387418 TABLE public cfg_loans_checklists supabase_admin
+8196; 0 0 ACL public TABLE cfg_loans_checklists supabase_admin
+816; 1259 387417 SEQUENCE public cfg_loans_checklists_id_seq supabase_admin
+8197; 0 0 SEQUENCE OWNED BY public cfg_loans_checklists_id_seq supabase_admin
+8198; 0 0 ACL public SEQUENCE cfg_loans_checklists_id_seq supabase_admin
+728; 1259 354218 TABLE public cfg_materials_purchases_statuses supabase_admin
+8199; 0 0 ACL public TABLE cfg_materials_purchases_statuses supabase_admin
+727; 1259 354217 SEQUENCE public cfg_material_purchases_statuses_id_seq supabase_admin
+8200; 0 0 SEQUENCE OWNED BY public cfg_material_purchases_statuses_id_seq supabase_admin
+8201; 0 0 ACL public SEQUENCE cfg_material_purchases_statuses_id_seq supabase_admin
+807; 1259 377322 TABLE public cfg_materials_purchases_cancel_reasons supabase_admin
+8202; 0 0 ACL public TABLE cfg_materials_purchases_cancel_reasons supabase_admin
+726; 1259 354208 TABLE public cfg_materials_purchases_types supabase_admin
+8203; 0 0 ACL public TABLE cfg_materials_purchases_types supabase_admin
+725; 1259 354207 SEQUENCE public cfg_materials_purchases_types_id_seq supabase_admin
+8204; 0 0 SEQUENCE OWNED BY public cfg_materials_purchases_types_id_seq supabase_admin
+8205; 0 0 ACL public SEQUENCE cfg_materials_purchases_types_id_seq supabase_admin
+724; 1259 353654 TABLE public cfg_materials_statuses supabase_admin
+8206; 0 0 ACL public TABLE cfg_materials_statuses supabase_admin
+723; 1259 353653 SEQUENCE public cfg_materials_statuses_id_seq supabase_admin
+8207; 0 0 ACL public SEQUENCE cfg_materials_statuses_id_seq supabase_admin
+733; 1259 356071 TABLE public cfg_materials_types supabase_admin
+8208; 0 0 ACL public TABLE cfg_materials_types supabase_admin
+732; 1259 356070 SEQUENCE public cfg_materials_types_id_seq supabase_admin
+8209; 0 0 ACL public SEQUENCE cfg_materials_types_id_seq supabase_admin
+490; 1259 18171 SEQUENCE public cfg_orders_cancel_reasons_id_seq supabase_admin
+8210; 0 0 ACL public SEQUENCE cfg_orders_cancel_reasons_id_seq supabase_admin
+492; 1259 18181 SEQUENCE public cfg_orders_causes_reasons_id_seq supabase_admin
+8211; 0 0 ACL public SEQUENCE cfg_orders_causes_reasons_id_seq supabase_admin
+495; 1259 18192 TABLE public cfg_orders_counter supabase_admin
+8212; 0 0 ACL public TABLE cfg_orders_counter supabase_admin
+494; 1259 18191 SEQUENCE public cfg_orders_counter_id_seq supabase_admin
+8213; 0 0 ACL public SEQUENCE cfg_orders_counter_id_seq supabase_admin
+496; 1259 18202 SEQUENCE public cfg_orders_objects_id_seq supabase_admin
+8214; 0 0 ACL public SEQUENCE cfg_orders_objects_id_seq supabase_admin
+498; 1259 18210 SEQUENCE public cfg_orders_plans_id_seq supabase_admin
+8215; 0 0 ACL public SEQUENCE cfg_orders_plans_id_seq supabase_admin
+500; 1259 18220 SEQUENCE public cfg_orders_priorities_id_seq supabase_admin
+8216; 0 0 ACL public SEQUENCE cfg_orders_priorities_id_seq supabase_admin
+502; 1259 18228 SEQUENCE public cfg_orders_statuses_id_seq supabase_admin
+8217; 0 0 ACL public SEQUENCE cfg_orders_statuses_id_seq supabase_admin
+504; 1259 18237 SEQUENCE public cfg_orders_suspended_reasons_id_seq supabase_admin
+8218; 0 0 ACL public SEQUENCE cfg_orders_suspended_reasons_id_seq supabase_admin
+508; 1259 18257 SEQUENCE public cfg_orders_types_activities_id_seq supabase_admin
+8219; 0 0 ACL public SEQUENCE cfg_orders_types_activities_id_seq supabase_admin
+506; 1259 18247 SEQUENCE public cfg_orders_types_id_seq supabase_admin
+8220; 0 0 ACL public SEQUENCE cfg_orders_types_id_seq supabase_admin
+510; 1259 18267 SEQUENCE public cfg_orders_types_subs_id_seq supabase_admin
+8221; 0 0 ACL public SEQUENCE cfg_orders_types_subs_id_seq supabase_admin
+512; 1259 18277 SEQUENCE public cfg_orders_visits_extras_processing_id_seq supabase_admin
+8222; 0 0 ACL public SEQUENCE cfg_orders_visits_extras_processing_id_seq supabase_admin
+515; 1259 18286 TABLE public cfg_orders_visits_processing supabase_admin
+8223; 0 0 ACL public TABLE cfg_orders_visits_processing supabase_admin
+514; 1259 18285 SEQUENCE public cfg_orders_visits_processing_id_seq supabase_admin
+8224; 0 0 ACL public SEQUENCE cfg_orders_visits_processing_id_seq supabase_admin
+517; 1259 18294 TABLE public cfg_orders_visits_statuses supabase_admin
+8225; 0 0 ACL public TABLE cfg_orders_visits_statuses supabase_admin
+516; 1259 18293 SEQUENCE public cfg_orders_visits_statuses_id_seq supabase_admin
+8226; 0 0 ACL public SEQUENCE cfg_orders_visits_statuses_id_seq supabase_admin
+519; 1259 18302 TABLE public cfg_profiles supabase_admin
+8227; 0 0 ACL public TABLE cfg_profiles supabase_admin
+668; 1259 214367 TABLE public cfg_profiles_access supabase_admin
+8228; 0 0 COMMENT public COLUMN cfg_profiles_access.route_id supabase_admin
+8229; 0 0 ACL public TABLE cfg_profiles_access supabase_admin
+667; 1259 214366 SEQUENCE public cfg_profiles_access_id_seq supabase_admin
+8230; 0 0 ACL public SEQUENCE cfg_profiles_access_id_seq supabase_admin
+518; 1259 18301 SEQUENCE public cfg_profiles_id_seq supabase_admin
+8231; 0 0 ACL public SEQUENCE cfg_profiles_id_seq supabase_admin
+521; 1259 18316 TABLE public cfg_profiles_permissions supabase_admin
+8232; 0 0 ACL public TABLE cfg_profiles_permissions supabase_admin
+520; 1259 18315 SEQUENCE public cfg_profiles_permissions_id_seq supabase_admin
+8233; 0 0 ACL public SEQUENCE cfg_profiles_permissions_id_seq supabase_admin
+670; 1259 254295 TABLE public cfg_routes supabase_admin
+8234; 0 0 COMMENT public TABLE cfg_routes supabase_admin
+8235; 0 0 ACL public TABLE cfg_routes supabase_admin
+669; 1259 254294 SEQUENCE public cfg_routes_id_seq supabase_admin
+8236; 0 0 ACL public SEQUENCE cfg_routes_id_seq supabase_admin
+522; 1259 18321 SEQUENCE public cfg_services_id_seq supabase_admin
+8237; 0 0 ACL public SEQUENCE cfg_services_id_seq supabase_admin
+524; 1259 18332 SEQUENCE public cfg_systems_id_seq supabase_admin
+8238; 0 0 ACL public SEQUENCE cfg_systems_id_seq supabase_admin
+526; 1259 18343 SEQUENCE public cfg_teams_id_seq supabase_admin
+8239; 0 0 ACL public SEQUENCE cfg_teams_id_seq supabase_admin
+580; 1259 18825 TABLE public cfg_technicals_manuals_categories supabase_admin
+8240; 0 0 ACL public TABLE cfg_technicals_manuals_categories supabase_admin
+579; 1259 18824 SEQUENCE public cfg_technicals_manuals_categories_id_seq supabase_admin
+8241; 0 0 ACL public SEQUENCE cfg_technicals_manuals_categories_id_seq supabase_admin
+616; 1259 19294 SEQUENCE public cfg_units_assets_tags_id_seq supabase_admin
+8242; 0 0 ACL public SEQUENCE cfg_units_assets_tags_id_seq supabase_admin
+528; 1259 18354 SEQUENCE public cfg_units_statuses_id_seq supabase_admin
+8243; 0 0 ACL public SEQUENCE cfg_units_statuses_id_seq supabase_admin
+530; 1259 18362 SEQUENCE public cfg_units_types_id_seq supabase_admin
+8244; 0 0 ACL public SEQUENCE cfg_units_types_id_seq supabase_admin
+533; 1259 18373 TABLE public cfg_users_statuses supabase_admin
+8245; 0 0 ACL public TABLE cfg_users_statuses supabase_admin
+532; 1259 18372 SEQUENCE public cfg_users_statuses_id_seq supabase_admin
+8246; 0 0 ACL public SEQUENCE cfg_users_statuses_id_seq supabase_admin
+650; 1259 152786 TABLE public chat_agent_ai supabase_admin
+8247; 0 0 ACL public TABLE chat_agent_ai supabase_admin
+651; 1259 152789 SEQUENCE public chat_id_seq supabase_admin
+8248; 0 0 ACL public SEQUENCE chat_id_seq supabase_admin
+660; 1259 208112 SEQUENCE public clients_id_seq supabase_admin
+8249; 0 0 ACL public SEQUENCE clients_id_seq supabase_admin
+792; 1259 372087 TABLE public contracts_evaluation_requirements supabase_admin
+8250; 0 0 ACL public TABLE contracts_evaluation_requirements supabase_admin
+791; 1259 372086 SEQUENCE public contracts_evaluation_requirements_id_seq supabase_admin
+8251; 0 0 ACL public SEQUENCE contracts_evaluation_requirements_id_seq supabase_admin
+534; 1259 18380 SEQUENCE public contracts_id_seq supabase_admin
+8252; 0 0 ACL public SEQUENCE contracts_id_seq supabase_admin
+537; 1259 18395 TABLE public contracts_managers supabase_admin
+8253; 0 0 ACL public TABLE contracts_managers supabase_admin
+536; 1259 18394 SEQUENCE public contracts_managers_id_seq supabase_admin
+8254; 0 0 ACL public SEQUENCE contracts_managers_id_seq supabase_admin
+538; 1259 18409 SEQUENCE public contracts_services_id_seq supabase_admin
+8255; 0 0 ACL public SEQUENCE contracts_services_id_seq supabase_admin
+649; 1259 152571 TABLE public documents supabase_admin
+8256; 0 0 ACL public TABLE documents supabase_admin
+648; 1259 152570 SEQUENCE public documents_id_seq supabase_admin
+8257; 0 0 SEQUENCE OWNED BY public documents_id_seq supabase_admin
+8258; 0 0 ACL public SEQUENCE documents_id_seq supabase_admin
+446; 1259 16899 TABLE public extensions supabase_admin
+8259; 0 0 ACL public TABLE extensions supabase_admin
+813; 1259 383799 TABLE public goose_db_version postgres
+8260; 0 0 ACL public TABLE goose_db_version postgres
+812; 1259 383798 SEQUENCE public goose_db_version_id_seq postgres
+8261; 0 0 ACL public SEQUENCE goose_db_version_id_seq postgres
+738; 1259 360339 TABLE public impersonation_password_backup supabase_admin
+8262; 0 0 ACL public TABLE impersonation_password_backup supabase_admin
+737; 1259 360338 SEQUENCE public impersonation_password_backup_id_seq supabase_admin
+8263; 0 0 SEQUENCE OWNED BY public impersonation_password_backup_id_seq supabase_admin
+8264; 0 0 ACL public SEQUENCE impersonation_password_backup_id_seq supabase_admin
+652; 1259 153634 TABLE public import_orders_visits_contracts supabase_admin
+8265; 0 0 ACL public TABLE import_orders_visits_contracts supabase_admin
+799; 1259 372306 TABLE public leader_monthly_scores supabase_admin
+8266; 0 0 ACL public TABLE leader_monthly_scores supabase_admin
+798; 1259 372305 SEQUENCE public leader_monthly_scores_id_seq supabase_admin
+8267; 0 0 ACL public SEQUENCE leader_monthly_scores_id_seq supabase_admin
+803; 1259 372363 TABLE public leader_score_badges supabase_admin
+8268; 0 0 ACL public TABLE leader_score_badges supabase_admin
+802; 1259 372362 SEQUENCE public leader_score_badges_id_seq supabase_admin
+8269; 0 0 ACL public SEQUENCE leader_score_badges_id_seq supabase_admin
+801; 1259 372337 TABLE public leader_scores_history supabase_admin
+8270; 0 0 ACL public TABLE leader_scores_history supabase_admin
+800; 1259 372336 SEQUENCE public leader_scores_history_id_seq supabase_admin
+8271; 0 0 ACL public SEQUENCE leader_scores_history_id_seq supabase_admin
+683; 1259 268455 TABLE public logs_api supabase_admin
+8272; 0 0 ACL public TABLE logs_api supabase_admin
+682; 1259 268454 SEQUENCE public logs_api_id_seq supabase_admin
+8273; 0 0 ACL public SEQUENCE logs_api_id_seq supabase_admin
+540; 1259 18459 SEQUENCE public logs_id_seq supabase_admin
+8274; 0 0 ACL public SEQUENCE logs_id_seq supabase_admin
+694; 1259 283193 TABLE public maintenances_plans supabase_admin
+8275; 0 0 ACL public TABLE maintenances_plans supabase_admin
+693; 1259 283192 SEQUENCE public maintenances_plans_id_seq supabase_admin
+8276; 0 0 SEQUENCE OWNED BY public maintenances_plans_id_seq supabase_admin
+8277; 0 0 ACL public SEQUENCE maintenances_plans_id_seq supabase_admin
+696; 1259 283205 TABLE public maintenances_plans_sections supabase_admin
+8278; 0 0 ACL public TABLE maintenances_plans_sections supabase_admin
+698; 1259 283222 TABLE public maintenances_plans_sections_activities supabase_admin
+8279; 0 0 ACL public TABLE maintenances_plans_sections_activities supabase_admin
+697; 1259 283221 SEQUENCE public maintenances_plans_sections_activities_id_seq supabase_admin
+8280; 0 0 SEQUENCE OWNED BY public maintenances_plans_sections_activities_id_seq supabase_admin
+8281; 0 0 ACL public SEQUENCE maintenances_plans_sections_activities_id_seq supabase_admin
+695; 1259 283204 SEQUENCE public maintenances_plans_sections_id_seq supabase_admin
+8282; 0 0 SEQUENCE OWNED BY public maintenances_plans_sections_id_seq supabase_admin
+8283; 0 0 ACL public SEQUENCE maintenances_plans_sections_id_seq supabase_admin
+730; 1259 354227 TABLE public materials_purchases supabase_admin
+8284; 0 0 ACL public TABLE materials_purchases supabase_admin
+729; 1259 354226 SEQUENCE public material_purchases_id_seq supabase_admin
+8285; 0 0 SEQUENCE OWNED BY public material_purchases_id_seq supabase_admin
+8286; 0 0 ACL public SEQUENCE material_purchases_id_seq supabase_admin
+637; 1259 55365 SEQUENCE public materials_id_seq supabase_admin
+8287; 0 0 ACL public SEQUENCE materials_id_seq supabase_admin
+731; 1259 355490 SEQUENCE public materials_purchases_id_seq supabase_admin
+8288; 0 0 ACL public SEQUENCE materials_purchases_id_seq supabase_admin
+544; 1259 18477 TABLE public n8n_chat_histories supabase_admin
+8289; 0 0 ACL public TABLE n8n_chat_histories supabase_admin
+543; 1259 18476 SEQUENCE public n8n_chat_histories_id_seq supabase_admin
+8290; 0 0 SEQUENCE OWNED BY public n8n_chat_histories_id_seq supabase_admin
+8291; 0 0 ACL public SEQUENCE n8n_chat_histories_id_seq supabase_admin
+548; 1259 18503 TABLE public orders_followers supabase_admin
+8292; 0 0 ACL public TABLE orders_followers supabase_admin
+547; 1259 18502 SEQUENCE public orders_followers_id_seq supabase_admin
+8293; 0 0 ACL public SEQUENCE orders_followers_id_seq supabase_admin
+545; 1259 18485 SEQUENCE public orders_id_seq supabase_admin
+8294; 0 0 ACL public SEQUENCE orders_id_seq supabase_admin
+550; 1259 18510 TABLE public orders_statuses_logs supabase_admin
+8295; 0 0 ACL public TABLE orders_statuses_logs supabase_admin
+549; 1259 18509 SEQUENCE public orders_statuses_logs_id_seq supabase_admin
+8296; 0 0 ACL public SEQUENCE orders_statuses_logs_id_seq supabase_admin
+552; 1259 18516 TABLE public orders_visits supabase_admin
+8297; 0 0 COMMENT public COLUMN orders_visits.ov_costs_status supabase_admin
+8298; 0 0 COMMENT public COLUMN orders_visits.ov_costs_waiting_at supabase_admin
+8299; 0 0 COMMENT public COLUMN orders_visits.ov_costs_waiting_user_id supabase_admin
+8300; 0 0 COMMENT public COLUMN orders_visits.ov_costs_approved_at supabase_admin
+8301; 0 0 COMMENT public COLUMN orders_visits.ov_costs_approved_user_id supabase_admin
+8302; 0 0 COMMENT public COLUMN orders_visits.ov_costs_rejected_at supabase_admin
+8303; 0 0 COMMENT public COLUMN orders_visits.ov_costs_rejected_user_id supabase_admin
+8304; 0 0 COMMENT public COLUMN orders_visits.ov_costs_rejection_reason supabase_admin
+8305; 0 0 ACL public TABLE orders_visits supabase_admin
+554; 1259 18544 TABLE public orders_visits_assets supabase_admin
+8306; 0 0 ACL public TABLE orders_visits_assets supabase_admin
+556; 1259 18561 TABLE public orders_visits_assets_activities supabase_admin
+8307; 0 0 ACL public TABLE orders_visits_assets_activities supabase_admin
+555; 1259 18560 SEQUENCE public orders_visits_assets_activities_id_seq supabase_admin
+8308; 0 0 ACL public SEQUENCE orders_visits_assets_activities_id_seq supabase_admin
+553; 1259 18543 SEQUENCE public orders_visits_assets_id_seq supabase_admin
+8309; 0 0 ACL public SEQUENCE orders_visits_assets_id_seq supabase_admin
+558; 1259 18572 TABLE public orders_visits_assets_materials supabase_admin
+8310; 0 0 ACL public TABLE orders_visits_assets_materials supabase_admin
+557; 1259 18571 SEQUENCE public orders_visits_assets_materials_id_seq supabase_admin
+8311; 0 0 ACL public SEQUENCE orders_visits_assets_materials_id_seq supabase_admin
+706; 1259 320303 TABLE public orders_visits_chat supabase_admin
+8312; 0 0 ACL public TABLE orders_visits_chat supabase_admin
+705; 1259 320302 SEQUENCE public orders_visits_chat_id_seq supabase_admin
+8313; 0 0 SEQUENCE OWNED BY public orders_visits_chat_id_seq supabase_admin
+8314; 0 0 ACL public SEQUENCE orders_visits_chat_id_seq supabase_admin
+708; 1259 320329 TABLE public orders_visits_chat_participants supabase_admin
+8315; 0 0 ACL public TABLE orders_visits_chat_participants supabase_admin
+707; 1259 320328 SEQUENCE public orders_visits_chat_participants_id_seq supabase_admin
+8316; 0 0 SEQUENCE OWNED BY public orders_visits_chat_participants_id_seq supabase_admin
+8317; 0 0 ACL public SEQUENCE orders_visits_chat_participants_id_seq supabase_admin
+710; 1259 320351 TABLE public orders_visits_chat_reads supabase_admin
+8318; 0 0 ACL public TABLE orders_visits_chat_reads supabase_admin
+709; 1259 320350 SEQUENCE public orders_visits_chat_reads_id_seq supabase_admin
+8319; 0 0 SEQUENCE OWNED BY public orders_visits_chat_reads_id_seq supabase_admin
+8320; 0 0 ACL public SEQUENCE orders_visits_chat_reads_id_seq supabase_admin
+794; 1259 372108 TABLE public orders_visits_evaluations supabase_admin
+8321; 0 0 ACL public TABLE orders_visits_evaluations supabase_admin
+793; 1259 372107 SEQUENCE public orders_visits_evaluations_id_seq supabase_admin
+8322; 0 0 ACL public SEQUENCE orders_visits_evaluations_id_seq supabase_admin
+566; 1259 18732 TABLE public orders_visits_extras_followers supabase_admin
+8323; 0 0 ACL public TABLE orders_visits_extras_followers supabase_admin
+565; 1259 18731 SEQUENCE public orders_visits_extras_followers_id_seq supabase_admin
+8324; 0 0 ACL public SEQUENCE orders_visits_extras_followers_id_seq supabase_admin
+563; 1259 18625 SEQUENCE public orders_visits_extras_id_seq supabase_admin
+8325; 0 0 ACL public SEQUENCE orders_visits_extras_id_seq supabase_admin
+568; 1259 18751 TABLE public orders_visits_extras_teams supabase_admin
+8326; 0 0 ACL public TABLE orders_visits_extras_teams supabase_admin
+567; 1259 18750 SEQUENCE public orders_visits_extras_teams_id_seq supabase_admin
+8327; 0 0 ACL public SEQUENCE orders_visits_extras_teams_id_seq supabase_admin
+551; 1259 18515 SEQUENCE public orders_visits_id_seq supabase_admin
+8328; 0 0 ACL public SEQUENCE orders_visits_id_seq supabase_admin
+570; 1259 18776 TABLE public orders_visits_services supabase_admin
+8329; 0 0 ACL public TABLE orders_visits_services supabase_admin
+569; 1259 18775 SEQUENCE public orders_visits_services_id_seq supabase_admin
+8330; 0 0 ACL public SEQUENCE orders_visits_services_id_seq supabase_admin
+572; 1259 18786 TABLE public orders_visits_teams supabase_admin
+8331; 0 0 ACL public TABLE orders_visits_teams supabase_admin
+571; 1259 18785 SEQUENCE public orders_visits_teams_id_seq supabase_admin
+8332; 0 0 ACL public SEQUENCE orders_visits_teams_id_seq supabase_admin
+574; 1259 18794 TABLE public orders_visits_vehicles supabase_admin
+8333; 0 0 ACL public TABLE orders_visits_vehicles supabase_admin
+573; 1259 18793 SEQUENCE public orders_visits_vehicles_id_seq supabase_admin
+8334; 0 0 ACL public SEQUENCE orders_visits_vehicles_id_seq supabase_admin
+770; 1259 364850 TABLE public schema_migrations supabase_admin
+8335; 0 0 ACL public TABLE schema_migrations supabase_admin
+771; 1259 368364 SEQUENCE public system_notice_categories_id_seq supabase_admin
+8336; 0 0 SEQUENCE OWNED BY public system_notice_categories_id_seq supabase_admin
+8337; 0 0 ACL public SEQUENCE system_notice_categories_id_seq supabase_admin
+773; 1259 368379 SEQUENCE public system_notice_severities_id_seq supabase_admin
+8338; 0 0 SEQUENCE OWNED BY public system_notice_severities_id_seq supabase_admin
+8339; 0 0 ACL public SEQUENCE system_notice_severities_id_seq supabase_admin
+775; 1259 368394 SEQUENCE public system_notices_id_seq supabase_admin
+8340; 0 0 SEQUENCE OWNED BY public system_notices_id_seq supabase_admin
+8341; 0 0 ACL public SEQUENCE system_notices_id_seq supabase_admin
+578; 1259 18818 TABLE public technicals_manuals_assets supabase_admin
+8342; 0 0 ACL public TABLE technicals_manuals_assets supabase_admin
+577; 1259 18817 SEQUENCE public technicals_manuals_assets_id_seq supabase_admin
+8343; 0 0 ACL public SEQUENCE technicals_manuals_assets_id_seq supabase_admin
+740; 1259 360893 SEQUENCE public technicals_manuals_files_id_seq supabase_admin
+8344; 0 0 ACL public SEQUENCE technicals_manuals_files_id_seq supabase_admin
+739; 1259 360886 TABLE public technicals_manuals_files supabase_admin
+8345; 0 0 ACL public TABLE technicals_manuals_files supabase_admin
+575; 1259 18809 SEQUENCE public technicals_manuals_id_seq supabase_admin
+8346; 0 0 ACL public SEQUENCE technicals_manuals_id_seq supabase_admin
+445; 1259 16890 TABLE public tenants supabase_admin
+8347; 0 0 ACL public TABLE tenants supabase_admin
+653; 1259 153637 SEQUENCE public tmp_contracts_import_id_seq supabase_admin
+8348; 0 0 ACL public SEQUENCE tmp_contracts_import_id_seq supabase_admin
+716; 1259 351783 TABLE public tools supabase_admin
+8349; 0 0 ACL public TABLE tools supabase_admin
+715; 1259 351782 SEQUENCE public tools_id_seq supabase_admin
+8350; 0 0 SEQUENCE OWNED BY public tools_id_seq supabase_admin
+8351; 0 0 ACL public SEQUENCE tools_id_seq supabase_admin
+561; 1259 18613 SEQUENCE public units_id_seq supabase_admin
+8352; 0 0 ACL public SEQUENCE units_id_seq supabase_admin
+559; 1259 18585 SEQUENCE public users_id_seq supabase_admin
+8353; 0 0 ACL public SEQUENCE users_id_seq supabase_admin
+582; 1259 18833 TABLE public users_notifications supabase_admin
+8354; 0 0 ACL public TABLE users_notifications supabase_admin
+581; 1259 18832 SEQUENCE public users_notifications_id_seq supabase_admin
+8355; 0 0 ACL public SEQUENCE users_notifications_id_seq supabase_admin
+718; 1259 351804 TABLE public users_tools supabase_admin
+8356; 0 0 ACL public TABLE users_tools supabase_admin
+717; 1259 351803 SEQUENCE public users_tools_id_seq supabase_admin
+8357; 0 0 SEQUENCE OWNED BY public users_tools_id_seq supabase_admin
+8358; 0 0 ACL public SEQUENCE users_tools_id_seq supabase_admin
+720; 1259 351834 TABLE public users_tools_movements supabase_admin
+8359; 0 0 ACL public TABLE users_tools_movements supabase_admin
+719; 1259 351833 SEQUENCE public users_tools_movements_id_seq supabase_admin
+8360; 0 0 SEQUENCE OWNED BY public users_tools_movements_id_seq supabase_admin
+8361; 0 0 ACL public SEQUENCE users_tools_movements_id_seq supabase_admin
+584; 1259 18842 TABLE public users_tracker supabase_admin
+8362; 0 0 ACL public TABLE users_tracker supabase_admin
+583; 1259 18841 SEQUENCE public users_tracker_id_seq supabase_admin
+8363; 0 0 ACL public SEQUENCE users_tracker_id_seq supabase_admin
+743; 1259 362605 VIEW public v_app supabase_admin
+8364; 0 0 ACL public TABLE v_app supabase_admin
+779; 1259 370981 VIEW public v_app_notices supabase_admin
+8365; 0 0 ACL public TABLE v_app_notices supabase_admin
+744; 1259 362609 VIEW public v_app_offline_updates supabase_admin
+8366; 0 0 ACL public TABLE v_app_offline_updates supabase_admin
+745; 1259 362613 VIEW public v_app_pages supabase_admin
+8367; 0 0 ACL public TABLE v_app_pages supabase_admin
+754; 1259 362650 VIEW public v_assets_available supabase_admin
+8368; 0 0 ACL public TABLE v_assets_available supabase_admin
+746; 1259 362617 VIEW public v_assets_couplings_models supabase_admin
+8369; 0 0 ACL public TABLE v_assets_couplings_models supabase_admin
+747; 1259 362621 VIEW public v_assets_followers supabase_admin
+8370; 0 0 ACL public TABLE v_assets_followers supabase_admin
+826; 1259 389452 VIEW public v_assets_loans supabase_admin
+8371; 0 0 ACL public TABLE v_assets_loans supabase_admin
+748; 1259 362625 VIEW public v_assets_materials supabase_admin
+8372; 0 0 ACL public TABLE v_assets_materials supabase_admin
+749; 1259 362630 VIEW public v_assets_priorities supabase_admin
+8373; 0 0 ACL public TABLE v_assets_priorities supabase_admin
+750; 1259 362634 VIEW public v_assets_statuses supabase_admin
+8374; 0 0 ACL public TABLE v_assets_statuses supabase_admin
+751; 1259 362638 VIEW public v_assets_tags supabase_admin
+8375; 0 0 ACL public TABLE v_assets_tags supabase_admin
+752; 1259 362642 VIEW public v_assets_tags_subs supabase_admin
+8376; 0 0 ACL public TABLE v_assets_tags_subs supabase_admin
+753; 1259 362646 VIEW public v_assets_types supabase_admin
+8377; 0 0 ACL public TABLE v_assets_types supabase_admin
+622; 1259 19506 VIEW public v_assets_unavailable_reasons supabase_admin
+8378; 0 0 ACL public TABLE v_assets_unavailable_reasons supabase_admin
+755; 1259 362956 VIEW public v_companies supabase_admin
+8379; 0 0 ACL public TABLE v_companies supabase_admin
+657; 1259 171546 VIEW public v_contracts supabase_admin
+8380; 0 0 ACL public TABLE v_contracts supabase_admin
+796; 1259 372141 VIEW public v_contracts_evaluation_requirements supabase_admin
+8381; 0 0 ACL public TABLE v_contracts_evaluation_requirements supabase_admin
+756; 1259 362965 VIEW public v_contracts_managers supabase_admin
+8382; 0 0 ACL public TABLE v_contracts_managers supabase_admin
+685; 1259 271077 VIEW public v_dash_admin_orders_parent_status_1 supabase_admin
+8383; 0 0 ACL public TABLE v_dash_admin_orders_parent_status_1 supabase_admin
+586; 1259 18978 VIEW public v_departments supabase_admin
+8384; 0 0 ACL public TABLE v_departments supabase_admin
+654; 1259 154980 VIEW public v_import_orders_visits_contracts supabase_admin
+8385; 0 0 ACL public TABLE v_import_orders_visits_contracts supabase_admin
+804; 1259 372378 VIEW public v_leader_ranking supabase_admin
+8386; 0 0 ACL public TABLE v_leader_ranking supabase_admin
+714; 1259 323131 TABLE public warehouses supabase_admin
+8387; 0 0 ACL public TABLE warehouses supabase_admin
+722; 1259 353504 TABLE public warehouses_materials supabase_admin
+8388; 0 0 ACL public TABLE warehouses_materials supabase_admin
+734; 1259 356206 VIEW public v_materials supabase_admin
+8389; 0 0 COMMENT public VIEW v_materials supabase_admin
+8390; 0 0 ACL public TABLE v_materials supabase_admin
+808; 1259 377334 VIEW public v_materials_purchases supabase_admin
+8391; 0 0 ACL public TABLE v_materials_purchases supabase_admin
+797; 1259 372300 VIEW public v_order_visit_scores supabase_admin
+8392; 0 0 ACL public TABLE v_order_visit_scores supabase_admin
+587; 1259 18982 VIEW public v_orders_cancel_reasons supabase_admin
+8393; 0 0 ACL public TABLE v_orders_cancel_reasons supabase_admin
+588; 1259 18986 VIEW public v_orders_causes_reasons supabase_admin
+8394; 0 0 ACL public TABLE v_orders_causes_reasons supabase_admin
+589; 1259 18990 VIEW public v_orders_counter supabase_admin
+8395; 0 0 ACL public TABLE v_orders_counter supabase_admin
+590; 1259 18995 VIEW public v_orders_followers supabase_admin
+8396; 0 0 ACL public TABLE v_orders_followers supabase_admin
+591; 1259 18999 VIEW public v_orders_objects supabase_admin
+8397; 0 0 ACL public TABLE v_orders_objects supabase_admin
+687; 1259 271630 VIEW public v_orders_open supabase_admin
+8398; 0 0 ACL public TABLE v_orders_open supabase_admin
+811; 1259 382726 VIEW public v_orders_parent supabase_admin
+8399; 0 0 ACL public TABLE v_orders_parent supabase_admin
+592; 1259 19003 VIEW public v_orders_plans supabase_admin
+8400; 0 0 ACL public TABLE v_orders_plans supabase_admin
+593; 1259 19007 VIEW public v_orders_priorities supabase_admin
+8401; 0 0 ACL public TABLE v_orders_priorities supabase_admin
+594; 1259 19011 VIEW public v_orders_statuses supabase_admin
+8402; 0 0 ACL public TABLE v_orders_statuses supabase_admin
+595; 1259 19015 VIEW public v_orders_suspended_reasons supabase_admin
+8403; 0 0 ACL public TABLE v_orders_suspended_reasons supabase_admin
+598; 1259 19028 VIEW public v_orders_types supabase_admin
+8404; 0 0 ACL public TABLE v_orders_types supabase_admin
+597; 1259 19024 VIEW public v_orders_types_subs supabase_admin
+8405; 0 0 ACL public TABLE v_orders_types_subs supabase_admin
+814; 1259 384594 VIEW public v_orders_visits supabase_admin
+8406; 0 0 ACL public TABLE v_orders_visits supabase_admin
+815; 1259 384599 VIEW public v_orders_visits_assets supabase_admin
+8407; 0 0 ACL public TABLE v_orders_visits_assets supabase_admin
+599; 1259 19032 VIEW public v_orders_visits_assets_activities supabase_admin
+8408; 0 0 ACL public TABLE v_orders_visits_assets_activities supabase_admin
+600; 1259 19039 VIEW public v_orders_visits_assets_materials supabase_admin
+8409; 0 0 ACL public TABLE v_orders_visits_assets_materials supabase_admin
+795; 1259 372136 VIEW public v_orders_visits_evaluations supabase_admin
+8410; 0 0 ACL public TABLE v_orders_visits_evaluations supabase_admin
+601; 1259 19104 VIEW public v_orders_visits_extras_followers supabase_admin
+8411; 0 0 ACL public TABLE v_orders_visits_extras_followers supabase_admin
+604; 1259 19120 VIEW public v_orders_visits_extras_teams supabase_admin
+8412; 0 0 ACL public TABLE v_orders_visits_extras_teams supabase_admin
+646; 1259 141108 VIEW public v_orders_visits_services supabase_admin
+8413; 0 0 ACL public TABLE v_orders_visits_services supabase_admin
+605; 1259 19132 VIEW public v_orders_visits_teams supabase_admin
+8414; 0 0 ACL public TABLE v_orders_visits_teams supabase_admin
+585; 1259 18849 TABLE public vehicles supabase_admin
+8415; 0 0 ACL public TABLE vehicles supabase_admin
+689; 1259 273892 VIEW public v_orders_visits_vehicles supabase_admin
+8416; 0 0 ACL public TABLE v_orders_visits_vehicles supabase_admin
+607; 1259 19149 VIEW public v_profiles supabase_admin
+8417; 0 0 ACL public TABLE v_profiles supabase_admin
+606; 1259 19145 VIEW public v_profiles_permissions supabase_admin
+8418; 0 0 ACL public TABLE v_profiles_permissions supabase_admin
+655; 1259 170418 VIEW public v_services supabase_admin
+8419; 0 0 ACL public TABLE v_services supabase_admin
+609; 1259 19157 VIEW public v_systems supabase_admin
+8420; 0 0 ACL public TABLE v_systems supabase_admin
+608; 1259 19153 VIEW public v_systems_parent supabase_admin
+8421; 0 0 ACL public TABLE v_systems_parent supabase_admin
+777; 1259 369126 VIEW public v_systems_parent_assets_tags_available_rate supabase_admin
+8422; 0 0 ACL public TABLE v_systems_parent_assets_tags_available_rate supabase_admin
+645; 1259 131660 VIEW public v_systems_parent_assets_tags_processing_counts supabase_admin
+8423; 0 0 ACL public TABLE v_systems_parent_assets_tags_processing_counts supabase_admin
+809; 1259 377741 VIEW public v_teams supabase_admin
+8424; 0 0 ACL public TABLE v_teams supabase_admin
+643; 1259 115524 VIEW public v_users supabase_admin
+8425; 0 0 ACL public TABLE v_users supabase_admin
+644; 1259 115570 VIEW public v_teams_leaders supabase_admin
+8426; 0 0 ACL public TABLE v_teams_leaders supabase_admin
+641; 1259 87486 VIEW public v_technicals_manuals_assets supabase_admin
+8427; 0 0 ACL public TABLE v_technicals_manuals_assets supabase_admin
+610; 1259 19171 VIEW public v_technicals_manuals_types supabase_admin
+8428; 0 0 ACL public TABLE v_technicals_manuals_types supabase_admin
+712; 1259 321982 VIEW public v_unit_assets_tags_processing_counts supabase_admin
+8429; 0 0 ACL public TABLE v_unit_assets_tags_processing_counts supabase_admin
+761; 1259 362995 VIEW public v_units_asset_available_rate_avg supabase_admin
+8430; 0 0 ACL public TABLE v_units_asset_available_rate_avg supabase_admin
+638; 1259 67626 VIEW public v_units_assets_tags_availability supabase_admin
+8431; 0 0 ACL public TABLE v_units_assets_tags_availability supabase_admin
+759; 1259 362980 VIEW public v_units_assets_tags_available_rate supabase_admin
+8432; 0 0 ACL public TABLE v_units_assets_tags_available_rate supabase_admin
+760; 1259 362990 VIEW public v_units_assets_tags_available_rate_latest_by_user supabase_admin
+8433; 0 0 ACL public TABLE v_units_assets_tags_available_rate_latest_by_user supabase_admin
+711; 1259 321977 VIEW public v_units_assets_tags_processing_counts supabase_admin
+8434; 0 0 ACL public TABLE v_units_assets_tags_processing_counts supabase_admin
+611; 1259 19181 VIEW public v_units_statuses supabase_admin
+8435; 0 0 ACL public TABLE v_units_statuses supabase_admin
+613; 1259 19189 VIEW public v_units_types supabase_admin
+8436; 0 0 ACL public TABLE v_units_types supabase_admin
+612; 1259 19185 VIEW public v_units_types_parent supabase_admin
+8437; 0 0 ACL public TABLE v_units_types_parent supabase_admin
+642; 1259 104438 VIEW public v_users_notifications supabase_admin
+8438; 0 0 ACL public TABLE v_users_notifications supabase_admin
+671; 1259 254426 VIEW public v_users_permissions supabase_admin
+8439; 0 0 COMMENT public VIEW v_users_permissions supabase_admin
+8440; 0 0 ACL public TABLE v_users_permissions supabase_admin
+656; 1259 170540 VIEW public v_vehicles supabase_admin
+8441; 0 0 ACL public TABLE v_vehicles supabase_admin
+647; 1259 150721 SEQUENCE public vehicles_id_seq supabase_admin
+8442; 0 0 ACL public SEQUENCE vehicles_id_seq supabase_admin
+713; 1259 323130 SEQUENCE public warehouses_id_seq supabase_admin
+8443; 0 0 ACL public SEQUENCE warehouses_id_seq supabase_admin
+721; 1259 353503 SEQUENCE public warehouses_materials_id_seq supabase_admin
+8444; 0 0 SEQUENCE OWNED BY public warehouses_materials_id_seq supabase_admin
+8445; 0 0 ACL public SEQUENCE warehouses_materials_id_seq supabase_admin
+428; 1259 16509 TABLE storage buckets supabase_storage_admin
+8446; 0 0 COMMENT storage COLUMN buckets.owner supabase_storage_admin
+8447; 0 0 ACL storage TABLE buckets supabase_storage_admin
+675; 1259 266744 TABLE storage buckets_analytics supabase_storage_admin
+8448; 0 0 ACL storage TABLE buckets_analytics supabase_storage_admin
+678; 1259 266821 TABLE storage buckets_vectors supabase_storage_admin
+8449; 0 0 ACL storage TABLE buckets_vectors supabase_storage_admin
+676; 1259 266755 TABLE storage iceberg_namespaces supabase_storage_admin
+8450; 0 0 ACL storage TABLE iceberg_namespaces supabase_storage_admin
+677; 1259 266771 TABLE storage iceberg_tables supabase_storage_admin
+8451; 0 0 ACL storage TABLE iceberg_tables supabase_storage_admin
+430; 1259 16551 TABLE storage migrations supabase_storage_admin
+8452; 0 0 ACL storage TABLE migrations supabase_storage_admin
+429; 1259 16524 TABLE storage objects supabase_storage_admin
+8453; 0 0 COMMENT storage COLUMN objects.owner supabase_storage_admin
+8454; 0 0 ACL storage TABLE objects supabase_storage_admin
+444; 1259 16847 TABLE storage prefixes supabase_storage_admin
+8455; 0 0 ACL storage TABLE prefixes supabase_storage_admin
+442; 1259 16794 TABLE storage s3_multipart_uploads supabase_storage_admin
+8456; 0 0 ACL storage TABLE s3_multipart_uploads supabase_storage_admin
+443; 1259 16808 TABLE storage s3_multipart_uploads_parts supabase_storage_admin
+8457; 0 0 ACL storage TABLE s3_multipart_uploads_parts supabase_storage_admin
+679; 1259 266831 TABLE storage vector_indexes supabase_storage_admin
+8458; 0 0 ACL storage TABLE vector_indexes supabase_storage_admin
+5701; 2604 16473 DEFAULT auth refresh_tokens id supabase_auth_admin
+6104; 2604 357230 DEFAULT public ai_chat_histories id supabase_admin
+6178; 2604 388066 DEFAULT public assets_loans id supabase_admin
+6193; 2604 388790 DEFAULT public assets_loans_checklists id supabase_admin
+6188; 2604 388143 DEFAULT public assets_loans_checklists_images id supabase_admin
+6122; 2604 368398 DEFAULT public cfg_app_notices id supabase_admin
+6112; 2604 368368 DEFAULT public cfg_app_notices_categories id supabase_admin
+6117; 2604 368383 DEFAULT public cfg_app_notices_severities id supabase_admin
+6134; 2604 371103 DEFAULT public cfg_app_tips id supabase_admin
+6138; 2604 371275 DEFAULT public cfg_app_tips_companies id supabase_admin
+6139; 2604 371296 DEFAULT public cfg_app_tips_departments id supabase_admin
+6136; 2604 371117 DEFAULT public cfg_app_tips_dismissals id supabase_admin
+6140; 2604 371317 DEFAULT public cfg_app_tips_profiles id supabase_admin
+6167; 2604 374110 DEFAULT public cfg_assets_attributes_groups id supabase_admin
+6191; 2604 388475 DEFAULT public cfg_assets_types_loans_checklists id supabase_admin
+6173; 2604 387421 DEFAULT public cfg_loans_checklists id supabase_admin
+5993; 2604 152574 DEFAULT public documents id supabase_admin
+6107; 2604 360342 DEFAULT public impersonation_password_backup id supabase_admin
+6056; 2604 283196 DEFAULT public maintenances_plans id supabase_admin
+6060; 2604 283208 DEFAULT public maintenances_plans_sections id supabase_admin
+6065; 2604 283225 DEFAULT public maintenances_plans_sections_activities id supabase_admin
+5841; 2604 18480 DEFAULT public n8n_chat_histories id supabase_admin
+6072; 2604 320306 DEFAULT public orders_visits_chat id supabase_admin
+6077; 2604 320332 DEFAULT public orders_visits_chat_participants id supabase_admin
+6079; 2604 320354 DEFAULT public orders_visits_chat_reads id supabase_admin
+6082; 2604 351786 DEFAULT public tools id supabase_admin
+6087; 2604 351807 DEFAULT public users_tools id supabase_admin
+6092; 2604 351837 DEFAULT public users_tools_movements id supabase_admin
+6095; 2604 353507 DEFAULT public warehouses_materials id supabase_admin
+7622; 0 16488 TABLE DATA auth audit_log_entries supabase_auth_admin
+7641; 0 17231 TABLE DATA auth flow_state supabase_auth_admin
+7632; 0 17028 TABLE DATA auth identities supabase_auth_admin
+7621; 0 16481 TABLE DATA auth instances supabase_auth_admin
+7636; 0 17118 TABLE DATA auth mfa_amr_claims supabase_auth_admin
+7635; 0 17106 TABLE DATA auth mfa_challenges supabase_auth_admin
+7634; 0 17093 TABLE DATA auth mfa_factors supabase_auth_admin
+7800; 0 266627 TABLE DATA auth oauth_authorizations supabase_auth_admin
+7799; 0 266597 TABLE DATA auth oauth_clients supabase_auth_admin
+7801; 0 266660 TABLE DATA auth oauth_consents supabase_auth_admin
+7642; 0 17281 TABLE DATA auth one_time_tokens supabase_auth_admin
+7620; 0 16470 TABLE DATA auth refresh_tokens supabase_auth_admin
+7639; 0 17160 TABLE DATA auth saml_providers supabase_auth_admin
+7640; 0 17178 TABLE DATA auth saml_relay_states supabase_auth_admin
+7623; 0 16496 TABLE DATA auth schema_migrations supabase_auth_admin
+7633; 0 17058 TABLE DATA auth sessions supabase_auth_admin
+7638; 0 17145 TABLE DATA auth sso_domains supabase_auth_admin
+7637; 0 17136 TABLE DATA auth sso_providers supabase_auth_admin
+7618; 0 16458 TABLE DATA auth users supabase_auth_admin
+7850; 0 357227 TABLE DATA public ai_chat_histories supabase_admin
+7812; 0 274033 TABLE DATA public ai_chat_sessions supabase_admin
+7811; 0 274022 TABLE DATA public ai_knowledge supabase_admin
+7813; 0 274048 TABLE DATA public ai_messages supabase_admin
+7808; 0 267829 TABLE DATA public api_keys supabase_admin
+7646; 0 18003 TABLE DATA public assets supabase_admin
+7820; 0 283757 TABLE DATA public assets_alerts supabase_admin
+7790; 0 209678 TABLE DATA public assets_attributes_values supabase_admin
+7772; 0 19285 TABLE DATA public assets_available supabase_admin
+7648; 0 18024 TABLE DATA public assets_followers supabase_admin
+7892; 0 388063 TABLE DATA public assets_loans supabase_admin
+7898; 0 388787 TABLE DATA public assets_loans_checklists supabase_admin
+7894; 0 388140 TABLE DATA public assets_loans_checklists_images supabase_admin
+7650; 0 18033 TABLE DATA public assets_materials supabase_admin
+7726; 0 18460 TABLE DATA public audits_logs supabase_admin
+7652; 0 18044 TABLE DATA public carts_materials supabase_admin
+7653; 0 18053 TABLE DATA public cfg_activities supabase_admin
+7655; 0 18063 TABLE DATA public cfg_app supabase_admin
+7861; 0 368395 TABLE DATA public cfg_app_notices supabase_admin
+7857; 0 368365 TABLE DATA public cfg_app_notices_categories supabase_admin
+7859; 0 368380 TABLE DATA public cfg_app_notices_severities supabase_admin
+7657; 0 18072 TABLE DATA public cfg_app_offline_updates supabase_admin
+7659; 0 18082 TABLE DATA public cfg_app_pages supabase_admin
+7862; 0 370658 TABLE DATA public cfg_app_tips supabase_admin
+7867; 0 371272 TABLE DATA public cfg_app_tips_companies supabase_admin
+7869; 0 371293 TABLE DATA public cfg_app_tips_departments supabase_admin
+7865; 0 371114 TABLE DATA public cfg_app_tips_dismissals supabase_admin
+7871; 0 371314 TABLE DATA public cfg_app_tips_profiles supabase_admin
+7661; 0 18091 TABLE DATA public cfg_app_versions_update supabase_admin
+7792; 0 209707 TABLE DATA public cfg_assets_attributes supabase_admin
+7885; 0 374107 TABLE DATA public cfg_assets_attributes_groups supabase_admin
+7778; 0 19439 TABLE DATA public cfg_assets_available_processing supabase_admin
+7663; 0 18099 TABLE DATA public cfg_assets_couplings_models supabase_admin
+7665; 0 18110 TABLE DATA public cfg_assets_priorities supabase_admin
+7667; 0 18118 TABLE DATA public cfg_assets_statuses supabase_admin
+7668; 0 18127 TABLE DATA public cfg_assets_tags supabase_admin
+7669; 0 18135 TABLE DATA public cfg_assets_tags_subs supabase_admin
+7670; 0 18143 TABLE DATA public cfg_assets_types supabase_admin
+7794; 0 209765 TABLE DATA public cfg_assets_types_attributes supabase_admin
+7896; 0 388472 TABLE DATA public cfg_assets_types_loans_checklists supabase_admin
+7776; 0 19347 TABLE DATA public cfg_assets_unavailable_reasons supabase_admin
+7644; 0 17991 TABLE DATA public cfg_companies supabase_admin
+7672; 0 18152 TABLE DATA public cfg_contracts_statuses supabase_admin
+7674; 0 18160 TABLE DATA public cfg_departments supabase_admin
+7873; 0 372075 TABLE DATA public cfg_evaluation_requirements supabase_admin
+7890; 0 387418 TABLE DATA public cfg_loans_checklists supabase_admin
+7886; 0 377322 TABLE DATA public cfg_materials_purchases_cancel_reasons supabase_admin
+7843; 0 354218 TABLE DATA public cfg_materials_purchases_statuses supabase_admin
+7841; 0 354208 TABLE DATA public cfg_materials_purchases_types supabase_admin
+7839; 0 353654 TABLE DATA public cfg_materials_statuses supabase_admin
+7848; 0 356071 TABLE DATA public cfg_materials_types supabase_admin
+7676; 0 18172 TABLE DATA public cfg_orders_cancel_reasons supabase_admin
+7678; 0 18182 TABLE DATA public cfg_orders_causes_reasons supabase_admin
+7680; 0 18192 TABLE DATA public cfg_orders_counter supabase_admin
+7682; 0 18203 TABLE DATA public cfg_orders_objects supabase_admin
+7684; 0 18211 TABLE DATA public cfg_orders_plans supabase_admin
+7686; 0 18221 TABLE DATA public cfg_orders_priorities supabase_admin
+7688; 0 18229 TABLE DATA public cfg_orders_statuses supabase_admin
+7690; 0 18238 TABLE DATA public cfg_orders_suspended_reasons supabase_admin
+7692; 0 18248 TABLE DATA public cfg_orders_types supabase_admin
+7694; 0 18258 TABLE DATA public cfg_orders_types_activities supabase_admin
+7696; 0 18268 TABLE DATA public cfg_orders_types_subs supabase_admin
+7698; 0 18278 TABLE DATA public cfg_orders_visits_extras_processing supabase_admin
+7700; 0 18286 TABLE DATA public cfg_orders_visits_processing supabase_admin
+7702; 0 18294 TABLE DATA public cfg_orders_visits_statuses supabase_admin
+7704; 0 18302 TABLE DATA public cfg_profiles supabase_admin
+7796; 0 214367 TABLE DATA public cfg_profiles_access supabase_admin
+7706; 0 18316 TABLE DATA public cfg_profiles_permissions supabase_admin
+7798; 0 254295 TABLE DATA public cfg_routes supabase_admin
+7708; 0 18322 TABLE DATA public cfg_services supabase_admin
+7710; 0 18333 TABLE DATA public cfg_systems supabase_admin
+7712; 0 18344 TABLE DATA public cfg_teams supabase_admin
+7765; 0 18825 TABLE DATA public cfg_technicals_manuals_categories supabase_admin
+7774; 0 19295 TABLE DATA public cfg_units_assets_tags supabase_admin
+7714; 0 18355 TABLE DATA public cfg_units_statuses supabase_admin
+7716; 0 18363 TABLE DATA public cfg_units_types supabase_admin
+7718; 0 18373 TABLE DATA public cfg_users_statuses supabase_admin
+7784; 0 152786 TABLE DATA public chat_agent_ai supabase_admin
+7789; 0 208113 TABLE DATA public clients supabase_admin
+7720; 0 18381 TABLE DATA public contracts supabase_admin
+7875; 0 372087 TABLE DATA public contracts_evaluation_requirements supabase_admin
+7722; 0 18395 TABLE DATA public contracts_managers supabase_admin
+7724; 0 18410 TABLE DATA public contracts_services supabase_admin
+7783; 0 152571 TABLE DATA public documents supabase_admin
+7631; 0 16899 TABLE DATA public extensions supabase_admin
+7888; 0 383799 TABLE DATA public goose_db_version postgres
+7852; 0 360339 TABLE DATA public impersonation_password_backup supabase_admin
+7786; 0 153634 TABLE DATA public import_orders_visits_contracts supabase_admin
+7879; 0 372306 TABLE DATA public leader_monthly_scores supabase_admin
+7883; 0 372363 TABLE DATA public leader_score_badges supabase_admin
+7881; 0 372337 TABLE DATA public leader_scores_history supabase_admin
+7810; 0 268455 TABLE DATA public logs_api supabase_admin
+7815; 0 283193 TABLE DATA public maintenances_plans supabase_admin
+7817; 0 283205 TABLE DATA public maintenances_plans_sections supabase_admin
+7819; 0 283222 TABLE DATA public maintenances_plans_sections_activities supabase_admin
+7727; 0 18468 TABLE DATA public materials supabase_admin
+7845; 0 354227 TABLE DATA public materials_purchases supabase_admin
+7729; 0 18477 TABLE DATA public n8n_chat_histories supabase_admin
+7731; 0 18486 TABLE DATA public orders supabase_admin
+7733; 0 18503 TABLE DATA public orders_followers supabase_admin
+7735; 0 18510 TABLE DATA public orders_statuses_logs supabase_admin
+7737; 0 18516 TABLE DATA public orders_visits supabase_admin
+7739; 0 18544 TABLE DATA public orders_visits_assets supabase_admin
+7741; 0 18561 TABLE DATA public orders_visits_assets_activities supabase_admin
+7743; 0 18572 TABLE DATA public orders_visits_assets_materials supabase_admin
+7823; 0 320303 TABLE DATA public orders_visits_chat supabase_admin
+7825; 0 320329 TABLE DATA public orders_visits_chat_participants supabase_admin
+7827; 0 320351 TABLE DATA public orders_visits_chat_reads supabase_admin
+7877; 0 372108 TABLE DATA public orders_visits_evaluations supabase_admin
+7749; 0 18626 TABLE DATA public orders_visits_extras supabase_admin
+7751; 0 18732 TABLE DATA public orders_visits_extras_followers supabase_admin
+7753; 0 18751 TABLE DATA public orders_visits_extras_teams supabase_admin
+7755; 0 18776 TABLE DATA public orders_visits_services supabase_admin
+7757; 0 18786 TABLE DATA public orders_visits_teams supabase_admin
+7759; 0 18794 TABLE DATA public orders_visits_vehicles supabase_admin
+7855; 0 364850 TABLE DATA public schema_migrations supabase_admin
+7761; 0 18810 TABLE DATA public technicals_manuals supabase_admin
+7763; 0 18818 TABLE DATA public technicals_manuals_assets supabase_admin
+7853; 0 360886 TABLE DATA public technicals_manuals_files supabase_admin
+7630; 0 16890 TABLE DATA public tenants supabase_admin
+7831; 0 351783 TABLE DATA public tools supabase_admin
+7747; 0 18614 TABLE DATA public units supabase_admin
+7745; 0 18586 TABLE DATA public users supabase_admin
+7767; 0 18833 TABLE DATA public users_notifications supabase_admin
+7833; 0 351804 TABLE DATA public users_tools supabase_admin
+7835; 0 351834 TABLE DATA public users_tools_movements supabase_admin
+7769; 0 18842 TABLE DATA public users_tracker supabase_admin
+7770; 0 18849 TABLE DATA public vehicles supabase_admin
+7829; 0 323131 TABLE DATA public warehouses supabase_admin
+7837; 0 353504 TABLE DATA public warehouses_materials supabase_admin
+7624; 0 16509 TABLE DATA storage buckets supabase_storage_admin
+7802; 0 266744 TABLE DATA storage buckets_analytics supabase_storage_admin
+7805; 0 266821 TABLE DATA storage buckets_vectors supabase_storage_admin
+7803; 0 266755 TABLE DATA storage iceberg_namespaces supabase_storage_admin
+7804; 0 266771 TABLE DATA storage iceberg_tables supabase_storage_admin
+7626; 0 16551 TABLE DATA storage migrations supabase_storage_admin
+7625; 0 16524 TABLE DATA storage objects supabase_storage_admin
+7629; 0 16847 TABLE DATA storage prefixes supabase_storage_admin
+7627; 0 16794 TABLE DATA storage s3_multipart_uploads supabase_storage_admin
+7628; 0 16808 TABLE DATA storage s3_multipart_uploads_parts supabase_storage_admin
+7806; 0 266831 TABLE DATA storage vector_indexes supabase_storage_admin
+8459; 0 0 SEQUENCE SET auth refresh_tokens_id_seq supabase_auth_admin
+8460; 0 0 SEQUENCE SET public ai_chat_histories_id_seq supabase_admin
+8461; 0 0 SEQUENCE SET public api_keys_id_seq supabase_admin
+8462; 0 0 SEQUENCE SET public assets_alerts_id_seq supabase_admin
+8463; 0 0 SEQUENCE SET public assets_available_id_seq supabase_admin
+8464; 0 0 SEQUENCE SET public assets_followers_id_seq supabase_admin
+8465; 0 0 SEQUENCE SET public assets_id_seq supabase_admin
+8466; 0 0 SEQUENCE SET public assets_loans_checklists_id_seq supabase_admin
+8467; 0 0 SEQUENCE SET public assets_loans_checklists_images_id_seq supabase_admin
+8468; 0 0 SEQUENCE SET public assets_loans_id_seq supabase_admin
+8469; 0 0 SEQUENCE SET public assets_materials_id_seq supabase_admin
+8470; 0 0 SEQUENCE SET public carts_materials_id_seq supabase_admin
+8471; 0 0 SEQUENCE SET public cfg_activities_id_seq supabase_admin
+8472; 0 0 SEQUENCE SET public cfg_app_id_seq supabase_admin
+8473; 0 0 SEQUENCE SET public cfg_app_offline_updates_id_seq supabase_admin
+8474; 0 0 SEQUENCE SET public cfg_app_pages_id_seq supabase_admin
+8475; 0 0 SEQUENCE SET public cfg_app_tips_companies_id_seq supabase_admin
+8476; 0 0 SEQUENCE SET public cfg_app_tips_departments_id_seq supabase_admin
+8477; 0 0 SEQUENCE SET public cfg_app_tips_dismissals_id_seq supabase_admin
+8478; 0 0 SEQUENCE SET public cfg_app_tips_new_id_seq supabase_admin
+8479; 0 0 SEQUENCE SET public cfg_app_tips_profiles_id_seq supabase_admin
+8480; 0 0 SEQUENCE SET public cfg_app_versions_update_id_seq supabase_admin
+8481; 0 0 SEQUENCE SET public cfg_assets_attributes_groups_id_seq supabase_admin
+8482; 0 0 SEQUENCE SET public cfg_assets_attributes_id_seq supabase_admin
+8483; 0 0 SEQUENCE SET public cfg_assets_available_processing_id_seq supabase_admin
+8484; 0 0 SEQUENCE SET public cfg_assets_couplings_models_id_seq supabase_admin
+8485; 0 0 SEQUENCE SET public cfg_assets_priorities_id_seq supabase_admin
+8486; 0 0 SEQUENCE SET public cfg_assets_statuses_id_seq supabase_admin
+8487; 0 0 SEQUENCE SET public cfg_assets_types_attributes_id_seq supabase_admin
+8488; 0 0 SEQUENCE SET public cfg_assets_types_loans_checklists_id_seq supabase_admin
+8489; 0 0 SEQUENCE SET public cfg_assets_unavailable_reasons_id_seq supabase_admin
+8490; 0 0 SEQUENCE SET public cfg_companies_id_seq supabase_admin
+8491; 0 0 SEQUENCE SET public cfg_contracts_statuses_id_seq supabase_admin
+8492; 0 0 SEQUENCE SET public cfg_departments_id_seq supabase_admin
+8493; 0 0 SEQUENCE SET public cfg_evaluation_requirements_id_seq supabase_admin
+8494; 0 0 SEQUENCE SET public cfg_loans_checklists_id_seq supabase_admin
+8495; 0 0 SEQUENCE SET public cfg_material_purchases_statuses_id_seq supabase_admin
+8496; 0 0 SEQUENCE SET public cfg_materials_purchases_types_id_seq supabase_admin
+8497; 0 0 SEQUENCE SET public cfg_materials_statuses_id_seq supabase_admin
+8498; 0 0 SEQUENCE SET public cfg_materials_types_id_seq supabase_admin
+8499; 0 0 SEQUENCE SET public cfg_orders_cancel_reasons_id_seq supabase_admin
+8500; 0 0 SEQUENCE SET public cfg_orders_causes_reasons_id_seq supabase_admin
+8501; 0 0 SEQUENCE SET public cfg_orders_counter_id_seq supabase_admin
+8502; 0 0 SEQUENCE SET public cfg_orders_objects_id_seq supabase_admin
+8503; 0 0 SEQUENCE SET public cfg_orders_plans_id_seq supabase_admin
+8504; 0 0 SEQUENCE SET public cfg_orders_priorities_id_seq supabase_admin
+8505; 0 0 SEQUENCE SET public cfg_orders_statuses_id_seq supabase_admin
+8506; 0 0 SEQUENCE SET public cfg_orders_suspended_reasons_id_seq supabase_admin
+8507; 0 0 SEQUENCE SET public cfg_orders_types_activities_id_seq supabase_admin
+8508; 0 0 SEQUENCE SET public cfg_orders_types_id_seq supabase_admin
+8509; 0 0 SEQUENCE SET public cfg_orders_types_subs_id_seq supabase_admin
+8510; 0 0 SEQUENCE SET public cfg_orders_visits_extras_processing_id_seq supabase_admin
+8511; 0 0 SEQUENCE SET public cfg_orders_visits_processing_id_seq supabase_admin
+8512; 0 0 SEQUENCE SET public cfg_orders_visits_statuses_id_seq supabase_admin
+8513; 0 0 SEQUENCE SET public cfg_profiles_access_id_seq supabase_admin
+8514; 0 0 SEQUENCE SET public cfg_profiles_id_seq supabase_admin
+8515; 0 0 SEQUENCE SET public cfg_profiles_permissions_id_seq supabase_admin
+8516; 0 0 SEQUENCE SET public cfg_routes_id_seq supabase_admin
+8517; 0 0 SEQUENCE SET public cfg_services_id_seq supabase_admin
+8518; 0 0 SEQUENCE SET public cfg_systems_id_seq supabase_admin
+8519; 0 0 SEQUENCE SET public cfg_teams_id_seq supabase_admin
+8520; 0 0 SEQUENCE SET public cfg_technicals_manuals_categories_id_seq supabase_admin
+8521; 0 0 SEQUENCE SET public cfg_units_assets_tags_id_seq supabase_admin
+8522; 0 0 SEQUENCE SET public cfg_units_statuses_id_seq supabase_admin
+8523; 0 0 SEQUENCE SET public cfg_units_types_id_seq supabase_admin
+8524; 0 0 SEQUENCE SET public cfg_users_statuses_id_seq supabase_admin
+8525; 0 0 SEQUENCE SET public chat_id_seq supabase_admin
+8526; 0 0 SEQUENCE SET public clients_id_seq supabase_admin
+8527; 0 0 SEQUENCE SET public contracts_evaluation_requirements_id_seq supabase_admin
+8528; 0 0 SEQUENCE SET public contracts_id_seq supabase_admin
+8529; 0 0 SEQUENCE SET public contracts_managers_id_seq supabase_admin
+8530; 0 0 SEQUENCE SET public contracts_services_id_seq supabase_admin
+8531; 0 0 SEQUENCE SET public documents_id_seq supabase_admin
+8532; 0 0 SEQUENCE SET public goose_db_version_id_seq postgres
+8533; 0 0 SEQUENCE SET public impersonation_password_backup_id_seq supabase_admin
+8534; 0 0 SEQUENCE SET public leader_monthly_scores_id_seq supabase_admin
+8535; 0 0 SEQUENCE SET public leader_score_badges_id_seq supabase_admin
+8536; 0 0 SEQUENCE SET public leader_scores_history_id_seq supabase_admin
+8537; 0 0 SEQUENCE SET public logs_api_id_seq supabase_admin
+8538; 0 0 SEQUENCE SET public logs_id_seq supabase_admin
+8539; 0 0 SEQUENCE SET public maintenances_plans_id_seq supabase_admin
+8540; 0 0 SEQUENCE SET public maintenances_plans_sections_activities_id_seq supabase_admin
+8541; 0 0 SEQUENCE SET public maintenances_plans_sections_id_seq supabase_admin
+8542; 0 0 SEQUENCE SET public material_purchases_id_seq supabase_admin
+8543; 0 0 SEQUENCE SET public materials_id_seq supabase_admin
+8544; 0 0 SEQUENCE SET public materials_purchases_id_seq supabase_admin
+8545; 0 0 SEQUENCE SET public n8n_chat_histories_id_seq supabase_admin
+8546; 0 0 SEQUENCE SET public orders_followers_id_seq supabase_admin
+8547; 0 0 SEQUENCE SET public orders_id_seq supabase_admin
+8548; 0 0 SEQUENCE SET public orders_statuses_logs_id_seq supabase_admin
+8549; 0 0 SEQUENCE SET public orders_visits_assets_activities_id_seq supabase_admin
+8550; 0 0 SEQUENCE SET public orders_visits_assets_id_seq supabase_admin
+8551; 0 0 SEQUENCE SET public orders_visits_assets_materials_id_seq supabase_admin
+8552; 0 0 SEQUENCE SET public orders_visits_chat_id_seq supabase_admin
+8553; 0 0 SEQUENCE SET public orders_visits_chat_participants_id_seq supabase_admin
+8554; 0 0 SEQUENCE SET public orders_visits_chat_reads_id_seq supabase_admin
+8555; 0 0 SEQUENCE SET public orders_visits_evaluations_id_seq supabase_admin
+8556; 0 0 SEQUENCE SET public orders_visits_extras_followers_id_seq supabase_admin
+8557; 0 0 SEQUENCE SET public orders_visits_extras_id_seq supabase_admin
+8558; 0 0 SEQUENCE SET public orders_visits_extras_teams_id_seq supabase_admin
+8559; 0 0 SEQUENCE SET public orders_visits_id_seq supabase_admin
+8560; 0 0 SEQUENCE SET public orders_visits_services_id_seq supabase_admin
+8561; 0 0 SEQUENCE SET public orders_visits_teams_id_seq supabase_admin
+8562; 0 0 SEQUENCE SET public orders_visits_vehicles_id_seq supabase_admin
+8563; 0 0 SEQUENCE SET public system_notice_categories_id_seq supabase_admin
+8564; 0 0 SEQUENCE SET public system_notice_severities_id_seq supabase_admin
+8565; 0 0 SEQUENCE SET public system_notices_id_seq supabase_admin
+8566; 0 0 SEQUENCE SET public technicals_manuals_assets_id_seq supabase_admin
+8567; 0 0 SEQUENCE SET public technicals_manuals_files_id_seq supabase_admin
+8568; 0 0 SEQUENCE SET public technicals_manuals_id_seq supabase_admin
+8569; 0 0 SEQUENCE SET public tmp_contracts_import_id_seq supabase_admin
+8570; 0 0 SEQUENCE SET public tools_id_seq supabase_admin
+8571; 0 0 SEQUENCE SET public units_id_seq supabase_admin
+8572; 0 0 SEQUENCE SET public users_id_seq supabase_admin
+8573; 0 0 SEQUENCE SET public users_notifications_id_seq supabase_admin
+8574; 0 0 SEQUENCE SET public users_tools_id_seq supabase_admin
+8575; 0 0 SEQUENCE SET public users_tools_movements_id_seq supabase_admin
+8576; 0 0 SEQUENCE SET public users_tracker_id_seq supabase_admin
+8577; 0 0 SEQUENCE SET public vehicles_id_seq supabase_admin
+8578; 0 0 SEQUENCE SET public warehouses_id_seq supabase_admin
+8579; 0 0 SEQUENCE SET public warehouses_materials_id_seq supabase_admin
+6311; 2606 17131 CONSTRAINT auth mfa_amr_claims amr_id_pk supabase_auth_admin
+6254; 2606 16494 CONSTRAINT auth audit_log_entries audit_log_entries_pkey supabase_auth_admin
+6334; 2606 17237 CONSTRAINT auth flow_state flow_state_pkey supabase_auth_admin
+6289; 2606 17255 CONSTRAINT auth identities identities_pkey supabase_auth_admin
+6291; 2606 17265 CONSTRAINT auth identities identities_provider_id_provider_unique supabase_auth_admin
+6252; 2606 16487 CONSTRAINT auth instances instances_pkey supabase_auth_admin
+6313; 2606 17124 CONSTRAINT auth mfa_amr_claims mfa_amr_claims_session_id_authentication_method_pkey supabase_auth_admin
+6309; 2606 17112 CONSTRAINT auth mfa_challenges mfa_challenges_pkey supabase_auth_admin
+6301; 2606 17305 CONSTRAINT auth mfa_factors mfa_factors_last_challenged_at_key supabase_auth_admin
+6303; 2606 17099 CONSTRAINT auth mfa_factors mfa_factors_pkey supabase_auth_admin
+6632; 2606 266648 CONSTRAINT auth oauth_authorizations oauth_authorizations_authorization_code_key supabase_auth_admin
+6634; 2606 266646 CONSTRAINT auth oauth_authorizations oauth_authorizations_authorization_id_key supabase_auth_admin
+6636; 2606 266644 CONSTRAINT auth oauth_authorizations oauth_authorizations_pkey supabase_auth_admin
+6629; 2606 266608 CONSTRAINT auth oauth_clients oauth_clients_pkey supabase_auth_admin
+6640; 2606 266670 CONSTRAINT auth oauth_consents oauth_consents_pkey supabase_auth_admin
+6642; 2606 266672 CONSTRAINT auth oauth_consents oauth_consents_user_client_unique supabase_auth_admin
+6338; 2606 17290 CONSTRAINT auth one_time_tokens one_time_tokens_pkey supabase_auth_admin
+6246; 2606 16477 CONSTRAINT auth refresh_tokens refresh_tokens_pkey supabase_auth_admin
+6249; 2606 17041 CONSTRAINT auth refresh_tokens refresh_tokens_token_unique supabase_auth_admin
+6323; 2606 17171 CONSTRAINT auth saml_providers saml_providers_entity_id_key supabase_auth_admin
+6325; 2606 17169 CONSTRAINT auth saml_providers saml_providers_pkey supabase_auth_admin
+6330; 2606 17185 CONSTRAINT auth saml_relay_states saml_relay_states_pkey supabase_auth_admin
+6257; 2606 16500 CONSTRAINT auth schema_migrations schema_migrations_pkey supabase_auth_admin
+6296; 2606 17062 CONSTRAINT auth sessions sessions_pkey supabase_auth_admin
+6320; 2606 17152 CONSTRAINT auth sso_domains sso_domains_pkey supabase_auth_admin
+6315; 2606 17143 CONSTRAINT auth sso_providers sso_providers_pkey supabase_auth_admin
+6239; 2606 17225 CONSTRAINT auth users users_phone_key supabase_auth_admin
+6241; 2606 16464 CONSTRAINT auth users users_pkey supabase_auth_admin
+6733; 2606 357236 CONSTRAINT public ai_chat_histories ai_chat_histories_pkey supabase_admin
+6667; 2606 274042 CONSTRAINT public ai_chat_sessions ai_chat_sessions_pkey supabase_admin
+6665; 2606 274031 CONSTRAINT public ai_knowledge ai_knowledge_pkey supabase_admin
+6669; 2606 274058 CONSTRAINT public ai_messages ai_messages_pkey supabase_admin
+6658; 2606 267839 CONSTRAINT public api_keys api_keys_api_key_key supabase_admin
+6660; 2606 267837 CONSTRAINT public api_keys api_keys_pkey supabase_admin
+6363; 2606 18070 CONSTRAINT public cfg_app app_pkey supabase_admin
+6367; 2606 18089 CONSTRAINT public cfg_app_pages apppages_pkey supabase_admin
+6369; 2606 18097 CONSTRAINT public cfg_app_versions_update appversionsupdate_pkey supabase_admin
+6680; 2606 283769 CONSTRAINT public assets_alerts assets_alerts_pkey supabase_admin
+6607; 2606 209720 CONSTRAINT public cfg_assets_attributes assets_attributes_field_key_unique supabase_admin
+6609; 2606 209718 CONSTRAINT public cfg_assets_attributes assets_attributes_pkey supabase_admin
+6605; 2606 209684 CONSTRAINT public assets_attributes_values assets_attributes_values_pkey supabase_admin
+6824; 2606 388150 CONSTRAINT public assets_loans_checklists_images assets_loans_checklists_images_pkey supabase_admin
+6833; 2606 388798 CONSTRAINT public assets_loans_checklists assets_loans_checklists_pkey supabase_admin
+6818; 2606 388075 CONSTRAINT public assets_loans assets_loans_pkey supabase_admin
+6345; 2606 18016 CONSTRAINT public assets assets_pkey supabase_admin
+6377; 2606 18134 CONSTRAINT public cfg_assets_tags assets_tags_pkey supabase_admin
+6612; 2606 209774 CONSTRAINT public cfg_assets_types_attributes assets_types_attributes_pkey supabase_admin
+6614; 2606 209776 CONSTRAINT public cfg_assets_types_attributes assets_types_attributes_unique supabase_admin
+6382; 2606 18150 CONSTRAINT public cfg_assets_types assets_types_pkey supabase_admin
+6371; 2606 18108 CONSTRAINT public cfg_assets_couplings_models assetscouplingsmodels_pkey supabase_admin
+6355; 2606 18031 CONSTRAINT public assets_followers assetsfollowers_pkey supabase_admin
+6357; 2606 18042 CONSTRAINT public assets_materials assetsmaterials_pkey supabase_admin
+6373; 2606 18116 CONSTRAINT public cfg_assets_priorities assetspriorities_pkey supabase_admin
+6375; 2606 18126 CONSTRAINT public cfg_assets_statuses assetsstatuses_pkey supabase_admin
+6380; 2606 18142 CONSTRAINT public cfg_assets_tags_subs assetstagssubs_pkey supabase_admin
+6359; 2606 18052 CONSTRAINT public carts_materials cart_pkey supabase_admin
+6361; 2606 18061 CONSTRAINT public cfg_activities cfg_activities_pkey supabase_admin
+6749; 2606 368408 CONSTRAINT public cfg_app_notices cfg_app_notices_pkey supabase_admin
+6365; 2606 18080 CONSTRAINT public cfg_app_offline_updates cfg_app_offline_tables_pkey supabase_admin
+6764; 2606 371277 CONSTRAINT public cfg_app_tips_companies cfg_app_tips_companies_pkey supabase_admin
+6766; 2606 371279 CONSTRAINT public cfg_app_tips_companies cfg_app_tips_companies_tip_id_company_id_key supabase_admin
+6769; 2606 371298 CONSTRAINT public cfg_app_tips_departments cfg_app_tips_departments_pkey supabase_admin
+6771; 2606 371300 CONSTRAINT public cfg_app_tips_departments cfg_app_tips_departments_tip_id_department_id_key supabase_admin
+6759; 2606 371120 CONSTRAINT public cfg_app_tips_dismissals cfg_app_tips_dismissals_pkey supabase_admin
+6761; 2606 371122 CONSTRAINT public cfg_app_tips_dismissals cfg_app_tips_dismissals_tip_id_user_id_key supabase_admin
+6755; 2606 371112 CONSTRAINT public cfg_app_tips cfg_app_tips_pkey supabase_admin
+6774; 2606 371319 CONSTRAINT public cfg_app_tips_profiles cfg_app_tips_profiles_pkey supabase_admin
+6776; 2606 371321 CONSTRAINT public cfg_app_tips_profiles cfg_app_tips_profiles_tip_id_profile_id_key supabase_admin
+6807; 2606 374117 CONSTRAINT public cfg_assets_attributes_groups cfg_assets_attributes_groups_pkey supabase_admin
+6595; 2606 19445 CONSTRAINT public cfg_assets_available_processing cfg_assets_available_processing_pkey supabase_admin
+6827; 2606 388480 CONSTRAINT public cfg_assets_types_loans_checklists cfg_assets_types_loans_checklist_checklist_id_asset_type_id_key supabase_admin
+6829; 2606 388478 CONSTRAINT public cfg_assets_types_loans_checklists cfg_assets_types_loans_checklists_pkey supabase_admin
+6593; 2606 19355 CONSTRAINT public cfg_assets_unavailable_reasons cfg_assets_unavailable_reasons_pkey supabase_admin
+6410; 2606 18284 CONSTRAINT public cfg_orders_visits_extras_processing cfg_eap_processing_pkey supabase_admin
+6779; 2606 372085 CONSTRAINT public cfg_evaluation_requirements cfg_evaluation_requirements_code_key supabase_admin
+6781; 2606 372083 CONSTRAINT public cfg_evaluation_requirements cfg_evaluation_requirements_pkey supabase_admin
+6815; 2606 387427 CONSTRAINT public cfg_loans_checklists cfg_loans_checklists_pkey supabase_admin
+6723; 2606 355099 CONSTRAINT public cfg_materials_purchases_statuses cfg_material_purchases_statuses_code_key supabase_admin
+6725; 2606 355097 CONSTRAINT public cfg_materials_purchases_statuses cfg_material_purchases_statuses_pkey supabase_admin
+6811; 2606 377327 CONSTRAINT public cfg_materials_purchases_cancel_reasons cfg_materials_purchases_cancel_reasons_pkey supabase_admin
+6719; 2606 354216 CONSTRAINT public cfg_materials_purchases_types cfg_materials_purchases_types_code_key supabase_admin
+6721; 2606 354966 CONSTRAINT public cfg_materials_purchases_types cfg_materials_purchases_types_pkey supabase_admin
+6717; 2606 353660 CONSTRAINT public cfg_materials_statuses cfg_materials_statuses_pkey supabase_admin
+6731; 2606 356077 CONSTRAINT public cfg_materials_types cfg_materials_types_pkey supabase_admin
+6402; 2606 18246 CONSTRAINT public cfg_orders_suspended_reasons cfg_orders_suspended_reasons_pkey supabase_admin
+6617; 2606 214378 CONSTRAINT public cfg_profiles_access cfg_profiles_access_pkey supabase_admin
+6623; 2606 254306 CONSTRAINT public cfg_routes cfg_routes_route_key_key supabase_admin
+6420; 2606 18331 CONSTRAINT public cfg_services cfg_services_pkey supabase_admin
+6565; 2606 56585 CONSTRAINT public cfg_technicals_manuals_categories cfg_technicals_manuals_categories_pkey supabase_admin
+6599; 2606 152797 CONSTRAINT public chat_agent_ai chat_pkey supabase_admin
+6603; 2606 208122 CONSTRAINT public clients clients_pkey supabase_admin
+6343; 2606 18001 CONSTRAINT public cfg_companies companies_pkey supabase_admin
+6783; 2606 372096 CONSTRAINT public contracts_evaluation_requirements contracts_evaluation_requirements_contract_evaluation_unique supabase_admin
+6785; 2606 372094 CONSTRAINT public contracts_evaluation_requirements contracts_evaluation_requirements_pkey supabase_admin
+6432; 2606 18393 CONSTRAINT public contracts contracts_pkey supabase_admin
+6434; 2606 18403 CONSTRAINT public contracts_managers contractsmanagers_pkey supabase_admin
+6436; 2606 18419 CONSTRAINT public contracts_services contractsservices_pkey supabase_admin
+6384; 2606 18158 CONSTRAINT public cfg_contracts_statuses contractsstatuses_pkey supabase_admin
+6386; 2606 18170 CONSTRAINT public cfg_departments department_pkey supabase_admin
+6597; 2606 152578 CONSTRAINT public documents documents_pkey supabase_admin
+6285; 2606 16905 CONSTRAINT public extensions extensions_pkey supabase_admin
+6813; 2606 383804 CONSTRAINT public goose_db_version goose_db_version_pkey postgres
+6735; 2606 360347 CONSTRAINT public impersonation_password_backup impersonation_password_backup_pkey supabase_admin
+6795; 2606 372321 CONSTRAINT public leader_monthly_scores leader_monthly_scores_pkey supabase_admin
+6797; 2606 372323 CONSTRAINT public leader_monthly_scores leader_monthly_scores_unique supabase_admin
+6805; 2606 372370 CONSTRAINT public leader_score_badges leader_score_badges_pkey supabase_admin
+6799; 2606 372347 CONSTRAINT public leader_scores_history leader_scores_history_pkey supabase_admin
+6801; 2606 372349 CONSTRAINT public leader_scores_history leader_scores_history_unique supabase_admin
+6663; 2606 268462 CONSTRAINT public logs_api logs_api_pkey supabase_admin
+6438; 2606 18467 CONSTRAINT public audits_logs logs_pkey supabase_admin
+6671; 2606 283203 CONSTRAINT public maintenances_plans maintenances_plans_pkey supabase_admin
+6676; 2606 283232 CONSTRAINT public maintenances_plans_sections_activities maintenances_plans_sections_a_maintenance_plan_section_id_a_key supabase_admin
+6678; 2606 283230 CONSTRAINT public maintenances_plans_sections_activities maintenances_plans_sections_activities_pkey supabase_admin
+6673; 2606 283215 CONSTRAINT public maintenances_plans_sections maintenances_plans_sections_pkey supabase_admin
+6729; 2606 354884 CONSTRAINT public materials_purchases material_purchases_pkey supabase_admin
+6443; 2606 55369 CONSTRAINT public materials materials_pkey supabase_admin
+6445; 2606 18484 CONSTRAINT public n8n_chat_histories n8n_chat_histories_pkey supabase_admin
+6392; 2606 18201 CONSTRAINT public cfg_orders_counter orders_counter_pkey supabase_admin
+6470; 2606 55227 CONSTRAINT public orders_followers orders_followers_pkey supabase_admin
+6467; 2606 28585 CONSTRAINT public orders orders_pkey supabase_admin
+6414; 2606 18300 CONSTRAINT public cfg_orders_visits_statuses orders_visitis_statuses_pkey supabase_admin
+6506; 2606 18570 CONSTRAINT public orders_visits_assets_activities orders_visits_assets_activities_pkey supabase_admin
+6500; 2606 18559 CONSTRAINT public orders_visits_assets orders_visits_assets_pkey supabase_admin
+6691; 2606 320337 CONSTRAINT public orders_visits_chat_participants orders_visits_chat_participants_ov_id_user_id_key supabase_admin
+6693; 2606 320335 CONSTRAINT public orders_visits_chat_participants orders_visits_chat_participants_pkey supabase_admin
+6687; 2606 320314 CONSTRAINT public orders_visits_chat orders_visits_chat_pkey supabase_admin
+6696; 2606 320359 CONSTRAINT public orders_visits_chat_reads orders_visits_chat_reads_chat_id_user_id_key supabase_admin
+6698; 2606 320357 CONSTRAINT public orders_visits_chat_reads orders_visits_chat_reads_pkey supabase_admin
+6791; 2606 372117 CONSTRAINT public orders_visits_evaluations orders_visits_evaluations_pkey supabase_admin
+6541; 2606 18639 CONSTRAINT public orders_visits_extras orders_visits_extras_pkey supabase_admin
+6547; 2606 18761 CONSTRAINT public orders_visits_extras_teams orders_visits_extras_teams_pkey supabase_admin
+6491; 2606 18542 CONSTRAINT public orders_visits orders_visits_pkey supabase_admin
+6412; 2606 18292 CONSTRAINT public cfg_orders_visits_processing orders_visits_processing_pkey supabase_admin
+6556; 2606 54871 CONSTRAINT public orders_visits_teams orders_visits_teams_pkey supabase_admin
+6388; 2606 18180 CONSTRAINT public cfg_orders_cancel_reasons orderscancelreasons_pkey supabase_admin
+6390; 2606 18190 CONSTRAINT public cfg_orders_causes_reasons orderscauses_pkey supabase_admin
+6394; 2606 18209 CONSTRAINT public cfg_orders_objects ordersobjects_pkey supabase_admin
+6396; 2606 18219 CONSTRAINT public cfg_orders_plans ordersplans_pkey supabase_admin
+6398; 2606 18227 CONSTRAINT public cfg_orders_priorities orderspriorities_pkey supabase_admin
+6473; 2606 18514 CONSTRAINT public orders_statuses_logs ordersstatuseslogs_pkey supabase_admin
+6400; 2606 18236 CONSTRAINT public cfg_orders_statuses ordersstatusess_pkey supabase_admin
+6404; 2606 18256 CONSTRAINT public cfg_orders_types orderstypes_pkey supabase_admin
+6406; 2606 18266 CONSTRAINT public cfg_orders_types_activities orderstypesactivities_pkey supabase_admin
+6408; 2606 18276 CONSTRAINT public cfg_orders_types_subs orderstypessubs_pkey supabase_admin
+6508; 2606 18584 CONSTRAINT public orders_visits_assets_materials ordersvisitsassetsmaterials_pkey supabase_admin
+6551; 2606 18784 CONSTRAINT public orders_visits_services ordersvisitsservices_pkey supabase_admin
+6561; 2606 18808 CONSTRAINT public orders_visits_vehicles ordersvisitsvehicles_pkey supabase_admin
+6621; 2606 254362 CONSTRAINT public cfg_profiles_access profiles_access_unique supabase_admin
+6626; 2606 254304 CONSTRAINT public cfg_routes routes_pkey supabase_admin
+6739; 2606 364854 CONSTRAINT public schema_migrations schema_migrations_pkey supabase_admin
+6741; 2606 368378 CONSTRAINT public cfg_app_notices_categories system_notice_categories_code_key supabase_admin
+6743; 2606 368376 CONSTRAINT public cfg_app_notices_categories system_notice_categories_pkey supabase_admin
+6745; 2606 368393 CONSTRAINT public cfg_app_notices_severities system_notice_severities_code_key supabase_admin
+6747; 2606 368391 CONSTRAINT public cfg_app_notices_severities system_notice_severities_pkey supabase_admin
+6422; 2606 18342 CONSTRAINT public cfg_systems systems_pkey supabase_admin
+6424; 2606 18353 CONSTRAINT public cfg_teams teams_pkey supabase_admin
+6737; 2606 360896 CONSTRAINT public technicals_manuals_files technicals_manuals_files_pkey supabase_admin
+6563; 2606 55843 CONSTRAINT public technicals_manuals technicals_manuals_pkey supabase_admin
+6283; 2606 16897 CONSTRAINT public tenants tenants_pkey supabase_admin
+6601; 2606 153644 CONSTRAINT public import_orders_visits_contracts tmp_contracts_import_pkey supabase_admin
+6703; 2606 351793 CONSTRAINT public tools tools_pkey supabase_admin
+6502; 2606 57005 CONSTRAINT public orders_visits_assets unique_ov_asset supabase_admin
+6579; 2606 19293 CONSTRAINT public assets_available units_assets_available_pkey supabase_admin
+6591; 2606 19305 CONSTRAINT public cfg_units_assets_tags units_assets_tags_pkey supabase_admin
+6526; 2606 18623 CONSTRAINT public units units_pkey supabase_admin
+6426; 2606 18361 CONSTRAINT public cfg_units_statuses unitsstatuses_pkey supabase_admin
+6428; 2606 18371 CONSTRAINT public cfg_units_types unitstypes_pkey supabase_admin
+6570; 2606 55229 CONSTRAINT public users_notifications users_notifications_pkey supabase_admin
+6519; 2606 18602 CONSTRAINT public users users_pkey supabase_admin
+6710; 2606 351842 CONSTRAINT public users_tools_movements users_tools_movements_pkey supabase_admin
+6707; 2606 351814 CONSTRAINT public users_tools users_tools_pkey supabase_admin
+6416; 2606 18309 CONSTRAINT public cfg_profiles usersprofiles_pkey supabase_admin
+6418; 2606 18320 CONSTRAINT public cfg_profiles_permissions usersprofilespermissions_pkey supabase_admin
+6430; 2606 18379 CONSTRAINT public cfg_users_statuses usersstatuses_pkey supabase_admin
+6572; 2606 18848 CONSTRAINT public users_tracker userstracks_pkey supabase_admin
+6575; 2606 150725 CONSTRAINT public vehicles vehicles_pkey supabase_admin
+6713; 2606 353514 CONSTRAINT public warehouses_materials warehouses_materials_pkey supabase_admin
+6715; 2606 353516 CONSTRAINT public warehouses_materials warehouses_materials_warehouse_id_material_id_key supabase_admin
+6700; 2606 323137 CONSTRAINT public warehouses warehouses_pkey supabase_admin
+6645; 2606 266754 CONSTRAINT storage buckets_analytics buckets_analytics_pkey supabase_storage_admin
+6260; 2606 16517 CONSTRAINT storage buckets buckets_pkey supabase_storage_admin
+6653; 2606 266830 CONSTRAINT storage buckets_vectors buckets_vectors_pkey supabase_storage_admin
+6647; 2606 266764 CONSTRAINT storage iceberg_namespaces iceberg_namespaces_pkey supabase_storage_admin
+6650; 2606 266780 CONSTRAINT storage iceberg_tables iceberg_tables_pkey supabase_storage_admin
+6270; 2606 16558 CONSTRAINT storage migrations migrations_name_key supabase_storage_admin
+6272; 2606 16556 CONSTRAINT storage migrations migrations_pkey supabase_storage_admin
+6268; 2606 16534 CONSTRAINT storage objects objects_pkey supabase_storage_admin
+6280; 2606 16856 CONSTRAINT storage prefixes prefixes_pkey supabase_storage_admin
+6277; 2606 16817 CONSTRAINT storage s3_multipart_uploads_parts s3_multipart_uploads_parts_pkey supabase_storage_admin
+6275; 2606 16802 CONSTRAINT storage s3_multipart_uploads s3_multipart_uploads_pkey supabase_storage_admin
+6656; 2606 266840 CONSTRAINT storage vector_indexes vector_indexes_pkey supabase_storage_admin
+6255; 1259 16495 INDEX auth audit_logs_instance_id_idx supabase_auth_admin
+6229; 1259 17051 INDEX auth confirmation_token_idx supabase_auth_admin
+6230; 1259 17053 INDEX auth email_change_token_current_idx supabase_auth_admin
+6231; 1259 17054 INDEX auth email_change_token_new_idx supabase_auth_admin
+6299; 1259 17133 INDEX auth factor_id_created_at_idx supabase_auth_admin
+6332; 1259 17241 INDEX auth flow_state_created_at_idx supabase_auth_admin
+6287; 1259 17221 INDEX auth identities_email_idx supabase_auth_admin
+8580; 0 0 COMMENT auth INDEX identities_email_idx supabase_auth_admin
+6292; 1259 17048 INDEX auth identities_user_id_idx supabase_auth_admin
+6335; 1259 17238 INDEX auth idx_auth_code supabase_auth_admin
+6336; 1259 17239 INDEX auth idx_user_id_auth_method supabase_auth_admin
+6307; 1259 17244 INDEX auth mfa_challenge_created_at_idx supabase_auth_admin
+6304; 1259 17105 INDEX auth mfa_factors_user_friendly_name_unique supabase_auth_admin
+6305; 1259 17250 INDEX auth mfa_factors_user_id_idx supabase_auth_admin
+6630; 1259 266659 INDEX auth oauth_auth_pending_exp_idx supabase_auth_admin
+6627; 1259 266612 INDEX auth oauth_clients_deleted_at_idx supabase_auth_admin
+6637; 1259 266685 INDEX auth oauth_consents_active_client_idx supabase_auth_admin
+6638; 1259 266683 INDEX auth oauth_consents_active_user_client_idx supabase_auth_admin
+6643; 1259 266684 INDEX auth oauth_consents_user_order_idx supabase_auth_admin
+6339; 1259 17297 INDEX auth one_time_tokens_relates_to_hash_idx supabase_auth_admin
+6340; 1259 17296 INDEX auth one_time_tokens_token_hash_hash_idx supabase_auth_admin
+6341; 1259 17298 INDEX auth one_time_tokens_user_id_token_type_key supabase_auth_admin
+6232; 1259 17055 INDEX auth reauthentication_token_idx supabase_auth_admin
+6233; 1259 17052 INDEX auth recovery_token_idx supabase_auth_admin
+6242; 1259 16478 INDEX auth refresh_tokens_instance_id_idx supabase_auth_admin
+6243; 1259 16479 INDEX auth refresh_tokens_instance_id_user_id_idx supabase_auth_admin
+6244; 1259 17047 INDEX auth refresh_tokens_parent_idx supabase_auth_admin
+6247; 1259 17135 INDEX auth refresh_tokens_session_id_revoked_idx supabase_auth_admin
+6250; 1259 17240 INDEX auth refresh_tokens_updated_at_idx supabase_auth_admin
+6326; 1259 17177 INDEX auth saml_providers_sso_provider_id_idx supabase_auth_admin
+6327; 1259 17242 INDEX auth saml_relay_states_created_at_idx supabase_auth_admin
+6328; 1259 17192 INDEX auth saml_relay_states_for_email_idx supabase_auth_admin
+6331; 1259 17191 INDEX auth saml_relay_states_sso_provider_id_idx supabase_auth_admin
+6293; 1259 17243 INDEX auth sessions_not_after_idx supabase_auth_admin
+6294; 1259 266697 INDEX auth sessions_oauth_client_id_idx supabase_auth_admin
+6297; 1259 17134 INDEX auth sessions_user_id_idx supabase_auth_admin
+6318; 1259 17159 INDEX auth sso_domains_domain_idx supabase_auth_admin
+6321; 1259 17158 INDEX auth sso_domains_sso_provider_id_idx supabase_auth_admin
+6316; 1259 17144 INDEX auth sso_providers_resource_id_idx supabase_auth_admin
+6317; 1259 266591 INDEX auth sso_providers_resource_id_pattern_idx supabase_auth_admin
+6306; 1259 17303 INDEX auth unique_phone_factor_per_user supabase_auth_admin
+6298; 1259 17132 INDEX auth user_id_created_at_idx supabase_auth_admin
+6234; 1259 17212 INDEX auth users_email_partial_key supabase_auth_admin
+8581; 0 0 COMMENT auth INDEX users_email_partial_key supabase_auth_admin
+6235; 1259 17049 INDEX auth users_instance_id_email_idx supabase_auth_admin
+6236; 1259 16468 INDEX auth users_instance_id_idx supabase_auth_admin
+6237; 1259 17267 INDEX auth users_is_anonymous_idx supabase_auth_admin
+6580; 1259 33051 INDEX public cfg_units_assets_tags_asset_tag_id_idx supabase_admin
+6581; 1259 157180 INDEX public cfg_units_assets_tags_last_processing_id_idx supabase_admin
+6582; 1259 33050 INDEX public cfg_units_assets_tags_unit_id_idx supabase_admin
+6286; 1259 16941 INDEX public extensions_tenant_external_id_type_index supabase_admin
+6681; 1259 366590 INDEX public idx_assets_alerts_o_id supabase_admin
+6682; 1259 363175 INDEX public idx_assets_alerts_o_type_id supabase_admin
+6683; 1259 385314 INDEX public idx_assets_alerts_ova_id supabase_admin
+6576; 1259 363178 INDEX public idx_assets_available_asset_tag_sub_id supabase_admin
+6577; 1259 67631 INDEX public idx_assets_available_latest supabase_admin
+6346; 1259 273591 INDEX public idx_assets_code_trgm supabase_admin
+6347; 1259 363168 INDEX public idx_assets_company_id supabase_admin
+6348; 1259 365538 INDEX public idx_assets_description supabase_admin
+6819; 1259 388161 INDEX public idx_assets_loans_asset supabase_admin
+6825; 1259 388168 INDEX public idx_assets_loans_checklists_images_checklist supabase_admin
+6834; 1259 388814 INDEX public idx_assets_loans_checklists_loan_checklist supabase_admin
+6820; 1259 388164 INDEX public idx_assets_loans_expected_return supabase_admin
+6821; 1259 388162 INDEX public idx_assets_loans_lender supabase_admin
+6822; 1259 388163 INDEX public idx_assets_loans_status supabase_admin
+6349; 1259 363170 INDEX public idx_assets_material_id supabase_admin
+6350; 1259 363382 INDEX public idx_assets_searchable supabase_admin
+6351; 1259 363171 INDEX public idx_assets_type_id supabase_admin
+6352; 1259 363172 INDEX public idx_assets_unit_asset_tag_id supabase_admin
+6353; 1259 363173 INDEX public idx_assets_unit_id supabase_admin
+6750; 1259 368429 INDEX public idx_cfg_app_notices_active supabase_admin
+6751; 1259 368433 INDEX public idx_cfg_app_notices_created_at supabase_admin
+6752; 1259 385315 INDEX public idx_cfg_app_notices_created_user_id supabase_admin
+6753; 1259 368434 INDEX public idx_cfg_app_notices_date_range supabase_admin
+6767; 1259 371290 INDEX public idx_cfg_app_tips_companies_tip_id supabase_admin
+6756; 1259 385316 INDEX public idx_cfg_app_tips_created_by supabase_admin
+6772; 1259 371311 INDEX public idx_cfg_app_tips_departments_tip_id supabase_admin
+6762; 1259 371134 INDEX public idx_cfg_app_tips_dismissals_user_id supabase_admin
+6777; 1259 371332 INDEX public idx_cfg_app_tips_profiles_tip_id supabase_admin
+6757; 1259 370696 INDEX public idx_cfg_app_tips_screen_target supabase_admin
+6808; 1259 374118 INDEX public idx_cfg_assets_attributes_groups_group_name_unique supabase_admin
+6809; 1259 374119 INDEX public idx_cfg_assets_attributes_groups_parent_id supabase_admin
+6610; 1259 385317 INDEX public idx_cfg_assets_attributes_select_options_group_id supabase_admin
+6378; 1259 363841 INDEX public idx_cfg_assets_tags_description supabase_admin
+6615; 1259 363179 INDEX public idx_cfg_assets_types_attributes_attribute_id supabase_admin
+6830; 1259 388497 INDEX public idx_cfg_assets_types_loans_checklists_asset_type supabase_admin
+6831; 1259 388496 INDEX public idx_cfg_assets_types_loans_checklists_checklist supabase_admin
+6816; 1259 387453 INDEX public idx_cfg_loans_checklists_active supabase_admin
+6624; 1259 385318 INDEX public idx_cfg_routes_parent_id supabase_admin
+6583; 1259 151416 INDEX public idx_cfg_units_assets_tags_agg supabase_admin
+6584; 1259 363181 INDEX public idx_cfg_units_assets_tags_asset_tag_sub_id supabase_admin
+6585; 1259 363182 INDEX public idx_cfg_units_assets_tags_created_user_id supabase_admin
+6586; 1259 363183 INDEX public idx_cfg_units_assets_tags_deleted_user_id supabase_admin
+6587; 1259 363184 INDEX public idx_cfg_units_assets_tags_last_created_user_id supabase_admin
+6588; 1259 363185 INDEX public idx_cfg_units_assets_tags_last_reported_user_id supabase_admin
+6786; 1259 385319 INDEX public idx_contracts_eval_req_evaluation_id supabase_admin
+6787; 1259 372133 INDEX public idx_contracts_evaluation_requirements_contract supabase_admin
+6589; 1259 363842 INDEX public idx_cuat_active_reporting supabase_admin
+6792; 1259 372334 INDEX public idx_leader_monthly_scores_dept_period supabase_admin
+6793; 1259 372335 INDEX public idx_leader_monthly_scores_leader supabase_admin
+6802; 1259 372376 INDEX public idx_leader_score_badges_leader supabase_admin
+6803; 1259 372377 INDEX public idx_leader_score_badges_period supabase_admin
+6661; 1259 270116 INDEX public idx_logs_api_key_created supabase_admin
+6674; 1259 363188 INDEX public idx_maintenances_plans_sections_activities_activity_id supabase_admin
+6726; 1259 354885 INDEX public idx_material_purchases_material supabase_admin
+6439; 1259 257957 INDEX public idx_materials_id_active supabase_admin
+6727; 1259 385320 INDEX public idx_materials_purchases_cancel_reason_id supabase_admin
+6446; 1259 385413 INDEX public idx_orders_asset_tag_parent_requested supabase_admin
+6447; 1259 363369 INDEX public idx_orders_company_id supabase_admin
+6448; 1259 365880 INDEX public idx_orders_company_status supabase_admin
+6449; 1259 365878 INDEX public idx_orders_completed_lookup supabase_admin
+6450; 1259 385412 INDEX public idx_orders_contract_parent_requested supabase_admin
+6468; 1259 367428 INDEX public idx_orders_followers_o_id supabase_admin
+6451; 1259 363372 INDEX public idx_orders_is_deleted supabase_admin
+6452; 1259 363190 INDEX public idx_orders_object_id supabase_admin
+6453; 1259 363367 INDEX public idx_orders_parent_id supabase_admin
+6454; 1259 385411 INDEX public idx_orders_parent_not_null_requested_at supabase_admin
+6455; 1259 363368 INDEX public idx_orders_requested_at supabase_admin
+6456; 1259 385410 INDEX public idx_orders_requested_at_desc supabase_admin
+6457; 1259 365879 INDEX public idx_orders_status_at supabase_admin
+6458; 1259 363366 INDEX public idx_orders_status_id supabase_admin
+6459; 1259 363191 INDEX public idx_orders_type_id supabase_admin
+6460; 1259 363192 INDEX public idx_orders_type_sub_id supabase_admin
+6461; 1259 363373 INDEX public idx_orders_unit_asset_tag_id supabase_admin
+6462; 1259 367049 INDEX public idx_orders_unit_contract supabase_admin
+6463; 1259 363370 INDEX public idx_orders_unit_id supabase_admin
+6503; 1259 363195 INDEX public idx_orders_visits_assets_activities_plan_id supabase_admin
+6492; 1259 363193 INDEX public idx_orders_visits_assets_after_unit_id supabase_admin
+6493; 1259 363194 INDEX public idx_orders_visits_assets_before_unit_id supabase_admin
+6684; 1259 385325 INDEX public idx_orders_visits_chat_ov_id supabase_admin
+6688; 1259 363196 INDEX public idx_orders_visits_chat_participants_user_id supabase_admin
+6694; 1259 385327 INDEX public idx_orders_visits_chat_reads_user_id supabase_admin
+6685; 1259 385326 INDEX public idx_orders_visits_chat_user_id supabase_admin
+6474; 1259 376046 INDEX public idx_orders_visits_costs_status supabase_admin
+6475; 1259 376047 INDEX public idx_orders_visits_costs_submitted supabase_admin
+6788; 1259 372134 INDEX public idx_orders_visits_evaluations_ov supabase_admin
+6476; 1259 257954 INDEX public idx_orders_visits_o_id supabase_admin
+6477; 1259 257952 INDEX public idx_orders_visits_processing supabase_admin
+6548; 1259 257943 INDEX public idx_orders_visits_services_aggregation supabase_admin
+6549; 1259 257942 INDEX public idx_orders_visits_services_ov_id supabase_admin
+6478; 1259 257953 INDEX public idx_orders_visits_started_at supabase_admin
+6479; 1259 273589 INDEX public idx_orders_visits_status supabase_admin
+6552; 1259 257951 INDEX public idx_orders_visits_teams_leader supabase_admin
+6553; 1259 257949 INDEX public idx_orders_visits_teams_ov_id supabase_admin
+6554; 1259 257950 INDEX public idx_orders_visits_teams_user_id supabase_admin
+6557; 1259 257947 INDEX public idx_orders_visits_vehicles_aggregation supabase_admin
+6558; 1259 273902 INDEX public idx_orders_visits_vehicles_ov_id supabase_admin
+6559; 1259 385346 INDEX public idx_orders_visits_vehicles_vehicle_id supabase_admin
+6464; 1259 363371 INDEX public idx_orders_year supabase_admin
+6494; 1259 367090 INDEX public idx_ov_assets_ov_processing supabase_admin
+6480; 1259 385321 INDEX public idx_ov_chat_closed_user_id supabase_admin
+6481; 1259 364962 INDEX public idx_ov_chat_created_user supabase_admin
+6482; 1259 364961 INDEX public idx_ov_chat_status supabase_admin
+6483; 1259 385323 INDEX public idx_ov_costs_approved_user_id supabase_admin
+6484; 1259 385324 INDEX public idx_ov_costs_rejected_user_id supabase_admin
+6485; 1259 385322 INDEX public idx_ov_costs_waiting_user_id supabase_admin
+6486; 1259 363380 INDEX public idx_ov_started_at supabase_admin
+6487; 1259 363381 INDEX public idx_ov_team_leader_id supabase_admin
+6495; 1259 365535 INDEX public idx_ova_asset_id supabase_admin
+6496; 1259 365532 INDEX public idx_ova_is_deleted supabase_admin
+6497; 1259 365534 INDEX public idx_ova_o_id supabase_admin
+6498; 1259 365533 INDEX public idx_ova_ov_id supabase_admin
+6504; 1259 273587 INDEX public idx_ovaa_ova_id supabase_admin
+6689; 1259 320348 INDEX public idx_ovcp_ov_id supabase_admin
+6527; 1259 385331 INDEX public idx_ove_asset_tag_id supabase_admin
+6789; 1259 385328 INDEX public idx_ove_contract_evaluation_id supabase_admin
+6528; 1259 385340 INDEX public idx_ove_o_cause_reason_id supabase_admin
+6529; 1259 385330 INDEX public idx_ove_o_type_id supabase_admin
+6530; 1259 385337 INDEX public idx_ove_o_type_sub_id supabase_admin
+6531; 1259 385332 INDEX public idx_ove_priority_id supabase_admin
+6532; 1259 385341 INDEX public idx_ove_processing_id supabase_admin
+6533; 1259 385336 INDEX public idx_ove_system_id supabase_admin
+6534; 1259 385335 INDEX public idx_ove_system_parent_id supabase_admin
+6535; 1259 385334 INDEX public idx_ove_team_id supabase_admin
+6536; 1259 385333 INDEX public idx_ove_team_leader_id supabase_admin
+6537; 1259 385329 INDEX public idx_ove_unit_id supabase_admin
+6538; 1259 385339 INDEX public idx_ove_unit_type_id supabase_admin
+6539; 1259 385338 INDEX public idx_ove_unit_type_parent_id supabase_admin
+6542; 1259 385343 INDEX public idx_ovef_ove_id supabase_admin
+6543; 1259 385342 INDEX public idx_ovef_user_id supabase_admin
+6544; 1259 385344 INDEX public idx_ovet_ove_id supabase_admin
+6545; 1259 385345 INDEX public idx_ovet_user_id supabase_admin
+6618; 1259 254363 INDEX public idx_profiles_access_profile_id supabase_admin
+6619; 1259 254364 INDEX public idx_profiles_access_route_id supabase_admin
+6701; 1259 363201 INDEX public idx_tools_material_id supabase_admin
+6488; 1259 367212 INDEX public idx_trgm_orders_visits_ov_mask supabase_admin
+6520; 1259 267466 INDEX public idx_units_active supabase_admin
+6521; 1259 151562 INDEX public idx_units_id_parent supabase_admin
+6522; 1259 267461 INDEX public idx_units_status_version supabase_admin
+6523; 1259 267462 INDEX public idx_units_system_parent supabase_admin
+6524; 1259 385347 INDEX public idx_units_unit_type_id supabase_admin
+6509; 1259 257956 INDEX public idx_users_availability supabase_admin
+6510; 1259 363550 INDEX public idx_users_available supabase_admin
+6511; 1259 363375 INDEX public idx_users_company_id supabase_admin
+6512; 1259 363377 INDEX public idx_users_is_available supabase_admin
+6513; 1259 385414 INDEX public idx_users_name_full_asc supabase_admin
+6566; 1259 363205 INDEX public idx_users_notifications_user_id_from supabase_admin
+6567; 1259 363206 INDEX public idx_users_notifications_user_id_to supabase_admin
+6514; 1259 363203 INDEX public idx_users_profile_id supabase_admin
+6515; 1259 363204 INDEX public idx_users_status_id supabase_admin
+6516; 1259 363376 INDEX public idx_users_team_id supabase_admin
+6708; 1259 351863 INDEX public idx_users_tools_mov_tool_id supabase_admin
+6704; 1259 351831 INDEX public idx_users_tools_tool_id supabase_admin
+6705; 1259 385348 INDEX public idx_users_tools_user_id supabase_admin
+6517; 1259 363374 INDEX public idx_users_uuid supabase_admin
+6573; 1259 273904 INDEX public idx_vehicles_id supabase_admin
+6711; 1259 353533 INDEX public idx_wm_material_id supabase_admin
+6440; 1259 55372 INDEX public materials_code_idx supabase_admin
+6441; 1259 188150 INDEX public materials_finger_print_idx supabase_admin
+6465; 1259 384372 INDEX public orders_contract_id_idx supabase_admin
+6471; 1259 87554 INDEX public orders_followers_user_id_o_id_idx supabase_admin
+6489; 1259 154211 INDEX public orders_visits_finger_print_idx supabase_admin
+6281; 1259 16934 INDEX public tenants_external_id_index supabase_admin
+6568; 1259 384376 INDEX public users_notifications_created_at_idx supabase_admin
+6258; 1259 16523 INDEX storage bname supabase_storage_admin
+6261; 1259 16545 INDEX storage bucketid_objname supabase_storage_admin
+6648; 1259 266770 INDEX storage idx_iceberg_namespaces_bucket_id supabase_storage_admin
+6651; 1259 266791 INDEX storage idx_iceberg_tables_namespace_id supabase_storage_admin
+6273; 1259 16828 INDEX storage idx_multipart_uploads_list supabase_storage_admin
+6262; 1259 16879 INDEX storage idx_name_bucket_level_unique supabase_storage_admin
+6263; 1259 16793 INDEX storage idx_objects_bucket_id_name supabase_storage_admin
+6264; 1259 16881 INDEX storage idx_objects_lower_name supabase_storage_admin
+6278; 1259 16882 INDEX storage idx_prefixes_lower_name supabase_storage_admin
+6265; 1259 16546 INDEX storage name_prefix_search supabase_storage_admin
+6266; 1259 16880 INDEX storage objects_bucket_id_level_idx supabase_storage_admin
+6654; 1259 266846 INDEX storage vector_indexes_name_bucket_id_idx supabase_storage_admin
+6997; 2620 206228 TRIGGER auth users on_auth_user_created supabase_auth_admin
+7041; 2620 57854 TRIGGER public users_notifications n8n_whatsappUserNotification supabase_admin
+7030; 2620 214586 TRIGGER public users on_profile_photo_change supabase_admin
+7031; 2620 206226 TRIGGER public users on_user_updated supabase_admin
+7021; 2620 365550 TRIGGER public orders_visits_assets tgr_after_img_file_name_update supabase_admin
+7022; 2620 365546 TRIGGER public orders_visits_assets tgr_after_img_files_names_update supabase_admin
+7005; 2620 205440 TRIGGER public assets tgr_assets_searchable_update supabase_admin
+7023; 2620 365548 TRIGGER public orders_visits_assets tgr_before_img_file_name_update supabase_admin
+7024; 2620 365544 TRIGGER public orders_visits_assets tgr_before_img_files_names_update supabase_admin
+7042; 2620 169575 TRIGGER public cfg_units_assets_tags tgr_cfg_units_assets_tags_set_last_values_when_processing_2 supabase_admin
+7014; 2620 365410 TRIGGER public orders_visits tgr_durations_hours_decimals supabase_admin
+7008; 2620 170617 TRIGGER public materials tgr_materials_searchable supabase_admin
+7009; 2620 384849 TRIGGER public orders tgr_orders_sanitize_requested_services supabase_admin
+7027; 2620 289457 TRIGGER public orders_visits_assets_activities tgr_orders_visits_assets_activities_description supabase_admin
+7025; 2620 257175 TRIGGER public orders_visits_assets tgr_orders_visits_assets_update_activities_searchable supabase_admin
+7035; 2620 252925 TRIGGER public orders_visits_services tgr_orders_visits_services_amount_update supabase_admin
+7034; 2620 270743 TRIGGER public units tgr_units_searchable supabase_admin
+7015; 2620 376416 TRIGGER public orders_visits trg_audit_visit_costs_status supabase_admin
+7044; 2620 384971 TRIGGER public cfg_app_notices trg_cfg_app_notices_updated_at supabase_admin
+7010; 2620 370278 TRIGGER public orders trg_followers_orders_status_changed supabase_admin
+7043; 2620 154169 TRIGGER public import_orders_visits_contracts trg_import_orders_visits_contracts_update_finger_print supabase_admin
+7032; 2620 373164 TRIGGER public users trg_leader_tracker_interval supabase_admin
+7011; 2620 287835 TRIGGER public orders trg_order_status_inheritance supabase_admin
+7012; 2620 363978 TRIGGER public orders trg_orders_op_counter supabase_admin
+7028; 2620 384969 TRIGGER public orders_visits_assets_materials trg_orders_visits_assets_materials_update_value_total supabase_admin
+7029; 2620 253694 TRIGGER public orders_visits_assets_materials trg_orders_visits_assets_update_materials_value supabase_admin
+7016; 2620 365412 TRIGGER public orders_visits trg_orders_visits_assets_update_services_value supabase_admin
+7017; 2620 365413 TRIGGER public orders_visits trg_orders_visits_assets_update_vehicles_value supabase_admin
+7036; 2620 57562 TRIGGER public orders_visits_services trg_orders_visits_services_update_services_value supabase_admin
+7037; 2620 252701 TRIGGER public orders_visits_services trg_orders_visits_services_update_value_unit supabase_admin
+7038; 2620 76198 TRIGGER public orders_visits_teams trg_orders_visits_teams_update supabase_admin
+7018; 2620 365411 TRIGGER public orders_visits trg_orders_visits_update_total_value supabase_admin
+7039; 2620 273898 TRIGGER public orders_visits_vehicles trg_orders_visits_vehicles_before_save supabase_admin
+7040; 2620 307014 TRIGGER public orders_visits_vehicles trg_orders_visits_vehicles_update_vehicles_value supabase_admin
+7019; 2620 266971 TRIGGER public orders_visits trg_set_ov_started_date_parts supabase_admin
+7020; 2620 380375 TRIGGER public orders_visits trg_sync_ov_costs_status supabase_admin
+7026; 2620 365541 TRIGGER public orders_visits_assets trg_total_value_update supabase_admin
+7006; 2620 290175 TRIGGER public cfg_assets_tags trg_units_assets_tags_update_asset_tag_description supabase_admin
+7007; 2620 290237 TRIGGER public cfg_assets_tags_subs trg_units_assets_tags_update_asset_tag_sub_description supabase_admin
+7013; 2620 241157 TRIGGER public orders trg_units_assets_tags_update_op_counter supabase_admin
+7045; 2620 371813 TRIGGER public cfg_app_notices trigger_update_cfg_app_notices_updated_at supabase_admin
+7046; 2620 370706 TRIGGER public cfg_app_tips trigger_update_cfg_app_tips_updated_at supabase_admin
+7033; 2620 282556 TRIGGER public users users_change_updated_at supabase_admin
+6998; 2620 16889 TRIGGER storage buckets enforce_bucket_name_length_trigger supabase_storage_admin
+6999; 2620 266812 TRIGGER storage objects objects_delete_delete_prefix supabase_storage_admin
+7000; 2620 16870 TRIGGER storage objects objects_insert_create_prefix supabase_storage_admin
+7001; 2620 266811 TRIGGER storage objects objects_update_create_prefix supabase_storage_admin
+7003; 2620 16885 TRIGGER storage prefixes prefixes_create_hierarchy supabase_storage_admin
+7004; 2620 266813 TRIGGER storage prefixes prefixes_delete_hierarchy supabase_storage_admin
+7002; 2620 16781 TRIGGER storage objects update_objects_updated_at supabase_storage_admin
+6842; 2606 17035 FK CONSTRAINT auth identities identities_user_id_fkey supabase_auth_admin
+6847; 2606 17125 FK CONSTRAINT auth mfa_amr_claims mfa_amr_claims_session_id_fkey supabase_auth_admin
+6846; 2606 17113 FK CONSTRAINT auth mfa_challenges mfa_challenges_auth_factor_id_fkey supabase_auth_admin
+6845; 2606 17100 FK CONSTRAINT auth mfa_factors mfa_factors_user_id_fkey supabase_auth_admin
+6920; 2606 266649 FK CONSTRAINT auth oauth_authorizations oauth_authorizations_client_id_fkey supabase_auth_admin
+6921; 2606 266654 FK CONSTRAINT auth oauth_authorizations oauth_authorizations_user_id_fkey supabase_auth_admin
+6922; 2606 266678 FK CONSTRAINT auth oauth_consents oauth_consents_client_id_fkey supabase_auth_admin
+6923; 2606 266673 FK CONSTRAINT auth oauth_consents oauth_consents_user_id_fkey supabase_auth_admin
+6852; 2606 17291 FK CONSTRAINT auth one_time_tokens one_time_tokens_user_id_fkey supabase_auth_admin
+6835; 2606 17068 FK CONSTRAINT auth refresh_tokens refresh_tokens_session_id_fkey supabase_auth_admin
+6849; 2606 17172 FK CONSTRAINT auth saml_providers saml_providers_sso_provider_id_fkey supabase_auth_admin
+6850; 2606 17245 FK CONSTRAINT auth saml_relay_states saml_relay_states_flow_state_id_fkey supabase_auth_admin
+6851; 2606 17186 FK CONSTRAINT auth saml_relay_states saml_relay_states_sso_provider_id_fkey supabase_auth_admin
+6843; 2606 266692 FK CONSTRAINT auth sessions sessions_oauth_client_id_fkey supabase_auth_admin
+6844; 2606 17063 FK CONSTRAINT auth sessions sessions_user_id_fkey supabase_auth_admin
+6848; 2606 17153 FK CONSTRAINT auth sso_domains sso_domains_sso_provider_id_fkey supabase_auth_admin
+6928; 2606 274043 FK CONSTRAINT public ai_chat_sessions ai_chat_sessions_user_id_fkey supabase_admin
+6929; 2606 274059 FK CONSTRAINT public ai_messages ai_messages_session_id_fkey supabase_admin
+6933; 2606 283990 FK CONSTRAINT public assets_alerts assets_alerts_asset_id_fkey supabase_admin
+6934; 2606 283995 FK CONSTRAINT public assets_alerts assets_alerts_o_type_id_fkey supabase_admin
+6935; 2606 319672 FK CONSTRAINT public assets_alerts assets_alerts_ova_id_fkey supabase_admin
+6936; 2606 284000 FK CONSTRAINT public assets_alerts assets_alerts_priority_id_fkey supabase_admin
+6902; 2606 66497 FK CONSTRAINT public assets_available assets_available_asset_tag_id_fkey supabase_admin
+6903; 2606 66502 FK CONSTRAINT public assets_available assets_available_asset_tag_sub_id_fkey supabase_admin
+6904; 2606 66492 FK CONSTRAINT public assets_available assets_available_unit_id_fkey supabase_admin
+6853; 2606 18017 FK CONSTRAINT public assets assets_company_id_fkey supabase_admin
+6854; 2606 54873 FK CONSTRAINT public assets assets_company_owner_id_fkey supabase_admin
+6984; 2606 388076 FK CONSTRAINT public assets_loans assets_loans_asset_id_fkey supabase_admin
+6994; 2606 388809 FK CONSTRAINT public assets_loans_checklists assets_loans_checklists_filled_by_user_id_fkey supabase_admin
+6990; 2606 389766 FK CONSTRAINT public assets_loans_checklists_images assets_loans_checklists_images_checklist_id_fkey supabase_admin
+6991; 2606 388156 FK CONSTRAINT public assets_loans_checklists_images assets_loans_checklists_images_uploaded_by_user_id_fkey supabase_admin
+6995; 2606 388804 FK CONSTRAINT public assets_loans_checklists assets_loans_checklists_loan_checklist_id_fkey supabase_admin
+6996; 2606 389761 FK CONSTRAINT public assets_loans_checklists assets_loans_checklists_loan_id_fkey supabase_admin
+6985; 2606 388086 FK CONSTRAINT public assets_loans assets_loans_created_user_id_fkey supabase_admin
+6986; 2606 388091 FK CONSTRAINT public assets_loans assets_loans_deleted_user_id_fkey supabase_admin
+6987; 2606 389282 FK CONSTRAINT public assets_loans assets_loans_inspector_delivery_user_id_fkey supabase_admin
+6988; 2606 389287 FK CONSTRAINT public assets_loans assets_loans_inspector_return_user_id_fkey supabase_admin
+6989; 2606 388081 FK CONSTRAINT public assets_loans assets_loans_lender_user_id_fkey supabase_admin
+6855; 2606 361560 FK CONSTRAINT public assets assets_material_id_fkey supabase_admin
+6856; 2606 55156 FK CONSTRAINT public assets assets_type_id_fkey supabase_admin
+6857; 2606 55142 FK CONSTRAINT public assets assets_unit_asset_tag_id_fkey supabase_admin
+6858; 2606 55147 FK CONSTRAINT public assets assets_unit_id_fkey supabase_admin
+6962; 2606 370976 FK CONSTRAINT public cfg_app_notices cfg_app_notices_created_user_id_fkey supabase_admin
+6968; 2606 371285 FK CONSTRAINT public cfg_app_tips_companies cfg_app_tips_companies_company_id_fkey supabase_admin
+6969; 2606 371280 FK CONSTRAINT public cfg_app_tips_companies cfg_app_tips_companies_tip_id_fkey supabase_admin
+6965; 2606 370672 FK CONSTRAINT public cfg_app_tips cfg_app_tips_created_by_fkey supabase_admin
+6970; 2606 371306 FK CONSTRAINT public cfg_app_tips_departments cfg_app_tips_departments_department_id_fkey supabase_admin
+6971; 2606 371301 FK CONSTRAINT public cfg_app_tips_departments cfg_app_tips_departments_tip_id_fkey supabase_admin
+6966; 2606 371123 FK CONSTRAINT public cfg_app_tips_dismissals cfg_app_tips_dismissals_tip_id_fkey supabase_admin
+6967; 2606 371128 FK CONSTRAINT public cfg_app_tips_dismissals cfg_app_tips_dismissals_user_id_fkey supabase_admin
+6972; 2606 371327 FK CONSTRAINT public cfg_app_tips_profiles cfg_app_tips_profiles_profile_id_fkey supabase_admin
+6973; 2606 371322 FK CONSTRAINT public cfg_app_tips_profiles cfg_app_tips_profiles_tip_id_fkey supabase_admin
+6914; 2606 374120 FK CONSTRAINT public cfg_assets_attributes cfg_assets_attributes_select_options_group_id_fkey supabase_admin
+6915; 2606 209777 FK CONSTRAINT public cfg_assets_types_attributes cfg_assets_types_attributes_asset_type_id_fkey supabase_admin
+6916; 2606 209782 FK CONSTRAINT public cfg_assets_types_attributes cfg_assets_types_attributes_attribute_id_fkey supabase_admin
+6992; 2606 388486 FK CONSTRAINT public cfg_assets_types_loans_checklists cfg_assets_types_loans_checklists_asset_type_id_fkey supabase_admin
+6993; 2606 388481 FK CONSTRAINT public cfg_assets_types_loans_checklists cfg_assets_types_loans_checklists_checklist_id_fkey supabase_admin
+6905; 2606 29418 FK CONSTRAINT public cfg_units_assets_tags cfg_units_assets_tags_asset_tag_id_fkey supabase_admin
+6906; 2606 29423 FK CONSTRAINT public cfg_units_assets_tags cfg_units_assets_tags_asset_tag_sub_id_fkey supabase_admin
+6907; 2606 29453 FK CONSTRAINT public cfg_units_assets_tags cfg_units_assets_tags_created_user_id_fkey supabase_admin
+6908; 2606 29448 FK CONSTRAINT public cfg_units_assets_tags cfg_units_assets_tags_deleted_user_id_fkey supabase_admin
+6909; 2606 29433 FK CONSTRAINT public cfg_units_assets_tags cfg_units_assets_tags_last_created_user_id_fkey supabase_admin
+6910; 2606 29428 FK CONSTRAINT public cfg_units_assets_tags cfg_units_assets_tags_last_processing_id_fkey supabase_admin
+6911; 2606 29438 FK CONSTRAINT public cfg_units_assets_tags cfg_units_assets_tags_last_reported_user_id_fkey supabase_admin
+6912; 2606 29443 FK CONSTRAINT public cfg_units_assets_tags cfg_units_assets_tags_last_reported_user_id_fkey1 supabase_admin
+6913; 2606 29413 FK CONSTRAINT public cfg_units_assets_tags cfg_units_assets_tags_unit_id_fkey supabase_admin
+6974; 2606 372097 FK CONSTRAINT public contracts_evaluation_requirements contracts_evaluation_requirements_contract_id_fkey supabase_admin
+6975; 2606 372102 FK CONSTRAINT public contracts_evaluation_requirements contracts_evaluation_requirements_evaluation_id_fkey supabase_admin
+6860; 2606 18404 FK CONSTRAINT public contracts_managers contracts_managers_contract_id_fkey supabase_admin
+6841; 2606 28106 FK CONSTRAINT public extensions extensions_tenant_external_id_fkey supabase_admin
+6937; 2606 366591 FK CONSTRAINT public assets_alerts fk_assets_alerts_order supabase_admin
+6959; 2606 377329 FK CONSTRAINT public materials_purchases fk_materials_purchases_cancel_reason supabase_admin
+6979; 2606 372329 FK CONSTRAINT public leader_monthly_scores leader_monthly_scores_department_id_fkey supabase_admin
+6980; 2606 372324 FK CONSTRAINT public leader_monthly_scores leader_monthly_scores_leader_id_fkey supabase_admin
+6983; 2606 372371 FK CONSTRAINT public leader_score_badges leader_score_badges_leader_id_fkey supabase_admin
+6981; 2606 372350 FK CONSTRAINT public leader_scores_history leader_scores_history_leader_id_fkey supabase_admin
+6982; 2606 372355 FK CONSTRAINT public leader_scores_history leader_scores_history_ov_id_fkey supabase_admin
+6931; 2606 283233 FK CONSTRAINT public maintenances_plans_sections_activities maintenances_plans_sections_ac_maintenance_plan_section_id_fkey supabase_admin
+6932; 2606 283238 FK CONSTRAINT public maintenances_plans_sections_activities maintenances_plans_sections_activities_activity_id_fkey supabase_admin
+6930; 2606 283216 FK CONSTRAINT public maintenances_plans_sections maintenances_plans_sections_maintenance_plan_id_fkey supabase_admin
+6861; 2606 29403 FK CONSTRAINT public orders orders_cancel_reason_id_fkey supabase_admin
+6862; 2606 55221 FK CONSTRAINT public orders orders_object_id_fkey supabase_admin
+6863; 2606 29398 FK CONSTRAINT public orders orders_type_id_fkey supabase_admin
+6864; 2606 29408 FK CONSTRAINT public orders orders_type_sub_id_fkey supabase_admin
+6875; 2606 283243 FK CONSTRAINT public orders_visits_assets_activities orders_visits_assets_activities_maintenance_plan_id_fkey supabase_admin
+6870; 2606 54864 FK CONSTRAINT public orders_visits_assets orders_visits_assets_after_unit_id_fkey supabase_admin
+6871; 2606 54854 FK CONSTRAINT public orders_visits_assets orders_visits_assets_asset_id_fkey supabase_admin
+6872; 2606 54859 FK CONSTRAINT public orders_visits_assets orders_visits_assets_before_unit_id_fkey supabase_admin
+6873; 2606 55268 FK CONSTRAINT public orders_visits_assets orders_visits_assets_ov_id_fkey supabase_admin
+6874; 2606 87642 FK CONSTRAINT public orders_visits_assets orders_visits_assets_ov_id_fkey1 supabase_admin
+6865; 2606 364951 FK CONSTRAINT public orders_visits orders_visits_chat_closed_user_id_fkey supabase_admin
+6866; 2606 364956 FK CONSTRAINT public orders_visits orders_visits_chat_created_user_id_fkey supabase_admin
+6938; 2606 320315 FK CONSTRAINT public orders_visits_chat orders_visits_chat_ov_id_fkey supabase_admin
+6940; 2606 320338 FK CONSTRAINT public orders_visits_chat_participants orders_visits_chat_participants_ov_id_fkey supabase_admin
+6941; 2606 320343 FK CONSTRAINT public orders_visits_chat_participants orders_visits_chat_participants_user_id_fkey supabase_admin
+6942; 2606 320360 FK CONSTRAINT public orders_visits_chat_reads orders_visits_chat_reads_chat_id_fkey supabase_admin
+6943; 2606 320365 FK CONSTRAINT public orders_visits_chat_reads orders_visits_chat_reads_user_id_fkey supabase_admin
+6939; 2606 320320 FK CONSTRAINT public orders_visits_chat orders_visits_chat_user_id_fkey supabase_admin
+6976; 2606 372123 FK CONSTRAINT public orders_visits_evaluations orders_visits_evaluations_contract_evaluation_id_fkey supabase_admin
+6977; 2606 372128 FK CONSTRAINT public orders_visits_evaluations orders_visits_evaluations_evaluated_by_user_id_fkey supabase_admin
+6978; 2606 372118 FK CONSTRAINT public orders_visits_evaluations orders_visits_evaluations_ov_id_fkey supabase_admin
+6880; 2606 18700 FK CONSTRAINT public orders_visits_extras orders_visits_extras_asset_tag_id_fkey supabase_admin
+6895; 2606 18738 FK CONSTRAINT public orders_visits_extras_followers orders_visits_extras_followers_ove_id_fkey supabase_admin
+6896; 2606 18743 FK CONSTRAINT public orders_visits_extras_followers orders_visits_extras_followers_user_id_fkey supabase_admin
+6881; 2606 18710 FK CONSTRAINT public orders_visits_extras orders_visits_extras_o_cause_reason_id_fkey supabase_admin
+6882; 2606 18640 FK CONSTRAINT public orders_visits_extras orders_visits_extras_o_type_id_fkey supabase_admin
+6883; 2606 18645 FK CONSTRAINT public orders_visits_extras orders_visits_extras_o_type_sub_id_fkey supabase_admin
+6884; 2606 18650 FK CONSTRAINT public orders_visits_extras orders_visits_extras_priority_id_fkey supabase_admin
+6885; 2606 18655 FK CONSTRAINT public orders_visits_extras orders_visits_extras_processing_id_fkey supabase_admin
+6886; 2606 18660 FK CONSTRAINT public orders_visits_extras orders_visits_extras_system_id_fkey supabase_admin
+6887; 2606 18665 FK CONSTRAINT public orders_visits_extras orders_visits_extras_system_id_fkey1 supabase_admin
+6888; 2606 18670 FK CONSTRAINT public orders_visits_extras orders_visits_extras_system_parent_id_fkey supabase_admin
+6889; 2606 18675 FK CONSTRAINT public orders_visits_extras orders_visits_extras_system_parent_id_fkey1 supabase_admin
+6890; 2606 18680 FK CONSTRAINT public orders_visits_extras orders_visits_extras_team_id_fkey supabase_admin
+6891; 2606 18685 FK CONSTRAINT public orders_visits_extras orders_visits_extras_team_leader_id_fkey supabase_admin
+6897; 2606 18762 FK CONSTRAINT public orders_visits_extras_teams orders_visits_extras_teams_ove_id_fkey supabase_admin
+6898; 2606 18767 FK CONSTRAINT public orders_visits_extras_teams orders_visits_extras_teams_user_id_fkey supabase_admin
+6892; 2606 18690 FK CONSTRAINT public orders_visits_extras orders_visits_extras_unit_id_fkey supabase_admin
+6893; 2606 18695 FK CONSTRAINT public orders_visits_extras orders_visits_extras_unit_type_id_fkey supabase_admin
+6894; 2606 18705 FK CONSTRAINT public orders_visits_extras orders_visits_extras_unit_type_parent_id_fkey supabase_admin
+6867; 2606 376036 FK CONSTRAINT public orders_visits orders_visits_ov_costs_approved_user_id_fkey supabase_admin
+6868; 2606 376041 FK CONSTRAINT public orders_visits orders_visits_ov_costs_rejected_user_id_fkey supabase_admin
+6869; 2606 376031 FK CONSTRAINT public orders_visits orders_visits_ov_costs_submitted_user_id_fkey supabase_admin
+6899; 2606 252332 FK CONSTRAINT public orders_visits_vehicles orders_visits_vehicles_vehicle_id_fkey supabase_admin
+6917; 2606 214379 FK CONSTRAINT public cfg_profiles_access profiles_access_profile_fkey supabase_admin
+6918; 2606 254356 FK CONSTRAINT public cfg_profiles_access profiles_access_route_fkey supabase_admin
+6859; 2606 18310 FK CONSTRAINT public cfg_profiles public_usersprofiles_departmentid_fkey supabase_admin
+6919; 2606 254307 FK CONSTRAINT public cfg_routes routes_parent_fkey supabase_admin
+6963; 2606 368409 FK CONSTRAINT public cfg_app_notices system_notices_category_id_fkey supabase_admin
+6964; 2606 368414 FK CONSTRAINT public cfg_app_notices system_notices_severity_id_fkey supabase_admin
+6960; 2606 361212 FK CONSTRAINT public technicals_manuals_files technicals_manuals_files_tm_category_id_fkey supabase_admin
+6961; 2606 360897 FK CONSTRAINT public technicals_manuals_files technicals_manuals_files_tm_id_fkey supabase_admin
+6944; 2606 351796 FK CONSTRAINT public tools tools_created_user_id_fkey supabase_admin
+6945; 2606 352502 FK CONSTRAINT public tools tools_deleted_user_id_fkey supabase_admin
+6946; 2606 352034 FK CONSTRAINT public tools tools_material_id_fkey supabase_admin
+6947; 2606 352550 FK CONSTRAINT public tools tools_updated_user_id_fkey supabase_admin
+6879; 2606 267594 FK CONSTRAINT public units units_unit_type_id_fkey supabase_admin
+6900; 2606 214718 FK CONSTRAINT public users_notifications users_notifications_user_id_from_fkey supabase_admin
+6901; 2606 214723 FK CONSTRAINT public users_notifications users_notifications_user_id_to_fkey supabase_admin
+6876; 2606 209294 FK CONSTRAINT public users users_profile_id_fkey supabase_admin
+6877; 2606 18603 FK CONSTRAINT public users users_status_id_fkey supabase_admin
+6878; 2606 18608 FK CONSTRAINT public users users_team_id_fkey supabase_admin
+6948; 2606 351825 FK CONSTRAINT public users_tools users_tools_created_user_id_fkey supabase_admin
+6951; 2606 351858 FK CONSTRAINT public users_tools_movements users_tools_movements_created_user_id_fkey supabase_admin
+6952; 2606 351848 FK CONSTRAINT public users_tools_movements users_tools_movements_from_user_id_fkey supabase_admin
+6953; 2606 351853 FK CONSTRAINT public users_tools_movements users_tools_movements_to_user_id_fkey supabase_admin
+6954; 2606 351843 FK CONSTRAINT public users_tools_movements users_tools_movements_tool_id_fkey supabase_admin
+6949; 2606 351820 FK CONSTRAINT public users_tools users_tools_tool_id_fkey supabase_admin
+6950; 2606 351815 FK CONSTRAINT public users_tools users_tools_user_id_fkey supabase_admin
+6955; 2606 355717 FK CONSTRAINT public warehouses_materials warehouses_materials_deleted_user_id_fkey supabase_admin
+6956; 2606 353522 FK CONSTRAINT public warehouses_materials warehouses_materials_material_id_fkey supabase_admin
+6957; 2606 353527 FK CONSTRAINT public warehouses_materials warehouses_materials_updated_user_id_fkey supabase_admin
+6958; 2606 353517 FK CONSTRAINT public warehouses_materials warehouses_materials_warehouse_id_fkey supabase_admin
+6924; 2606 266765 FK CONSTRAINT storage iceberg_namespaces iceberg_namespaces_bucket_id_fkey supabase_storage_admin
+6925; 2606 266786 FK CONSTRAINT storage iceberg_tables iceberg_tables_bucket_id_fkey supabase_storage_admin
+6926; 2606 266781 FK CONSTRAINT storage iceberg_tables iceberg_tables_namespace_id_fkey supabase_storage_admin
+6836; 2606 16535 FK CONSTRAINT storage objects objects_bucketId_fkey supabase_storage_admin
+6840; 2606 16857 FK CONSTRAINT storage prefixes prefixes_bucketId_fkey supabase_storage_admin
+6837; 2606 16803 FK CONSTRAINT storage s3_multipart_uploads s3_multipart_uploads_bucket_id_fkey supabase_storage_admin
+6838; 2606 16823 FK CONSTRAINT storage s3_multipart_uploads_parts s3_multipart_uploads_parts_bucket_id_fkey supabase_storage_admin
+6839; 2606 16818 FK CONSTRAINT storage s3_multipart_uploads_parts s3_multipart_uploads_parts_upload_id_fkey supabase_storage_admin
+6927; 2606 266841 FK CONSTRAINT storage vector_indexes vector_indexes_bucket_id_fkey supabase_storage_admin
+7284; 0 16488 ROW SECURITY auth audit_log_entries supabase_auth_admin
+7303; 0 17231 ROW SECURITY auth flow_state supabase_auth_admin
+7294; 0 17028 ROW SECURITY auth identities supabase_auth_admin
+7283; 0 16481 ROW SECURITY auth instances supabase_auth_admin
+7298; 0 17118 ROW SECURITY auth mfa_amr_claims supabase_auth_admin
+7297; 0 17106 ROW SECURITY auth mfa_challenges supabase_auth_admin
+7296; 0 17093 ROW SECURITY auth mfa_factors supabase_auth_admin
+7304; 0 17281 ROW SECURITY auth one_time_tokens supabase_auth_admin
+7282; 0 16470 ROW SECURITY auth refresh_tokens supabase_auth_admin
+7301; 0 17160 ROW SECURITY auth saml_providers supabase_auth_admin
+7302; 0 17178 ROW SECURITY auth saml_relay_states supabase_auth_admin
+7285; 0 16496 ROW SECURITY auth schema_migrations supabase_auth_admin
+7295; 0 17058 ROW SECURITY auth sessions supabase_auth_admin
+7300; 0 17145 ROW SECURITY auth sso_domains supabase_auth_admin
+7299; 0 17136 ROW SECURITY auth sso_providers supabase_auth_admin
+7281; 0 16458 ROW SECURITY auth users supabase_auth_admin
+7603; 3256 385216 POLICY public cfg_app_tips_dismissals Admins can delete dismissals supabase_admin
+7591; 3256 385199 POLICY public cfg_app_tips_companies Admins can delete tip companies supabase_admin
+7595; 3256 385204 POLICY public cfg_app_tips_departments Admins can delete tip departments supabase_admin
+7599; 3256 385209 POLICY public cfg_app_tips_profiles Admins can delete tip profiles supabase_admin
+7589; 3256 385194 POLICY public cfg_app_tips Admins can delete tips supabase_admin
+7455; 3256 385196 POLICY public cfg_app_tips_companies Admins can insert tip companies supabase_admin
+7593; 3256 385201 POLICY public cfg_app_tips_departments Admins can insert tip departments supabase_admin
+7597; 3256 385206 POLICY public cfg_app_tips_profiles Admins can insert tip profiles supabase_admin
+7587; 3256 385191 POLICY public cfg_app_tips Admins can insert tips supabase_admin
+7602; 3256 385214 POLICY public cfg_app_tips_dismissals Admins can update dismissals supabase_admin
+7590; 3256 385197 POLICY public cfg_app_tips_companies Admins can update tip companies supabase_admin
+7594; 3256 385202 POLICY public cfg_app_tips_departments Admins can update tip departments supabase_admin
+7598; 3256 385207 POLICY public cfg_app_tips_profiles Admins can update tip profiles supabase_admin
+7588; 3256 385192 POLICY public cfg_app_tips Admins can update tips supabase_admin
+7464; 3256 384779 POLICY public cfg_evaluation_requirements Allow all authenticated delete cfg_evaluation_requirements supabase_admin
+7468; 3256 384783 POLICY public contracts_evaluation_requirements Allow all authenticated delete contracts_evaluation_requirement supabase_admin
+7494; 3256 384787 POLICY public orders_visits_evaluations Allow all authenticated delete orders_visits_evaluations supabase_admin
+7458; 3256 384777 POLICY public cfg_evaluation_requirements Allow all authenticated insert cfg_evaluation_requirements supabase_admin
+7466; 3256 384781 POLICY public contracts_evaluation_requirements Allow all authenticated insert contracts_evaluation_requirement supabase_admin
+7470; 3256 384785 POLICY public orders_visits_evaluations Allow all authenticated insert orders_visits_evaluations supabase_admin
+7604; 3256 385217 POLICY public cfg_materials_purchases_cancel_reasons Allow all authenticated read supabase_admin
+7457; 3256 384776 POLICY public cfg_evaluation_requirements Allow all authenticated read cfg_evaluation_requirements supabase_admin
+7465; 3256 384780 POLICY public contracts_evaluation_requirements Allow all authenticated read contracts_evaluation_requirements supabase_admin
+7469; 3256 384784 POLICY public orders_visits_evaluations Allow all authenticated read orders_visits_evaluations supabase_admin
+7459; 3256 384778 POLICY public cfg_evaluation_requirements Allow all authenticated update cfg_evaluation_requirements supabase_admin
+7467; 3256 384782 POLICY public contracts_evaluation_requirements Allow all authenticated update contracts_evaluation_requirement supabase_admin
+7493; 3256 384786 POLICY public orders_visits_evaluations Allow all authenticated update orders_visits_evaluations supabase_admin
+7454; 3256 385195 POLICY public cfg_app_tips_companies Anyone can view tip companies supabase_admin
+7592; 3256 385200 POLICY public cfg_app_tips_departments Anyone can view tip departments supabase_admin
+7596; 3256 385205 POLICY public cfg_app_tips_profiles Anyone can view tip profiles supabase_admin
+7449; 3256 384708 POLICY public goose_db_version Authenticated can read goose_db_version postgres
+7451; 3256 384710 POLICY public leader_monthly_scores Authenticated can read leader_monthly_scores supabase_admin
+7453; 3256 384712 POLICY public leader_score_badges Authenticated can read leader_score_badges supabase_admin
+7452; 3256 384711 POLICY public leader_scores_history Authenticated can read leader_scores_history supabase_admin
+7450; 3256 384709 POLICY public schema_migrations Authenticated can read schema_migrations supabase_admin
+7460; 3256 368440 POLICY public cfg_app_notices_categories Categories: view supabase_admin
+7601; 3256 385212 POLICY public cfg_app_tips_dismissals Insert dismissals supabase_admin
+7608; 3256 385223 POLICY public cfg_app_notices Notices: delete supabase_admin
+7606; 3256 385220 POLICY public cfg_app_notices Notices: insert supabase_admin
+7607; 3256 385221 POLICY public cfg_app_notices Notices: update supabase_admin
+7605; 3256 385218 POLICY public cfg_app_notices Notices: view supabase_admin
+7456; 3256 374125 POLICY public cfg_assets_attributes_groups Permissive supabase_admin
+7461; 3256 368441 POLICY public cfg_app_notices_severities Severities: view supabase_admin
+7559; 3256 362344 POLICY public ai_chat_histories Universal Access supabase_admin
+7579; 3256 362364 POLICY public ai_chat_sessions Universal Access supabase_admin
+7581; 3256 362366 POLICY public ai_knowledge Universal Access supabase_admin
+7580; 3256 362365 POLICY public ai_messages Universal Access supabase_admin
+7476; 3256 362264 POLICY public api_keys Universal Access supabase_admin
+7482; 3256 362271 POLICY public assets Universal Access supabase_admin
+7560; 3256 362345 POLICY public assets_alerts Universal Access supabase_admin
+7509; 3256 362296 POLICY public assets_attributes_values Universal Access supabase_admin
+7566; 3256 362351 POLICY public assets_available Universal Access supabase_admin
+7478; 3256 362267 POLICY public assets_followers Universal Access supabase_admin
+7485; 3256 362274 POLICY public assets_materials Universal Access supabase_admin
+7514; 3256 362301 POLICY public audits_logs Universal Access supabase_admin
+7481; 3256 362270 POLICY public carts_materials Universal Access supabase_admin
+7513; 3256 362300 POLICY public cfg_activities Universal Access supabase_admin
+7479; 3256 362268 POLICY public cfg_app Universal Access supabase_admin
+7488; 3256 362277 POLICY public cfg_app_offline_updates Universal Access supabase_admin
+7489; 3256 362278 POLICY public cfg_app_pages Universal Access supabase_admin
+7487; 3256 362276 POLICY public cfg_app_versions_update Universal Access supabase_admin
+7541; 3256 362327 POLICY public cfg_assets_attributes Universal Access supabase_admin
+7546; 3256 362332 POLICY public cfg_assets_available_processing Universal Access supabase_admin
+7486; 3256 362275 POLICY public cfg_assets_couplings_models Universal Access supabase_admin
+7490; 3256 362279 POLICY public cfg_assets_priorities Universal Access supabase_admin
+7491; 3256 362280 POLICY public cfg_assets_statuses Universal Access supabase_admin
+7523; 3256 362310 POLICY public cfg_assets_tags Universal Access supabase_admin
+7496; 3256 362283 POLICY public cfg_assets_tags_subs Universal Access supabase_admin
+7508; 3256 362295 POLICY public cfg_assets_types Universal Access supabase_admin
+7540; 3256 362326 POLICY public cfg_assets_types_attributes Universal Access supabase_admin
+7548; 3256 362334 POLICY public cfg_assets_unavailable_reasons Universal Access supabase_admin
+7483; 3256 362272 POLICY public cfg_companies Universal Access supabase_admin
+7495; 3256 362282 POLICY public cfg_contracts_statuses Universal Access supabase_admin
+7505; 3256 362292 POLICY public cfg_departments Universal Access supabase_admin
+7477; 3256 362265 POLICY public cfg_materials_purchases_statuses Universal Access supabase_admin
+7480; 3256 362269 POLICY public cfg_materials_purchases_types Universal Access supabase_admin
+7575; 3256 362360 POLICY public cfg_materials_statuses Universal Access supabase_admin
+7554; 3256 362339 POLICY public cfg_materials_types Universal Access supabase_admin
+7492; 3256 362281 POLICY public cfg_orders_cancel_reasons Universal Access supabase_admin
+7525; 3256 362312 POLICY public cfg_orders_causes_reasons Universal Access supabase_admin
+7497; 3256 362284 POLICY public cfg_orders_counter Universal Access supabase_admin
+7500; 3256 362287 POLICY public cfg_orders_objects Universal Access supabase_admin
+7498; 3256 362285 POLICY public cfg_orders_plans Universal Access supabase_admin
+7570; 3256 362355 POLICY public cfg_orders_priorities Universal Access supabase_admin
+7499; 3256 362286 POLICY public cfg_orders_statuses Universal Access supabase_admin
+7501; 3256 362288 POLICY public cfg_orders_suspended_reasons Universal Access supabase_admin
+7527; 3256 362314 POLICY public cfg_orders_types Universal Access supabase_admin
+7503; 3256 362290 POLICY public cfg_orders_types_activities Universal Access supabase_admin
+7532; 3256 362318 POLICY public cfg_orders_types_subs Universal Access supabase_admin
+7529; 3256 362316 POLICY public cfg_orders_visits_extras_processing Universal Access supabase_admin
+7502; 3256 362289 POLICY public cfg_orders_visits_processing Universal Access supabase_admin
+7504; 3256 362291 POLICY public cfg_orders_visits_statuses Universal Access supabase_admin
+7512; 3256 362299 POLICY public cfg_profiles Universal Access supabase_admin
+7551; 3256 362336 POLICY public cfg_profiles_access Universal Access supabase_admin
+7507; 3256 362294 POLICY public cfg_profiles_permissions Universal Access supabase_admin
+7484; 3256 362273 POLICY public cfg_routes Universal Access supabase_admin
+7510; 3256 362297 POLICY public cfg_services Universal Access supabase_admin
+7530; 3256 362317 POLICY public cfg_systems Universal Access supabase_admin
+7544; 3256 362330 POLICY public cfg_teams Universal Access supabase_admin
+7556; 3256 362341 POLICY public cfg_technicals_manuals_categories Universal Access supabase_admin
+7571; 3256 362356 POLICY public cfg_units_assets_tags Universal Access supabase_admin
+7506; 3256 362293 POLICY public cfg_units_statuses Universal Access supabase_admin
+7524; 3256 362311 POLICY public cfg_units_types Universal Access supabase_admin
+7533; 3256 362319 POLICY public cfg_users_statuses Universal Access supabase_admin
+7568; 3256 362353 POLICY public chat_agent_ai Universal Access supabase_admin
+7583; 3256 362368 POLICY public clients Universal Access supabase_admin
+7565; 3256 362350 POLICY public contracts Universal Access supabase_admin
+7584; 3256 362369 POLICY public contracts_managers Universal Access supabase_admin
+7511; 3256 362298 POLICY public contracts_services Universal Access supabase_admin
+7561; 3256 362346 POLICY public documents Universal Access supabase_admin
+7562; 3256 362347 POLICY public extensions Universal Access supabase_admin
+7552; 3256 362337 POLICY public impersonation_password_backup Universal Access supabase_admin
+7574; 3256 362359 POLICY public import_orders_visits_contracts Universal Access supabase_admin
+7534; 3256 362320 POLICY public logs_api Universal Access supabase_admin
+7572; 3256 362357 POLICY public maintenances_plans Universal Access supabase_admin
+7573; 3256 362358 POLICY public maintenances_plans_sections Universal Access supabase_admin
+7576; 3256 362361 POLICY public maintenances_plans_sections_activities Universal Access supabase_admin
+7567; 3256 362352 POLICY public materials Universal Access supabase_admin
+7553; 3256 362338 POLICY public materials_purchases Universal Access supabase_admin
+7520; 3256 362307 POLICY public n8n_chat_histories Universal Access supabase_admin
+7555; 3256 362340 POLICY public orders Universal Access supabase_admin
+7522; 3256 362309 POLICY public orders_followers Universal Access supabase_admin
+7521; 3256 362308 POLICY public orders_statuses_logs Universal Access supabase_admin
+7577; 3256 362362 POLICY public orders_visits Universal Access supabase_admin
+7582; 3256 362367 POLICY public orders_visits_assets Universal Access supabase_admin
+7475; 3256 362263 POLICY public orders_visits_assets_activities Universal Access supabase_admin
+7473; 3256 362261 POLICY public orders_visits_assets_materials Universal Access supabase_admin
+7515; 3256 362302 POLICY public orders_visits_chat Universal Access supabase_admin
+7516; 3256 362303 POLICY public orders_visits_chat_participants Universal Access supabase_admin
+7517; 3256 362304 POLICY public orders_visits_chat_reads Universal Access supabase_admin
+7528; 3256 362315 POLICY public orders_visits_extras Universal Access supabase_admin
+7535; 3256 362321 POLICY public orders_visits_extras_followers Universal Access supabase_admin
+7536; 3256 362322 POLICY public orders_visits_extras_teams Universal Access supabase_admin
+7537; 3256 362323 POLICY public orders_visits_services Universal Access supabase_admin
+7539; 3256 362325 POLICY public orders_visits_teams Universal Access supabase_admin
+7538; 3256 362324 POLICY public orders_visits_vehicles Universal Access supabase_admin
+7557; 3256 362342 POLICY public technicals_manuals Universal Access supabase_admin
+7564; 3256 362349 POLICY public technicals_manuals_assets Universal Access supabase_admin
+7569; 3256 362354 POLICY public technicals_manuals_files Universal Access supabase_admin
+7474; 3256 362262 POLICY public tenants Universal Access supabase_admin
+7542; 3256 362328 POLICY public tools Universal Access supabase_admin
+7578; 3256 362363 POLICY public units Universal Access supabase_admin
+7526; 3256 362313 POLICY public users Universal Access supabase_admin
+7558; 3256 362343 POLICY public users_notifications Universal Access supabase_admin
+7518; 3256 362305 POLICY public users_tools Universal Access supabase_admin
+7519; 3256 362306 POLICY public users_tools_movements Universal Access supabase_admin
+7543; 3256 362329 POLICY public users_tracker Universal Access supabase_admin
+7547; 3256 362333 POLICY public vehicles Universal Access supabase_admin
+7549; 3256 362335 POLICY public warehouses Universal Access supabase_admin
+7563; 3256 362348 POLICY public warehouses_materials Universal Access supabase_admin
+7472; 3256 388177 POLICY public assets_loans Users can delete asset loans supabase_admin
+7440; 3256 388501 POLICY public cfg_assets_types_loans_checklists Users can delete asset type checklist associations supabase_admin
+7550; 3256 388188 POLICY public assets_loans_checklists_images Users can delete checklist images supabase_admin
+7445; 3256 387459 POLICY public cfg_loans_checklists Users can delete loans checklists supabase_admin
+7463; 3256 388175 POLICY public assets_loans Users can insert asset loans supabase_admin
+7438; 3256 388499 POLICY public cfg_assets_types_loans_checklists Users can insert asset type checklist associations supabase_admin
+7545; 3256 388187 POLICY public assets_loans_checklists_images Users can insert checklist images supabase_admin
+7443; 3256 387457 POLICY public cfg_loans_checklists Users can insert loans checklists supabase_admin
+7471; 3256 388176 POLICY public assets_loans Users can update asset loans supabase_admin
+7439; 3256 388500 POLICY public cfg_assets_types_loans_checklists Users can update asset type checklist associations supabase_admin
+7444; 3256 387458 POLICY public cfg_loans_checklists Users can update loans checklists supabase_admin
+7462; 3256 388174 POLICY public assets_loans Users can view asset loans supabase_admin
+7437; 3256 388498 POLICY public cfg_assets_types_loans_checklists Users can view asset type checklist associations supabase_admin
+7531; 3256 388186 POLICY public assets_loans_checklists_images Users can view checklist images supabase_admin
+7442; 3256 387456 POLICY public cfg_loans_checklists Users can view loans checklists supabase_admin
+7586; 3256 385190 POLICY public cfg_app_tips View active tips supabase_admin
+7600; 3256 385210 POLICY public cfg_app_tips_dismissals View dismissals supabase_admin
+7412; 0 357227 ROW SECURITY public ai_chat_histories supabase_admin
+7393; 0 274033 ROW SECURITY public ai_chat_sessions supabase_admin
+7392; 0 274022 ROW SECURITY public ai_knowledge supabase_admin
+7394; 0 274048 ROW SECURITY public ai_messages supabase_admin
+7390; 0 267829 ROW SECURITY public api_keys supabase_admin
+7306; 0 18003 ROW SECURITY public assets supabase_admin
+7398; 0 283757 ROW SECURITY public assets_alerts supabase_admin
+7380; 0 209678 ROW SECURITY public assets_attributes_values supabase_admin
+7372; 0 19285 ROW SECURITY public assets_available supabase_admin
+7307; 0 18024 ROW SECURITY public assets_followers supabase_admin
+7434; 0 388063 ROW SECURITY public assets_loans supabase_admin
+7435; 0 388140 ROW SECURITY public assets_loans_checklists_images supabase_admin
+7308; 0 18033 ROW SECURITY public assets_materials supabase_admin
+7348; 0 18460 ROW SECURITY public audits_logs supabase_admin
+7309; 0 18044 ROW SECURITY public carts_materials supabase_admin
+7310; 0 18053 ROW SECURITY public cfg_activities supabase_admin
+7311; 0 18063 ROW SECURITY public cfg_app supabase_admin
+7418; 0 368395 ROW SECURITY public cfg_app_notices supabase_admin
+7416; 0 368365 ROW SECURITY public cfg_app_notices_categories supabase_admin
+7417; 0 368380 ROW SECURITY public cfg_app_notices_severities supabase_admin
+7312; 0 18072 ROW SECURITY public cfg_app_offline_updates supabase_admin
+7313; 0 18082 ROW SECURITY public cfg_app_pages supabase_admin
+7419; 0 370658 ROW SECURITY public cfg_app_tips supabase_admin
+7421; 0 371272 ROW SECURITY public cfg_app_tips_companies supabase_admin
+7422; 0 371293 ROW SECURITY public cfg_app_tips_departments supabase_admin
+7420; 0 371114 ROW SECURITY public cfg_app_tips_dismissals supabase_admin
+7423; 0 371314 ROW SECURITY public cfg_app_tips_profiles supabase_admin
+7314; 0 18091 ROW SECURITY public cfg_app_versions_update supabase_admin
+7381; 0 209707 ROW SECURITY public cfg_assets_attributes supabase_admin
+7430; 0 374107 ROW SECURITY public cfg_assets_attributes_groups supabase_admin
+7375; 0 19439 ROW SECURITY public cfg_assets_available_processing supabase_admin
+7315; 0 18099 ROW SECURITY public cfg_assets_couplings_models supabase_admin
+7316; 0 18110 ROW SECURITY public cfg_assets_priorities supabase_admin
+7317; 0 18118 ROW SECURITY public cfg_assets_statuses supabase_admin
+7318; 0 18127 ROW SECURITY public cfg_assets_tags supabase_admin
+7319; 0 18135 ROW SECURITY public cfg_assets_tags_subs supabase_admin
+7320; 0 18143 ROW SECURITY public cfg_assets_types supabase_admin
+7382; 0 209765 ROW SECURITY public cfg_assets_types_attributes supabase_admin
+7436; 0 388472 ROW SECURITY public cfg_assets_types_loans_checklists supabase_admin
+7374; 0 19347 ROW SECURITY public cfg_assets_unavailable_reasons supabase_admin
+7305; 0 17991 ROW SECURITY public cfg_companies supabase_admin
+7321; 0 18152 ROW SECURITY public cfg_contracts_statuses supabase_admin
+7322; 0 18160 ROW SECURITY public cfg_departments supabase_admin
+7424; 0 372075 ROW SECURITY public cfg_evaluation_requirements supabase_admin
+7433; 0 387418 ROW SECURITY public cfg_loans_checklists supabase_admin
+7431; 0 377322 ROW SECURITY public cfg_materials_purchases_cancel_reasons supabase_admin
+7409; 0 354218 ROW SECURITY public cfg_materials_purchases_statuses supabase_admin
+7408; 0 354208 ROW SECURITY public cfg_materials_purchases_types supabase_admin
+7407; 0 353654 ROW SECURITY public cfg_materials_statuses supabase_admin
+7411; 0 356071 ROW SECURITY public cfg_materials_types supabase_admin
+7323; 0 18172 ROW SECURITY public cfg_orders_cancel_reasons supabase_admin
+7324; 0 18182 ROW SECURITY public cfg_orders_causes_reasons supabase_admin
+7325; 0 18192 ROW SECURITY public cfg_orders_counter supabase_admin
+7326; 0 18203 ROW SECURITY public cfg_orders_objects supabase_admin
+7327; 0 18211 ROW SECURITY public cfg_orders_plans supabase_admin
+7328; 0 18221 ROW SECURITY public cfg_orders_priorities supabase_admin
+7329; 0 18229 ROW SECURITY public cfg_orders_statuses supabase_admin
+7330; 0 18238 ROW SECURITY public cfg_orders_suspended_reasons supabase_admin
+7331; 0 18248 ROW SECURITY public cfg_orders_types supabase_admin
+7332; 0 18258 ROW SECURITY public cfg_orders_types_activities supabase_admin
+7333; 0 18268 ROW SECURITY public cfg_orders_types_subs supabase_admin
+7334; 0 18278 ROW SECURITY public cfg_orders_visits_extras_processing supabase_admin
+7335; 0 18286 ROW SECURITY public cfg_orders_visits_processing supabase_admin
+7336; 0 18294 ROW SECURITY public cfg_orders_visits_statuses supabase_admin
+7337; 0 18302 ROW SECURITY public cfg_profiles supabase_admin
+7383; 0 214367 ROW SECURITY public cfg_profiles_access supabase_admin
+7338; 0 18316 ROW SECURITY public cfg_profiles_permissions supabase_admin
+7384; 0 254295 ROW SECURITY public cfg_routes supabase_admin
+7339; 0 18322 ROW SECURITY public cfg_services supabase_admin
+7340; 0 18333 ROW SECURITY public cfg_systems supabase_admin
+7341; 0 18344 ROW SECURITY public cfg_teams supabase_admin
+7368; 0 18825 ROW SECURITY public cfg_technicals_manuals_categories supabase_admin
+7373; 0 19295 ROW SECURITY public cfg_units_assets_tags supabase_admin
+7342; 0 18355 ROW SECURITY public cfg_units_statuses supabase_admin
+7343; 0 18363 ROW SECURITY public cfg_units_types supabase_admin
+7344; 0 18373 ROW SECURITY public cfg_users_statuses supabase_admin
+7377; 0 152786 ROW SECURITY public chat_agent_ai supabase_admin
+7379; 0 208113 ROW SECURITY public clients supabase_admin
+7345; 0 18381 ROW SECURITY public contracts supabase_admin
+7425; 0 372087 ROW SECURITY public contracts_evaluation_requirements supabase_admin
+7346; 0 18395 ROW SECURITY public contracts_managers supabase_admin
+7347; 0 18410 ROW SECURITY public contracts_services supabase_admin
+7376; 0 152571 ROW SECURITY public documents supabase_admin
+7293; 0 16899 ROW SECURITY public extensions supabase_admin
+7432; 0 383799 ROW SECURITY public goose_db_version postgres
+7413; 0 360339 ROW SECURITY public impersonation_password_backup supabase_admin
+7378; 0 153634 ROW SECURITY public import_orders_visits_contracts supabase_admin
+7427; 0 372306 ROW SECURITY public leader_monthly_scores supabase_admin
+7429; 0 372363 ROW SECURITY public leader_score_badges supabase_admin
+7428; 0 372337 ROW SECURITY public leader_scores_history supabase_admin
+7391; 0 268455 ROW SECURITY public logs_api supabase_admin
+7395; 0 283193 ROW SECURITY public maintenances_plans supabase_admin
+7396; 0 283205 ROW SECURITY public maintenances_plans_sections supabase_admin
+7397; 0 283222 ROW SECURITY public maintenances_plans_sections_activities supabase_admin
+7349; 0 18468 ROW SECURITY public materials supabase_admin
+7410; 0 354227 ROW SECURITY public materials_purchases supabase_admin
+7350; 0 18477 ROW SECURITY public n8n_chat_histories supabase_admin
+7351; 0 18486 ROW SECURITY public orders supabase_admin
+7352; 0 18503 ROW SECURITY public orders_followers supabase_admin
+7353; 0 18510 ROW SECURITY public orders_statuses_logs supabase_admin
+7354; 0 18516 ROW SECURITY public orders_visits supabase_admin
+7355; 0 18544 ROW SECURITY public orders_visits_assets supabase_admin
+7356; 0 18561 ROW SECURITY public orders_visits_assets_activities supabase_admin
+7357; 0 18572 ROW SECURITY public orders_visits_assets_materials supabase_admin
+7399; 0 320303 ROW SECURITY public orders_visits_chat supabase_admin
+7400; 0 320329 ROW SECURITY public orders_visits_chat_participants supabase_admin
+7401; 0 320351 ROW SECURITY public orders_visits_chat_reads supabase_admin
+7426; 0 372108 ROW SECURITY public orders_visits_evaluations supabase_admin
+7360; 0 18626 ROW SECURITY public orders_visits_extras supabase_admin
+7361; 0 18732 ROW SECURITY public orders_visits_extras_followers supabase_admin
+7362; 0 18751 ROW SECURITY public orders_visits_extras_teams supabase_admin
+7363; 0 18776 ROW SECURITY public orders_visits_services supabase_admin
+7364; 0 18786 ROW SECURITY public orders_visits_teams supabase_admin
+7365; 0 18794 ROW SECURITY public orders_visits_vehicles supabase_admin
+7415; 0 364850 ROW SECURITY public schema_migrations supabase_admin
+7366; 0 18810 ROW SECURITY public technicals_manuals supabase_admin
+7367; 0 18818 ROW SECURITY public technicals_manuals_assets supabase_admin
+7414; 0 360886 ROW SECURITY public technicals_manuals_files supabase_admin
+7292; 0 16890 ROW SECURITY public tenants supabase_admin
+7403; 0 351783 ROW SECURITY public tools supabase_admin
+7359; 0 18614 ROW SECURITY public units supabase_admin
+7358; 0 18586 ROW SECURITY public users supabase_admin
+7369; 0 18833 ROW SECURITY public users_notifications supabase_admin
+7404; 0 351804 ROW SECURITY public users_tools supabase_admin
+7405; 0 351834 ROW SECURITY public users_tools_movements supabase_admin
+7370; 0 18842 ROW SECURITY public users_tracker supabase_admin
+7371; 0 18849 ROW SECURITY public vehicles supabase_admin
+7402; 0 323131 ROW SECURITY public warehouses supabase_admin
+7406; 0 353504 ROW SECURITY public warehouses_materials supabase_admin
+7441; 3256 28420 POLICY storage objects Grant All Authenticated 1t5kqn_0 supabase_storage_admin
+7446; 3256 28419 POLICY storage objects Grant All Authenticated 1t5kqn_1 supabase_storage_admin
+7447; 3256 28422 POLICY storage objects Grant All Authenticated 1t5kqn_2 supabase_storage_admin
+7448; 3256 28421 POLICY storage objects Grant All Authenticated 1t5kqn_3 supabase_storage_admin
+7585; 3256 362370 POLICY storage objects Universal Storage Access supabase_storage_admin
+7286; 0 16509 ROW SECURITY storage buckets supabase_storage_admin
+7385; 0 266744 ROW SECURITY storage buckets_analytics supabase_storage_admin
+7388; 0 266821 ROW SECURITY storage buckets_vectors supabase_storage_admin
+7386; 0 266755 ROW SECURITY storage iceberg_namespaces supabase_storage_admin
+7387; 0 266771 ROW SECURITY storage iceberg_tables supabase_storage_admin
+7288; 0 16551 ROW SECURITY storage migrations supabase_storage_admin
+7287; 0 16524 ROW SECURITY storage objects supabase_storage_admin
+7291; 0 16847 ROW SECURITY storage prefixes supabase_storage_admin
+7289; 0 16794 ROW SECURITY storage s3_multipart_uploads supabase_storage_admin
+7290; 0 16808 ROW SECURITY storage s3_multipart_uploads_parts supabase_storage_admin
+7389; 0 266831 ROW SECURITY storage vector_indexes supabase_storage_admin
+4478; 826 16665 DEFAULT ACL auth DEFAULT PRIVILEGES FOR SEQUENCES supabase_auth_admin
+4479; 826 16666 DEFAULT ACL auth DEFAULT PRIVILEGES FOR FUNCTIONS supabase_auth_admin
+4477; 826 16664 DEFAULT ACL auth DEFAULT PRIVILEGES FOR TABLES supabase_auth_admin
+4469; 826 16453 DEFAULT ACL public DEFAULT PRIVILEGES FOR SEQUENCES postgres
+4496; 826 16454 DEFAULT ACL public DEFAULT PRIVILEGES FOR SEQUENCES supabase_admin
+4468; 826 16452 DEFAULT ACL public DEFAULT PRIVILEGES FOR FUNCTIONS postgres
+4470; 826 16456 DEFAULT ACL public DEFAULT PRIVILEGES FOR FUNCTIONS supabase_admin
+4467; 826 16451 DEFAULT ACL public DEFAULT PRIVILEGES FOR TABLES postgres
+4495; 826 16455 DEFAULT ACL public DEFAULT PRIVILEGES FOR TABLES supabase_admin
+4473; 826 16508 DEFAULT ACL storage DEFAULT PRIVILEGES FOR SEQUENCES postgres
+4472; 826 16507 DEFAULT ACL storage DEFAULT PRIVILEGES FOR FUNCTIONS postgres
+4471; 826 16506 DEFAULT ACL storage DEFAULT PRIVILEGES FOR TABLES postgres

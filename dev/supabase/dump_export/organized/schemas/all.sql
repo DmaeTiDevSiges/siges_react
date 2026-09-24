@@ -1,0 +1,5 @@
+CREATE SCHEMA auth;
+
+CREATE SCHEMA public;
+
+CREATE SCHEMA storage;

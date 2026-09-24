@@ -1,0 +1,172 @@
+public.cfg_app_tips_dismissals	DELETE		Admins can delete dismissals
+public.cfg_app_tips_companies	DELETE		Admins can delete tip companies
+public.cfg_app_tips_departments	DELETE		Admins can delete tip departments
+public.cfg_app_tips_profiles	DELETE		Admins can delete tip profiles
+public.cfg_app_tips	DELETE		Admins can delete tips
+public.cfg_app_tips_companies	INSERT		Admins can insert tip companies
+public.cfg_app_tips_departments	INSERT		Admins can insert tip departments
+public.cfg_app_tips_profiles	INSERT		Admins can insert tip profiles
+public.cfg_app_tips	INSERT		Admins can insert tips
+public.cfg_app_tips_dismissals	UPDATE		Admins can update dismissals
+public.cfg_app_tips_companies	UPDATE		Admins can update tip companies
+public.cfg_app_tips_departments	UPDATE		Admins can update tip departments
+public.cfg_app_tips_profiles	UPDATE		Admins can update tip profiles
+public.cfg_app_tips	UPDATE		Admins can update tips
+public.cfg_evaluation_requirements	DELETE	authenticated	Allow all authenticated delete cfg_evaluation_requirements
+public.contracts_evaluation_requirements	DELETE	authenticated	Allow all authenticated delete contracts_evaluation_requirement
+public.orders_visits_evaluations	DELETE	authenticated	Allow all authenticated delete orders_visits_evaluations
+public.cfg_evaluation_requirements	INSERT	authenticated	Allow all authenticated insert cfg_evaluation_requirements
+public.contracts_evaluation_requirements	INSERT	authenticated	Allow all authenticated insert contracts_evaluation_requirement
+public.orders_visits_evaluations	INSERT	authenticated	Allow all authenticated insert orders_visits_evaluations
+public.cfg_materials_purchases_cancel_reasons	SELECT	authenticated	Allow all authenticated read
+public.cfg_evaluation_requirements	SELECT	authenticated	Allow all authenticated read cfg_evaluation_requirements
+public.contracts_evaluation_requirements	SELECT	authenticated	Allow all authenticated read contracts_evaluation_requirements
+public.orders_visits_evaluations	SELECT	authenticated	Allow all authenticated read orders_visits_evaluations
+public.cfg_evaluation_requirements	UPDATE	authenticated	Allow all authenticated update cfg_evaluation_requirements
+public.contracts_evaluation_requirements	UPDATE	authenticated	Allow all authenticated update contracts_evaluation_requirement
+public.orders_visits_evaluations	UPDATE	authenticated	Allow all authenticated update orders_visits_evaluations
+public.cfg_app_tips_companies	SELECT		Anyone can view tip companies
+public.cfg_app_tips_departments	SELECT		Anyone can view tip departments
+public.cfg_app_tips_profiles	SELECT		Anyone can view tip profiles
+public.goose_db_version	SELECT	authenticated	Authenticated can read goose_db_version
+public.leader_monthly_scores	SELECT	authenticated	Authenticated can read leader_monthly_scores
+public.leader_score_badges	SELECT	authenticated	Authenticated can read leader_score_badges
+public.leader_scores_history	SELECT	authenticated	Authenticated can read leader_scores_history
+public.schema_migrations	SELECT	authenticated	Authenticated can read schema_migrations
+public.cfg_app_notices_categories	SELECT	authenticated	Categories: view
+public.cfg_app_tips_dismissals	INSERT		Insert dismissals
+public.cfg_app_notices	DELETE	authenticated	Notices: delete
+public.cfg_app_notices	INSERT	authenticated	Notices: insert
+public.cfg_app_notices	UPDATE	authenticated	Notices: update
+public.cfg_app_notices	SELECT	authenticated	Notices: view
+public.cfg_assets_attributes_groups	ALL		Permissive
+public.cfg_app_notices_severities	SELECT	authenticated	Severities: view
+public.ai_chat_histories	ALL		Universal Access
+public.ai_chat_sessions	ALL		Universal Access
+public.ai_knowledge	ALL		Universal Access
+public.ai_messages	ALL		Universal Access
+public.api_keys	ALL		Universal Access
+public.assets	ALL		Universal Access
+public.assets_alerts	ALL		Universal Access
+public.assets_attributes_values	ALL		Universal Access
+public.assets_available	ALL		Universal Access
+public.assets_followers	ALL		Universal Access
+public.assets_materials	ALL		Universal Access
+public.audits_logs	ALL		Universal Access
+public.carts_materials	ALL		Universal Access
+public.cfg_activities	ALL		Universal Access
+public.cfg_app	ALL		Universal Access
+public.cfg_app_offline_updates	ALL		Universal Access
+public.cfg_app_pages	ALL		Universal Access
+public.cfg_app_versions_update	ALL		Universal Access
+public.cfg_assets_attributes	ALL		Universal Access
+public.cfg_assets_available_processing	ALL		Universal Access
+public.cfg_assets_couplings_models	ALL		Universal Access
+public.cfg_assets_priorities	ALL		Universal Access
+public.cfg_assets_statuses	ALL		Universal Access
+public.cfg_assets_tags	ALL		Universal Access
+public.cfg_assets_tags_subs	ALL		Universal Access
+public.cfg_assets_types	ALL		Universal Access
+public.cfg_assets_types_attributes	ALL		Universal Access
+public.cfg_assets_unavailable_reasons	ALL		Universal Access
+public.cfg_companies	ALL		Universal Access
+public.cfg_contracts_statuses	ALL		Universal Access
+public.cfg_departments	ALL		Universal Access
+public.cfg_materials_purchases_statuses	ALL		Universal Access
+public.cfg_materials_purchases_types	ALL		Universal Access
+public.cfg_materials_statuses	ALL		Universal Access
+public.cfg_materials_types	ALL		Universal Access
+public.cfg_orders_cancel_reasons	ALL		Universal Access
+public.cfg_orders_causes_reasons	ALL		Universal Access
+public.cfg_orders_counter	ALL		Universal Access
+public.cfg_orders_objects	ALL		Universal Access
+public.cfg_orders_plans	ALL		Universal Access
+public.cfg_orders_priorities	ALL		Universal Access
+public.cfg_orders_statuses	ALL		Universal Access
+public.cfg_orders_suspended_reasons	ALL		Universal Access
+public.cfg_orders_types	ALL		Universal Access
+public.cfg_orders_types_activities	ALL		Universal Access
+public.cfg_orders_types_subs	ALL		Universal Access
+public.cfg_orders_visits_extras_processing	ALL		Universal Access
+public.cfg_orders_visits_processing	ALL		Universal Access
+public.cfg_orders_visits_statuses	ALL		Universal Access
+public.cfg_profiles	ALL		Universal Access
+public.cfg_profiles_access	ALL		Universal Access
+public.cfg_profiles_permissions	ALL		Universal Access
+public.cfg_routes	ALL		Universal Access
+public.cfg_services	ALL		Universal Access
+public.cfg_systems	ALL		Universal Access
+public.cfg_teams	ALL		Universal Access
+public.cfg_technicals_manuals_categories	ALL		Universal Access
+public.cfg_units_assets_tags	ALL		Universal Access
+public.cfg_units_statuses	ALL		Universal Access
+public.cfg_units_types	ALL		Universal Access
+public.cfg_users_statuses	ALL		Universal Access
+public.chat_agent_ai	ALL		Universal Access
+public.clients	ALL		Universal Access
+public.contracts	ALL		Universal Access
+public.contracts_managers	ALL		Universal Access
+public.contracts_services	ALL		Universal Access
+public.documents	ALL		Universal Access
+public.extensions	ALL		Universal Access
+public.impersonation_password_backup	ALL		Universal Access
+public.import_orders_visits_contracts	ALL		Universal Access
+public.logs_api	ALL		Universal Access
+public.maintenances_plans	ALL		Universal Access
+public.maintenances_plans_sections	ALL		Universal Access
+public.maintenances_plans_sections_activities	ALL		Universal Access
+public.materials	ALL		Universal Access
+public.materials_purchases	ALL		Universal Access
+public.n8n_chat_histories	ALL		Universal Access
+public.orders	ALL		Universal Access
+public.orders_followers	ALL		Universal Access
+public.orders_statuses_logs	ALL		Universal Access
+public.orders_visits	ALL		Universal Access
+public.orders_visits_assets	ALL		Universal Access
+public.orders_visits_assets_activities	ALL		Universal Access
+public.orders_visits_assets_materials	ALL		Universal Access
+public.orders_visits_chat	ALL		Universal Access
+public.orders_visits_chat_participants	ALL		Universal Access
+public.orders_visits_chat_reads	ALL		Universal Access
+public.orders_visits_extras	ALL		Universal Access
+public.orders_visits_extras_followers	ALL		Universal Access
+public.orders_visits_extras_teams	ALL		Universal Access
+public.orders_visits_services	ALL		Universal Access
+public.orders_visits_teams	ALL		Universal Access
+public.orders_visits_vehicles	ALL		Universal Access
+public.technicals_manuals	ALL		Universal Access
+public.technicals_manuals_assets	ALL		Universal Access
+public.technicals_manuals_files	ALL		Universal Access
+public.tenants	ALL		Universal Access
+public.tools	ALL		Universal Access
+public.units	ALL		Universal Access
+public.users	ALL		Universal Access
+public.users_notifications	ALL		Universal Access
+public.users_tools	ALL		Universal Access
+public.users_tools_movements	ALL		Universal Access
+public.users_tracker	ALL		Universal Access
+public.vehicles	ALL		Universal Access
+public.warehouses	ALL		Universal Access
+public.warehouses_materials	ALL		Universal Access
+public.assets_loans	DELETE		Users can delete asset loans
+public.cfg_assets_types_loans_checklists	DELETE		Users can delete asset type checklist associations
+public.assets_loans_checklists_images	DELETE		Users can delete checklist images
+public.cfg_loans_checklists	DELETE		Users can delete loans checklists
+public.assets_loans	INSERT		Users can insert asset loans
+public.cfg_assets_types_loans_checklists	INSERT		Users can insert asset type checklist associations
+public.assets_loans_checklists_images	INSERT		Users can insert checklist images
+public.cfg_loans_checklists	INSERT		Users can insert loans checklists
+public.assets_loans	UPDATE		Users can update asset loans
+public.cfg_assets_types_loans_checklists	UPDATE		Users can update asset type checklist associations
+public.cfg_loans_checklists	UPDATE		Users can update loans checklists
+public.assets_loans	SELECT		Users can view asset loans
+public.cfg_assets_types_loans_checklists	SELECT		Users can view asset type checklist associations
+public.assets_loans_checklists_images	SELECT		Users can view checklist images
+public.cfg_loans_checklists	SELECT		Users can view loans checklists
+public.cfg_app_tips	SELECT		View active tips
+public.cfg_app_tips_dismissals	SELECT		View dismissals
+storage.objects	INSERT	authenticated, anon	Grant All Authenticated 1t5kqn_0
+storage.objects	SELECT	authenticated, anon	Grant All Authenticated 1t5kqn_1
+storage.objects	UPDATE	authenticated, anon	Grant All Authenticated 1t5kqn_2
+storage.objects	DELETE	authenticated, anon	Grant All Authenticated 1t5kqn_3
+storage.objects	ALL		Universal Storage Access

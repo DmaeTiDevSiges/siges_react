@@ -600,7 +600,7 @@ As migrations são aplicadas **manualmente pelo usuário** no SQL Editor do Supa
      JOIN pg_class source ON source.oid = d.refobjid
    WHERE source.relname = '<view_name>' AND source.relkind = 'v';
    ```
-   E/ou faça `grep` dos arquivos em `dev/supabase/migrations/` e `schema_public.sql`.
+   E/ou faça `grep` dos arquivos em `dev/supabase/migrations/` e `dev/supabase/schema.sql`.
 
 2. **Preferência: `CREATE OR REPLACE VIEW` em vez de `DROP CASCADE`.**
    Quando a mudança é **apenas aditiva** (novas colunas ao final), `CREATE OR REPLACE`
@@ -616,8 +616,8 @@ Caso conhecido: a view `v_orders_visits_assets` depende de `v_orders_visits`
 4. **Confira o nome real das colunas no banco vivo.**
    Não copie cegamente definições antigas. Exemplo real: `cfg_assets_statuses`
    usa a coluna `color` — e NÃO `status_color`. `cfg_assets_priorities` é quem tem `color`.
-   O dump `schema_public.sql` pode estar desatualizado/inconsistente; valide contra
-   o schema da DB remota quando houver dúvida.
+   O schema de referência `dev/supabase/schema.sql` (dump 2026-09-23) pode ficar
+   defasado em relação ao banco vivo; valide contra a DB remota quando houver dúvida.
 
 5. **Sempre valide: rode a SQL no editor e teste a feature afetada** (ex: aba Ativos
    da visita técnica usa `v_orders_visits_assets`) antes de declarar concluído.

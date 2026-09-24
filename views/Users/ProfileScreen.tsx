@@ -15,6 +15,7 @@ import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { SignaturePad } from '../../components/ui/SignaturePad';
 import { Loading } from '../../components/ui/Loading';
 import { verifyHumanFaceInImage } from '../../services/faceDetectionService';
+import { usePermissions } from '../../contexts/PermissionsContext';
 
 
 
@@ -50,6 +51,7 @@ const statusConfig = {
 };
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser, onBack, onMenuClick, onThemeToggle, isDarkMode, onUserUpdate, onStatusChange }) => {
+    const { refreshPermissions } = usePermissions();
     const [user, setUser] = useState<User | null>(initialUser || null);
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(!initialUser);
@@ -147,6 +149,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 const loggedUuid = loggedUser?.uuid;
                 const owner = !profileUuid || profileUuid === loggedUuid;
                 setIsOwner(owner);
+
+                if (owner) {
+                    if (onUserUpdate && loggedUser) {
+                        onUserUpdate(loggedUser);
+                    }
+                    refreshPermissions().catch(console.error);
+                }
                 
                 if (isUserAdmin) {
                     const allCompanies = await dataService.getCompanies();
