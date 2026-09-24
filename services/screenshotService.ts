@@ -141,8 +141,60 @@ export async function captureScreen(options: CaptureOptions = {}): Promise<Scree
     }
   });
 
+  // Normaliza <img srcset>: o html-to-image embute o atributo `src`, mas o
+  // navegador pode estar exibindo outra variante (currentSrc) via srcset.
+  // Aponta `src` para o que está realmente na tela e remove srcset/sizes
+  // (restaurados no finally).
+  const originalImages: { el: HTMLImageElement; src: string; srcset: string | null; sizes: string | null }[] = [];
+  element.querySelectorAll('img').forEach((node) => {
+    const img = node as HTMLImageElement;
+    const current = img.currentSrc || img.src;
+    originalImages.push({
+      el: img,
+      src: img.getAttribute('src') || '',
+      srcset: img.getAttribute('srcset'),
+      sizes: img.getAttribute('sizes'),
+    });
+    img.removeAttribute('srcset');
+    img.removeAttribute('sizes');
+    if (current && current !== img.src) {
+      img.src = current;
+    }
+  });
+
+  // Solta line-clamp (ex: descrição da SS em 3 linhas) apenas durante a captura.
+  // Detecta pela classe `line-clamp-*` E pelo valor computado; forçar
+  // display:block já desativa o clamp (ele só age com display:-webkit-box).
+  // Restaurados no finally.
+  const clampedElements: { el: HTMLElement; prevClass: string; prevDisplay: string; prevClamp: string; prevOverflow: string }[] = [];
+  element.querySelectorAll('*').forEach((node) => {
+    const el = node as HTMLElement;
+    const className = typeof el.className === 'string' ? el.className : '';
+    const hasClampClass = /(^|\s)line-clamp-\d/.test(className);
+    const cs = window.getComputedStyle(el);
+    const clampVal = cs.getPropertyValue('-webkit-line-clamp') || cs.getPropertyValue('line-clamp') || '';
+    const hasClampVal = clampVal !== '' && clampVal !== 'none';
+    if (!hasClampClass && !hasClampVal) return;
+    clampedElements.push({
+      el,
+      prevClass: className,
+      prevDisplay: el.style.display,
+      prevClamp: el.style.getPropertyValue('-webkit-line-clamp') || el.style.getPropertyValue('line-clamp'),
+      prevOverflow: el.style.overflow,
+    });
+    if (hasClampClass) {
+      el.className = className.replace(/(^|\s)line-clamp-\d+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    el.style.setProperty('display', 'block');
+    el.style.setProperty('-webkit-line-clamp', 'none');
+    el.style.setProperty('line-clamp', 'none');
+    el.style.setProperty('overflow', 'visible');
+  });
+
   // Fontes: com embedFonts usa CSS próprio (fetch CORS-safe, com cache);
   // sem embedFonts, string vazia (não coleta — uso rápido na IA).
+  // Busca ANTES de travar a largura para não exibir o card redimensionado
+  // durante o await.
   let fontEmbedCSS = '';
   if (embedFonts) {
     try {
@@ -156,21 +208,33 @@ export async function captureScreen(options: CaptureOptions = {}): Promise<Scree
 
   const fontOptions = { fontEmbedCSS };
 
-  // Tenta capturar com opções progressivamente mais simples
+  // Largura FIXA em maxWidth durante TODO o captura (medida + clone):
+  // o html-to-image copia os computed widths dos filhos do layout ao vivo —
+  // se restaurarmos a largura antes do toPng, os filhos voltam ao layout
+  // original e a altura medida (@maxWidth) não bate → corte no fundo.
+  // Restaurada no finally.
+  const prevInlineWidth = element.style.width;
+  element.style.width = `${maxWidth}px`;
+  const captureHeight = Math.ceil(element.getBoundingClientRect().height) + 2;
+
+  // Tenta capturar com opções progressivamente mais simples.
+  // `height` = altura reflowed em maxWidth — sem ela o viewBox corta o conteúdo.
   const attempts = [
     {
       width: maxWidth,
+      height: captureHeight,
       pixelRatio,
       quality,
       backgroundColor: '#ffffff',
       inlineImages: false,
-      style: { overflow: 'visible' as const, height: 'auto' },
+      style: { overflow: 'visible' as const },
       imagePlaceholder: TRANSPARENT_PX,
       onImageErrorHandler,
       ...fontOptions,
     },
     {
       width: maxWidth,
+      height: captureHeight,
       pixelRatio: 1,
       backgroundColor: '#ffffff',
       imagePlaceholder: TRANSPARENT_PX,
@@ -179,6 +243,7 @@ export async function captureScreen(options: CaptureOptions = {}): Promise<Scree
     },
     {
       width: 800,
+      height: captureHeight,
       pixelRatio: 1,
       backgroundColor: '#ffffff',
       imagePlaceholder: TRANSPARENT_PX,
@@ -224,9 +289,31 @@ export async function captureScreen(options: CaptureOptions = {}): Promise<Scree
       ? lastError
       : new Error(`Falha ao rasterizar a captura${lastError?.type ? ` (${lastError.type})` : ''}`);
   } finally {
+    // Restaura a largura original do elemento
+    element.style.width = prevInlineWidth;
+
     // Restaura elementos fixed
     fixedElements.forEach(({ el, prev }) => {
       el.style.display = prev;
+    });
+
+    // Restaura src/srcset/sizes originais das imagens
+    originalImages.forEach(({ el, src, srcset, sizes }) => {
+      if (src) el.setAttribute('src', src);
+      if (srcset !== null) el.setAttribute('srcset', srcset);
+      if (sizes !== null) el.setAttribute('sizes', sizes);
+    });
+
+    // Restaura classe/estilos originais dos elementos com line-clamp
+    clampedElements.forEach(({ el, prevClass, prevDisplay, prevClamp, prevOverflow }) => {
+      el.className = prevClass;
+      if (prevDisplay) el.style.setProperty('display', prevDisplay);
+      else el.style.removeProperty('display');
+      if (prevClamp) el.style.setProperty('-webkit-line-clamp', prevClamp);
+      else el.style.removeProperty('-webkit-line-clamp');
+      el.style.removeProperty('line-clamp');
+      if (prevOverflow) el.style.setProperty('overflow', prevOverflow);
+      else el.style.removeProperty('overflow');
     });
   }
 }
