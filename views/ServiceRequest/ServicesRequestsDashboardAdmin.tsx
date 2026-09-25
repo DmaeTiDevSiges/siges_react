@@ -28,6 +28,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Calendar } from '../../components/ui/Calendar';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 
+// Sessão do app: busca automática só na primeira entrada; retornos usam cache + realtime.
+let ssDashboardSessionLoaded = false;
 
 interface ServicesRequestsDashboardAdminProps {
     currentUser: User | null;
@@ -48,6 +50,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
     const isProviderMode = !!providerCompanyId;
+    // Frozen for this mount: true only on the first entry of the app session.
+    const [shouldInitialLoad] = React.useState(() => !ssDashboardSessionLoaded);
     const unscheduledSSScroll = useDraggableScroll();
     const openOSScroll = useDraggableScroll();
     const osSectorScroll = useDraggableScroll();
@@ -85,12 +89,22 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     });
 
     // --- Completed OS ---
-    const [completedOS, setCompletedOS] = useState<{ data: Order[]; total: number }>({ data: [], total: 0 });
+    const [completedOS, setCompletedOS] = useState<{ data: Order[]; total: number }>(() => {
+        try {
+            const saved = localStorage.getItem('ssdash_cachedCompletedOS');
+            return saved ? JSON.parse(saved) : { data: [], total: 0 };
+        } catch { return { data: [], total: 0 }; }
+    });
     const [completedAssetTagId, setCompletedAssetTagId] = useState<string[]>([]);
     const completedOSScroll = useDraggableScroll();
     const completedOSCardsScroll = useDraggableScroll();
     // --- Canceled OS ---
-    const [canceledOS, setCanceledOS] = useState<{ data: Order[]; total: number }>({ data: [], total: 0 });
+    const [canceledOS, setCanceledOS] = useState<{ data: Order[]; total: number }>(() => {
+        try {
+            const saved = localStorage.getItem('ssdash_cachedCanceledOS');
+            return saved ? JSON.parse(saved) : { data: [], total: 0 };
+        } catch { return { data: [], total: 0 }; }
+    });
     const [canceledAssetTagId, setCanceledAssetTagId] = useState<string[]>([]);
     const canceledOSScroll = useDraggableScroll();
     const canceledOSCardsScroll = useDraggableScroll();
@@ -108,6 +122,24 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     });
     const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
     const [selectedPeriod, setSelectedPeriod] = useState<string | null>('Todas');
+    const [unitSubTypes, setUnitSubTypes] = useState<any[]>(() => {
+        try {
+            const saved = localStorage.getItem('cachedUnitSubTypes');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+    const [orderSubTypes, setOrderSubTypes] = useState<any[]>(() => {
+        try {
+            const saved = localStorage.getItem('cachedOrderSubTypes');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+    const [assetTagSubs, setAssetTagSubs] = useState<any[]>(() => {
+        try {
+            const saved = localStorage.getItem('cachedAssetTagSubs');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
 
     const todayStr = useMemo(() => {
         const d = new Date();
@@ -360,13 +392,18 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             localStorage.setItem('ssdash_cachedUnscheduledSS', JSON.stringify(unscheduledSS));
             localStorage.setItem('ssdash_cachedOpenOS', JSON.stringify(openOS));
             localStorage.setItem('ssdash_cachedOsAssetTagId', JSON.stringify(osAssetTagId));
+            localStorage.setItem('ssdash_cachedCompletedOS', JSON.stringify(completedOS));
+            localStorage.setItem('ssdash_cachedCanceledOS', JSON.stringify(canceledOS));
             localStorage.setItem('cachedTeams', JSON.stringify(teams));
             localStorage.setItem('cachedUsers', JSON.stringify(users));
             localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
+            localStorage.setItem('cachedUnitSubTypes', JSON.stringify(unitSubTypes));
+            localStorage.setItem('cachedOrderSubTypes', JSON.stringify(orderSubTypes));
+            localStorage.setItem('cachedAssetTagSubs', JSON.stringify(assetTagSubs));
         } catch (e) {
             console.error('💾 Dashboard: Erro ao salvar cache no localStorage', e);
         }
-    }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, teams, users, filterOptions]);
+    }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, completedOS, canceledOS, teams, users, filterOptions, unitSubTypes, orderSubTypes, assetTagSubs]);
 
     const [isPendingCompleted, startCompletedTransition] = useTransition();
 
@@ -400,9 +437,15 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         });
     }, [dateRange, appliedFilters, startCompletedTransition]);
 
+    const completedOSMountHandled = React.useRef(false);
     useEffect(() => {
-        loadCompletedOS();
-    }, [loadCompletedOS, appliedFilters]);
+        if (completedOSMountHandled.current) {
+            loadCompletedOS();
+            return;
+        }
+        completedOSMountHandled.current = true;
+        if (shouldInitialLoad) loadCompletedOS();
+    }, [loadCompletedOS, appliedFilters, shouldInitialLoad]);
 
     const [isPendingCanceled, startCanceledTransition] = useTransition();
 
@@ -436,9 +479,15 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         });
     }, [dateRange, appliedFilters, startCanceledTransition]);
 
+    const canceledOSMountHandled = React.useRef(false);
     useEffect(() => {
-        loadCanceledOS();
-    }, [loadCanceledOS, appliedFilters]);
+        if (canceledOSMountHandled.current) {
+            loadCanceledOS();
+            return;
+        }
+        canceledOSMountHandled.current = true;
+        if (shouldInitialLoad) loadCanceledOS();
+    }, [loadCanceledOS, appliedFilters, shouldInitialLoad]);
 
     const leadersByCompany = React.useMemo(() => {
         const selectedContractIds = Array.isArray(appliedFilters.contractId)
@@ -944,6 +993,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length, dateRange]);
 
     useEffect(() => {
+        if (!shouldInitialLoad) return;
         const loadOptions = async () => {
             try {
                 const results = await Promise.allSettled([
@@ -1008,21 +1058,19 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             }
         };
         loadOptions();
-    }, []);
-
-    // Track if we have already handled the initial cache check
-    const initialCacheSkipDone = React.useRef(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shouldInitialLoad]);
 
     useEffect(() => {
         // 1. Refresh dashboard event
         const handleRefresh = () => fetchDataRef.current(false, false);
         window.addEventListener('refresh_dashboard', handleRefresh);
 
-        // Debounced user refresh to avoid excessive calls when orders/visits fire rapidly
-        let userRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
-        const debouncedRefreshUsers = () => {
-            if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
-            userRefreshTimeout = setTimeout(async () => {
+        // Debounced refresh: users + completed/canceled sections when orders/visits fire rapidly
+        let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+        const debouncedRefreshSecondary = () => {
+            if (refreshTimeout) clearTimeout(refreshTimeout);
+            refreshTimeout = setTimeout(async () => {
                 try {
                     dataService.clearMetadataCache();
                     const usersData = await dataService.getUsers();
@@ -1030,19 +1078,21 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 } catch (err) {
                     console.error("Failed to refresh users (debounced)", err);
                 }
+                loadCompletedOSRef.current?.();
+                loadCanceledOSRef.current?.();
             }, 1000);
         };
 
         // 2. Realtime subscription for orders
-        const subscription = dataService.subscribeToOrders((payload) => {
+        const subscription = dataService.subscribeToOrders(() => {
             fetchDataRef.current(false, false);
-            debouncedRefreshUsers();
+            debouncedRefreshSecondary();
         });
 
         // 3. Realtime subscription for visits
-        const visitSubscription = dataService.subscribeToVisits((payload) => {
+        const visitSubscription = dataService.subscribeToVisits(() => {
             fetchDataRef.current(false, false);
-            debouncedRefreshUsers();
+            debouncedRefreshSecondary();
         });
 
         // 4. Realtime subscription for users (to update status borders)
@@ -1056,54 +1106,20 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             }
         });
 
-        // 5. Periodic polling fallback (every 15s) — refreshes dashboard data + users even if Realtime is down
-        const pollingInterval = setInterval(() => {
-            try {
-                fetchDataRef.current(false, false);
-                debouncedRefreshUsers();
-            } catch (err) {
-                // Silent fail for polling
-            }
-        }, 15000);
-
-        // 6. Refresh immediately when user returns to the tab or focuses the window
-        let lastRefreshTime = 0;
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                const now = Date.now();
-                if (now - lastRefreshTime > 5000) {
-                    lastRefreshTime = now;
-                    fetchDataRef.current(false, false);
-                    debouncedRefreshUsers();
-                }
-            }
-        };
-        const handleWindowFocus = () => {
-            const now = Date.now();
-            if (now - lastRefreshTime > 5000) {
-                lastRefreshTime = now;
-                fetchDataRef.current(false, false);
-                debouncedRefreshUsers();
-            }
-        };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('focus', handleWindowFocus);
-
-        // 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
-        // Mostrar overlay de loading enquanto os dados mais recentes são buscados
-        setIsFiltering(true);
-        fetchDataRef.current(false, false);
-        setIsLoading(false);
+        // Initial load only on first entry of the app session; returns use cache + realtime
+        if (shouldInitialLoad) {
+            ssDashboardSessionLoaded = true;
+            setIsFiltering(true);
+            fetchDataRef.current(false, false);
+            setIsLoading(false);
+        }
 
         return () => {
             window.removeEventListener('refresh_dashboard', handleRefresh);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('focus', handleWindowFocus);
-            if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
+            if (refreshTimeout) clearTimeout(refreshTimeout);
             if (subscription) subscription.unsubscribe();
             if (visitSubscription) visitSubscription.unsubscribe();
             if (userSubscription) userSubscription.unsubscribe();
-            clearInterval(pollingInterval);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Only on mount
@@ -1124,8 +1140,9 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         localStorage.setItem('hasAppliedOrdersFilters', String(hasAppliedFilters));
     }, [appliedFilters, hasAppliedFilters]);
 
-    // Recover unitSubTypes if unitTypeParentId exists on mount
+    // Recover unitSubTypes if unitTypeParentId exists on mount (first entry only; cached later)
     useEffect(() => {
+        if (!shouldInitialLoad) return;
         const recoverOptions = async () => {
             if (advancedOrdersFilters.unitTypeParentId) {
                 const ids = Array.isArray(advancedOrdersFilters.unitTypeParentId)
@@ -1156,12 +1173,17 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             }
         };
         recoverOptions();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shouldInitialLoad]);
 
     const sentinelRef = React.useRef<HTMLDivElement>(null);
     const fetchDataRef = React.useRef(fetchData);
+    const loadCompletedOSRef = React.useRef(loadCompletedOS);
+    const loadCanceledOSRef = React.useRef(loadCanceledOS);
 
     useEffect(() => { fetchDataRef.current = fetchData; }, [fetchData]);
+    useEffect(() => { loadCompletedOSRef.current = loadCompletedOS; }, [loadCompletedOS]);
+    useEffect(() => { loadCanceledOSRef.current = loadCanceledOS; }, [loadCanceledOS]);
 
     useEffect(() => {
         const sentinel = sentinelRef.current;
@@ -1184,10 +1206,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             setFilterOptions((prev: any) => ({ ...prev, subSystems: [] }));
         }
     };
-
-    const [unitSubTypes, setUnitSubTypes] = useState<any[]>([]);
-    const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
-    const [assetTagSubs, setAssetTagSubs] = useState<any[]>([]);
 
     const handleOrderTypeChange = async (id: string | string[]) => {
         setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTypeId: id, orderTypeSubId: [] }));

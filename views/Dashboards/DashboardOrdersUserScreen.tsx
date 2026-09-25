@@ -40,6 +40,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
     const [orders, setOrders] = useState<Order[]>([]);
     const [visits, setVisits] = useState<OrderVisit[]>([]);
+    const [openChatVisits, setOpenChatVisits] = useState<OrderVisit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const [selectedService, setSelectedService] = useState<string>(() => {
@@ -91,12 +92,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
         if (showLoading) setIsLoading(true);
         try {
-            const [teamOrders, teamVisits] = await Promise.all([
+            const [teamOrders, teamVisits, userChatVisits] = await Promise.all([
                 dataService.getOrdersByLeader(currentUser.id.toString()),
-                dataService.getVisitsByLeader(currentUser.id.toString())
+                dataService.getVisitsByLeader(currentUser.id.toString()),
+                dataService.getOpenChatVisitsForUser(currentUser.id.toString())
             ]);
             setOrders(teamOrders);
             setVisits(teamVisits);
+            setOpenChatVisits(userChatVisits);
 
             // Fetch team gamification data (previous month) if team is evaluable
             if (currentUser.teamIsEvaluable && currentUser.departmentId && currentUser.teamId) {
@@ -176,19 +179,30 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     }, [orders, selectedService]);
 
     // Visits Logic
+    const openChatList = useMemo(() => {
+        const merged = new Map<string, OrderVisit>();
+        visits
+            .filter(v => v.chatStatus === 'open' && (v.hasOpenChat || Boolean(v.chatCreatedUserId)))
+            .forEach(v => merged.set(v.id, v));
+        openChatVisits
+            .filter(v => v.chatStatus === 'open')
+            .forEach(v => { if (!merged.has(v.id)) merged.set(v.id, v); });
+        return Array.from(merged.values());
+    }, [visits, openChatVisits]);
+
     const visitsStats = useMemo(() => {
         return {
             rascunho: visits.filter(v => v.ovProcessingId === 1).length,
             reportadas: visits.filter(v => v.ovProcessingId === 2).length,
             revisadas: visits.filter(v => v.ovProcessingId === 3).length,
             reprovadas: visits.filter(v => v.ovProcessingId === 4).length,
-            chatPendentes: visits.filter(v => v.chatStatus === 'open' && (v.hasOpenChat || Boolean(v.chatCreatedUserId))).length,
+            chatPendentes: openChatList.length,
         };
-    }, [visits]);
+    }, [visits, openChatList]);
 
     const filteredVisits = useMemo(() => {
         if (selectedVisitStatus === 'chats') {
-            return visits.filter(v => v.chatStatus === 'open' && (v.hasOpenChat || Boolean(v.chatCreatedUserId)));
+            return openChatList;
         }
         const statusMap: Record<string, number> = {
             'rascunho': 1,
@@ -198,7 +212,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         };
         const target = statusMap[selectedVisitStatus];
         return visits.filter(v => v.ovProcessingId === target);
-    }, [visits, selectedVisitStatus]);
+    }, [visits, selectedVisitStatus, openChatList]);
 
     // Robust check for visit in progress (aligns with Header and Profile logic)
     const isInProgress = (currentUser?.isOvInProgress as any) === true ||

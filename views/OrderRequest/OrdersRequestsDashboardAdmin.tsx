@@ -28,6 +28,8 @@ import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 
+// Sessão do app: busca automática só na primeira entrada; retornos usam cache + realtime.
+let osDashboardSessionLoaded = false;
 
 interface OrdersRequestsDashboardAdminProps {
     currentUser: User | null;
@@ -48,6 +50,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
     const isProviderMode = !!providerCompanyId;
+    // Frozen for this mount: true only on the first entry of the app session.
+    const [shouldInitialLoad] = React.useState(() => !osDashboardSessionLoaded);
     const unscheduledSSScroll = useDraggableScroll();
     const openOSScroll = useDraggableScroll();
     const osSectorScroll = useDraggableScroll();
@@ -90,9 +94,20 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         const saved = localStorage.getItem('orders_dashboard_completed_temporal_filter');
         return (saved as CompletedTemporalFilter) || 'thisMonth';
     });
-    const [completedOS, setCompletedOS] = useState<{ data: Order[]; total: number }>({ data: [], total: 0 });
-    const [completedOSCounts, setCompletedOSCounts] = useState<Record<CompletedTemporalFilter, number>>({
-        today: 0, yesterday: 0, thisWeek: 0, lastWeek: 0, thisMonth: 0, lastMonth: 0
+    const [completedOS, setCompletedOS] = useState<{ data: Order[]; total: number }>(() => {
+        try {
+            const saved = localStorage.getItem('osdash_cachedCompletedOS');
+            return saved ? JSON.parse(saved) : { data: [], total: 0 };
+        } catch { return { data: [], total: 0 }; }
+    });
+    const [completedOSCounts, setCompletedOSCounts] = useState<Record<CompletedTemporalFilter, number>>(() => {
+        try {
+            const saved = localStorage.getItem('osdash_cachedCompletedOSCounts');
+            if (saved) return JSON.parse(saved);
+        } catch { }
+        return {
+            today: 0, yesterday: 0, thisWeek: 0, lastWeek: 0, thisMonth: 0, lastMonth: 0
+        };
     });
     const completedOSScroll = useDraggableScroll();
     const completedOSCardsScroll = useDraggableScroll();
@@ -110,6 +125,24 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     });
     const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
     const [selectedPeriod, setSelectedPeriod] = useState<string | null>('Todas');
+    const [unitSubTypes, setUnitSubTypes] = useState<any[]>(() => {
+        try {
+            const saved = localStorage.getItem('cachedUnitSubTypes');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+    const [orderSubTypes, setOrderSubTypes] = useState<any[]>(() => {
+        try {
+            const saved = localStorage.getItem('cachedOrderSubTypes');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+    const [assetTagSubs, setAssetTagSubs] = useState<any[]>(() => {
+        try {
+            const saved = localStorage.getItem('cachedAssetTagSubs');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
     const [isOsAbertasOpen, setIsOsAbertasOpen] = useState(() => {
         const saved = localStorage.getItem('ordersSection_osAbertasOpen');
         return saved !== null ? JSON.parse(saved) : true;
@@ -289,13 +322,18 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             localStorage.setItem('osdash_cachedUnscheduledSS', JSON.stringify(unscheduledSS));
             localStorage.setItem('osdash_cachedOpenOS', JSON.stringify(openOS));
             localStorage.setItem('osdash_cachedOsAssetTagId', JSON.stringify(osAssetTagId));
+            localStorage.setItem('osdash_cachedCompletedOS', JSON.stringify(completedOS));
+            localStorage.setItem('osdash_cachedCompletedOSCounts', JSON.stringify(completedOSCounts));
             localStorage.setItem('cachedTeams', JSON.stringify(teams));
             localStorage.setItem('cachedUsers', JSON.stringify(users));
             localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
+            localStorage.setItem('cachedUnitSubTypes', JSON.stringify(unitSubTypes));
+            localStorage.setItem('cachedOrderSubTypes', JSON.stringify(orderSubTypes));
+            localStorage.setItem('cachedAssetTagSubs', JSON.stringify(assetTagSubs));
         } catch (e) {
             console.error('💾 Dashboard: Erro ao salvar cache no localStorage', e);
         }
-    }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, teams, users, filterOptions]);
+    }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, completedOS, completedOSCounts, teams, users, filterOptions, unitSubTypes, orderSubTypes, assetTagSubs]);
 
     // --- Completed OS: Temporal Helper & Load ---
     const getCompletedTemporalDateRange = useCallback((filter: CompletedTemporalFilter): { start: string; end: string } => {
@@ -371,54 +409,64 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         localStorage.setItem('orders_dashboard_completed_temporal_filter', completedTemporalFilter);
     }, [completedTemporalFilter]);
 
+    const completedOSMountHandled = React.useRef(false);
     useEffect(() => {
-        loadCompletedOS();
-    }, [loadCompletedOS, appliedFilters]);
+        if (completedOSMountHandled.current) {
+            loadCompletedOS();
+            return;
+        }
+        completedOSMountHandled.current = true;
+        if (shouldInitialLoad) loadCompletedOS();
+    }, [loadCompletedOS, appliedFilters, shouldInitialLoad]);
 
-    // Load counts on mount and when filters change
+    // Load counts on mount (first entry only) and when filters change
+    const completedOSCountsMountHandled = React.useRef(false);
+    const loadCompletedOSCounts = useCallback(async () => {
+        try {
+            const periods: CompletedTemporalFilter[] = ['today', 'yesterday', 'thisWeek', 'lastWeek', 'thisMonth', 'lastMonth'];
+            const countResults = await Promise.all(
+                periods.map(async (p) => {
+                    const r = getCompletedTemporalDateRange(p);
+                    const res = await dataService.getCompletedOS({
+                        startDate: r.start,
+                        endDate: r.end,
+                        pageSize: 1,
+                        systemParentId: appliedFilters.systemParentId,
+                        systemId: appliedFilters.systemId,
+                        unitTypeParentId: appliedFilters.unitTypeParentId,
+                        unitTypeId: appliedFilters.unitTypeId,
+                        unitId: appliedFilters.unitId,
+                        orderObjectId: appliedFilters.orderObjectId,
+                        orderTypeId: appliedFilters.orderTypeId,
+                        orderTypeSubId: appliedFilters.orderTypeSubId,
+                        contractId: appliedFilters.contractId,
+                        orderPlanId: appliedFilters.orderPlanId,
+                        orderTeamId: appliedFilters.orderTeamId,
+                        responsibleTeamId: appliedFilters.responsibleTeamId,
+                        assetTagId: appliedFilters.assetTagId,
+                        assetTagSubId: appliedFilters.assetTagSubId,
+                        causeReasonId: appliedFilters.causeReasonId,
+                        ...(providerCompanyId ? { providerCompanyId } : {}),
+                    });
+                    return { period: p, count: res.total };
+                })
+            );
+            const counts: Record<CompletedTemporalFilter, number> = { today: 0, yesterday: 0, thisWeek: 0, lastWeek: 0, thisMonth: 0, lastMonth: 0 };
+            countResults.forEach(c => { counts[c.period] = c.count; });
+            setCompletedOSCounts(counts);
+        } catch (error) {
+            console.error('Error loading completed OS counts:', error);
+        }
+    }, [getCompletedTemporalDateRange, appliedFilters, providerCompanyId]);
+
     useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const periods: CompletedTemporalFilter[] = ['today', 'yesterday', 'thisWeek', 'lastWeek', 'thisMonth', 'lastMonth'];
-                const countResults = await Promise.all(
-                    periods.map(async (p) => {
-                        const r = getCompletedTemporalDateRange(p);
-                        const res = await dataService.getCompletedOS({
-                            startDate: r.start,
-                            endDate: r.end,
-                            pageSize: 1,
-                            systemParentId: appliedFilters.systemParentId,
-                            systemId: appliedFilters.systemId,
-                            unitTypeParentId: appliedFilters.unitTypeParentId,
-                            unitTypeId: appliedFilters.unitTypeId,
-                            unitId: appliedFilters.unitId,
-                            orderObjectId: appliedFilters.orderObjectId,
-                            orderTypeId: appliedFilters.orderTypeId,
-                            orderTypeSubId: appliedFilters.orderTypeSubId,
-                            contractId: appliedFilters.contractId,
-                            orderPlanId: appliedFilters.orderPlanId,
-                            orderTeamId: appliedFilters.orderTeamId,
-                            responsibleTeamId: appliedFilters.responsibleTeamId,
-                            assetTagId: appliedFilters.assetTagId,
-                            assetTagSubId: appliedFilters.assetTagSubId,
-                            causeReasonId: appliedFilters.causeReasonId,
-                            ...(providerCompanyId ? { providerCompanyId } : {}),
-                        });
-                        return { period: p, count: res.total };
-                    })
-                );
-                if (!cancelled) {
-                    const counts: Record<CompletedTemporalFilter, number> = { today: 0, yesterday: 0, thisWeek: 0, lastWeek: 0, thisMonth: 0, lastMonth: 0 };
-                    countResults.forEach(c => { counts[c.period] = c.count; });
-                    setCompletedOSCounts(counts);
-                }
-            } catch (error) {
-                console.error('Error loading completed OS counts:', error);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [getCompletedTemporalDateRange, appliedFilters]);
+        if (completedOSCountsMountHandled.current) {
+            loadCompletedOSCounts();
+            return;
+        }
+        completedOSCountsMountHandled.current = true;
+        if (shouldInitialLoad) loadCompletedOSCounts();
+    }, [loadCompletedOSCounts, shouldInitialLoad]);
 
     const leadersByCompany = React.useMemo(() => {
         const selectedContractIds = Array.isArray(appliedFilters.contractId)
@@ -846,6 +894,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length]);
 
     useEffect(() => {
+        if (!shouldInitialLoad) return;
         const loadOptions = async () => {
             try {
                 const results = await Promise.allSettled([
@@ -912,21 +961,19 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             }
         };
         loadOptions();
-    }, []);
-
-    // Track if we have already handled the initial cache check
-    const initialCacheSkipDone = React.useRef(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shouldInitialLoad]);
 
     useEffect(() => {
         // 1. Refresh dashboard event
         const handleRefresh = () => fetchDataRef.current(false, false);
         window.addEventListener('refresh_dashboard', handleRefresh);
 
-        // Debounced user refresh to avoid excessive calls when orders/visits fire rapidly
-        let userRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
-        const debouncedRefreshUsers = () => {
-            if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
-            userRefreshTimeout = setTimeout(async () => {
+        // Debounced refresh: users + completed sections when orders/visits fire rapidly
+        let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+        const debouncedRefreshSecondary = () => {
+            if (refreshTimeout) clearTimeout(refreshTimeout);
+            refreshTimeout = setTimeout(async () => {
                 try {
                     dataService.clearMetadataCache();
                     const usersData = await dataService.getUsers();
@@ -934,19 +981,21 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 } catch (err) {
                     console.error("Failed to refresh users (debounced)", err);
                 }
+                loadCompletedOSRef.current?.();
+                loadCompletedOSCountsRef.current?.();
             }, 1000);
         };
 
         // 2. Realtime subscription for orders
-        const subscription = dataService.subscribeToOrders((payload) => {
+        const subscription = dataService.subscribeToOrders(() => {
             fetchDataRef.current(false, false);
-            debouncedRefreshUsers();
+            debouncedRefreshSecondary();
         });
 
         // 3. Realtime subscription for visits
-        const visitSubscription = dataService.subscribeToVisits((payload) => {
+        const visitSubscription = dataService.subscribeToVisits(() => {
             fetchDataRef.current(false, false);
-            debouncedRefreshUsers();
+            debouncedRefreshSecondary();
         });
 
         // 4. Realtime subscription for users (to update status borders)
@@ -960,54 +1009,20 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             }
         });
 
-        // 5. Periodic polling fallback (every 15s) — refreshes dashboard data + users even if Realtime is down
-        const pollingInterval = setInterval(() => {
-            try {
-                fetchDataRef.current(false, false);
-                debouncedRefreshUsers();
-            } catch (err) {
-                // Silent fail for polling
-            }
-        }, 15000);
-
-        // 6. Refresh immediately when user returns to the tab or focuses the window
-        let lastRefreshTime = 0;
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                const now = Date.now();
-                if (now - lastRefreshTime > 5000) {
-                    lastRefreshTime = now;
-                    fetchDataRef.current(false, false);
-                    debouncedRefreshUsers();
-                }
-            }
-        };
-        const handleWindowFocus = () => {
-            const now = Date.now();
-            if (now - lastRefreshTime > 5000) {
-                lastRefreshTime = now;
-                fetchDataRef.current(false, false);
-                debouncedRefreshUsers();
-            }
-        };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('focus', handleWindowFocus);
-
-        // 🛡️ CONTROLLED INITIAL LOAD - Always fetch on mount for REALTIME consistency
-        // Mostrar overlay de loading enquanto os dados mais recentes são buscados
-        setIsFiltering(true);
-        fetchDataRef.current(false, false);
-        setIsLoading(false);
+        // Initial load only on first entry of the app session; returns use cache + realtime
+        if (shouldInitialLoad) {
+            osDashboardSessionLoaded = true;
+            setIsFiltering(true);
+            fetchDataRef.current(false, false);
+            setIsLoading(false);
+        }
 
         return () => {
             window.removeEventListener('refresh_dashboard', handleRefresh);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('focus', handleWindowFocus);
-            if (userRefreshTimeout) clearTimeout(userRefreshTimeout);
+            if (refreshTimeout) clearTimeout(refreshTimeout);
             if (subscription) subscription.unsubscribe();
             if (visitSubscription) visitSubscription.unsubscribe();
             if (userSubscription) userSubscription.unsubscribe();
-            clearInterval(pollingInterval);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Only on mount
@@ -1028,8 +1043,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         localStorage.setItem('hasAppliedOrdersFilters', String(hasAppliedFilters));
     }, [appliedFilters, hasAppliedFilters]);
 
-    // Recover unitSubTypes if unitTypeParentId exists on mount
+    // Recover unitSubTypes if unitTypeParentId exists on mount (first entry only; cached later)
     useEffect(() => {
+        if (!shouldInitialLoad) return;
         const recoverOptions = async () => {
             if (advancedOrdersFilters.unitTypeParentId) {
                 const ids = Array.isArray(advancedOrdersFilters.unitTypeParentId)
@@ -1060,12 +1076,17 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             }
         };
         recoverOptions();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shouldInitialLoad]);
 
     const sentinelRef = React.useRef<HTMLDivElement>(null);
     const fetchDataRef = React.useRef(fetchData);
+    const loadCompletedOSRef = React.useRef(loadCompletedOS);
+    const loadCompletedOSCountsRef = React.useRef(loadCompletedOSCounts);
 
     useEffect(() => { fetchDataRef.current = fetchData; }, [fetchData]);
+    useEffect(() => { loadCompletedOSRef.current = loadCompletedOS; }, [loadCompletedOS]);
+    useEffect(() => { loadCompletedOSCountsRef.current = loadCompletedOSCounts; }, [loadCompletedOSCounts]);
 
     useEffect(() => {
         const sentinel = sentinelRef.current;
@@ -1088,10 +1109,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             setFilterOptions((prev: any) => ({ ...prev, subSystems: [] }));
         }
     };
-
-    const [unitSubTypes, setUnitSubTypes] = useState<any[]>([]);
-    const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
-    const [assetTagSubs, setAssetTagSubs] = useState<any[]>([]);
 
     const handleOrderTypeChange = async (id: string | string[]) => {
         setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, orderTypeId: id, orderTypeSubId: [] }));

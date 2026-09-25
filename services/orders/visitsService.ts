@@ -247,6 +247,72 @@ export const visitsService = {
         })) as OrderVisit[];
     },
 
+    async getOpenChatVisitsForUser(userId: string): Promise<OrderVisit[]> {
+        const numericUserId = parseInt(userId);
+
+        const [creatorResult, participantResult, senderResult] = await Promise.all([
+            supabase.from('v_orders_visits').select('id').eq('chat_created_user_id', userId).eq('chat_status', 'open'),
+            supabase.from('orders_visits_chat_participants').select('ov_id').eq('user_id', numericUserId),
+            supabase.from('orders_visits_chat').select('ov_id').eq('user_id', numericUserId)
+        ]);
+
+        const visitIds = new Set<string>();
+        (creatorResult.data || []).forEach((row: any) => visitIds.add(row.id.toString()));
+        (participantResult.data || []).forEach((row: any) => visitIds.add(row.ov_id.toString()));
+        (senderResult.data || []).forEach((row: any) => visitIds.add(row.ov_id.toString()));
+
+        if (visitIds.size === 0) return [];
+
+        const { data, error } = await supabase
+            .from('v_orders_visits')
+            .select('*')
+            .in('id', Array.from(visitIds).map(id => parseInt(id)))
+            .eq('chat_status', 'open')
+            .order('ov_started_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching open chat visits for user:', error);
+            return [];
+        }
+
+        return (data || []).map((row: any) => ({
+            id: row.id.toString(),
+            oId: row.o_id?.toString(),
+            ovMask: row.ov_mask,
+            ovStatusId: row.ov_status_id,
+            ovProcessingId: row.ov_processing_id,
+            ovCreatedAt: row.ov_created_at,
+            ovCreatedUserId: row.ov_created_user_id?.toString(),
+            ovTeamLeadId: row.ov_team_leader_id?.toString(),
+            ovStartedAt: row.ov_started_at,
+            ovEndedAt: row.ov_ended_at,
+
+            unitDescription: row.o_unit_description,
+            systemDescription: row.o_system_description,
+            clientName: row.o_client_name,
+            teamLeaderName: row.ov_team_leader_name_short,
+            statusDescription: row.ov_status_description,
+            processingDescription: row.ov_processing_description,
+
+            unitId: row.o_unit_id?.toString(),
+            orderMask: row.o_mask,
+            teamCode: row.o_team_code,
+            requestedServices: row.o_requested_services,
+            contractDescription: row.o_contract_description,
+            planDescription: row.o_plan_description,
+            progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
+            ovOStatusId: row.ov_o_status_id,
+            ovOStatusDescription: row.ov_o_status_description,
+            ovOSuspendedReasonId: row.ov_o_suspended_reason_id,
+            ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
+            chatStatus: row.chat_status || 'open',
+            chatClosedAt: row.chat_closed_at,
+            chatClosedUserId: row.chat_closed_user_id?.toString(),
+            chatCreatedUserId: row.chat_created_user_id?.toString(),
+            hasOpenChat: true
+        })) as OrderVisit[];
+    },
+
     // -------------------------------------------------------------------------
     // VISIT START
     // -------------------------------------------------------------------------

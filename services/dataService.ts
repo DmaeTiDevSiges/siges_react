@@ -1954,6 +1954,10 @@ export const dataService = {
         return visitsService.getVisitsByChatCreator.apply(visitsService, arguments as any);
     },
 
+    async getOpenChatVisitsForUser(userId: string): Promise<OrderVisit[]> {
+        return visitsService.getOpenChatVisitsForUser.apply(visitsService, arguments as any);
+    },
+
     async startOrderVisit(order: Order, currentUser: User): Promise<void> {
         return visitsService.startOrderVisit.apply(visitsService, arguments as any);
     },
