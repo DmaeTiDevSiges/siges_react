@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
@@ -29,6 +30,7 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
     const [showViewer, setShowViewer] = useState(false);
     const [viewerIndex, setViewerIndex] = useState(0);
     const statusCfg = getStatusConfig(req.statusId);
+    const isWeb = !Capacitor.isNativePlatform();
 
     const progressValue = useMemo(() => {
         if (req.progress === null || req.progress === undefined) return 0;
@@ -119,26 +121,28 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
-                        title={isCopying ? 'Gerando imagem...' : 'Copiar imagem da OS (Ctrl+C)'}
-                        aria-label="Copiar imagem da OS"
-                        disabled={isCopying}
-                        className={`transition-all active:scale-90 disabled:opacity-60 ${isCopying ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
-                        onClick={handleCopyImage}
-                    >
-                        {isCopying ? (
-                            <span
-                                className="material-symbols-outlined animate-spin"
-                                style={{ fontSize: '28px' }}
-                            >
-                                progress_activity
-                            </span>
-                        ) : (
-                            <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>
-                                content_copy
-                            </span>
-                        )}
-                    </button>
+                    {isWeb && (
+                        <button
+                            title={isCopying ? 'Gerando imagem...' : 'Copiar imagem da OS (Ctrl+C)'}
+                            aria-label="Copiar imagem da OS"
+                            disabled={isCopying}
+                            className={`transition-all active:scale-90 disabled:opacity-60 ${isCopying ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
+                            onClick={handleCopyImage}
+                        >
+                            {isCopying ? (
+                                <span
+                                    className="material-symbols-outlined animate-spin"
+                                    style={{ fontSize: '28px' }}
+                                >
+                                    progress_activity
+                                </span>
+                            ) : (
+                                <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>
+                                    content_copy
+                                </span>
+                            )}
+                        </button>
+                    )}
                     <CompanyAvatar src={req.providerLogo || (req as any).provider_logo || undefined} name={req.providerCompanyName || (req as any).provider_company_name || 'Provider'} size="md" className="shadow-lg transform group-hover:scale-110 transition-transform" />
                 </div>
             </div>

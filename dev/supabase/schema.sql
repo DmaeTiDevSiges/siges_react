@@ -2942,6 +2942,70 @@ $$;
 ALTER FUNCTION public.fc_orders_op_counter_trigger() OWNER TO supabase_admin;
 
 --
+-- Name: fc_orders_statuses_logs(); Type: FUNCTION; Schema: public; Owner: supabase_admin
+--
+
+CREATE FUNCTION public.fc_orders_statuses_logs() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+    v_user_id BIGINT;
+BEGIN
+    -- Guarda extra: UPDATE sem mudança real de situação não gera linha.
+    -- (a cláusula WHEN do trigger já cobre, isto é defesa dupla)
+    -- IF aninhado é obrigatório: em INSERT o record OLD não está atribuído
+    -- e qualquer tentativa de leitura levantaria erro.
+    IF TG_OP = 'UPDATE' THEN
+        IF OLD.status_id IS NOT DISTINCT FROM NEW.status_id THEN
+            RETURN NEW;
+        END IF;
+    END IF;
+
+    -- Usuário autenticado (app). Sem JWT (n8n, imports, jobs) fica NULL.
+    BEGIN
+        SELECT id INTO v_user_id
+        FROM public.users
+        WHERE uuid = auth.uid();
+    EXCEPTION WHEN OTHERS THEN
+        v_user_id := NULL;
+    END;
+
+    INSERT INTO public.orders_statuses_logs (
+        order_id,
+        order_status_id,
+        order_status_at,
+        created_user_id,
+        created_date,
+        order_parent_id,
+        company_id,
+        department_id
+    ) VALUES (
+        NEW.id,
+        NEW.status_id,
+        NEW.status_at,
+        COALESCE(v_user_id, NEW.updated_user_id, NEW.created_user_id),
+        TIMEZONE('America/Sao_Paulo', CURRENT_TIMESTAMP),
+        NULLIF(NEW.parent_id, 0),
+        NEW.company_id,
+        NEW.department_id
+    );
+
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.fc_orders_statuses_logs() OWNER TO supabase_admin;
+
+--
+-- Name: FUNCTION fc_orders_statuses_logs(); Type: COMMENT; Schema: public; Owner: supabase_admin
+--
+
+COMMENT ON FUNCTION public.fc_orders_statuses_logs() IS 'Flow: orders-statuses-log v1.1.0 — Registra em orders_statuses_logs a situação inicial (INSERT) e cada mudança real de status_id (UPDATE) em orders, cobrindo SS e OS.';
+
+
+--
 -- Name: fc_orders_replace_special_chars(); Type: FUNCTION; Schema: public; Owner: supabase_admin
 --
 
@@ -10060,7 +10124,7 @@ CREATE TABLE public.orders_statuses_logs (
     id bigint NOT NULL,
     order_id bigint,
     order_status_id bigint,
-    order_status_ate timestamp without time zone,
+    order_status_at timestamp without time zone,
     created_user_id bigint,
     created_date timestamp without time zone,
     order_parent_id bigint,
@@ -16707,6 +16771,13 @@ CREATE INDEX idx_orders_status_id ON public.orders USING btree (status_id);
 
 
 --
+-- Name: idx_orders_statuses_logs_order_id; Type: INDEX; Schema: public; Owner: supabase_admin
+--
+
+CREATE INDEX idx_orders_statuses_logs_order_id ON public.orders_statuses_logs USING btree (order_id);
+
+
+--
 -- Name: idx_orders_type_id; Type: INDEX; Schema: public; Owner: supabase_admin
 --
 
@@ -17607,6 +17678,20 @@ CREATE TRIGGER trg_order_status_inheritance AFTER UPDATE OF status_id, status_at
 --
 
 CREATE TRIGGER trg_orders_op_counter AFTER INSERT OR DELETE OR UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.fc_orders_op_counter_trigger();
+
+
+--
+-- Name: orders trg_orders_statuses_logs; Type: TRIGGER; Schema: public; Owner: supabase_admin
+--
+
+CREATE TRIGGER trg_orders_statuses_logs AFTER UPDATE OF status_id ON public.orders FOR EACH ROW WHEN ((old.status_id IS DISTINCT FROM new.status_id)) EXECUTE FUNCTION public.fc_orders_statuses_logs();
+
+
+--
+-- Name: orders trg_orders_statuses_logs_insert; Type: TRIGGER; Schema: public; Owner: supabase_admin
+--
+
+CREATE TRIGGER trg_orders_statuses_logs_insert AFTER INSERT ON public.orders FOR EACH ROW EXECUTE FUNCTION public.fc_orders_statuses_logs();
 
 
 --
@@ -22145,6 +22230,16 @@ GRANT ALL ON FUNCTION public.fc_orders_op_counter_trigger() TO postgres;
 GRANT ALL ON FUNCTION public.fc_orders_op_counter_trigger() TO anon;
 GRANT ALL ON FUNCTION public.fc_orders_op_counter_trigger() TO authenticated;
 GRANT ALL ON FUNCTION public.fc_orders_op_counter_trigger() TO service_role;
+
+
+--
+-- Name: FUNCTION fc_orders_statuses_logs(); Type: ACL; Schema: public; Owner: supabase_admin
+--
+
+GRANT ALL ON FUNCTION public.fc_orders_statuses_logs() TO postgres;
+GRANT ALL ON FUNCTION public.fc_orders_statuses_logs() TO anon;
+GRANT ALL ON FUNCTION public.fc_orders_statuses_logs() TO authenticated;
+GRANT ALL ON FUNCTION public.fc_orders_statuses_logs() TO service_role;
 
 
 --

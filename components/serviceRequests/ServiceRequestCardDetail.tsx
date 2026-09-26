@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
@@ -27,6 +28,7 @@ interface ServiceRequestCardDetailProps {
 
 export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> = ({ order: req, onClick, isFollowed, onToggleFollow, onEdit, onGenerateOS, onCancelSS, onClone, currentUser }) => {
     const { canCreate, canView, canEdit, canDelete } = usePermissions();
+    const isWeb = !Capacitor.isNativePlatform();
     const [showMenu, setShowMenu] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const statusCfg = getStatusConfig(req.statusId);
@@ -171,26 +173,29 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                 </div>
 
                 <div className="flex items-center gap-1">
-                    <button
-                        title={isCopying ? 'Gerando imagem...' : 'Copiar imagem da SS (Ctrl+C)'}
-                        aria-label="Copiar imagem da SS"
-                        disabled={isCopying}
-                        className={`transition-all active:scale-90 disabled:opacity-60 ${isCopying ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
-                        onClick={handleCopyImage}
-                    >
-                        {isCopying ? (
-                            <span
-                                className="material-symbols-outlined animate-spin"
-                                style={{ fontSize: '28px' }}
-                            >
-                                progress_activity
-                            </span>
-                        ) : (
-                            <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>
-                                content_copy
-                            </span>
-                        )}
-                    </button>
+                    {isWeb && (
+                        <button
+                            title={isCopying ? 'Gerando imagem...' : 'Copiar imagem da SS (Ctrl+C)'}
+                            aria-label="Copiar imagem da SS"
+                            disabled={isCopying}
+                            className={`transition-all active:scale-90 disabled:opacity-60 ${isCopying ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
+                            onClick={handleCopyImage}
+                        >
+                            {isCopying ? (
+                                <span
+                                    className="material-symbols-outlined animate-spin"
+                                    style={{ fontSize: '28px' }}
+                                >
+                                    progress_activity
+                                </span>
+                            ) : (
+                                <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>
+                                    content_copy
+                                </span>
+                            )}
+                        </button>
+                    )}
+
 
                     <button
                         className={`transition-all active:scale-90 ${isFollowed ? 'text-yellow-400' : 'text-slate-300 hover:text-yellow-400'}`}
