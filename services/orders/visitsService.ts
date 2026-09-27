@@ -342,6 +342,87 @@ export const visitsService = {
     },
 
     // -------------------------------------------------------------------------
+    // REASSIGN VISIT (transferência de visita OS 1 → OS 2)
+    // -------------------------------------------------------------------------
+
+    async getReassignPreview(visitId: string | number, targetOrderId: string | number): Promise<{
+        assetsAmount: number;
+        servicesAmount: number;
+        targetHasOpenVisit: boolean;
+        visitMask?: string;
+        startedAt?: string | null;
+        sourceOrderId?: string;
+    }> {
+        const [assets, services, targetVisits, visitRow] = await Promise.all([
+            supabase.from('orders_visits_assets')
+                .select('id', { count: 'exact', head: true })
+                .eq('ov_id', Number(visitId))
+                .eq('is_deleted', false),
+            supabase.from('orders_visits_services')
+                .select('id', { count: 'exact', head: true })
+                .eq('ov_id', Number(visitId))
+                .eq('is_deleted', false),
+            supabase.from('orders_visits')
+                .select('id', { count: 'exact', head: true })
+                .eq('o_id', Number(targetOrderId))
+                .eq('ov_status_id', 1)
+                .eq('is_deleted', false)
+                .is('ov_ended_at', null),
+            supabase.from('orders_visits')
+                .select('ov_mask, ov_started_at, o_id')
+                .eq('id', Number(visitId))
+                .maybeSingle()
+        ]);
+
+        return {
+            assetsAmount: assets.count ?? 0,
+            servicesAmount: services.count ?? 0,
+            targetHasOpenVisit: (targetVisits.count ?? 0) > 0,
+            visitMask: visitRow.data?.ov_mask || undefined,
+            startedAt: visitRow.data?.ov_started_at || null,
+            sourceOrderId: visitRow.data?.o_id != null ? String(visitRow.data.o_id) : undefined
+        };
+    },
+
+    async reassignOrderVisit(
+        visitId: string | number,
+        targetOrderId: string | number,
+        currentUser: User
+    ): Promise<{ newMask: string; restoredStatusId: number; sourceOrderId: string }> {
+        const { data, error } = await supabase.rpc('flow_order_visit_reassign_v1', {
+            payload: {
+                visit_id: Number(visitId),
+                user_id: Number(currentUser.id),
+                target_order_id: Number(targetOrderId)
+            }
+        });
+
+        if (error) {
+            console.error('Error reassigning visit:', error);
+            throw error;
+        }
+
+        const result = data as {
+            success: boolean;
+            message: string;
+            visit_id?: number;
+            new_mask?: string;
+            source_order_id?: number;
+            restored_status_id?: number;
+        };
+
+        if (!result.success) {
+            throw new Error(result.message || 'Erro ao transferir visita.');
+        }
+
+        return {
+            newMask: result.new_mask || '',
+            restoredStatusId: Number(result.restored_status_id ?? 0),
+            sourceOrderId: result.source_order_id?.toString() || ''
+        };
+    },
+
+    // -------------------------------------------------------------------------
     // ACTIVE VISIT
     // -------------------------------------------------------------------------
 

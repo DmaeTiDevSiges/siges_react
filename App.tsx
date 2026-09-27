@@ -2591,16 +2591,8 @@ const AppContent: React.FC = () => {
               setSelectedOrder(clonedData as any);
               setCurrentScreen('service-request-create');
             }}
-            onCancelSS={async () => {
-              if (selectedOrder && currentUser) {
-                try {
-                  await dataService.cancelServiceOrder(selectedOrder.id, currentUser.id);
-                  toast.success('Solicitação cancelada com sucesso');
-                  setCurrentScreen('orders-dashboard');
-                } catch (e) {
-                  toast.error('Erro ao cancelar solicitação');
-                }
-              }
+            onCancelSS={() => {
+              setCurrentScreen('orders-dashboard');
             }}
           />
         ) : null;
@@ -2639,16 +2631,8 @@ const AppContent: React.FC = () => {
             onEdit={() => {
               setCurrentScreen('order-create');
             }}
-            onCancel={async () => {
-              if (selectedOrder && currentUser) {
-                try {
-                  await dataService.cancelServiceOrder(selectedOrder.id, currentUser.id);
-                  toast.success('Ordem de serviço cancelada com sucesso');
-                  setCurrentScreen('orders-dashboard');
-                } catch (e) {
-                  toast.error('Erro ao cancelar ordem de serviço');
-                }
-              }
+            onCancel={() => {
+              setCurrentScreen('orders-dashboard');
             }}
             onStartVisit={() => {
               return new Promise<void>(async (resolve, reject) => {
@@ -2697,6 +2681,13 @@ const AppContent: React.FC = () => {
                   reject(new Error('Missing order or user'));
                 }
               });
+            }}
+            onVisitTransferred={() => {
+              // visita mudou de OS: recarrega a tela da visita e o usuário
+              setVisitRefreshKey(k => k + 1);
+              setLastVisitSource('order-detail');
+              setCurrentScreen('order-visit-execute');
+              dataService.getCurrentUser().then(u => { if (u) setCurrentUser(u); });
             }}
             onSelectParentOrder={handleOrderSelect}
             onSelectVisit={handleVisitSelect}

@@ -29,7 +29,7 @@ import { gamificationService } from './gamification/gamificationService';
 import { assetLoansService } from './assets/assetLoansService';
 import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
 import { loansChecklistService } from './assets/loansChecklistService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
 
 
 
@@ -1919,9 +1919,13 @@ export const dataService = {
         return ordersService.authorizeOrder.apply(ordersService, arguments as any);
     },
 
-      async cancelOrder(orderId: string, reasonId: string, userId: string, teamId: string): Promise<void> {
-    return ordersService.cancelOrder.apply(ordersService, arguments as any);
-  },
+    async hasActiveChildOrders(parentOrderId: string | number): Promise<boolean> {
+        return ordersService.hasActiveChildOrders.apply(ordersService, arguments as any);
+    },
+
+    async cancelOrder(orderId: string, reasonId: string, userId: string, teamId: string, comments?: string): Promise<void> {
+        return ordersService.cancelOrder.apply(ordersService, arguments as any);
+    },
 
 
       async scheduleOrder(orderId: string, date: string): Promise<void> {
@@ -1960,6 +1964,23 @@ export const dataService = {
 
     async startOrderVisit(order: Order, currentUser: User): Promise<void> {
         return visitsService.startOrderVisit.apply(visitsService, arguments as any);
+    },
+    async getReassignPreview(visitId: string | number, targetOrderId: string | number): Promise<{
+        assetsAmount: number;
+        servicesAmount: number;
+        targetHasOpenVisit: boolean;
+        visitMask?: string;
+        startedAt?: string | null;
+        sourceOrderId?: string;
+    }> {
+        return visitsService.getReassignPreview.apply(visitsService, arguments as any);
+    },
+    async reassignOrderVisit(
+        visitId: string | number,
+        targetOrderId: string | number,
+        currentUser: User
+    ): Promise<{ newMask: string; restoredStatusId: number; sourceOrderId: string }> {
+        return visitsService.reassignOrderVisit.apply(visitsService, arguments as any);
     },
 
     async getActiveOrderVisit(id: string): Promise<OrderVisit | null> {
@@ -2360,6 +2381,10 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
       async getServiceOrderHistory(orderId: string | number): Promise<ServiceHistoryItem[]> {
     return ordersService.getServiceOrderHistory.apply(ordersService, arguments as any);
   },
+
+    async getOrderStatusHistory(orderId: string | number): Promise<OrderStatusLogItem[]> {
+        return ordersService.getOrderStatusHistory.apply(ordersService, arguments as any);
+    },
 
 
     /**

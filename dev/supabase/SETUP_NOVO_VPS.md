@@ -59,6 +59,121 @@ NOTIFY pgrst, 'reload schema';
 SELECT 'Configuração concluída com sucesso!' AS status;
 ```
 
+## Passo 2b: Habilitar Realtime (todas as tabelas do app)
+
+O SQL acima só adiciona `users_notifications`. Os dashboards, notificações,
+chat e visita técnica assinam `postgres_changes` em mais tabelas. Aplique a
+migration idempotente (SQL Editor):
+
+```bash
+dev/supabase/migrations/20260926_enable_realtime_publication.sql
+```
+
+Ela cria a publicação se não existir e adiciona as 9 tabelas do app:
+`orders`, `orders_visits`, `users`, `users_notifications`, `orders_visits_chat`,
+`orders_visits_chat_reads`, `orders_visits_vehicles`, `orders_visits_services`,
+`cfg_units_assets_tags`.
+
+Verificação:
+
+```sql
+SELECT schemaname, tablename
+  FROM pg_publication_tables
+ WHERE pubname = 'supabase_realtime'
+ ORDER BY 1, 2;
+```
+
+### ⚠️ O serviço `realtime` não sobe (crash loop → 502 no gateway)
+
+Sintomas no log do container `realtime`:
+
+```
+** (Postgrex.Error) ERROR 42601 (syntax_error)
+    syntax error at or near "'SET search_path TO _realtime'"
+    query: 'SET search_path TO _realtime'
+...
+** (Postgrex.Error) ERROR 42P07 (duplicate_table)
+    relation "tenants" already exists
+```
+
+Causa: `DB_AFTER_CONNECT_QUERY` **com aspas fazendo parte do valor**. Em
+`env_file`/`.env` o compose **não** remove aspas (diferente do shell), então
+
+```ini
+DB_AFTER_CONNECT_QUERY='SET search_path TO _realtime'   # ERRADO
+```
+
+vira a query `'SET search_path TO _realtime'` (com aspas) → erro 42601 → o
+`search_path=_realtime` nunca é aplicado → o Ecto roda as migrations no schema
+`public` e encontra `public.tenants` (tabela antiga do Supabase) → erro 42P07 →
+boot falha → 502/503 no `/realtime/v1/api/health`.
+
+Correção (no VPS):
+
+```bash
+# 1. valor SEM aspas no compose/env do serviço realtime
+#    (na seção `environment:` do YAML, as aspas do YAML são removidas: ok)
+docker inspect <container-realtime> --format '{{range .Config.Env}}{{println .}}{{end}}' \
+  | grep DB_AFTER_CONNECT_QUERY
+
+# 2. garantir os schemas que o realtime usa
+psql -h supabase_db -U supabase_admin -d postgres -c \
+  "CREATE SCHEMA IF NOT EXISTS _realtime; CREATE SCHEMA IF NOT EXISTS realtime;"
+
+# 3. recriar o container (mudança de env exige recreate, não só restart)
+docker compose up -d --force-recreate realtime
+
+# 4. logs: as migrations devem rodar sem 42601/42P07
+docker compose logs -f --tail=100 realtime
+```
+
+Não dropar `public.tenants` — ela é antiga, é usada pelo `extensions` e não
+conflita com `_realtime.tenants`.
+
+Health check: o endpoint `/realtime/v1/api/health` não existe nas versões
+atuais (devolve 404) — o teste real é o handshake/assinatura de canais.
+
+### ⚠️ Handshake recusado com 403 (tenant ≠ Host)
+
+Depois do serviço no ar, o WebSocket ainda pode ser recusado. No código do
+realtime (`RealtimeWeb.UserSocket.connect`):
+
+```elixir
+{:ok, external_id} = Database.get_external_id(host)  -- 1º rótulo do Host
+Tenants.Cache.fetch_tenant_by_external_id(external_id)
+```
+
+Ou seja: `_realtime.tenants.external_id` precisa ser igual ao **1º rótulo do
+Host que o realtime enxerga**. O seed (`SEED_SELF_HOST`) cria apenas
+`realtime-dev`; o Kong encaminha com Host do upstream (`realtime`) ou com o host
+público (`vps...`) → `tenant_not_found` → 403 em todo canal.
+
+Correção: aplicar
+`dev/supabase/migrations/20260926_realtime_tenant_host_candidates.sql`
+(copia o tenant seed + a extension `postgres_cdc_rls`, preservando o
+`jwt_secret` encriptado) e depois
+`dev/supabase/migrations/20260926_enable_realtime_publication.sql`.
+
+Importante: o `jwt_secret` e os `settings` de `_realtime.extensions` no banco
+são **ciphertext** (encriptados com `DB_ENC_KEY`) — nunca editar/assinar JWTs
+com esses valores sem decrypt.
+
+Verificação final (todas devem dar `SUBSCRIBED`):
+
+```sql
+SELECT t.external_id, e.type
+  FROM _realtime.tenants t
+  LEFT JOIN _realtime.extensions e ON e.tenant_external_id = t.external_id
+ ORDER BY 1;
+```
+
+Após confirmar, apagar os candidatos não usados:
+
+```sql
+DELETE FROM _realtime.extensions WHERE tenant_external_id = '<id>';
+DELETE FROM _realtime.tenants    WHERE external_id        = '<id>';
+```
+
 ## Passo 3: Inserir Dados Iniciais
 
 Execute este script para popular as tabelas de configuração:

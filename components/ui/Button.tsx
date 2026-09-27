@@ -10,7 +10,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-    ({ variant = 'primary', fullWidth = false, withIcon = false, loading = false, className = '', children, ...props }, ref) => {
+        ({ variant = 'primary', fullWidth = false, withIcon = false, loading = false, className = '', children, disabled, ...props }, ref) => {
         const baseStyles = "inline-flex items-center justify-center font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2";
 
         const variants = {
@@ -22,15 +22,15 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
         const sizes = variant === 'dashed' ? "py-4 px-4" : "h-12 px-6";
         const width = fullWidth ? "w-full" : "";
-        const disabled = props.disabled || loading;
+        const disabledState = disabled || loading;
 
         return (
             <button
                 ref={ref}
-                disabled={disabled}
+                disabled={disabledState}
                 className={`
                     ${baseStyles} ${variants[variant]} ${sizes} ${width} 
-                    ${disabled ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'} 
+                    ${disabledState ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'} 
                     ${loading ? 'animate-pulse ring-2 ring-primary/20' : ''}
                     ${className}
                 `}

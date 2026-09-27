@@ -219,25 +219,46 @@ export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProp
             </div>
 
             {/* Status Badge */}
-            <div className={`flex items-center gap-2 p-2 rounded-lg mt-auto ${statusCfg.bgColor}`}>
-                <span className={`material-symbols-outlined text-lg ${statusCfg.color}`}>{statusCfg.icon}</span>
-                <div className="flex flex-col">
-                    <span className={`text-xs font-bold ${statusCfg.color}`}>{req.statusDescription || statusCfg.label}</span>
-                    <span className="text-[10px] text-slate-500">{formatGridDate(req.statusAt)}</span>
-                </div>
-                {showSyncStatusButton && isSuperAdmin && (
-                    <button
-                        type="button"
-                        title="Recalcular situação da SS pelas OSs"
-                        aria-label="Recalcular situação da SS pelas OSs"
-                        onClick={handleSyncStatus}
-                        disabled={isSyncingStatus}
-                        className="ml-auto w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white/70 dark:hover:bg-slate-700/60 transition-all active:scale-90 disabled:opacity-50 disabled:cursor-wait shrink-0"
-                    >
-                        <span className={`material-symbols-outlined text-[20px] ${isSyncingStatus ? 'animate-spin' : ''}`}>
-                            {isSyncingStatus ? 'progress_activity' : 'sync'}
+            <div className={`flex flex-col p-2.5 rounded-xl mt-auto ${statusCfg.bgColor}`}>
+                <div className="flex items-center gap-2">
+                    <span className={`material-symbols-outlined text-lg ${statusCfg.color}`}>{statusCfg.icon}</span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <span className={`text-xs font-bold ${statusCfg.color}`}>{req.statusDescription || statusCfg.label}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                            {formatGridDate(req.statusAt)}
+                            {req.statusId === 7 && req.canceledUserNameShort && ` • ${req.canceledUserNameShort}`}
                         </span>
-                    </button>
+                    </div>
+                    {showSyncStatusButton && isSuperAdmin && (
+                        <button
+                            type="button"
+                            title="Recalcular situação da SS pelas OSs"
+                            aria-label="Recalcular situação da SS pelas OSs"
+                            onClick={handleSyncStatus}
+                            disabled={isSyncingStatus}
+                            className="ml-auto w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-primary hover:bg-white/70 dark:hover:bg-slate-700/60 transition-all active:scale-90 disabled:opacity-50 disabled:cursor-wait shrink-0"
+                        >
+                            <span className={`material-symbols-outlined text-[20px] ${isSyncingStatus ? 'animate-spin' : ''}`}>
+                                {isSyncingStatus ? 'progress_activity' : 'sync'}
+                            </span>
+                        </button>
+                    )}
+                </div>
+
+                {/* Abaixo da data/hora do cancelamento e user: Motivo e Comentários */}
+                {req.statusId === 7 && (req.cancelReasonDescription || req.cancelComments) && (
+                    <div className="mt-2 pl-[31px] flex flex-col gap-1.5 text-left">
+                        {req.cancelReasonDescription && (
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight truncate" title={req.cancelReasonDescription}>
+                                {req.cancelReasonDescription}
+                            </span>
+                        )}
+                        {req.cancelComments && (
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-3" title={req.cancelComments}>
+                                "{req.cancelComments}"
+                            </p>
+                        )}
+                    </div>
                 )}
             </div>
 

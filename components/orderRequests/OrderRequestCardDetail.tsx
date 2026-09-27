@@ -19,14 +19,16 @@ interface OrderCardDetailProps {
     currentUser?: User | null;
     onClick?: () => void;
     onStartVisit?: () => void;
+    onTransferVisit?: () => void;
     onSuccess?: () => void;
     onEdit?: (order: Order) => void;
     isStartingVisit?: boolean;
+    isTransferring?: boolean;
     noBorder?: boolean;
     noShadow?: boolean;
 }
 
-export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, currentUser, onClick, onStartVisit, onSuccess, onEdit, isStartingVisit, noBorder, noShadow }) => {
+export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, currentUser, onClick, onStartVisit, onTransferVisit, onSuccess, onEdit, isStartingVisit, isTransferring, noBorder, noShadow }) => {
     const [showViewer, setShowViewer] = useState(false);
     const [viewerIndex, setViewerIndex] = useState(0);
     const statusCfg = getStatusConfig(req.statusId);
@@ -257,6 +259,32 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
                         <>
                             <span className="material-symbols-outlined text-xl">play_circle</span>
                             INICIAR VISITA
+                        </>
+                    )}
+                </button>
+            )}
+            {/* Transfer Visit Button (visita em andamento em outra OS — D10) */}
+            {onTransferVisit && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isTransferring) onTransferVisit();
+                    }}
+                    disabled={isTransferring}
+                    className={`w-full mt-4 py-3.5 text-white font-black text-sm uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${isTransferring
+                        ? 'bg-slate-400 cursor-wait'
+                        : 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700 active:scale-[0.98] hover:shadow-xl'
+                        }`}
+                >
+                    {isTransferring ? (
+                        <>
+                            <Loading size="xs" />
+                            <span>TRANSFERINDO...</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="material-symbols-outlined text-xl">swap_horiz</span>
+                            TRANSFERIR VISITA
                         </>
                     )}
                 </button>

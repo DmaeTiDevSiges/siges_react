@@ -224,11 +224,23 @@ export class ManusIntegrationService {
     // 3) Materiais
     for (const rep of visit.Reports || []) {
       for (const m of rep.Materials || []) {
-        const { data: matFound } = await supabase
+        let { data: matFound } = await supabase
           .from('materials')
           .select('id')
           .eq('finger_print', m.MaterialId)
           .maybeSingle();
+
+        // Fallback: material já cadastrado manualmente (sem finger_print) — evita duplicar pelo código
+        if (!matFound && m.Code) {
+          const { data: byCode } = await supabase
+            .from('materials')
+            .select('id')
+            .eq('code', m.Code)
+            .eq('is_deleted', false)
+            .limit(1)
+            .maybeSingle();
+          matFound = byCode || null;
+        }
 
         if (matFound) {
           await supabase.from('materials').update({
@@ -238,6 +250,7 @@ export class ManusIntegrationService {
             price_unit: m.PriceUnit,
             unit: m.Unit,
             provider_company_id: providerCompanyId,
+            finger_print: m.MaterialId,
             updated_at: getBrazilTimestamp(),
             updated_user_id: userId
           }).eq('id', matFound.id);

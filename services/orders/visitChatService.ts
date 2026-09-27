@@ -24,7 +24,26 @@ export const visitChatService = {
             return [];
         }
 
-        const messageIds = data.map((item: any) => item.id);
+        // D17 — chat não acompanha a transferência da visita: mensagens com
+        // o_id preenchido pertencem a outra ordem (a OS de origem) e ficam fora.
+        let currentOrderId: number | null = null;
+        try {
+            const { data: visitRow } = await supabase
+                .from('orders_visits')
+                .select('o_id')
+                .eq('id', parseInt(visitId))
+                .maybeSingle();
+            currentOrderId = visitRow?.o_id != null ? Number(visitRow.o_id) : null;
+        } catch {
+            currentOrderId = null;
+        }
+
+        const visible = (data || []).filter((item: any) =>
+            item.o_id == null ||
+            (currentOrderId != null && Number(item.o_id) === currentOrderId)
+        );
+
+        const messageIds = visible.map((item: any) => item.id);
         let readsMap: Record<string, { userId: string; userName: string; userAvatarUrl?: string; readAt: string }[]> = {};
 
         if (messageIds.length > 0) {
@@ -57,7 +76,7 @@ export const visitChatService = {
             }
         }
 
-        return data.map((item: any) => {
+        return visible.map((item: any) => {
             const userName = item.user?.name_short || item.user?.name_full || 'Usuario';
             const userAvatarUrl = getPublicImageUrl(item.user?.img_file_path, item.user?.img_file_name, { width: 100, height: 100, resize: 'cover' });
 

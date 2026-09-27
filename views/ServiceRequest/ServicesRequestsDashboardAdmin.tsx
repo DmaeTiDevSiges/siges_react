@@ -419,11 +419,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                     unitTypeParentId: appliedFilters.unitTypeParentId,
                     unitTypeId: appliedFilters.unitTypeId,
                     unitId: appliedFilters.unitId,
-                    orderObjectId: appliedFilters.orderObjectId,
                     orderTypeId: appliedFilters.orderTypeId,
                     orderTypeSubId: appliedFilters.orderTypeSubId,
-                    contractId: appliedFilters.contractId,
-                    orderPlanId: appliedFilters.orderPlanId,
                     orderTeamId: appliedFilters.orderTeamId,
                     assetTagId: appliedFilters.assetTagId,
                     assetTagSubId: appliedFilters.assetTagSubId,
@@ -444,8 +441,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             return;
         }
         completedOSMountHandled.current = true;
-        if (shouldInitialLoad) loadCompletedOS();
-    }, [loadCompletedOS, appliedFilters, shouldInitialLoad]);
+        loadCompletedOS();
+    }, [loadCompletedOS, appliedFilters]);
 
     const [isPendingCanceled, startCanceledTransition] = useTransition();
 
@@ -461,11 +458,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                     unitTypeParentId: appliedFilters.unitTypeParentId,
                     unitTypeId: appliedFilters.unitTypeId,
                     unitId: appliedFilters.unitId,
-                    orderObjectId: appliedFilters.orderObjectId,
                     orderTypeId: appliedFilters.orderTypeId,
                     orderTypeSubId: appliedFilters.orderTypeSubId,
-                    contractId: appliedFilters.contractId,
-                    orderPlanId: appliedFilters.orderPlanId,
                     orderTeamId: appliedFilters.orderTeamId,
                     assetTagId: appliedFilters.assetTagId,
                     assetTagSubId: appliedFilters.assetTagSubId,
@@ -486,8 +480,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             return;
         }
         canceledOSMountHandled.current = true;
-        if (shouldInitialLoad) loadCanceledOS();
-    }, [loadCanceledOS, appliedFilters, shouldInitialLoad]);
+        loadCanceledOS();
+    }, [loadCanceledOS, appliedFilters]);
 
     const leadersByCompany = React.useMemo(() => {
         const selectedContractIds = Array.isArray(appliedFilters.contractId)
@@ -717,11 +711,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             unitTypeParentId: appliedFilters.unitTypeParentId,
             unitTypeId: appliedFilters.unitTypeId,
             unitId: appliedFilters.unitId,
-            orderObjectId: appliedFilters.orderObjectId,
             orderTypeId: appliedFilters.orderTypeId,
             orderTypeSubId: appliedFilters.orderTypeSubId,
-            contractId: appliedFilters.contractId,
-            orderPlanId: appliedFilters.orderPlanId,
             orderTeamId: appliedFilters.orderTeamId,
             priorityId: appliedFilters.priorityId,
             statusId: 8,
@@ -760,11 +751,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             unitTypeParentId: appliedFilters.unitTypeParentId,
             unitTypeId: appliedFilters.unitTypeId,
             unitId: appliedFilters.unitId,
-            orderObjectId: appliedFilters.orderObjectId,
             orderTypeId: appliedFilters.orderTypeId,
             orderTypeSubId: appliedFilters.orderTypeSubId,
-            contractId: appliedFilters.contractId,
-            orderPlanId: appliedFilters.orderPlanId,
             orderTeamId: appliedFilters.orderTeamId,
             priorityId: appliedFilters.priorityId,
             statusId: 7,
@@ -1063,7 +1051,11 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     useEffect(() => {
         // 1. Refresh dashboard event
-        const handleRefresh = () => fetchDataRef.current(false, false);
+        const handleRefresh = () => {
+            fetchDataRef.current(false, false);
+            loadCompletedOSRef.current?.();
+            loadCanceledOSRef.current?.();
+        };
         window.addEventListener('refresh_dashboard', handleRefresh);
 
         // Debounced refresh: users + completed/canceled sections when orders/visits fire rapidly
@@ -1550,8 +1542,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                 )}
                             </section>
 
-                            {isNaoProgramadasOpen && (
-                                displayedUnscheduledSS.length > 0 ? (
+                            {isNaoProgramadasOpen && displayedUnscheduledSS.length > 0 && (
                                 <section className="py-0">
 
                                     <div className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
@@ -1571,15 +1562,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         ))}
                                     </div>
                                 </section>
-                                ) : (
-                                    <div className="w-full flex items-center justify-center py-10">
-                                        <div className="flex flex-col items-center">
-                                            <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">check_circle</span>
-                                            <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma SS não programada neste período</h3>
-                                            <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
-                                        </div>
-                                    </div>
-                                )
                             )}
                         </div>
                         )}
@@ -1713,7 +1695,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                 )}
                             </section>
 
-                            {isOsAbertasOpen && (
+                            {isOsAbertasOpen && displayedOpenOS.length > 0 && (
                                 <section className="py-0">
                                     <div
                                         className="flex gap-4 overflow-x-auto no-scrollbar pt-2 pb-[15px] px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
@@ -1722,26 +1704,16 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         onTouchStart={openOSCarouselScroll.onTouchStart}
                                         onClickCapture={openOSCarouselScroll.onClickCapture}
                                     >
-                                        {displayedOpenOS.length > 0 ? (
-                                            displayedOpenOS.map((os) => (
-                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
-                                                    <ServiceRequestCardListItem
-                                                        order={os}
-                                                        onClick={() => onSelectOrder?.(os)}
-                                                        showSyncStatusButton
-                                                        onStatusSynced={() => fetchData(false, true)}
-                                                    />
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="w-full flex items-center justify-center py-10">
-                                                <div className="flex flex-col items-center">
-                                                    <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">check_circle</span>
-                                                    <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma SS aberta neste período</h3>
-                                                    <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
-                                                </div>
+                                        {displayedOpenOS.map((os) => (
+                                            <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                                <ServiceRequestCardListItem
+                                                    order={os}
+                                                    onClick={() => onSelectOrder?.(os)}
+                                                    showSyncStatusButton
+                                                    onStatusSynced={() => fetchData(false, true)}
+                                                />
                                             </div>
-                                        )}
+                                        ))}
                                     </div>
                                 </section>
                             )}
@@ -1834,14 +1806,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                                 </div>
                                             ))}
                                         </div>
-                                    ) : !isPendingCompleted ? (
-                                        <div className="w-full flex items-center justify-center py-10">
-                                            <div className="flex flex-col items-center">
-                                                <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">task_alt</span>
-                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma SS concluída neste período</h3>
-                                                <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
-                                            </div>
-                                        </div>
                                     ) : null
                                 )}
                             </section>
@@ -1933,14 +1897,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                                     />
                                                 </div>
                                             ))}
-                                        </div>
-                                    ) : !isPendingCanceled ? (
-                                        <div className="w-full flex items-center justify-center py-10">
-                                            <div className="flex flex-col items-center">
-                                                <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">cancel</span>
-                                                <h3 className="font-black text-slate-200 text-lg mb-2">Nenhuma SS cancelada neste período</h3>
-                                                <p className="text-slate-400">Selecione outro período para visualizar resultados.</p>
-                                            </div>
                                         </div>
                                     ) : null
                                 )}

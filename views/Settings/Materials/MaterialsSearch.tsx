@@ -95,7 +95,7 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
         if (hasSearched && search.trim()) {
             const refresh = async () => {
                 try {
-                    const result = await dataService.getMaterials(statusFilter, search.trim(), currentUser?.companyId, 1, PAGE_SIZE);
+                    const result = await dataService.getMaterials(statusFilter, search.trim(), undefined, 1, PAGE_SIZE);
                     setMaterials(result.materials);
                     setTotal(result.total);
                     loadWarehouseStocks(result.materials.map(m => m.id));
@@ -111,7 +111,7 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
         try {
             setLoading(true);
             setError(null);
-            const result = await dataService.getMaterials(filter, term, currentUser?.companyId, 1, PAGE_SIZE);
+            const result = await dataService.getMaterials(filter, term, undefined, 1, PAGE_SIZE);
             setMaterials(result.materials);
             setTotal(result.total);
             setHasSearched(true);
@@ -146,7 +146,7 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
         const nextPage = Math.floor(materials.length / PAGE_SIZE) + 1;
         try {
             setLoadingMore(true);
-            const result = await dataService.getMaterials(statusFilter, search.trim(), currentUser?.companyId, nextPage, PAGE_SIZE);
+            const result = await dataService.getMaterials(statusFilter, search.trim(), undefined, nextPage, PAGE_SIZE);
             setMaterials(prev => [...prev, ...result.materials]);
             setTotal(result.total);
             loadWarehouseStocks(result.materials.map(m => m.id));

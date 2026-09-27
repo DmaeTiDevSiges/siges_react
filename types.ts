@@ -113,6 +113,25 @@ export interface ServiceHistoryItem {
   statusColor?: string;
 }
 
+/**
+ * Linha de orders_statuses_logs (Parte 1 — log global de situação).
+ * Cada linha guarda o estado resultante (semântica NEW): statusId/statusAt
+ * são o estado APÓS a mudança; createdAt (created_date) é quando a linha foi gravada.
+ */
+export interface OrderStatusLogItem {
+  id: string;
+  statusId: number;
+  statusAt?: string | null;
+  createdAt?: string | null;
+  userId?: string | null;
+  userName?: string;
+  statusName?: string;
+  statusIcon?: string;
+  statusIconColor?: string;
+  statusBgColor?: string;
+  orderParentId?: string | null;
+}
+
 export interface Department {
   id: string;
   companyId: string;
@@ -863,6 +882,11 @@ export interface Order {
   teamCode?: string;
   causeReasonDescription?: string;
   causeReasonId?: number;
+  cancelReasonId?: string;
+  cancelReasonDescription?: string;
+  cancelComments?: string;
+  canceledTeamCode?: string;
+  canceledUserNameShort?: string;
 
   imgFilePath?: string;
   imgFileName?: string;

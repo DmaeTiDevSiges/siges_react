@@ -1,0 +1,177 @@
+---
+name: Order Visit Reassign
+category: ordersVisits
+version: 1.0.0
+description: Fluxo de transferência de uma Visita em andamento de uma OS de origem (OS1) para outra OS de destino (OS2), preservando apenas tempo, equipe e veículo — o chat fica na OS de origem
+author: Flow System
+date: 2026-09-25
+tags:
+  - transactional
+  - orders visits
+  - reassign
+  - transfer
+  - web
+  - mobile
+---
+
+# Flow: Order Visit Reassign (Transferência de Visita)
+
+## Contexto
+
+Durante o deslocamento, o líder de equipe pode descobrir que a visita em andamento pertence a outra
+Ordem de Serviço (troca de OS 1 → OS 2). Em vez de finalizar e recriar a visita — perdendo tempo
+decorrido, equipe e veículo — o sistema **reaponta** a visita existente para a OS de destino e
+**restaura a situação anterior da OS de origem** a partir de `orders_statuses_logs`.
+
+- **RPC:** `flow_order_visit_reassign_v1(payload jsonb)`
+- **Payload:** `{ visit_id, user_id, target_order_id }`
+- **Entrada na UI (D10):** botão na **OS destino** (`OrderRequestView`), no slot que hoje fica vazio
+  quando o usuário tem visita aberta.
+- **Pré-requisito:** migration da Parte 1 (`20260925_create_orders_statuses_logs_trigger.sql`)
+  aplicada — o guard 8 lê `orders_statuses_logs`.
+- **Situações envolvidas:** a OS de origem (OS1) pode estar **Autorizada (3), Agendada (4) ou
+  Suspensa (6)** antes do início da volta — e é para esse estado, lido do log, que ela é restaurada.
+  A OS de destino (OS2) também deve estar **Autorizada (3), Agendada (4) ou Suspensa (6)** (guard 5).
+
+---
+
+## 🔐 Controle Transacional
+
+- Todos os guards (fail-fast) rodam **antes de qualquer escrita**.
+- Toda a transação (guards → escritas → retorno) ocorre em **uma única transação**.
+- Em caso de falha em qualquer etapa: **rollback completo** — OS1, OS2, visita e `users` ficam como estavam.
+- A função é `SECURITY DEFINER` e **não** depende de `app.user_id` (o log usa `auth.uid()` com fallback — P5/R2).
+
+---
+
+## 🛡️ Guards (lista única — UI e RPC)
+
+| # | Guard | Verificado em | Mensagem de erro |
+| :-- | :--- | :--- | :--- |
+| 1 | Visita existe; `ov_status_id = 1`; `ov_ended_at IS NULL`; `is_deleted = false`; `is_canceled = false` | RPC | `Visita inválida ou já finalizada.` |
+| 2 | `ov_team_leader_id = user_id` (apenas o líder da visita) | UI + RPC | `Apenas o líder da visita pode transferi-la.` |
+| 3 | `NOT EXISTS orders_visits_assets WHERE ov_id = visit AND is_deleted = false` | modal (fetch) + RPC | `A visita possui ativos registrados e não pode ser transferida.` |
+| 4 | `NOT EXISTS orders_visits_services WHERE ov_id = visit AND is_deleted = false` | modal (fetch) + RPC | `A visita possui serviços registrados e não pode ser transferida.` |
+| 5 | OS2 existe; `is_deleted = false`; `status_id IN (3, 4, 6)` — Autorizada / Agendada / Suspensa (D11) | UI + RPC | `A OS de destino deve estar Autorizada, Agendada ou Suspensa.` |
+| 6 | OS2 ≠ OS1 | UI + RPC | `A OS de destino não pode ser a OS da visita em andamento.` |
+| 7 | OS2 sem outra visita com `ov_status_id = 1` e `ov_ended_at IS NULL` | modal (fetch) + RPC | `A OS de destino já possui uma visita em andamento.` |
+| 8 | Log pré-visita da OS1 (semântica NEW → `OFFSET 1`) | RPC | `Sem histórico de situação anterior à visita. Operação indisponível para visitas iniciadas antes da ativação do log.` |
+
+**Divisão de responsabilidade:**
+
+- **UI barata** (renderiza o botão): guards 2, 5, 6 — só com dados já carregados na tela.
+- **Modal (fetch ao abrir):** guards 3, 4, 7 — busca ativos/serviços da visita e visitas abertas da OS2;
+  se algum falhar, o modal abre **bloqueado** explicando o motivo (sem botão de confirmar).
+- **RPC (autoritativa):** guards 1-8 — qualquer divergence é rejeitada no banco.
+
+---
+
+## Etapas do Fluxo
+
+### 1. Exibir o botão na OS destino
+**Quando:**
+- O usuário está autenticado e é **líder** de uma visita aberta (`ovIdInProgress` preenchido)
+- O usuário acessa a tela de detalhes de uma Ordem de Serviço (OS2)
+- OS2 ≠ OS da visita em andamento
+- `OS2.status_id ∈ {3, 4, 6}`
+
+**Ação:**
+- Em `OrderRequestCardDetail`, no lugar onde hoje só aparece `INICIAR VISITA`
+  (bloco `{onStartVisit && …}`), renderizar o botão `TRANSFERIR VISITA`
+- Ícone `swap_horiz` · cor **âmbar** (`bg-amber-500`) · label `TRANSFERIR VISITA`
+- `OrderRequestView` deixa de passar `onStartVisit` (hoje já é `undefined` com visita aberta)
+  e passa `onTransferVisit`
+
+**Resultado Esperado:**
+- Botão visível apenas nas condições acima; caso contrário, o card volta ao comportamento atual
+  (sem botão de início de visita).
+
+---
+
+### 2. Abrir o modal de transferência
+**Quando:**
+- O usuário toca em `TRANSFERIR VISITA`
+
+**Ação:**
+- Buscar: visita ativa (`ovIdInProgress`), contagem de ativos e serviços da visita,
+  visitas abertas da OS2
+- Renderizar modal `TransferVisitModal`:
+  - **Mini card da OS de origem (OS1)** — único card de informações:
+    cliente (`client_name`), unidade (`unit_description`),
+    setor/posição (`unit_asset_tag_description / sub`) e serviços solicitados (`requested_services`);
+    rodapé com a `ov_mask` da visita em andamento (sem cabeçalho/nº da OS — removido a pedido)
+  (as linhas antigas "Origem/Destino/Cliente/Unidade" foram removidas)
+  - **Preservado:** equipe, veículo, tempo de visita (o chat **não** acompanha — D17)
+  - **Aviso:** "A OS de origem voltará à situação anterior registrada no histórico"
+- Se algum guard de 3/4/7 falhar: modal abre **bloqueado** com a mensagem e apenas `Fechar`
+
+**Resultado Esperado:**
+- Usuário entende exatamente o que muda e o que é preservado antes de confirmar.
+
+---
+
+### 3. Cancelamento
+**Quando:**
+- O usuário toca em `Fechar` / fora do modal
+
+**Ação:**
+- Fechar o modal, nenhuma chamada de rede
+
+**Resultado Esperado:**
+- Retorno à tela de detalhes da OS2 sem alterações.
+
+---
+
+### 4. Confirmar a transferência
+**Quando:**
+- O usuário toca em `Confirmar` (estado `isTransferring = true`, botão desabilitado)
+
+**Ação:**
+- Chamar `dataService.reassignOrderVisit(visitId, targetOrderId, currentUser)`
+  → `visitsService.reassignOrderVisit` → `supabase.rpc('flow_order_visit_reassign_v1', { payload })`
+
+Dentro da RPC (transação única):
+
+| # | Tabela | Efeito |
+| :-- | :--- | :--- |
+| 1 | `orders` (OS2) | `ov_counter = ov_counter + 1`; visita: `ov_mask = OS2.order_mask \|\| '.' \|\| LPAD(novo_counter, 2)` |
+| 2 | `orders` (OS2) | `status_id = 5`, `status_at = now` (SP) — trigger grava a situação **5** no log |
+| 3 | `orders` (OS1) | `status_id = log.order_status_id`, `status_at = log.order_status_at` — trigger grava a **situação restaurada** |
+| 4 | `orders` (OS1) | `ov_counter`: decrementar **somente se** nenhuma visita restante usa o sufixo atual; senão `MAX(sufixos restantes)` (evita colisão de `ov_mask`) |
+| 5 | `orders_visits` | `o_id = OS2`, `ov_mask` novo — **não** altera `ov_started_at`, equipe, veículo |
+| 6 | `users` (equipe) | `o_id_in_progress = OS2`, `op_id_in_progress = OS2.parent_id`, `ov_id_in_progress_mask = novo_mask` |
+| 7 | `orders` (SS pai) | recalcular situação das SS das duas OS (trigger de herança +/ou `updateServiceRequestStatus`) |
+| 8 | notificações | seguidores da SS da OS2 (padrão de `flow_order_visit_create_v2`); opcional OS1 |
+| 9 | `orders_visits_chat` + `_participants` | mensagens antigas congeladas com `o_id = OS1`; **todos** os participantes removidos — chat não acompanha a visita (**D17**) |
+
+- Retorno: `{ success, message, visit_id, new_mask, restored_status_id, restored_status_at }`
+
+**Resultado Esperado:**
+- `success = true` → `toast.success('Visita transferida para <novo_mask>')`
+- Recarregar a visita (`getActiveOrderVisit`) e o estado do usuário (`getCurrentUser`)
+- Permanecer na tela da visita com a nova OS carregada
+
+---
+
+### 5. Tratamento de erro
+**Quando:**
+- A RPC retorna `success = false` ou falha de rede
+
+**Ação:**
+- `toast.error(result.message)` — mensagem exata vinda da RPC (tabela de guards)
+- Resetar `isTransferring = false`
+
+**Resultado Esperado:**
+- Nenhuma alteração persistida (rollback); o usuário permanece na OS destino.
+
+---
+
+## ❌ Erros Comuns
+
+| Erro | Causa | Solução |
+| :--- | :--- | :--- |
+| `Apenas o líder da visita pode transferi-la.` | usuário não é `ov_team_leader_id` | peça ao líder |
+| `A visita possui ativos/serviços registrados…` | guard 3/4 | finalize a visita na OS original |
+| `A OS de destino deve estar Autorizada, Agendada ou Suspensa.` | `status_id ∉ {3,4,6}` | autorize/agende a OS destino |
+| `A OS de destino já possui uma visita em andamento.` | guard 7 | finalize a visita da OS destino |
+| `Sem histórico de situação anterior à visita.` | guard 8 — visita anterior ao trigger (Parte 1) | limitação declarada (§11) |

@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { r2Service } from '../r2Service';
-import type { Order, User, OrderFilters, SuspendedReason, CauseReason, ServiceHistoryItem, AssetAlert } from '../../types';
+import type { Order, User, OrderFilters, SuspendedReason, CauseReason, ServiceHistoryItem, AssetAlert, OrderStatusLogItem } from '../../types';
 import { getPublicImageUrl } from '../imageUtils';
 import { usersService } from '../users/usersService';
 
@@ -2289,6 +2289,7 @@ export const ordersService = {
                 causeReasonDescription: item.cause_reason_description,
                 suspendedReasonDescription: item.suspended_reason_description,
                 cancelReasonDescription: item.cancel_reason_description,
+                cancelComments: item.cancel_comments,
                 canceledTeamCode: item.canceled_team_code,
                 canceledUserNameShort: item.canceled_user_name_short,
                 servicesValue: item.services_value,
@@ -2492,8 +2493,10 @@ export const ordersService = {
         contractId?: string | string[];
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
+        responsibleTeamId?: string | string[];
         priorityId?: string | string[];
         providerCompanyId?: string | string[];
+        causeReasonId?: string | string[];
         viewName?: string;
     }): Promise<{ data: Order[]; total: number }> {
         const page = filters?.page ?? 0;
@@ -2678,8 +2681,10 @@ export const ordersService = {
         contractId?: string | string[];
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
+        responsibleTeamId?: string | string[];
         priorityId?: string | string[];
         providerCompanyId?: string | string[];
+        causeReasonId?: string | string[];
         viewName?: string;
     }): Promise<{ data: Order[]; total: number }> {
         const page = filters?.page ?? 0;
@@ -2860,8 +2865,10 @@ export const ordersService = {
         contractId?: string | string[];
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
+        responsibleTeamId?: string | string[];
         priorityId?: string | string[];
         providerCompanyId?: string | string[];
+        causeReasonId?: string | string[];
         viewName?: string;
     }): Promise<{ data: Order[]; total: number }> {
         const page = filters?.page ?? 0;
@@ -2893,11 +2900,14 @@ export const ordersService = {
         };
 
         if (filters) {
+            // Para SS canceladas, filtramos por status_at (data do cancelamento),
+            // não por requested_at — uma SS criada antes do período mas cancelada
+            // dentro dele deve aparecer normalmente.
             if (filters.startDate) {
-                query = query.gte('requested_at', `${filters.startDate}T00:00:00`);
+                query = query.gte('status_at', `${filters.startDate}T00:00:00`);
             }
             if (filters.endDate) {
-                query = query.lte('requested_at', `${filters.endDate}T23:59:59`);
+                query = query.lte('status_at', `${filters.endDate}T23:59:59`);
             }
 
             applyFilter('system_parent_id', filters.systemParentId);
@@ -3014,6 +3024,11 @@ export const ordersService = {
                 team: item.team_code || item.team_description,
                 systemDescription: item.system_description,
                 system: item.system_description,
+                cancelReasonId: item.cancel_reason_id ? String(item.cancel_reason_id) : undefined,
+                cancelReasonDescription: item.cancel_reason_description,
+                cancelComments: item.cancel_comments,
+                canceledTeamCode: item.canceled_team_code,
+                canceledUserNameShort: item.canceled_user_name_short,
                 statusId: item.status_id ? Number(item.status_id) : 7,
                 parentId: null,
                 ovCounter: item.ov_counter
@@ -3023,28 +3038,58 @@ export const ordersService = {
         return { data: orders, total };
     },
 
-    async cancelOrder(orderId: string, reasonId: string, userId: string, teamId: string): Promise<void> {
+    async cancelOrder(orderId: string, reasonId: string, userId: string, teamId: string, comments?: string): Promise<void> {
         const { data: order } = await supabase.from('orders').select('parent_id').eq('id', orderId).single();
         const now = getBrazilTimestamp();
+        const updatePayload: any = {
+            status_id: 7,
+            status_at: now,
+            canceled_user_id: userId,
+            canceled_team_id: teamId || null,
+            canceled_at: now,
+            cancel_reason_id: reasonId,
+            unit_asset_tag_has_order: false,
+            unit_asset_tag_no_has_order_user_id: userId,
+            unit_asset_tag_no_has_order_at: now
+        };
+
+        if (comments !== undefined && comments !== null && comments.trim() !== '') {
+            updatePayload.cancel_comments = comments.trim();
+        }
+
         const { error } = await supabase
             .from('orders')
-            .update({
-                status_id: 7,
-                status_at: now,
-                canceled_user_id: userId,
-                canceled_team_id: teamId,
-                canceled_at: now,
-                cancel_reason_id: reasonId,
-                unit_asset_tag_has_order: false,
-                unit_asset_tag_no_has_order_user_id: userId,
-                unit_asset_tag_no_has_order_at: now
-            })
+            .update(updatePayload)
             .eq('id', orderId);
 
         if (error) throw error;
 
         if (order?.parent_id) {
             await this.updateServiceRequestStatus(order.parent_id.toString());
+        }
+    },
+
+    async hasActiveChildOrders(parentOrderId: string | number): Promise<boolean> {
+        try {
+            const numericId = typeof parentOrderId === 'string' ? parseInt(parentOrderId, 10) : parentOrderId;
+            if (isNaN(numericId)) return false;
+
+            const { data, error } = await supabase
+                .from('orders')
+                .select('id')
+                .eq('parent_id', numericId)
+                .eq('is_deleted', false)
+                .not('status_id', 'in', '(7,8)');
+
+            if (error) {
+                console.error('Error checking active child orders:', error);
+                return false;
+            }
+
+            return (data && data.length > 0);
+        } catch (error) {
+            console.error('Exception in hasActiveChildOrders:', error);
+            return false;
         }
     },
 
@@ -3366,6 +3411,52 @@ export const ordersService = {
         }
 
         return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+
+    /**
+     * Histórico de situações da OS/SS — consumidor do log global (Parte 1).
+     * orders_statuses_logs guarda o estado resultante de cada mudança (semântica NEW),
+     * gravado exclusivamente pela trigger trg_orders_statuses_logs.
+     */
+    async getOrderStatusHistory(orderId: string | number): Promise<OrderStatusLogItem[]> {
+        const orderIdInt = typeof orderId === 'number' ? orderId : parseInt(orderId, 10);
+        if (!orderIdInt || Number.isNaN(orderIdInt)) return [];
+
+        try {
+            const { data, error } = await supabase
+                .from('orders_statuses_logs')
+                .select(`
+                    id, order_status_id, order_status_at, created_date, created_user_id, order_parent_id,
+                    status:cfg_orders_statuses(description, icon, icon_color, background_color),
+                    user:users(name_short, name_full)
+                `)
+                .eq('order_id', orderIdInt)
+                .order('id', { ascending: false })
+                .limit(200);
+
+            if (error) throw error;
+
+            return (data || []).map((row: any) => {
+                const status = Array.isArray(row.status) ? row.status[0] : row.status;
+                const user = Array.isArray(row.user) ? row.user[0] : row.user;
+                return {
+                    id: String(row.id),
+                    statusId: Number(row.order_status_id),
+                    statusAt: row.order_status_at || null,
+                    createdAt: row.created_date || null,
+                    userId: row.created_user_id != null ? String(row.created_user_id) : null,
+                    userName: user?.name_short || user?.name_full || undefined,
+                    statusName: status?.description,
+                    statusIcon: status?.icon,
+                    statusIconColor: status?.icon_color,
+                    statusBgColor: status?.background_color,
+                    orderParentId: row.order_parent_id != null ? String(row.order_parent_id) : null
+                };
+            });
+        } catch (error) {
+            console.error('Error fetching order status history:', error);
+            return [];
+        }
     },
 
     async linkAlertsToOrder(orderId: string, alertIds: string[]): Promise<void> {

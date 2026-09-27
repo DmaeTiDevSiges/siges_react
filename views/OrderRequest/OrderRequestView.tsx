@@ -5,6 +5,7 @@ import { dataService } from '../../services/dataService';
 import { IconButton } from '../../components/ui/IconButton';
 import { Avatar } from '../../components/ui/Avatar';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
+import { OrderStatusHistoryTimeline } from '../../components/orderRequests/OrderStatusHistoryTimeline';
 import { OrderMapComponent } from '../../components/orderRequests/OrderRequestMapComponent';
 import { ServiceRequestCardDetail } from '../../components/serviceRequests/ServiceRequestCardDetail';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
@@ -12,6 +13,7 @@ import { useOrderFollow } from '../../hooks/useOrderFollow';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { Modal } from '../../components/ui/Modal';
+import { CancelOrderModal } from '../../components/orderRequests/modals/CancelOrderModal';
 import { TabsBar } from '../../components/ui/TabsBar';
 import { ManusIntegrationService, ManusImageClassification } from '../../services/manusIntegrationService';
 import { ManusVisit } from '../../types/manus';
@@ -25,6 +27,8 @@ import { OrderAssetAlerts } from './OrderAssetAlerts';
 import { OrderVisitAssetReport } from '../OrderVisit/OrderVisitAsset/OrderVisitAssetReport';
 import { OrderVisitAssetView } from '../../types';
 import { AIContextualBar } from '../../components/ai/AIContextualBar';
+import { TransferVisitModal } from '../../components/ordersVisits/TransferVisitModal';
+import { toast } from 'sonner';
 
 
 interface OrderRequestViewProps {
@@ -36,6 +40,7 @@ interface OrderRequestViewProps {
     onSelectParentOrder?: (order: Order) => void;
     onSelectVisit?: (visit: OrderVisit) => void;
     onStartVisit?: () => void;
+    onVisitTransferred?: (info: { newMask: string; sourceOrderId: string }) => void;
     onRefreshOrder?: () => void;
     activeTab?: string;
     onTabChange?: (tab: string) => void;
@@ -50,6 +55,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     onSelectParentOrder,
     onSelectVisit,
     onStartVisit,
+    onVisitTransferred,
     onRefreshOrder,
     activeTab: externalActiveTab,
     onTabChange
@@ -69,8 +75,9 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     const [showMenu, setShowMenu] = useState(false);
     const [showConfirmVisit, setShowConfirmVisit] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
-    const [isCancelling, setIsCancelling] = useState(false);
     const [isStartingVisit, setIsStartingVisit] = useState(false);
+    const [showTransferModal, setShowTransferModal] = useState(false);
+    const [isTransferring, setIsTransferring] = useState(false);
     const [parentOrder, setParentOrder] = useState<Order | null>(null);
     const [visits, setVisits] = useState<OrderVisit[]>([]);
     const [isLoadingVisits, setIsLoadingVisits] = useState(false);
@@ -108,7 +115,45 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     // Use the custom hook for follow functionality
     const { isOrderFollowed, toggleFollow } = useOrderFollow(currentUser?.id);
 
-    const tabs = ['SS', 'Visitas', 'Histórico', 'Assets', 'Alertas', 'Localização'];
+    // Transferência de visita (D10) — guards baratos de UI.
+    // O líder é validado pela RPC (guard 2b) — aqui só checamos estado/destino.
+    const hasOpenVisit = !!currentUser?.ovIdInProgress && Number(currentUser.ovIdInProgress) > 0;
+    const isVisitOrigin = !!currentUser?.oIdInProgress && currentUser.oIdInProgress === String(order.id);
+    const isEligibleStatus = [3, 4, 6].includes(Number(order.statusId));
+    const canTransfer = hasOpenVisit && !isVisitOrigin && isEligibleStatus;
+
+    console.log('[Transfer] canTransfer', {
+        hasOpenVisit,
+        isVisitOrigin,
+        isEligibleStatus,
+        statusId: order.statusId,
+        ovIdInProgress: currentUser?.ovIdInProgress,
+        oIdInProgress: currentUser?.oIdInProgress,
+        isTeamLeader: currentUser?.isTeamLeader,
+        orderId: order.id
+    });
+
+    const handleTransferConfirm = async () => {
+        if (!currentUser?.ovIdInProgress) return;
+        setIsTransferring(true);
+        try {
+            const result = await dataService.reassignOrderVisit(
+                currentUser.ovIdInProgress,
+                order.id,
+                currentUser
+            );
+            toast.success(`Visita transferida para ${result.newMask}`);
+            setShowTransferModal(false);
+            onVisitTransferred?.(result);
+            onRefreshOrder?.();
+        } catch (e: any) {
+            toast.error(e?.message || 'Erro ao transferir visita');
+        } finally {
+            setIsTransferring(false);
+        }
+    };
+
+    const tabs = ['SS', 'Visitas', 'Histórico', 'Situações', 'Assets', 'Alertas', 'Localização'];
 
     if (!canView('orders_requests')) {
         return (
@@ -266,16 +311,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
         }
     };
 
-    const handleConfirmCancel = async () => {
-        if (!onCancel) return;
-        setIsCancelling(true);
-        try {
-            await onCancel();
-        } finally {
-            setIsCancelling(false);
-            setShowCancelModal(false);
-        }
-    };
+
 
     // Realtime visits update
     useEffect(() => {
@@ -470,13 +506,28 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                     order={order}
                                     currentUser={currentUser}
                                     onStartVisit={canStartVisit ? () => setShowConfirmVisit(true) : undefined}
+                                    onTransferVisit={canTransfer ? () => setShowTransferModal(true) : undefined}
                                     onSuccess={onRefreshOrder}
                                     onEdit={onEdit}
                                     isStartingVisit={isStartingVisit}
+                                    isTransferring={isTransferring}
                                 />
                             </div>
                         );
                     })()}
+
+                    {/* Transfer Visit Confirmation Modal (D10) */}
+                    {showTransferModal && currentUser?.ovIdInProgress && (
+                        <TransferVisitModal
+                            isOpen={showTransferModal}
+                            onClose={() => setShowTransferModal(false)}
+                            visitId={currentUser.ovIdInProgress}
+                            sourceMask={currentUser.ovIdInProgressMask}
+                            targetOrder={order}
+                            confirming={isTransferring}
+                            onConfirm={handleTransferConfirm}
+                        />
+                    )}
 
                     {/* Tabs */}
                     <TabsBar tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
@@ -730,6 +781,11 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                             </div>
                         )}
 
+                        {activeTab === 'Situações' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-1">
+                                <OrderStatusHistoryTimeline orderId={order.id} />
+                            </div>
+                        )}
 
                         {activeTab === 'Assets' && (
                             <div className="py-20 text-center space-y-4 animate-in fade-in duration-500">
@@ -820,18 +876,15 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                 />,
                 document.body
             )}
-            {/* Cancel Confirmation Modal */}
-            <Modal
+            {/* Unified Cancel Order Modal (SS & OS) */}
+            <CancelOrderModal
                 isOpen={showCancelModal}
                 onClose={() => setShowCancelModal(false)}
-                onConfirm={handleConfirmCancel}
-                confirmLoading={isCancelling}
-                confirmLoadingLabel="CANCELANDO..."
-                title="Cancelar Ordem de Serviço"
-                message="Deseja realmente cancelar esta ordem de serviço? Esta ação não poderá ser desfeita."
-                confirmLabel="Sim, Cancelar"
-                cancelLabel="Não, Manter"
-                type="error"
+                order={order}
+                onSuccess={() => {
+                    setShowCancelModal(false);
+                    onCancel?.();
+                }}
             />
         </div >
     );

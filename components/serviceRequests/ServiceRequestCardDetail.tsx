@@ -12,6 +12,7 @@ import { Avatar } from '../ui/Avatar';
 import { IconButton } from '../ui/IconButton';
 import { getPriorityColor, getStatusConfig } from '../../utils/formatters';
 import { Modal } from '../ui/Modal';
+import { CancelOrderModal } from '../orderRequests/modals/CancelOrderModal';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
 interface ServiceRequestCardDetailProps {
@@ -116,18 +117,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
         setShowViewer(true);
     };
 
-    const [isCancelling, setIsCancelling] = useState(false);
 
-    const handleConfirmCancel = async () => {
-        if (!onCancelSS) return;
-        setIsCancelling(true);
-        try {
-            await onCancelSS();
-        } finally {
-            setIsCancelling(false);
-            setShowCancelModal(false);
-        }
-    };
 
     const [isCopying, setIsCopying] = useState(false);
 
@@ -287,6 +277,45 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                 </div>
             </div>
 
+            {/* Cancellation Banner */}
+            {req.statusId === 7 && (req.cancelReasonDescription || req.cancelComments) && (
+                <div className="my-3 p-3.5 rounded-2xl bg-red-50/90 dark:bg-red-950/30 border border-red-200/70 dark:border-red-800/50 text-left flex flex-col gap-2 shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/50 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
+                            <span className="material-symbols-outlined text-[20px]">cancel</span>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-400 leading-none">
+                                Motivo do Cancelamento
+                            </span>
+                            <span className="text-sm font-bold text-slate-900 dark:text-white leading-tight mt-0.5">
+                                {req.cancelReasonDescription || 'Não informado'}
+                            </span>
+                        </div>
+                        {(req.canceledUserNameShort || req.canceledTeamCode) && (
+                            <span className="ml-auto text-[10px] font-bold uppercase tracking-tight text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-200/60 dark:border-white/10 shrink-0">
+                                {req.canceledUserNameShort}{req.canceledTeamCode ? ` • ${req.canceledTeamCode}` : ''}
+                            </span>
+                        )}
+                    </div>
+                    {req.cancelComments && (
+                        <div className="pt-2.5 border-t border-red-200/50 dark:border-red-800/30 flex items-start gap-2">
+                            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[18px] shrink-0 mt-0.5">
+                                notes
+                            </span>
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-none">
+                                    Observações / Comentários
+                                </span>
+                                <p className="text-xs text-slate-700 dark:text-slate-300 italic leading-relaxed whitespace-pre-wrap mt-1">
+                                    "{req.cancelComments}"
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Situation / Footer */}
             <div className="h-px bg-slate-100 dark:bg-white/5 my-3" />
             <div className="flex justify-between items-center">
@@ -389,7 +418,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                                     </button>
                                 )}
 
-                                {onCancelSS && canView('services_requests_cancel') && (
+                                {onCancelSS && req.statusId !== 7 && canView('services_requests_cancel') && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -427,18 +456,15 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                 )
             }
 
-            {/* Cancel Confirmation Modal */}
-            <Modal
+            {/* Unified Cancel Order Modal (SS & OS) */}
+            <CancelOrderModal
                 isOpen={showCancelModal}
                 onClose={() => setShowCancelModal(false)}
-                onConfirm={handleConfirmCancel}
-                confirmLoading={isCancelling}
-                confirmLoadingLabel="CANCELANDO..."
-                title="Cancelar Solicitação"
-                message="Deseja realmente cancelar esta solicitação? Esta ação não poderá ser desfeita."
-                confirmLabel="Sim, Cancelar"
-                cancelLabel="Não, Manter"
-                type="error"
+                order={req}
+                onSuccess={() => {
+                    setShowCancelModal(false);
+                    onCancelSS?.();
+                }}
             />
         </Card >
     );

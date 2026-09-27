@@ -25,6 +25,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
     const canSave = canEdit('materials_create_edit_delete');
     const isCreating = !initialMaterial?.id;
     const [isSaving, setIsSaving] = useState(false);
+    const savingRef = React.useRef(false);
     const [warehouses, setWarehouses] = useState<{ id: string; code: string; description: string }[]>([]);
     const [form, setForm] = useState({
         description: initialMaterial?.description || '',
@@ -52,14 +53,15 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (savingRef.current) return;
 
         try {
+            savingRef.current = true;
             setIsSaving(true);
 
             const exists = await dataService.checkMaterialCodeExists(form.code, initialMaterial?.id);
             if (exists) {
                 setDuplicateModal(true);
-                setIsSaving(false);
                 return;
             }
 
@@ -67,6 +69,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
         } catch (error) {
             console.error("Error saving material", error);
         } finally {
+            savingRef.current = false;
             setIsSaving(false);
         }
     };

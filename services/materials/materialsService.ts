@@ -8,12 +8,18 @@ export const materialsService = {
         const currentUser = await usersService.getCurrentUser();
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
+        const providerCompanyId = currentUser?.companyId ? parseInt(currentUser.companyId) : null;
 
         let query = supabase
             .from('v_materials')
             .select('id, code, description, unit, price_unit, company_id, balance, finger_print, is_deleted, status_id, status_description, type_id, type_description', { count: 'exact' })
-            .eq('provider_company_id', currentUser?.companyId ? parseInt(currentUser.companyId) : 0)
             .order('description');
+
+        // Escopo por empresa prestadora do material (não aplicável se o usuário
+        // não estiver vinculado a uma empresa — antes filtrava por 0 e retornava vazio)
+        if (providerCompanyId) {
+            query = query.eq('provider_company_id', providerCompanyId);
+        }
 
         if (filter !== 'all') {
             query = query.eq('status_id', filter);
@@ -362,13 +368,18 @@ export const materialsService = {
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
+        const providerId = currentUser?.companyId ? parseInt(currentUser.companyId) : null;
+
         let query = supabase
             .from('v_materials')
             .select('*')
-            .eq('provider_company_id', currentUser?.companyId ? parseInt(currentUser.companyId) : 0)
             .eq('is_deleted', false)
             .order('description', { ascending: true })
             .range(from, to);
+
+        if (providerId) {
+            query = query.eq('provider_company_id', providerId);
+        }
 
         if (search) {
             query = query.or(`description.ilike.%${search}%,code.ilike.%${search}%`);
