@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AppTip, CreateAppTipInput, APP_TIP_SCREEN_TARGETS, APP_TIP_TARGET_MODES, AppTipTargetMode, Company, Department, Profile } from '../types';
-import { Modal } from './ui/Modal';
-import { Input } from './ui/Input';
-import { Select } from './ui/Select';
-import { Loading } from './ui/Loading';
-import { dataService } from '../services/dataService';
+import { AppTip, CreateAppTipInput, APP_TIP_SCREEN_TARGETS, APP_TIP_TARGET_MODES, AppTipTargetMode, Company, Department, Profile } from '../../types';
+import { Modal } from '../ui/Modal';
+import { Input } from '../ui/Input';
+import { Select } from '../ui/Select';
+import { Loading } from '../ui/Loading';
+import { dataService } from '../../services/dataService';
 
 interface AppTipFormProps {
     isOpen: boolean;

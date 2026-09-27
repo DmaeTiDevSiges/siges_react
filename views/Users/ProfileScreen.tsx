@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Layout } from '../../components/Layout';
+import { Layout } from '../../components/shell/Layout';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { dataService } from '../../services/dataService';
-import { toolsService } from '../../services/toolsService';
+import { toolsService } from '../../services/tools/toolsService';
 import { User, Profile, Permission, Vehicle, Company, Team, UserStatus as OrganizationStatus, UserTool, LeaderMonthlyScore, LeaderScoreBadge } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import { FaceDetectionCamera } from '../../components/ui/FaceDetectionCamera';
@@ -14,7 +14,7 @@ import { Card } from '../../components/ui/Card';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { SignaturePad } from '../../components/ui/SignaturePad';
 import { Loading } from '../../components/ui/Loading';
-import { verifyHumanFaceInImage } from '../../services/faceDetectionService';
+import { verifyHumanFaceInImage } from '../../services/ai/faceDetectionService';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
 

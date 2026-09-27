@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AIChatWindow } from './AIChatWindow.tsx';
+import { AIChatWindow } from './AIChatWindow';
 
 interface AIAssistantBubbleProps {
   currentScreen?: string;

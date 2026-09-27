@@ -9,10 +9,56 @@
 import { notifyFollowersOnOrderStatusChange } from './followers-orders-status-changed';
 import type { OrderStatusChangeInput, OrderStatusChangeResult } from './followers-orders-status-changed';
 
+// Mock do cliente Supabase: o módulo real usa `import.meta.env`, que o Jest
+// (modo CJS) não consegue interpretar. Mock por tabela, cobrindo os cenários
+// dos testes abaixo (o_id 99 = sem seguidores; demais = 2 seguidores).
+jest.mock('../../services/core/supabase', () => {
+    const payload = (table: string, state: { filters: Record<string, unknown> }) => {
+        switch (table) {
+            case 'orders_followers':
+                return { data: state.filters.o_id === 99 ? [] : [{ user_id: 7 }, { user_id: 8 }], error: null };
+            case 'orders':
+                return {
+                    data: {
+                        o_mask: '001.1.2026',
+                        requested_services: 'Troca de disjuntor',
+                        unit: { description_full: 'Unidade Matriz' },
+                        client: { name_full: 'Cliente Exemplo' },
+                        status: { description: 'Em execução' },
+                    },
+                    error: null,
+                };
+            case 'users':
+                return { data: { name_short: 'João Silva', mobile_whatsapp: '+5511999990000' }, error: null };
+            case 'users_notifications':
+                return { data: null, error: null };
+            default:
+                return { data: [], error: null };
+        }
+    };
+
+    const from = (table: string) => {
+        const state = { filters: {} as Record<string, unknown> };
+        const done = () => Promise.resolve(payload(table, state));
+        const builder = {
+            select: () => builder,
+            eq: (col: string, val: unknown) => ((state.filters[col] = val), builder),
+            insert: () => builder,
+            single: () => done(),
+            then: (
+                onfulfilled?: (value: unknown) => unknown,
+                onrejected?: (reason: unknown) => unknown
+            ) => done().then(onfulfilled, onrejected),
+        } as unknown as PromiseLike<unknown> & Record<string, unknown>;
+        return builder;
+    };
+
+    return { supabase: { from } };
+});
+
 describe('Notificar Seguidores na Alteração de Situação de OS', () => {
     beforeEach(() => {
-        // TODO: Configurar mocks do Supabase
-        // jest.mock('@/services/supabase', () => ({ ... }));
+        jest.clearAllMocks();
     });
 
     afterEach(() => {

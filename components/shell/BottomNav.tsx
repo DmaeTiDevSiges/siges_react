@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { usePermissions } from '../contexts/PermissionsContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 
 interface BottomNavProps {
   activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'tools' | 'materials' | 'manuals' | 'app-notices';

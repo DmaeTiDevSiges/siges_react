@@ -1,7 +1,7 @@
-import { supabase } from '../supabase';
-import { r2Service } from '../r2Service';
+import { supabase } from '../core/supabase';
+import { r2Service } from '../media/r2Service';
 import { Company, Client, Contract, ContractManager, ContractService, Department, Profile, Permission, Unit, OrderVisit, User } from '../../types';
-import { getPublicImageUrl } from '../imageUtils';
+import { getPublicImageUrl } from '../media/imageUtils';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { usersService } from '../users/usersService';
 

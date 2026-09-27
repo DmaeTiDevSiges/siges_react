@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { dataService } from '../services/dataService';
-import { Company, User } from '../types';
-import { getInitials } from '../utils/formatters';
-import { OptimizedImage } from './ui/OptimizedImage';
+import { dataService } from '../../services/dataService';
+import { Company, User } from '../../types';
+import { getInitials } from '../../utils/formatters';
+import { OptimizedImage } from '../ui/OptimizedImage';
 
 const getRelativeTimeShort = (isoString?: string): string => {
     if (!isoString) return '·';

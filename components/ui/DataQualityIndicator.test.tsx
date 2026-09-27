@@ -10,7 +10,7 @@ declare global {
   }
 }
 import { DataQualityIndicator } from './DataQualityIndicator';
-import { dataQualityService, DataQualityStatus } from '../../services/dataQualityService';
+import { dataQualityService, DataQualityStatus } from '../../services/core/dataQualityService';
 
 // Mock do dataQualityService para testes
 const mockDataQualityService = {

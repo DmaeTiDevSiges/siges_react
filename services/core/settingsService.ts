@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from './supabase';
 import { System, UnitType } from '../../types';
 
 // ── Cache TTL para dados de configuração (raramente mudam) ──────────────────

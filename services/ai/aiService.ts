@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { supabase } from "./supabase";
-import { dataService } from "./dataService";
-import { apiN8nService } from "./apiN8nService";
+import { supabase } from "../core/supabase";
+import { dataService } from "../dataService";
+import { apiN8nService } from "../core/apiN8nService";
 import { getPageHelp, getPageKnowledgeKeywords } from "./aiPageHelpMap";
 
 const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || "";

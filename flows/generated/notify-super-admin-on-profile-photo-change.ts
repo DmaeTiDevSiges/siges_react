@@ -11,7 +11,7 @@
  * Source file: flows/notifications/change-profile-photo.flow
  */
 
-import { supabase } from '@/services/supabase';
+import { supabase } from '../../services/core/supabase';
 
 // ============================================================================
 // INTERFACES
@@ -344,7 +344,7 @@ export async function markNotificationAsRead(
  * Example of how to use this function in a React component
  * 
  * ```typescript
- * import { notifySuperAdminOnProfilePhotoChange } from '@/flows/generated/notify-super-admin-on-profile-photo-change';
+ * import { notifySuperAdminOnProfilePhotoChange } from './notify-super-admin-on-profile-photo-change';
  * 
  * const handlePhotoChange = async (file: File) => {
  *   const result = await notifySuperAdminOnProfilePhotoChange({

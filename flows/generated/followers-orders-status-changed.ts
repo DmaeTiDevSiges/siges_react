@@ -11,7 +11,7 @@
  * Source file: flows/notifications/followers-orders-status-changed.flow
  */
 
-import { supabase } from '@/services/supabase';
+import { supabase } from '../../services/core/supabase';
 
 // ============================================================================
 // INTERFACES

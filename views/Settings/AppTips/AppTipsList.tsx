@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppTip, CreateAppTipInput, AppTipFilters, APP_TIP_SCREEN_TARGETS, APP_TIP_TARGET_MODES, AppTipTargetMode } from '../../../types';
 import { dataService } from '../../../services/dataService';
-import { AppTipForm } from '../../../components/AppTipForm';
+import { AppTipForm } from '../../../components/appTips/AppTipForm';
 import { Select } from '../../../components/ui/Select';
 import { SearchInput } from '../../../components/ui/SearchInput';
 import { Loading } from '../../../components/ui/Loading';

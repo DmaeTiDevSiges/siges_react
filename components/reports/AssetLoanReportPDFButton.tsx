@@ -6,7 +6,7 @@ import { AssetLoan, Asset } from '../../types';
 import { ChecklistItemState } from '../assetLoans/AssetLoanChecklistForm';
 import { getLogoBase64, addWhiteBackgroundToImage } from '../../utils/PdfImageUtils';
 import { dataService } from '../../services/dataService';
-import { imgproxyService } from '../../services/imgproxyService';
+import { imgproxyService } from '../../services/media/imgproxyService';
 import { FileUtils } from '../../utils/FileUtils';
 import { toast } from 'sonner';
 import { Loading } from '../ui/Loading';

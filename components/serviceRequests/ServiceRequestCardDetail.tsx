@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
 import { dataService } from '../../services/dataService';
-import { captureCardImage } from '../../services/screenshotService';
+import { captureCardImage } from '../../services/media/screenshotService';
 import { copyImageWithFallback } from '../../utils/imageClipboard';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';

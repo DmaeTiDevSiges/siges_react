@@ -4,14 +4,14 @@ import React, { useEffect, useState } from 'react';
 
 declare const __BUILD_ID__: string;
 import { Capacitor } from '@capacitor/core';
-import { Modal } from './ui/Modal';
-import { dataService } from '../services/dataService';
+import { Modal } from '../ui/Modal';
+import { dataService } from '../../services/dataService';
 import {
     getUpdateModalState,
     recordUpdateAttempt,
     resetUpdateAttempts,
     getUpdateAttemptCount
-} from '../utils/updateAppVersionReminder';
+} from '../../utils/updateAppVersionReminder';
 
 const CHECK_INTERVAL = 1000 * 60 * 5; // 5 minutes
 const BANNER_AUTO_HIDE_MS = 1000 * 60 * 5; // 5 minutes auto-hide

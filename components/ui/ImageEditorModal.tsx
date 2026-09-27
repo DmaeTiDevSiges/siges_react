@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { IconButton } from './IconButton';
 import { Button } from './Button';
-import { imgproxyService } from '../../services/imgproxyService';
+import { imgproxyService } from '../../services/media/imgproxyService';
 import { FileUtils } from '../../utils/FileUtils';
 
 

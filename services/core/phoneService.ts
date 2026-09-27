@@ -1,5 +1,5 @@
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { dataService } from './dataService';
+import { dataService } from '../dataService';
 
 const PhoneInfo = registerPlugin<{
     getPhoneNumber(): Promise<{ number: string | null; error: string | null }>;

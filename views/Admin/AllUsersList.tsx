@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../types';
 import { dataService } from '../../services/dataService';
-import { supabase } from '../../services/supabase';
+import { supabase } from '../../services/core/supabase';
 import { toast } from 'sonner';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { StatusBadge } from '../../components/ui/StatusBadge';

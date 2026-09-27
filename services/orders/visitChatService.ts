@@ -1,7 +1,7 @@
-import { supabase } from '../supabase';
+import { supabase } from '../core/supabase';
 import { OrderVisitChatMessage, OrderVisitChatParticipant } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
-import { getPublicImageUrl } from '../imageUtils';
+import { getPublicImageUrl } from '../media/imageUtils';
 
 export const visitChatService = {
     async getVisitChatMessages(visitId: string): Promise<OrderVisitChatMessage[]> {

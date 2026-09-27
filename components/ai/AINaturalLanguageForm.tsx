@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '../ui/Button';
-import { aiSsCreationService, SSSuggestion } from '../../services/aiSsCreationService';
+import { aiSsCreationService, SSSuggestion } from '../../services/ai/aiSsCreationService';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 

@@ -204,7 +204,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
             }
 
             // 4. Enviar mensagem via n8n
-            const { apiN8nService } = await import('../../services/apiN8nService');
+            const { apiN8nService } = await import('../../services/core/apiN8nService');
 
             let msgHeader = '';
             const statusLabel = isAvailable ? 'DISPONÍVEL' : 'INDISPONÍVEL';

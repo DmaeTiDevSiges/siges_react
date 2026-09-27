@@ -7,7 +7,7 @@ import { CompanyAvatar } from '../ui/CompanyAvatar';
 import { formatDateTime, getPriorityColor, getStatusConfig } from '../../utils/formatters';
 import { OrderActionManager } from './OrderActionManager';
 import { dataService } from '../../services/dataService';
-import { captureCardImage } from '../../services/screenshotService';
+import { captureCardImage } from '../../services/media/screenshotService';
 import { copyImageWithFallback } from '../../utils/imageClipboard';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';

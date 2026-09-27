@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal } from './ui/Modal';
-import { IconButton } from './ui/IconButton';
-import { dataService } from '../services/dataService';
-import { getInitials } from '../utils/formatters';
-import { UserNotification } from '../types';
-import { UserAvatar, UserStatus as AvatarStatus } from './ui/UserAvatar';
-import { Loading } from './ui/Loading';
+import { Modal } from '../ui/Modal';
+import { IconButton } from '../ui/IconButton';
+import { dataService } from '../../services/dataService';
+import { getInitials } from '../../utils/formatters';
+import { UserNotification } from '../../types';
+import { UserAvatar, UserStatus as AvatarStatus } from '../ui/UserAvatar';
+import { Loading } from '../ui/Loading';
 
 
 interface NotificationsModalProps {

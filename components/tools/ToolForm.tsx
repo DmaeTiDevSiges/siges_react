@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Tool, Material } from '../../types';
-import { toolsService } from '../../services/toolsService';
+import { toolsService } from '../../services/tools/toolsService';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
 import { Select } from '../ui/Select';

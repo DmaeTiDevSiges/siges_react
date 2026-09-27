@@ -1,9 +1,9 @@
-import { supabase } from '../supabase';
-import { apiN8nService } from '../apiN8nService';
+import { supabase } from '../core/supabase';
+import { apiN8nService } from '../core/apiN8nService';
 import { User, UserStatus, Permission, Team, Department, Vehicle } from '../../types';
-import { getPublicImageUrl } from '../imageUtils';
-import { r2Service } from '../r2Service';
-import { compressForUpload } from '../imageCompressionService';
+import { getPublicImageUrl } from '../media/imageUtils';
+import { r2Service } from '../media/r2Service';
+import { compressForUpload } from '../media/imageCompressionService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 let currentUserPromise: Promise<User | null> | null = null;
@@ -947,7 +947,7 @@ export const usersService = {
 
                 if (oldFullFile && !oldFullFile.includes('settings/images')) {
                     try {
-                        const { r2Service } = await import('../r2Service');
+                        const { r2Service } = await import('../media/r2Service');
                         await r2Service.deleteFile(oldFullFile);
                     } catch (delError) {
                         console.warn("Could not delete old avatar from R2:", delError);
@@ -1265,7 +1265,7 @@ export const usersService = {
 
                 // Sync phone number from device
                 try {
-                    const { syncPhoneNumber } = await import('../phoneService');
+                    const { syncPhoneNumber } = await import('../core/phoneService');
                     await syncPhoneNumber(data.user.id, existingUser?.mobile);
                 } catch (phoneErr) {
                     console.error('Phone sync failed:', phoneErr);

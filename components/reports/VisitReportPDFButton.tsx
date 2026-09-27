@@ -5,7 +5,7 @@ import { FileUtils } from '../../utils/FileUtils';
 import { dataService } from '../../services/dataService';
 import { VisitReportDocument, VisitReportData } from './VisitReportDocument';
 import { urlsToBase64, getLogoBase64, addWhiteBackgroundToImage } from '../../utils/PdfImageUtils';
-import { imgproxyService } from '../../services/imgproxyService';
+import { imgproxyService } from '../../services/media/imgproxyService';
 import { FaFilePdf } from 'react-icons/fa';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
 import { Loading } from '../ui/Loading';

@@ -1,5 +1,5 @@
-import { supabase } from '../supabase';
-import { getPublicImageUrl } from '../imageUtils';
+import { supabase } from '../core/supabase';
+import { getPublicImageUrl } from '../media/imageUtils';
 import type { LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore } from '../../types';
 
 const BADGE_DEFINITIONS = {

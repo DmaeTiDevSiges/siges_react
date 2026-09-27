@@ -1,6 +1,6 @@
 import React from 'react';
 import { FaFilePdf } from 'react-icons/fa';
-import { Loading } from '../ui/Loading';
+import { Loading } from './Loading';
 
 interface PDFButtonProps {
     onClick: () => void;

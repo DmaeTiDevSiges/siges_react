@@ -1,6 +1,6 @@
-import { supabase } from './supabase';
-import { Tool, UserTool, ToolMovement } from '../types';
-import { getPublicImageUrl } from './imageUtils';
+import { supabase } from '../core/supabase';
+import { Tool, UserTool, ToolMovement } from '../../types';
+import { getPublicImageUrl } from '../media/imageUtils';
 
 export const toolsService = {
   // ---------------------------------------------------------

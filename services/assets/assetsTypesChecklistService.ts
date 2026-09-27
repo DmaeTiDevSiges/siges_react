@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../core/supabase';
 import { AssetLoanChecklistType } from '../../types';
 
 export const assetsTypesChecklistService = {

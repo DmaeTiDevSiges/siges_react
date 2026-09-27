@@ -16,7 +16,7 @@ import { UnitAssetTagForm } from '../../../Units/UnitAssetTagForm';
 import { PhotoViewer } from '../../../../components/ui/PhotoViewer';
 import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { toast } from 'sonner';
-import { apiN8nService } from '../../../../services/apiN8nService';
+import { apiN8nService } from '../../../../services/core/apiN8nService';
 import { Loading } from '../../../../components/ui/Loading';
 import { useDraggableScroll } from '../../../../hooks/useDraggableScroll';
 

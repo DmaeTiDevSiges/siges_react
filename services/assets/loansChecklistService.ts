@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../core/supabase';
 import { LoansChecklist, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../../types';
 
 const mapChecklist = (item: any): LoansChecklist => ({

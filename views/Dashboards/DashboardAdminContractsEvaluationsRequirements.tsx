@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { dataService } from '../../services/dataService';
-import { supabase } from '../../services/supabase';
+import { supabase } from '../../services/core/supabase';
 import { Contract, Client, OrderVisit, EvaluationRequirement, ContractEvaluationRequirement, OrderVisitEvaluation } from '../../types';
 import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';

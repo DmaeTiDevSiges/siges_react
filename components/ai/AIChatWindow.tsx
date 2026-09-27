@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { aiService } from '../../services/aiService';
-import { supabase } from '../../services/supabase';
+import { aiService } from '../../services/ai/aiService';
+import { supabase } from '../../services/core/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { getPageHelp } from '../../services/aiPageHelpMap';
-import { captureScreen, compressScreenshot, isScreenshotSupported } from '../../services/screenshotService';
+import { getPageHelp } from '../../services/ai/aiPageHelpMap';
+import { captureScreen, compressScreenshot, isScreenshotSupported } from '../../services/media/screenshotService';
 
 interface Message {
   role: 'user' | 'assistant';

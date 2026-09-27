@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataService } from '../../services/dataService';
-import { aiVisitAssistantService, VisitContext, ChatMessage } from '../../services/aiVisitAssistantService';
+import { aiVisitAssistantService, VisitContext, ChatMessage } from '../../services/ai/aiVisitAssistantService';
 import { Loading } from '../ui/Loading';
 import type { OrderVisit, OrderVisitAssetView, OrderVisitTeam, OrderVisitVehicle, OrderVisitService } from '../../types';
 

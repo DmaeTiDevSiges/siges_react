@@ -1,9 +1,9 @@
-import { supabase } from '../supabase';
-import { r2Service } from '../r2Service';
+import { supabase } from '../core/supabase';
+import { r2Service } from '../media/r2Service';
 import { Asset, AssetAlert, AssetHistoryItem } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { unitsService } from '../core/unitsService';
-import { getPublicImageUrl } from '../imageUtils';
+import { getPublicImageUrl } from '../media/imageUtils';
 import { formatDateTime } from '../../utils/formatters';
 import { assetAttributesService } from './assetAttributesService';
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { SystemNotice } from '../types';
-import { useAppNotices } from '../hooks/useAppNotices';
-import { Modal } from './ui/Modal';
+import { SystemNotice } from '../../types';
+import { useAppNotices } from '../../hooks/useAppNotices';
+import { Modal } from '../ui/Modal';
 
 interface AppNoticeTickerProps {
   dashboard?: string;

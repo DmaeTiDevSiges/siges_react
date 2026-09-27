@@ -1,6 +1,6 @@
-import { supabase } from './supabase';
-import { apiN8nService } from './apiN8nService';
-import type { OrderVisit, OrderVisitAssetView, OrderVisitTeam, OrderVisitVehicle, OrderVisitService } from '../types';
+import { supabase } from '../core/supabase';
+import { apiN8nService } from '../core/apiN8nService';
+import type { OrderVisit, OrderVisitAssetView, OrderVisitTeam, OrderVisitVehicle, OrderVisitService } from '../../types';
 
 const VISIT_ASSISTANT_ENDPOINT = import.meta.env.VITE_API_N8N_WEBHOOK_VISIT_ASSISTANT || 'webhook/siges-visit-assistant';
 

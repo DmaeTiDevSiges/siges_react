@@ -3,7 +3,7 @@
  * Utilitários de URL de imagem sem dependência circular.
  * Usado por dataService.ts, usersService.ts, ordersService.ts, toolsService.ts, etc.
  */
-import { supabase } from './supabase';
+import { supabase } from '../core/supabase';
 
 export interface PublicImageUrlOptions {
     width?: number;

@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from './supabase';
 import { AppTip, CreateAppTipInput, AppTipFilters, AppTipTargetMode } from '../../types';
 
 export const appTipsService = {

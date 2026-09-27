@@ -368,7 +368,7 @@ export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
                     readonly={isReturned || (activeTab === 'before' && isActive)}
                     canDeleteImages={canDeleteImages}
                     hideSaveButton={(activeTab === 'before' && hasDeliverySignature) || (activeTab === 'after' && hasReturnSignature)}
-                    canSave={canCreate('assets_loans_create_update_delete')}
+                    canSave={canCreate('assets_loans')}
                     userId={currentUser?.id}
                     items={activeTab === 'before' ? beforeItems ?? undefined : afterItems ?? undefined}
                     onSave={handleChecklistSave}
@@ -419,7 +419,7 @@ export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
                             )}
                         </div>
                     ) : (
-                        canCreate('assets_loans_create_update_delete') && (
+                        canCreate('assets_loans') && (
                         <button
                             onClick={() => { setSignerName(loan.borrowerName || ''); setSigningType('delivery'); }}
                             className="w-full py-3 text-xs font-bold text-primary bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
@@ -475,7 +475,7 @@ export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
                             )}
                         </div>
                     ) : (
-                        canCreate('assets_loans_create_update_delete') && (
+                        canCreate('assets_loans') && (
                         <button
                             onClick={() => { setSignerName(''); setSigningType('return'); }}
                             className="w-full py-3 text-xs font-bold text-primary bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
@@ -489,7 +489,7 @@ export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
             )}
 
             <div className="flex gap-3 pt-4">
-                {isPending && canCreate('assets_loans_create_update_delete') && (
+                {isPending && canCreate('assets_loans') && (
                     <button
                         onClick={handleActivate}
                         disabled={isActivating || !checklistSaved || !loan.signatureDeliveryPath}
@@ -510,7 +510,7 @@ export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
                     </button>
                 )}
                 
-                {isActive && activeTab === 'after' && canCreate('assets_loans_create_update_delete') && (
+                {isActive && activeTab === 'after' && canCreate('assets_loans') && (
                     <button
                         onClick={handleReturn}
                         disabled={isReturning || !afterChecklistComplete || !loan.signatureReturnPath}

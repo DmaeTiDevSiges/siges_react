@@ -1,6 +1,6 @@
-import { supabase } from '../supabase';
+import { supabase } from './supabase';
 import { UserNotification } from '../../types';
-import { getPublicImageUrl } from '../imageUtils';
+import { getPublicImageUrl } from '../media/imageUtils';
 
 export const notificationsService = {
     async getNotificationsCount(authUserId?: string): Promise<number> {

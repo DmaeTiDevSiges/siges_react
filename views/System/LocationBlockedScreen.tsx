@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { MdGpsFixed, MdSettings, MdRefresh, MdBatteryChargingFull, MdLocationOn } from 'react-icons/md';
 import { Capacitor } from '@capacitor/core';
-import { permissionService } from '../../services/permissionService';
+import { permissionService } from '../../services/core/permissionService';
 import { detectManufacturer, getManufacturerGuide } from '../../utils/manufacturerGuide';
 
 interface LocationBlockedScreenProps {

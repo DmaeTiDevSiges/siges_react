@@ -6,7 +6,7 @@ import { ImageUploadSheet } from '../ui/ImageUploadSheet';
 import { ImageEditorModal } from '../ui/ImageEditorModal';
 import { Loading } from '../ui/Loading';
 import { Modal } from '../ui/Modal';
-import { r2Service } from '../../services/r2Service';
+import { r2Service } from '../../services/media/r2Service';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
 

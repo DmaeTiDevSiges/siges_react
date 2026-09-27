@@ -1,5 +1,5 @@
 import React, { createContext, useEffect, useState, ReactNode } from 'react';
-import { dataQualityService, DataQualityStatus, DataQualityChangeCallback } from '../services/dataQualityService';
+import { dataQualityService, DataQualityStatus, DataQualityChangeCallback } from '../services/core/dataQualityService';
 
 export interface DataQualityContextType {
   dataQualityStatus: DataQualityStatus;

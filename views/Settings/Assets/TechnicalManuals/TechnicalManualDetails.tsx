@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TechnicalManual, TechnicalManualFile, TechnicalManualAsset, TechnicalManualCategory } from '../../../../types';
 import { dataService } from '../../../../services/dataService';
-import { getPublicImageUrl } from '../../../../services/imageUtils';
+import { getPublicImageUrl } from '../../../../services/media/imageUtils';
 import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { Button } from '../../../../components/ui/Button';
 import { SearchInput } from '../../../../components/ui/SearchInput';

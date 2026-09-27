@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { AppTip } from '../types';
-import { useAppTips } from '../hooks/useAppTips';
-import { Modal } from './ui/Modal';
+import { AppTip } from '../../types';
+import { useAppTips } from '../../hooks/useAppTips';
+import { Modal } from '../ui/Modal';
 
 interface AppTipBannerProps {
     screenKey: string;

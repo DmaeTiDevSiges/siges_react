@@ -1,5 +1,5 @@
-import { supabase } from '../supabase';
-import { r2Service } from '../r2Service';
+import { supabase } from '../core/supabase';
+import { r2Service } from '../media/r2Service';
 import { TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset } from '../../types';
 
 export const technicalManualsService = {

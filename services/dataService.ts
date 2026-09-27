@@ -1,6 +1,6 @@
 // Data Service for SIGES application
-import { supabase } from './supabase';
-import { r2Service } from './r2Service';
+import { supabase } from './core/supabase';
+import { r2Service } from './media/r2Service';
 import { materialsService } from './materials/materialsService';
 import { warehouseService } from './materials/warehouseService';
 import { purchasesService } from './materials/purchasesService';
@@ -21,7 +21,7 @@ import { settingsService } from './core/settingsService';
 import { dashboardService } from './core/dashboardService';
 import { maintenancePlansService } from './core/maintenancePlansService';
 import { orderConfigService } from './core/orderConfigService';
-import { toolsService } from './toolsService';
+import { toolsService } from './tools/toolsService';
 import { technicalManualsService } from './assets/technicalManualsService';
 import { appNoticesService } from './core/appNoticesService';
 import { appTipsService } from './core/appTipsService';
@@ -1425,7 +1425,7 @@ export const dataService = {
 
             if (existingUnit?.img_file_path && existingUnit?.img_file_name) {
                 const oldPath = `${existingUnit.img_file_path}/${existingUnit.img_file_name}`;
-                const { addVariantToPath } = await import('./imageUtils');
+                const { addVariantToPath } = await import('./media/imageUtils');
                 await r2Service.deleteFiles([
                     oldPath,
                     addVariantToPath(oldPath, 'thumb'),

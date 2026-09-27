@@ -5,13 +5,13 @@ import { UserVisitsPanel } from '../../components/ui/UserVisitsPanel';
 import { GamificationBadge } from '../../components/ui/GamificationBadge';
 import { GamificationHistoryModal } from '../../components/ui/GamificationHistoryModal';
 import { dataService } from '../../services/dataService';
-import { supabase } from '../../services/supabase';
+import { supabase } from '../../services/core/supabase';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
 import { getProcessingStatus } from '../../components/ordersVisits/OrderVisitProcessingButton';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 import { Loading } from '../../components/ui/Loading';
 import { TabsBar } from '../../components/ui/TabsBar';
-import { syncPhoneNumber } from '../../services/phoneService';
+import { syncPhoneNumber } from '../../services/core/phoneService';
 import { AIContextualBar } from '../../components/ai/AIContextualBar';
 
 interface DashboardScreenProps {

@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../core/supabase';
 import { usersService } from '../users/usersService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 

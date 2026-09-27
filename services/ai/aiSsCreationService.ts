@@ -1,5 +1,5 @@
-import { apiN8nService } from './apiN8nService';
-import { dataService } from './dataService';
+import { apiN8nService } from '../core/apiN8nService';
+import { dataService } from '../dataService';
 
 const SS_CREATION_ENDPOINT = import.meta.env.VITE_API_N8N_WEBHOOK_SS_CREATION || 'webhook/siges-ss-creation-assistant';
 

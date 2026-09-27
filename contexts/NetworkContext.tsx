@@ -1,5 +1,5 @@
 import React, { createContext, useEffect, useState, ReactNode } from 'react';
-import { networkService, NetworkStatus, ConnectionType } from '../services/networkService';
+import { networkService, NetworkStatus, ConnectionType } from '../services/core/networkService';
 import { DataQualityProvider, DataQualityContextType } from './DataQualityContext';
 
 export interface NetworkContextType {

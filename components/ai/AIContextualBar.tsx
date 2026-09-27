@@ -14,15 +14,15 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { aiService } from '../../services/aiService';
+import { aiService } from '../../services/ai/aiService';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   aiSuggestionEngine,
   Suggestion,
   ScreenContext,
   fireSuggestionSelected,
-} from '../../services/aiSuggestionEngine';
-import { getPageHelp } from '../../services/aiPageHelpMap';
+} from '../../services/ai/aiSuggestionEngine';
+import { getPageHelp } from '../../services/ai/aiPageHelpMap';
 
 // ─── Props ──────────────────────────────────────────────────────────
 

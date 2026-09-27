@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../core/supabase';
 import { AssetAttribute, TypeAttributeConfig } from '../../types';
 
 export const assetAttributesService = {

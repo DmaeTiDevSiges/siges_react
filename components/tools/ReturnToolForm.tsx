@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserTool } from '../../types';
-import { toolsService } from '../../services/toolsService';
+import { toolsService } from '../../services/tools/toolsService';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';

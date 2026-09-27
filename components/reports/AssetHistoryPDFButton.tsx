@@ -5,7 +5,7 @@ import { FaFilePdf } from 'react-icons/fa';
 import { AssetHistoryDocument } from './AssetHistoryDocument';
 import { Asset, AssetHistoryItem } from '../../types';
 import { urlsToBase64 } from '../../utils/PdfImageUtils';
-import { imgproxyService } from '../../services/imgproxyService';
+import { imgproxyService } from '../../services/media/imgproxyService';
 import { FileUtils } from '../../utils/FileUtils';
 import { Loading } from '../ui/Loading';
 

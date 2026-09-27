@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { OrderVisit, OrderVisitTeam, User, Order, OrderVisitAssetView } from '../../types';
 import { dataService } from '../../services/dataService';
-import { supabase } from '../../services/supabase';
+import { supabase } from '../../services/core/supabase';
 import { OrderVisitCardDetail } from '../../components/ordersVisits/OrderVisitCardDetail';
-import { Header } from '../../components/Header';
+import { Header } from '../../components/shell/Header';
 import { toast } from 'sonner';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { AccessDenied } from '../../components/permissions/AccessDenied';

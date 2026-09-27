@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { getInitials } from '../../utils/formatters';
 import { haversineDistance, formatDistance } from '../../utils/geo';
-import { UsersTeamsLeadersByCompanyId } from '../../components/UsersTeamsLeadersByCompanyId';
+import { UsersTeamsLeadersByCompanyId } from '../../components/users/UsersTeamsLeadersByCompanyId';
 import { Capacitor } from '@capacitor/core';
 
 /**

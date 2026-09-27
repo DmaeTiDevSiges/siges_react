@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from './supabase';
 import { OrderFilters } from '../../types';
 
 export const dashboardService = {

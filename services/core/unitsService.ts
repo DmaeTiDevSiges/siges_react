@@ -1,6 +1,6 @@
-import { supabase } from '../supabase';
+import { supabase } from './supabase';
 import { Unit } from '../../types';
-import { getPublicImageUrl } from '../imageUtils';
+import { getPublicImageUrl } from '../media/imageUtils';
 
 export const unitsService = {
     async searchUnits(search: string = '', limit: number = 50): Promise<Unit[]> {

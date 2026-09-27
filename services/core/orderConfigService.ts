@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from './supabase';
 import { Activity, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Route, Service } from '../../types';
 
 // ── Cache TTL para tipos de OS (raramente mudam) ───────────────────────

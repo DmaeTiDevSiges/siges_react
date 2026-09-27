@@ -1,7 +1,7 @@
-import { supabase } from '../supabase';
+import { supabase } from './supabase';
 import { MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, OrderVisitAssetActivity } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
-import { r2Service } from '../r2Service';
+import { r2Service } from '../media/r2Service';
 
 export const maintenancePlansService = {
     // ── Plans ───────────────────────────────────────────────────

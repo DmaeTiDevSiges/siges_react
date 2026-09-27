@@ -14,7 +14,7 @@ import { ServiceRequestCardListItem } from '../../components/serviceRequests/Ser
 import { Avatar } from '../../components/ui/Avatar';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { useOrderFollow } from '../../hooks/useOrderFollow';
-import { OrdersVisitsDashboardAdmin } from '../../views/Dashboards/OrdersVisitsDashboardAdmin';
+import { OrdersVisitsDashboardAdmin } from '../Dashboards/OrdersVisitsDashboardAdmin';
 import { OrderVisit, OrderVisitTeam } from '../../types';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { OrdersListPDFButton } from '../../components/reports/OrdersListPDFButton';

@@ -1,12 +1,12 @@
 import React from 'react';
 import { Header } from './Header';
-import { UserProfileHeader } from './ui/UserProfileHeader';
-import { Loading } from './ui/Loading';
-import { ScrollToTopButton } from './ui/ScrollToTopButton';
-import { AppNoticeTicker } from './AppNoticeTicker';
-import { AppTipBanner } from './AppTipBanner';
-import { AIAssistantBubble } from './ai/AIAssistantBubble';
-import { User } from '../types';
+import { UserProfileHeader } from '../ui/UserProfileHeader';
+import { Loading } from '../ui/Loading';
+import { ScrollToTopButton } from '../ui/ScrollToTopButton';
+import { AppNoticeTicker } from '../appNotices/AppNoticeTicker';
+import { AppTipBanner } from '../appTips/AppTipBanner';
+import { AIAssistantBubble } from '../ai/AIAssistantBubble';
+import { User } from '../../types';
 
 interface LayoutProps {
   children: React.ReactNode;

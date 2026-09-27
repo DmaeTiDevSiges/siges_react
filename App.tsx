@@ -2,204 +2,138 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { NetworkProvider } from './contexts/NetworkContext';
 import { useNetworkStatus, useNetworkAndQuality, useQualityNotifications } from './hooks/useNetworkStatus';
 import { useNetworkAndQuality as useCombinedNetwork } from './hooks/useNetworkAndQuality';
-import { Layout } from './components/Layout';
-import { BottomNav } from './components/BottomNav';
+import { Layout } from './components/shell/Layout';
+import { BottomNav } from './components/shell/BottomNav';
 import { Button } from './components/ui/Button';
-import { SplashScreen } from './components/SplashScreen';
+import { SplashScreen } from './components/shell/SplashScreen';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
-import UpdateNotifier from './components/UpdateNotifier';
+import UpdateNotifier from './components/shell/UpdateNotifier';
 import { dataService } from './services/dataService';
 import { usePermissions } from './contexts/PermissionsContext';
-import { permissionService } from './services/permissionService';
-import { Sidebar } from './components/Sidebar';
-import { DashboardTabs } from './components/DashboardTabs';
+import { permissionService } from './services/core/permissionService';
+import { Sidebar } from './components/shell/Sidebar';
+import { DashboardTabs } from './components/dashboards/DashboardTabs';
 import { AppSettings } from './views/Settings/AppSettings';
 import { LoginScreen } from './views/Users/LoginScreen';
 import { Toaster, toast } from 'sonner';
 import { Company, Client, Department, Team, User, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Contract, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, Asset, UserNotification, Order, OrderVisit, OrderVisitAssetView } from './types';
-
-export function isChunkLoadError(err: unknown): boolean {
-  const msg =
-    (err instanceof Error ? `${err.name}: ${err.message}` : String(err)) +
-    ((err as { stack?: string })?.stack || '');
-  return (
-    msg.includes('Failed to fetch dynamically imported module') ||
-    msg.includes('Importing a module script failed') ||
-    msg.includes('Loading chunk') ||
-    msg.includes('Loading CSS chunk') ||
-    msg.includes('ChunkLoadError')
-  );
-}
-
-function forceCleanReloadOnce(): boolean {
-  // A new deploy deletes old hashed chunks (e.g. OrdersRequestsDashboardAdmin-<old>.js).
-  // A client holding a stale index.html/SW cache retries the SAME dead URL forever,
-  // so retrying import() is useless — reload once (guarded) to fetch the new index.html.
-  try {
-    const key = 'siges-chunk-reload';
-    if (sessionStorage.getItem(key)) return false;
-    sessionStorage.setItem(key, String(Date.now()));
-  } catch {
-    // sessionStorage unavailable (private mode) — still reload, ErrorBoundary guards loops.
-  }
-  try {
-    const url = new URL(window.location.href);
-    url.searchParams.set('t', Date.now().toString());
-    window.location.replace(url.toString());
-  } catch {
-    window.location.reload();
-  }
-  return true;
-}
-
-function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any> }>, retries = 2) {
-  return React.lazy(() => {
-    return new Promise<{ default: React.ComponentType<any> }>((resolve, reject) => {
-      const attempt = (remaining: number) => {
-        factory()
-          .then((mod) => {
-            try {
-              sessionStorage.removeItem('siges-chunk-reload');
-            } catch {}
-            resolve(mod);
-          })
-          .catch((err) => {
-            if (isChunkLoadError(err)) {
-              // Stale hashed chunk (new deploy) or Cloudflare challenge HTML served
-              // as JS: retrying the URL won't help — do one clean reload.
-              if (forceCleanReloadOnce()) return;
-              reject(err);
-              return;
-            }
-            if (remaining > 0) {
-              setTimeout(() => attempt(remaining - 1), 1000);
-            } else {
-              reject(err);
-            }
-          });
-      };
-      attempt(retries);
-    });
-  });
-}
-
-// Lazy Loaded Views (Fase 1 de Otimização de Performance)
-const CompaniesList = lazyWithRetry(() => import('./views/Settings/Companies/CompaniesList').then(m => ({ default: m.CompaniesList })));
-const CompanyDetails = lazyWithRetry(() => import('./views/Settings/Companies/CompanyDetails').then(m => ({ default: m.CompanyDetails })));
-const CompanyForm = lazyWithRetry(() => import('./views/Settings/Companies/CompanyForm').then(m => ({ default: m.CompanyForm })));
-const DepartmentForm = lazyWithRetry(() => import('./views/Departments/DepartmentForm').then(m => ({ default: m.DepartmentForm })));
-const DepartmentDetails = lazyWithRetry(() => import('./views/Departments/DepartmentDetails').then(m => ({ default: m.DepartmentDetails })));
-const TeamForm = lazyWithRetry(() => import('./views/Teams/TeamForm').then(m => ({ default: m.TeamForm })));
-const TeamDetails = lazyWithRetry(() => import('./views/Teams/TeamDetails').then(m => ({ default: m.TeamDetails })));
-const ClientsList = lazyWithRetry(() => import('./views/Settings/Clients/ClientsList').then(m => ({ default: m.ClientsList })));
-const ClientDetails = lazyWithRetry(() => import('./views/Settings/Clients/ClientDetails').then(m => ({ default: m.ClientDetails })));
-const ClientForm = lazyWithRetry(() => import('./views/Settings/Clients/ClientForm').then(m => ({ default: m.ClientForm })));
-const UserForm = lazyWithRetry(() => import('./views/Users/UserForm').then(m => ({ default: m.UserForm })));
-const ProfileScreen = lazyWithRetry(() => import('./views/Users/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
-const ForgotPasswordScreen = lazyWithRetry(() => import('./views/Users/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
-const ResetPasswordScreen = lazyWithRetry(() => import('./views/Users/ResetPasswordScreen').then(m => ({ default: m.ResetPasswordScreen })));
-const DashboardScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersUserScreen').then(m => ({ default: m.DashboardScreen })));
-const OrdersVisitsDashboardAdmin = lazyWithRetry(() => import('./views/Dashboards/OrdersVisitsDashboardAdmin').then(m => ({ default: m.OrdersVisitsDashboardAdmin })));
-const DashboardOrdersVisitsTodayScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersVisitsTodayScreen').then(m => ({ default: m.DashboardOrdersVisitsTodayScreen })));
-const DashboardUnitsPowerElectric = lazyWithRetry(() => import('./views/Dashboards/DashboardUnitsPowerElectric').then(m => ({ default: m.DashboardUnitsPowerElectric })));
-const DashboardUnitsAssetsTags = lazyWithRetry(() => import('./views/Dashboards/DashboardUnitsAssetsTags').then(m => ({ default: m.DashboardUnitsAssetsTags })));
-const DashboardOrdersAdminCalendarScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardOrdersAdminCalendarScreen').then(m => ({ default: m.DashboardOrdersAdminCalendarScreen })));
-const DashboardServicesAdminScreen = lazyWithRetry(() => import('./views/Dashboards/DashboardServicesAdminScreen').then(m => ({ default: m.DashboardServicesAdminScreen })));
-const DashboardAdminContractsEvaluationsRequirements = lazyWithRetry(() => import('./views/Dashboards/DashboardAdminContractsEvaluationsRequirements').then(m => ({ default: m.DashboardAdminContractsEvaluationsRequirements })));
-const LeaderRankingDashboard = lazyWithRetry(() => import('./views/Dashboards/LeaderRankingDashboard').then(m => ({ default: m.LeaderRankingDashboard })));
-const ServicesRequestsDashboardAdmin = lazyWithRetry(() => import('./views/ServiceRequest/ServicesRequestsDashboardAdmin').then(m => ({ default: m.ServicesRequestsDashboardAdmin })));
-const SystemsList = lazyWithRetry(() => import('./views/Settings/Systems/SystemsList').then(m => ({ default: m.SystemsList })));
-const SystemForm = lazyWithRetry(() => import('./views/Settings/Systems/SystemForm').then(m => ({ default: m.SystemForm })));
-const UnitTypesList = lazyWithRetry(() => import('./views/Settings/UnitTypes/UnitTypesList').then(m => ({ default: m.UnitTypesList })));
-const UnitTypeForm = lazyWithRetry(() => import('./views/Settings/UnitTypes/UnitTypeForm').then(m => ({ default: m.UnitTypeForm })));
-const UnitsList = lazyWithRetry(() => import('./views/Settings/Clients/Units/UnitsList').then(m => ({ default: m.UnitsList })));
-const UnitForm = lazyWithRetry(() => import('./views/Settings/Clients/Units/UnitForm').then(m => ({ default: m.UnitForm })));
-const UnitDetails = lazyWithRetry(() => import('./views/Settings/Clients/Units/UnitView').then(m => ({ default: m.UnitDetails })));
-const ActivitiesList = lazyWithRetry(() => import('./views/Settings/Activities/ActivitiesList').then(m => ({ default: m.ActivitiesList })));
-const ActivityForm = lazyWithRetry(() => import('./views/Settings/Activities/ActivityForm').then(m => ({ default: m.ActivityForm })));
-const ContractsList = lazyWithRetry(() => import('./views/Contracts/ContractsList').then(m => ({ default: m.ContractsList })));
-const ContractForm = lazyWithRetry(() => import('./views/Contracts/ContractForm').then(m => ({ default: m.ContractForm })));
-const ContractDetails = lazyWithRetry(() => import('./views/Contracts/ContractDetails').then(m => ({ default: m.ContractDetails })));
-const ServicesList = lazyWithRetry(() => import('./views/Settings/Services/ServicesList').then(m => ({ default: m.ServicesList })));
-const ServiceForm = lazyWithRetry(() => import('./views/Settings/Services/ServiceForm').then(m => ({ default: m.ServiceForm })));
-const MaterialsList = lazyWithRetry(() => import('./views/Settings/Materials/MaterialsList').then(m => ({ default: m.MaterialsList })));
-const MaterialsSearch = lazyWithRetry(() => import('./views/Settings/Materials/MaterialsSearch').then(m => ({ default: m.MaterialsSearch })));
-const MaterialForm = lazyWithRetry(() => import('./views/Settings/Materials/MaterialForm').then(m => ({ default: m.MaterialForm })));
-const MaterialDetails = lazyWithRetry(() => import('./views/Settings/Materials/MaterialDetails').then(m => ({ default: m.MaterialDetails })));
-const MaterialsDashboard = lazyWithRetry(() => import('./views/Settings/Materials/MaterialsDashboard').then(m => ({ default: m.MaterialsDashboard })));
-const EvaluationRequirementsScreen = lazyWithRetry(() => import('./views/Settings/Evaluations/EvaluationRequirementsScreen').then(m => ({ default: m.EvaluationRequirementsScreen })));
-const PrioritiesList = lazyWithRetry(() => import('./views/Settings/Orders/Priorities/OrderPrioritiesList').then(m => ({ default: m.PrioritiesList })));
-const PriorityForm = lazyWithRetry(() => import('./views/Settings/Orders/Priorities/OrderPriorityForm').then(m => ({ default: m.PriorityForm })));
-const OrderTypesList = lazyWithRetry(() => import('./views/Settings/Orders/OrderTypes/OrderTypesList').then(m => ({ default: m.OrderTypesList })));
-const OrderTypeForm = lazyWithRetry(() => import('./views/Settings/Orders/OrderTypes/OrderTypeForm').then(m => ({ default: m.OrderTypeForm })));
-const OrderSubTypesList = lazyWithRetry(() => import('./views/Settings/Orders/OrderSubTypes/OrderSubTypesList').then(m => ({ default: m.OrderSubTypesList })));
-const OrderSubTypeForm = lazyWithRetry(() => import('./views/Settings/Orders/OrderSubTypes/OrderSubTypeForm').then(m => ({ default: m.OrderSubTypeForm })));
-const OrderPlansList = lazyWithRetry(() => import('./views/Settings/Orders/Plans/OrderPlansList').then(m => ({ default: m.OrderPlansList })));
-const OrderPlanForm = lazyWithRetry(() => import('./views/Settings/Orders/Plans/OrderPlanForm').then(m => ({ default: m.OrderPlanForm })));
-const OrderObjectsList = lazyWithRetry(() => import('./views/Settings/Orders/OrderObjects/OrderObjectsList').then(m => ({ default: m.OrderObjectsList })));
-const OrderObjectForm = lazyWithRetry(() => import('./views/Settings/Orders/OrderObjects/OrderObjectForm').then(m => ({ default: m.OrderObjectForm })));
-const AssetTypesList = lazyWithRetry(() => import('./views/Settings/Assets/AssetTypes/AssetTypesList').then(m => ({ default: m.AssetTypesList })));
-const AssetTypeForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetTypes/AssetTypeForm').then(m => ({ default: m.AssetTypeForm })));
-const AssetStatusesList = lazyWithRetry(() => import('./views/Settings/Assets/AssetStatuses/AssetStatusesList').then(m => ({ default: m.AssetStatusesList })));
-const AssetStatusForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetStatuses/AssetStatusForm').then(m => ({ default: m.AssetStatusForm })));
-const AssetPrioritiesList = lazyWithRetry(() => import('./views/Settings/Assets/AssetPriorities/AssetPrioritiesList').then(m => ({ default: m.AssetPrioritiesList })));
-const AssetPriorityForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetPriorities/AssetPriorityForm').then(m => ({ default: m.AssetPriorityForm })));
-const AssetTypeAttributesScreen = lazyWithRetry(() => import('./views/Settings/Assets/AssetTypeAttributes/AssetTypeAttributesScreen').then(m => ({ default: m.AssetTypeAttributesScreen })));
-const AssetAttributesBrandsScreen = lazyWithRetry(() => import('./views/Settings/Assets/AssetTypeAttributes/AssetAttributesBrandsScreen').then(m => ({ default: m.AssetAttributesBrandsScreen })));
-const AssetTagsList = lazyWithRetry(() => import('./views/Settings/Assets/AssetTags/AssetTagsList').then(m => ({ default: m.AssetTagsList })));
-const AssetTagForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetTags/AssetTagForm').then(m => ({ default: m.AssetTagForm })));
-const AssetTagSubsList = lazyWithRetry(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubsList').then(m => ({ default: m.AssetTagSubsList })));
-const AssetTagSubForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetTagSubs/AssetTagSubForm').then(m => ({ default: m.AssetTagSubForm })));
-const TechnicalManualsList = lazyWithRetry(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualsList').then(m => ({ default: m.TechnicalManualsList })));
-const TechnicalManualForm = lazyWithRetry(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualForm').then(m => ({ default: m.TechnicalManualForm })));
-const TechnicalManualDetails = lazyWithRetry(() => import('./views/Settings/Assets/TechnicalManuals/TechnicalManualDetails').then(m => ({ default: m.TechnicalManualDetails })));
-const AssetLoanChecklistTypesList = lazyWithRetry(() => import('./views/Settings/Assets/AssetLoanChecklists/AssetLoanChecklistTypesList').then(m => ({ default: m.AssetLoanChecklistTypesList })));
-const AssetLoanChecklistTypeForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetLoanChecklists/AssetLoanChecklistTypeForm').then(m => ({ default: m.AssetLoanChecklistTypeForm })));
-const LoansChecklistsList = lazyWithRetry(() => import('./views/Settings/Assets/AssetLoanChecklists/LoansChecklistsList').then(m => ({ default: m.LoansChecklistsList })));
-const LoansChecklistForm = lazyWithRetry(() => import('./views/Settings/Assets/AssetLoanChecklists/LoansChecklistForm').then(m => ({ default: m.LoansChecklistForm })));
-const UnitsSearch = lazyWithRetry(() => import('./views/Units/UnitsSearch').then(m => ({ default: m.UnitsSearch })));
-const UnitAssetTagAvailableForm = lazyWithRetry(() => import('./views/Units/UnitAssetTagAvailableForm').then(m => ({ default: m.UnitAssetTagAvailableForm })));
-const UnitAssetTagAvailableDetails = lazyWithRetry(() => import('./views/Units/UnitAssetTagAvailableDetails').then(m => ({ default: m.UnitAssetTagAvailableDetails })));
-const AssetsSearch = lazyWithRetry(() => import('./views/Assets/AssetsSearch').then(m => ({ default: m.AssetsSearch })));
-const AssetDetails = lazyWithRetry(() => import('./views/Assets/AssetView').then(m => ({ default: m.AssetDetails })));
-const AssetForm = lazyWithRetry(() => import('./views/Assets/AssetForm').then(m => ({ default: m.AssetForm })));
-const AssetCloneWizard = lazyWithRetry(() => import('./views/Assets/AssetCloneWizard').then(m => ({ default: m.AssetCloneWizard })));
-const AssetsAlerts = lazyWithRetry(() => import('./views/Assets/AssetsAlerts').then(m => ({ default: m.AssetsAlerts })));
-const AssetsAlertsHeaderWidget = lazyWithRetry(() => import('./components/assets/AssetsAlertsHeaderWidget').then(m => ({ default: m.AssetsAlertsHeaderWidget })));
-const OrdersRequestsDashboardAdmin = lazyWithRetry(() => import('./views/OrderRequest/OrdersRequestsDashboardAdmin').then(m => ({ default: m.OrdersRequestsDashboardAdmin })));
-const NotificationsList = lazyWithRetry(() => import('./views/Notifications/NotificationsList').then(m => ({ default: m.NotificationsList })));
-const AppNoticesList = lazyWithRetry(() => import('./views/AppNotices/AppNoticesList').then(m => ({ default: m.AppNoticesList })));
-const AppTipsList = lazyWithRetry(() => import('./views/Settings/AppTips/AppTipsList').then(m => ({ default: m.AppTipsList })));
-const ServiceRequestDetail = lazyWithRetry(() => import('./views/ServiceRequest/ServiceRequestDetail').then(m => ({ default: m.ServiceRequestDetail })));
-const ServiceRequestPage = lazyWithRetry(() => import('./views/ServiceRequest/ServiceRequestScreen').then(m => ({ default: m.ServiceRequestPage })));
-const OrderRequestPage = lazyWithRetry(() => import('./views/OrderRequest/OrderRequestScreen').then(m => ({ default: m.OrderRequestPage })));
-const OrderRequestApproveConfirm = lazyWithRetry(() => import('./views/OrderRequest/OrderRequestApproveConfirm').then(m => ({ default: m.OrderRequestApproveConfirm })));
-const OrderRequestView = lazyWithRetry(() => import('./views/OrderRequest/OrderRequestView').then(m => ({ default: m.OrderRequestView })));
-const OrderVisitPage = lazyWithRetry(() => import('./views/OrderVisit/OrderVisitScreen').then(m => ({ default: m.OrderVisitPage })));
-const OrderVisitAssetReport = lazyWithRetry(() => import('./views/OrderVisit/OrderVisitAsset/OrderVisitAssetReport').then(m => ({ default: m.OrderVisitAssetReport })));
-const OrderVisitAssetActivities = lazyWithRetry(() => import('./views/OrderVisit/OrderVisitAsset/OrderVisitAssetActivities').then(m => ({ default: m.OrderVisitAssetActivities })));
-const OrderVisitAssetMaterials = lazyWithRetry(() => import('./views/OrderVisit/OrderVisitAsset/OrderVisitAssetMaterials').then(m => ({ default: m.OrderVisitAssetMaterials })));
-const OrderVisitBottomNav = lazyWithRetry(() => import('./components/ordersVisits/OrderVisitBottomNav').then(m => ({ default: m.OrderVisitBottomNav })));
-const VisitEvaluationPage = lazyWithRetry(() => import('./views/Visits/VisitEvaluationPage').then(m => ({ default: m.VisitEvaluationPage })));
-
-const UsersTracker = lazyWithRetry(() => import('./views/Users/UsersTracker').then(m => ({ default: m.UsersTracker })));
-const AllUsersList = lazyWithRetry(() => import('./views/Admin/AllUsersList').then(m => ({ default: m.AllUsersList })));
-const UserViewScreen = lazyWithRetry(() => import('./views/Admin/UserViewScreen').then(m => ({ default: m.UserViewScreen })));
+import {
+  CompaniesList,
+  CompanyDetails,
+  CompanyForm,
+  DepartmentForm,
+  DepartmentDetails,
+  TeamForm,
+  TeamDetails,
+  ClientsList,
+  ClientDetails,
+  ClientForm,
+  UserForm,
+  ProfileScreen,
+  ForgotPasswordScreen,
+  ResetPasswordScreen,
+  DashboardScreen,
+  OrdersVisitsDashboardAdmin,
+  DashboardOrdersVisitsTodayScreen,
+  DashboardUnitsPowerElectric,
+  DashboardUnitsAssetsTags,
+  DashboardOrdersAdminCalendarScreen,
+  DashboardServicesAdminScreen,
+  DashboardAdminContractsEvaluationsRequirements,
+  LeaderRankingDashboard,
+  ServicesRequestsDashboardAdmin,
+  SystemsList,
+  SystemForm,
+  UnitTypesList,
+  UnitTypeForm,
+  UnitsList,
+  UnitForm,
+  UnitDetails,
+  ActivitiesList,
+  ActivityForm,
+  ContractsList,
+  ContractForm,
+  ContractDetails,
+  ServicesList,
+  ServiceForm,
+  MaterialsList,
+  MaterialsSearch,
+  MaterialForm,
+  MaterialDetails,
+  MaterialsDashboard,
+  EvaluationRequirementsScreen,
+  PrioritiesList,
+  PriorityForm,
+  OrderTypesList,
+  OrderTypeForm,
+  OrderSubTypesList,
+  OrderSubTypeForm,
+  OrderPlansList,
+  OrderPlanForm,
+  OrderObjectsList,
+  OrderObjectForm,
+  AssetTypesList,
+  AssetTypeForm,
+  AssetStatusesList,
+  AssetStatusForm,
+  AssetPrioritiesList,
+  AssetPriorityForm,
+  AssetTypeAttributesScreen,
+  AssetAttributesBrandsScreen,
+  AssetTagsList,
+  AssetTagForm,
+  AssetTagSubsList,
+  AssetTagSubForm,
+  TechnicalManualsList,
+  TechnicalManualForm,
+  TechnicalManualDetails,
+  AssetLoanChecklistTypesList,
+  AssetLoanChecklistTypeForm,
+  LoansChecklistsList,
+  LoansChecklistForm,
+  UnitsSearch,
+  UnitAssetTagAvailableForm,
+  UnitAssetTagAvailableDetails,
+  AssetsSearch,
+  AssetDetails,
+  AssetForm,
+  AssetCloneWizard,
+  AssetsAlerts,
+  AssetsAlertsHeaderWidget,
+  OrdersRequestsDashboardAdmin,
+  NotificationsList,
+  AppNoticesList,
+  AppTipsList,
+  ServiceRequestDetail,
+  ServiceRequestPage,
+  OrderRequestPage,
+  OrderRequestApproveConfirm,
+  OrderRequestView,
+  OrderVisitPage,
+  OrderVisitAssetReport,
+  OrderVisitAssetActivities,
+  OrderVisitAssetMaterials,
+  OrderVisitBottomNav,
+  VisitEvaluationPage,
+  UsersTracker,
+  AllUsersList,
+  UserViewScreen,
+  LocationBlockedScreen,
+  UserUnavailableScreen,
+  ProfilePermissionsScreen,
+  RouteManagementScreen,
+  RouteFormScreen,
+  AIKnowledgeAdmin,
+  MaintenancePlansScreen,
+  ToolsMainView,
+} from './app/routes';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
-const LocationBlockedScreen = lazyWithRetry(() => import('./views/System/LocationBlockedScreen').then(m => ({ default: m.LocationBlockedScreen })));
-const UserUnavailableScreen = lazyWithRetry(() => import('./views/System/UserUnavailableScreen').then(m => ({ default: m.UserUnavailableScreen })));
 import { Capacitor } from '@capacitor/core';
 import { useShiftMonitor } from './hooks/useShiftMonitor';
 import { Modal } from './components/ui/Modal';
-
-const ProfilePermissionsScreen = lazyWithRetry(() => import('./views/Admin/ProfilePermissionsScreen').then(m => ({ default: m.ProfilePermissionsScreen })));
-const RouteManagementScreen = lazyWithRetry(() => import('./views/Settings/RouteManagement').then(m => ({ default: m.RouteManagementScreen })));
-const RouteFormScreen = lazyWithRetry(() => import('./views/Settings/RouteForm').then(m => ({ default: m.RouteForm })));
-const AIKnowledgeAdmin = lazyWithRetry(() => import('./views/Settings/AIKnowledgeAdmin').then(m => ({ default: m.AIKnowledgeAdmin })));
 import { PermissionsProvider } from './contexts/PermissionsContext';
-const MaintenancePlansScreen = lazyWithRetry(() => import('./views/Settings/MaintenancePlans/MaintenancePlansScreen').then(m => ({ default: m.MaintenancePlansScreen })));
-const ToolsMainView = lazyWithRetry(() => import('./views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
+
 
 type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'asset-loan-checklist-types' | 'asset-loan-checklist-type-form' | 'asset-loan-checklist-type-edit'
@@ -207,7 +141,7 @@ type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashbo
   | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit';
 
 import { ActionIcon } from './components/ui/ActionIcon';
-import { imgproxyService } from './services/imgproxyService';
+import { imgproxyService } from './services/media/imgproxyService';
 import { Loading } from './components/ui/Loading';
 
 
@@ -438,7 +372,7 @@ const AppContent: React.FC = () => {
     const type = params.get('type');
     if (tokenHash && type === 'recovery') {
       window.history.replaceState({}, document.title, '/');
-      import('./services/supabase').then(({ supabase }) => {
+      import('./services/core/supabase').then(({ supabase }) => {
         supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ data, error }: { data: any; error: any }) => {
           if (error) {
             console.error('[Recovery] verifyOtp failed:', error.message, error);
@@ -3370,7 +3304,7 @@ const AppContent: React.FC = () => {
                 // 1. Restore original password before switching back
                 const impersonatedUuid = sessionStorage.getItem('impersonated_user_uuid');
                 if (impersonatedUuid) {
-                  const { apiN8nService } = await import('./services/apiN8nService');
+                  const { apiN8nService } = await import('./services/core/apiN8nService');
                   await apiN8nService.restorePassword(impersonatedUuid);
                 }
               } catch (e) {
@@ -3382,7 +3316,7 @@ const AppContent: React.FC = () => {
               const adminToken = sessionStorage.getItem('admin_access_token');
               const adminRefresh = sessionStorage.getItem('admin_refresh_token');
               if (adminToken && adminRefresh) {
-                const { supabase } = await import('./services/supabase');
+                const { supabase } = await import('./services/core/supabase');
                 await supabase.auth.setSession({
                   access_token: adminToken,
                   refresh_token: adminRefresh,

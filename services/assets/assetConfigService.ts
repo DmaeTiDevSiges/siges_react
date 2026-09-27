@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../core/supabase';
 import { AssetType, AssetStatus, AssetPriority } from '../../types';
 
 export const assetConfigService = {

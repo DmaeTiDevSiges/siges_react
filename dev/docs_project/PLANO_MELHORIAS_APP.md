@@ -9,13 +9,13 @@
 
 ## 1. Resumo executivo
 
-O app tem ~130k linhas TS/TSX, 109 telas lazy e boa fachada `dataService`. Os maiores riscos são **segurança no bundle do client**, **RLS permissivo (policies `USING (true)` / “Universal Access”)** e **qualidade/dívida técnica** (App.tsx monolítico, 32 erros TS, bundle pesado). As imagens já foram otimizadas (variantes R2, commit `64ae511`).
+O app tem ~130k linhas TS/TSX, 109 telas lazy e boa fachada `dataService`. Os maiores riscos são **segurança no bundle do client**, **RLS permissivo (policies `USING (true)` / “Universal Access”)** e **qualidade/dívida técnica** (App.tsx monolítico, 26 erros TS, bundle pesado). As imagens já foram otimizadas (variantes R2, commit `64ae511`).
 
 | # | Melhoria | Impacto | Esforço | Prioridade |
 |---|----------|---------|---------|------------|
 | 1 | Remover secrets do bundle (R2/Gemini/imgproxy) | 🔴 Crítico | Médio | P0 |
 | 2 | Endurecer RLS/policies nas tabelas core | 🔴 Crítico | Médio-alto | P0 |
-| 3 | ESLint + zerar 32 erros TS | 🟠 Alto | **Baixo** | P1 |
+| 3 | ESLint + zerar 26 erros TS | 🟠 Alto | **Baixo** | P1 |
 | 4 | Limpar bundle / deps mortas | 🟠 Alto (mobile) | **Baixo** | P1 |
 | 5 | Fatiar App.tsx (incremental) | 🟠 Alto | Médio | P2 |
 | 6 | Jest + testes dos fluxos críticos | 🟠 Alto | Médio | P2 |
@@ -27,12 +27,12 @@ O app tem ~130k linhas TS/TSX, 109 telas lazy e boa fachada `dataService`. Os ma
 ## 2. Contexto técnico (inventário)
 
 - **445 arquivos** `.ts/.tsx` · **~129.965 linhas**
-- `App.tsx` **3.433 linhas** (61 `useState`, ~133 telas em switch manual)
+- `App.tsx` **3.358 linhas** (61 `useState`, ~133 telas em switch manual · 108 telas lazy extraídas p/ `app/routes.tsx` em 26/09)
 - `dataService.ts` **3.052 linhas** / ~486 métodos (fachada OK)
-- `visitsService` 4.150 · `ordersService` 3.493 · `types.ts` 1.877
+- `visitsService` 4.150 · `ordersService` 3.493 · `types/index.ts` 1.877
 - Views grandes: `OrderVisitAssetReport` 2.129 / 65 useState; `ServicesRequestsDashboardAdmin` 2.102 / 45; `OrdersVisitsDashboardAdmin` 2.058 / 32
-- `lint` = só `tsc --noEmit` → **32 erros** · **0 ESLint/Prettier** · `tsconfig` sem `strict`
-- **9 arquivos de teste** · 51 testes passam · **1 suite falha** (alias `@/*`) · maioria TODO
+- `lint` = só `tsc --noEmit` → **26 erros** · **0 ESLint/Prettier** · `tsconfig` sem `strict`
+- **8 suites / 61 testes passam** (alias `@/*` mapeado no Jest em 26/09; era 1 suite falha) · maioria dos fluxos ainda com TODO
 - `dist` ~8,7 MB · vendor **2,54 MB** (AWS SDK S3 no client)
 - Supabase: **VPS local, sem Edge Functions** (importante para opções de proxy)
 - **Schema (dump 23/09/2026):** `dev/supabase/schema.sql` — 160 tables (130 `public`), 86 views, 122 functions, 50 triggers, 172 policies, 156 `ENABLE ROW LEVEL SECURITY`, 224 indexes
@@ -53,7 +53,7 @@ O app tem ~130k linhas TS/TSX, 109 telas lazy e boa fachada `dataService`. Os ma
 | `VITE_IMGPROXY_KEY` | Assinaturas imgproxy |
 | (`VITE_SUPABASE_SERVICE_ROLE_KEY`) | Não no `.env.local` atual, mas padrão em código pronto para vazar |
 
-**Onde:** `services/r2Service.ts` (S3Client), `services/aiService.ts`, `services/imgproxyService.ts`, `vite.config.ts`.
+**Onde:** `services/media/r2Service.ts` (S3Client), `services/ai/aiService.ts`, `services/media/imgproxyService.ts`, `vite.config.ts`.
 
 **Restrição:** Sem Edge Functions no Supabase → proxy precisa ser n8n, Cloudflare Worker ou endpoint na VPS.
 
@@ -126,10 +126,10 @@ Idem para `units`, `clients`, `contracts`, `materials`, `warehouses`, etc. Qualq
 
 ## 4. P1 — Qualidade e bundle (alto ROI, baixo esforço)
 
-### 4.1 ESLint + 32 erros TypeScript
+### 4.1 ESLint + 26 erros TypeScript
 
 - Adicionar ESLint flat config (react-hooks, unused) + Prettier
-- Zerar 32 erros `tsc` (~1 dia)
+- Zerar 26 erros `tsc` (~1 dia)
 - **Bugs reais nos erros:** `AssetLoanChecklistTypeForm` chama `createChecklistType`/`updateChecklistType` **inexistentes** em `dataService` (feature quebrada em runtime)
 - Ativar `strict` gradualmente (opcional, fases)
 
@@ -138,7 +138,7 @@ Idem para `units`, `clients`, `contracts`, `materials`, `warehouses`, etc. Qualq
 - Vendor 2,54 MB: AWS SDK no browser (some com 3.1)
 - Remover/confirmar não usadas: `@capacitor/filesystem`, `share`, `status-bar`, `browser`, `keyboard`?, `react-barcode`, `pg`, `leaflet.markercluster`?
 - Dedupe: `@google/genai` + `@google/generative-ai` duplicados
-- Código morto: `Header.tsx.backup`, `ProtectedRoute` nunca importado, `jest.config.cjs` **e** `.js` idênticos, `components/vite.config.js`
+- ~~Código morto: `Header.tsx.backup`, `ProtectedRoute` nunca importado, `jest.config.cjs` **e** `.js` idênticos, `components/vite.config.js`~~ ✅ concluído 26/09/2026 (também removidos `SafeAreaContainer`, `AppTipBadge`, `.deb` na raiz; `geminiService`/`NotificationsModal` movidos p/ domínio)
 - Lazy: `BarcodeScannerModal` / `html5-qrcode`
 - Revisar `nodePolyfills` globais no `vite.config.ts`
 - Listas com `pageSize: 200` sem virtualização (`ServicesRequestsDashboardAdmin`, `OrdersRequestsDashboardAdmin`)
@@ -149,18 +149,19 @@ Idem para `units`, `clients`, `contracts`, `materials`, `warehouses`, etc. Qualq
 
 ### 5.1 Fatiar App.tsx (incremental, sem rewrite)
 
-1. Extrair mapa `screen → elemento` + títulos
-2. Handlers por domínio → hooks (`useCompanyHandlers`, `useUnitHandlers`…)
-3. (Opcional futuro) rotas/URLs reais — hoje deep link limitado (`?screen=…`)
+1. ✅ **Feito (26/09/2026):** helpers (`isChunkLoadError`, `forceCleanReloadOnce`, `lazyWithRetry`) + **108 telas lazy** extraídas de `App.tsx` para **`app/routes.tsx`**. Restam em `App.tsx`: estado global, mapa `screen → elemento` e os ~486 `useState`.
+2. Extrair mapa `screen → elemento` + títulos
+3. Handlers por domínio → hooks (`useCompanyHandlers`, `useUnitHandlers`…)
+4. (Opcional futuro) rotas/URLs reais — hoje deep link limitado (`?screen=…`)
 
 **Fatia em 2–4 PRs.**
 
 ### 5.2 Testes
 
-- Corrigir Jest: `moduleNameMapper` `@/*`, `testMatch` incluir `.tsx`, jsdom para componentes
-- Hoje: 51 passam, 1 suite falha; `DataQualityIndicator.test.tsx` **nunca roda**
+- ✅ **Feito (26/09/2026):** `moduleNameMapper` `@/*` no `jest.config.cjs` → **8 suites / 61 testes passam** (era 7/8 e 51; a suite `followers-orders-status-changed` agora mocka `services/core/supabase`)
+- Pendente: `testMatch` incluir `.tsx` + `jest-environment-jsdom` e `@testing-library/react` (hoje `DataQualityIndicator.test.tsx` **nunca roda**)
 - Cobertura real quase zero em `visitsService`/`ordersService`/`dataService`
-- Priorizar 3 fluxos: **fechar visita**, **aprovar OS/SS**, **criar OS**
+- Priorizar 3 fluxos: **fechar visita**, **aprovar OS/SS**, **criar OS** (suites em `flows/generated/` ainda majoritariamente TODO)
 
 ---
 
@@ -179,7 +180,7 @@ Idem para `units`, `clients`, `contracts`, `materials`, `warehouses`, etc. Qualq
 ```
 Sprint A (segurança)     → 3.1 rotacionar + presign R2 (escolher A/B/C) + Gemini n8n
 Sprint B (segurança)     → 3.2 endurecer policies (base: schema.sql / dump 23/09)
-Sprint C (qualidade)     → 4.1 ESLint + 32 erros TS (+ bug checklist types)
+Sprint C (qualidade)     → 4.1 ESLint + 26 erros TS (+ bug checklist types)
 Sprint D (perf mobile)   → 4.2 deps mortas + lazy scanner + dedupe Google
 Sprint E (dívida)        → 5.1 fatiar App.tsx (PRs incrementais)
 Sprint F (confiança)     → 5.2 jest + testes de visita/OS/SS
@@ -212,4 +213,4 @@ Depois                    → 6 offline queue, notificações, hooks de views
 - **`dev/supabase/schema.sql`** — schema principal (dump Contabo 2026-09-23)
 - `dev/supabase/dump_export/ANALISE.md` — análise estrutural (RLS, policies, triggers)
 - `dev/supabase/dump_export/list_*.txt` — listas por categoria (tables, policies, triggers…)
-- Números: 32 erros tsc · 0 ESLint · 9 arquivos de teste · vendor 2,54 MB · **129/130 tabelas `public` com RLS** (mas 139 policies `USING (true)`)
+- Números: 26 erros tsc (26/09/2026) · 0 ESLint · 8 suites / 61 testes · vendor 2,54 MB · **129/130 tabelas `public` com RLS** (mas 139 policies `USING (true)`)

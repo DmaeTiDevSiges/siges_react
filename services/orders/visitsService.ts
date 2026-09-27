@@ -1,7 +1,7 @@
-import { supabase } from '../supabase';
-import { r2Service } from '../r2Service';
+import { supabase } from '../core/supabase';
+import { r2Service } from '../media/r2Service';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
-import { getPublicImageUrl } from '../imageUtils';
+import { getPublicImageUrl } from '../media/imageUtils';
 import { formatRelativeTime } from '../../utils/formatters';
 import type { Order, User, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, OrderVisitAssetMaterial, ServiceHistoryItem, Activity, Material, OrderVisitChatMessage, OrderVisitChatParticipant, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity } from '../../types';
 import { ordersService } from './ordersService';
@@ -1920,7 +1920,7 @@ export const visitsService = {
         }
 
         const folderPath = `companies/${ova.o_company_id}/${ova.asset_id}`;
-        const { addVariantToPath } = await import('../imageUtils');
+        const { addVariantToPath } = await import('../media/imageUtils');
         const expandWithVariants = (names: string[]) =>
             names.flatMap((name) => {
                 const base = `${folderPath}/${name}`;
@@ -3580,7 +3580,7 @@ export const visitsService = {
             // Replicate the path logic from the component/upload to ensure consistency
             const folderPath = existing.img_file_path || `checklist/${ovAssetId}/${activityId}`;
             const fullPath = `${folderPath}/${fileName}`.replace(/\/+/g, '/');
-            const { addVariantToPath } = await import('../imageUtils');
+            const { addVariantToPath } = await import('../media/imageUtils');
 
             await r2Service.deleteFiles([
                 fullPath,

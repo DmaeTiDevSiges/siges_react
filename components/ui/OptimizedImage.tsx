@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { getVariantUrl, buildVariantSrcSet, ImageVariant } from '../../services/imageUtils';
+import { getVariantUrl, buildVariantSrcSet, ImageVariant } from '../../services/media/imageUtils';
 
 export type ImagePreset = 'thumbnail' | 'medium' | 'large' | 'original';
 

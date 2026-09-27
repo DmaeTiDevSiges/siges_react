@@ -15,7 +15,7 @@ import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { Modal } from '../../components/ui/Modal';
 import { CancelOrderModal } from '../../components/orderRequests/modals/CancelOrderModal';
 import { TabsBar } from '../../components/ui/TabsBar';
-import { ManusIntegrationService, ManusImageClassification } from '../../services/manusIntegrationService';
+import { ManusIntegrationService, ManusImageClassification } from '../../services/ai/manusIntegrationService';
 import { ManusVisit } from '../../types/manus';
 import { ManusVisitCard } from '../../components/ordersVisits/ManusVisitCard';
 import { ManusImageSelectionModal } from '../../components/ordersVisits/ManusImageSelectionModal';

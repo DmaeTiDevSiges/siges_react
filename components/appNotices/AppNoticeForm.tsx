@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal } from './ui/Modal';
-import { SystemNotice, SystemNoticeCategory, SystemNoticeSeverity, CreateSystemNoticeInput, DASHBOARD_OPTIONS } from '../types';
-import { appNoticesService } from '../services/core/appNoticesService';
+import { Modal } from '../ui/Modal';
+import { SystemNotice, SystemNoticeCategory, SystemNoticeSeverity, CreateSystemNoticeInput, DASHBOARD_OPTIONS } from '../../types';
+import { appNoticesService } from '../../services/core/appNoticesService';
 
 interface AppNoticeFormProps {
   isOpen: boolean;

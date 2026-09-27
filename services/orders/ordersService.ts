@@ -1,8 +1,8 @@
-import { supabase } from '../supabase';
+import { supabase } from '../core/supabase';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
-import { r2Service } from '../r2Service';
+import { r2Service } from '../media/r2Service';
 import type { Order, User, OrderFilters, SuspendedReason, CauseReason, ServiceHistoryItem, AssetAlert, OrderStatusLogItem } from '../../types';
-import { getPublicImageUrl } from '../imageUtils';
+import { getPublicImageUrl } from '../media/imageUtils';
 import { usersService } from '../users/usersService';
 
 const ordersMetadataCache = {
@@ -223,7 +223,7 @@ export const ordersService = {
         const srcFolder = `companies/${srcCompanyId}/orders/${srcOrderId}/images`;
         const destFolder = `companies/${destCompanyId}/orders/${destOrderId}/images`;
 
-        const { addVariantToPath } = await import('../imageUtils');
+        const { addVariantToPath } = await import('../media/imageUtils');
         const allKeys = (folder: string) =>
             files.flatMap((filename) => {
                 const base = `${folder}/${filename}`;

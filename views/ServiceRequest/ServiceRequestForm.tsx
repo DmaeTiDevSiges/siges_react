@@ -12,7 +12,7 @@ import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { DuplicateServiceRequestWarning } from '../../components/serviceRequests/DuplicateServiceRequestWarning';
 import { AINaturalLanguageForm } from '../../components/ai/AINaturalLanguageForm';
-import { SSSuggestion } from '../../services/aiSsCreationService';
+import { SSSuggestion } from '../../services/ai/aiSsCreationService';
 
 interface ServiceRequestFormProps {
     onBack: () => void;

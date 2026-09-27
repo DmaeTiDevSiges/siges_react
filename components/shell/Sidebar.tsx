@@ -1,5 +1,5 @@
 import React from 'react';
-import { usePermissions } from '../contexts/PermissionsContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 
 interface SidebarProps {
     onNavigate: (screen: string) => void;

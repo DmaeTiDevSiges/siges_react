@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Tool, User } from '../../types';
-import { toolsService } from '../../services/toolsService';
+import { toolsService } from '../../services/tools/toolsService';
 import { Select } from '../ui/Select';
 import { ButtonSave } from '../ui/ButtonSave';
 import { Modal } from '../ui/Modal';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../services/supabase';
+import { supabase } from '../../services/core/supabase';
 
 interface AssignToolFormProps {
     companyId: string;

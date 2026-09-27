@@ -1,15 +1,15 @@
 
 import React from 'react';
-import { IconButton } from './ui/IconButton';
-import { User } from '../types';
+import { IconButton } from '../ui/IconButton';
+import { User } from '../../types';
 import { useState } from 'react';
-import { getInitials } from '../utils/formatters';
+import { getInitials } from '../../utils/formatters';
 import { toast } from 'sonner';
-import { Avatar } from './ui/Avatar';
-import { CompanyAvatar } from './ui/CompanyAvatar';
-import { UserAvatar } from './ui/UserAvatar';
-import { DataQualityIndicator } from './ui/DataQualityIndicator';
-import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { Avatar } from '../ui/Avatar';
+import { CompanyAvatar } from '../ui/CompanyAvatar';
+import { UserAvatar } from '../ui/UserAvatar';
+import { DataQualityIndicator } from '../ui/DataQualityIndicator';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 interface HeaderProps {
     title: string;

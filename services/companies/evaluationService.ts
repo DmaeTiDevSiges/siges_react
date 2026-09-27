@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../core/supabase';
 import type { EvaluationRequirement, ContractEvaluationRequirement, OrderVisitEvaluation } from '../../types';
 
 const BRAZIL_TZ = 'America/Sao_Paulo';

@@ -1,8 +1,8 @@
-import { supabase } from '../supabase';
-import { r2Service } from '../r2Service';
+import { supabase } from '../core/supabase';
+import { r2Service } from '../media/r2Service';
 import { AssetTag, AssetTagSub, Company } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
-import { getPublicImageUrl } from '../imageUtils';
+import { getPublicImageUrl } from '../media/imageUtils';
 import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
 import { companiesService } from '../companies/companiesService';
 

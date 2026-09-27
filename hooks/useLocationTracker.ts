@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { registerPlugin, Capacitor } from '@capacitor/core';
-import { permissionService } from '../services/permissionService';
+import { permissionService } from '../services/core/permissionService';
 import { dataService } from '../services/dataService';
 import { haversineDistance } from '../utils/geo';
 

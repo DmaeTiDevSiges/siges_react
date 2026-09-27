@@ -1,8 +1,8 @@
-import { supabase } from './supabase';
-import { r2Service } from './r2Service';
-import { ManusVisit, ManusService, ManusVehicle, ManusMaterial, ManusReport } from '../types/manus';
-import { getBrazilTimestamp } from '../utils/dateUtils';
-import { generateUrl as getProxyUrl } from './imgproxyService';
+import { supabase } from '../core/supabase';
+import { r2Service } from '../media/r2Service';
+import { ManusVisit, ManusService, ManusVehicle, ManusMaterial, ManusReport } from '../../types/manus';
+import { getBrazilTimestamp } from '../../utils/dateUtils';
+import { generateUrl as getProxyUrl } from '../media/imgproxyService';
 
 
 export interface ManusImageClassification {

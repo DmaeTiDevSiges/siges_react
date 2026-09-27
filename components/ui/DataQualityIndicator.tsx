@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { dataQualityService, DataQualityStatus, QualityLevel } from '../../services/dataQualityService';
+import { dataQualityService, DataQualityStatus, QualityLevel } from '../../services/core/dataQualityService';
 
 interface DataQualityIndicatorProps {
   size?: 'small' | 'medium' | 'large';

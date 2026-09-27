@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { dataService } from '../../../services/dataService';
-import { supabase } from '../../../services/supabase';
+import { supabase } from '../../../services/core/supabase';
 import { OrderVisitChatMessage, OrderVisitChatParticipant, User } from '../../../types';
 import { UserAvatar } from '../../../components/ui/UserAvatar';
 import { Loading } from '../../../components/ui/Loading';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useAppNoticesAdmin } from '../../hooks/useAppNotices';
-import { AppNoticeForm } from '../../components/AppNoticeForm';
+import { AppNoticeForm } from '../../components/appNotices/AppNoticeForm';
 import { SystemNotice, CreateSystemNoticeInput, DASHBOARD_OPTIONS } from '../../types';
 import { appNoticesService } from '../../services/core/appNoticesService';
 import { Select } from '../../components/ui/Select';

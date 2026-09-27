@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tool, UserTool } from '../../types';
-import { toolsService } from '../../services/toolsService';
+import { toolsService } from '../../services/tools/toolsService';
 import { toast } from 'sonner';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Loading } from '../../components/ui/Loading';

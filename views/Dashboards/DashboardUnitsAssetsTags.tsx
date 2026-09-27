@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { dataService } from '../../services/dataService';
-import { supabase } from '../../services/supabase';
+import { supabase } from '../../services/core/supabase';
 import { User, System, OrderType, Priority } from '../../types';
 import { toast } from 'sonner';
 import { Card } from '../../components/ui/Card';

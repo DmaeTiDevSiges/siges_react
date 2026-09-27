@@ -8,9 +8,9 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { aiService } from '../../services/aiService';
+import { aiService } from '../../services/ai/aiService';
 import { useAuth } from '../../contexts/AuthContext';
-import { fireSuggestionSelected } from '../../services/aiSuggestionEngine';
+import { fireSuggestionSelected } from '../../services/ai/aiSuggestionEngine';
 
 // ─── Tipos ──────────────────────────────────────────────────────────
 

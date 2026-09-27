@@ -1,5 +1,5 @@
-import { supabase } from '../supabase';
-import { r2Service } from '../r2Service';
+import { supabase } from '../core/supabase';
+import { r2Service } from '../media/r2Service';
 import { 
     AssetLoan, 
     AssetLoanChecklist, 
@@ -8,7 +8,7 @@ import {
     UpdateAssetLoanInput,
     SaveChecklistItemInput
 } from '../../types';
-import { getPublicImageUrl } from '../imageUtils';
+import { getPublicImageUrl } from '../media/imageUtils';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 const getLocalTimestamp = () => getBrazilTimestamp();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile, Material, AssetMaterial, AssetLoan } from '../../types';
 import { dataService } from '../../services/dataService';
-import { getPublicImageUrl } from '../../services/imageUtils';
+import { getPublicImageUrl } from '../../services/media/imageUtils';
 import { IconButton } from '../../components/ui/IconButton';
 import { Button } from '../../components/ui/Button';
 import { Avatar } from '../../components/ui/Avatar';

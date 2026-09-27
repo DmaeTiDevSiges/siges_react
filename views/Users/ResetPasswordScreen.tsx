@@ -38,7 +38,7 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
         const pollSession = async () => {
             if (!mountedRef.current) return;
             try {
-                const { supabase } = await import('../../services/supabase');
+                const { supabase } = await import('../../services/core/supabase');
                 const { data: { session }, error } = await supabase.auth.getSession();
 
                 if (session) {
@@ -91,7 +91,7 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
         setError(null);
 
         try {
-            const { supabase } = await import('../../services/supabase');
+            const { supabase } = await import('../../services/core/supabase');
 
             // Ensure session is loaded before calling updateUser
             const { data: { session } } = await supabase.auth.getSession();
