@@ -5,6 +5,7 @@ import { SearchInput } from '../../../components/ui/SearchInput';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { LoadMore } from '../../../components/ui/LoadMore';
 import { usePermissions } from '../../../contexts/PermissionsContext';
+import { MaterialImportModal } from './MaterialImportModal';
 
 interface WarehouseStock {
     warehouse_id: string;
@@ -49,6 +50,7 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
     const [statuses, setStatuses] = useState<{ id: number; code: string; description: string }[]>([]);
     const [warehouseStocks, setWarehouseStocks] = useState<Record<string, WarehouseStock[]>>(materialsSearchCache?.warehouseStocks || {});
     const [activePurchases, setActivePurchases] = useState<Record<string, { hasPending: boolean; hasAuthorized: boolean }>>({});
+    const [importOpen, setImportOpen] = useState(false);
 
     useEffect(() => {
         dataService.getMaterialsStatuses().then(setStatuses).catch(console.error);
@@ -157,6 +159,10 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
         }
     }, [materials.length, statusFilter, search, currentUser?.companyId, loadWarehouseStocks]);
 
+    const handleImported = useCallback(() => {
+        doSearch(statusFilter, search.trim());
+    }, [doSearch, statusFilter, search]);
+
     if (!hasSearchPermission) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-slate-500">
@@ -196,6 +202,15 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
                             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
                         >
                             Novo
+                        </button>
+                    )}
+                    {canCreateMaterial && (
+                        <button
+                            onClick={() => setImportOpen(true)}
+                            className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium hover:border-primary transition-colors whitespace-nowrap"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                            Importar
                         </button>
                     )}
                 </div>
@@ -330,6 +345,13 @@ export const MaterialsSearch: React.FC<MaterialsSearchProps> = ({ currentUser, o
                     <div className="p-4 text-center text-slate-500">Carregando mais...</div>
                 )}
             </div>
+
+            <MaterialImportModal
+                isOpen={importOpen}
+                onClose={() => setImportOpen(false)}
+                currentUser={currentUser}
+                onImported={handleImported}
+            />
         </div>
     );
 };

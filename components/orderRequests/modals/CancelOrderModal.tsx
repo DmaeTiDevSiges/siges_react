@@ -3,6 +3,7 @@ import { Modal } from '../../ui/Modal';
 import { Select } from '../../ui/Select';
 import { Textarea } from '../../ui/Textarea';
 import { dataService } from '../../../services/dataService';
+import { requestDashboardRefresh } from '../../../services/core/dashboardRefresh';
 import { Order } from '../../../types';
 import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -110,6 +111,12 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
                 currentUser.teamId || '',
                 comments
             );
+            // O dashboard costuma estar desmontado neste momento (tela de detalhe) —
+            // marca a invalidação para o próximo mount refazer as buscas.
+            requestDashboardRefresh();
+            // Se houver um dashboard montado (ex: cancelamento pelo menu do card na
+            // própria lista), atualiza as listas/contagens imediatamente.
+            window.dispatchEvent(new CustomEvent('refresh_dashboard'));
             toast.success(isSS ? 'Solicitação cancelada com sucesso' : 'Ordem de serviço cancelada com sucesso');
             if (onSuccess) onSuccess();
             onClose();

@@ -12,6 +12,21 @@ import { toPng, toJpeg } from 'html-to-image';
 const TRANSPARENT_PX =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
+/** Cores de fundo do app por tema (tailwind.config.js → background-light/dark) */
+const THEME_BG_LIGHT = '#f1f5f9';
+const THEME_BG_DARK = '#101922';
+
+/**
+ * Fundo fiel ao tema ativo. A classe `dark` no <html> é a fonte de verdade
+ * (index.html boot script + App.tsx), igual ao usada pelo Tailwind (darkMode: 'selector').
+ * No dark o card é `bg-slate-800/40` (semi-transparente) sobre o body — capturar
+ * com o mesmo fundo do body reproduz o visual exatamente como está na tela.
+ */
+export function getThemeBackgroundColor(): string {
+  if (typeof document === 'undefined') return THEME_BG_LIGHT;
+  return document.documentElement.classList.contains('dark') ? THEME_BG_DARK : THEME_BG_LIGHT;
+}
+
 /** URLs do CSS das fontes usadas no app (fetch com CORS — evita ler cssRules cross-origin) */
 const FONT_CSS_URLS = [
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
@@ -219,35 +234,50 @@ export async function captureScreen(options: CaptureOptions = {}): Promise<Scree
 
   // Tenta capturar com opções progressivamente mais simples.
   // `height` = altura reflowed em maxWidth — sem ela o viewBox corta o conteúdo.
+  const themeBackground = getThemeBackgroundColor();
+
+  // O html-to-image embute as imagens com fetch CORS. O R2/CDN devolve
+  // `Cache-Control: public, max-age=31536000, immutable` SEM
+  // `Access-Control-Allow-Origin` quando a requisição não tem header Origin
+  // (ex: o próprio <img> do card carregando). O Chrome guarda essa resposta
+  // e a reutiliza no fetch da captura → CORS bloqueia → imagem sai
+  // transparente (imagePlaceholder). `cache: 'reload'` ignora a entrada em
+  // cache e refaz a requisição com Origin, recebendo ACAO e gravando uma
+  // entrada variada correta.
+  const fetchRequestInit: RequestInit = { cache: 'reload' };
+
   const attempts = [
     {
       width: maxWidth,
       height: captureHeight,
       pixelRatio,
       quality,
-      backgroundColor: '#ffffff',
+      backgroundColor: themeBackground,
       inlineImages: false,
       style: { overflow: 'visible' as const },
       imagePlaceholder: TRANSPARENT_PX,
       onImageErrorHandler,
+      fetchRequestInit,
       ...fontOptions,
     },
     {
       width: maxWidth,
       height: captureHeight,
       pixelRatio: 1,
-      backgroundColor: '#ffffff',
+      backgroundColor: themeBackground,
       imagePlaceholder: TRANSPARENT_PX,
       onImageErrorHandler,
+      fetchRequestInit,
       ...fontOptions,
     },
     {
       width: 800,
       height: captureHeight,
       pixelRatio: 1,
-      backgroundColor: '#ffffff',
+      backgroundColor: themeBackground,
       imagePlaceholder: TRANSPARENT_PX,
       onImageErrorHandler,
+      fetchRequestInit,
       ...fontOptions,
     },
   ];
@@ -401,6 +431,7 @@ export function fitImageTo(
  * sem embedFonts como último recurso.
  */
 export async function captureCardImage(target: string): Promise<string> {
+  const background = getThemeBackgroundColor();
   try {
     const capture = await captureScreen({
       target,
@@ -408,7 +439,7 @@ export async function captureCardImage(target: string): Promise<string> {
       pixelRatio: 2,
       embedFonts: true,
     });
-    return await fitImageTo(capture.dataUrl, 360, 450);
+    return await fitImageTo(capture.dataUrl, 360, 450, background);
   } catch {
     const capture = await captureScreen({
       target,
@@ -416,7 +447,7 @@ export async function captureCardImage(target: string): Promise<string> {
       pixelRatio: 2,
       embedFonts: false,
     });
-    return await fitImageTo(capture.dataUrl, 360, 450);
+    return await fitImageTo(capture.dataUrl, 360, 450, background);
   }
 }
 

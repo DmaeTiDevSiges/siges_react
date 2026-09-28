@@ -4,6 +4,15 @@ import { r2Service } from './media/r2Service';
 import { materialsService } from './materials/materialsService';
 import { warehouseService } from './materials/warehouseService';
 import { purchasesService } from './materials/purchasesService';
+import { materialsImportService } from './materials/materialsImportService';
+import type {
+    MaterialsImportProgress,
+    MaterialsImportResult,
+    MaterialsImportRow,
+    MaterialsParseResult,
+    MaterialsValidationContext,
+    MaterialsValidationResult
+} from './materials/materialsImportService';
 import { ordersService } from './orders/ordersService';
 import { visitsService } from './orders/visitsService';
 import { assetTagsService } from './assets/assetTagsService';
@@ -2203,6 +2212,30 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async createMaterial(material: Partial<Material>): Promise<Material> {
         return materialsService.createMaterial.apply(materialsService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // MATERIALS IMPORT (CSV/XLSX)
+    // -------------------------------------------------------------------------
+    async parseMaterialsCsv(file: File): Promise<MaterialsParseResult> {
+        return materialsImportService.parseMaterialsCsv.apply(materialsImportService, arguments as any);
+    },
+
+    async getExistingMaterialCodes(codes: string[], companyId?: string): Promise<Set<string>> {
+        return materialsImportService.getExistingCodes.apply(materialsImportService, arguments as any);
+    },
+
+    /** Mapa code → id dos almoxarifados da empresa do usuário logado (necessário para importar). */
+    async getMaterialImportWarehouseMap(userCompanyId?: string): Promise<Map<string, string>> {
+        return materialsImportService.loadWarehouseCodeMap.apply(materialsImportService, arguments as any);
+    },
+
+    validateMaterialsRows(rows: MaterialsImportRow[], ctx: MaterialsValidationContext): MaterialsValidationResult {
+        return materialsImportService.validateMaterialsRows.apply(materialsImportService, arguments as any);
+    },
+
+    async importMaterials(rows: MaterialsImportRow[], warehouseByCode: Map<string, string>, onProgress?: MaterialsImportProgress): Promise<MaterialsImportResult> {
+        return materialsImportService.importMaterials.apply(materialsImportService, arguments as any);
     },
 
     async getWarehouses(companyId?: string): Promise<{ id: string; code: string; description: string; address?: string }[]> {

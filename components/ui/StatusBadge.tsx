@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type StatusType = 'active' | 'inactive' | 'pending' | 'expiring';
+export type StatusType = 'active' | 'inactive' | 'pending' | 'expiring' | 'error';
 
 interface StatusBadgeProps {
     status: StatusType;
@@ -19,6 +19,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, classNa
                 return 'bg-[#0f172a] text-amber-500 border border-amber-500/40 shadow-lg shadow-black/20';
             case 'inactive':
                 return 'bg-[#0f172a] text-slate-500 border border-slate-700/50 shadow-lg shadow-black/20';
+            case 'error':
+                return 'bg-[#0f172a] text-red-500 border border-red-500/40 shadow-lg shadow-black/20';
             default:
                 return 'bg-[#0f172a] text-slate-400 border border-slate-700/50';
         }
@@ -30,6 +32,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, classNa
             case 'active': return 'Ativo';
             case 'inactive': return 'Inativo';
             case 'pending': return 'Pendente';
+            case 'error': return 'Erro';
             case 'expiring': return 'Expirando';
             default: return s;
         }
@@ -41,6 +44,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, classNa
                 return <span className="w-2 h-2 rounded-full bg-[#10b981] shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse-slow" />;
             case 'inactive':
                 return <span className="w-2 h-2 rounded-full bg-slate-600" />;
+            case 'error':
+                return <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse-slow" />;
             case 'expiring':
                 return <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse-slow" />;
             case 'pending':

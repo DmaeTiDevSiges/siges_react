@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useTransition, useRef } from 'react';
 import { User, OrderFilters, Order, Company } from '../../types';
 import { dataService } from '../../services/dataService';
+import { getDashboardRefreshRequestedAt } from '../../services/core/dashboardRefresh';
 import { toast } from 'sonner';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { Select } from '../../components/ui/Select';
@@ -30,6 +31,9 @@ import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/orde
 
 // Sessão do app: busca automática só na primeira entrada; retornos usam cache + realtime.
 let osDashboardSessionLoaded = false;
+// Última carga deste dashboard — comparado com o carimbo de invalidação
+// (ex: cancelamento feito na tela de detalhe) para forçar refetch no retorno.
+let osDashboardLastLoadedAt = 0;
 
 interface OrdersRequestsDashboardAdminProps {
     currentUser: User | null;
@@ -50,8 +54,11 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
     const isProviderMode = !!providerCompanyId;
-    // Frozen for this mount: true only on the first entry of the app session.
-    const [shouldInitialLoad] = React.useState(() => !osDashboardSessionLoaded);
+    // Frozen for this mount: true on first entry of the app session and when a
+    // mutation happened while this dashboard was unmounted (see dashboardRefresh).
+    const [shouldInitialLoad] = React.useState(
+        () => !osDashboardSessionLoaded || getDashboardRefreshRequestedAt() > osDashboardLastLoadedAt
+    );
     const unscheduledSSScroll = useDraggableScroll();
     const openOSScroll = useDraggableScroll();
     const osSectorScroll = useDraggableScroll();
@@ -1012,6 +1019,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         // Initial load only on first entry of the app session; returns use cache + realtime
         if (shouldInitialLoad) {
             osDashboardSessionLoaded = true;
+            osDashboardLastLoadedAt = Date.now();
             setIsFiltering(true);
             fetchDataRef.current(false, false);
             setIsLoading(false);

@@ -2607,9 +2607,14 @@ const AppContent: React.FC = () => {
                       }
                     },
                     (error) => {
-                      toast.error('Para iniciar a visita, você deve habilitar o acesso à localização.');
+                      if (error.code === error.TIMEOUT) {
+                        toast.error('Tempo esgotado ao obter a localização. Tente novamente.');
+                      } else {
+                        toast.error('Para iniciar a visita, você deve habilitar o acesso à localização.');
+                      }
                       reject(error);
-                    }
+                    },
+                    { timeout: 5000, maximumAge: 0, enableHighAccuracy: false }
                   );
                 } else {
                   reject(new Error('Missing order or user'));
