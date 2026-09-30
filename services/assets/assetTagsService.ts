@@ -734,9 +734,17 @@ export const assetTagsService = {
     async getUnitStructureNodes(unitId: string): Promise<UnitStructureNode[]> {
         if (!unitId || unitId === 'null') return [];
 
-        const { data, error } = await supabase
-            .from('cfg_units_assets_tags')
-            .select(`
+        const buildQuery = (selectStr: string) =>
+            supabase
+                .from('cfg_units_assets_tags')
+                .select(selectStr)
+                .eq('unit_id', unitId)
+                .eq('is_active', 'true')
+                .eq('is_deleted', 'false')
+                .order('sort_order', { ascending: true })
+                .order('id', { ascending: true });
+
+        const SELECT_FULL = `
                 id,
                 unit_id,
                 asset_tag_id,
@@ -749,12 +757,31 @@ export const assetTagsService = {
                 cascade_parent_id,
                 tag:cfg_assets_tags ( code, description ),
                 sub:cfg_assets_tags_subs ( description )
-            `)
-            .eq('unit_id', unitId)
-            .eq('is_active', 'true')
-            .eq('is_deleted', 'false')
-            .order('sort_order', { ascending: true })
-            .order('id', { ascending: true });
+            `;
+
+        const SELECT_NO_CASCADE = `
+                id,
+                unit_id,
+                asset_tag_id,
+                asset_tag_sub_id,
+                asset_tag_tag_sub_description,
+                parent_id,
+                sort_order,
+                is_active,
+                last_is_available,
+                tag:cfg_assets_tags ( code, description ),
+                sub:cfg_assets_tags_subs ( description )
+            `;
+
+        let { data, error } = await buildQuery(SELECT_FULL);
+
+        // 42703 = coluna indefinida / PGRST204 = schema cache divergente:
+        // a migration de cascata ainda não foi aplicada no servidor.
+        // Degrada graciosamente carregando sem as colunas de cascata.
+        if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+            console.warn('[UnitStructure] Colunas de cascata ausentes no servidor; carregando sem elas (aplique a migration para habilitar a cascata).');
+            ({ data, error } = await buildQuery(SELECT_NO_CASCADE));
+        }
 
         if (error) {
             console.error('Error fetching unit structure nodes:', error);
@@ -779,7 +806,7 @@ export const assetTagsService = {
                 sortOrder: typeof item.sort_order === 'number' ? item.sort_order : 0,
                 isActive: item.is_active === true || item.is_active === 'true',
                 isAvailable: item.last_is_available ?? null,
-                cascadeParentId: item.cascade_parent_id ? String(item.cascade_parent_id) : null,
+                cascadeParentId: item.cascade_parent_id != null ? String(item.cascade_parent_id) : null,
             } as UnitStructureNode;
         });
     },
