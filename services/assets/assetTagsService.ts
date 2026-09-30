@@ -785,18 +785,36 @@ export const assetTagsService = {
      * A validação de ciclos/descendentes é feita na UI antes de chamar este método.
      */
     async updateUnitStructureParent(nodeId: string, parentId: string | null, sortOrder?: number): Promise<void> {
-        const updateData: any = {
-            parent_id: parentId ? parseInt(parentId, 10) : null,
-            updated_at: getBrazilTimestamp(),
+        const doUpdate = async (): Promise<void> => {
+            const updateData: any = {
+                parent_id: parentId ? parseInt(parentId, 10) : null,
+                updated_at: getBrazilTimestamp(),
+            };
+            if (sortOrder !== undefined) updateData.sort_order = sortOrder;
+
+            const { error } = await supabase
+                .from('cfg_units_assets_tags')
+                .update(updateData)
+                .eq('id', parseInt(nodeId, 10));
+
+            if (error) throw error;
         };
-        if (sortOrder !== undefined) updateData.sort_order = sortOrder;
 
-        const { error } = await supabase
-            .from('cfg_units_assets_tags')
-            .update(updateData)
-            .eq('id', parseInt(nodeId, 10));
+        try {
+            await doUpdate();
+        } catch (err: any) {
+            // PGRST002 / 503: PostgREST recarregando o schema cache (ex.: logo após DDL).
+            // Transiente — mesmo padrão de retry usado em updateUnitAssetTagAvailability.
+            const isSchemaCacheError =
+                err?.code === 'PGRST002' ||
+                (typeof err?.message === 'string' && err.message.includes('schema cache'));
 
-        if (error) throw error;
+            if (!isSchemaCacheError) throw err;
+
+            console.warn('[UnitStructure] Schema cache reload detectado, tentando novamente em 1.5s...');
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            await doUpdate();
+        }
     }
 
 };
