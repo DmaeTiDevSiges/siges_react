@@ -23,10 +23,20 @@ ALTER TABLE public.cfg_units_assets_tags
 
 -- FK autoreferente: aponta para o nó RAIZ da cascata (não para o pai direto),
 -- permitindo cascatas aninhadas independentes.
-ALTER TABLE public.cfg_units_assets_tags
-    ADD CONSTRAINT cfg_units_assets_tags_cascade_parent_id_fkey
-    FOREIGN KEY (cascade_parent_id) REFERENCES public.cfg_units_assets_tags(id)
-    ON UPDATE CASCADE ON DELETE SET NULL;
+-- Idempotente: ADD CONSTRAINT não aceita IF NOT EXISTS no Postgres.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'cfg_units_assets_tags_cascade_parent_id_fkey'
+          AND conrelid = 'public.cfg_units_assets_tags'::regclass
+    ) THEN
+        ALTER TABLE public.cfg_units_assets_tags
+            ADD CONSTRAINT cfg_units_assets_tags_cascade_parent_id_fkey
+            FOREIGN KEY (cascade_parent_id) REFERENCES public.cfg_units_assets_tags(id)
+            ON UPDATE CASCADE ON DELETE SET NULL;
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_units_assets_tags_cascade_parent_id
     ON public.cfg_units_assets_tags (cascade_parent_id);
