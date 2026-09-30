@@ -49,6 +49,7 @@ import {
   UnitsList,
   UnitForm,
   UnitDetails,
+  UnitStructure,
   ActivitiesList,
   ActivityForm,
   ContractsList,
@@ -135,7 +136,7 @@ import { Modal } from './components/ui/Modal';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 
 
-type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
+type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-structure' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'asset-loan-checklist-types' | 'asset-loan-checklist-type-form' | 'asset-loan-checklist-type-edit'
   | 'loans-checklists' | 'loans-checklist-form' | 'loans-checklist-edit'
   | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit';
@@ -1162,8 +1163,10 @@ const AppContent: React.FC = () => {
         setUnitsListRefreshKey(prev => prev + 1);
         setCurrentScreen('client-units');
       }
-
-    } else if (currentScreen === 'unit-asset-tag-details' || currentScreen === 'unit-asset-tag-available') {
+    } else if (currentScreen === 'unit-structure') {
+      setUnitsListRefreshKey(prev => prev + 1);
+      setCurrentScreen('unit-details');
+    } else if (currentScreen === 'unit-asset-tag-available' || currentScreen === 'unit-asset-tag-details') {
       setCurrentScreen('unit-details');
     } else if (currentScreen === 'client-unit-form') {
       setCurrentScreen('client-units');
@@ -2269,6 +2272,16 @@ const AppContent: React.FC = () => {
               setSelectedUnitAssetTag(assetTag);
               setCurrentScreen('unit-asset-tag-available');
             }}
+            onOpenStructure={() => setCurrentScreen('unit-structure')}
+          />
+        ) : null;
+      case 'unit-structure':
+        return selectedUnit ? (
+          <UnitStructure
+            key={`unit-structure-${selectedUnit.id}`}
+            unit={selectedUnit}
+            onBack={handleBack}
+            onStructureChanged={() => setUnitsListRefreshKey(prev => prev + 1)}
           />
         ) : null;
       case 'unit-asset-tag-available':
@@ -2864,6 +2877,7 @@ const AppContent: React.FC = () => {
       case 'client-unit-edit': return 'Editar Unidade';
       case 'unit-create': return 'Nova Unidade';
       case 'unit-details': return 'Unidade';
+      case 'unit-structure': return 'Estrutura da Unidade';
       case 'client-edit': return 'Editar Cliente';
       case 'activities': return 'Atividades';
       case 'services': return 'Serviços';

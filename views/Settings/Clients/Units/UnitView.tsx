@@ -31,6 +31,8 @@ interface UnitDetailsProps {
     onSelectAsset?: (asset: Asset) => void;
     onManageAvailability?: (item: any) => void;
     onInformAvailability?: (item: any) => void;
+    /** Abre a página de Estrutura da Unidade (organograma de setores) */
+    onOpenStructure?: () => void;
 }
 
 // Subcomponent for Circular Gauge
@@ -87,7 +89,8 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     onNewOrder,
     onSelectAsset,
     onManageAvailability,
-    onInformAvailability
+    onInformAvailability,
+    onOpenStructure
 }) => {
     const { canView, canEdit, canCreate, canDelete } = usePermissions();
     const [selectedSector, setSelectedSector] = useState<string | null>(() => {
@@ -408,6 +411,15 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="flex items-center justify-between px-1">
                             <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Setores</h3>
                             <div className="flex items-center gap-2">
+                                {canView('units_assets_tags') && (
+                                    <button
+                                        onClick={() => onOpenStructure?.()}
+                                        className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-400 hover:text-primary transition-all active:scale-95 shadow-sm"
+                                        title="Estrutura da Unidade (organograma)"
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">account_tree</span>
+                                    </button>
+                                )}
                                 <AssetsListExcelButton
                                     unitId={unit.id}
                                     unitName={unit.description}

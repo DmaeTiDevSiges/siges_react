@@ -1136,6 +1136,13 @@ export const dataService = {
         return assetTagsService.getUniqueSectorsByUnit.apply(assetTagsService, arguments as any);
     },
 
+    async getUnitStructureNodes(unitId: string): Promise<import('../types').UnitStructureNode[]> {
+        return assetTagsService.getUnitStructureNodes.apply(assetTagsService, arguments as any);
+    },
+    async updateUnitStructureParent(nodeId: string, parentId: string | null, sortOrder?: number): Promise<void> {
+        return assetTagsService.updateUnitStructureParent.apply(assetTagsService, arguments as any);
+    },
+
     async getAssetTags(status: 'all' | 'active' | 'inactive' = 'all', search?: string): Promise<AssetTag[]> {
         return assetTagsService.getAssetTags.apply(assetTagsService, arguments as any);
     },
@@ -2794,6 +2801,10 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async getAssetsByTypeForAssociation(assetTypeId: string, search?: string, excludeTmId?: string, clientId?: string, unitId?: string): Promise<{ id: string; code: string; description: string; tagDescription?: string; tagSubDescription?: string; statusDescription?: string }[]> {
         return technicalManualsService.getAssetsByTypeForAssociation.apply(technicalManualsService, arguments as any);
+    },
+
+    async getManualsWithFilesForAssets(assetIds: string[]): Promise<(TechnicalManual & { files: TechnicalManualFile[] })[]> {
+        return technicalManualsService.getManualsWithFilesForAssets.apply(technicalManualsService, arguments as any);
     },
 
     async getOpenAlertsBySectorAndType(unitAssetTagId: string, orderTypeId: string): Promise<AssetAlert[]> {

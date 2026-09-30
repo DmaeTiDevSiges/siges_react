@@ -609,6 +609,28 @@ export interface AssetAttribute {
   selectOptionsGroupId?: string | null;
 }
 
+/**
+ * Nó do organograma de estrutura da unidade (setores).
+ * Origem: cfg_units_assets_tags (com parent_id da migration 20260929).
+ */
+export interface UnitStructureNode {
+  id: string;
+  unitId: string;
+  /** id de cfg_assets_tags (setor global) — null quando não atribuído */
+  assetTagId: number | null;
+  /** id de cfg_assets_tags_subs (posição) — null quando não atribuído */
+  assetTagSubId: number | null;
+  /** Nome exibido no organograma (asset_tag_tag_sub_description ou fallbacks) */
+  name: string;
+  code?: string | null;
+  parentId: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  isAvailable: boolean | null;
+  /** Contagem de posições/itens abaixo do nó (preenchida opcionalmente pelo serviço) */
+  childrenCount?: number;
+}
+
 export interface AssetAttributeGroup {
   id: string;
   group: string;

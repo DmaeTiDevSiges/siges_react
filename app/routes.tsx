@@ -104,6 +104,7 @@ export const UnitTypeForm = lazyWithRetry(() => import('../views/Settings/UnitTy
 export const UnitsList = lazyWithRetry(() => import('../views/Settings/Clients/Units/UnitsList').then(m => ({ default: m.UnitsList })));
 export const UnitForm = lazyWithRetry(() => import('../views/Settings/Clients/Units/UnitForm').then(m => ({ default: m.UnitForm })));
 export const UnitDetails = lazyWithRetry(() => import('../views/Settings/Clients/Units/UnitView').then(m => ({ default: m.UnitDetails })));
+export const UnitStructure = lazyWithRetry(() => import('../views/Settings/Clients/Units/UnitStructure').then(m => ({ default: m.UnitStructure })));
 export const ActivitiesList = lazyWithRetry(() => import('../views/Settings/Activities/ActivitiesList').then(m => ({ default: m.ActivitiesList })));
 export const ActivityForm = lazyWithRetry(() => import('../views/Settings/Activities/ActivityForm').then(m => ({ default: m.ActivityForm })));
 export const ContractsList = lazyWithRetry(() => import('../views/Contracts/ContractsList').then(m => ({ default: m.ContractsList })));

@@ -1,6 +1,6 @@
 import { supabase } from '../core/supabase';
 import { r2Service } from '../media/r2Service';
-import { AssetTag, AssetTagSub, Company } from '../../types';
+import { AssetTag, AssetTagSub, Company, UnitStructureNode } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { getPublicImageUrl } from '../media/imageUtils';
 import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
@@ -654,6 +654,7 @@ export const assetTagsService = {
         unitId?: number;
         assetTagId?: number;
         assetTagSubId?: number | null;
+        parentId?: number | null;
         assetTagTagSubDescription?: string;
         operationUnit?: string;
         assetAvailableRate?: number;
@@ -677,6 +678,7 @@ export const assetTagsService = {
         if (payload.unitId !== undefined) updateData.unit_id = payload.unitId;
         if (payload.assetTagId !== undefined) updateData.asset_tag_id = payload.assetTagId;
         if (payload.assetTagSubId !== undefined) updateData.asset_tag_sub_id = payload.assetTagSubId;
+        if (payload.parentId !== undefined) updateData.parent_id = payload.parentId;
         if (payload.assetTagTagSubDescription !== undefined) updateData.asset_tag_tag_sub_description = payload.assetTagTagSubDescription;
         if (payload.operationUnit !== undefined) updateData.operation_unit = payload.operationUnit;
         if (payload.assetAvailableRate !== undefined) updateData.asset_available_rate = payload.assetAvailableRate;
@@ -717,6 +719,82 @@ export const assetTagsService = {
                 deleted_user_id: deletedUserId || null,
             })
             .eq('id', id);
+
+        if (error) throw error;
+    },
+
+    // ── Unit Structure (organograma de setores da unidade) ───────
+
+    /**
+     * Busca todos os nós de estrutura da unidade (linhas ativas de
+     * cfg_units_assets_tags) já com parent_id/sort_order (migration 20260929).
+     */
+    async getUnitStructureNodes(unitId: string): Promise<UnitStructureNode[]> {
+        if (!unitId || unitId === 'null') return [];
+
+        const { data, error } = await supabase
+            .from('cfg_units_assets_tags')
+            .select(`
+                id,
+                unit_id,
+                asset_tag_id,
+                asset_tag_sub_id,
+                asset_tag_tag_sub_description,
+                parent_id,
+                sort_order,
+                is_active,
+                last_is_available,
+                tag:cfg_assets_tags ( code, description ),
+                sub:cfg_assets_tags_subs ( description )
+            `)
+            .eq('unit_id', unitId)
+            .eq('is_active', 'true')
+            .eq('is_deleted', 'false')
+            .order('sort_order', { ascending: true })
+            .order('id', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching unit structure nodes:', error);
+            throw error;
+        }
+
+        return (data || []).map((item: any) => {
+            const name =
+                item.asset_tag_tag_sub_description ||
+                (item.asset_tag_sub_id && item.sub?.description ? item.sub.description : null) ||
+                item.tag?.description ||
+                `Setor ${item.id}`;
+
+            return {
+                id: String(item.id),
+                unitId: String(item.unit_id),
+                assetTagId: item.asset_tag_id ?? null,
+                assetTagSubId: item.asset_tag_sub_id ?? null,
+                name,
+                code: item.tag?.code ?? null,
+                parentId: item.parent_id ? String(item.parent_id) : null,
+                sortOrder: typeof item.sort_order === 'number' ? item.sort_order : 0,
+                isActive: item.is_active === true || item.is_active === 'true',
+                isAvailable: item.last_is_available ?? null,
+            } as UnitStructureNode;
+        });
+    },
+
+    /**
+     * Re-parent de um nó do organograma (drag-and-drop).
+     * A validação de ciclos/descendentes é feita na UI antes de chamar este método.
+     */
+    async updateUnitStructureParent(nodeId: string, parentId: string | null, sortOrder?: number): Promise<void> {
+        const updateData: any = {
+            parent_id: parentId ? parseInt(parentId, 10) : null,
+            updated_at: getBrazilTimestamp(),
+        };
+        if (sortOrder !== undefined) updateData.sort_order = sortOrder;
+
+        const { error } = await supabase
+            .from('cfg_units_assets_tags')
+            .update(updateData)
+            .eq('id', parseInt(nodeId, 10));
 
         if (error) throw error;
     }
