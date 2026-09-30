@@ -1142,6 +1142,9 @@ export const dataService = {
     async updateUnitStructureParent(nodeId: string, parentId: string | null, sortOrder?: number): Promise<void> {
         return assetTagsService.updateUnitStructureParent.apply(assetTagsService, arguments as any);
     },
+    async getUnitAssetTagCascadeInfo(nodeId: string): Promise<{ underCascade: boolean; cascadeRootName: string | null }> {
+        return assetTagsService.getUnitAssetTagCascadeInfo.apply(assetTagsService, arguments as any);
+    },
 
     async getAssetTags(status: 'all' | 'active' | 'inactive' = 'all', search?: string): Promise<AssetTag[]> {
         return assetTagsService.getAssetTags.apply(assetTagsService, arguments as any);

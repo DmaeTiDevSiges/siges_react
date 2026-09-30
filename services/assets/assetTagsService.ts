@@ -357,7 +357,7 @@ export const assetTagsService = {
     }): Promise<number> {
         const dtStr = getBrazilTimestamp();
 
-        const { data, error: rpcError } = await supabase.rpc('update_unit_asset_tag_availability', {
+        const rpcArgs = {
             p_unit_asset_tag_id: parseInt(id),
             p_is_available: payload.isAvailable,
             p_reason_id: payload.reasonId ? parseInt(payload.reasonId) : null,
@@ -378,7 +378,30 @@ export const assetTagsService = {
             p_unit_reported_distance: payload.unitReportedDistance ?? null,
             p_provider_company_id: payload.providerCompanyId ?? null,
             p_is_web: payload.isWeb
-        });
+        };
+
+        const callRpc = async (fnName: string) => {
+            const { data, error } = await supabase.rpc(fnName, rpcArgs as any);
+            return { data, error };
+        };
+
+        // RPC novo (com cascata pai → filhos). Cai para o antigo se ainda
+        // não existir no servidor (PGRST202 = não encontrado no schema cache).
+        let { data, error: rpcError } = await callRpc('report_unit_asset_tag_availability');
+
+        if (rpcError && (rpcError.code === 'PGRST202' || (rpcError as any).details?.includes('report_unit_asset_tag_availability'))) {
+            console.warn('[UnitAssetTag] RPC de cascata indisponível, usando RPC original...');
+            ({ data, error: rpcError } = await callRpc('update_unit_asset_tag_availability'));
+        }
+
+        // Guarda do servidor: nó descendente sob cascata de ancestral indisponível
+        if (rpcError && typeof rpcError.message === 'string' && rpcError.message.includes('NODE_UNDER_CASCADE')) {
+            const friendly = new Error(
+                'Este setor está indisponível em cascata pelo setor pai. Informe a disponibilidade pelo setor pai para liberar todos os setores filhos.'
+            );
+            (friendly as any).code = 'NODE_UNDER_CASCADE';
+            throw friendly;
+        }
 
         if (rpcError?.code === 'PGRST202') {
             console.warn('Schema cache desatualizado, recarregando...');
@@ -398,28 +421,7 @@ export const assetTagsService = {
             } catch (_) { }
 
             await new Promise(resolve => setTimeout(resolve, 1500));
-            const { data: retryData, error: retryError } = await supabase.rpc('update_unit_asset_tag_availability', {
-                p_unit_asset_tag_id: parseInt(id),
-                p_is_available: payload.isAvailable,
-                p_reason_id: payload.reasonId ? parseInt(payload.reasonId) : null,
-                p_comments: payload.comments || null,
-                p_reported_by_id: parseInt(payload.reportedById),
-                p_file_path: payload.images?.[0]?.path || null,
-                p_file_name: payload.images?.[0]?.filename || null,
-                p_unit_id: payload.unitId,
-                p_asset_tag_id: payload.assetTagId,
-                p_asset_tag_sub_id: payload.assetTagSubId || null,
-                p_operation_record: payload.operationRecord ? Number(payload.operationRecord) : null,
-                p_created_at: dtStr,
-                p_reported_at: dtStr,
-                p_reported_latitude: payload.reportedLatitude ?? null,
-                p_reported_longitude: payload.reportedLongitude ?? null,
-                p_unit_latitude: payload.unitLatitude ?? null,
-                p_unit_longitude: payload.unitLongitude ?? null,
-                p_unit_reported_distance: payload.unitReportedDistance ?? null,
-                p_provider_company_id: payload.providerCompanyId ?? null,
-                p_is_web: payload.isWeb
-            });
+            const { data: retryData, error: retryError } = await callRpc('report_unit_asset_tag_availability');
             if (retryError) {
                 console.error('Erro após retry do RPC:', retryError);
                 throw retryError;
@@ -428,7 +430,7 @@ export const assetTagsService = {
         }
 
         if (rpcError) {
-            console.error('Error executing update_unit_asset_tag_availability RPC', rpcError);
+            console.error('Error executing report_unit_asset_tag_availability RPC', rpcError);
             throw rpcError;
         }
 
@@ -744,6 +746,7 @@ export const assetTagsService = {
                 sort_order,
                 is_active,
                 last_is_available,
+                cascade_parent_id,
                 tag:cfg_assets_tags ( code, description ),
                 sub:cfg_assets_tags_subs ( description )
             `)
@@ -776,8 +779,34 @@ export const assetTagsService = {
                 sortOrder: typeof item.sort_order === 'number' ? item.sort_order : 0,
                 isActive: item.is_active === true || item.is_active === 'true',
                 isAvailable: item.last_is_available ?? null,
+                cascadeParentId: item.cascade_parent_id ? String(item.cascade_parent_id) : null,
             } as UnitStructureNode;
         });
+    },
+
+    /**
+     * Informa se um nó (por id) está sob cascata de disponibilidade de um
+     * ancestral. Usado pelo formulário de disponibilidade para bloquear o
+     * informe manual em filhos de setor pai indisponível.
+     */
+    async getUnitAssetTagCascadeInfo(nodeId: string): Promise<{ underCascade: boolean; cascadeRootName: string | null }> {
+        if (!nodeId) return { underCascade: false, cascadeRootName: null };
+
+        const { data, error } = await supabase.rpc('get_unit_asset_tag_cascade_info', {
+            p_node_id: parseInt(nodeId, 10)
+        });
+
+        if (error) {
+            // RPC ainda não aplicado no servidor → tratar como "sem cascata"
+            console.warn('[UnitAssetTag] get_unit_asset_tag_cascade_info indisponível:', error.message);
+            return { underCascade: false, cascadeRootName: null };
+        }
+
+        const row = Array.isArray(data) ? data[0] : data;
+        return {
+            underCascade: !!row?.under_cascade,
+            cascadeRootName: row?.cascade_root_name ?? null
+        };
     },
 
     /**

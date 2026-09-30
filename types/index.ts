@@ -627,6 +627,8 @@ export interface UnitStructureNode {
   sortOrder: number;
   isActive: boolean;
   isAvailable: boolean | null;
+  /** Raiz da cascata de disponibilidade que dirige este nó (quando sob cascata) */
+  cascadeParentId?: string | null;
   /** Contagem de posições/itens abaixo do nó (preenchida opcionalmente pelo serviço) */
   childrenCount?: number;
 }

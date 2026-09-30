@@ -45,6 +45,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
     const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
     const [unit, setUnit] = useState<Unit | null>(null);
     const [isEditing, setIsEditing] = useState(false);
+    const [cascadeInfo, setCascadeInfo] = useState<{ underCascade: boolean; cascadeRootName: string | null }>({ underCascade: false, cascadeRootName: null });
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -74,6 +75,11 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
         };
 
         loadInitialData();
+
+        // Bloqueio de informe em setor sob cascata de disponibilidade do pai
+        dataService.getUnitAssetTagCascadeInfo(assetTagId)
+            .then(setCascadeInfo)
+            .catch(() => setCascadeInfo({ underCascade: false, cascadeRootName: null }));
     }, [unitId, assetTagId]);
 
     // Captura GPS do usuário ao montar o componente
@@ -142,6 +148,12 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
 
         if (isAvailable === false && !reasonId) {
             toast.error('Selecione o motivo da indisponibilidade');
+            return;
+        }
+
+        // Sector under a parent's availability cascade: manual report is blocked
+        if (cascadeInfo.underCascade) {
+            toast.error(`Informe a disponibilidade pelo setor pai${cascadeInfo.cascadeRootName ? ` (${cascadeInfo.cascadeRootName})` : ''} para liberar este setor.`);
             return;
         }
 
@@ -304,6 +316,22 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                             </div>
                         </div>
                     </div>
+
+                    {/* Bloqueio: setor sob cascata de disponibilidade do pai */}
+                    {cascadeInfo.underCascade && (
+                        <div className="flex items-start gap-3 rounded-2xl border border-amber-300/60 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[22px] shrink-0">lock</span>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-wider leading-tight">
+                                    Setor indisponível em cascata
+                                </p>
+                                <p className="text-[12px] font-bold text-amber-700/80 dark:text-amber-300/80 mt-0.5 leading-snug">
+                                    O setor pai{cascadeInfo.cascadeRootName ? ` "${cascadeInfo.cascadeRootName}"` : ''} está indisponível e dirige este setor.
+                                    Informe a disponibilidade pelo setor pai para liberar todos os filhos de uma vez.
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Form Fields */}
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

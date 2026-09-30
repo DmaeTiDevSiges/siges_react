@@ -99,6 +99,16 @@ const NodeCard: React.FC<OrganogramNodeCardProps> = ({
                 title={node.isAvailable === false ? 'Indisponível' : node.isAvailable === true ? 'Disponível' : 'Sem registro'}
             />
 
+            {/* Under availability cascade: state is driven by the cascade root ancestor */}
+            {node.cascadeParentId && (
+                <span
+                    className="text-amber-500 shrink-0"
+                    title="Estado dirigido pela indisponibilidade de um setor pai — informe a disponibilidade pelo pai para liberar"
+                >
+                    <span className="material-symbols-outlined text-[16px]">lock</span>
+                </span>
+            )}
+
             {/* Name + code */}
             <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-bold text-slate-700 dark:text-slate-200 truncate leading-tight">
