@@ -88,7 +88,7 @@ BEGIN
             SELECT c.parent_id
             FROM public.cfg_units_assets_tags c
             WHERE c.id = p_unit_asset_tag_id
-          UNION ALL
+          UNION  -- UNION (não ALL) quebra loop em caso de ciclo legado em parent_id
             SELECT c2.parent_id
             FROM public.cfg_units_assets_tags c2
             JOIN anc a ON c2.id = a.parent_id
@@ -177,15 +177,16 @@ BEGIN
     IF v_do_cascade_disable THEN
 
         WITH RECURSIVE subtree AS (
-            SELECT s.id
+            SELECT s.id, 1 AS depth
             FROM public.cfg_units_assets_tags s
             WHERE s.parent_id = p_unit_asset_tag_id
               AND s.is_deleted = FALSE AND s.is_active = TRUE
           UNION ALL
-            SELECT c.id
+            SELECT c.id, t.depth + 1
             FROM public.cfg_units_assets_tags c
             JOIN subtree t ON c.parent_id = t.id
             WHERE c.is_deleted = FALSE AND c.is_active = TRUE
+              AND t.depth < 50   -- trava de segurança contra ciclos legados em parent_id
         ), affected AS (
             SELECT t2.id, to_jsonb(t2) AS full_row
             FROM subtree
@@ -233,38 +234,37 @@ BEGIN
     -- (nunca foi marcado) → permanece indisponível com motivo próprio.
     IF v_do_cascade_restore THEN
 
-        WITH upd AS (
+        WITH marked AS (
+            SELECT id, pre_cascade_state AS pre
+            FROM public.cfg_units_assets_tags
+            WHERE cascade_parent_id = p_unit_asset_tag_id
+              AND cascade_parent_id <> id
+              AND pre_cascade_state IS NOT NULL
+        ), upd AS (
             UPDATE public.cfg_units_assets_tags u
-            SET last_is_available        = (s.pre->>'last_is_available')::boolean,
-                last_asset_available_rate = COALESCE((s.pre->>'last_asset_available_rate')::numeric, 0),
-                last_asset_available_id  = COALESCE((s.pre->>'last_asset_available_id')::bigint, 0),
-                last_created_at          = (s.pre->>'last_created_at')::timestamp,
-                last_reported_at         = (s.pre->>'last_reported_at')::timestamp,
-                last_reported_user_id    = (s.pre->>'last_reported_user_id')::bigint,
-                last_file_path           = s.pre->>'last_file_path',
-                last_file_name           = s.pre->>'last_file_name',
-                last_comments            = NULLIF(s.pre->>'last_comments', 'Indisponível em cascata — setor pai: ' || v_parent_name),
-                last_asset_unavailable_reason_id = (s.pre->>'last_asset_unavailable_reason_id')::bigint,
-                last_operation_record    = (s.pre->>'last_operation_record')::numeric,
-                last_provider_company_id = (s.pre->>'last_provider_company_id')::bigint,
-                last_status_id           = (s.pre->>'last_status_id')::bigint,
-                last_processing_id       = COALESCE((s.pre->>'last_processing_id')::bigint, 1),
-                last_flow_rate           = (s.pre->>'last_flow_rate')::numeric,
-                last_power               = (s.pre->>'last_power')::numeric,
-                last_pressure            = (s.pre->>'last_pressure')::numeric,
-                last_voltage             = (s.pre->>'last_voltage')::numeric,
-                last_amperage            = (s.pre->>'last_amperage')::numeric,
+            SET last_is_available        = (m.pre->>'last_is_available')::boolean,
+                last_asset_available_rate = COALESCE((m.pre->>'last_asset_available_rate')::numeric, 0),
+                last_asset_available_id  = COALESCE((m.pre->>'last_asset_available_id')::bigint, 0),
+                last_created_at          = (m.pre->>'last_created_at')::timestamp,
+                last_reported_at         = (m.pre->>'last_reported_at')::timestamp,
+                last_reported_user_id    = (m.pre->>'last_reported_user_id')::bigint,
+                last_file_path           = m.pre->>'last_file_path',
+                last_file_name           = m.pre->>'last_file_name',
+                last_comments            = NULLIF(m.pre->>'last_comments', 'Indisponível em cascata — setor pai: ' || v_parent_name),
+                last_asset_unavailable_reason_id = (m.pre->>'last_asset_unavailable_reason_id')::bigint,
+                last_operation_record    = (m.pre->>'last_operation_record')::numeric,
+                last_provider_company_id = (m.pre->>'last_provider_company_id')::bigint,
+                last_status_id           = (m.pre->>'last_status_id')::bigint,
+                last_processing_id       = COALESCE((m.pre->>'last_processing_id')::bigint, 1),
+                last_flow_rate           = (m.pre->>'last_flow_rate')::numeric,
+                last_power               = (m.pre->>'last_power')::numeric,
+                last_pressure            = (m.pre->>'last_pressure')::numeric,
+                last_voltage             = (m.pre->>'last_voltage')::numeric,
+                last_amperage            = (m.pre->>'last_amperage')::numeric,
                 cascade_parent_id        = NULL,
                 pre_cascade_state        = NULL
-            FROM (
-                SELECT id, pre_cascade_state AS pre
-                FROM public.cfg_units_assets_tags
-                WHERE cascade_parent_id = p_unit_asset_tag_id
-                  AND cascade_parent_id <> id
-                  AND pre_cascade_state IS NOT NULL
-            ) marked
-            JOIN public.cfg_units_assets_tags s ON s.id = marked.id
-            WHERE u.id = marked.id
+            FROM marked m
+            WHERE u.id = m.id
             RETURNING u.id, u.unit_id, u.asset_tag_id, u.asset_tag_sub_id, u.last_is_available
         )
         INSERT INTO public.assets_available (
@@ -303,7 +303,7 @@ BEGIN
         SELECT c.parent_id
         FROM public.cfg_units_assets_tags c
         WHERE c.id = p_node_id
-      UNION ALL
+      UNION  -- quebra loop em caso de ciclo legado em parent_id
         SELECT c2.parent_id
         FROM public.cfg_units_assets_tags c2
         JOIN anc a ON c2.id = a.parent_id
@@ -319,7 +319,7 @@ BEGIN
             SELECT c.parent_id
             FROM public.cfg_units_assets_tags c
             WHERE c.id = p_node_id
-          UNION ALL
+          UNION
             SELECT c2.parent_id
             FROM public.cfg_units_assets_tags c2
             JOIN anc2 a ON c2.id = a.parent_id
