@@ -3506,7 +3506,7 @@ const AppContent: React.FC = () => {
               sessionStorage.removeItem('admin_refresh_token');
               window.location.reload();
             }}
-            className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-[99999] w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg flex items-center justify-center hover:bg-amber-600 transition-colors active:scale-95"
+            className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-[99999] w-12 h-12 rounded-full bg-amber-500 text-black shadow-lg flex items-center justify-center hover:bg-amber-600 transition-colors active:scale-95"
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             title="Voltar ao Admin"
           >

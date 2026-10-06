@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { OrderVisit, OrderVisitTeam } from '../../../types';
 import { Card } from '../../ui/Card';
 import { UserAvatar } from '../../ui/UserAvatar';
-import { formatDateTime, getPriorityColor, formatCurrency, getStatusConfig } from '../../../utils/formatters';
+import { formatDateTime, getPriorityColor, formatCurrency, getStatusConfig, getTextColorForBg } from '../../../utils/formatters';
 import { IconButton } from '../../ui/IconButton';
 import { VisitReportPDFButton } from '../../reports/VisitReportPDFButton';
 
@@ -82,7 +82,7 @@ const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminLis
                 <div className="flex flex-col gap-3">
                     {/* ID Badge */}
                     <div
-                        className="relative flex flex-col gap-0.5 px-4 py-3 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white overflow-hidden"
+                        className={`relative flex flex-col gap-0.5 px-4 py-3 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] ${getTextColorForBg(getPriorityColor(visit.priorityColor || visit.priorityCode || 'AT'))} overflow-hidden`}
                         style={{ backgroundColor: getPriorityColor(visit.priorityColor || visit.priorityCode || 'AT') }}
                     >
                         <span className="text-[20px] font-black leading-none tracking-tight">{visit.ovMask}</span>

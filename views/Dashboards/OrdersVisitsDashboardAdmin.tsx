@@ -9,6 +9,7 @@ import { Loading } from '../../components/ui/Loading';
 import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
 import { VisitsListPDFButton } from '../../components/reports/VisitsListPDFButton';
+import { VisitsListExcelButton } from '../../components/reports/VisitsListExcelButton';
 import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components/ui/FilterBarResponsive';
 import { BatchVisitReportPDFButton } from '../../components/reports/BatchVisitReportPDFButton';
 import { ExcelExportUtils } from '../../utils/ExcelExportUtils';
@@ -1758,6 +1759,13 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                                 </button>
 
                                 <VisitsListPDFButton
+                                    className="shrink-0"
+                                    visits={pdfVisitsData}
+                                    totalCount={filteredVisits.length}
+                                    filename="relatorio-visitas"
+                                />
+
+                                <VisitsListExcelButton
                                     className="shrink-0"
                                     visits={pdfVisitsData}
                                     totalCount={filteredVisits.length}

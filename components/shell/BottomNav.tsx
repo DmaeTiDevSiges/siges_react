@@ -29,7 +29,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
   const showMaterials = isAdminSuper || canSearch('materials_search');
   const showMaintenancePlans = isAdminSuper || canView('maintenance_plans');
   const showManuals = isAdminSuper || canView('technicals_manuals_search');
-  const showNotices = isAdminSuper || canView('app_notices');
+  const showNotices = isAdminSuper || (canView('app_notices') && canSearch('app_notices'));
 
   const showExtraWorkers = isAdminSuper || canView('notices_workers_extra');
 

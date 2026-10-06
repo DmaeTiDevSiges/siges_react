@@ -1,10 +1,65 @@
 import { supabase } from './supabase';
-import { NoticeWorker } from '../../types';
+import { NoticeWorker, NoticeWorkersSummaryItem } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
 
 const TABLE = 'cfg_app_notices_workers';
 
 export const appNoticesWorkersService = {
+  /**
+   * Total de MO extra por company, agregado para vários avisos de uma vez.
+   * Retorna apenas companies com soma > 0, ordenado do maior total para o menor.
+   */
+  async getWorkersSummaryByNotices(
+    noticeIds: Array<number | string>
+  ): Promise<NoticeWorkersSummaryItem[]> {
+    const ids = Array.from(
+      new Set(
+        (noticeIds || [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      )
+    );
+    if (ids.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select(
+        'notice_id, company_id, workers_extra_amount, cfg_companies(id, description, code, img_file_path, img_file_name)'
+      )
+      .in('notice_id', ids)
+      .gt('workers_extra_amount', 0);
+
+    if (error) {
+      console.error('Error fetching notice workers summary:', error);
+      return [];
+    }
+
+    const map = new Map<string, NoticeWorkersSummaryItem>();
+    (data || []).forEach((row: any) => {
+      const noticeId = Number(row.notice_id);
+      const companyId = Number(row.company_id);
+      const amount = Number(row.workers_extra_amount) || 0;
+      if (!Number.isFinite(noticeId) || !Number.isFinite(companyId) || amount <= 0) return;
+
+      const key = `${noticeId}:${companyId}`;
+      const comp = row.cfg_companies;
+      const entry = map.get(key) || {
+        noticeId,
+        companyId,
+        companyName: comp?.description,
+        companyCode: comp?.code,
+        companyLogoUrl: comp?.img_file_name
+          ? getPublicImageUrl(comp.img_file_path, comp.img_file_name, { width: 100, height: 100, resize: 'cover' })
+          : undefined,
+        total: 0,
+      };
+      entry.total += amount;
+      map.set(key, entry);
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  },
+
   /**
    * Lançamentos de trabalhadores extras de um aviso.
    * `companyId` undefined = todas as companies (super admin).

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
 import { CompanyAvatar } from '../ui/CompanyAvatar';
-import { formatDateTime, getPriorityColor, getStatusConfig } from '../../utils/formatters';
+import { formatDateTime, getPriorityColor, getStatusConfig, getTextColorForBg } from '../../utils/formatters';
 import { OrderActionManager } from './OrderActionManager';
 import { dataService } from '../../services/dataService';
 import { captureCardImage } from '../../services/media/screenshotService';
@@ -113,7 +113,7 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
         >
             <div className="flex justify-between items-start mb-4">
                 <div
-                    className="flex flex-col gap-0.5 px-4 py-2.5 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white"
+                    className={`flex flex-col gap-0.5 px-4 py-2.5 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] ${getTextColorForBg(getPriorityColor(req.priorityColor || req.priorityCode || (req as any).priority_code || (req as any).priority_color))}`}
                     style={{ backgroundColor: getPriorityColor(req.priorityColor || req.priorityCode || (req as any).priority_code || (req as any).priority_color) }}
                 >
                     <span className="text-[18px] font-black leading-none tracking-tight">{req.orderMask || (req as any).order_mask}</span>
@@ -301,9 +301,9 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
                         if (!isTransferring) onTransferVisit();
                     }}
                     disabled={isTransferring}
-                    className={`w-full mt-4 py-3.5 text-white font-black text-sm uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${isTransferring
-                        ? 'bg-slate-400 cursor-wait'
-                        : 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700 active:scale-[0.98] hover:shadow-xl'
+                    className={`w-full mt-4 py-3.5 font-black text-sm uppercase tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${isTransferring
+                        ? 'bg-slate-400 text-white cursor-wait'
+                        : 'bg-amber-500 text-black hover:bg-amber-600 active:bg-amber-700 active:scale-[0.98] hover:shadow-xl'
                         }`}
                 >
                     {isTransferring ? (

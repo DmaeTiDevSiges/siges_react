@@ -53,13 +53,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
     },
     badgeText: {
-        color: '#ffffff',
+        color: '#000000',
         fontSize: 12,
         fontWeight: 'bold',
         fontFamily: 'Helvetica-Bold',
     },
     badgeDate: {
-        color: '#ffffff',
+        color: '#000000',
         fontSize: 6,
         marginTop: 2,
         textTransform: 'uppercase',

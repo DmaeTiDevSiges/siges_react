@@ -609,9 +609,9 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                                 evaluationRanking.map((contract, index) => (
                                     <div key={contract.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                                            index === 0 ? 'bg-yellow-100 text-yellow-600' :
+                                            index === 0 ? 'bg-yellow-100 text-black' :
                                             index === 1 ? 'bg-slate-200 text-slate-600' :
-                                            index === 2 ? 'bg-orange-100 text-orange-600' :
+                                            index === 2 ? 'bg-orange-100 text-black' :
                                             'bg-slate-100 text-slate-500'
                                         }`}>
                                             {index + 1}
@@ -871,9 +871,9 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                                                             >
                                                                 <div className="flex items-center gap-4">
                                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${
-                                                                        entry.position === 1 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 ring-2 ring-yellow-400 font-black' :
+                                                                        entry.position === 1 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-black dark:text-yellow-400 ring-2 ring-yellow-400 font-black' :
                                                                         entry.position === 2 ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-black' :
-                                                                        entry.position === 3 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-black' :
+                                                                        entry.position === 3 ? 'bg-orange-50 dark:bg-orange-900/20 text-black dark:text-orange-400 font-black' :
                                                                         'bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-black'
                                                                     }`}>
                                                                         {entry.position}
@@ -928,9 +928,9 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                                                             >
                                                                 <div className="flex items-center gap-4">
                                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${
-                                                                        entry.position === 1 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 ring-2 ring-yellow-400 font-black' :
+                                                                        entry.position === 1 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-black dark:text-yellow-400 ring-2 ring-yellow-400 font-black' :
                                                                         entry.position === 2 ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-black' :
-                                                                        entry.position === 3 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-black' :
+                                                                        entry.position === 3 ? 'bg-orange-50 dark:bg-orange-900/20 text-black dark:text-orange-400 font-black' :
                                                                         'bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-black'
                                                                     }`}>
                                                                         {entry.position}
@@ -993,9 +993,9 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                                                 <div className="bg-white dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
                                                     <div className="flex items-center gap-3 mb-4">
                                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${
-                                                            activeItem.position === 1 ? 'bg-yellow-100 text-yellow-700' :
+                                                            activeItem.position === 1 ? 'bg-yellow-100 text-black' :
                                                             activeItem.position === 2 ? 'bg-slate-100 text-slate-700' :
-                                                            activeItem.position === 3 ? 'bg-orange-100 text-orange-700' :
+                                                            activeItem.position === 3 ? 'bg-orange-100 text-black' :
                                                             'bg-slate-100 text-slate-600'
                                                         }`}>
                                                             {activeItem.position}

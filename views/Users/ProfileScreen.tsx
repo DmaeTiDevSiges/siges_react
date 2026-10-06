@@ -1477,7 +1477,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                                     )}
                                                                     <span className={`text-sm font-black px-2 py-1 rounded-lg ${
                                                                         score.avgComplianceScore >= 90 ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' :
-                                                                        score.avgComplianceScore >= 70 ? 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                                                                        score.avgComplianceScore >= 70 ? 'bg-yellow-50 text-black dark:bg-yellow-900/20 dark:text-yellow-400' :
                                                                         'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
                                                                     }`}>
                                                                         {score.avgComplianceScore}%

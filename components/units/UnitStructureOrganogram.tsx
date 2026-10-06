@@ -133,15 +133,22 @@ const NodeCard: React.FC<OrganogramNodeCardProps> = ({
                 </span>
             </button>
 
-            {/* Availability dot */}
-            <span
-                className={`w-2 h-2 rounded-full shrink-0 ${node.isAvailable === false
-                    ? 'bg-red-500'
-                    : node.isAvailable === true
-                        ? 'bg-emerald-500'
-                        : 'bg-slate-300 dark:bg-slate-600'}`}
-                title={node.isAvailable === false ? 'Indisponível' : node.isAvailable === true ? 'Disponível' : 'Sem registro'}
-            />
+            {/* Availability: thumb up/down (cinza quando sem registro) */}
+            {node.isAvailable === null ? (
+                <span
+                    className="w-2 h-2 rounded-full shrink-0 bg-slate-300 dark:bg-slate-600"
+                    title="Sem registro"
+                />
+            ) : (
+                <span
+                    className={`shrink-0 leading-none ${node.isAvailable ? 'text-emerald-500' : 'text-red-500'}`}
+                    title={node.isAvailable ? 'Disponível' : 'Indisponível'}
+                >
+                    <span className="material-symbols-outlined text-[16px] sm:text-[18px] [font-variation-settings:'FILL'_1]">
+                        {node.isAvailable ? 'thumb_up' : 'thumb_down'}
+                    </span>
+                </span>
+            )}
 
             {/* Under availability cascade: state is driven by the cascade root ancestor */}
             {node.cascadeParentId && (
@@ -175,7 +182,7 @@ const NodeCard: React.FC<OrganogramNodeCardProps> = ({
             {/* Vínculos secundários: badge + botão de gerenciar */}
             {linkCount > 0 && (
                 <span
-                    className="shrink-0 inline-flex items-center justify-center gap-0.5 min-w-[20px] h-5 px-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-[10px] font-black text-amber-600 dark:text-amber-400"
+                    className="shrink-0 inline-flex items-center justify-center gap-0.5 min-w-[20px] h-5 px-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-[10px] font-black text-black dark:text-amber-400"
                     title="Aparece também sob outros setores (pai secundário)"
                 >
                     <span className="material-symbols-outlined text-[12px]">link</span>
@@ -269,15 +276,22 @@ const AliasCard: React.FC<{
             <span className="material-symbols-outlined text-[18px]">link</span>
         </span>
 
-        {/* Availability dot (mesmo estado do nó original) */}
-        <span
-            className={`w-2 h-2 rounded-full shrink-0 ${alias.isAvailable === false
-                ? 'bg-red-500'
-                : alias.isAvailable === true
-                    ? 'bg-emerald-500'
-                    : 'bg-slate-300 dark:bg-slate-600'}`}
-            title={alias.isAvailable === false ? 'Indisponível' : alias.isAvailable === true ? 'Disponível' : 'Sem registro'}
-        />
+        {/* Availability: thumb up/down (mesmo estado do nó original) */}
+        {alias.isAvailable === null ? (
+            <span
+                className="w-2 h-2 rounded-full shrink-0 bg-slate-300 dark:bg-slate-600"
+                title="Sem registro"
+            />
+        ) : (
+            <span
+                className={`shrink-0 leading-none ${alias.isAvailable ? 'text-emerald-500' : 'text-red-500'}`}
+                title={alias.isAvailable ? 'Disponível' : 'Indisponível'}
+            >
+                <span className="material-symbols-outlined text-[16px] sm:text-[18px] [font-variation-settings:'FILL'_1]">
+                    {alias.isAvailable ? 'thumb_up' : 'thumb_down'}
+                </span>
+            </span>
+        )}
 
         {alias.cascadeParentId && (
             <span
@@ -872,10 +886,13 @@ export const UnitStructureOrganogram: React.FC<UnitStructureOrganogramProps> = (
                 {/* Legend */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 pb-3">
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" /> Disponível
+                        <span className="material-symbols-outlined text-[14px] text-emerald-500 [font-variation-settings:'FILL'_1]">thumb_up</span> Disponível
                     </span>
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        <span className="w-2 h-2 rounded-full bg-red-500" /> Indisponível
+                        <span className="material-symbols-outlined text-[14px] text-red-500 [font-variation-settings:'FILL'_1]">thumb_down</span> Indisponível
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600" /> Sem registro
                     </span>
                     {canInteract && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary/70 uppercase tracking-wider ml-auto">

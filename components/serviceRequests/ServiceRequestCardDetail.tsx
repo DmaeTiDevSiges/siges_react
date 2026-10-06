@@ -10,7 +10,7 @@ import { copyImageWithFallback } from '../../utils/imageClipboard';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';
 import { IconButton } from '../ui/IconButton';
-import { getPriorityColor, getStatusConfig } from '../../utils/formatters';
+import { getPriorityColor, getStatusConfig, getTextColorForBg } from '../../utils/formatters';
 import { Modal } from '../ui/Modal';
 import { CancelOrderModal } from '../orderRequests/modals/CancelOrderModal';
 import { usePermissions } from '../../contexts/PermissionsContext';
@@ -152,7 +152,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
             <div className="flex justify-between items-start mb-3">
                 {/* Date Badge - Priority Based Color */}
                 <div
-                    className="flex flex-col px-4 py-2.5 rounded-[14px] text-white shadow-md min-w-[120px]"
+                    className={`flex flex-col px-4 py-2.5 rounded-[14px] ${getTextColorForBg(getPriorityColor(req.priorityColor || req.priorityCode || (req as any).priority_code || (req as any).priority_color || 'AT'))} shadow-md min-w-[120px]`}
                     style={{ backgroundColor: getPriorityColor(req.priorityColor || req.priorityCode || (req as any).priority_code || (req as any).priority_color || 'AT') }}
                 >
                     <span className="text-[20px] font-black leading-none mb-1">{req.orderMask || 'OS'}</span>

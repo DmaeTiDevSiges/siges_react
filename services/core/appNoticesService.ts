@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { appNoticesWorkersService } from './appNoticesWorkersService';
 import {
   SystemNotice,
   SystemNoticeCategory,
@@ -165,20 +166,19 @@ export const appNoticesService = {
     if (data.dashboards !== undefined) updateData.dashboards = data.dashboards;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
-    const { error } = await supabase
-      .from('cfg_app_notices')
-      .update(updateData)
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error updating notice:', error);
-      throw error;
-    }
+    await this.applyNoticeUpdate(id, updateData);
 
     return this.getNoticeById(id) as Promise<SystemNotice>;
   },
 
   async deleteNotice(id: number): Promise<void> {
+    // Bloqueia exclusão de aviso com MO extra lançada (total > 0)
+    const summary = await appNoticesWorkersService.getWorkersSummaryByNotices([id]);
+    const totalWorkers = summary.reduce((sum, item) => sum + item.total, 0);
+    if (totalWorkers > 0) {
+      throw new Error('MO_EXTRA_EXISTS');
+    }
+
     const { error } = await supabase
       .from('cfg_app_notices')
       .delete()
@@ -191,15 +191,49 @@ export const appNoticesService = {
   },
 
   async toggleNoticeActive(id: number, isActive: boolean): Promise<void> {
+    await this.applyNoticeUpdate(id, { is_active: isActive });
+  },
+
+  /**
+   * Grava a alteração registrando o usuário autenticado em `updated_user_id`.
+   * Sem a migration 20261006 (coluna updated_user_id) o update é refito sem
+   * ela para não quebrar a edição do aviso.
+   */
+  async applyNoticeUpdate(id: number, payload: Record<string, any>): Promise<void> {
+    const { user } = (await supabase.auth.getUser()).data;
+    const data: Record<string, any> = { ...payload };
+    if (user?.id) {
+      const userId = parseInt(user.id);
+      if (Number.isFinite(userId)) data.updated_user_id = userId;
+    }
+
     const { error } = await supabase
       .from('cfg_app_notices')
-      .update({ is_active: isActive })
+      .update(data)
       .eq('id', id);
 
-    if (error) {
-      console.error('Error toggling notice:', error);
-      throw error;
+    if (!error) return;
+
+    // 42703 = undefined_column (coluna updated_user_id ainda não existe)
+    if (error.code === '42703' && 'updated_user_id' in data) {
+      console.warn(
+        'Coluna updated_user_id ausente — aplique a migration 20261006_add_updated_user_to_cfg_app_notices.sql',
+        error
+      );
+      delete data.updated_user_id;
+      const { error: retryError } = await supabase
+        .from('cfg_app_notices')
+        .update(data)
+        .eq('id', id);
+      if (retryError) {
+        console.error('Error updating notice:', retryError);
+        throw retryError;
+      }
+      return;
     }
+
+    console.error('Error updating notice:', error);
+    throw error;
   },
 
   /** Incrementa o contador de visualizações do aviso (RPC atômica no banco). */
@@ -266,6 +300,10 @@ export const appNoticesService = {
       severityColor: row.severity_color,
       severityIcon: row.severity_icon,
       creatorName: row.creator_name,
+      creatorNameShort: row.creator_name_short || row.creator_name,
+      updatedBy: row.updated_user_id,
+      updatedByName: row.updated_by_name,
+      updatedByNameShort: row.updated_by_name_short || row.updated_by_name,
     };
   },
 };

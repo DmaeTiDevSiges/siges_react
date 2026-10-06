@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => { onNavigate('manuals'); }}
                     />
                 )}
-                {(isAdminSuper || canView('app_notices')) && (
+                {(isAdminSuper || (canView('app_notices') && canSearch('app_notices'))) && (
                     <SidebarItem
                         icon="notifications"
                         label="Avisos"

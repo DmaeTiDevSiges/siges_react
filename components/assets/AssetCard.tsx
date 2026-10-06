@@ -2,6 +2,7 @@ import React from 'react';
 import { Asset } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { dataService } from '../../services/dataService';
+import { getTextColorForBg } from '../../utils/formatters';
 
 interface AssetCardProps {
     asset: Asset;
@@ -31,7 +32,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onClick, isFavorite
             <div className="relative z-10 flex flex-col gap-3">
                 <div className="flex items-stretch justify-between gap-3">
                     <div
-                        className="text-white rounded-[12px] px-4 py-2 flex items-center shadow-sm"
+                        className={`${getTextColorForBg(asset.statusColor || '#149185')} rounded-[12px] px-4 py-2 flex items-center shadow-sm`}
                         style={{ backgroundColor: asset.statusColor || '#149185' }}
                     >
                         <div className="flex flex-col leading-tight">

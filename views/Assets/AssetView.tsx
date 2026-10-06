@@ -8,7 +8,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { LoadMore } from '../../components/ui/LoadMore';
 import { toast } from 'sonner';
-import { formatDateTime, formatCurrency, formatDate } from '../../utils/formatters';
+import { formatDateTime, formatCurrency, formatDate, getTextColorForBg } from '../../utils/formatters';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
@@ -57,7 +57,7 @@ const AssetCardDetail: React.FC<{ asset: Asset; onMaterialSelect?: (material: Ma
                 <div className="flex items-stretch justify-between gap-3">
                     {/* Status Tag */}
                     <div
-                        className="text-white rounded-[12px] px-4 py-2 flex items-center shadow-sm"
+                        className={`${getTextColorForBg(asset.statusColor || '#149185')} rounded-[12px] px-4 py-2 flex items-center shadow-sm`}
                         style={{ backgroundColor: asset.statusColor || '#149185' }}
                     >
                         <div className="flex flex-col leading-tight">
@@ -1305,7 +1305,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                         <button
                                                             type="button"
                                                             onClick={() => setComponentForm(prev => ({ ...prev, isOriginal: false }))}
-                                                            className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all border cursor-pointer ${!componentForm.isOriginal ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 hover:border-orange-500/30'}`}
+                                                            className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all border cursor-pointer ${!componentForm.isOriginal ? 'bg-orange-500 text-black border-orange-500' : 'bg-slate-50 dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 hover:border-orange-500/30'}`}
                                                         >
                                                             Compatível
                                                         </button>
@@ -1391,7 +1391,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                         <button
                                                             type="button"
                                                             onClick={() => setEditComponentForm(prev => ({ ...prev, isOriginal: false }))}
-                                                            className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all border cursor-pointer ${!editComponentForm.isOriginal ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 hover:border-orange-500/30'}`}
+                                                            className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all border cursor-pointer ${!editComponentForm.isOriginal ? 'bg-orange-500 text-black border-orange-500' : 'bg-slate-50 dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 hover:border-orange-500/30'}`}
                                                         >
                                                             Compatível
                                                         </button>

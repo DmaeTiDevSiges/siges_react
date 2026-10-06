@@ -108,7 +108,7 @@ export const LocationBlockedScreen: React.FC<LocationBlockedScreenProps> = ({ on
                     {isAndroid && guide.isAggressive && (
                         <button
                             onClick={() => setShowGuide(v => !v)}
-                            className="w-full flex items-center justify-center py-3.5 px-6 bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-200 rounded-xl font-semibold transition-all active:scale-95"
+                            className="w-full flex items-center justify-center py-3.5 px-6 bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50 text-black dark:text-amber-200 rounded-xl font-semibold transition-all active:scale-95"
                         >
                             <MdBatteryChargingFull className="mr-2 text-xl" />
                             Desbloquear no {guide.label}
@@ -138,7 +138,7 @@ export const LocationBlockedScreen: React.FC<LocationBlockedScreenProps> = ({ on
                         <button
                             onClick={handleOpenBattery}
                             disabled={busy}
-                            className="mt-4 w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-all active:scale-95"
+                            className="mt-4 w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-black rounded-lg text-sm font-semibold transition-all active:scale-95"
                         >
                             Abrir configurações de bateria
                         </button>

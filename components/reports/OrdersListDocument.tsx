@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
-import { formatDateTime } from '../../utils/formatters';
+import { formatDateTime, formatDateTimeCompact } from '../../utils/formatters';
 
 const styles = StyleSheet.create({
     page: { padding: 30, fontSize: 9, fontFamily: 'Helvetica' },
@@ -80,6 +80,7 @@ export const OrdersListDocument = ({ orders, logoBase64 }: { orders: any[]; logo
                                 <Text style={styles.tableCell}>{order.requesterName || order.requesterNameShort || '-'}</Text>
                                 <Text style={styles.tableCellSub}>{order.requesterTeamCode || '-'}</Text>
                                 <Text style={styles.tableCellSub}>{order.requesterPhone || '-'}</Text>
+                                <Text style={styles.tableCellSub}>{formatDateTimeCompact(order.requestedAt)}</Text>
                             </View>
                             <View style={[styles.tableCol, { width: '15%' }]}>
                                 <Text style={styles.tableCell}>{order.statusDescription || order.statusName || '-'}</Text>

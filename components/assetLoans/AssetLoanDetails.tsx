@@ -325,7 +325,7 @@ export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
                 >
                     Checklist Depois
                     {(loan.itemsChecklistsDivergentCount ?? 0) > 0 && (
-                        <span className="bg-amber-400 text-amber-900 text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                        <span className="bg-amber-400 text-black text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">
                             {loan.itemsChecklistsDivergentCount}
                         </span>
                     )}

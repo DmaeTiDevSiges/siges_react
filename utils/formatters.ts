@@ -75,6 +75,37 @@ export const formatDateTime = (date: string | Date | null | undefined): string =
 };
 
 /**
+ * Format date and time in compact brazilian format (dd/mm/aaaa HH:mmh)
+ * @param date - Date string or Date object
+ * @returns Formatted datetime string (DD/MM/YYYY HH:mmh)
+ */
+export const formatDateTimeCompact = (date: string | Date | null | undefined): string => {
+    if (!date) return '-';
+    if (typeof date === 'string') {
+        // timestamp sem timezone (gravado em horário do Brasil): formata direto, sem conversão
+        const naive = date.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+        if (naive && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(date)) {
+            const [, year, month, day, hour, minute] = naive;
+            return `${day}/${month}/${year} ${hour}:${minute}h`;
+        }
+    }
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '-';
+    const formatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour12: false,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    const parts = formatter.formatToParts(d);
+    const map = new Map(parts.map(p => [p.type, p.value]));
+    return `${map.get('day')}/${map.get('month')}/${map.get('year')} ${map.get('hour')}:${map.get('minute')}h`;
+};
+
+/**
  * Truncate text to specified length
  * @param text - Text to truncate
  * @param maxLength - Maximum length
@@ -162,6 +193,55 @@ export const getPriorityColor = (priorityCodeOrColor?: string | number): string 
     }
 };
 
+const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+    const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+    if (!m) return null;
+    let h = m[1];
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    return {
+        r: parseInt(h.slice(0, 2), 16),
+        g: parseInt(h.slice(2, 4), 16),
+        b: parseInt(h.slice(4, 6), 16),
+    };
+};
+
+const relativeLuminance = ({ r, g, b }: { r: number; g: number; b: number }): number => {
+    const chan = (v: number) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b);
+};
+
+/**
+ * Text color class for a badge with an inline hex background.
+ * Orange/yellow/amber backgrounds with enough luminance get black text,
+ * everything else keeps white text.
+ */
+export const getTextColorForBg = (bg?: string): string => {
+    if (!bg) return 'text-white';
+    const rgb = hexToRgb(bg);
+    if (!rgb) return 'text-white';
+
+    const { r, g, b } = rgb;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const d = max - min;
+
+    if (d === 0) return 'text-white';
+
+    let h: number;
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h = ((h * 60) + 360) % 360;
+
+    const isOrangeYellow = h >= 10 && h <= 75;
+    if (!isOrangeYellow) return 'text-white';
+
+    return relativeLuminance(rgb) > 0.179 ? 'text-black' : 'text-white';
+};
+
 
 /**
  * Get configuration (icon, color, label) for a status ID
@@ -172,9 +252,9 @@ export const getStatusConfig = (statusId?: number | string) => {
     const id = Number(statusId);
     switch (id) {
         case 1: // Pendente (SS)
-            return { icon: 'assignment_late', color: 'text-orange-500', bgColor: 'bg-orange-500/10', barColor: 'bg-orange-500', label: 'Pendentes' };
+            return { icon: 'assignment_late', color: 'text-black dark:text-orange-500', bgColor: 'bg-orange-500/10', barColor: 'bg-orange-500', label: 'Pendentes' };
         case 2: // Avaliação
-            return { icon: 'assignment_late', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', barColor: 'bg-yellow-500', label: 'Avaliação' };
+            return { icon: 'assignment_late', color: 'text-black dark:text-yellow-500', bgColor: 'bg-yellow-500/10', barColor: 'bg-yellow-500', label: 'Avaliação' };
         case 3: // Autorizada
             return { icon: 'check_circle', color: 'text-blue-500', bgColor: 'bg-blue-500/10', barColor: 'bg-blue-500', label: 'Autorizadas' };
         case 4: // Agendada

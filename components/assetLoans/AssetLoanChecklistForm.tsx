@@ -197,7 +197,7 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
 
     const statusOptions = [
         { value: 'ok', label: 'OK', color: 'text-green-600 bg-green-50 dark:bg-green-900/20' },
-        { value: 'damaged', label: 'Danificado', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20' },
+        { value: 'damaged', label: 'Danificado', color: 'text-black bg-orange-50 dark:text-orange-400 dark:bg-orange-900/20' },
         { value: 'missing', label: 'Ausente', color: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
         { value: 'not_applicable', label: 'Não se aplica', color: 'text-slate-600 bg-slate-100 dark:bg-slate-700' },
     ];
@@ -233,7 +233,7 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
                                 )}
                             </div>
                             {readonly && item.isDivergent && (
-                                <span className="text-[10px] font-black text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full whitespace-nowrap">
+                                <span className="text-[10px] font-black text-black bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20 px-2 py-1 rounded-full whitespace-nowrap">
                                     Divergente
                                 </span>
                             )}

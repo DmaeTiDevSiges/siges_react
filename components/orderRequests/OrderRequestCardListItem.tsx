@@ -3,7 +3,7 @@ import { Order, User } from '../../types';
 import { Card } from '../ui/Card';
 import { CompanyAvatar } from '../ui/CompanyAvatar';
 import { Avatar } from '../ui/Avatar';
-import { formatDateTime, getPriorityColor, getStatusConfig } from '../../utils/formatters';
+import { formatDateTime, getPriorityColor, getStatusConfig, getTextColorForBg } from '../../utils/formatters';
 import { OrderActionManager } from './OrderActionManager';
 import { dataService } from '../../services/dataService';
 import { PhotoViewer } from '../ui/PhotoViewer';
@@ -79,7 +79,7 @@ export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> =
         >
             <div className="flex justify-between items-start mb-4">
                 <div
-                    className="flex flex-col gap-0.5 px-4 py-2.5 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white"
+                    className={`flex flex-col gap-0.5 px-4 py-2.5 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] ${getTextColorForBg(getPriorityColor(req.priorityColor || req.priorityCode || (req as any).priority_color || (req as any).priority_code))}`}
                     style={{ backgroundColor: getPriorityColor(req.priorityColor || req.priorityCode || (req as any).priority_color || (req as any).priority_code) }}
                 >
                     <span className="text-[18px] font-black leading-none tracking-tight">{req.orderMask || (req as any).order_mask}</span>

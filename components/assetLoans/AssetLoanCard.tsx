@@ -53,7 +53,7 @@ export const AssetLoanCard: React.FC<AssetLoanCardProps> = ({ loan, onViewDetail
                     <div className="flex items-center gap-2">
                         <AssetLoanStatusBadge status={loan.computedStatus || loan.status} size="sm" />
                         {(loan.itemsChecklistsDivergentCount ?? 0) > 0 && (
-                            <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full">
+                            <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-black dark:text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full">
                                 <span className="material-symbols-outlined text-xs">difference</span>
                                 {loan.itemsChecklistsDivergentCount}
                             </span>

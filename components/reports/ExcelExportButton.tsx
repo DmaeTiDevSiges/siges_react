@@ -5,6 +5,7 @@ import { dataService } from '../../services/dataService';
 import { OrderFilters } from '../../types';
 import { toast } from 'sonner';
 import { Loading } from '../ui/Loading';
+import { formatDateTimeCompact } from '../../utils/formatters';
 
 
 interface ExcelExportButtonProps {
@@ -52,6 +53,12 @@ export const ExcelExportButton = ({
 
             toast.loading(`Gerando Excel com ${result.data.length} registros...`, { id: toastId });
 
+            const rows = result.data.map((o: any) => ({
+                ...o,
+                requesterInfo: o.requesterName || o.requesterNameShort || '-',
+                requestedAtFormatted: formatDateTimeCompact(o.requestedAt || o.date || o.createdAt)
+            }));
+
             // Mapeamento de colunas para o Excel (unidade_nome etc.)
             const mapping = {
                 orderMask: 'OS',
@@ -60,7 +67,8 @@ export const ExcelExportButton = ({
                 unitAssetTagDescription: 'Setor',
                 unitAssetTagSubDescription: 'Sub-setor',
                 requestedServices: 'Serviços a realizar',
-                requesterName: 'Solicitante',
+                requesterInfo: 'Solicitante',
+                requestedAtFormatted: 'Solicitação',
                 requesterTeamCode: 'Equipe Solicitante',
                 requesterPhone: 'Fone Solicitante',
                 contractDescription: 'Contrato',
@@ -71,7 +79,7 @@ export const ExcelExportButton = ({
                 statusAt: 'Data Situação'
             };
 
-            const formattedData = ExcelExportUtils.formatDataForExport(result.data, mapping);
+            const formattedData = ExcelExportUtils.formatDataForExport(rows, mapping);
             await ExcelExportUtils.exportToExcel(formattedData, filename, 'Listagem');
 
             toast.success('Excel exportado com sucesso!', { id: toastId });

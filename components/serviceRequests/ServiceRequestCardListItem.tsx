@@ -5,7 +5,7 @@ import { CompanyAvatar } from '../ui/CompanyAvatar';
 import { dataService } from '../../services/dataService';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';
-import { getPriorityColor, getStatusConfig } from '../../utils/formatters';
+import { getPriorityColor, getStatusConfig, getTextColorForBg } from '../../utils/formatters';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -135,7 +135,7 @@ export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProp
             <div className="flex justify-between items-start mb-3">
                 {/* Date Badge - Priority Color */}
                 <div
-                    className="flex flex-col px-4 py-2.5 rounded-[14px] text-white shadow-md min-w-[120px]"
+                    className={`flex flex-col px-4 py-2.5 rounded-[14px] ${getTextColorForBg(getPriorityColor(req.priorityColor || req.priorityCode))} shadow-md min-w-[120px]`}
                     style={{ backgroundColor: getPriorityColor(req.priorityColor || req.priorityCode) }}
                 >
                     <span className="text-[20px] font-black leading-none mb-1">{req.orderMask || 'OS'}</span>

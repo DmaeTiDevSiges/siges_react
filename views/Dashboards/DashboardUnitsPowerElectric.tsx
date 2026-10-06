@@ -343,7 +343,7 @@ const VisitCard: React.FC<VisitCardProps> = ({ visit, onClick, formatDate, getSt
     >
         {/* Header - Prominent Badge like Order Card */}
         <div className="flex justify-between items-start mb-4">
-            <div className={`flex flex-col gap-0.5 px-4 py-2.5 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] text-white ${getStatusColor(visit.ovStatusId)}`}>
+            <div className={`flex flex-col gap-0.5 px-4 py-2.5 rounded-[16px] shadow-lg transform transition-transform group-hover:scale-105 min-w-[140px] ${getStatusColor(visit.ovStatusId)}`}>
                 <span className="text-[18px] font-black leading-none tracking-tight">{visit.ovMask}</span>
                 <div className="flex justify-between items-center w-full mt-1">
                     <span className="text-[9px] font-bold opacity-90 uppercase tracking-tighter">{visit.statusDescription}</span>
@@ -689,7 +689,7 @@ const UnitsPowerElectricTable: React.FC<{ items: any[]; unitsOrders?: Record<str
                                     <td className="px-6 py-4 text-center">
                                         {item.situacao ? (
                                             <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${item.situacao.toLowerCase().includes('pendente')
-                                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                                ? 'bg-amber-500/10 text-black dark:text-amber-500 border-amber-500/20'
                                                 : item.situacao.toLowerCase().includes('processamento')
                                                     ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
                                                     : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
@@ -1231,12 +1231,12 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
 
     const getStatusColor = (statusId: number) => {
         switch (statusId) {
-            case 1: return 'bg-yellow-500';
-            case 2: return 'bg-blue-500';
-            case 3: return 'bg-green-500';
-            case 4: return 'bg-purple-500';
-            case 7: return 'bg-red-500';
-            default: return 'bg-gray-500';
+            case 1: return 'bg-yellow-500 text-black';
+            case 2: return 'bg-blue-500 text-white';
+            case 3: return 'bg-green-500 text-white';
+            case 4: return 'bg-purple-500 text-white';
+            case 7: return 'bg-red-500 text-white';
+            default: return 'bg-gray-500 text-white';
         }
     };
 

@@ -1531,6 +1531,10 @@ export interface SystemNotice {
   severityColor?: string;
   severityIcon?: string;
   creatorName?: string;
+  creatorNameShort?: string;
+  updatedBy?: number;
+  updatedByName?: string;
+  updatedByNameShort?: string;
 }
 
 export interface CreateSystemNoticeInput {
@@ -1580,6 +1584,15 @@ export interface NoticeWorker {
   companyName?: string;
   companyCode?: string;
   companyLogoUrl?: string;
+}
+
+export interface NoticeWorkersSummaryItem {
+  noticeId: number;
+  companyId: number;
+  companyName?: string;
+  companyCode?: string;
+  companyLogoUrl?: string;
+  total: number;
 }
 
 // ============================================================================

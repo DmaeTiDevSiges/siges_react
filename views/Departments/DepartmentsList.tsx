@@ -363,7 +363,7 @@ const DraggableUserItem: React.FC<DraggableUserItemProps> = ({ user, teamId }) =
                     disabled={toggling}
                     className={`flex items-center gap-1 sm:gap-1.5 px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold transition-colors shrink-0 ${
                         isLeader
-                            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50'
+                            ? 'bg-amber-100 dark:bg-amber-900/30 text-black dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50'
                             : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
                     } ${toggling ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}
                     title={isLeader ? 'Remover como líder' : 'Definir como líder'}
@@ -374,7 +374,7 @@ const DraggableUserItem: React.FC<DraggableUserItemProps> = ({ user, teamId }) =
                 </button>
             ) : (
                 isLeader && (
-                    <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold shrink-0">
+                    <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-black dark:text-amber-400 font-semibold shrink-0">
                         Líder
                     </span>
                 )

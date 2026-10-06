@@ -165,6 +165,12 @@ export const LeaderRankingDashboard: React.FC<LeaderRankingDashboardProps> = ({ 
         return 'bg-red-100 dark:bg-red-900/30';
     };
 
+    const getComplianceChipColor = (score: number) => {
+        if (score >= 70 && score < 90) return 'text-black dark:text-yellow-400';
+        if (score >= 50 && score < 70) return 'text-black dark:text-orange-400';
+        return getComplianceColor(score);
+    };
+
     const getTrendIcon = (trend: string) => {
         switch (trend) {
             case 'up': return { icon: 'trending_up', color: 'text-green-500' };
@@ -175,9 +181,9 @@ export const LeaderRankingDashboard: React.FC<LeaderRankingDashboardProps> = ({ 
 
     const getPositionStyle = (position: number) => {
         switch (position) {
-            case 1: return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 ring-2 ring-yellow-400';
+            case 1: return 'bg-yellow-100 dark:bg-yellow-900/30 text-black dark:text-yellow-400 ring-2 ring-yellow-400';
             case 2: return 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
-            case 3: return 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400';
+            case 3: return 'bg-orange-50 dark:bg-orange-900/20 text-black dark:text-orange-400';
             default: return 'bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400';
         }
     };
@@ -508,7 +514,7 @@ export const LeaderRankingDashboard: React.FC<LeaderRankingDashboardProps> = ({ 
                                                     <p className="text-xs font-mono text-slate-500">OS #{visit.orderId || '—'}</p>
                                                     <p className="text-[10px] text-slate-400">{visit.failedEvaluations}/{visit.totalEvaluations} descumpridos</p>
                                                 </div>
-                                                <span className={`text-sm font-black px-2 py-1 rounded-lg ${getComplianceBg(visit.complianceScore)} ${getComplianceColor(visit.complianceScore)}`}>
+                                                <span className={`text-sm font-black px-2 py-1 rounded-lg ${getComplianceBg(visit.complianceScore)} ${getComplianceChipColor(visit.complianceScore)}`}>
                                                     {visit.complianceScore}%
                                                 </span>
                                             </div>

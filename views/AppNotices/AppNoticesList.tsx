@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useAppNoticesAdmin } from '../../hooks/useAppNotices';
 import { AppNoticeForm } from '../../components/appNotices/AppNoticeForm';
-import { SystemNotice, CreateSystemNoticeInput, DASHBOARD_OPTIONS } from '../../types';
+import { SystemNotice, CreateSystemNoticeInput, NoticeWorkersSummaryItem } from '../../types';
 import { appNoticesService } from '../../services/core/appNoticesService';
+import { dataService } from '../../services/dataService';
 import { Select } from '../../components/ui/Select';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Loading } from '../../components/ui/Loading';
@@ -14,7 +15,7 @@ interface AppNoticesListProps {
 }
 
 export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
-    const { canCreate, canEdit, canDelete } = usePermissions();
+    const { canView, canSearch, canCreate, canEdit, canDelete } = usePermissions();
     const { notices, total, loading, fetchNotices, createNotice, updateNotice, deleteNotice, toggleActive } = useAppNoticesAdmin();
     
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -26,10 +27,39 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
     const [filterSeverity, setFilterSeverity] = useState<number | undefined>();
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'expired'>('all');
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [moExtraByNotice, setMoExtraByNotice] = useState<Record<number, NoticeWorkersSummaryItem[]>>({});
 
     useEffect(() => {
         loadCategoriesAndSeverities();
     }, []);
+
+    // Total de MO extra por company para os avisos listados (1 query)
+    useEffect(() => {
+        let cancelled = false;
+        const ids = notices.map((notice) => notice.id);
+        if (ids.length === 0) {
+            setMoExtraByNotice({});
+            return;
+        }
+        dataService
+            .getNoticeWorkersSummaryByNotices(ids)
+            .then((items) => {
+                if (cancelled) return;
+                const map: Record<number, NoticeWorkersSummaryItem[]> = {};
+                items.forEach((item) => {
+                    if (!map[item.noticeId]) map[item.noticeId] = [];
+                    map[item.noticeId].push(item);
+                });
+                setMoExtraByNotice(map);
+            })
+            .catch((error) => {
+                console.error('Error loading notice workers summary:', error);
+                if (!cancelled) setMoExtraByNotice({});
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [notices]);
 
     useEffect(() => {
         fetchNotices({
@@ -71,6 +101,17 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
     };
 
     const handleDelete = async (id: number) => {
+        try {
+            const summary = await dataService.getNoticeWorkersSummaryByNotices([id]);
+            const totalWorkers = summary.reduce((sum, item) => sum + item.total, 0);
+            if (totalWorkers > 0) {
+                toast.error('Não é possível excluir: este aviso possui MO extra lançada');
+                return;
+            }
+        } catch (error) {
+            // Falha na checagem não bloqueia: o service repete a validação na exclusão
+            console.error('Error checking notice workers before delete:', error);
+        }
         setDeletingId(id);
     };
 
@@ -80,7 +121,11 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
             await deleteNotice(deletingId);
             toast.success('Aviso excluído com sucesso!');
         } catch (error) {
-            toast.error('Erro ao excluir aviso');
+            if (error instanceof Error && error.message === 'MO_EXTRA_EXISTS') {
+                toast.error('Não é possível excluir: este aviso possui MO extra lançada');
+            } else {
+                toast.error('Erro ao excluir aviso');
+            }
         } finally {
             setDeletingId(null);
         }
@@ -116,6 +161,17 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
         });
     };
 
+    const formatDateTime = (dateString?: string) => {
+        if (!dateString) return '';
+        return new Date(dateString).toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
     const isNoticeActive = (notice: SystemNotice) => {
         const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
         const now = new Date(nowStr);
@@ -123,6 +179,20 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
         const end = new Date(notice.endDate);
         return notice.isActive && start <= now && end >= now;
     };
+
+    if (!canView('app_notices') || !canSearch('app_notices')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-slate-500 bg-background-light dark:bg-background-dark p-6 text-center">
+                <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                    <span className="material-symbols-outlined text-[40px] text-slate-400 dark:text-slate-600">lock</span>
+                </div>
+                <h3 className="text-slate-900 dark:text-white font-bold mb-2">Acesso Negado</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Você não tem permissão para acessar os avisos.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
@@ -243,7 +313,13 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                         {notice.viewCount ?? 0}
                                                     </span>
                                                 </div>
-                                                
+
+                                                {/* Vigência (destaque abaixo do título) */}
+                                                <p className="flex items-center gap-1.5 mb-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                                                    <span className="material-symbols-outlined text-[15px] text-slate-400 dark:text-slate-500">calendar_month</span>
+                                                    Vigência: {formatDate(notice.startDate)} - {formatDate(notice.endDate)}
+                                                </p>
+
                                                 <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">
                                                     {notice.message}
                                                 </p>
@@ -271,15 +347,42 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                         {notice.severityLabel}
                                                     </span>
 
-                                                    {/* Dashboard badges */}
-                                                    {notice.dashboards?.map((d) => {
-                                                        const opt = DASHBOARD_OPTIONS.find((o) => o.key === d);
+                                                    {/* MO Extra: avatar da company + contador */}
+                                                    {(() => {
+                                                        const items = moExtraByNotice[notice.id];
+                                                        if (!items || items.length === 0) return null;
                                                         return (
-                                                            <span key={d} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
-                                                                {opt?.label || d}
+                                                            <span className="inline-flex items-center gap-1.5" title="MO Extra">
+                                                                <span className="material-symbols-outlined text-[15px] text-amber-500">engineering</span>
+                                                                <span className="flex items-center -space-x-2">
+                                                                    {items.map((item) => (
+                                                                        <span
+                                                                            key={`mo-extra-${item.companyId}`}
+                                                                            className="relative shrink-0"
+                                                                            title={`${item.companyName || 'Empresa'}: ${item.total} MO Extra`}
+                                                                        >
+                                                                            {item.companyLogoUrl ? (
+                                                                                <img
+                                                                                    src={item.companyLogoUrl}
+                                                                                    alt={item.companyName || ''}
+                                                                                    className="w-9 h-9 rounded-full border-2 border-white dark:border-slate-800 object-cover bg-slate-100 dark:bg-slate-700"
+                                                                                />
+                                                                            ) : (
+                                                                                <span className="w-9 h-9 rounded-full border-2 border-white dark:border-slate-800 bg-amber-500/20 flex items-center justify-center">
+                                                                                    <span className="text-[13px] font-black text-black dark:text-amber-400 uppercase leading-none">
+                                                                                        {(item.companyName || '?')[0]}
+                                                                                    </span>
+                                                                                </span>
+                                                                            )}
+                                                                            <span className="absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] px-0.5 rounded-full bg-amber-500 border-[1.5px] border-white dark:border-slate-800 flex items-center justify-center">
+                                                                                <span className="text-[9px] font-black text-black leading-none">{item.total}</span>
+                                                                            </span>
+                                                                        </span>
+                                                                    ))}
+                                                                </span>
                                                             </span>
                                                         );
-                                                    })}
+                                                    })()}
                                                 </div>
                                             </div>
 
@@ -322,13 +425,25 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                         </div>
 
                                         {/* Footer */}
-                                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
-                                            <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                                {formatDate(notice.startDate)} - {formatDate(notice.endDate)}
-                                            </span>
-                                            {notice.creatorName && (
-                                                <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                                    Por: {notice.creatorName}
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                                            {(notice.creatorName || notice.creatorNameShort) && (
+                                                <span
+                                                    className="inline-flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500"
+                                                    title={`Criado em ${formatDate(notice.createdAt)}`}
+                                                >
+                                                    <span className="material-symbols-outlined text-[13px]">person_add</span>
+                                                    Criado: {notice.creatorNameShort || notice.creatorName}
+                                                    {notice.createdAt && <> · {formatDateTime(notice.createdAt)}</>}
+                                                </span>
+                                            )}
+                                            {(notice.updatedByName || notice.updatedByNameShort) && (
+                                                <span
+                                                    className="inline-flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500"
+                                                    title={`Última alteração em ${formatDate(notice.updatedAt)}`}
+                                                >
+                                                    <span className="material-symbols-outlined text-[13px]">edit_note</span>
+                                                    Alterado: {notice.updatedByNameShort || notice.updatedByName}
+                                                    {notice.updatedAt && <> · {formatDateTime(notice.updatedAt)}</>}
                                                 </span>
                                             )}
                                         </div>

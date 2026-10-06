@@ -775,7 +775,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                         onClick={openParticipantModal}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-sm ${
                             participants.length <= 1
-                                ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-600 dark:text-amber-400 animate-pulse'
+                                ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-black dark:text-amber-400 animate-pulse'
                                 : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
                         }`}
                     >
@@ -836,7 +836,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                                                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all shadow-sm ${
                                                         msg.isResolved
                                                             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
-                                                            : 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
+                                                            : 'bg-amber-100 text-black dark:bg-amber-950/50 dark:text-amber-400'
                                                     }`}
                                                 >
                                                     <span className="material-symbols-outlined text-[14px]">

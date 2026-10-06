@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Avatar } from '../../components/ui/Avatar';
 import { dataService } from '../../services/dataService';
+import { getTextColorForBg } from '../../utils/formatters';
 
 interface AssetAlertGroupCardProps {
     alerts: AssetAlert[];
@@ -41,7 +42,7 @@ export const AssetAlertGroupCard = memo<AssetAlertGroupCardProps>(({ alerts, onC
             {/* Cabeçalho do Ativo */}
             <div className="flex items-stretch justify-between gap-3 mb-4">
                 <div
-                    className="text-white rounded-[12px] px-4 py-2.5 flex items-center shadow-md shrink-0"
+                    className={`${getTextColorForBg(representative.assetStatusColor || priorityColor)} rounded-[12px] px-4 py-2.5 flex items-center shadow-md shrink-0`}
                     style={{ backgroundColor: representative.assetStatusColor || priorityColor }}
                 >
                     <div className="flex flex-col text-left justify-center">
@@ -133,7 +134,7 @@ export const AssetAlertGroupCard = memo<AssetAlertGroupCardProps>(({ alerts, onC
                                 <div className="flex items-center gap-1.5 mt-1">
                                     {alert.priorityName && (
                                         <div
-                                            className="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest text-white shadow-sm"
+                                            className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${getTextColorForBg(alertColor)} shadow-sm`}
                                             style={{ backgroundColor: alertColor }}
                                         >
                                             {alert.priorityName}

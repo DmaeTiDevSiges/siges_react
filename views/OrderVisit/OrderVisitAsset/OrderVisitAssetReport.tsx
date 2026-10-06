@@ -1693,7 +1693,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                         {canView('orders_visits_processing_review') && (
                                             <button
                                                 onClick={() => setLocalEditMode('review')}
-                                                className={`py-4 rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20 text-xs font-black uppercase tracking-widest active:scale-95 transition-all ${!canView('orders_visits_processing_disapprove') ? 'col-span-2' : ''}`}
+                                                className={`py-4 rounded-2xl bg-amber-500/10 text-black dark:text-amber-600 border border-amber-500/20 text-xs font-black uppercase tracking-widest active:scale-95 transition-all ${!canView('orders_visits_processing_disapprove') ? 'col-span-2' : ''}`}
                                             >
                                                 Revisar
                                             </button>
@@ -1738,7 +1738,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
                                             await handleConfirmApproval();
                                         }}
-                                        className={`py-4 rounded-2xl text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg ${localEditMode === 'review' ? 'bg-amber-500 shadow-amber-500/20' : 'bg-emerald-500 shadow-emerald-500/20'}`}
+                                        className={`py-4 rounded-2xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg ${localEditMode === 'review' ? 'bg-amber-500 text-black shadow-amber-500/20' : 'bg-emerald-500 text-white shadow-emerald-500/20'}`}
                                     >
                                         {isUpdatingStatus ? (localEditMode === 'review' ? 'Revisando...' : 'APROVANDO...') : localEditMode === 'review' ? 'Confirmar Revisão' : 'Confirmar Aprovação'}
                                     </button>
@@ -1753,7 +1753,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                             <button
                                 type="button"
                                 onClick={openSwapModal}
-                                className="w-full py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 border border-amber-100 dark:border-amber-500/20 text-xs font-black uppercase tracking-widest hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-all active:scale-95"
+                                className="w-full py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-black dark:text-amber-600 border border-amber-100 dark:border-amber-500/20 text-xs font-black uppercase tracking-widest hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-all active:scale-95"
                             >
                                 Trocar Ativo (Ativo Errado)
                             </button>

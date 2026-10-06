@@ -81,9 +81,9 @@ const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => vo
                             <span className="material-symbols-outlined text-xl sm:text-2xl text-slate-400">block</span>
                         )}
                         {asset.isActive && Number(asset.opCounter) > 0 ? (
-                            <div className={`absolute -top-2 -right-2 sm:-top-2.5 sm:-right-3 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center shadow-sm z-10 animate-in fade-in zoom-in duration-300 ${asset.isAvailable ? 'bg-amber-500' : 'bg-rose-600'
+                            <div className={`absolute -top-2 -right-2 sm:-top-2.5 sm:-right-3 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center shadow-sm z-10 animate-in fade-in zoom-in duration-300 ${asset.isAvailable ? 'bg-amber-500 text-black' : 'bg-rose-600 text-white'
                                 }`}>
-                                <span className="text-[10px] sm:text-[12px] font-black text-white leading-none">
+                                <span className="text-[10px] sm:text-[12px] font-black leading-none">
                                     {asset.opCounter}
                                 </span>
                             </div>
@@ -964,9 +964,9 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         <div className="px-3 sm:px-4 py-1.5 border-b border-slate-100 dark:border-slate-800/60">
                             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
                                 {/* Total pill */}
-                                <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500 shadow-sm">
-                                    <span className="material-symbols-outlined text-[14px] text-white">engineering</span>
-                                    <span className="text-[11px] font-black text-white whitespace-nowrap">{moExtraSummary.total} MO Extra</span>
+                                <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500 text-black shadow-sm">
+                                    <span className="material-symbols-outlined text-[14px]">engineering</span>
+                                    <span className="text-[11px] font-black whitespace-nowrap">{moExtraSummary.total} MO Extra</span>
                                 </div>
                                 {/* Divider */}
                                 <div className="shrink-0 w-px h-5 bg-slate-200 dark:bg-slate-700" />
@@ -1089,8 +1089,8 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                                                         </span>
                                                                                     </div>
                                                                                 )}
-                                                                                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-amber-500 border-[1.5px] border-white dark:border-slate-900 flex items-center justify-center">
-                                                                                    <span className="text-[8px] font-black text-white leading-none">{c.amount}</span>
+                                                                                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-amber-500 text-black border-[1.5px] border-white dark:border-slate-900 flex items-center justify-center">
+                                                                                    <span className="text-[8px] font-black leading-none">{c.amount}</span>
                                                                                 </span>
                                                                             </div>
                                                                         ))}
@@ -1447,7 +1447,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         <button
                                             onClick={() => setCurrentOrderIndex(prev => Math.max(0, prev - 1))}
                                             disabled={currentOrderIndex === 0}
-                                            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shrink-0 ${currentOrderIndex === 0 ? 'text-slate-200 dark:text-slate-800' : 'text-amber-700 bg-amber-200/50 hover:bg-amber-200 active:scale-90 shadow-sm'}`}
+                                            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shrink-0 ${currentOrderIndex === 0 ? 'text-slate-200 dark:text-slate-800' : 'text-black bg-amber-200/50 hover:bg-amber-200 active:scale-90 shadow-sm'}`}
                                         >
                                             <span className="material-symbols-outlined text-lg">chevron_left</span>
                                         </button>
@@ -1465,7 +1465,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         <button
                                             onClick={() => setCurrentOrderIndex(prev => Math.min(activeOrdersForModal.length - 1, prev + 1))}
                                             disabled={currentOrderIndex === activeOrdersForModal.length - 1}
-                                            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shrink-0 ${currentOrderIndex === activeOrdersForModal.length - 1 ? 'text-slate-200 dark:text-slate-800' : 'text-amber-700 bg-amber-200/50 hover:bg-amber-200 active:scale-90 shadow-sm'}`}
+                                            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shrink-0 ${currentOrderIndex === activeOrdersForModal.length - 1 ? 'text-slate-200 dark:text-slate-800' : 'text-black bg-amber-200/50 hover:bg-amber-200 active:scale-90 shadow-sm'}`}
                                         >
                                             <span className="material-symbols-outlined text-lg">chevron_right</span>
                                         </button>
@@ -1477,7 +1477,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                     {activeOrdersForModal[currentOrderIndex] && (
                                         <div className="flex flex-col items-start gap-1.5 animate-in fade-in slide-in-from-right-2 duration-300 w-full">
                                             <div className="flex items-center justify-between gap-2 mb-1 w-full">
-                                                <span className="text-sm font-black text-white bg-amber-600 px-3 py-1.5 rounded-xl shadow-sm whitespace-nowrap">
+                                                <span className="text-sm font-black text-black bg-amber-600 px-3 py-1.5 rounded-xl shadow-sm whitespace-nowrap">
                                                     {activeOrdersForModal[currentOrderIndex].order_mask || activeOrdersForModal[currentOrderIndex].id}
                                                 </span>
                                                 <div className="flex flex-col items-end">
@@ -1528,7 +1528,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                                 handleCompleteOrder(activeOrdersForModal[currentOrderIndex].id, selectedRating);
                                                             }}
                                                             disabled={!!completingOrderId}
-                                                            className="flex-2 py-2.5 bg-amber-600 hover:bg-amber-700 rounded-xl text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-amber-600/20 transition-all flex items-center justify-center gap-4 px-4 whitespace-nowrap"
+                                                            className="flex-2 py-2.5 bg-amber-600 hover:bg-amber-700 rounded-xl text-[10px] font-black text-black uppercase tracking-widest shadow-lg shadow-amber-600/20 transition-all flex items-center justify-center gap-4 px-4 whitespace-nowrap"
                                                         >
                                                             {completingOrderId ? (
                                                                 <Loading size="xs" />

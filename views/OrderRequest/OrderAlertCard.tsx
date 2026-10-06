@@ -2,6 +2,7 @@ import React from 'react';
 import { AssetAlert } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getTextColorForBg } from '../../utils/formatters';
 
 interface OrderAlertCardProps {
     alerts: AssetAlert[];
@@ -86,7 +87,7 @@ export const OrderAlertCard: React.FC<OrderAlertCardProps> = ({
                     <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
                             <div
-                                className="text-white rounded-[10px] px-3 py-1.5 flex items-center shadow-md"
+                                className={`${getTextColorForBg(representative.assetStatusColor || priorityColor)} rounded-[10px] px-3 py-1.5 flex items-center shadow-md`}
                                 style={{ backgroundColor: representative.assetStatusColor || priorityColor }}
                             >
                                 <span className="text-[13px] font-bold tracking-tight leading-none">
@@ -166,7 +167,7 @@ export const OrderAlertCard: React.FC<OrderAlertCardProps> = ({
                                         <div className="flex items-center gap-1.5 mt-1">
                                             {alert.priorityName && (
                                                 <div
-                                                    className="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest text-white shadow-sm"
+                                                    className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${getTextColorForBg(alert.priorityColor || '#64748b')} shadow-sm`}
                                                     style={{ backgroundColor: alert.priorityColor || '#64748b' }}
                                                 >
                                                     {alert.priorityName}

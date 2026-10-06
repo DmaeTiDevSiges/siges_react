@@ -81,7 +81,7 @@ const getVisitDate = (visit: CalendarVisit): string => {
 };
 
 const STATUS_CONFIG: Record<number, { label: string; color: string; bg: string; dot: string }> = {
-    1: { label: 'Em Aberto',    color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500/10 border-orange-200 dark:border-orange-500/20', dot: 'bg-orange-500' },
+    1: { label: 'Em Aberto',    color: 'text-black dark:text-orange-400', bg: 'bg-orange-500/10 border-orange-200 dark:border-orange-500/20', dot: 'bg-orange-500' },
     2: { label: 'Em Execução',  color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-500/10 border-blue-200 dark:border-blue-500/20',   dot: 'bg-blue-500'   },
     3: { label: 'Concluída',    color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20', dot: 'bg-emerald-500' },
     7: { label: 'Cancelada',    color: 'text-red-600 dark:text-red-400',     bg: 'bg-red-500/10 border-red-200 dark:border-red-500/20',     dot: 'bg-red-500'    },

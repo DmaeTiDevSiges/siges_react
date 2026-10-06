@@ -123,7 +123,7 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                         <button
                             onClick={() => setStatusType('suspended')}
                             className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${statusType === 'suspended'
-                                ? 'border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-500/10'
+                                ? 'border-orange-500 bg-orange-50 text-black dark:text-orange-600 dark:bg-orange-500/10'
                                 : 'border-slate-100 dark:border-slate-700 text-slate-400 hover:border-slate-300'
                                 }`}
                         >
