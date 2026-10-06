@@ -581,21 +581,17 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
     }, []);
 
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
-        const savedStart = localStorage.getItem('visits_dashboard_date_start');
-        const savedEnd = localStorage.getItem('visits_dashboard_date_end');
+        const savedStart = localStorage.getItem('visits_dashboard_date_start_v2');
+        const savedEnd = localStorage.getItem('visits_dashboard_date_end_v2');
         if (savedStart && savedEnd) {
             return { start: savedStart, end: savedEnd };
         }
-        const now = new Date();
-        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-        const firstDay = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
-        const lastDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
-        return { start: firstDay, end: lastDay };
+        return currentMonthRange;
     });
 
     useEffect(() => {
-        localStorage.setItem('visits_dashboard_date_start', dateRange.start);
-        localStorage.setItem('visits_dashboard_date_end', dateRange.end);
+        localStorage.setItem('visits_dashboard_date_start_v2', dateRange.start);
+        localStorage.setItem('visits_dashboard_date_end_v2', dateRange.end);
     }, [dateRange]);
 
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
@@ -703,7 +699,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
     });
 
     const allStageIds = React.useMemo(() => {
-        return ['all', ...processingStages.map(s => String(s.id)), 'costs-pending'];
+        return ['all', ...processingStages.map(s => String(s.id)), 'costs-rejected', 'costs-pending'];
     }, [processingStages]);
 
     const toggleProcessingSelection = (value: string) => {
@@ -1206,13 +1202,17 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                 const allSelected = activeOrderVisitProcessingIdSelected.includes('all') || activeOrderVisitProcessingIdSelected.length === allStageIds.length;
                 if (allSelected) return true;
                 const isCostsPendingSelected = activeOrderVisitProcessingIdSelected.includes('costs-pending');
+                const isCostsRejectedSelected = activeOrderVisitProcessingIdSelected.includes('costs-rejected');
                 const isAprovadaSelected = activeOrderVisitProcessingIdSelected.includes('5');
                 if (isCostsPendingSelected && visit.ovProcessingId === 5 && (!visit.ovCostsStatus || visit.ovCostsStatus === 'pending' || visit.ovCostsStatus === 'waiting')) {
                     return true;
                 }
+                if (isCostsRejectedSelected && visit.ovProcessingId === 5 && visit.ovCostsStatus === 'rejected') {
+                    return true;
+                }
                 if (activeOrderVisitProcessingIdSelected.includes(String(visit.ovProcessingId))) {
-                    if (visit.ovProcessingId === 5 && isCostsPendingSelected && !isAprovadaSelected) {
-                        return !(visit.ovCostsStatus === 'pending' || visit.ovCostsStatus === 'waiting' || !visit.ovCostsStatus);
+                    if (visit.ovProcessingId === 5 && (isCostsPendingSelected || isCostsRejectedSelected) && !isAprovadaSelected) {
+                        return !(visit.ovCostsStatus === 'pending' || visit.ovCostsStatus === 'waiting' || !visit.ovCostsStatus || visit.ovCostsStatus === 'rejected');
                     }
                     return true;
                 }
@@ -1351,11 +1351,14 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
             setIsFetchingAppropriation(true);
             const isAprovadaSelected = activeOrderVisitProcessingIdSelected.includes('5');
             const isCostsPendingSelected = activeOrderVisitProcessingIdSelected.includes('costs-pending');
+            const isCostsRejectedSelected = activeOrderVisitProcessingIdSelected.includes('costs-rejected');
             const ovIds = isAprovadaSelected
                 ? filteredVisits.filter(v => v.ovCostsStatus === 'approved').map(v => v.id)
                 : isCostsPendingSelected
                     ? filteredVisits.filter(v => !v.ovCostsStatus || v.ovCostsStatus === 'pending' || v.ovCostsStatus === 'waiting').map(v => v.id)
-                    : filteredVisits.map(v => v.id);
+                    : isCostsRejectedSelected
+                        ? filteredVisits.filter(v => v.ovCostsStatus === 'rejected').map(v => v.id)
+                        : filteredVisits.map(v => v.id);
             if (!ovIds.length) return;
 
             const [servicesRaw, materialsRaw, vehiclesRaw, movedAssetsRaw] = await Promise.all([
@@ -1549,6 +1552,26 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                                 <React.Fragment key={stage.id}>
                                     {stage.id === 5 && (
                                         <>
+                                            {/* Card especial: Custos Rejeitados (antes de Custos Pendentes e Aprovada) */}
+                                            {(() => {
+                                                const costsRejectedVisits = baseFilteredVisits.filter(
+                                                    v => v.ovProcessingId === 5 && v.ovCostsStatus === 'rejected'
+                                                );
+                                                const costsRejectedTotal = costsRejectedVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0);
+                                                return (
+                                                    <StatCard
+                                                        key="costs-rejected"
+                                                        icon="receipt_long"
+                                                        label="Custos Rejeitados"
+                                                        count={costsRejectedVisits.length}
+                                                        totalValue={costsRejectedTotal}
+                                                        color="text-rose-500"
+                                                        active={activeOrderVisitProcessingIdSelected.includes('costs-rejected')}
+                                                        onClick={() => toggleProcessingSelection('costs-rejected')}
+                                                        visits={costsRejectedVisits}
+                                                    />
+                                                );
+                                            })()}
                                             {/* Card especial: Custos Pendentes (antes de Aprovada) */}
                                             {(() => {
                                                 const costsPendingVisits = baseFilteredVisits.filter(

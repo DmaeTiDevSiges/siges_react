@@ -48,17 +48,34 @@ interface OrdersRequestsDashboardAdminProps {
     onMobileFilterCountChange?: (tab: 'OS' | 'VISITAS', count: number) => void;
     /** Filtro por empresa provedora. Quando definido, todas as queries filtram por provider_company_id. */
     providerCompanyId?: string;
+    /** Tela de destino do lado "Online" do switch Online x Período (ex.: 'services-history'). */
+    onlineScreenKey?: string;
 }
 
-export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS', onFilterBarRef, onMobileFilterCountChange, providerCompanyId }) => {
+export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS', onFilterBarRef, onMobileFilterCountChange, providerCompanyId, onlineScreenKey = 'orders-dashboard' }) => {
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
     const isProviderMode = !!providerCompanyId;
     // Frozen for this mount: true on first entry of the app session and when a
     // mutation happened while this dashboard was unmounted (see dashboardRefresh).
-    const [shouldInitialLoad] = React.useState(
-        () => !osDashboardSessionLoaded || getDashboardRefreshRequestedAt() > osDashboardLastLoadedAt
-    );
+    const [shouldInitialLoad] = React.useState(() => {
+        // Escopo de empresa: se o snapshot em localStorage pertence a outra empresa
+        // (ex.: logout/login sem reload da página), descarta o cache e força o
+        // reload inicial com o filtro providerCompanyId da empresa atual.
+        const cacheCompanyScope = localStorage.getItem('osdash_cacheCompanyScope');
+        const currentCompanyScope = providerCompanyId || '1';
+        if (cacheCompanyScope !== currentCompanyScope) {
+            [
+                'cachedRecentRequests_v4', 'cachedCurrentPage_v2', 'cachedHasMore_v2', 'cachedTotalOrders_v2',
+                'osdash_cachedCompletedOS_v2', 'osdash_cachedCompletedOSCounts',
+                'osdash_cachedUnscheduledSS_v2', 'osdash_cachedOpenOS_v2', 'osdash_cachedStats',
+                'osdash_cachedOsAssetTagId',
+                'advancedOrdersFilters', 'appliedOrdersFilters', 'hasAppliedOrdersFilters'
+            ].forEach(k => localStorage.removeItem(k));
+            return true;
+        }
+        return !osDashboardSessionLoaded || getDashboardRefreshRequestedAt() > osDashboardLastLoadedAt;
+    });
     const unscheduledSSScroll = useDraggableScroll();
     const openOSScroll = useDraggableScroll();
     const osSectorScroll = useDraggableScroll();
@@ -84,14 +101,14 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     // Data Cache (Persisted)
     const [recentRequests, setRecentRequests] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('cachedRecentRequests_v3');
+            const saved = localStorage.getItem('cachedRecentRequests_v4');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
 
     const [isLoading, setIsLoading] = useState(() => {
         // Only start loading if we have no cache to show
-        const saved = localStorage.getItem('cachedRecentRequests_v3');
+        const saved = localStorage.getItem('cachedRecentRequests_v4');
         return !(saved && JSON.parse(saved).length > 0);
     });
 
@@ -103,7 +120,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     });
     const [completedOS, setCompletedOS] = useState<{ data: Order[]; total: number }>(() => {
         try {
-            const saved = localStorage.getItem('osdash_cachedCompletedOS');
+            const saved = localStorage.getItem('osdash_cachedCompletedOS_v2');
             return saved ? JSON.parse(saved) : { data: [], total: 0 };
         } catch { return { data: [], total: 0 }; }
     });
@@ -254,14 +271,14 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     // Selection Modal State
     const [unscheduledSS, setUnscheduledSS] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('osdash_cachedUnscheduledSS');
+            const saved = localStorage.getItem('osdash_cachedUnscheduledSS_v2');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
 
     const [openOS, setOpenOS] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('osdash_cachedOpenOS');
+            const saved = localStorage.getItem('osdash_cachedOpenOS_v2');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
@@ -322,15 +339,16 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     // Persist Data State (Moved here to ensure all state vars are declared)
     useEffect(() => {
         try {
-            localStorage.setItem('cachedRecentRequests_v3', JSON.stringify(recentRequests));
+            localStorage.setItem('cachedRecentRequests_v4', JSON.stringify(recentRequests));
             localStorage.setItem('cachedCurrentPage_v2', String(currentPage));
             localStorage.setItem('cachedHasMore_v2', String(hasMore));
             localStorage.setItem('cachedTotalOrders_v2', String(totalOrders));
-            localStorage.setItem('osdash_cachedUnscheduledSS', JSON.stringify(unscheduledSS));
-            localStorage.setItem('osdash_cachedOpenOS', JSON.stringify(openOS));
+            localStorage.setItem('osdash_cachedUnscheduledSS_v2', JSON.stringify(unscheduledSS));
+            localStorage.setItem('osdash_cachedOpenOS_v2', JSON.stringify(openOS));
             localStorage.setItem('osdash_cachedOsAssetTagId', JSON.stringify(osAssetTagId));
-            localStorage.setItem('osdash_cachedCompletedOS', JSON.stringify(completedOS));
+            localStorage.setItem('osdash_cachedCompletedOS_v2', JSON.stringify(completedOS));
             localStorage.setItem('osdash_cachedCompletedOSCounts', JSON.stringify(completedOSCounts));
+            localStorage.setItem('osdash_cacheCompanyScope', providerCompanyId || '1');
             localStorage.setItem('cachedTeams', JSON.stringify(teams));
             localStorage.setItem('cachedUsers', JSON.stringify(users));
             localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
@@ -410,7 +428,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 console.error('Error loading completed OS:', error);
             }
         });
-    }, [completedTemporalFilter, getCompletedTemporalDateRange, appliedFilters, startCompletedTransition]);
+    }, [completedTemporalFilter, getCompletedTemporalDateRange, appliedFilters, providerCompanyId, startCompletedTransition]);
 
     useEffect(() => {
         localStorage.setItem('orders_dashboard_completed_temporal_filter', completedTemporalFilter);
@@ -639,17 +657,19 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     // Effective filters for reports - combining persisted filters with interactive dashboard filters
     const effectiveFilters = React.useMemo(() => {
-        return {
+        const filters: any = {
             ...appliedFilters,
             statusId: selectedStatusId || appliedFilters.statusId,
             period: selectedPeriod || appliedFilters.period,
             causeReasonId: appliedFilters.causeReasonId,
+            ...(providerCompanyId ? { providerCompanyId } : {}),
         };
+        return filters;
     }, [appliedFilters, selectedStatusId, selectedPeriod]);
 
     // Restricted filters specifically for Unscheduled SS's (to match dashboard widgets behavior)
     const ssEffectiveFilters = React.useMemo(() => {
-        return {
+        const filters: any = {
             systemParentId: appliedFilters.systemParentId,
             systemId: appliedFilters.systemId,
             unitTypeParentId: appliedFilters.unitTypeParentId,
@@ -661,11 +681,13 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             assetTagSubId: appliedFilters.assetTagSubId,
             period: selectedPeriod || appliedFilters.period,
             causeReasonId: appliedFilters.causeReasonId,
+            ...(providerCompanyId ? { providerCompanyId } : {}),
         };
+        return filters;
     }, [appliedFilters, selectedPeriod]);
 
     const osEffectiveFilters = React.useMemo(() => {
-        return {
+        const filters: any = {
             systemParentId: appliedFilters.systemParentId,
             systemId: appliedFilters.systemId,
             unitTypeParentId: appliedFilters.unitTypeParentId,
@@ -683,7 +705,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             assetTagId: osAssetTagId.length > 0 ? osAssetTagId : appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
             causeReasonId: appliedFilters.causeReasonId,
+            ...(providerCompanyId ? { providerCompanyId } : {}),
         };
+        return filters;
     }, [appliedFilters, selectedStatusId, osAssetTagId]);
 
     const completedOSEffectiveFilters = React.useMemo(() => {
@@ -708,6 +732,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             startDate: range.start,
             endDate: range.end,
             causeReasonId: appliedFilters.causeReasonId,
+            ...(providerCompanyId ? { providerCompanyId } : {}),
         };
     }, [appliedFilters, completedTemporalFilter, getCompletedTemporalDateRange]);
 
@@ -767,6 +792,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 orderTypeSubId: ordersListFilters.orderTypeSubId,
                 period: periodFromOverride ?? undefined,
                 search: searchQuery || undefined,
+                ...(providerCompanyId ? { providerCompanyId } : {}),
             };
 
             const unscheduledSSFilters = {
@@ -794,6 +820,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 statusId: statusIdFromOverride ?? undefined,
                 // assetTagId intentionally omitted — sector cards must always show all sectors
                 search: searchQuery || undefined,
+                ...(providerCompanyId ? { providerCompanyId } : {}),
             };
 
             // openOSFilters: WITH assetTagId and assetTagSubId to filter the carousel by selected sector/position
@@ -823,9 +850,17 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     dataService.getDashboardStats(
                         { search: searchQuery, ...appliedFilters },
                         restrictedSSFilters,
-                        statsOSFilters   // uses filters WITHOUT assetTagId → all sectors always visible
+                        statsOSFilters,   // uses filters WITHOUT assetTagId → all sectors always visible
+                        undefined,
+                        undefined,
+                        undefined,
+                        // Em modo provedor (company_id <> 1) a aba SS's não existe,
+                        // então não executa as queries de SS.
+                        isProviderMode
                     ),
-                    dataService.getUnscheduledSS(unscheduledSSFilters),
+                    isProviderMode
+                        ? Promise.resolve([] as Order[])
+                        : dataService.getUnscheduledSS(unscheduledSSFilters),
                     dataService.getOpenOS(openOSFilters)
                 ]);
 
@@ -898,7 +933,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             setIsFiltering(false);
             isLoadingMoreRef.current = false;
         }
-    }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length]);
+    }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length, providerCompanyId]);
 
     useEffect(() => {
         if (!shouldInitialLoad) return;
@@ -1203,6 +1238,25 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         <div className="flex flex-col p-4">
                             {/* Filters Row */}
                             <div className="flex items-center gap-2 pb-2">
+                                {/* Modo de pesquisa: Online (padrão) x Período */}
+                                <div className="flex items-stretch h-[42px] bg-white dark:bg-slate-800 border !border-primary rounded-xl shadow-sm overflow-hidden shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => onNavigate?.('orders-dashboard-period')}
+                                        title="Pesquisar por período"
+                                        className="flex items-center justify-center px-3 transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => onNavigate?.(onlineScreenKey)}
+                                        title="Exibir serviços em aberto com os filtros rápidos"
+                                        className="flex items-center justify-center px-3 transition-colors border-l border-primary/30 bg-primary/10 text-primary"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">pending_actions</span>
+                                    </button>
+                                </div>
                                 <FilterBarResponsive
                                     ref={filterBarRef}
                                     advancedFilters={advancedOrdersFilters}

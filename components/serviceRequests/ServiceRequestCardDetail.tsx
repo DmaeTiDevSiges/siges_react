@@ -277,81 +277,82 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                 </div>
             </div>
 
-            {/* Cancellation Banner */}
-            {req.statusId === 7 && (req.cancelReasonDescription || req.cancelComments) && (
-                <div className="my-3 p-3.5 rounded-2xl bg-red-50/90 dark:bg-red-950/30 border border-red-200/70 dark:border-red-800/50 text-left flex flex-col gap-2 shadow-xs">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/50 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
-                            <span className="material-symbols-outlined text-[20px]">cancel</span>
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-400 leading-none">
-                                Motivo do Cancelamento
-                            </span>
-                            <span className="text-sm font-bold text-slate-900 dark:text-white leading-tight mt-0.5">
-                                {req.cancelReasonDescription || 'Não informado'}
+            {/* Situation / Footer — mesmo estilo do card do dashboard (SS cancelada) */}
+            <div className="h-px bg-slate-100 dark:bg-white/5 my-3" />
+            {req.statusId === 7 && (req.cancelReasonDescription || req.cancelComments) ? (
+                <div className={`flex flex-col p-2.5 rounded-xl ${statusCfg.bgColor}`}>
+                    <div className="flex items-center gap-2">
+                        <span className={`material-symbols-outlined text-lg ${statusCfg.color}`}>{statusCfg.icon}</span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                            <span className={`text-xs font-bold ${statusCfg.color}`}>{req.statusDescription || statusCfg.label}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                {formatGridDate(req.statusAt || req.requestedAt)}
+                                {req.canceledUserNameShort && ` • ${req.canceledUserNameShort}`}
                             </span>
                         </div>
-                        {(req.canceledUserNameShort || req.canceledTeamCode) && (
-                            <span className="ml-auto text-[10px] font-bold uppercase tracking-tight text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-200/60 dark:border-white/10 shrink-0">
-                                {req.canceledUserNameShort}{req.canceledTeamCode ? ` • ${req.canceledTeamCode}` : ''}
-                            </span>
+                        {canCreate('orders_requests_create') && (
+                            <div className="relative">
+                                <IconButton
+                                    icon="more_vert"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowMenu(!showMenu);
+                                    }}
+                                    className={`transition-all duration-300 ${showMenu ? 'ring-4 ring-primary/20 bg-primary/10 text-primary' : ''}`}
+                                />
+                            </div>
                         )}
                     </div>
-                    {req.cancelComments && (
-                        <div className="pt-2.5 border-t border-red-200/50 dark:border-red-800/30 flex items-start gap-2">
-                            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[18px] shrink-0 mt-0.5">
-                                notes
+
+                    <div className="mt-2 pl-[31px] flex flex-col gap-1.5 text-left">
+                        {req.cancelReasonDescription && (
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight truncate" title={req.cancelReasonDescription}>
+                                {req.cancelReasonDescription}
                             </span>
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-none">
-                                    Observações / Comentários
-                                </span>
-                                <p className="text-xs text-slate-700 dark:text-slate-300 italic leading-relaxed whitespace-pre-wrap mt-1">
-                                    "{req.cancelComments}"
-                                </p>
-                            </div>
+                        )}
+                        {req.cancelComments && (
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-3" title={req.cancelComments}>
+                                "{req.cancelComments}"
+                            </p>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center ${statusCfg.bgColor}`}
+                        >
+                            <span
+                                className={`material-symbols-outlined text-[22px] ${statusCfg.color}`}
+                            >
+                                {statusCfg.icon}
+                            </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-[11px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
+                                {req.statusDescription}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400">
+                                {formatGridDate(req.statusAt || req.requestedAt)}
+                            </span>
+                        </div>
+                    </div>
+
+                    {canCreate('orders_requests_create') && (
+                        <div className="relative">
+                            <IconButton
+                                icon="more_vert"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowMenu(!showMenu);
+                                }}
+                                className={`transition-all duration-300 ${showMenu ? 'ring-4 ring-primary/20 bg-primary/10 text-primary' : ''}`}
+                            />
                         </div>
                     )}
                 </div>
             )}
-
-            {/* Situation / Footer */}
-            <div className="h-px bg-slate-100 dark:bg-white/5 my-3" />
-            <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                    <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${statusCfg.bgColor}`}
-                    >
-                        <span
-                            className={`material-symbols-outlined text-[22px] ${statusCfg.color}`}
-                        >
-                            {statusCfg.icon}
-                        </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                        <span className="text-[11px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
-                            {req.statusDescription}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400">
-                            {formatGridDate(req.statusAt || req.requestedAt)}
-                        </span>
-                    </div>
-                </div>
-
-                {canCreate('orders_requests_create') && (
-                    <div className="relative">
-                        <IconButton
-                            icon="more_vert"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setShowMenu(!showMenu);
-                            }}
-                            className={`transition-all duration-300 ${showMenu ? 'ring-4 ring-primary/20 bg-primary/10 text-primary' : ''}`}
-                        />
-                    </div>
-                )}
-            </div>
 
             {/* Unified Bottom Sheet Menu for SS */}
             {

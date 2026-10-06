@@ -48,9 +48,11 @@ interface ServicesRequestsDashboardAdminProps {
     onMobileFilterCountChange?: (tab: 'OS' | 'VISITAS', count: number) => void;
     /** Filtro por empresa provedora. Quando definido, todas as queries filtram por provider_company_id. */
     providerCompanyId?: string;
+    /** Tela de destino do lado "Online" do switch Online x Período (ex.: 'services-history'). */
+    onlineScreenKey?: string;
 }
 
-export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS', onFilterBarRef, onMobileFilterCountChange, providerCompanyId }) => {
+export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS', onFilterBarRef, onMobileFilterCountChange, providerCompanyId, onlineScreenKey = 'ss-dashboard' }) => {
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
     const isProviderMode = !!providerCompanyId;
@@ -84,21 +86,21 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     // Data Cache (Persisted)
     const [recentRequests, setRecentRequests] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('cachedRecentRequests_v3');
+            const saved = localStorage.getItem('cachedRecentRequests_v4');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
 
     const [isLoading, setIsLoading] = useState(() => {
         // Only start loading if we have no cache to show
-        const saved = localStorage.getItem('cachedRecentRequests_v3');
+        const saved = localStorage.getItem('cachedRecentRequests_v4');
         return !(saved && JSON.parse(saved).length > 0);
     });
 
     // --- Completed OS ---
     const [completedOS, setCompletedOS] = useState<{ data: Order[]; total: number }>(() => {
         try {
-            const saved = localStorage.getItem('ssdash_cachedCompletedOS');
+            const saved = localStorage.getItem('ssdash_cachedCompletedOS_v2');
             return saved ? JSON.parse(saved) : { data: [], total: 0 };
         } catch { return { data: [], total: 0 }; }
     });
@@ -108,7 +110,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     // --- Canceled OS ---
     const [canceledOS, setCanceledOS] = useState<{ data: Order[]; total: number }>(() => {
         try {
-            const saved = localStorage.getItem('ssdash_cachedCanceledOS');
+            const saved = localStorage.getItem('ssdash_cachedCanceledOS_v2');
             return saved ? JSON.parse(saved) : { data: [], total: 0 };
         } catch { return { data: [], total: 0 }; }
     });
@@ -329,14 +331,14 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     // Selection Modal State
     const [unscheduledSS, setUnscheduledSS] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('ssdash_cachedUnscheduledSS');
+            const saved = localStorage.getItem('ssdash_cachedUnscheduledSS_v2');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
 
     const [openOS, setOpenOS] = useState<Order[]>(() => {
         try {
-            const saved = localStorage.getItem('ssdash_cachedOpenOS');
+            const saved = localStorage.getItem('ssdash_cachedOpenOS_v2');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
     });
@@ -392,15 +394,15 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     // Persist Data State (Moved here to ensure all state vars are declared)
     useEffect(() => {
         try {
-            localStorage.setItem('cachedRecentRequests_v3', JSON.stringify(recentRequests));
+            localStorage.setItem('cachedRecentRequests_v4', JSON.stringify(recentRequests));
             localStorage.setItem('cachedCurrentPage_v2', String(currentPage));
             localStorage.setItem('cachedHasMore_v2', String(hasMore));
             localStorage.setItem('cachedTotalOrders_v2', String(totalOrders));
-            localStorage.setItem('ssdash_cachedUnscheduledSS', JSON.stringify(unscheduledSS));
-            localStorage.setItem('ssdash_cachedOpenOS', JSON.stringify(openOS));
+            localStorage.setItem('ssdash_cachedUnscheduledSS_v2', JSON.stringify(unscheduledSS));
+            localStorage.setItem('ssdash_cachedOpenOS_v2', JSON.stringify(openOS));
             localStorage.setItem('ssdash_cachedOsAssetTagId', JSON.stringify(osAssetTagId));
-            localStorage.setItem('ssdash_cachedCompletedOS', JSON.stringify(completedOS));
-            localStorage.setItem('ssdash_cachedCanceledOS', JSON.stringify(canceledOS));
+            localStorage.setItem('ssdash_cachedCompletedOS_v2', JSON.stringify(completedOS));
+            localStorage.setItem('ssdash_cachedCanceledOS_v2', JSON.stringify(canceledOS));
             localStorage.setItem('cachedTeams', JSON.stringify(teams));
             localStorage.setItem('cachedUsers', JSON.stringify(users));
             localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
@@ -1292,6 +1294,25 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                         <div className="flex flex-col p-4">
                             {/* Filters Row */}
                             <div className="flex items-center gap-2 pb-2">
+                                {/* Modo de pesquisa: Online (padrão) x Período */}
+                                <div className="flex items-stretch h-[42px] bg-white dark:bg-slate-800 border !border-primary rounded-xl shadow-sm overflow-hidden shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => onNavigate?.('ss-dashboard-period')}
+                                        title="Pesquisar por período"
+                                        className="flex items-center justify-center px-3 transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => onNavigate?.(onlineScreenKey)}
+                                        title="Exibir serviços em aberto com os filtros rápidos"
+                                        className="flex items-center justify-center px-3 transition-colors border-l border-primary/30 bg-primary/10 text-primary"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">pending_actions</span>
+                                    </button>
+                                </div>
                                 <FilterBarResponsive
                                     ref={filterBarRef}
                                     advancedFilters={advancedOrdersFilters}

@@ -3,7 +3,7 @@ import React from 'react';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
 interface BottomNavProps {
-  activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'tools' | 'materials' | 'manuals' | 'app-notices';
+  activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'tools' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers';
   setActiveTab: (tab: any) => void;
   isAdminSuper?: boolean;
   isAdmin?: boolean;
@@ -26,11 +26,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
   const showAssetsSearch = canSearch('assets');
   const showSettings = isAdminSuper || isAdmin;
   const showTools = isAdminSuper || canView('tools_create_edit_delete');
-  const showMaterials = isAdminSuper || canView('materials_search');
+  const showMaterials = isAdminSuper || canSearch('materials_search');
   const showMaintenancePlans = isAdminSuper || canView('maintenance_plans');
   const showManuals = isAdminSuper || canView('technicals_manuals_search');
   const showNotices = isAdminSuper || canView('app_notices');
 
+  const showExtraWorkers = isAdminSuper || canView('notices_workers_extra');
 
   return (
     <div className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 px-2 flex flex-row items-center overflow-x-auto rounded-t-[12px]" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}>
@@ -147,6 +148,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
             handyman
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest">Ferramentas</span>
+        </button>
+      )}
+
+      {showExtraWorkers && (
+        <button
+          onClick={() => setActiveTab('extra-workers')}
+          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'extra-workers' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+        >
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'extra-workers' ? '"FILL" 1' : '' }}>
+            groups
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest">MO Extra</span>
         </button>
       )}
 

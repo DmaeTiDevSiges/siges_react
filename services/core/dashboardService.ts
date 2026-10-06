@@ -193,10 +193,12 @@ export const dashboardService = {
             .range(from, to);
 
         const d = new Date();
-        const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const monthStart = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
+        const monthEnd = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())}`;
 
-        const startDate = filters?.startDate || todayStr;
-        const endDate = filters?.endDate || todayStr;
+        const startDate = filters?.startDate || monthStart;
+        const endDate = filters?.endDate || monthEnd;
 
         const startStr = startDate.includes('T') || startDate.includes(' ') ? startDate : `${startDate} 00:00:00`;
         query = query.or(`ov_started_at.gte.${startStr},and(ov_started_at.is.null,o_requested_at.gte.${startStr})`);

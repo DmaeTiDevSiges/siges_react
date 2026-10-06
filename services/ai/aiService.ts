@@ -3,6 +3,7 @@ import { supabase } from "../core/supabase";
 import { dataService } from "../dataService";
 import { apiN8nService } from "../core/apiN8nService";
 import { getPageHelp, getPageKnowledgeKeywords } from "./aiPageHelpMap";
+import { manualRagService, ManualExcerpt } from "./manualRagService";
 
 const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
 if (!geminiApiKey) {
@@ -163,9 +164,22 @@ export const aiService = {
     userId: string,
     assetContext?: { code?: string; id?: number | string; description?: string; unit?: string },
     currentScreen?: string,
-    userRole?: string
+    userRole?: string,
+    /** IDs dos manuais técnicos do ativo → ativa o RAG de manuais */
+    manualTmIds?: string[]
   ) {
     try {
+      // 0. RAG dos manuais do ativo (quando há manuais vinculados)
+      let manualExcerpts: ManualExcerpt[] | undefined;
+      if (manualTmIds && manualTmIds.length > 0) {
+        try {
+          const excerpts = await manualRagService.searchManualExcerpts(userMessage, manualTmIds, 6);
+          if (excerpts.length > 0) manualExcerpts = excerpts;
+        } catch (mErr) {
+          console.warn("AI Service: manual RAG failed, continuing without it", mErr);
+        }
+      }
+
       // 1. Busca conhecimento relevante via RAG (filtrado por tela se disponível)
       let knowledgeContext: { content: string; similarity: number; source_type: string; fromScreen?: boolean }[] = [];
       try {
@@ -196,6 +210,7 @@ export const aiService = {
         message: userMessage,
         assetContext,
         knowledgeContext: knowledgeContext.length > 0 ? knowledgeContext : undefined,
+        manualExcerpts,
         screenContext,
         userRole,
       });

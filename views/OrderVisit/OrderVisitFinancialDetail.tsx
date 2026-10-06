@@ -3,6 +3,8 @@ import { OrderVisit, User } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { isFinancialApprovalEnabled, type VisitCostsStatus } from '../../features';
 import { dataService } from '../../services/dataService';
+import { Modal } from '../../components/ui/Modal';
+import { Textarea } from '../../components/ui/Textarea';
 
 interface OrderVisitFinancialDetailProps {
     visit: OrderVisit;
@@ -44,11 +46,11 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
         }
     ];
 
-    // Quem envia custos (contratada): visita aprovada tecnicamente e custos ainda não enviados
-    // Botão "Enviar para Aprovação" só aparece quando costsStatus é null ou pending
+    // Quem envia custos (contratada): visita aprovada tecnicamente e custos ainda não enviados ou rejeitados
+    // Botão "Enviar/Reenviar para Aprovação" aparece quando costsStatus é null, pending ou rejected
     const canSubmitCosts = isFinancialApprovalEnabled() && 
                             visit.ovProcessingId === 5 && 
-                            (costsStatus === null || costsStatus === 'pending');
+                            (costsStatus === null || costsStatus === 'pending' || costsStatus === 'rejected');
     // Quem já enviou e está aguardando a aprovação da contratante (não é aprovador)
     const isAwaitingApproval = isFinancialApprovalEnabled() && 
                                 costsStatus === 'waiting' &&
@@ -59,6 +61,7 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                                 isApprover;
 
     const totalValue = (visit.servicesValue || 0) + (visit.materialsValue || 0) + (visit.vehiclesValue || 0);
+    const isRejected = isFinancialApprovalEnabled() && costsStatus === 'rejected';
 
     const handleSubmitCosts = async () => {
         if (!visit.id) return;
@@ -119,9 +122,15 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Total Highlight */}
-            <div className="bg-slate-900 dark:bg-indigo-600 rounded-2xl p-8 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden">
+            <div className={`rounded-2xl p-8 text-white shadow-xl relative overflow-hidden transition-all duration-300 ${
+                isRejected
+                    ? 'bg-red-600 dark:bg-red-600 shadow-red-600/30'
+                    : 'bg-slate-900 dark:bg-indigo-600 shadow-indigo-500/20'
+            }`}>
                 <div className="relative z-10 text-center">
-                    <p className="text-indigo-200 dark:text-indigo-100 text-xs font-black uppercase tracking-[0.2em] mb-2">
+                    <p className={`text-xs font-black uppercase tracking-[0.2em] mb-2 ${
+                        isRejected ? 'text-red-100' : 'text-indigo-200 dark:text-indigo-100'
+                    }`}>
                         Total Geral da Visita
                     </p>
                     <h2 className="text-4xl font-black mb-4">
@@ -132,9 +141,13 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                         <button
                             onClick={handleSubmitCosts}
                             disabled={isLoading}
-                            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-colors"
+                            className={`w-full px-4 py-3 font-bold rounded-xl transition-all shadow-md active:scale-95 text-sm mt-2 ${
+                                isRejected
+                                    ? 'bg-white text-red-600 hover:bg-red-50 disabled:bg-white/50'
+                                    : 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white'
+                            }`}
                         >
-                            {isLoading ? 'Enviando...' : 'Enviar para Aprovação'}
+                            {isLoading ? 'Enviando...' : (costsStatus === 'rejected' ? 'Reenviar para Aprovação' : 'Enviar para Aprovação')}
                         </button>
                     )}
 
@@ -173,16 +186,33 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                         </p>
                     )}
 
-                    {isFinancialApprovalEnabled() && costsStatus === 'rejected' && visit.ovCostsRejectedAt && (
-                        <p className="text-red-200 dark:text-red-100 text-xs font-medium mt-2">
-                            Rejeitado por {visit.ovCostsRejectedUserNameShort || '...'} em {new Date(visit.ovCostsRejectedAt).toLocaleDateString('pt-BR')} {new Date(visit.ovCostsRejectedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
-                        </p>
+                    {isRejected && (
+                        <div className="mt-4 flex flex-col items-center gap-2.5">
+                            {visit.ovCostsRejectionReason && (
+                                <div className="w-full bg-black/20 backdrop-blur-md rounded-xl p-3.5 border border-white/10 text-left">
+                                    <div className="flex items-center gap-1.5 text-white/90 text-[11px] font-black uppercase tracking-wider mb-1">
+                                        <span className="material-symbols-outlined text-[16px]">error</span>
+                                        <span>Motivo da Rejeição:</span>
+                                    </div>
+                                    <p className="text-sm font-semibold text-white leading-relaxed break-words">
+                                        {visit.ovCostsRejectionReason}
+                                    </p>
+                                </div>
+                            )}
+                            {visit.ovCostsRejectedAt && (
+                                <p className="text-white/80 text-xs font-medium">
+                                    Rejeitado por <span className="font-bold">{visit.ovCostsRejectedUserNameShort || '...'}</span> em {new Date(visit.ovCostsRejectedAt).toLocaleDateString('pt-BR')} {new Date(visit.ovCostsRejectedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                                </p>
+                            )}
+                        </div>
                     )}
                 </div>
 
                 {/* Decorative background elements */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/20 rounded-full -ml-16 -mb-16 blur-3xl" />
+                <div className={`absolute bottom-0 left-0 w-32 h-32 rounded-full -ml-16 -mb-16 blur-3xl ${
+                    isRejected ? 'bg-red-400/20' : 'bg-indigo-500/20'
+                }`} />
             </div>
 
             {/* Summary Cards */}
@@ -221,76 +251,98 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
             </div>
 
             {/* Submit Costs Confirmation Modal */}
-            {showZeroCostModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                                <span className="material-symbols-outlined text-blue-500">send</span>
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                                Enviar para Aprovação
-                            </h3>
+            <Modal
+                isOpen={showZeroCostModal}
+                onClose={() => setShowZeroCostModal(false)}
+                title={costsStatus === 'rejected' ? 'Reenviar para Aprovação' : 'Enviar para Aprovação'}
+                maxWidth="sm"
+                draggable
+            >
+                <div className="flex flex-col gap-4 py-2">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined text-blue-500">send</span>
                         </div>
-                        <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">
-                            Confirma o envio dos custos desta visita para aprovação financeira?
+                        <p className="text-slate-600 dark:text-slate-400 text-sm">
+                            {costsStatus === 'rejected'
+                                ? 'Confirma o reenvio dos custos corrigidos desta visita para aprovação financeira?'
+                                : 'Confirma o envio dos custos desta visita para aprovação financeira?'}
                         </p>
-                        <p className="text-slate-900 dark:text-white font-bold text-lg mb-6">
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Valor Total</span>
+                        <p className="text-slate-900 dark:text-white font-black text-2xl">
                             {formatCurrency(totalValue)}
                         </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowZeroCostModal(false)}
-                                className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={confirmSubmitCosts}
-                                disabled={isLoading}
-                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-colors"
-                            >
-                                {isLoading ? 'Enviando...' : 'Confirmar Envio'}
-                            </button>
-                        </div>
+                    </div>
+                    <div className="flex gap-3 mt-2">
+                        <button
+                            onClick={() => setShowZeroCostModal(false)}
+                            className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={confirmSubmitCosts}
+                            disabled={isLoading}
+                            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold rounded-xl transition-colors text-sm shadow-md"
+                        >
+                            {isLoading ? 'Enviando...' : (costsStatus === 'rejected' ? 'Confirmar Reenvio' : 'Confirmar Envio')}
+                        </button>
                     </div>
                 </div>
-            )}
+            </Modal>
 
             {/* Reject Modal */}
-            {showRejectModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
-                            Motivo da Rejeição
-                        </h3>
-                        <textarea
-                            value={rejectionReason}
-                            onChange={(e) => setRejectionReason(e.target.value)}
-                            placeholder="Descreva o motivo da rejeição dos custos..."
-                            className="w-full h-32 px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-red-500"
-                        />
-                        <div className="flex gap-3 mt-4">
-                            <button
-                                onClick={() => {
-                                    setShowRejectModal(false);
-                                    setRejectionReason('');
-                                }}
-                                className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleRejectFinancial}
-                                disabled={!rejectionReason.trim() || isLoading}
-                                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium rounded-xl transition-colors"
-                            >
-                                {isLoading ? 'Rejeitando...' : 'Confirmar Rejeição'}
-                            </button>
-                        </div>
+            <Modal
+                isOpen={showRejectModal}
+                onClose={() => {
+                    setShowRejectModal(false);
+                    setRejectionReason('');
+                }}
+                title="Motivo da Rejeição"
+                maxWidth="sm"
+                type="error"
+                draggable
+            >
+                <div className="flex flex-col gap-4 py-2">
+                    <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-2xl border border-red-100 dark:border-red-900/30">
+                        <p className="text-[10px] uppercase font-black text-red-500 dark:text-red-400 tracking-widest mb-1">Atenção</p>
+                        <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                            Informe detalhadamente o motivo pelo qual os custos desta visita estão sendo rejeitados.
+                        </p>
+                    </div>
+
+                    <Textarea
+                        label="Justificativa da Rejeição"
+                        placeholder="Descreva o motivo da rejeição dos custos..."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        rows={4}
+                        required
+                        disabled={isLoading}
+                    />
+
+                    <div className="flex gap-3 mt-2">
+                        <button
+                            onClick={() => {
+                                setShowRejectModal(false);
+                                setRejectionReason('');
+                            }}
+                            className="flex-1 px-4 py-3 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleRejectFinancial}
+                            disabled={!rejectionReason.trim() || isLoading}
+                            className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg active:scale-95 text-sm"
+                        >
+                            {isLoading ? 'Rejeitando...' : 'Confirmar Rejeição'}
+                        </button>
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 };

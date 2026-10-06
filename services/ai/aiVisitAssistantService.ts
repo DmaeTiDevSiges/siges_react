@@ -1,6 +1,8 @@
 import { supabase } from '../core/supabase';
 import { apiN8nService } from '../core/apiN8nService';
-import type { OrderVisit, OrderVisitAssetView, OrderVisitTeam, OrderVisitVehicle, OrderVisitService } from '../../types';
+import { dataService } from '../dataService';
+import { manualRagService, ManualExcerpt } from './manualRagService';
+import type { OrderVisit, OrderVisitAssetView, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, TechnicalManual, TechnicalManualFile } from '../../types';
 
 const VISIT_ASSISTANT_ENDPOINT = import.meta.env.VITE_API_N8N_WEBHOOK_VISIT_ASSISTANT || 'webhook/siges-visit-assistant';
 
@@ -41,6 +43,17 @@ export interface VisitContext {
     hasLeader: boolean;
     hasRequester: boolean;
   };
+  /** Manuais técnicos dos ativos da visita (metadados, para consulta/troubleshooting) */
+  technicalManuals: {
+    total: number;
+    manuals: {
+      id?: string;
+      code?: string;
+      description: string;
+      assetType?: string;
+      files: { name: string; category?: string; type: string }[];
+    }[];
+  };
 }
 
 function buildVisitContext(
@@ -48,7 +61,8 @@ function buildVisitContext(
   assets: OrderVisitAssetView[],
   team: OrderVisitTeam[],
   vehicles: OrderVisitVehicle[],
-  services: OrderVisitService[]
+  services: OrderVisitService[],
+  manuals: (TechnicalManual & { files: TechnicalManualFile[] })[] = []
 ): VisitContext {
   const statusMap: Record<number, string> = { 0: 'Aberta', 1: 'Encerrada' };
 
@@ -101,6 +115,20 @@ function buildVisitContext(
       hasLeader: !!visit.ovSignatureLeaderPath,
       hasRequester: !!visit.ovSignatureRequesterPath,
     },
+    technicalManuals: {
+      total: manuals.length,
+      manuals: manuals.map(m => ({
+        id: m.id,
+        code: m.code || undefined,
+        description: m.description,
+        assetType: m.assetTypeDescription || undefined,
+        files: (m.files || []).map(f => ({
+          name: f.docFileName,
+          category: f.tmCategoryDescription || undefined,
+          type: f.fileType,
+        })),
+      })),
+    },
   };
 }
 
@@ -111,6 +139,30 @@ export interface ChatMessage {
 }
 
 export const aiVisitAssistantService = {
+  /**
+   * Constrói o contexto completo incluindo os manuais técnicos
+   * vinculados aos ativos da visita (consulta em campo / troubleshooting).
+   */
+  async buildContextWithManuals(
+    visit: OrderVisit,
+    assets: OrderVisitAssetView[],
+    team: OrderVisitTeam[],
+    vehicles: OrderVisitVehicle[],
+    services: OrderVisitService[]
+  ): Promise<VisitContext> {
+    let manuals: (TechnicalManual & { files: TechnicalManualFile[] })[] = [];
+    try {
+      const assetIds = assets.map(a => a.assetId).filter(Boolean);
+      if (assetIds.length > 0) {
+        manuals = await dataService.getManualsWithFilesForAssets(assetIds);
+      }
+    } catch (err) {
+      // Manuais são um extra — falha não deve bloquear o assistente
+      console.warn('[AIVisitAssistant] Could not load technical manuals for context:', err);
+    }
+    return buildVisitContext(visit, assets, team, vehicles, services, manuals);
+  },
+
   async sendMessage(
     visitId: string,
     message: string,
@@ -119,11 +171,27 @@ export const aiVisitAssistantService = {
     history: ChatMessage[]
   ): Promise<string> {
     try {
+      // RAG dos manuais: recupera trechos relevantes do acervo dos ativos da visita
+      // (silencioso — falha apenas segue sem trechos)
+      let manualExcerpts: ManualExcerpt[] | undefined;
+      try {
+        const tmIds = (context.technicalManuals?.manuals || [])
+          .map(m => m.id)
+          .filter((id): id is string => !!id);
+        if (tmIds.length > 0) {
+          const excerpts = await manualRagService.searchManualExcerpts(message, tmIds, 6);
+          if (excerpts.length > 0) manualExcerpts = excerpts;
+        }
+      } catch (ragErr) {
+        console.warn('[AIVisitAssistant] RAG lookup failed:', ragErr);
+      }
+
       const response = await apiN8nService.triggerWebhook(VISIT_ASSISTANT_ENDPOINT, {
         visitId,
         userId,
         message,
         context,
+        manualExcerpts,
         history: history.slice(-10),
       });
 

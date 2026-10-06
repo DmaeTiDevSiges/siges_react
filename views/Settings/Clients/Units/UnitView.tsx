@@ -3,8 +3,8 @@ import { Unit, Asset, OrderVisitAssetView } from '../../../../types';
 import { StatusBadge } from '../../../../components/ui/StatusBadge';
 import { Avatar } from '../../../../components/ui/Avatar';
 import { Marker } from '../../../../components/ui/Marker';
-import { UnitCardDetail } from '../../../../components/units/UnitCardDetail';
-import { dataService } from '../../../../services/dataService';
+import { UnitCardDetail } from '../../../../components/units/UnitCardDetail';import { dataService } from '../../../../services/dataService';
+import { supabase } from '../../../../services/core/supabase';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
 import { Modal } from '../../../../components/ui/Modal';
 import { AssetCard } from '../../../../components/assets/AssetCard';
@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { apiN8nService } from '../../../../services/core/apiN8nService';
 import { Loading } from '../../../../components/ui/Loading';
 import { useDraggableScroll } from '../../../../hooks/useDraggableScroll';
+import { UnitStructureOrganogram } from '../../../../components/units/UnitStructureOrganogram';
 
 
 interface UnitDetailsProps {
@@ -31,8 +32,6 @@ interface UnitDetailsProps {
     onSelectAsset?: (asset: Asset) => void;
     onManageAvailability?: (item: any) => void;
     onInformAvailability?: (item: any) => void;
-    /** Abre a página de Estrutura da Unidade (organograma de setores) */
-    onOpenStructure?: () => void;
 }
 
 // Subcomponent for Circular Gauge
@@ -89,8 +88,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     onNewOrder,
     onSelectAsset,
     onManageAvailability,
-    onInformAvailability,
-    onOpenStructure
+    onInformAvailability
 }) => {
     const { canView, canEdit, canCreate, canDelete } = usePermissions();
     const [selectedSector, setSelectedSector] = useState<string | null>(() => {
@@ -118,6 +116,9 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     const sectorsScroll = useDraggableScroll();
     const [movedTagDetails, setMovedTagDetails] = useState('');
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
+    /** Alterna a seção Setores entre cards de resumo e organograma */
+    const [structureMode, setStructureMode] = useState(false);
 
     // Persist sector selection
     useEffect(() => {
@@ -269,11 +270,39 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
         } else {
             setAvailabilityItems([]);
         }
-    }, [unit?.id, selectedSector]);
-
-    useEffect(() => {
+    }, [unit?.id, selectedSector]);    useEffect(() => {
         fetchAvailability();
     }, [fetchAvailability]);
+
+    // Realtime: disponibilidade (bolinha verde/vermelha) e setores atualizam ao vivo
+    useEffect(() => {
+        if (!unit?.id) return;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const channel = supabase
+            .channel(`unit-availability-${unit.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'cfg_units_assets_tags',
+                    filter: `unit_id=eq.${unit.id}`
+                },
+                () => {
+                    // Cascata atualiza várias linhas em rajada — debounce do refetch
+                    clearTimeout(timer);
+                    timer = setTimeout(() => {
+                        loadSectors();
+                        fetchAvailability();
+                    }, 250);
+                }
+            )
+            .subscribe();
+        return () => {
+            clearTimeout(timer);
+            supabase.removeChannel(channel);
+        };
+    }, [unit?.id, loadSectors, fetchAvailability]);
 
     const handleSendWhatsApp = async (item: any) => {
         try {
@@ -401,7 +430,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                     </div>
                 </div>
 
-                <div className={`p-4 space-y-8 pb-32 relative md:max-w-5xl md:mx-auto transition-all duration-700 ease-in-out ${isHeaderExpanded ? 'translate-y-20 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+                <div className={`p-4 space-y-8 pb-32 relative md:max-w-5xl md:mx-auto transition-all duration-700 ease-in-out ${isHeaderExpanded ? 'translate-y-20 opacity-0 pointer-events-none' : 'opacity-100'
                     }`}>
                     {/* Unit Card Styled like UnitsSearch (Chevron removed) */}
                     <UnitCardDetail unit={unit} />
@@ -411,15 +440,16 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="flex items-center justify-between px-1">
                             <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Setores</h3>
                             <div className="flex items-center gap-2">
-                                {canView('units_assets_tags') && (
-                                    <button
-                                        onClick={() => onOpenStructure?.()}
-                                        className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-400 hover:text-primary transition-all active:scale-95 shadow-sm"
-                                        title="Estrutura da Unidade (organograma)"
-                                    >
-                                        <span className="material-symbols-outlined text-[20px]">account_tree</span>
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => setStructureMode(v => !v)}
+                                    className={`w-10 h-10 flex items-center justify-center border rounded-xl transition-all active:scale-95 shadow-sm ${structureMode
+                                        ? 'bg-primary/10 border-primary/30 text-primary'
+                                        : 'bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800 text-slate-400 hover:text-primary'
+                                        }`}
+                                    title={structureMode ? 'Ocultar organograma' : 'Estrutura da Unidade (organograma)'}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">{structureMode ? 'grid_view' : 'account_tree'}</span>
+                                </button>
                                 <AssetsListExcelButton
                                     unitId={unit.id}
                                     unitName={unit.description}
@@ -506,10 +536,21 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                             </div>
                             )}
                         </div>
+
+                        {/* Organograma embutido (alternância com os cards de resumo) */}
+                        {structureMode && (
+                            <UnitStructureOrganogram
+                                unitId={unit.id}
+                                onStructureChanged={() => {
+                                    loadSectors();
+                                    fetchAvailability();
+                                }}
+                            />
+                        )}
                     </div>
 
                     {/* Availability Section (Disponibilidade) - New */}
-                    <div className="space-y-4 pt-2">
+                    <div className={`space-y-4 pt-2 ${structureMode ? 'hidden' : ''}`}>
                         <div className="flex items-center justify-between px-1">
                             <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Disponibilidade</h3>
                             {selectedSector && canView('units_assets_tags_assets') && (
@@ -533,7 +574,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="space-y-4">
                             {isLoadingAvailability ? (
                                 <div className="flex justify-center py-8">
-                                    <Loading size="md" />
+                                    <Loading size="md" overlay={false} />
                                 </div>
                             ) : availabilityItems.length === 0 ? (
                                 <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm">
@@ -669,30 +710,35 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                                 </span>
                                             </div>
                                         </div>
-                                    </div>
-    
-                                    {/* New Action Row: Inform Availability */}
-                                    {canCreate('assets_available') && (
+                                    </div>                                    {/* New Action Row: Inform Availability */}
+                                    {canCreate('assets_available') && (() => {
+                                        const underCascade = item.underCascade === true;
+                                        const cascadeRoot = item.cascadeRootName || 'setor pai';
+                                        const informDisabled = !item.isActive || underCascade;
+                                        return (
                                         <div className="mt-auto pt-2 px-1 flex flex-col items-center group/action-row">
                                             <button
                                                 onClick={(e) => { 
                                                     e.stopPropagation(); 
-                                                    if (item.isActive) {
+                                                    if (item.isActive && !underCascade) {
                                                         onInformAvailability?.(item);
                                                     }
                                                 }}
-                                                disabled={!item.isActive}
-                                                className={`w-full h-11 border rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 active:scale-[0.98] group/btn ${item.isActive ? 'bg-white dark:bg-slate-900/60 hover:bg-emerald-500 hover:border-emerald-500 border-slate-200 dark:border-slate-800 group-hover/action-row:shadow-lg group-hover/action-row:shadow-emerald-500/10 cursor-pointer' : 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-50'}`}
-                                            >
-                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${item.isActive ? 'bg-emerald-500/10 dark:bg-emerald-500/20 group-hover/btn:bg-white/20' : 'bg-slate-200/50 dark:bg-slate-700/30'}`}>
-                                                    <span className={`material-symbols-outlined text-[20px] transition-colors [font-variation-settings:'wght'_600] ${item.isActive ? 'text-emerald-500 dark:text-emerald-400 group-hover/btn:text-white' : 'text-slate-400 dark:text-slate-500'}`}>assignment_turned_in</span>
+                                                disabled={informDisabled}
+                                                title={underCascade
+                                                    ? `Disponibilidade dirigida pelo setor pai \u201c${cascadeRoot}\u201d (indispon\u00edvel) \u2014 informe pelo pai para liberar`
+                                                    : undefined}
+                                                className={`w-full h-11 border rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 active:scale-[0.98] group/btn ${informDisabled ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-50' : 'bg-white dark:bg-slate-900/60 hover:bg-emerald-500 hover:border-emerald-500 border-slate-200 dark:border-slate-800 group-hover/action-row:shadow-lg group-hover/action-row:shadow-emerald-500/10 cursor-pointer'}`}>
+                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${informDisabled ? 'bg-slate-200/50 dark:bg-slate-700/30' : 'bg-emerald-500/10 dark:bg-emerald-500/20 group-hover/btn:bg-white/20'}`}>
+                                                    <span className={`material-symbols-outlined text-[20px] transition-colors [font-variation-settings:'wght'_600] ${informDisabled ? 'text-slate-400 dark:text-slate-500' : 'text-emerald-500 dark:text-emerald-400 group-hover/btn:text-white'}`}>{underCascade ? 'lock' : 'assignment_turned_in'}</span>
                                                 </div>
-                                                <span className={`text-[11px] font-black uppercase tracking-widest transition-colors ${item.isActive ? 'text-slate-700 dark:text-slate-300 group-hover/btn:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
-                                                    Informar Disponibilidade
+                                                <span className={`text-[11px] font-black uppercase tracking-widest transition-colors ${informDisabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300 group-hover/btn:text-white'}`}>
+                                                    {underCascade ? 'Bloqueado pelo setor pai' : 'Informar Disponibilidade'}
                                                 </span>
                                             </button>
                                         </div>
-                                    )}
+                                        );
+                                    })()}
 
                                     {/* Footer Actions */}
                                     {(canView('units_assets_tags_assets_movements') || canView('units_assets_tags_assets')) && (
@@ -748,7 +794,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="p-3 min-h-[300px]">
                             {isLoadingAssets ? (
                                 <div className="flex flex-col items-center justify-center py-20">
-                                    <Loading size="md" />
+                                    <Loading size="md" overlay={false} />
                                     <p className="text-slate-500 font-bold animate-pulse">CARREGANDO ATIVOS...</p>
                                 </div>
                             ) : modalAssets.length === 0 ? (
@@ -796,7 +842,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         <div className="p-3 min-h-[300px]">
                             {isLoadingMovedAssets ? (
                                 <div className="flex flex-col items-center justify-center py-20">
-                                    <Loading size="md" />
+                                    <Loading size="md" overlay={false} />
                                     <p className="text-slate-500 font-bold animate-pulse">CARREGANDO ATIVOS MOVIDOS...</p>
                                 </div>
                             ) : movedAssets.length === 0 ? (

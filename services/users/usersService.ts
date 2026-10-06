@@ -693,6 +693,59 @@ export const usersService = {
             console.error("Error updating user profile", updateError);
             throw updateError;
         }
+
+        // Notify all super admins about the new user registration (fire-and-forget)
+        try {
+            const now = new Date().toISOString();
+
+            // Fetch the newly created user's internal id
+            const { data: newUserRow } = await supabase
+                .from('users')
+                .select('id')
+                .eq('uuid', authData.user.id)
+                .single();
+
+            // Fetch company name for the notification body
+            const companyId = user.companyId ? parseInt(user.companyId) : null;
+            let companyName = '';
+            if (companyId) {
+                const { data: companyRow } = await supabase
+                    .from('cfg_companies')
+                    .select('description')
+                    .eq('id', companyId)
+                    .single();
+                companyName = companyRow?.description || '';
+            }
+
+            // Fetch all super admins
+            const { data: superAdmins } = await supabase
+                .from('users')
+                .select('id')
+                .eq('is_admin_super', true);
+
+            if (superAdmins && superAdmins.length > 0) {
+                const notifications = superAdmins.map((admin: { id: number }) => ({
+                    user_id_to: admin.id,
+                    user_id_from: newUserRow?.id ?? null,
+                    title: 'Novo usuário cadastrado',
+                    body: `${user.nameFull || user.email} foi cadastrado${companyName ? ` na empresa ${companyName}` : ''}.`,
+                    type: 'new_user',
+                    created_at: now,
+                    is_read: false,
+                    company_id: companyId
+                }));
+
+                const { error: notifError } = await supabase
+                    .from('users_notifications')
+                    .insert(notifications);
+
+                if (notifError) {
+                    console.error('Error sending new user notifications:', notifError);
+                }
+            }
+        } catch (notifErr) {
+            console.error('Error in new user notification flow:', notifErr);
+        }
     },
 
     async getCurrentUser(): Promise<User | null> {

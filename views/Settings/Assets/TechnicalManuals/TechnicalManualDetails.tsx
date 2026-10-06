@@ -11,6 +11,7 @@ import { Modal } from '../../../../components/ui/Modal';
 import { TabsBar } from '../../../../components/ui/TabsBar';
 import { toast } from 'sonner';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
+import { manualRagService, IndexResult, isGeminiConfigured } from '../../../../services/ai/manualRagService';
 
 interface TechnicalManualDetailsProps {
     manual: TechnicalManual;
@@ -48,6 +49,10 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
     const [loadingUnits, setLoadingUnits] = useState(false);
     const [associatingAssetId, setAssociatingAssetId] = useState<string | null>(null);
     const [showMenuActions, setShowMenuActions] = useState(false);
+    const [ragStatus, setRagStatus] = useState<Record<string, { chunks: number; indexing?: boolean }>>({});
+    const [bulkIndexing, setBulkIndexing] = useState<{ total: number; done: number; current?: string; errors: number; skipped: number; cancelled: boolean } | null>(null);
+    const bulkCancelRef = useRef(false);
+    const geminiConfigured = isGeminiConfigured();
     const [categories, setCategories] = useState<TechnicalManualCategory[]>([]);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
     const menuActionsRef = useRef<HTMLDivElement>(null);
@@ -62,12 +67,87 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
             ]);
             setFiles(filesData);
             setAssets(assetsData);
+
+            // Status RAG por arquivo (chunks já indexados)
+            const statuses: Record<string, { chunks: number }> = {};
+            await Promise.all(filesData.map(async f => {
+                statuses[f.id] = { chunks: await manualRagService.getFileChunkCount(f.id) };
+            }));
+            setRagStatus(statuses);
         } catch (error) {
             console.error('Error loading details:', error);
             toast.error('Erro ao carregar detalhes');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleIndexFile = async (file: { id: string; docFileName: string; docFilePath: string; fileType: string; tmCategoryDescription?: string }) => {
+        setRagStatus(prev => ({ ...prev, [file.id]: { ...(prev[file.id] || { chunks: 0 }), indexing: true } }));
+        try {
+            const result: IndexResult = await manualRagService.indexFile(
+                { ...file, tmId: manual.id } as any,
+                manual.id,
+                manual.code ? `${manual.code} - ${manual.description}` : manual.description
+            );
+            if (result.status === 'skipped') {
+                // Tipo sem texto (imagem/planilha) — silencioso no upload automático,
+                // só atualiza o status. Admin ainda pode ver o botão IA no arquivo.
+                setRagStatus(prev => ({ ...prev, [file.id]: { chunks: 0 } }));
+            } else if (result.status === 'completed' || result.status === 'partial') {
+                toast.success(`IA: ${result.message}`);
+            } else {
+                toast.error(`IA: ${result.message}`);
+            }
+            setRagStatus(prev => ({ ...prev, [file.id]: { chunks: result.chunks } }));
+            return result;
+        } catch (err: any) {
+            console.error('Error indexing file:', err);
+            toast.error(err?.message || 'Erro ao indexar arquivo');
+            setRagStatus(prev => ({ ...prev, [file.id]: { chunks: prev[file.id]?.chunks || 0 } }));
+            return { status: 'error' as const, chunks: 0, message: err?.message || 'Erro desconhecido' };
+        }
+    };
+
+    /**
+     * Indexa em lote todos os arquivos do manual (acervo antigo).
+     * Sequencial para não estourar cota da API Gemini; cancelável.
+     */
+    const handleIndexAllFiles = async () => {
+        if (bulkIndexing) return;
+        const indexable = files.filter(f => !['image', 'excel'].includes(f.fileType));
+        if (indexable.length === 0) {
+            toast.info('Nenhum arquivo com texto para indexar (apenas imagens/planilhas).');
+            return;
+        }
+
+        bulkCancelRef.current = false;
+        setBulkIndexing({ total: indexable.length, done: 0, errors: 0, skipped: 0, cancelled: false });
+
+        let errors = 0;
+        let skipped = 0;
+        for (let i = 0; i < indexable.length; i++) {
+            if (bulkCancelRef.current) break;
+            const file = indexable[i];
+            setBulkIndexing(prev => prev ? { ...prev, current: file.docFileName, done: i } : prev);
+            const result = await handleIndexFile(file);
+            if (result && (result as IndexResult).status === 'error') errors++;
+            if (result && (result as IndexResult).status === 'skipped') skipped++;
+        }
+
+        setBulkIndexing(prev => prev ? { ...prev, done: indexable.length, current: undefined, cancelled: bulkCancelRef.current } : prev);
+        if (bulkCancelRef.current) {
+            toast.info('Indexação em lote cancelada.');
+        } else {
+            toast.success(`Indexação concluída: ${indexable.length - errors - skipped} OK${errors ? `, ${errors} com erro` : ''}${skipped ? `, ${skipped} ignorados` : ''}.`);
+        }
+
+        // deixa o resumo visível por alguns segundos antes de fechar o painel
+        setTimeout(() => setBulkIndexing(null), 4000);
+    };
+
+    const handleCancelBulkIndexing = () => {
+        bulkCancelRef.current = true;
     };
 
     useEffect(() => {
@@ -120,10 +200,11 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
         }
 
         setUploading(true);
+        let uploadedFile: TechnicalManualFile | null = null;
         try {
-            await dataService.uploadTechnicalManualFile(manual.id, file, manual.companyId || '1', selectedCategoryId || undefined);
+            uploadedFile = await dataService.uploadTechnicalManualFile(manual.id, file, manual.companyId || '1', selectedCategoryId || undefined);
             toast.success('Arquivo enviado com sucesso!');
-            loadData();
+            await loadData();
         } catch (error) {
             console.error('Error uploading file:', error);
             toast.error('Erro ao enviar arquivo');
@@ -132,6 +213,12 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
+        }
+
+        // RAG automático: indexa o conteúdo do arquivo recém-enviado para o
+        // assistente da visita (background — não bloqueia o upload).
+        if (uploadedFile) {
+            handleIndexFile(uploadedFile);
         }
     };
 
@@ -142,6 +229,8 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
     const confirmDeleteFile = async () => {
         if (!fileToDelete) return;
         try {
+            // Remove também os chunks RAG do arquivo (best-effort)
+            try { await manualRagService.deleteFileIndex(fileToDelete); } catch {}
             await dataService.deleteTechnicalManualFile(fileToDelete);
             toast.success('Arquivo excluído!');
             loadData();
@@ -403,6 +492,46 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                             Formatos: JPG, PNG, PDF, Word, Excel, TXT, CSV, GPC
                         </p>
 
+                        {/* Bulk RAG Indexing (acervo antigo) */}
+                        {canEditManual && files.length > 0 && !bulkIndexing && (
+                            <Button
+                                variant="dashed"
+                                fullWidth
+                                onClick={handleIndexAllFiles}
+                                disabled={!geminiConfigured}
+                            >
+                                <span className="material-symbols-outlined text-sm mr-2">database</span>
+                                Indexar todos para IA ({files.filter(f => !['image', 'excel'].includes(f.fileType)).length})
+                            </Button>
+                        )}
+                        {bulkIndexing && (
+                            <div className="bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800/20">
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1.5">
+                                        <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                                        Indexando arquivos {bulkIndexing.cancelled ? '(cancelando...)' : ''}
+                                    </p>
+                                    {!bulkIndexing.cancelled && (
+                                        <button
+                                            onClick={handleCancelBulkIndexing}
+                                            className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-red-500 transition-colors"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="h-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-full overflow-hidden mb-2">
+                                    <div
+                                        className="h-full bg-indigo-500 transition-all duration-500"
+                                        style={{ width: `${Math.round((bulkIndexing.done / Math.max(1, bulkIndexing.total)) * 100)}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                    {bulkIndexing.done}/{bulkIndexing.total}{bulkIndexing.current ? ` — ${bulkIndexing.current}` : ''}
+                                </p>
+                            </div>
+                        )}
+
                         {/* Files List */}
                         {files.length === 0 ? (
                             <div className="text-center py-12 text-slate-500">
@@ -445,7 +574,25 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-1">
+                                                <div className="flex gap-1 items-center">
+                                                    {/* RAG: status + botão indexar (admin) */}
+                                                    {canEditManual && (
+                                                        <button
+                                                            onClick={() => handleIndexFile(file)}
+                                                            disabled={ragStatus[file.id]?.indexing}
+                                                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-900/20 disabled:opacity-50"
+                                                            title={ragStatus[file.id]?.chunks > 0 ? 'Reindexar conteúdo para o assistente' : 'Indexar conteúdo para o assistente'}
+                                                        >
+                                                            {ragStatus[file.id]?.indexing ? (
+                                                                <span className="material-symbols-outlined text-indigo-500 animate-spin text-[16px]">progress_activity</span>
+                                                            ) : (
+                                                                <span className="material-symbols-outlined text-indigo-500 text-[16px]">database</span>
+                                                            )}
+                                                            <span className="text-indigo-500">
+                                                                {ragStatus[file.id]?.chunks > 0 ? `${ragStatus[file.id].chunks}` : 'IA'}
+                                                            </span>
+                                                        </button>
+                                                    )}
                                                     <a
                                                         href={getPublicImageUrl(file.docFilePath, file.docFileName)}
                                                         target="_blank"

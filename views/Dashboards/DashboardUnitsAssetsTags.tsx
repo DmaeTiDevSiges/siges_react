@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { dataService } from '../../services/dataService';
 import { supabase } from '../../services/core/supabase';
+import { useAppNotices } from '../../hooks/useAppNotices';
 import { User, System, OrderType, Priority } from '../../types';
 import { toast } from 'sonner';
 import { Card } from '../../components/ui/Card';
@@ -171,6 +172,64 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
     // Track unit selected via map
     const [selectedUnitIdFromMap, setSelectedUnitIdFromMap] = useState<number | null>(null);
+
+    // MO Extra: notice ativo + workers agrupados por unidade
+    const { notices: activeNotices } = useAppNotices();
+    const [noticeWorkers, setNoticeWorkers] = useState<any[]>([]);
+
+    const loadNoticeWorkers = useCallback(async (noticeId: number) => {
+        try {
+            // undefined = sem filtro de company → retorna todas as companies
+            const workers = await dataService.getNoticeWorkers(noticeId, undefined);
+            setNoticeWorkers(workers);
+        } catch (err) {
+            setNoticeWorkers([]);
+        }
+    }, []);
+
+    useEffect(() => {
+        const notice = activeNotices[0];
+        
+        if (notice?.id) {
+            void loadNoticeWorkers(notice.id);
+        } else {
+            setNoticeWorkers([]);
+        }
+    }, [activeNotices, loadNoticeWorkers]);
+
+    // Agrupa workers por unitId: { total, companies: [{ name, logoUrl, amount }] }
+    const moExtraByUnit = useMemo(() => {
+        const map = new Map<number, { total: number; companies: { name?: string; logoUrl?: string; amount: number }[] }>();
+        noticeWorkers.forEach(w => {
+            const uid = Number(w.unitId);
+            const amount = Number(w.workersExtraAmount) || 0;
+            if (!uid || amount <= 0) return;
+            const entry = map.get(uid) ?? { total: 0, companies: [] };
+            entry.total += amount;
+            entry.companies.push({ name: w.companyName, logoUrl: w.companyLogoUrl, amount });
+            map.set(uid, entry);
+        });
+        return map;
+    }, [noticeWorkers]);
+
+    // Resumo global de MO Extra (total + por empresa)
+    const moExtraSummary = useMemo(() => {
+        const companiesMap = new Map<string, { name?: string; logoUrl?: string; amount: number }>();
+        let total = 0;
+        noticeWorkers.forEach(w => {
+            const amount = Number(w.workersExtraAmount) || 0;
+            if (amount <= 0) return;
+            total += amount;
+            const key = String(w.companyId ?? w.companyName ?? 'unknown');
+            const prev = companiesMap.get(key);
+            if (prev) {
+                prev.amount += amount;
+            } else {
+                companiesMap.set(key, { name: w.companyName, logoUrl: w.companyLogoUrl, amount });
+            }
+        });
+        return { total, companies: Array.from(companiesMap.values()).sort((a, b) => b.amount - a.amount) };
+    }, [noticeWorkers]);
 
     // Active Asset Tag ID based on selectedSectorName
     const activeAssetTagId = useMemo(() => {
@@ -729,7 +788,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             ) : (
                 <div className="flex flex-col px-4 sm:px-6 py-3 sm:py-4">
                     {/* Header */}
-                    <header className="shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-8">
+                    <header className="shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-5">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-8 w-full sm:w-auto">
                             <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white uppercase tracking-tight">Sistema</h1>
                             <div className="flex items-center gap-3 w-full sm:w-[200px]">
@@ -776,8 +835,8 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     </header>
 
                     {/* Top Cards: Disponibilidades por Setores */}
-                    <section className="shrink-0 mb-4 sm:mb-8 overflow-hidden px-1">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-4 px-1">
+                    <section className="shrink-0 overflow-hidden px-1">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-[14px] px-1">
                             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                                 <h3 className="text-[9px] sm:text-[10px] font-black tracking-[0.15em] sm:tracking-[0.2em] text-slate-400 dark:text-slate-500 uppercase whitespace-nowrap">Disponibilidade por Setores</h3>
 
@@ -841,7 +900,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         <div
                             ref={sectorsScrollRef}
                             {...sectorsDragHandlers}
-                            className="flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-2 sm:py-3 px-1 cursor-grab active:cursor-grabbing"
+                            className="flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-1.5 px-1.5 cursor-grab active:cursor-grabbing"
                         >
                             {/* Sector Cards only */}
                             {sectorsStats.map((sector) => (
@@ -899,6 +958,41 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                             ))}
                         </div>
                     </section>
+
+                    {/* MO Extra summary bar */}
+                    {moExtraSummary.total > 0 && (
+                        <div className="px-3 sm:px-4 py-1.5 border-b border-slate-100 dark:border-slate-800/60">
+                            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
+                                {/* Total pill */}
+                                <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500 shadow-sm">
+                                    <span className="material-symbols-outlined text-[14px] text-white">engineering</span>
+                                    <span className="text-[11px] font-black text-white whitespace-nowrap">{moExtraSummary.total} MO Extra</span>
+                                </div>
+                                {/* Divider */}
+                                <div className="shrink-0 w-px h-5 bg-slate-200 dark:bg-slate-700" />
+                                {/* Per-company: só avatar + quantidade */}
+                                {moExtraSummary.companies.map((c, i) => (
+                                    <div key={i} className="shrink-0 flex items-center gap-1.5" title={c.name ?? 'Empresa'}>
+                                        {c.logoUrl ? (
+                                            <img
+                                                src={c.logoUrl}
+                                                alt={c.name ?? ''}
+                                                className="w-8 h-8 rounded-full object-cover shrink-0"
+                                            />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                                                <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase leading-none">
+                                                    {(c.name ?? '?')[0]}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <span className="text-[11px] font-black text-amber-600 dark:text-amber-400 whitespace-nowrap">{c.amount}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <main className="pb-6 sm:pb-10">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center h-80 gap-3">
@@ -921,45 +1015,89 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                                 setExpandedUnitId(isExpanded ? null : unit.id);
                                                             }
                                                         }}
-                                                        className={`shrink-0 w-full md:w-auto md:min-w-[256px] p-2.5 sm:p-3 rounded-[16px]! sm:rounded-[20px]! min-h-[76px] sm:min-h-[88px] h-auto flex items-center justify-between relative group overflow-hidden border-slate-200 dark:border-slate-800 transition-all ${isExpanded ? 'ring-2 ring-primary border-transparent' : 'cursor-pointer md:cursor-default active:scale-[0.99] md:active:scale-100'
+                                                        className={`shrink-0 w-full md:w-auto md:min-w-[256px] p-2.5 sm:p-3 rounded-[16px]! sm:rounded-[20px]! min-h-[76px] sm:min-h-[88px] h-auto flex flex-col justify-center relative group overflow-hidden border-slate-200 dark:border-slate-800 transition-all ${isExpanded ? 'ring-2 ring-primary border-transparent' : 'cursor-pointer md:cursor-default active:scale-[0.99] md:active:scale-100'
                                                             }`}
                                                     >
                                                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'} group-hover:w-1.5 transition-all`}></div>
-                                                        <div className="flex items-center gap-2 sm:gap-2.5">
-                                                            <CircularGauge
-                                                                percentage={unit.percentage}
-                                                                size={40}
-                                                                strokeWidth={3.5}
-                                                                color={unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-400' : 'text-rose-500'}
-                                                            />
-                                                            <div className="min-w-0 flex-1">
-                                                                <h3 className="text-[11px] sm:text-[12px] font-black text-slate-800 dark:text-white uppercase leading-tight pr-2 truncate">{unit.description}</h3>
-                                                                {unit.lastReportedAt ? (
-                                                                    <p className="text-[8px] sm:text-[9px] font-black text-primary mt-0.5 uppercase tracking-tight">
-                                                                        {formatDashboardRelativeTime(unit.lastReportedAt)}
-                                                                    </p>
-                                                                ) : (
-                                                                    <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 mt-0.5 uppercase">Sem registros</p>
-                                                                )}
+
+                                                        {/* Linha Principal: Ícone do percentual + Coluna (Descrição + Tempo) + Ícone de exportação */}
+                                                        <div className="flex items-center justify-between gap-2 w-full min-w-0">
+                                                            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                                                                <CircularGauge
+                                                                    percentage={unit.percentage}
+                                                                    size={36}
+                                                                    strokeWidth={3.5}
+                                                                    color={unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-400' : 'text-rose-500'}
+                                                                />
+                                                                <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                                                    <h3 className="text-[11px] sm:text-[12px] font-black text-slate-800 dark:text-white uppercase leading-tight truncate">{unit.description}</h3>
+                                                                    {unit.lastReportedAt ? (
+                                                                        <p className="text-[8px] sm:text-[9px] font-black text-primary mt-0.5 uppercase tracking-tight">
+                                                                            {formatDashboardRelativeTime(unit.lastReportedAt)}
+                                                                        </p>
+                                                                    ) : (
+                                                                        <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 mt-0.5 uppercase">Sem registros</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setUnitForExport(unit);
+                                                                    }}
+                                                                    className="h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-primary/30 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 hidden! md:flex!"
+                                                                    title="Exportar"
+                                                                >
+                                                                    <span className="material-symbols-outlined text-[18px] sm:text-[20px]">download</span>
+                                                                </button>
+
+                                                                <span className={`material-symbols-outlined text-slate-400 transition-transform md:hidden! text-[20px] sm:text-[24px] ${isExpanded ? 'rotate-180 text-primary' : ''}`}>
+                                                                    expand_more
+                                                                </span>
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex items-center gap-2">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setUnitForExport(unit);
-                                                                }}
-                                                                className="h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-primary/30 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 hidden! md:flex!"
-                                                                title="Exportar"
-                                                            >
-                                                                <span className="material-symbols-outlined text-[18px] sm:text-[20px]">download</span>
-                                                            </button>
-
-                                                            <span className={`material-symbols-outlined text-slate-400 transition-transform md:hidden! text-[20px] sm:text-[24px] ${isExpanded ? 'rotate-180 text-primary' : ''}`}>
-                                                                expand_more
-                                                            </span>
-                                                        </div>
+                                                        {/* MO Extra badge */}
+                                                        {(() => {
+                                                            const mo = moExtraByUnit.get(Number(unit.id));
+                                                            if (!mo || mo.total <= 0) return null;
+                                                            return (
+                                                                <div className="flex items-center gap-1 mt-1.5 pl-[44px] sm:pl-[46px]">
+                                                                    <span
+                                                                        className="material-symbols-outlined text-[13px] text-amber-500"
+                                                                        title={`${mo.total} MO Extra`}
+                                                                    >engineering</span>
+                                                                    <div className="flex items-center -space-x-2.5">
+                                                                        {mo.companies.map((c, i) => (
+                                                                            <div
+                                                                                key={i}
+                                                                                className="relative shrink-0"
+                                                                                title={`${c.name ?? 'Empresa'}: ${c.amount}`}
+                                                                            >
+                                                                                {c.logoUrl ? (
+                                                                                    <img
+                                                                                        src={c.logoUrl}
+                                                                                        alt={c.name ?? ''}
+                                                                                        className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 object-cover bg-slate-100 dark:bg-slate-800"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <div className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-slate-300 dark:bg-slate-700 flex items-center justify-center">
+                                                                                        <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase leading-none">
+                                                                                            {(c.name ?? '?')[0]}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                )}
+                                                                                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-amber-500 border-[1.5px] border-white dark:border-slate-900 flex items-center justify-center">
+                                                                                    <span className="text-[8px] font-black text-white leading-none">{c.amount}</span>
+                                                                                </span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </Card>
 
                                                     {/* Assets Grid - Fixed on Desktop, Collapsible on Mobile */}

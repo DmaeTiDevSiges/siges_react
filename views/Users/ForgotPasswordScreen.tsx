@@ -36,7 +36,8 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
 
         try {
             const company = companies.find(cc => cc.id === companyId);
-            const fullEmail = `${username}${company?.emailSuffix || ''}`;
+            const suffix = company?.emailSuffix ? (company.emailSuffix.startsWith('@') ? company.emailSuffix : `@${company.emailSuffix}`) : '';
+            const fullEmail = username.includes('@') ? username.trim() : `${username.trim()}${suffix}`;
 
             // A requisição de SMTP do Supabase no Easypanel costuma demorar e voltar 504 (Gateway Timeout), 
             // porém o e-mail é de fato enviado no background. 

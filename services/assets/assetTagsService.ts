@@ -5,6 +5,7 @@ import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { getPublicImageUrl } from '../media/imageUtils';
 import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
 import { companiesService } from '../companies/companiesService';
+import { collectUnitStructureDescendants } from '../../utils/unitStructureGraph';
 
 export const assetTagsService = {
     // ── Asset Tags ───────────────────────────────────────────────
@@ -250,7 +251,7 @@ export const assetTagsService = {
             }
         }
 
-        return data.map((item: any) => {
+        const items = data.map((item: any) => {
             let details = '';
             if (item.flow_rate_is_visible && item.last_flow_rate !== null) {
                 details += `${item.last_flow_rate}${item.flow_rate_unit || 'l/s'} `;
@@ -286,6 +287,19 @@ export const assetTagsService = {
                 originalData: item
             };
         });
+
+        // Cascata: um ancestral raiz de cascata ativa (cascade_parent_id = próprio
+        // id) dirige o estado dos descendentes — o informe manual fica bloqueado
+        // até o pai voltar. RPC em lote; degrada para false se ainda não aplicado.
+        const cascadeInfos = await Promise.all(
+            items.map(it => this.getUnitAssetTagCascadeInfo(it.id))
+        );
+
+        return items.map((it, i) => ({
+            ...it,
+            underCascade: cascadeInfos[i].underCascade,
+            cascadeRootName: cascadeInfos[i].cascadeRootName,
+        }));
     },
 
     async getUnitAssetTagItemById(id: string): Promise<any> {
@@ -788,7 +802,7 @@ export const assetTagsService = {
             throw error;
         }
 
-        return (data || []).map((item: any) => {
+        const nodes: UnitStructureNode[] = (data || []).map((item: any) => {
             const name =
                 item.asset_tag_tag_sub_description ||
                 (item.asset_tag_sub_id && item.sub?.description ? item.sub.description : null) ||
@@ -809,6 +823,50 @@ export const assetTagsService = {
                 cascadeParentId: item.cascade_parent_id != null ? String(item.cascade_parent_id) : null,
             } as UnitStructureNode;
         });
+
+        // Vínculos secundários (pais além do primário) — migration 20261001.
+        // Degrade graciosamente se a tabela ainda não existir no servidor.
+        try {
+            const ids = nodes.map(n => parseInt(n.id, 10)).filter(n => !isNaN(n));
+            if (ids.length > 0) {
+                const { data: linksData, error: linksError } = await supabase
+                    .from('cfg_units_assets_tags_links')
+                    .select('unit_asset_tag_id, parent_id, sort_order')
+                    .in('unit_asset_tag_id', ids);
+                if (linksError) throw linksError;
+
+                const byChild = new Map<number, Array<{ parentId: string; sortOrder: number }>>();
+                (linksData || []).forEach((l: any) => {
+                    const child = parseInt(l.unit_asset_tag_id, 10);
+                    const parent = parseInt(l.parent_id, 10);
+                    if (isNaN(child) || isNaN(parent) || child === parent) return;
+                    if (!byChild.has(child)) byChild.set(child, []);
+                    byChild.get(child)!.push({
+                        parentId: String(parent),
+                        sortOrder: typeof l.sort_order === 'number' ? l.sort_order : 0,
+                    });
+                });
+
+                nodes.forEach(n => {
+                    const links = byChild.get(parseInt(n.id, 10));
+                    if (links && links.length > 0) {
+                        // Ignora link que duplica o pai primário (resíduo de promoção)
+                        const filtered = links.filter(l => l.parentId !== n.parentId);
+                        if (filtered.length > 0) {
+                            n.secondaryLinks = filtered;
+                            n.secondaryParentIds = filtered.map(l => l.parentId);
+                        }
+                    }
+                });
+            }
+        } catch (err: any) {
+            console.warn(
+                '[UnitStructure] Tabela de vínculos secundários indisponível; carregando sem ela (aplique a migration 20261001):',
+                err?.message || err
+            );
+        }
+
+        return nodes;
     },
 
     /**
@@ -854,6 +912,20 @@ export const assetTagsService = {
                 .eq('id', parseInt(nodeId, 10));
 
             if (error) throw error;
+
+            // Promoção: se o novo pai primário já era um vínculo secundário,
+            // remove o link para não duplicar a relação (primário + secundário).
+            if (parentId) {
+                const { error: linkError } = await supabase
+                    .from('cfg_units_assets_tags_links')
+                    .delete()
+                    .eq('unit_asset_tag_id', parseInt(nodeId, 10))
+                    .eq('parent_id', parseInt(parentId, 10));
+                if (linkError) {
+                    // Tabela de links ainda não existe → ignora (migração pendente)
+                    console.warn('[UnitStructure] Não foi possível limpar vínculo promovido:', linkError.message);
+                }
+            }
         };
 
         try {
@@ -870,6 +942,123 @@ export const assetTagsService = {
             console.warn('[UnitStructure] Schema cache reload detectado, tentando novamente em 1.5s...');
             await new Promise(resolve => setTimeout(resolve, 1500));
             await doUpdate();
+        }
+    },
+
+    /**
+     * Reordena nós de um mesmo nível do organograma: grava o sort_order de
+     * vários nós de uma vez (renumeração do grupo após drag entre gaps).
+     */
+    async updateUnitStructureOrder(items: Array<{ id: string; sortOrder: number }>): Promise<void> {
+        if (!items || items.length === 0) return;
+
+        const results = await Promise.all(
+            items.map(item =>
+                supabase
+                    .from('cfg_units_assets_tags')
+                    .update({ sort_order: item.sortOrder, updated_at: getBrazilTimestamp() })
+                    .eq('id', parseInt(item.id, 10))
+            )
+        );
+
+        const firstError = results.find(r => r?.error)?.error;
+        if (firstError) throw firstError;
+    },
+
+    /**
+     * Descendentes de um nó no DAG: percorre pai primário (parent_id) E
+     * vínculos secundários (cfg_units_assets_tags_links). Inclui o próprio nó.
+     * Usado na validação de ciclo antes de criar vínculo/re-parent.
+     */
+    async collectUnitStructureDescendants(unitId: string, nodeId: string): Promise<Set<string>> {
+        const nodes = await this.getUnitStructureNodes(unitId);
+        return this.collectDescendantsFromNodes(nodes, nodeId);
+    },
+
+    /** Versão pura (testável): descendentes no DAG a partir de uma lista de nós. */
+    collectDescendantsFromNodes(nodes: UnitStructureNode[], nodeId: string): Set<string> {
+        return collectUnitStructureDescendants(nodes, nodeId);
+    },
+
+    /**
+     * Cria um vínculo secundário (nó ganha um pai adicional).
+     * Validations: nó ≠ pai, pai pertence à mesma unidade, pai não é o primário
+     * atual, vínculo não existe, e pai NÃO é descendente do nó (ciclo no DAG).
+     */
+    async linkUnitStructureNode(unitId: string, nodeId: string, parentId: string): Promise<void> {
+        if (!unitId || !nodeId || !parentId) throw new Error('Parâmetros de vínculo ausentes.');
+        if (nodeId === parentId) throw new Error('Um setor não pode ser pai de si mesmo.');
+
+        const nodes = await this.getUnitStructureNodes(unitId);
+        const node = nodes.find(n => n.id === nodeId);
+        const parent = nodes.find(n => n.id === parentId);
+        if (!node) throw new Error('Setor não encontrado nesta unidade.');
+        if (!parent) throw new Error('Setor pai não encontrado nesta unidade.');
+        if (node.parentId === parentId) throw new Error('Este setor já é o pai primário.');
+        if ((node.secondaryLinks || []).some(l => l.parentId === parentId)) return; // idempotente
+
+        // Ciclo: o novo pai não pode ser o próprio nó nem um descendente dele
+        if (this.collectDescendantsFromNodes(nodes, nodeId).has(parentId)) {
+            throw new Error('Não é possível vincular: criaria um ciclo na hierarquia (o pai já é descendente do setor).');
+        }
+
+        // sort_order: anexa no fim do grupo de filhos do novo pai secundário
+        const siblingLinks = nodes
+            .filter(n => (n.secondaryLinks || []).some(l => l.parentId === parentId))
+            .flatMap(n => (n.secondaryLinks || []).filter(l => l.parentId === parentId).map(l => l.sortOrder));
+        const nextSort = siblingLinks.length > 0 ? Math.max(...siblingLinks) + 1 : 0;
+
+        const doInsert = async () => {
+            const { error } = await supabase
+                .from('cfg_units_assets_tags_links')
+                .insert({
+                    unit_asset_tag_id: parseInt(nodeId, 10),
+                    parent_id: parseInt(parentId, 10),
+                    sort_order: nextSort,
+                });
+            if (error) throw error;
+        };
+
+        try {
+            await doInsert();
+        } catch (err: any) {
+            // 23505 = unique violation (já vinculado) → idempotente
+            if (err?.code === '23505') return;
+            const isSchemaCacheError =
+                err?.code === 'PGRST002' ||
+                err?.code === '42P01' ||
+                (typeof err?.message === 'string' && (err.message.includes('schema cache') || err.message.includes('does not exist')));
+            if (!isSchemaCacheError) throw err;
+            console.warn('[UnitStructure] Schema cache reload, tentando vínculo novamente em 1.5s...');
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            await doInsert();
+        }
+    },
+
+    /** Remove um vínculo secundário (não afeta o pai primário). */
+    async unlinkUnitStructureNode(nodeId: string, parentId: string): Promise<void> {
+        if (!nodeId || !parentId) return;
+
+        const doDelete = async () => {
+            const { error } = await supabase
+                .from('cfg_units_assets_tags_links')
+                .delete()
+                .eq('unit_asset_tag_id', parseInt(nodeId, 10))
+                .eq('parent_id', parseInt(parentId, 10));
+            if (error) throw error;
+        };
+
+        try {
+            await doDelete();
+        } catch (err: any) {
+            const isSchemaCacheError =
+                err?.code === 'PGRST002' ||
+                err?.code === '42P01' ||
+                (typeof err?.message === 'string' && (err.message.includes('schema cache') || err.message.includes('does not exist')));
+            if (!isSchemaCacheError) throw err;
+            console.warn('[UnitStructure] Schema cache reload, tentando remover vínculo novamente em 1.5s...');
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            await doDelete();
         }
     }
 

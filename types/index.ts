@@ -631,6 +631,10 @@ export interface UnitStructureNode {
   cascadeParentId?: string | null;
   /** Contagem de posições/itens abaixo do nó (preenchida opcionalmente pelo serviço) */
   childrenCount?: number;
+  /** Vínculos secundários (pais além do primário) com ordenação para renderização */
+  secondaryLinks?: Array<{ parentId: string; sortOrder: number }>;
+  /** Lista de ids dos pais secundários (para navegação rápida) */
+  secondaryParentIds?: string[];
 }
 
 export interface AssetAttributeGroup {
@@ -1305,6 +1309,7 @@ export interface OrderFilters {
   priorityId?: string | string[];
   search?: string;
   activeFilter?: string;
+  sortAscending?: boolean;
   statusId?: number | null;
   parentId?: string | string[];
   period?: string | null;
@@ -1512,6 +1517,7 @@ export interface SystemNotice {
   endDate: string;
   dashboards: string[];
   createdBy?: number;
+  viewCount?: number;
   createdAt: string;
   updatedAt: string;
   isActive: boolean;
@@ -1554,6 +1560,26 @@ export interface NoticeFilters {
   search?: string;
   page?: number;
   pageSize?: number;
+}
+
+// ── Trabalhadores Extras por Aviso ──────────────────────────────────────────
+
+export interface NoticeWorker {
+  id: number;
+  noticeId: number;
+  companyId: number;
+  unitId: number;
+  workersExtraAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  // UI helpers (embed da unidade)
+  unitDescription?: string;
+  unitDescriptionFull?: string;
+  unitCode?: string;
+  unitAddressFull?: string;
+  companyName?: string;
+  companyCode?: string;
+  companyLogoUrl?: string;
 }
 
 // ============================================================================

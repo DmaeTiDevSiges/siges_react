@@ -235,6 +235,13 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                             Ativo
                                                         </span>
                                                     )}
+                                                    <span
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
+                                                        title="Visualizações"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[12px]">visibility</span>
+                                                        {notice.viewCount ?? 0}
+                                                    </span>
                                                 </div>
                                                 
                                                 <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">

@@ -83,7 +83,7 @@ export const RequestsExcelExportButton = ({
         <button
             onClick={handleExport}
             disabled={isExporting}
-            className={`flex items-center gap-2 px-4 py-1.5 bg-green-600/20 border border-green-600/50 text-green-500 rounded-full hover:bg-green-600/30 disabled:opacity-50 transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm ${className}`}
+            className={`flex items-center gap-2 px-4 py-1.5 bg-green-600/20 border border-green-600/50 text-green-500 rounded-[8px] hover:bg-green-600/30 disabled:opacity-50 transition-all text-[10px] font-bold uppercase tracking-wider shadow-sm ${className}`}
         >
             {isExporting ? (
                 <Loading size="xs" />

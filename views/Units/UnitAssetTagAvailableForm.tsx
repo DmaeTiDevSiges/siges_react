@@ -261,9 +261,15 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
             toast.success('Disponibilidade atualizada com sucesso!');
             if (onSave) onSave();
             onBack();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving availability:', error);
-            toast.error('Erro ao salvar alterações');
+            // Bloqueio de cascata (RPC): mensagem amigável já traduzida pelo serviço
+            const rawMsg: string = typeof error?.message === 'string' ? error.message : '';
+            if (error?.code === 'NODE_UNDER_CASCADE' || rawMsg.includes('NODE_UNDER_CASCADE') || rawMsg.includes('cascata')) {
+                toast.error(rawMsg.replace(/^NODE_UNDER_CASCADE:\s*/, ''));
+            } else {
+                toast.error('Erro ao salvar alterações');
+            }
         } finally {
             setSaving(false);
         }

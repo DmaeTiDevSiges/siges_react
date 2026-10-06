@@ -172,6 +172,13 @@ export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> =
                                 <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{req.statusDescription || (req as any).status_description || 'N/A'}</span>
                                 <span className="text-[10px] font-bold text-slate-400">{req.statusAt || (req as any).status_at ? formatDateTime(req.statusAt || (req as any).status_at) : '---'}</span>
                                 <span className="text-[10px] font-black text-slate-500/70 dark:text-slate-400/50 uppercase tracking-tighter">{req.teamCode || (req as any).team_code || '---'} {(req.teamLeaderNameShort || (req as any).team_leader_name_short) && `| ${req.teamLeaderNameShort || (req as any).team_leader_name_short}`}</span>
+                                {req.statusId === 7 && (req.cancelReasonDescription || req.cancelComments || req.canceledUserNameShort) && (
+                                    <span className="text-[10px] text-red-500 dark:text-red-400 leading-tight max-w-[220px]">
+                                        {req.canceledUserNameShort ? `• ${req.canceledUserNameShort}` : ''}
+                                        {req.cancelReasonDescription ? `${req.canceledUserNameShort ? ' • ' : '• '}${req.cancelReasonDescription}` : ''}
+                                        {req.cancelComments ? ` — "${req.cancelComments}"` : ''}
+                                    </span>
+                                )}
                             </div>
                         </div>
 

@@ -47,7 +47,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForg
             const company = companies.find(cc => cc.id === companyId);
             // Remove espaços em branco antes e depois do username
             const trimmedUsername = username.trim();
-            const fullEmail = `${trimmedUsername}${company?.emailSuffix || ''}`;
+            const suffix = company?.emailSuffix ? (company.emailSuffix.startsWith('@') ? company.emailSuffix : `@${company.emailSuffix}`) : '';
+            const fullEmail = trimmedUsername.includes('@') ? trimmedUsername : `${trimmedUsername}${suffix}`;
+            console.log('[Login] Attempting login with email:', fullEmail);
 
             await dataService.signIn(fullEmail, password);
             localStorage.setItem('last_company_id', companyId);

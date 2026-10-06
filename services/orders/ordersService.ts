@@ -131,7 +131,7 @@ export const ordersService = {
         const id = Number(serviceRequestId);
         const { data: childOrders, error } = await supabase
             .from('orders')
-            .select('status_id, status_at')
+            .select('status_id, status_at, cancel_reason_id, cancel_comments, canceled_user_id, canceled_team_id, canceled_at')
             .eq('parent_id', id)
             .eq('is_deleted', false);
 
@@ -175,13 +175,25 @@ export const ordersService = {
 
         if (!ssData) return;
 
+        const updatePayload: any = {
+            status_id: targetOrder.status_id,
+            status_at: targetOrder.status_at,
+            updated_at: getBrazilTimestamp()
+        };
+
+        // Situação "Cancelada" herdada da OS: copia também o motivo/comentários/autor
+        // do cancelamento, senão a SS fica "Cancelada" sem nenhuma informação.
+        if (Number(targetOrder.status_id) === 7) {
+            updatePayload.cancel_reason_id = targetOrder.cancel_reason_id ?? null;
+            updatePayload.cancel_comments = targetOrder.cancel_comments ?? null;
+            updatePayload.canceled_user_id = targetOrder.canceled_user_id ?? null;
+            updatePayload.canceled_team_id = targetOrder.canceled_team_id ?? null;
+            updatePayload.canceled_at = targetOrder.canceled_at ?? targetOrder.status_at;
+        }
+
         await supabase
             .from('orders')
-            .update({
-                status_id: targetOrder.status_id,
-                status_at: targetOrder.status_at,
-                updated_at: getBrazilTimestamp() 
-            })
+            .update(updatePayload)
             .eq('id', id);
     },
 
@@ -785,9 +797,14 @@ export const ordersService = {
             requesterPhone: data.requester_phone,
             requestedAt: data.requested_at,
             requestedServices: data.requested_services,
-            statusId: data.status_id,
+            statusId: data.status_id ? Number(data.status_id) : undefined,
             statusAt: data.status_at,
             statusDescription: data.status_description,
+            cancelReasonId: data.cancel_reason_id ? String(data.cancel_reason_id) : undefined,
+            cancelReasonDescription: data.cancel_reason_description,
+            cancelComments: data.cancel_comments,
+            canceledTeamCode: data.canceled_team_code,
+            canceledUserNameShort: data.canceled_user_name_short,
             statusColor: data.status_color,
             statusIcon: data.status_icon,
             statusBackgroundColor: data.status_background_color,
@@ -864,9 +881,14 @@ export const ordersService = {
                     statusIcon: row.status_icon,
                     iconColor: row.icon_color,
                     statusBackgroundColor: row.status_background_color,
+                    cancelReasonId: row.cancel_reason_id ? String(row.cancel_reason_id) : undefined,
+                    cancelReasonDescription: row.cancel_reason_description,
+                    cancelComments: row.cancel_comments,
+                    canceledTeamCode: row.canceled_team_code,
+                    canceledUserNameShort: row.canceled_user_name_short,
                     requestedServices: row.requested_services,
                     requesterName: row.requester_name,
-                    requesterTeamCode: row.team_code,
+                    requesterTeamCode: row.requester_team_code,
                     requesterPhone: row.requester_phone,
                     requestedAt: row.requested_at,
                     progress: row.progress ? `${Math.round(parseFloat(String(row.progress)) * 100)}%` : '0%',
@@ -921,12 +943,17 @@ export const ordersService = {
         const providerCompanyIdStr = item.provider_company_id?.toString();
         const company = providerCompanyIdStr ? companyMap?.get(providerCompanyIdStr) : null;
 
-        let providerLogoUrl = company?.signedUrl;
+        // Prioriza a URL pública (R2/getPublicImageUrl) — a mesma usada por getOpenOS,
+        // que é a que funciona em produção. A signedUrl do storage assinado do Supabase
+        // retorna 401 neste deploy e quebrava o avatar da empresa nos cards.
+        let providerLogoUrl = getPublicImageUrl(
+            item.provider_company_img_file_path || item.provider_company_img_path || company?.img_file_path,
+            item.provider_company_img_file_name || item.provider_company_img_name || company?.img_file_name,
+            { width: 100, height: 100, resize: 'contain' }
+        );
 
         if (!providerLogoUrl) {
-            const providerImgPath = item.provider_company_img_file_path || item.provider_company_img_path || company?.img_file_path;
-            const providerImgName = item.provider_company_img_file_name || item.provider_company_img_name || company?.img_file_name;
-            providerLogoUrl = getPublicImageUrl(providerImgPath, providerImgName, { width: 100, height: 100, resize: 'contain' });
+            providerLogoUrl = company?.signedUrl;
         }
 
         const leaderLoc = item.team_leader_id ? leaderMap?.get(item.team_leader_id.toString()) : null;
@@ -997,6 +1024,11 @@ export const ordersService = {
             objectDescription: item.object_description,
             causeReasonId: item.cause_reason_id ? Number(item.cause_reason_id) : undefined,
             causeReasonDescription: item.cause_reason_description || 'N/I',
+            cancelReasonId: item.cancel_reason_id ? String(item.cancel_reason_id) : undefined,
+            cancelReasonDescription: item.cancel_reason_description,
+            cancelComments: item.cancel_comments,
+            canceledTeamCode: item.canceled_team_code,
+            canceledUserNameShort: item.canceled_user_name_short,
             createdUserId: item.created_user_id?.toString(),
             teamId: item.team_id?.toString(),
             teamCode: item.team_code,
@@ -1256,23 +1288,18 @@ export const ordersService = {
                 }
             }
 
-            // Filtro por range de datas customizado (usado no histórico)
-            if (filters.dateFrom) {
-                const fromDate = new Date(filters.dateFrom);
-                if (!isNaN(fromDate.getTime())) {
-                    query = query.gte('requested_at', fromDate.toISOString());
-                }
+            // Filtro por range de datas (páginas de período)
+            // requested_at é `timestamp without time zone` gravada em horário local (Brasil),
+            // então as bordas são 00:00:00 do dia inicial e 23:59:59 do dia final.
+            if (filters.dateFrom && !isNaN(new Date(filters.dateFrom).getTime())) {
+                query = query.gte('requested_at', `${filters.dateFrom.slice(0, 10)}T00:00:00`);
             }
-            if (filters.dateTo) {
-                const toDate = new Date(filters.dateTo);
-                toDate.setHours(23, 59, 59, 999); // fim do dia
-                if (!isNaN(toDate.getTime())) {
-                    query = query.lte('requested_at', toDate.toISOString());
-                }
+            if (filters.dateTo && !isNaN(new Date(filters.dateTo).getTime())) {
+                query = query.lte('requested_at', `${filters.dateTo.slice(0, 10)}T23:59:59`);
             }
         }
 
-        query = query.order('requested_at', { ascending: false }).range(from, to);
+        query = query.order('requested_at', { ascending: filters?.sortAscending ?? false }).range(from, to);
 
         const { data, error, count } = await query;
 
@@ -1681,7 +1708,8 @@ export const ordersService = {
         osFiltersOverride?: OrderFilters,
         viewName?: string,
         startDate?: string,
-        endDate?: string
+        endDate?: string,
+        skipSs?: boolean
     ): Promise<{
         ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number; between16And30: number; moreThan30: number };
         osCounts: Record<number, number>;
@@ -1734,6 +1762,7 @@ export const ordersService = {
             applyFilter('requester_team_id', f.orderTeamId);
             applyFilter('team_id', f.responsibleTeamId);
             applyFilter('priority_id', f.priorityId);
+            applyFilter('provider_company_id', f.providerCompanyId);
             applyFilter('cause_reason_id', f.causeReasonId);
 
             if (f.search) {
@@ -1757,7 +1786,10 @@ export const ordersService = {
             osQuery = osQuery.lte('requested_at', `${endDate}T23:59:59`);
         }
 
-        const [ssUnscheduledRes, osRes] = await Promise.all([ssUnscheduledQuery, osQuery]);
+        const [ssUnscheduledRes, osRes] = await Promise.all([
+            skipSs ? Promise.resolve({ data: [] as any[], error: null as any }) : ssUnscheduledQuery,
+            osQuery
+        ]);
 
         if (ssUnscheduledRes.error || osRes.error) {
             console.error('Error fetching dashboard stats:', ssUnscheduledRes.error || osRes.error);
@@ -2013,6 +2045,11 @@ export const ordersService = {
                 team: item.team_code || item.team_description,
                 systemDescription: item.system_description,
                 system: item.system_description,
+                cancelReasonId: item.cancel_reason_id ? String(item.cancel_reason_id) : undefined,
+                cancelReasonDescription: item.cancel_reason_description,
+                cancelComments: item.cancel_comments,
+                canceledTeamCode: item.canceled_team_code,
+                canceledUserNameShort: item.canceled_user_name_short,
                 statusId: item.status_id ? Number(item.status_id) : 1,
                 parentId: item.parent_id ? Number(item.parent_id) : null,
                 ovCounter: item.ov_counter
@@ -2164,6 +2201,11 @@ export const ordersService = {
                 team: item.team_code || item.team_description,
                 systemDescription: item.system_description,
                 system: item.system_description,
+                cancelReasonId: item.cancel_reason_id ? String(item.cancel_reason_id) : undefined,
+                cancelReasonDescription: item.cancel_reason_description,
+                cancelComments: item.cancel_comments,
+                canceledTeamCode: item.canceled_team_code,
+                canceledUserNameShort: item.canceled_user_name_short,
                 statusId: item.status_id ? Number(item.status_id) : 1,
                 parentId: item.parent_id ? Number(item.parent_id) : null,
                 ovCounter: item.ov_counter
@@ -2837,6 +2879,11 @@ export const ordersService = {
                 team: item.team_code || item.team_description,
                 systemDescription: item.system_description,
                 system: item.system_description,
+                cancelReasonId: item.cancel_reason_id ? String(item.cancel_reason_id) : undefined,
+                cancelReasonDescription: item.cancel_reason_description,
+                cancelComments: item.cancel_comments,
+                canceledTeamCode: item.canceled_team_code,
+                canceledUserNameShort: item.canceled_user_name_short,
                 statusId: item.status_id ? Number(item.status_id) : 8,
                 parentId: null,
                 ovCounter: item.ov_counter

@@ -202,6 +202,20 @@ export const appNoticesService = {
     }
   },
 
+  /** Incrementa o contador de visualizações do aviso (RPC atômica no banco). */
+  async incrementViewCount(id: number): Promise<number> {
+    const { data, error } = await supabase.rpc('increment_notice_view_count', {
+      p_notice_id: id,
+    });
+
+    if (error) {
+      console.error('Error incrementing notice view count:', error);
+      return 0;
+    }
+
+    return data ?? 0;
+  },
+
   mapCategory(row: any): SystemNoticeCategory {
     return {
       id: row.id,
@@ -239,6 +253,7 @@ export const appNoticesService = {
       endDate: row.end_date,
       dashboards: row.dashboards || [],
       createdBy: row.created_user_id,
+      viewCount: row.view_count ?? 0,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isActive: row.is_active,

@@ -8,7 +8,10 @@
 --   indisponível; quem estava disponível VOLTA a ficar disponível.
 -- Decisões do usuário:
 --   1) cada filho afetado ganha histórico em assets_available (processing 3);
---   2) informe manual em filho sob cascata é BLOQUEADO até o pai voltar.
+--   2) informe manual em filho sob cascata é BLOQUEADO até o pai voltar;
+--   3) os registros de cascata dos filhos herdam do pai os campos de geo/origem
+--      de assets_available: reported_latitude, reported_longitude, unit_latitude,
+--      unit_longitude, unit_reported_distance_m e is_web.
 -- Escopo: 100% aditivo — sem DROP, sem CASCADE; RPC antigo permanece intacto.
 -- Idempotente: pode ser reexecutado no SQL Editor sem efeitos colaterais.
 
@@ -225,16 +228,23 @@ BEGIN
             WHERE u.id = a.id
             RETURNING u.id, u.unit_id, u.asset_tag_id, u.asset_tag_sub_id
         )
+        -- Geo/origem herdados do pai (p_* = valores do informe do setor pai)
         INSERT INTO public.assets_available (
             unit_asset_tag_id, unit_id, asset_tag_id, asset_tag_sub_id,
             is_available, asset_unavailable_reason_id, comments,
             created_user_id, reported_user_id,
+            reported_latitude, reported_longitude,
+            unit_latitude, unit_longitude,
+            unit_reported_distance_m, is_web,
             created_at, reported_at, processing_id
         )
         SELECT upd.id, upd.unit_id, upd.asset_tag_id, upd.asset_tag_sub_id,
                FALSE, COALESCE(p_reason_id, 0),
                'Indisponibilidade em cascata — setor pai: ' || v_parent_name,
                p_reported_by_id, p_reported_by_id,
+               p_reported_latitude, p_reported_longitude,
+               p_unit_latitude, p_unit_longitude,
+               p_unit_reported_distance, p_is_web,
                p_created_at::TIMESTAMP, p_reported_at::TIMESTAMP, 3
         FROM upd;
     END IF;
@@ -277,16 +287,23 @@ BEGIN
             WHERE u.id = m.id
             RETURNING u.id, u.unit_id, u.asset_tag_id, u.asset_tag_sub_id, u.last_is_available
         )
+        -- Geo/origem também herdados do pai (mesmo evento de informe)
         INSERT INTO public.assets_available (
             unit_asset_tag_id, unit_id, asset_tag_id, asset_tag_sub_id,
             is_available, comments,
             created_user_id, reported_user_id,
+            reported_latitude, reported_longitude,
+            unit_latitude, unit_longitude,
+            unit_reported_distance_m, is_web,
             created_at, reported_at, processing_id
         )
         SELECT upd.id, upd.unit_id, upd.asset_tag_id, upd.asset_tag_sub_id,
                upd.last_is_available,
                'Disponibilidade restaurada em cascata — setor pai: ' || v_parent_name,
                p_reported_by_id, p_reported_by_id,
+               p_reported_latitude, p_reported_longitude,
+               p_unit_latitude, p_unit_longitude,
+               p_unit_reported_distance, p_is_web,
                p_created_at::TIMESTAMP, p_reported_at::TIMESTAMP, 3
         FROM upd;
     END IF;
@@ -371,16 +388,29 @@ GRANT ALL ON FUNCTION public.report_unit_asset_tag_availability(integer, boolean
 --    FROM cfg_units_assets_tags
 --    WHERE cascade_parent_id IS NOT NULL;
 --
--- D) Teste manual de ciclo completo (troque 30 pelo id de um setor PAI):
+-- D) Teste manual de ciclo completo (troque 30 pelo id de um setor PAI;
+--    os 5 últimos args geo/origem do pai são propagados aos filhos):
 --    SELECT report_unit_asset_tag_availability(30, false, 1, 'teste pai',
 --        100002, null, null, 1170, 33, 1003, null,
 --        to_char(now(),'YYYY-MM-DD HH24:MI:SS'), to_char(now(),'YYYY-MM-DD HH24:MI:SS'),
---        null, null, null, null, null, 16, false);
+--        -23.5505, -46.6333, -23.5505, -46.6333, 12.5, 16, false);
 --    SELECT id, last_is_available, cascade_parent_id FROM cfg_units_assets_tags
 --    WHERE parent_id = 30 OR id = 30;   -- filhos devem ficar false + marcados
 --    SELECT report_unit_asset_tag_availability(30, true, null, 'volta pai',
 --        100002, null, null, 1170, 33, 1003, null,
 --        to_char(now(),'YYYY-MM-DD HH24:MI:SS'), to_char(now(),'YYYY-MM-DD HH24:MI:SS'),
---        null, null, null, null, null, 16, false);
+--        -23.5505, -46.6333, -23.5505, -46.6333, 12.5, 16, false);
 --    SELECT id, last_is_available, cascade_parent_id FROM cfg_units_assets_tags
 --    WHERE parent_id = 30 OR id = 30;   -- filhos restaurados, marcador limpo
+--
+-- E) Filhos com geo/origem idênticos ao pai (processing 3 deve repetir
+--    reported_latitude/longitude, unit_latitude/longitude,
+--    unit_reported_distance_m e is_web do registro do pai):
+--    SELECT a.id, a.unit_asset_tag_id, a.is_available, a.processing_id,
+--           a.reported_latitude, a.reported_longitude,
+--           a.unit_latitude, a.unit_longitude,
+--           a.unit_reported_distance_m, a.is_web
+--    FROM assets_available a
+--    WHERE a.processing_id = 3
+--    ORDER BY a.id DESC
+--    LIMIT 20;

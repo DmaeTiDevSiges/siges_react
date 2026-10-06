@@ -1,7 +1,7 @@
 /**
  * OrderVisitAssetReport - View for asset individual report during a visit.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { dataService } from '../../../services/dataService';
 import { OrderVisitAssetActivity, OrderVisitAssetMaterial, OrderVisitAssetView, Asset, AssetAlert, OrderVisit } from '../../../types';
 import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
@@ -14,6 +14,7 @@ import { PhotoViewer } from '../../../components/ui/PhotoViewer';
 import { Button } from '../../../components/ui/Button';
 import { ButtonNew } from '../../../components/ui/ButtonNew';
 import { AIAssetPanel } from '../../../components/ai/AIAssetPanel';
+import { OrderVisitAssetManualsSection } from './OrderVisitAssetManualsSection';
 import { createPortal } from 'react-dom';
 import { usePermissions } from '../../../contexts/PermissionsContext';
 import { AssetAlertModal } from '../../Assets/AssetAlertModal';
@@ -258,6 +259,17 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [hasRecorder, setHasRecorder] = useState(initialAsset?.hasRecorder ?? true);
     const [beforeRecorder, setBeforeRecorder] = useState<string>(initialAsset?.beforeRecorder != null ? String(initialAsset.beforeRecorder) : '');
     const [afterRecorder, setAfterRecorder] = useState<string>(initialAsset?.afterRecorder != null ? String(initialAsset.afterRecorder) : '');
+
+    // Manuais do ativo + assistente (pergunta pré-preenchada)
+    const [assetAssistantPrompt, setAssetAssistantPrompt] = useState<{ text: string; seq: number } | null>(null);
+    const assetPromptSeq = useRef(0);
+    const [showAssetAssistant, setShowAssetAssistant] = useState(false);
+
+    const handleAskAssetAssistant = (prompt: string) => {
+        assetPromptSeq.current += 1;
+        setAssetAssistantPrompt({ text: prompt, seq: assetPromptSeq.current });
+        setShowAssetAssistant(true);
+    };
 
     // Asset swap state
     const [showSwapPage, setShowSwapPage] = useState(false);
@@ -1109,14 +1121,29 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 {/* Asset Detail Card */}
                 {!readOnly && <OrderVisitAssetCardDetail asset={asset} onClick={onViewAsset} />}
 
-                {/* 🤖 Assistente IA do Ativo — apenas para admin super e visita não aprovada */}
-                {currentUserIsAdminSuper && asset?.code && Number(asset.processingId) !== 5 && (
+                {/* 🤖 Assistente IA do Ativo — visita não aprovada */}
+                {/* Assistente desativado temporariamente */}
+                {/* {asset?.code && Number(asset.processingId) !== 5 && (
                     <AIAssetPanel
                         assetCode={asset.code}
                         assetId={asset.assetId}
                         assetDescription={asset.description}
                         unitDescription={asset.beforeUnitDescription}
+                        pendingPrompt={assetAssistantPrompt}
                     />
+                )} */}
+                {asset?.code && Number(asset.processingId) !== 5 && (
+                    <div>
+                        {/* 📚 Manuais Técnicos do ativo — seção sempre visível */}
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
+                            <SectionHeader icon="menu_book" title="Manuais Técnicos" />
+                            <OrderVisitAssetManualsSection
+                                assetId={String(asset.assetId)}
+                                assetCode={asset.code}
+                                onAskAssistant={handleAskAssetAssistant}
+                            />
+                        </div>
+                    </div>
                 )}
 
                 {/* Condição Antes */}

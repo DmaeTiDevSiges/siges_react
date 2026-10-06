@@ -33,12 +33,13 @@ import { orderConfigService } from './core/orderConfigService';
 import { toolsService } from './tools/toolsService';
 import { technicalManualsService } from './assets/technicalManualsService';
 import { appNoticesService } from './core/appNoticesService';
+import { appNoticesWorkersService } from './core/appNoticesWorkersService';
 import { appTipsService } from './core/appTipsService';
 import { gamificationService } from './gamification/gamificationService';
 import { assetLoansService } from './assets/assetLoansService';
 import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
 import { loansChecklistService } from './assets/loansChecklistService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
 
 
 
@@ -1142,6 +1143,15 @@ export const dataService = {
     async updateUnitStructureParent(nodeId: string, parentId: string | null, sortOrder?: number): Promise<void> {
         return assetTagsService.updateUnitStructureParent.apply(assetTagsService, arguments as any);
     },
+    async updateUnitStructureOrder(items: Array<{ id: string; sortOrder: number }>): Promise<void> {
+        return assetTagsService.updateUnitStructureOrder.apply(assetTagsService, arguments as any);
+    },
+    async linkUnitStructureNode(unitId: string, nodeId: string, parentId: string): Promise<void> {
+        return assetTagsService.linkUnitStructureNode.apply(assetTagsService, arguments as any);
+    },
+    async unlinkUnitStructureNode(nodeId: string, parentId: string): Promise<void> {
+        return assetTagsService.unlinkUnitStructureNode.apply(assetTagsService, arguments as any);
+    },
     async getUnitAssetTagCascadeInfo(nodeId: string): Promise<{ underCascade: boolean; cascadeRootName: string | null }> {
         return assetTagsService.getUnitAssetTagCascadeInfo.apply(assetTagsService, arguments as any);
     },
@@ -1182,7 +1192,7 @@ export const dataService = {
     // -------------------------------------------------------------------------
     // UNIT ASSET TAGS (Sectors)
     // -------------------------------------------------------------------------
-    async getUnitAssetTagsItems(unitId: string, assetTagId: string): Promise<any[]> {
+    async getUnitAssetTagsItems(unitId: string, assetTagId: string): Promise<Array<Record<string, any> & { underCascade?: boolean; cascadeRootName?: string | null }>> {
         return assetTagsService.getUnitAssetTagsItems.apply(assetTagsService, arguments as any);
     },
 
@@ -1785,7 +1795,8 @@ export const dataService = {
          osFiltersOverride?: OrderFilters,
          viewName?: string,
          startDate?: string,
-         endDate?: string
+         endDate?: string,
+         skipSs?: boolean
      ): Promise<{
          ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number; between16And30: number; moreThan30: number };
          osCounts: Record<number, number>;
@@ -1827,7 +1838,10 @@ export const dataService = {
         contractId?: string | string[];
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
+        responsibleTeamId?: string | string[];
         priorityId?: string | string[];
+        providerCompanyId?: string | string[];
+        causeReasonId?: string | string[];
         viewName?: string;
     }): Promise<{ data: Order[]; total: number }> {
         return ordersService.getCompletedOS.apply(ordersService, arguments as any);
@@ -2859,6 +2873,27 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async toggleNoticeActive(id: number, isActive: boolean): Promise<void> {
         return appNoticesService.toggleNoticeActive.apply(appNoticesService, arguments as any);
+    },
+
+    async incrementViewCount(id: number): Promise<number> {
+        return appNoticesService.incrementViewCount.apply(appNoticesService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // NOTICE WORKERS (Trabalhadores Extras por Aviso)
+    // -------------------------------------------------------------------------
+    async getNoticeWorkers(noticeId: number, companyId?: string | number | null): Promise<NoticeWorker[]> {
+        return appNoticesWorkersService.getWorkersByNotice.apply(appNoticesWorkersService, arguments as any);
+    },
+
+    async setNoticeWorkers(params: {
+        noticeId: number;
+        companyId: string | number;
+        unitId: string | number;
+        amount: number;
+        userId?: number | null;
+    }): Promise<void> {
+        return appNoticesWorkersService.setWorkers.apply(appNoticesWorkersService, arguments as any);
     },
 
     // -------------------------------------------------------------------------

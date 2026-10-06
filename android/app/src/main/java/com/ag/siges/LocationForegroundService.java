@@ -156,7 +156,7 @@ public class LocationForegroundService extends Service {
 
         android.app.Notification notification = new NotificationCompat.Builder(this, "siges_location_channel")
                 .setContentTitle("SIGES")
-                .setContentText("Rastreamento de localização ativo")
+                .setContentText("Você tem visitas em andamento")
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)

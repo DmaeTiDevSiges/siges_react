@@ -427,6 +427,88 @@ export const technicalManualsService = {
         if (error) throw error;
     },
 
+    /**
+     * Busca os manuais técnicos (com arquivos) associados a uma lista de ativos.
+     * Usado pela aba 'Manuais' da visita técnica e pelo contexto do assistente.
+     */
+    async getManualsWithFilesForAssets(assetIds: string[]): Promise<(TechnicalManual & { files: TechnicalManualFile[] })[]> {
+        const ids = (assetIds || []).map(id => parseInt(id)).filter(id => !isNaN(id));
+        if (ids.length === 0) return [];
+
+        // Dedup — evita consultar a mesma associação duas vezes
+        const uniqueIds = Array.from(new Set(ids));
+
+        const { data: associations, error: assocError } = await supabase
+            .from('technicals_manuals_assets')
+            .select('tm_id, asset_id')
+            .in('asset_id', uniqueIds);
+
+        if (assocError) {
+            console.error('Error fetching manual associations for assets:', assocError);
+            throw assocError;
+        }
+
+        if (!associations || associations.length === 0) return [];
+
+        const tmIds = Array.from(new Set(associations.map((a: any) => a.tm_id)));
+
+        const { data, error } = await supabase
+            .from('v_technicals_manuals')
+            .select('*')
+            .in('id', tmIds)
+            .order('tm_description');
+
+        if (error) {
+            console.error('Error fetching technical manuals for assets:', error);
+            throw error;
+        }
+
+        // Arquivos de todos os manuais em lote (N+1 evitado)
+        const filesByTm = new Map<string, TechnicalManualFile[]>();
+        await Promise.all(
+            tmIds.map(async (tmId) => {
+                try {
+                    filesByTm.set(tmId.toString(), await this.getTechnicalManualFiles(tmId.toString()));
+                } catch {
+                    filesByTm.set(tmId.toString(), []);
+                }
+            })
+        );
+
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            code: item.code || '',
+            description: item.tm_description || '',
+            assetTypeId: item.asset_type_id?.toString() || '',
+            assetTypeDescription: item.asset_type_description || '',
+            companyId: item.company_id?.toString() || '',
+            assetsAmount: item.assets_amount || 0,
+            docFilePath: item.doc_file_path || '',
+            docFileName: item.doc_file_name || '',
+            files: filesByTm.get(item.id.toString()) || []
+        })) as (TechnicalManual & { files: TechnicalManualFile[] })[];
+    },
+
+    /**
+     * Retorna as associações cruas (tm_id, asset_id) de uma lista de ativos.
+     * Usado para mapear quais ativos da visita estão vinculados a cada manual.
+     */
+    async getAssociatedRawByAssetIds(assetIds: string[]): Promise<{ tm_id: number; asset_id: number }[]> {
+        const ids = (assetIds || []).map(id => parseInt(id)).filter(id => !isNaN(id));
+        if (ids.length === 0) return [];
+
+        const { data, error } = await supabase
+            .from('technicals_manuals_assets')
+            .select('tm_id, asset_id')
+            .in('asset_id', Array.from(new Set(ids)));
+
+        if (error) {
+            console.error('Error fetching raw manual associations:', error);
+            throw error;
+        }
+        return data || [];
+    },
+
     async getAssetsByTypeForAssociation(
         assetTypeId: string,
         search: string = '',

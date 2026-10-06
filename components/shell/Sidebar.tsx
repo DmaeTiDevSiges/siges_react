@@ -5,7 +5,7 @@ interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
     isAdmin?: boolean;
-    activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices';
+    activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -20,7 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onToggleCollapse,
     currentUser
 }) => {
-    const { canView } = usePermissions();
+    const { canView, canSearch } = usePermissions();
 
     return (
         <div className={`
@@ -107,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => { onNavigate('assets'); }}
                     />
                 )}
-                {(isAdminSuper || canView('materials_search')) && (
+                {(isAdminSuper || canSearch('materials_search')) && (
                     <SidebarItem
                         icon="inventory"
                         label="Materiais"
@@ -150,6 +150,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         isActive={activeTab === 'app-notices'}
                         isCollapsed={isCollapsed}
                         onClick={() => { onNavigate('app-notices'); }}
+                    />
+                )}
+                {(isAdminSuper || canView('notices_workers_extra')) && (
+                    <SidebarItem
+                        icon="groups"
+                        label="MO Extra"
+                        isActive={activeTab === 'extra-workers'}
+                        isCollapsed={isCollapsed}
+                        onClick={() => { onNavigate('extra-workers'); }}
                     />
                 )}
                 {(isAdminSuper || isAdmin || canView('settings')) && (

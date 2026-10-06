@@ -7,9 +7,11 @@ import type { OrderVisit, OrderVisitAssetView, OrderVisitTeam, OrderVisitVehicle
 
 interface AIVisitAssistantTabProps {
   visitId: string;
+  /** Prompt vindo de outra aba (ex: Manuais) para enviar automaticamente quando o contexto carregar */
+  pendingPrompt?: { text: string; seq: number } | null;
 }
 
-export const AIVisitAssistantTab: React.FC<AIVisitAssistantTabProps> = ({ visitId }) => {
+export const AIVisitAssistantTab: React.FC<AIVisitAssistantTabProps> = ({ visitId, pendingPrompt }) => {
   const { currentUser } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const messagesRef = useRef<ChatMessage[]>([]);
@@ -31,7 +33,8 @@ export const AIVisitAssistantTab: React.FC<AIVisitAssistantTabProps> = ({ visitI
           dataService.getOrderVisitServices(visitId),
         ]);
         if (visit) {
-          const ctx = aiVisitAssistantService.buildContext(visit, assets, team, vehicles, services);
+          // Contexto inclui os manuais técnicos dos ativos (consulta/troubleshooting em campo)
+          const ctx = await aiVisitAssistantService.buildContextWithManuals(visit, assets, team, vehicles, services);
           setContext(ctx);
         }
       } catch (err) {
@@ -46,6 +49,16 @@ export const AIVisitAssistantTab: React.FC<AIVisitAssistantTabProps> = ({ visitI
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Envia automaticamente um prompt vindo de outra aba (ex: Manuais) assim que o contexto estiver pronto
+  const lastHandledSeq = useRef(0);
+  useEffect(() => {
+    if (!pendingPrompt || !context || isLoading) return;
+    if (pendingPrompt.seq <= lastHandledSeq.current) return;
+    lastHandledSeq.current = pendingPrompt.seq;
+    sendMessage(pendingPrompt.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPrompt, context, isLoading]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading || !context || !currentUser) return;

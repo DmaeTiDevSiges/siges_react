@@ -27,7 +27,9 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
 
   const isDashboardScreen =
     currentScreen === 'ss-dashboard' ||
+    currentScreen === 'ss-dashboard-period' ||
     currentScreen === 'orders-dashboard' ||
+    currentScreen === 'orders-dashboard-period' ||
     currentScreen === 'visits-dashboard' ||
     currentScreen === 'dashboard-units-power-electric' ||
     currentScreen === 'dashboard-units-assets-tags' ||
@@ -51,10 +53,10 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
         {hasServices && (
           <button
             onClick={() => setCurrentScreen('ss-dashboard')}
-            className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${currentScreen === 'ss-dashboard' ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}
+            className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${(currentScreen === 'ss-dashboard' || currentScreen === 'ss-dashboard-period') ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}
           >
             SS's
-            {currentScreen === 'ss-dashboard' && (
+            {(currentScreen === 'ss-dashboard' || currentScreen === 'ss-dashboard-period') && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
             )}
           </button>
@@ -62,10 +64,10 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
         {hasOrders && (
           <button
             onClick={() => { setOrdersDashboardTab('OS'); setCurrentScreen('orders-dashboard'); }}
-            className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS' ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}
+            className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${(currentScreen === 'orders-dashboard-period' || (currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS')) ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}
           >
             OS's
-            {currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS' && (
+            {(currentScreen === 'orders-dashboard-period' || (currentScreen === 'orders-dashboard' && ordersDashboardTab === 'OS')) && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
             )}
           </button>

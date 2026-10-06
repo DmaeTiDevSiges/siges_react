@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { SystemNotice, SystemNoticeCategory, SystemNoticeSeverity, CreateSystemNoticeInput, DASHBOARD_OPTIONS } from '../../types';
+import { SystemNotice, SystemNoticeCategory, SystemNoticeSeverity, CreateSystemNoticeInput } from '../../types';
 import { appNoticesService } from '../../services/core/appNoticesService';
 
 interface AppNoticeFormProps {
@@ -77,12 +77,6 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
     const endLocal = new Date(end.getTime() - offset * 60000);
     setEndDate(endLocal.toISOString().slice(0, 16));
     setDashboards(['dashboard', 'orders', 'units']);
-  };
-
-  const handleDashboardToggle = (key: string) => {
-    setDashboards((prev) =>
-      prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key]
-    );
   };
 
   const handleSave = async () => {
@@ -232,53 +226,11 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
           </div>
         </div>
 
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-            Painéis de exibição *
-          </label>
-          <div className="flex flex-col gap-2">
-            {DASHBOARD_OPTIONS.map((opt) => (
-              <label
-                key={opt.key}
-                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                  dashboards.includes(opt.key)
-                    ? 'border-primary bg-primary/5'
-                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={dashboards.includes(opt.key)}
-                  onChange={() => handleDashboardToggle(opt.key)}
-                  className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
-                />
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  {opt.label}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            <strong>Pré-visualização:</strong> O aviso será exibido como um chip na barra abaixo do header.
-          </p>
-          <div
-            className="mt-3 p-3 rounded-lg border-l-4"
-            style={{
-              backgroundColor: `${selectedSeverity?.color || '#6B7280'}15`,
-              borderColor: selectedSeverity?.color || '#6B7280',
-            }}
-          >
-            <p className="text-sm font-semibold" style={{ color: selectedSeverity?.color || '#6B7280' }}>
-              {title || 'Título do aviso'}
-            </p>
-            <p className="text-xs mt-1 opacity-80" style={{ color: selectedSeverity?.color || '#6B7280' }}>
-              {message || 'Mensagem do aviso'}
-            </p>
-          </div>
-        </div>
+        {/* Seção "Painéis de exibição" desativada: o filtro por painel não é aplicado
+            hoje porque App.tsx passa dashboard={undefined} para o Layout (AppNoticeTicker).
+            O campo `dashboards` continua sendo salvo com o padrão ['dashboard','orders','units'].
+            Para reativar: restaurar a UI + DASHBOARD_OPTIONS e passar a chave real do painel
+            em App.tsx (<Layout dashboard={...} />). */}
       </div>
     </Modal>
   );

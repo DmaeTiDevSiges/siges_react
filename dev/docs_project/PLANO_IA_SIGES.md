@@ -249,7 +249,15 @@ npx --yes n8nac test X3YuuywO3VuOKZ1S --prod --data '{"sessionId":"test","userId
 
 ---
 
-#### 2.1 RAG Automático de Documentos (Prioridade: Alta)
+#### 2.1 RAG Automático de Documentos (Prioridade: Alta) — 🟡 PARCIALMENTE IMPLEMENTADO
+
+> **Atualização (2026-09-28)**: o RAG dos **manuais técnicos** foi implementado
+> (indexação automática no upload + lote do acervo antigo + RPC `match_manual_knowledge`
+> + integração no assistente da visita + aba "Manuais"). Detalhes, decisões e checklist
+> de entrega em **`docs/plano-rag-manuais-tecnicos.md`**. Pendências: aplicar a
+> migration no banco vivo e validar ponta a ponta. O restante desta seção
+> (pipeline genérico para outros tipos de documento, workflow assíncrono no n8n,
+> UI de administração de documentos) permanece como plano.
 
 **Objetivo**: Extrair automaticamente conhecimento de documentos (PDFs, manuais, regras de negócio) e alimentar a base vetorial, eliminando a necessidade de inserção manual via `AIKnowledgeAdmin`.
 

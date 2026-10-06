@@ -234,7 +234,10 @@ export const UnitAssetTagForm: React.FC<UnitAssetTagFormProps> = ({
             return;
         }
 
-        if (!availabilityRate || availabilityRate === '0,00000') {
+        // Coeficiente de rateio pode ser zero (setor sem participação no rateio).
+        // Só bloqueia campo vazio/inválido — valor 0 é aceito.
+        const parsedRate = parseFloat((availabilityRate || '').replace(',', '.'));
+        if (isNaN(parsedRate)) {
             toast.error('Informe o Rateio da Disponibilidade');
             return;
         }

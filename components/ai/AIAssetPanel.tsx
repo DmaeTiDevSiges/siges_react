@@ -9,6 +9,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { aiService } from '../../services/ai/aiService';
+import { dataService } from '../../services/dataService';
 import { useAuth } from '../../contexts/AuthContext';
 import { fireSuggestionSelected } from '../../services/ai/aiSuggestionEngine';
 
@@ -20,6 +21,8 @@ interface AIAssetPanelProps {
   assetDescription?: string;
   unitDescription?: string;
   onOpenChat?: (prompt: string) => void;
+  /** Pergunta vinda dos manuais do ativo — enviada automaticamente */
+  pendingPrompt?: { text: string; seq: number } | null;
 }
 
 interface Suggestion {
@@ -70,6 +73,18 @@ const getFieldTeamSuggestions = (
       prompt: `Quanto já foi gasto em manutenção no ativo ${assetRef}?`,
       icon: 'payments',
     },
+    {
+      id: 'manual_troubleshooting',
+      label: 'Troubleshooting (manual)',
+      prompt: `Com base nos manuais técnicos do ativo ${assetRef}, quais os procedimentos de solução de problemas e falhas mais comuns?`,
+      icon: 'menu_book',
+    },
+    {
+      id: 'manual_inspection',
+      label: 'Inspeção (manual)',
+      prompt: `Com base nos manuais técnicos do ativo ${assetRef}, quais pontos devem ser verificados na inspeção antes e depois da manutenção?`,
+      icon: 'checklist',
+    },
   ];
 };
 
@@ -81,6 +96,7 @@ export const AIAssetPanel: React.FC<AIAssetPanelProps> = ({
   assetDescription,
   unitDescription,
   onOpenChat,
+  pendingPrompt,
 }) => {
   const { currentUser } = useAuth();
   
@@ -99,6 +115,16 @@ export const AIAssetPanel: React.FC<AIAssetPanelProps> = ({
   // Estado do input livre
   const [customInput, setCustomInput] = useState('');
   const [showInput, setShowInput] = useState(false);
+
+  // Manuais técnicos do ativo (para o RAG) — carregados uma vez
+  const [manualTmIds, setManualTmIds] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    dataService.getManualsWithFilesForAssets([String(assetId)])
+      .then(manuals => { if (!cancelled) setManualTmIds(manuals.map(m => m.id)); })
+      .catch(() => { /* RAG é opcional — falha silenciosa */ });
+    return () => { cancelled = true; };
+  }, [assetId]);
   
   const answerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -141,7 +167,7 @@ export const AIAssetPanel: React.FC<AIAssetPanelProps> = ({
         id: assetId,
         description: assetDescription,
         unit: unitDescription,
-      });
+      }, undefined, undefined, manualTmIds);
       setAnswer(response);
     } catch (err: any) {
       console.error('[AIAssetPanel] Error:', err);
@@ -150,6 +176,22 @@ export const AIAssetPanel: React.FC<AIAssetPanelProps> = ({
       setIsAnswering(false);
     }
   }, [currentUser, sessionId, isAnswering, assetCode, assetId, assetDescription, unitDescription]);
+
+  // Pergunta automática vinda dos manuais do ativo.
+  // IMPORTANTE: precisa vir DEPOIS da definição de sendMessage (useCallback com
+  // const) — referenciá-la antes dispara "Cannot access 'sendMessage' before
+  // initialization" (TDZ) e derruba o painel inteiro.
+  const lastHandledSeq = useRef(0);
+  const sendMessageRef = useRef(sendMessage);
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
+  useEffect(() => {
+    if (!pendingPrompt || pendingPrompt.seq <= lastHandledSeq.current) return;
+    lastHandledSeq.current = pendingPrompt.seq;
+    setShowInput(false);
+    sendMessageRef.current(pendingPrompt.text);
+  }, [pendingPrompt]);
 
   // ── Handlers ─────────────────────────────────────────────────────
 

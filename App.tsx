@@ -42,6 +42,7 @@ import {
   DashboardAdminContractsEvaluationsRequirements,
   LeaderRankingDashboard,
   ServicesRequestsDashboardAdmin,
+  ServicesRequestsPeriodDashboardAdmin,
   SystemsList,
   SystemForm,
   UnitTypesList,
@@ -102,8 +103,10 @@ import {
   AssetsAlerts,
   AssetsAlertsHeaderWidget,
   OrdersRequestsDashboardAdmin,
+  OrdersRequestsPeriodDashboardAdmin,
   NotificationsList,
   AppNoticesList,
+  ExtraWorkersList,
   AppTipsList,
   ServiceRequestDetail,
   ServiceRequestPage,
@@ -139,12 +142,48 @@ import { PermissionsProvider } from './contexts/PermissionsContext';
 type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-structure' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'asset-loan-checklist-types' | 'asset-loan-checklist-type-form' | 'asset-loan-checklist-type-edit'
   | 'loans-checklists' | 'loans-checklist-form' | 'loans-checklist-edit'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/media/imgproxyService';
 import { Loading } from './components/ui/Loading';
 
+// Gate de permissão para as telas de SS (ss-dashboard / services-history).
+// Sem a permissão 'dashboard_services' a aba SS's não aparece, mas sem este gate
+// a tela era montada mesmo assim (ex: app_active_tab salvo como 'ss') e executava
+// queries/assinaturas de SS em segundo plano. Enquanto as permissões carregam,
+// também bloqueia a montagem para evitar que os efeitos da tela rodarem antes
+// da checagem.
+interface SsScreenGateProps {
+  children: React.ReactNode;
+  onForbidden: (tab: string) => void;
+}
+
+const SsScreenGate: React.FC<SsScreenGateProps> = ({ children, onForbidden }) => {
+  const { canView, loading } = usePermissions();
+
+  const forbidden = !loading && !canView('dashboard_services');
+
+  useEffect(() => {
+    if (loading || canView('dashboard_services')) return;
+    // Redireciona para a primeira aba de Gestão permitida (mesma ordem do Sidebar)
+    if (canView('dashboard_orders')) onForbidden('orders');
+    else if (canView('dashboard_orders_visits')) onForbidden('visits');
+    else if (canView('dashboard_units_assets_tags')) onForbidden('dashboard-units-assets-tags');
+    else if (canView('dashboard_units_power_electric')) onForbidden('dashboard-units-power-electric');
+    else if (canView('dashboard_contracts_evaluations')) onForbidden('dashboard-contracts-evaluations');
+    else onForbidden('dashboard');
+  }, [loading, canView, onForbidden]);
+
+  if (loading || forbidden) {
+    return (
+      <div className="flex h-full min-h-[60vh] items-center justify-center">
+        <Loading size="md" />
+      </div>
+    );
+  }
+  return <>{children}</>;
+};
 
 const AppContent: React.FC = () => {
   console.log(`Siges versão ${__BUILD_ID__}`);
@@ -252,7 +291,7 @@ const AppContent: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices'>(() => {
+  const [activeTab, setActiveTab] = useState<'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers'>(() => {
     const saved = localStorage.getItem('app_active_tab');
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
@@ -306,6 +345,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('technical-manuals');
     } else if (normalizedTab === 'app-notices') {
       setCurrentScreen('app-notices');
+    } else if (normalizedTab === 'extra-workers') {
+      setCurrentScreen('extra-workers');
     }
   };
   const [currentScreen, setCurrentScreen] = useState<Screen>(() => {
@@ -335,6 +376,7 @@ const AppContent: React.FC = () => {
     if (savedTab === 'dashboard-units-power-electric') return 'dashboard-units-power-electric';
     if (savedTab === 'dashboard-contracts-evaluations') return 'dashboard-contracts-evaluations';
     if (savedTab === 'app-notices') return 'app-notices';
+    if (savedTab === 'extra-workers') return 'extra-workers';
     return 'dashboard';
   });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -430,6 +472,9 @@ const AppContent: React.FC = () => {
   const [cloneSourceAsset, setCloneSourceAsset] = useState<Asset | null>(null);
   const [lastAssetSource, setLastAssetSource] = useState<Screen>('assets-search');
   const [lastOrderSource, setLastOrderSource] = useState<Screen>('orders-dashboard');
+  // Origem da navegação: página Online de SS que abriu a página de período
+  // ('ss-dashboard' ou 'services-history') — usada pelo switch Online e pelo voltar.
+  const [ssPeriodReturnScreen, setSsPeriodReturnScreen] = useState<Screen>('ss-dashboard');
   const [lastVisitSource, setLastVisitSource] = useState<Screen>('visits-dashboard');
   const [selectedOrderVisitAsset, setSelectedOrderVisitAsset] = useState<OrderVisitAssetView | null>(null);
   const [selectedVisitForAssetReport, setSelectedVisitForAssetReport] = useState<OrderVisit | null>(null);
@@ -511,9 +556,12 @@ const AppContent: React.FC = () => {
     if (path === 'assets' || path === 'assets-search' || path === 'asset-details') tab = 'assets';
     if (path === 'units' || path === 'units-search' || path === 'unit-details') tab = 'units';
     if (path === 'dashboard') tab = 'dashboard';
-    if (path === 'orders' || path === 'orders-dashboard') {
+    if (path === 'orders' || path === 'orders-dashboard' || path === 'orders-dashboard-period') {
       tab = 'orders';
       setOrdersDashboardTab('OS');
+    }
+    if (path === 'ss-dashboard' || path === 'ss-dashboard-period') {
+      tab = 'ss';
     }
     if (path === 'visits' || path === 'visits-dashboard') {
       tab = 'visits';
@@ -536,6 +584,10 @@ const AppContent: React.FC = () => {
       setCurrentScreen('technical-manuals');
     } else if (path === 'ss') {
       setCurrentScreen('ss-dashboard');
+    } else if (path === 'ss-dashboard-period') {
+      // Guarda a origem para o switch "Online" voltar de onde veio
+      setSsPeriodReturnScreen(currentScreen === 'services-history' ? 'services-history' : 'ss-dashboard');
+      setCurrentScreen('ss-dashboard-period');
     } else if (path === 'orders') {
       setCurrentScreen('orders-dashboard');
     } else if (path === 'visits') {
@@ -551,11 +603,33 @@ const AppContent: React.FC = () => {
 
   const [ordersDashboardTab, setOrdersDashboardTab] = useState<'OS' | 'VISITAS'>('OS');
 
+  // Chamado pelo SsScreenGate quando o usuário não tem permissão 'dashboard_services'
+  // e ainda assim acabou em uma tela de SS (ex: app_active_tab salvo como 'ss').
+  const handleSsScreenForbidden = useCallback((tab: string) => {
+    const screens: Record<string, Screen> = {
+      'orders': 'orders-dashboard',
+      'visits': 'visits-dashboard',
+      'dashboard-units-assets-tags': 'dashboard-units-assets-tags',
+      'dashboard-units-power-electric': 'dashboard-units-power-electric',
+      'dashboard-contracts-evaluations': 'dashboard-contracts-evaluations',
+      'dashboard': 'dashboard',
+    };
+    const screen = screens[tab] || 'dashboard';
+    if (tab === 'orders') setOrdersDashboardTab('OS');
+    if (tab === 'visits') setOrdersDashboardTab('VISITAS');
+    setActiveTab(tab as any);
+    setCurrentScreen(screen);
+    localStorage.setItem('app_active_tab', tab);
+    localStorage.setItem('last_main_tab', tab);
+  }, []);
+
 
 
   const getTabNavigation = () => {
     const isDashboardScreen = currentScreen === 'ss-dashboard' ||
+      currentScreen === 'ss-dashboard-period' ||
       currentScreen === 'orders-dashboard' ||
+      currentScreen === 'orders-dashboard-period' ||
       currentScreen === 'visits-dashboard' ||
       currentScreen === 'dashboard-units-power-electric' ||
       currentScreen === 'dashboard-units-assets-tags' ||
@@ -1152,6 +1226,9 @@ const AppContent: React.FC = () => {
     } else if (currentScreen === 'app-notices') {
       const lastTab = localStorage.getItem('last_main_tab') || 'dashboard';
       handleMainTabChange(lastTab);
+    } else if (currentScreen === 'extra-workers') {
+      const lastTab = localStorage.getItem('last_main_tab') || 'dashboard';
+      handleMainTabChange(lastTab);
     } else if (currentScreen === 'app-tips') {
       setCurrentScreen('settings');
     } else if (currentScreen === 'client-units') {
@@ -1247,6 +1324,10 @@ const AppContent: React.FC = () => {
       }
     } else if (currentScreen === 'service-request-detail') {
       setCurrentScreen(lastOrderSource);
+    } else if (currentScreen === 'orders-dashboard-period') {
+      setCurrentScreen('orders-dashboard');
+    } else if (currentScreen === 'ss-dashboard-period') {
+      setCurrentScreen(ssPeriodReturnScreen);
     } else if (currentScreen === 'services-history') {
       setCurrentScreen(lastOrderSource || 'orders-dashboard');
     } else if (currentScreen === 'order-create' || currentScreen === 'service-request-create') {
@@ -1910,32 +1991,68 @@ const AppContent: React.FC = () => {
         );
       case 'ss-dashboard':
         return (
-          <ServicesRequestsDashboardAdmin
-            currentUser={currentUser}
-            onSelectOrder={(order) => {
-              setLastOrderSource('ss-dashboard');
-              setSelectedOrder(order);
-              const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
-              if (isOS) {
-                setOrderDetailActiveTab('SS');
-                setCurrentScreen('order-detail');
-              } else {
-                setSsDetailActiveTab('OS');
-                setCurrentScreen('service-request-detail');
-              }
-            }}
-            onSelectVisit={handleVisitSelect}
-            onTrackUsers={handleTrackUsers}
-            onCreateServiceRequest={() => {
-              setSelectedOrder(null);
-              setCurrentScreen('service-request-create');
-            }}
-            onNavigate={handleNavigate}
-            onEdit={(order) => {
-              setSelectedOrder(order);
-              setCurrentScreen('order-create');
-            }}
-          />
+          <SsScreenGate onForbidden={handleSsScreenForbidden}>
+            <ServicesRequestsDashboardAdmin
+              currentUser={currentUser}
+              onSelectOrder={(order) => {
+                setLastOrderSource('ss-dashboard');
+                setSelectedOrder(order);
+                const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
+                if (isOS) {
+                  setOrderDetailActiveTab('SS');
+                  setCurrentScreen('order-detail');
+                } else {
+                  setSsDetailActiveTab('OS');
+                  setCurrentScreen('service-request-detail');
+                }
+              }}
+              onSelectVisit={handleVisitSelect}
+              onTrackUsers={handleTrackUsers}
+              onCreateServiceRequest={() => {
+                setSelectedOrder(null);
+                setCurrentScreen('service-request-create');
+              }}
+              onNavigate={handleNavigate}
+              onEdit={(order) => {
+                setSelectedOrder(order);
+                setCurrentScreen('order-create');
+              }}
+              providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+            />
+          </SsScreenGate>
+        );
+      case 'ss-dashboard-period':
+        return (
+          <SsScreenGate onForbidden={handleSsScreenForbidden}>
+            <ServicesRequestsPeriodDashboardAdmin
+              currentUser={currentUser}
+              onSelectOrder={(order) => {
+                setLastOrderSource('ss-dashboard-period');
+                setSelectedOrder(order);
+                const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
+                if (isOS) {
+                  setOrderDetailActiveTab('SS');
+                  setCurrentScreen('order-detail');
+                } else {
+                  setSsDetailActiveTab('OS');
+                  setCurrentScreen('service-request-detail');
+                }
+              }}
+              onSelectVisit={handleVisitSelect}
+              onTrackUsers={handleTrackUsers}
+              onCreateServiceRequest={() => {
+                setSelectedOrder(null);
+                setCurrentScreen('service-request-create');
+              }}
+              onNavigate={handleNavigate}
+              onEdit={(order) => {
+                setSelectedOrder(order);
+                setCurrentScreen('order-create');
+              }}
+              providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+              onlineScreenKey={ssPeriodReturnScreen}
+            />
+          </SsScreenGate>
         );
       case 'orders-dashboard':
         return (
@@ -1954,6 +2071,26 @@ const AppContent: React.FC = () => {
               setCurrentScreen('order-create');
             }}
             activeTab={ordersDashboardTab}
+            providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+          />
+        );
+      case 'orders-dashboard-period':
+        return (
+          <OrdersRequestsPeriodDashboardAdmin
+            currentUser={currentUser}
+            onSelectOrder={handleOrderSelect}
+            onSelectVisit={handleVisitSelect}
+            onTrackUsers={handleTrackUsers}
+            onCreateServiceRequest={() => {
+              setSelectedOrder(null);
+              setCurrentScreen('service-request-create');
+            }}
+            onNavigate={handleNavigate}
+            onEdit={(order) => {
+              setSelectedOrder(order);
+              setCurrentScreen('order-create');
+            }}
+            activeTab="OS"
             providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
           />
         );
@@ -1998,26 +2135,33 @@ const AppContent: React.FC = () => {
         );
       case 'services-history':
         return (
-          <ServicesRequestsDashboardAdmin
-            currentUser={currentUser}
-            onSelectOrder={(order) => {
-              setLastOrderSource('services-history');
-              setSelectedOrder(order);
-              const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
-              if (isOS) {
-                setOrderDetailActiveTab('SS');
-                setCurrentScreen('order-detail');
-              } else {
-                setSsDetailActiveTab('OS');
-                setCurrentScreen('service-request-detail');
-              }
-            }}
-            onNavigate={(path) => {
-              if (path === 'services-history') {
-                setCurrentScreen('services-history');
-              }
-            }}
-          />
+          <SsScreenGate onForbidden={handleSsScreenForbidden}>
+            <ServicesRequestsDashboardAdmin
+              currentUser={currentUser}
+              onSelectOrder={(order) => {
+                setLastOrderSource('services-history');
+                setSelectedOrder(order);
+                const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
+                if (isOS) {
+                  setOrderDetailActiveTab('SS');
+                  setCurrentScreen('order-detail');
+                } else {
+                  setSsDetailActiveTab('OS');
+                  setCurrentScreen('service-request-detail');
+                }
+              }}
+              onNavigate={(path) => {
+                if (path === 'services-history') {
+                  setCurrentScreen('services-history');
+                } else if (path === 'ss-dashboard-period') {
+                  setSsPeriodReturnScreen('services-history');
+                  setCurrentScreen('ss-dashboard-period');
+                }
+              }}
+              providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+              onlineScreenKey="services-history"
+            />
+          </SsScreenGate>
         );
       case 'dashboard-units-power-electric':
         return (
@@ -2143,14 +2287,16 @@ const AppContent: React.FC = () => {
             onCancel={() => setCurrentScreen('team-details')}
           />
         ) : null;
-      case 'user-form':
+      case 'user-form': {
+        const fromAllUsers = selectedCompany && !selectedCompany.name;
         return selectedCompany ? (
           <UserForm
             companyId={selectedCompany.id}
-            onSave={() => setCurrentScreen('company-details')}
-            onCancel={() => setCurrentScreen('company-details')}
+            onSave={() => setCurrentScreen(fromAllUsers ? 'all-users' : 'company-details')}
+            onCancel={() => setCurrentScreen(fromAllUsers ? 'all-users' : 'company-details')}
           />
         ) : null;
+      }
       case 'all-users':
         return <AllUsersList
           onSelectUser={async (user) => {
@@ -2158,6 +2304,10 @@ const AppContent: React.FC = () => {
             localStorage.setItem('last_screen_before_profile', 'all-users');
             setCurrentScreen('user-details');
           }}
+          onAddUser={currentUser?.companyId && currentUser.companyId !== '1' ? () => {
+            setSelectedCompany({ id: currentUser.companyId! } as Company);
+            setCurrentScreen('user-form');
+          } : undefined}
           currentUser={currentUser}
         />;
       case 'user-details':
@@ -2272,7 +2422,6 @@ const AppContent: React.FC = () => {
               setSelectedUnitAssetTag(assetTag);
               setCurrentScreen('unit-asset-tag-available');
             }}
-            onOpenStructure={() => setCurrentScreen('unit-structure')}
           />
         ) : null;
       case 'unit-structure':
@@ -2417,6 +2566,8 @@ const AppContent: React.FC = () => {
         return selectedLoansChecklist ? <LoansChecklistForm item={selectedLoansChecklist} onSave={() => setCurrentScreen('loans-checklists')} onCancel={handleBack} /> : null;
       case 'app-notices':
         return <AppNoticesList onBack={handleBack} />;
+      case 'extra-workers':
+        return <ExtraWorkersList />;
       case 'app-tips':
         return <AppTipsList onBack={handleBack} />;
       case 'maintenance-plans':
@@ -2844,6 +2995,7 @@ const AppContent: React.FC = () => {
     switch (currentScreen) {
       case 'dashboard': return 'Meu Painel';
       case 'orders-dashboard': return '';
+      case 'orders-dashboard-period': return '';
       case 'visits-dashboard': return '';
       case 'dashboard-contracts-evaluations': return '';
       case 'leader-ranking': return '';
@@ -2968,6 +3120,7 @@ const AppContent: React.FC = () => {
       case 'unit-asset-tag-available': return 'Disponibilidade';
       case 'services-history': return 'Histórico de SS';
       case 'app-notices': return 'Avisos';
+      case 'extra-workers': return 'MO Extra';
       case 'tools': return 'Ferramentas';
       default: return 'Siges';
     }
@@ -3162,7 +3315,9 @@ const AppContent: React.FC = () => {
               showBackButton={
                 (currentScreen as string) !== 'dashboard' &&
                 (currentScreen as string) !== 'ss-dashboard' &&
+                (currentScreen as string) !== 'ss-dashboard-period' &&
                 (currentScreen as string) !== 'orders-dashboard' &&
+                (currentScreen as string) !== 'orders-dashboard-period' &&
                 (currentScreen as string) !== 'visits-dashboard' &&
                 (currentScreen as string) !== 'dashboard-units-power-electric' &&
                 (currentScreen as string) !== 'dashboard-units-assets-tags' &&
@@ -3182,7 +3337,8 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) !== 'materials-dashboard' &&
                 (currentScreen as string) !== 'material-form' &&
                 (currentScreen as string) !== 'material-edit' &&
-                (currentScreen as string) !== 'app-notices'
+                (currentScreen as string) !== 'app-notices' &&
+                (currentScreen as string) !== 'extra-workers'
               }
               onBackClick={handleBack}
               currentUser={currentUser}
@@ -3193,6 +3349,7 @@ const AppContent: React.FC = () => {
               isDashboard={
                 (currentScreen as string) === 'dashboard' ||
                 (currentScreen as string) === 'orders-dashboard' ||
+                (currentScreen as string) === 'orders-dashboard-period' ||
                 (currentScreen as string) === 'visits-dashboard' ||
                 (currentScreen as string) === 'dashboard-units-power-electric' ||
                 (currentScreen as string) === 'dashboard-units-assets-tags' ||

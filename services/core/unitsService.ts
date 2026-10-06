@@ -16,7 +16,9 @@ export const unitsService = {
             });
         }
 
-        const { data: units, error: unitsError } = await query.limit(limit);
+        const { data: units, error: unitsError } = await query
+            .order('description_full', { ascending: true })
+            .limit(limit);
 
         if (unitsError) {
             console.error('Error searching units:', unitsError);

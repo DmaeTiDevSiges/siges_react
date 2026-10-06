@@ -97,6 +97,7 @@ export const DashboardServicesAdminScreen = lazyWithRetry(() => import('../views
 export const DashboardAdminContractsEvaluationsRequirements = lazyWithRetry(() => import('../views/Dashboards/DashboardAdminContractsEvaluationsRequirements').then(m => ({ default: m.DashboardAdminContractsEvaluationsRequirements })));
 export const LeaderRankingDashboard = lazyWithRetry(() => import('../views/Dashboards/LeaderRankingDashboard').then(m => ({ default: m.LeaderRankingDashboard })));
 export const ServicesRequestsDashboardAdmin = lazyWithRetry(() => import('../views/ServiceRequest/ServicesRequestsDashboardAdmin').then(m => ({ default: m.ServicesRequestsDashboardAdmin })));
+export const ServicesRequestsPeriodDashboardAdmin = lazyWithRetry(() => import('../views/ServiceRequest/ServicesRequestsPeriodDashboardAdmin').then(m => ({ default: m.ServicesRequestsPeriodDashboardAdmin })));
 export const SystemsList = lazyWithRetry(() => import('../views/Settings/Systems/SystemsList').then(m => ({ default: m.SystemsList })));
 export const SystemForm = lazyWithRetry(() => import('../views/Settings/Systems/SystemForm').then(m => ({ default: m.SystemForm })));
 export const UnitTypesList = lazyWithRetry(() => import('../views/Settings/UnitTypes/UnitTypesList').then(m => ({ default: m.UnitTypesList })));
@@ -157,8 +158,10 @@ export const AssetCloneWizard = lazyWithRetry(() => import('../views/Assets/Asse
 export const AssetsAlerts = lazyWithRetry(() => import('../views/Assets/AssetsAlerts').then(m => ({ default: m.AssetsAlerts })));
 export const AssetsAlertsHeaderWidget = lazyWithRetry(() => import('../components/assets/AssetsAlertsHeaderWidget').then(m => ({ default: m.AssetsAlertsHeaderWidget })));
 export const OrdersRequestsDashboardAdmin = lazyWithRetry(() => import('../views/OrderRequest/OrdersRequestsDashboardAdmin').then(m => ({ default: m.OrdersRequestsDashboardAdmin })));
+export const OrdersRequestsPeriodDashboardAdmin = lazyWithRetry(() => import('../views/OrderRequest/OrdersRequestsPeriodDashboardAdmin').then(m => ({ default: m.OrdersRequestsPeriodDashboardAdmin })));
 export const NotificationsList = lazyWithRetry(() => import('../views/Notifications/NotificationsList').then(m => ({ default: m.NotificationsList })));
 export const AppNoticesList = lazyWithRetry(() => import('../views/AppNotices/AppNoticesList').then(m => ({ default: m.AppNoticesList })));
+export const ExtraWorkersList = lazyWithRetry(() => import('../views/AppNotices/ExtraWorkersList').then(m => ({ default: m.ExtraWorkersList })));
 export const AppTipsList = lazyWithRetry(() => import('../views/Settings/AppTips/AppTipsList').then(m => ({ default: m.AppTipsList })));
 export const ServiceRequestDetail = lazyWithRetry(() => import('../views/ServiceRequest/ServiceRequestDetail').then(m => ({ default: m.ServiceRequestDetail })));
 export const ServiceRequestPage = lazyWithRetry(() => import('../views/ServiceRequest/ServiceRequestScreen').then(m => ({ default: m.ServiceRequestPage })));

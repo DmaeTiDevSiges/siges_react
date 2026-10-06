@@ -3,7 +3,7 @@
  * Serviço para upload e gerenciamento de arquivos no Cloudflare R2
  */
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { compressAndGenerateVariants, CompressionOptions } from './imageCompressionService';
 import { addVariantToPath } from './imageUtils';
@@ -148,6 +148,41 @@ export const deleteFile = async (path: string): Promise<void> => {
     } catch (error) {
         console.error('Erro ao deletar arquivo do R2:', error);
         throw new Error(`Falha ao deletar: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
+};
+
+/**
+ * Baixa o conteúdo de um arquivo do Cloudflare R2.
+ * Arquivos comprimidos (gzip, conforme maybeCompress no upload) são descomprimidos automaticamente.
+ * @param path - Caminho completo do arquivo no bucket
+ * @returns Blob com o conteúdo do arquivo
+ */
+export const downloadFile = async (path: string): Promise<Blob> => {
+    const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
+    if (!bucketName) {
+        throw new Error('Nome do bucket R2 não configurado.');
+    }
+
+    try {
+        const client = getR2Client();
+        const command = new GetObjectCommand({ Bucket: bucketName, Key: path });
+        const response = await client.send(command);
+
+        const body = response.Body as any;
+        const raw = await body.transformToByteArray();
+        let bytes: Uint8Array = new Uint8Array(raw);
+
+        // Descomprime se o S3 devolveu com ContentEncoding gzip (padrão do upload)
+        if ((response.ContentEncoding === 'gzip') || bytes[0] === 0x1f && bytes[1] === 0x8b) {
+            const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+            bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+        }
+
+        const contentType = response.ContentType || 'application/octet-stream';
+        return new Blob([bytes], { type: contentType });
+    } catch (error) {
+        console.error('Erro ao baixar arquivo do R2:', error);
+        throw new Error(`Falha ao baixar: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
 };
 
@@ -331,6 +366,7 @@ export const r2Service = {
     copyFile,
     deleteFile,
     deleteFiles,
+    downloadFile,
     getPublicUrl,
     isR2Configured,
 };

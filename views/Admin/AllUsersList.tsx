@@ -218,6 +218,15 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
                             <option key={p} value={p}>{p}</option>
                         ))}
                     </select>
+                    {onAddUser && (
+                        <IconButton
+                            icon="person_add"
+                            variant="primary"
+                            size="lg"
+                            onClick={onAddUser}
+                            title="Criar Usuário"
+                        />
+                    )}
                 </div>
 
                 {/* Filter Pills */}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SystemNotice } from '../../types';
 import { useAppNotices } from '../../hooks/useAppNotices';
+import { dataService } from '../../services/dataService';
 import { Modal } from '../ui/Modal';
 
 interface AppNoticeTickerProps {
@@ -43,7 +44,18 @@ interface NoticeChipProps {
 
 const NoticeChip: React.FC<NoticeChipProps> = ({ notice }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewCount, setViewCount] = useState(notice.viewCount ?? 0);
   const color = notice.severityColor || '#6B7280';
+
+  const handleOpenModal = async () => {
+    setIsModalOpen(true);
+    try {
+      const newCount = await dataService.incrementViewCount(notice.id);
+      if (newCount > 0) setViewCount(newCount);
+    } catch {
+      // falha silenciosa: o contador não deve impactar a leitura do aviso
+    }
+  };
 
   return (
     <>
@@ -54,9 +66,15 @@ const NoticeChip: React.FC<NoticeChipProps> = ({ notice }) => {
           borderColor: `${color}30`,
           color: color,
         }}
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => void handleOpenModal()}
       >
         <span>{notice.title}</span>
+        {viewCount > 0 && (
+          <span className="inline-flex items-center gap-0.5 ml-1 opacity-70">
+            <span className="material-symbols-outlined text-[12px]">visibility</span>
+            {viewCount}
+          </span>
+        )}
       </div>
 
       <Modal
@@ -68,6 +86,10 @@ const NoticeChip: React.FC<NoticeChipProps> = ({ notice }) => {
       >
         <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
           {notice.message}
+        </div>
+        <div className="mt-3 flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
+          <span className="material-symbols-outlined text-[14px]">visibility</span>
+          <span>{viewCount} visualizaç{viewCount === 1 ? 'ão' : 'ões'}</span>
         </div>
         {(notice.categoryLabel || notice.severityLabel) && (
           <div className="mt-4 flex gap-2 flex-wrap">

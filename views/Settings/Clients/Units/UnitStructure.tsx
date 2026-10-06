@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Unit, UnitStructureNode } from '../../../../types';
 import { UnitStructureOrganogram } from '../../../../components/units/UnitStructureOrganogram';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 interface UnitStructureProps {
     unit: Unit;
@@ -15,7 +16,10 @@ export const UnitStructure: React.FC<UnitStructureProps> = ({
     onBack,
     onStructureChanged
 }) => {
-    const { canView, canEdit } = usePermissions();
+    const { canView } = usePermissions();
+    const { currentUser } = useAuth();
+    // Interação no organograma (arrastar/reordenar) é exclusiva de is_admin_super
+    const canInteract = currentUser?.isAdminSuper === true;
     const [refreshKey, setRefreshKey] = useState(0);
 
     const handleStructureChanged = () => {
@@ -68,8 +72,8 @@ export const UnitStructure: React.FC<UnitStructureProps> = ({
                             {unit.description || unit.code || 'Unidade'}
                         </p>
                         <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                            {canEdit('units_assets_tags')
-                                ? 'Arraste um setor sobre outro para torná-lo subordinado; solte na zona inferior para nível principal.'
+                            {canInteract
+                                ? 'Arraste sobre um setor para subordiná-lo, entre dois setores para reordenar, ou na zona inferior para nível principal.'
                                 : 'Visualização somente leitura da hierarquia de setores.'}
                         </p>
                     </div>
