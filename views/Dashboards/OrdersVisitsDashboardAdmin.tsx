@@ -20,6 +20,7 @@ import { AssetMovementsDocument } from '../../components/reports/AssetMovementsD
 import { pdf } from '@react-pdf/renderer';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { FaFilePdf } from 'react-icons/fa';
+import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 
 interface OrdersVisitsDashboardAdminProps {
     currentUser: User;
@@ -758,6 +759,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const isLoadingMoreRef = useRef(false);
     const loadMoreRef = React.useRef<HTMLDivElement>(null);
+    const processingCardsScroll = useDraggableScroll();
 
     const [filterOptions, setFilterOptions] = useState({
         systems: [] as any[],
@@ -1535,7 +1537,13 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                 </div>
 
                 <div className="flex-1 overflow-y-auto no-scrollbar p-4">
-                    <div className="flex gap-4 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 mb-2 pt-2 w-full">
+                    <div
+                        ref={processingCardsScroll.ref}
+                        onMouseDown={processingCardsScroll.onMouseDown}
+                        onTouchStart={processingCardsScroll.onTouchStart}
+                        onClickCapture={processingCardsScroll.onClickCapture}
+                        className="flex gap-4 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 mb-2 pt-2 w-full cursor-grab active:cursor-grabbing touch-auto"
+                    >
                         <StatCard
                             icon="apps"
                             label="Todos"
