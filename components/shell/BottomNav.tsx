@@ -97,7 +97,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
           className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'materials' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'materials' ? '"FILL" 1' : '' }}>
-            inventory
+            trolley
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest">Materiais</span>
         </button>

@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
                 {(isAdminSuper || canSearch('materials_search')) && (
                     <SidebarItem
-                        icon="inventory"
+                        icon="trolley"
                         label="Materiais"
                         isActive={activeTab === 'materials'}
                         isCollapsed={isCollapsed}

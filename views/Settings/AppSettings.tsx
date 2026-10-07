@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { User } from '../../types';
+import { usePermissions } from '../../contexts/PermissionsContext';
 
 interface AppSettingsProps {
     currentUser?: User | null;
@@ -9,6 +10,7 @@ interface AppSettingsProps {
 
 export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigate }) => {
     const isSuperAdmin = currentUser?.isAdminSuper;
+    const { canView } = usePermissions();
 
     return (
         <div className="p-6 pb-32 space-y-4">
@@ -234,13 +236,17 @@ export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigat
                         subtitle="Gerenciar lista de todos os usuários"
                         onClick={() => onNavigate?.('all-users')}
                     />
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                    <SettingItem
-                        icon="verified_user"
-                        title="Permissões de Acesso"
-                        subtitle="Gerenciar permissões por perfil"
-                        onClick={() => onNavigate?.('profile-permissions')}
-                    />
+                    {canView('profile_permissions') && (
+                        <>
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="verified_user"
+                                title="Permissões de Acesso"
+                                subtitle="Gerenciar permissões por perfil"
+                                onClick={() => onNavigate?.('profile-permissions')}
+                            />
+                        </>
+                    )}
                     {isSuperAdmin && (
                         <>
                             <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />

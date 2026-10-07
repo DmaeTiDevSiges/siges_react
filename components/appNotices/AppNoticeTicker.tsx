@@ -28,7 +28,7 @@ export const AppNoticeTicker: React.FC<AppNoticeTickerProps> = ({ dashboard }) =
       <div className="flex items-center gap-2 px-4 py-2">
         <span className="material-symbols-outlined text-slate-400 text-[18px] shrink-0">notifications</span>
         
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto no-scrollbar">
           {visibleNotices.map((notice) => (
             <NoticeChip key={notice.id} notice={notice} />
           ))}

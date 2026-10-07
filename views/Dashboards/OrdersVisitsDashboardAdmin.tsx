@@ -118,7 +118,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, col
                 : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md'
                 }`}
         >
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start gap-5">
                 <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${iconBgClass}`}
                     style={getIconBgStyle()}
@@ -144,7 +144,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, col
                     )}
                 </div>
             </div>
-            <div className="flex justify-between items-center mt-4">
+            <div className="flex justify-between items-center gap-5 mt-4">
                 <p className={`text-[13px] font-bold ${active ? 'text-primary' : 'text-slate-500 dark:text-slate-300'}`}>{label}</p>
                 <AnimatedCount value={count} active={active} color={styleColor} />
             </div>

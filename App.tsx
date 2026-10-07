@@ -185,6 +185,35 @@ const SsScreenGate: React.FC<SsScreenGateProps> = ({ children, onForbidden }) =>
   return <>{children}</>;
 };
 
+// Gate de permissão da tela "Permissões de Acesso" (rota profile_permissions).
+// O item em AppSettings só aparece com canView('profile_permissions'), mas isso
+// não bloqueia a navegação direta (ex: app_active_tab salvo / deep link), então
+// a tela também é protegida aqui. Sempre deve ser usado dentro de PermissionsProvider.
+interface ProfilePermissionsGateProps {
+  children: React.ReactNode;
+  onForbidden: () => void;
+}
+
+const ProfilePermissionsGate: React.FC<ProfilePermissionsGateProps> = ({ children, onForbidden }) => {
+  const { canView, loading } = usePermissions();
+
+  const forbidden = !loading && !canView('profile_permissions');
+
+  useEffect(() => {
+    if (loading || canView('profile_permissions')) return;
+    onForbidden();
+  }, [loading, canView, onForbidden]);
+
+  if (loading || forbidden) {
+    return (
+      <div className="flex h-full min-h-[60vh] items-center justify-center">
+        <Loading size="md" />
+      </div>
+    );
+  }
+  return <>{children}</>;
+};
+
 const AppContent: React.FC = () => {
   console.log(`Siges versão ${__BUILD_ID__}`);
   const [minTimePassed, setMinTimePassed] = useState(false);
@@ -2969,7 +2998,11 @@ const AppContent: React.FC = () => {
           />
         ) : null;
       case 'profile-permissions':
-        return <ProfilePermissionsScreen currentUser={currentUser} onBack={() => setCurrentScreen('settings')} />;
+        return (
+          <ProfilePermissionsGate onForbidden={() => setCurrentScreen('settings')}>
+            <ProfilePermissionsScreen currentUser={currentUser} onBack={() => setCurrentScreen('settings')} />
+          </ProfilePermissionsGate>
+        );
       case 'route-management':
         return <RouteManagementScreen onAdd={() => setCurrentScreen('route-form')} onEdit={handleRouteSelect} onBack={() => setCurrentScreen('settings')} />;
       case 'route-form':
