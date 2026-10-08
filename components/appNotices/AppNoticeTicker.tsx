@@ -69,12 +69,6 @@ const NoticeChip: React.FC<NoticeChipProps> = ({ notice }) => {
         onClick={() => void handleOpenModal()}
       >
         <span>{notice.title}</span>
-        {viewCount > 0 && (
-          <span className="inline-flex items-center gap-0.5 ml-1 opacity-70">
-            <span className="material-symbols-outlined text-[12px]">visibility</span>
-            {viewCount}
-          </span>
-        )}
       </div>
 
       <Modal

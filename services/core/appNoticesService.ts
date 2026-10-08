@@ -46,8 +46,6 @@ export const appNoticesService = {
       .from('v_app_notices')
       .select('*')
       .eq('is_active', true)
-      .lte('start_date', now)
-      .gte('end_date', now)
       .lte('view_start_date', now)
       .gte('view_end_date', now);
 
