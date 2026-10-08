@@ -3,6 +3,11 @@ import { usersService } from '../users/usersService';
 
 export const warehouseService = {
     async getWarehouses(companyId?: string): Promise<{ id: string; code: string; description: string; address?: string }[]> {
+        // Escopo por empresa: warehouses.company_id = company_id do usuário logado.
+        // Sem companyId explícito, resolve a empresa do usuário autenticado.
+        const userCompanyId = companyId || (await usersService.getCurrentUser())?.companyId;
+        const companyIdInt = userCompanyId ? parseInt(userCompanyId) : NaN;
+
         let query = supabase
             .from('warehouses')
             .select('id, code, description, address')
@@ -10,8 +15,8 @@ export const warehouseService = {
             .eq('is_deleted', false)
             .order('description');
 
-        if (companyId) {
-            query = query.eq('company_id', parseInt(companyId));
+        if (!isNaN(companyIdInt)) {
+            query = query.eq('company_id', companyIdInt);
         }
 
         const { data, error } = await query;

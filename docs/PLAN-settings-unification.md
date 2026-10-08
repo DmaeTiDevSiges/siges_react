@@ -116,10 +116,10 @@ Cada sub-tela de settings cria um case separado no switch gigante, sem encapsula
 
 ### Fase 0 — Análise Completa (Pré-requisito)
 
-- [ ] F0.1 — Listar todos os imports de views/Admin/ em App.tsx e outros arquivos
-- [ ] F0.2 — Confirmar se UserViewScreen.tsx é usado em settings ou fluxo de usuário
-- [ ] F0.3 — Investigar o item "Situações" de Unidades (existe tabela no Supabase?)
-- [ ] F0.4 — Classificar cada List/Form como flat ou hierárquico (tree)
+- [x] F0.1 — Listar todos os imports de views/Admin/ em App.tsx e outros arquivos
+- [x] F0.2 — Confirmar se UserViewScreen.tsx é usado em settings ou fluxo de usuário
+- [x] F0.3 — Investigar o item "Situações" de Unidades (removido botão vazio)
+- [x] F0.4 — Classificar cada List/Form como flat ou hierárquico (tree)
 
 Entregável: Mapa completo de dependências
 
@@ -131,21 +131,21 @@ Estrutura proposta:
 ```
 views/Settings/
   Security/
-    RouteManagement.tsx   (mover de Settings/ raiz)
-    RouteForm.tsx         (mover de Settings/ raiz)
+    RouteManagement.tsx   (movido de Settings/ raiz)
+    RouteForm.tsx         (movido de Settings/ raiz)
   Users/
-    AllUsersList.tsx      (mover de Admin/)
-    ProfilePermissionsScreen.tsx  (mover de Admin/)
-    UserViewScreen.tsx    (mover de Admin/)
+    AllUsersList.tsx      (movido de Admin/)
+    ProfilePermissionsScreen.tsx  (movido de Admin/)
+    UserViewScreen.tsx    (movido de Admin/)
   AI/
-    AIKnowledgeAdmin.tsx  (mover de Settings/ raiz)
+    AIKnowledgeAdmin.tsx  (movido de Settings/ raiz)
 ```
 
-- [ ] F1.1 — Criar subpastas Security/, Users/, AI/
-- [ ] F1.2 — Mover arquivos conforme tabela acima
-- [ ] F1.3 — Atualizar todos os imports afetados (App.tsx + outros)
-- [ ] F1.4 — Remover views/Admin/ após migração completa
-- [ ] F1.5 — Validar que build TypeScript passa sem erros
+- [x] F1.1 — Criar subpastas Security/, Users/, AI/
+- [x] F1.2 — Mover arquivos conforme tabela acima
+- [x] F1.3 — Atualizar todos os imports afetados (routes.tsx, App.tsx, etc.)
+- [x] F1.4 — Remover views/Admin/ e arquivos legados duplicados
+- [x] F1.5 — Validar que build Vite/TypeScript passa sem erros
 
 Agente: frontend-specialist | Risco: Baixo
 
@@ -155,31 +155,11 @@ Agente: frontend-specialist | Risco: Baixo
 
 Criar abstração reutilizável para eliminar duplicação.
 
-Interface proposta:
-```tsx
-interface SettingsCRUDListProps<T> {
-  title: string;
-  fetchFn: () => Promise<T[]>;
-  onAdd: () => void;
-  onSelect: (item: T) => void;
-  searchField?: keyof T;
-  renderExtra?: (item: T) => React.ReactNode;
-}
-```
-
-Candidatos à unificação (flat):
-- PrioritiesList + AssetPrioritiesList
-- OrderTypesList + OrderSubTypesList + OrderObjectsList
-- ServicesList
-
-Candidatos com hierarquia (tree):
-- SystemsList + UnitTypesList → SettingsTreeList
-
-- [ ] F2.1 — Criar components/settings/SettingsCRUDList.tsx
-- [ ] F2.2 — Criar components/settings/SettingsTreeList.tsx
-- [ ] F2.3 — Migrar PrioritiesList e AssetPrioritiesList como prova de conceito
-- [ ] F2.4 — Migrar SystemsList e UnitTypesList para SettingsTreeList
-- [ ] F2.5 — Migrar demais candidatos confirmados
+- [x] F2.1 — Criar components/settings/SettingsCRUDList.tsx
+- [ ] F2.2 — Criar components/settings/SettingsTreeList.tsx (futuro/opcional)
+- [x] F2.3 — Migrar PrioritiesList e AssetPrioritiesList para SettingsCRUDList
+- [x] F2.4 — Migrar OrderTypesList, OrderObjectsList, AssetStatusesList, ServicesList para SettingsCRUDList
+- [ ] F2.5 — Migrar demais candidatos conforme demanda
 
 Agente: frontend-specialist | Risco: Médio
 
@@ -189,21 +169,10 @@ Agente: frontend-specialist | Risco: Médio
 
 Extrair toda a lógica de navegação de settings do App.tsx.
 
-```tsx
-// views/Settings/SettingsRouter.tsx
-export const SettingsRouter: React.FC<SettingsRouterProps> = ({ currentScreen, onNavigate, ... }) => {
-  switch (currentScreen) {
-    case 'settings': return <AppSettings ... />;
-    case 'systems': return <SystemsList ... />;
-    // ... todos os 30+ cases aqui
-  }
-};
-```
-
-- [ ] F3.1 — Criar views/Settings/SettingsRouter.tsx
-- [ ] F3.2 — Mover todos os cases de settings do App.tsx para o router
-- [ ] F3.3 — Substituir o bloco em App.tsx por <SettingsRouter />
-- [ ] F3.4 — Encapsular handlers (handleSaveSystem, etc.) no SettingsRouter
+- [x] F3.1 — Criar views/Settings/SettingsRouter.tsx
+- [x] F3.2 — Mover todos os ~35 cases de settings do App.tsx para o router
+- [x] F3.3 — Substituir o bloco em App.tsx por <SettingsRouter /> e limpar imports
+- [x] F3.4 — Encapsular delegação via objeto `ctx`
 
 Agente: frontend-specialist | Risco: Alto (mexe no App.tsx central)
 
@@ -211,11 +180,8 @@ Agente: frontend-specialist | Risco: Alto (mexe no App.tsx central)
 
 ### Fase 4 — Correção de Bugs e Features Pendentes
 
-- [ ] F4.1 — Implementar ou remover o botão "Situações" (Unidades) vazio
-  - Se existir tabela unit_statuses no Supabase: criar UnitStatusesList + UnitStatusForm
-  - Se não existir: remover o SettingItem de AppSettings.tsx
-- [ ] F4.2 — Resolver duplicidade de acesso a companies
-  - Definir: settings é o ponto canônico de admin, sidebar tab é o operacional?
+- [x] F4.1 — Implementar ou remover o botão "Situações" (Unidades) vazio (removido de AppSettings.tsx)
+- [ ] F4.2 — Resolver duplicidade de acesso a companies (decisão de produto)
 
 Agente: frontend-specialist | Risco: Baixo-médio
 

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Team, Profile as ProfileType } from '../../types';
-import { dataService } from '../../services/dataService';
-import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
-import { IconButton } from '../../components/ui/IconButton';
-import { StatusBadge } from '../../components/ui/StatusBadge';
+import { User, Team, Profile as ProfileType } from '../../../types';
+import { dataService } from '../../../services/dataService';
+import { UserAvatar, UserStatus as AvatarStatus } from '../../../components/ui/UserAvatar';
+import { IconButton } from '../../../components/ui/IconButton';
+import { StatusBadge } from '../../../components/ui/StatusBadge';
 
 interface UserViewScreenProps {
     user: User;

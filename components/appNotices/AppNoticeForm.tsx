@@ -24,6 +24,8 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
   const [severityId, setSeverityId] = useState<number>(0);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [viewStartDate, setViewStartDate] = useState('');
+  const [viewEndDate, setViewEndDate] = useState('');
   const [dashboards, setDashboards] = useState<string[]>(['dashboard', 'orders', 'units']);
   const [saving, setSaving] = useState(false);
 
@@ -44,6 +46,8 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
       setSeverityId(notice.severityId);
       setStartDate(notice.startDate.slice(0, 16));
       setEndDate(notice.endDate.slice(0, 16));
+      setViewStartDate(notice.viewStartDate?.slice(0, 16) || '');
+      setViewEndDate(notice.viewEndDate?.slice(0, 16) || '');
       setDashboards(notice.dashboards?.length ? notice.dashboards : ['dashboard', 'orders', 'units']);
     } else if (isOpen && !notice && categories.length > 0 && severities.length > 0) {
       resetForm();
@@ -76,11 +80,19 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
     const end = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const endLocal = new Date(end.getTime() - offset * 60000);
     setEndDate(endLocal.toISOString().slice(0, 16));
+    setViewStartDate(local.toISOString().slice(0, 16));
+    setViewEndDate(endLocal.toISOString().slice(0, 16));
     setDashboards(['dashboard', 'orders', 'units']);
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !message.trim() || !startDate || !endDate || !categoryId || !severityId || dashboards.length === 0) {
+    if (
+      !title.trim() || !message.trim() || !startDate || !endDate ||
+      !viewStartDate || !viewEndDate || !categoryId || !severityId || dashboards.length === 0
+    ) {
+      return;
+    }
+    if (viewEndDate <= viewStartDate || endDate <= startDate) {
       return;
     }
 
@@ -93,6 +105,8 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
         severityId,
         startDate: startDate.replace('T', ' ') + ':00',
         endDate: endDate.replace('T', ' ') + ':00',
+        viewStartDate: viewStartDate.replace('T', ' ') + ':00',
+        viewEndDate: viewEndDate.replace('T', ' ') + ':00',
         dashboards,
       });
       onClose();
@@ -202,7 +216,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Data Início *
+              Vigência Início *
             </label>
             <input
               type="datetime-local"
@@ -214,13 +228,40 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Data Fim *
+              Vigência Fim *
             </label>
             <input
               type="datetime-local"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Visualização Início *
+            </label>
+            <input
+              type="datetime-local"
+              value={viewStartDate}
+              onChange={(e) => setViewStartDate(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Visualização Fim *
+            </label>
+            <input
+              type="datetime-local"
+              value={viewEndDate}
+              onChange={(e) => setViewEndDate(e.target.value)}
+              min={viewStartDate}
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             />
           </div>

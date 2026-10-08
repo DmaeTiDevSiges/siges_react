@@ -47,7 +47,9 @@ export const appNoticesService = {
       .select('*')
       .eq('is_active', true)
       .lte('start_date', now)
-      .gte('end_date', now);
+      .gte('end_date', now)
+      .lte('view_start_date', now)
+      .gte('view_end_date', now);
 
     if (dashboard) {
       query = query.contains('dashboards', [dashboard]);
@@ -128,8 +130,34 @@ export const appNoticesService = {
     return this.mapNotice(data);
   },
 
+  /**
+   * Id inteiro (`public.users.id`) do usuário autenticado.
+   * `supabase.auth.getUser()` devolve o UUID do auth — gravar `parseInt(uuid)`
+   * em created_user_id/updated_user_id apontava para outro usuário (ou nulo).
+   */
+  async getCurrentUserId(): Promise<number | null> {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return null;
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('id')
+      .eq('uuid', authUser.id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching current user id:', error);
+      return null;
+    }
+
+    return data?.id ?? null;
+  },
+
   async createNotice(input: CreateSystemNoticeInput): Promise<SystemNotice> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = await this.getCurrentUserId();
+    if (currentUserId === null) {
+      throw new Error('CURRENT_USER_NOT_FOUND');
+    }
 
     const { data, error } = await supabase
       .from('cfg_app_notices')
@@ -140,8 +168,10 @@ export const appNoticesService = {
         severity_id: input.severityId,
         start_date: input.startDate,
         end_date: input.endDate,
+        view_start_date: input.viewStartDate,
+        view_end_date: input.viewEndDate,
         dashboards: input.dashboards,
-        created_user_id: user?.id ? parseInt(user.id) : null,
+        created_user_id: currentUserId,
         is_active: true,
       })
       .select()
@@ -163,6 +193,8 @@ export const appNoticesService = {
     if (data.severityId !== undefined) updateData.severity_id = data.severityId;
     if (data.startDate !== undefined) updateData.start_date = data.startDate;
     if (data.endDate !== undefined) updateData.end_date = data.endDate;
+    if (data.viewStartDate !== undefined) updateData.view_start_date = data.viewStartDate;
+    if (data.viewEndDate !== undefined) updateData.view_end_date = data.viewEndDate;
     if (data.dashboards !== undefined) updateData.dashboards = data.dashboards;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
@@ -200,12 +232,9 @@ export const appNoticesService = {
    * ela para não quebrar a edição do aviso.
    */
   async applyNoticeUpdate(id: number, payload: Record<string, any>): Promise<void> {
-    const { user } = (await supabase.auth.getUser()).data;
     const data: Record<string, any> = { ...payload };
-    if (user?.id) {
-      const userId = parseInt(user.id);
-      if (Number.isFinite(userId)) data.updated_user_id = userId;
-    }
+    const currentUserId = await this.getCurrentUserId();
+    if (currentUserId !== null) data.updated_user_id = currentUserId;
 
     const { error } = await supabase
       .from('cfg_app_notices')
@@ -285,6 +314,8 @@ export const appNoticesService = {
       severityId: row.severity_id,
       startDate: row.start_date,
       endDate: row.end_date,
+      viewStartDate: row.view_start_date,
+      viewEndDate: row.view_end_date,
       dashboards: row.dashboards || [],
       createdBy: row.created_user_id,
       viewCount: row.view_count ?? 0,

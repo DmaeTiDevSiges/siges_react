@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Profile, Permission, Route, User, Company } from '../../types';
-import { dataService } from '../../services/dataService';
-import { Button } from '../../components/ui/Button';
-import { SearchInput } from '../../components/ui/SearchInput';
-import { UserAvatar } from '../../components/ui/UserAvatar';
+import { Profile, Permission, Route, User, Company } from '../../../types';
+import { dataService } from '../../../services/dataService';
+import { Button } from '../../../components/ui/Button';
+import { SearchInput } from '../../../components/ui/SearchInput';
+import { UserAvatar } from '../../../components/ui/UserAvatar';
 import { toast } from 'sonner';
 
 interface ProfilePermissionsScreenProps {
@@ -319,11 +319,11 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                                         <div
                                             key={user.id}
                                             className="flex flex-col items-center shrink-0"
-                                            title={user.nameFull || user.name}
+                                            title={user.nameFull || user.nameShort || ''}
                                         >
                                             <UserAvatar
                                                 src={user.avatarUrl}
-                                                name={user.nameShort || user.nameFull || user.name || ''}
+                                                name={user.nameShort || user.nameFull || ''}
                                                 size="sm"
                                                 className="shadow-sm"
                                             />

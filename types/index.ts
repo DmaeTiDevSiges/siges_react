@@ -1515,6 +1515,8 @@ export interface SystemNotice {
   severityId: number;
   startDate: string;
   endDate: string;
+  viewStartDate: string;
+  viewEndDate: string;
   dashboards: string[];
   createdBy?: number;
   viewCount?: number;
@@ -1544,6 +1546,8 @@ export interface CreateSystemNoticeInput {
   severityId: number;
   startDate: string;
   endDate: string;
+  viewStartDate: string;
+  viewEndDate: string;
   dashboards: string[];
 }
 

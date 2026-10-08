@@ -51,6 +51,39 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
         dataService.getMaterialsTypes().then(setTypes).catch((err) => { console.error('Error loading types:', err); setTypes([]); });
     }, [isCreating]);
 
+    const dirtyRef = React.useRef(false);
+    const skipDirtyCheckRef = React.useRef(true);
+
+    useEffect(() => {
+        if (skipDirtyCheckRef.current) {
+            skipDirtyCheckRef.current = false;
+            return;
+        }
+        dirtyRef.current = true;
+    }, [form]);
+
+    useEffect(() => {
+        if (isCreating || !initialMaterial?.id) return;
+
+        let cancelled = false;
+        dataService.getMaterialById(initialMaterial.id)
+            .then((full) => {
+                if (cancelled || !full || dirtyRef.current) return;
+                setForm(prev => ({
+                    ...prev,
+                    description: full.description || prev.description,
+                    code: full.code || prev.code,
+                    unit: full.unit || prev.unit,
+                    statusId: full.statusId ?? prev.statusId,
+                    typeId: full.typeId ?? prev.typeId,
+                    priceAvg: full.priceUnit ?? prev.priceAvg
+                }));
+            })
+            .catch((err) => console.error('Error loading material:', err));
+
+        return () => { cancelled = true; };
+    }, [isCreating, initialMaterial?.id]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (savingRef.current) return;

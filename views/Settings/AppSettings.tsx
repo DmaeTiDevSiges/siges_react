@@ -24,13 +24,6 @@ export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigat
                         </h3>
                         <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
                             <SettingItem
-                                icon="rule"
-                                title="Situações"
-                                subtitle="Gerenciar estados e fluxos"
-                                onClick={() => { }}
-                            />
-                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                            <SettingItem
                                 icon="hub"
                                 title="Sistemas / Sub-sistemas"
                                 subtitle="Configurar módulos do sistema"

@@ -159,6 +159,12 @@ export const materialsService = {
             if (wmError) throw wmError;
         }
 
+        let typeDescription: string | null = null;
+        if (data.type_id) {
+            const { data: typeRow } = await supabase.from('cfg_materials_types').select('description').eq('id', data.type_id).single();
+            typeDescription = typeRow?.description || null;
+        }
+
         return {
             id: data.id.toString(),
             code: data.code,
@@ -169,7 +175,9 @@ export const materialsService = {
             balance: data.balance || 0,
             fingerPrint: data.finger_print,
             isAvailable: !data.is_deleted,
-            statusId: data.status_id || 1
+            statusId: data.status_id || 1,
+            typeId: data.type_id || null,
+            typeDescription
         } as Material;
     },
 
@@ -262,6 +270,12 @@ export const materialsService = {
 
         const { data: statusRow } = await supabase.from('cfg_materials_statuses').select('description').eq('id', data.status_id).single();
 
+        let typeDescription: string | null = null;
+        if (data.type_id) {
+            const { data: typeRow } = await supabase.from('cfg_materials_types').select('description').eq('id', data.type_id).single();
+            typeDescription = typeRow?.description || null;
+        }
+
         return {
             id: data.id.toString(),
             code: data.code,
@@ -273,7 +287,9 @@ export const materialsService = {
             fingerPrint: data.finger_print,
             isAvailable: !data.is_deleted,
             statusId: data.status_id || 1,
-            statusDescription: statusRow?.description || (data.is_deleted ? 'Inativo' : 'Ativo')
+            statusDescription: statusRow?.description || (data.is_deleted ? 'Inativo' : 'Ativo'),
+            typeId: data.type_id || null,
+            typeDescription
         } as Material;
     },
 

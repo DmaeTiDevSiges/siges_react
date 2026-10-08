@@ -28,6 +28,9 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'expired'>('all');
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [moExtraByNotice, setMoExtraByNotice] = useState<Record<number, NoticeWorkersSummaryItem[]>>({});
+    // Ativar/desativar: resposta imediata (otimista) + destaque temporário do card
+    const [togglingId, setTogglingId] = useState<number | null>(null);
+    const [flash, setFlash] = useState<{ id: number; active: boolean } | null>(null);
 
     useEffect(() => {
         loadCategoriesAndSeverities();
@@ -132,11 +135,21 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
     };
 
     const handleToggleActive = async (notice: SystemNotice) => {
+        if (togglingId !== null) return;
+        const nextActive = !notice.isActive;
+        // Resposta imediata: o card/ícone já vira enquanto a gravação acontece
+        setTogglingId(notice.id);
         try {
-            await toggleActive(notice.id, !notice.isActive);
-            toast.success(notice.isActive ? 'Aviso desativado' : 'Aviso ativado');
+            await toggleActive(notice.id, nextActive);
+            setFlash({ id: notice.id, active: nextActive });
+            window.setTimeout(() => {
+                setFlash((current) => (current && current.id === notice.id ? null : current));
+            }, 800);
+            toast.success(nextActive ? 'Aviso ativado' : 'Aviso desativado');
         } catch (error) {
             toast.error('Erro ao alterar status');
+        } finally {
+            setTogglingId(null);
         }
     };
 
@@ -172,12 +185,12 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
         });
     };
 
-    const isNoticeActive = (notice: SystemNotice) => {
+    const isWithinDates = (notice: SystemNotice) => {
         const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
         const now = new Date(nowStr);
         const start = new Date(notice.startDate);
         const end = new Date(notice.endDate);
-        return notice.isActive && start <= now && end >= now;
+        return start <= now && end >= now;
     };
 
     if (!canView('app_notices') || !canSearch('app_notices')) {
@@ -247,7 +260,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
             <div className="flex-1 overflow-y-auto px-4 py-4">
                 {loading ? (
                     <div className="flex justify-center py-12">
-                        <Loading size="md" />
+                        <Loading size="md" overlay={false} />
                     </div>
                 ) : notices.length === 0 ? (
                     <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
@@ -277,14 +290,24 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                 return true;
                             })
                             .map((notice) => {
-                            const active = isNoticeActive(notice);
+                            // Resposta imediata ao ativar/desativar: enquanto a
+                            // gravação não volta, o card já mostra o novo estado.
+                            const isActiveNow = togglingId === notice.id ? !notice.isActive : notice.isActive;
+                            const active = isActiveNow && isWithinDates(notice);
+                            const isFlashing = flash?.id === notice.id;
                             return (
                                 <div
                                     key={notice.id}
-                                    className={`bg-white dark:bg-slate-800/50 rounded-2xl border overflow-hidden transition-all ${
+                                    className={`bg-white dark:bg-slate-800/50 rounded-2xl border overflow-hidden transition-all duration-300 ease-out ${
                                         active 
                                             ? 'border-slate-200 dark:border-slate-700' 
                                             : 'border-slate-100 dark:border-slate-800 opacity-60'
+                                    } ${
+                                        isFlashing
+                                            ? flash.active
+                                                ? 'ring-2 ring-emerald-500/60 shadow-lg shadow-emerald-500/10'
+                                                : 'ring-2 ring-amber-500/50 shadow-lg shadow-amber-500/10'
+                                            : ''
                                     }`}
                                 >
                                     {/* Color strip based on category */}
@@ -300,11 +323,13 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                     <h3 className="font-bold text-slate-900 dark:text-white truncate">
                                                         {notice.title}
                                                     </h3>
-                                                    {active && (
-                                                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-green-500/10 text-green-600 dark:text-green-400 rounded-full">
-                                                            Ativo
-                                                        </span>
-                                                    )}
+                                                    <span
+                                                        className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-green-500/10 text-green-600 dark:text-green-400 rounded-full transition-all duration-300 ease-out ${
+                                                            active ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+                                                        }`}
+                                                    >
+                                                        Ativo
+                                                    </span>
                                                     <span
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
                                                         title="Visualizações"
@@ -318,6 +343,12 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                 <p className="flex items-center gap-1.5 mb-2 text-xs font-bold text-slate-700 dark:text-slate-200">
                                                     <span className="material-symbols-outlined text-[15px] text-slate-400 dark:text-slate-500">calendar_month</span>
                                                     Vigência: {formatDate(notice.startDate)} - {formatDate(notice.endDate)}
+                                                </p>
+
+                                                {/* Janela de visualização (ticker) */}
+                                                <p className="flex items-center gap-1.5 mb-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                                                    <span className="material-symbols-outlined text-[15px] text-slate-400 dark:text-slate-500">visibility</span>
+                                                    Visualização: {formatDate(notice.viewStartDate)} - {formatDate(notice.viewEndDate)}
                                                 </p>
 
                                                 <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">
@@ -391,15 +422,16 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                 {canEdit('app_notices') && (
                                                     <button
                                                         onClick={() => handleToggleActive(notice)}
-                                                        className={`p-2 rounded-lg transition-colors ${
-                                                            notice.isActive 
+                                                        disabled={togglingId === notice.id}
+                                                        className={`p-2 rounded-lg transition-all duration-300 ease-out ${
+                                                            isActiveNow 
                                                                 ? 'text-green-500 hover:bg-green-500/10' 
                                                                 : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                                                        }`}
-                                                        title={notice.isActive ? 'Desativar' : 'Ativar'}
+                                                        } ${togglingId === notice.id ? 'scale-90' : 'scale-100'}`}
+                                                        title={isActiveNow ? 'Desativar' : 'Ativar'}
                                                     >
-                                                        <span className="material-symbols-outlined text-[20px]">
-                                                            {notice.isActive ? 'toggle_on' : 'toggle_off'}
+                                                        <span className={`material-symbols-outlined text-[20px] transition-transform duration-300 ease-out ${isFlashing ? 'scale-125' : 'scale-100'}`}>
+                                                            {isActiveNow ? 'toggle_on' : 'toggle_off'}
                                                         </span>
                                                     </button>
                                                 )}

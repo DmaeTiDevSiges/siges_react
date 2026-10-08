@@ -5,7 +5,6 @@ import { dataService } from '../../services/dataService';
 import { IconButton } from '../../components/ui/IconButton';
 import { Avatar } from '../../components/ui/Avatar';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
-import { OrderStatusHistoryTimeline } from '../../components/orderRequests/OrderStatusHistoryTimeline';
 import { OrderMapComponent } from '../../components/orderRequests/OrderRequestMapComponent';
 import { ServiceRequestCardDetail } from '../../components/serviceRequests/ServiceRequestCardDetail';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
@@ -153,7 +152,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
         }
     };
 
-    const tabs = ['SS', 'Visitas', 'Histórico', 'Situações', 'Assets', 'Alertas', 'Localização'];
+    const tabs = ['SS', 'Visitas', 'Histórico', 'Alertas', 'Localização'];
 
     if (!canView('orders_requests')) {
         return (
@@ -546,7 +545,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                         />
                                     ) : (
                                         <div className="p-8 text-center text-slate-500 font-bold animate-pulse">
-                                            Carregando dados da SS original...
+                                            Carregando dados da SS ...
                                         </div>
                                     )
                                 ) : (
@@ -778,24 +777,6 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                         </div>
                                     </div>
                                 )}
-                            </div>
-                        )}
-
-                        {activeTab === 'Situações' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-1">
-                                <OrderStatusHistoryTimeline orderId={order.id} />
-                            </div>
-                        )}
-
-                        {activeTab === 'Assets' && (
-                            <div className="py-20 text-center space-y-4 animate-in fade-in duration-500">
-                                <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2">
-                                    <span className="material-symbols-outlined text-slate-300 text-4xl">settings_input_component</span>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Ativos Vinculados</p>
-                                    <p className="text-xs text-slate-400 dark:text-slate-500">Nenhum ativo vinculado diretamente a esta ordem de serviço.</p>
-                                </div>
                             </div>
                         )}
 

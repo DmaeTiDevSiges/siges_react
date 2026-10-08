@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Route } from '../../types';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import { ButtonSave } from '../../components/ui/ButtonSave';
-import { dataService } from '../../services/dataService';
+import { Route } from '../../../types';
+import { Input } from '../../../components/ui/Input';
+import { Select } from '../../../components/ui/Select';
+import { ButtonSave } from '../../../components/ui/ButtonSave';
+import { dataService } from '../../../services/dataService';
 
 const MATERIAL_ICONS = [
     'route', 'dashboard', 'settings', 'group', 'verified_user', 'business',

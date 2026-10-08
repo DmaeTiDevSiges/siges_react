@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { User } from '../../types';
-import { dataService } from '../../services/dataService';
-import { supabase } from '../../services/core/supabase';
+import { User } from '../../../types';
+import { dataService } from '../../../services/dataService';
+import { supabase } from '../../../services/core/supabase';
 import { toast } from 'sonner';
-import { SearchInput } from '../../components/ui/SearchInput';
-import { StatusBadge } from '../../components/ui/StatusBadge';
-import { LoadMore } from '../../components/ui/LoadMore';
-import { IconButton } from '../../components/ui/IconButton';
-import { Modal } from '../../components/ui/Modal';
-import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
+import { SearchInput } from '../../../components/ui/SearchInput';
+import { StatusBadge } from '../../../components/ui/StatusBadge';
+import { LoadMore } from '../../../components/ui/LoadMore';
+import { IconButton } from '../../../components/ui/IconButton';
+import { Modal } from '../../../components/ui/Modal';
+import { UserAvatar, UserStatus as AvatarStatus } from '../../../components/ui/UserAvatar';
 
 interface AllUsersListProps {
     onAddUser?: () => void;

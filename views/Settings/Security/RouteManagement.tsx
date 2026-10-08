@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Route } from '../../types';
-import { dataService } from '../../services/dataService';
-import { Button } from '../../components/ui/Button';
-import { SearchInput } from '../../components/ui/SearchInput';
+import { Route } from '../../../types';
+import { dataService } from '../../../services/dataService';
+import { Button } from '../../../components/ui/Button';
+import { SearchInput } from '../../../components/ui/SearchInput';
 import { toast } from 'sonner';
 
 interface RouteManagementScreenProps {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { aiService } from '../../services/ai/aiService';
-import { Button } from '../../components/ui/Button';
+import { aiService } from '../../../services/ai/aiService';
+import { Button } from '../../../components/ui/Button';
 import { toast } from 'sonner';
 
 export const AIKnowledgeAdmin: React.FC<{ onBack: () => void }> = ({ onBack }) => {

@@ -176,14 +176,14 @@ export const OrderVisitBottomNav = lazyWithRetry(() => import('../components/ord
 export const VisitEvaluationPage = lazyWithRetry(() => import('../views/Visits/VisitEvaluationPage').then(m => ({ default: m.VisitEvaluationPage })));
 
 export const UsersTracker = lazyWithRetry(() => import('../views/Users/UsersTracker').then(m => ({ default: m.UsersTracker })));
-export const AllUsersList = lazyWithRetry(() => import('../views/Admin/AllUsersList').then(m => ({ default: m.AllUsersList })));
-export const UserViewScreen = lazyWithRetry(() => import('../views/Admin/UserViewScreen').then(m => ({ default: m.UserViewScreen })));
+export const AllUsersList = lazyWithRetry(() => import('../views/Settings/Users/AllUsersList').then(m => ({ default: m.AllUsersList })));
+export const UserViewScreen = lazyWithRetry(() => import('../views/Settings/Users/UserViewScreen').then(m => ({ default: m.UserViewScreen })));
 export const LocationBlockedScreen = lazyWithRetry(() => import('../views/System/LocationBlockedScreen').then(m => ({ default: m.LocationBlockedScreen })));
 export const UserUnavailableScreen = lazyWithRetry(() => import('../views/System/UserUnavailableScreen').then(m => ({ default: m.UserUnavailableScreen })));
 
-export const ProfilePermissionsScreen = lazyWithRetry(() => import('../views/Admin/ProfilePermissionsScreen').then(m => ({ default: m.ProfilePermissionsScreen })));
-export const RouteManagementScreen = lazyWithRetry(() => import('../views/Settings/RouteManagement').then(m => ({ default: m.RouteManagementScreen })));
-export const RouteFormScreen = lazyWithRetry(() => import('../views/Settings/RouteForm').then(m => ({ default: m.RouteForm })));
-export const AIKnowledgeAdmin = lazyWithRetry(() => import('../views/Settings/AIKnowledgeAdmin').then(m => ({ default: m.AIKnowledgeAdmin })));
+export const ProfilePermissionsScreen = lazyWithRetry(() => import('../views/Settings/Users/ProfilePermissionsScreen').then(m => ({ default: m.ProfilePermissionsScreen })));
+export const RouteManagementScreen = lazyWithRetry(() => import('../views/Settings/Security/RouteManagement').then(m => ({ default: m.RouteManagementScreen })));
+export const RouteFormScreen = lazyWithRetry(() => import('../views/Settings/Security/RouteForm').then(m => ({ default: m.RouteForm })));
+export const AIKnowledgeAdmin = lazyWithRetry(() => import('../views/Settings/AI/AIKnowledgeAdmin').then(m => ({ default: m.AIKnowledgeAdmin })));
 export const MaintenancePlansScreen = lazyWithRetry(() => import('../views/Settings/MaintenancePlans/MaintenancePlansScreen').then(m => ({ default: m.MaintenancePlansScreen })));
 export const ToolsMainView = lazyWithRetry(() => import('../views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));

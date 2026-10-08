@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SystemNotice, NoticeFilters } from '../types';
 import { appNoticesService } from '../services/core/appNoticesService';
 
@@ -80,13 +80,23 @@ export const useAppNoticesAdmin = (): UseAppNoticesAdminReturn => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Evita piscar a tela: `loading` só vale na primeira carga. Refetches
+  // (toggle, criar/editar/excluir, busca e filtros) mantêm a lista atual
+  // em tela enquanto os dados chegam.
+  const initializedRef = useRef(false);
+  // Últimos filtros aplicados — mutações recarregam com os mesmos filtros
+  // (sem isso, ativar/desativar ou salvar descartava busca/categorias).
+  const lastFiltersRef = useRef<NoticeFilters>({});
+
   const fetchNotices = useCallback(async (filters: NoticeFilters = {}) => {
     try {
-      setLoading(true);
+      lastFiltersRef.current = filters;
+      if (!initializedRef.current) setLoading(true);
       setError(null);
       const result = await appNoticesService.listNotices(filters);
       setNotices(result.notices);
       setTotal(result.total);
+      initializedRef.current = true;
     } catch (err) {
       console.error('Error fetching notices:', err);
       setError('Erro ao carregar avisos');
@@ -97,27 +107,27 @@ export const useAppNoticesAdmin = (): UseAppNoticesAdminReturn => {
 
   const createNotice = useCallback(async (input: import('../types').CreateSystemNoticeInput) => {
     const notice = await appNoticesService.createNotice(input);
-    await fetchNotices();
+    await fetchNotices(lastFiltersRef.current);
     emitNoticesChanged();
     return notice;
   }, [fetchNotices]);
 
   const updateNotice = useCallback(async (id: number, data: Partial<SystemNotice>) => {
     const notice = await appNoticesService.updateNotice(id, data);
-    await fetchNotices();
+    await fetchNotices(lastFiltersRef.current);
     emitNoticesChanged();
     return notice;
   }, [fetchNotices]);
 
   const deleteNotice = useCallback(async (id: number) => {
     await appNoticesService.deleteNotice(id);
-    await fetchNotices();
+    await fetchNotices(lastFiltersRef.current);
     emitNoticesChanged();
   }, [fetchNotices]);
 
   const toggleActive = useCallback(async (id: number, isActive: boolean) => {
     await appNoticesService.toggleNoticeActive(id, isActive);
-    await fetchNotices();
+    await fetchNotices(lastFiltersRef.current);
     emitNoticesChanged();
   }, [fetchNotices]);
 

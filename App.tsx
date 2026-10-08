@@ -13,7 +13,7 @@ import { usePermissions } from './contexts/PermissionsContext';
 import { permissionService } from './services/core/permissionService';
 import { Sidebar } from './components/shell/Sidebar';
 import { DashboardTabs } from './components/dashboards/DashboardTabs';
-import { AppSettings } from './views/Settings/AppSettings';
+import { SettingsRouter, SETTINGS_SCREENS } from './views/Settings/SettingsRouter';
 import { LoginScreen } from './views/Users/LoginScreen';
 import { Toaster, toast } from 'sonner';
 import { Company, Client, Department, Team, User, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Contract, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, Asset, UserNotification, Order, OrderVisit, OrderVisitAssetView } from './types';
@@ -43,59 +43,10 @@ import {
   LeaderRankingDashboard,
   ServicesRequestsDashboardAdmin,
   ServicesRequestsPeriodDashboardAdmin,
-  SystemsList,
-  SystemForm,
-  UnitTypesList,
-  UnitTypeForm,
-  UnitsList,
-  UnitForm,
-  UnitDetails,
-  UnitStructure,
-  ActivitiesList,
-  ActivityForm,
   ContractsList,
   ContractForm,
   ContractDetails,
-  ServicesList,
-  ServiceForm,
-  MaterialsList,
-  MaterialsSearch,
-  MaterialForm,
-  MaterialDetails,
-  MaterialsDashboard,
-  EvaluationRequirementsScreen,
-  PrioritiesList,
-  PriorityForm,
-  OrderTypesList,
-  OrderTypeForm,
-  OrderSubTypesList,
-  OrderSubTypeForm,
-  OrderPlansList,
-  OrderPlanForm,
-  OrderObjectsList,
-  OrderObjectForm,
-  AssetTypesList,
-  AssetTypeForm,
-  AssetStatusesList,
-  AssetStatusForm,
-  AssetPrioritiesList,
-  AssetPriorityForm,
-  AssetTypeAttributesScreen,
-  AssetAttributesBrandsScreen,
-  AssetTagsList,
-  AssetTagForm,
-  AssetTagSubsList,
-  AssetTagSubForm,
-  TechnicalManualsList,
-  TechnicalManualForm,
-  TechnicalManualDetails,
-  AssetLoanChecklistTypesList,
-  AssetLoanChecklistTypeForm,
-  LoansChecklistsList,
-  LoansChecklistForm,
   UnitsSearch,
-  UnitAssetTagAvailableForm,
-  UnitAssetTagAvailableDetails,
   AssetsSearch,
   AssetDetails,
   AssetForm,
@@ -107,7 +58,6 @@ import {
   NotificationsList,
   AppNoticesList,
   ExtraWorkersList,
-  AppTipsList,
   ServiceRequestDetail,
   ServiceRequestPage,
   OrderRequestPage,
@@ -120,16 +70,10 @@ import {
   OrderVisitBottomNav,
   VisitEvaluationPage,
   UsersTracker,
-  AllUsersList,
-  UserViewScreen,
   LocationBlockedScreen,
   UserUnavailableScreen,
-  ProfilePermissionsScreen,
-  RouteManagementScreen,
-  RouteFormScreen,
-  AIKnowledgeAdmin,
-  MaintenancePlansScreen,
   ToolsMainView,
+  UnitForm,
 } from './app/routes';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
@@ -173,35 +117,6 @@ const SsScreenGate: React.FC<SsScreenGateProps> = ({ children, onForbidden }) =>
     else if (canView('dashboard_units_power_electric')) onForbidden('dashboard-units-power-electric');
     else if (canView('dashboard_contracts_evaluations')) onForbidden('dashboard-contracts-evaluations');
     else onForbidden('dashboard');
-  }, [loading, canView, onForbidden]);
-
-  if (loading || forbidden) {
-    return (
-      <div className="flex h-full min-h-[60vh] items-center justify-center">
-        <Loading size="md" />
-      </div>
-    );
-  }
-  return <>{children}</>;
-};
-
-// Gate de permissão da tela "Permissões de Acesso" (rota profile_permissions).
-// O item em AppSettings só aparece com canView('profile_permissions'), mas isso
-// não bloqueia a navegação direta (ex: app_active_tab salvo / deep link), então
-// a tela também é protegida aqui. Sempre deve ser usado dentro de PermissionsProvider.
-interface ProfilePermissionsGateProps {
-  children: React.ReactNode;
-  onForbidden: () => void;
-}
-
-const ProfilePermissionsGate: React.FC<ProfilePermissionsGateProps> = ({ children, onForbidden }) => {
-  const { canView, loading } = usePermissions();
-
-  const forbidden = !loading && !canView('profile_permissions');
-
-  useEffect(() => {
-    if (loading || canView('profile_permissions')) return;
-    onForbidden();
   }, [loading, canView, onForbidden]);
 
   if (loading || forbidden) {
@@ -1995,6 +1910,42 @@ const AppContent: React.FC = () => {
       );
     }
 
+    if (SETTINGS_SCREENS.has(currentScreen)) {
+      return (
+        <SettingsRouter
+          currentScreen={currentScreen}
+          onNavigate={(screen) => setCurrentScreen(screen as any)}
+          ctx={{
+            currentUser,
+            selectedSystem, handleSystemSelect, handleSaveSystem,
+            selectedUnitType, handleUnitTypeSelect, handleSaveUnitType,
+            selectedClient, handleClientSelect, handleSaveClient, handleEditClient, handleDeleteClient, handleAddClick,
+            selectedUnit, selectedUnitAssetTag, setSelectedUnitAssetTag, unitsListRefreshKey, setUnitsListRefreshKey,
+            handleUnitSelect, handleSaveUnit,
+            selectedActivity, handleActivitySelect, handleSaveActivity,
+            selectedService, handleServiceSelect, handleSaveService,
+            selectedMaterial, setSelectedMaterial, materialDefaultTab, handleMaterialSelect, handleSaveMaterial,
+            selectedPriority, handlePrioritySelect, handleSavePriority,
+            selectedOrderType, handleOrderTypeSelect, handleSaveOrderType,
+            selectedOrderSubType, handleOrderSubTypeSelect, handleSaveOrderSubType,
+            selectedOrderPlan, handleOrderPlanSelect, handleSaveOrderPlan,
+            selectedOrderObject, handleOrderObjectSelect, handleSaveOrderObject,
+            selectedAssetType, handleAssetTypeSelect, handleSaveAssetType,
+            selectedAssetStatus, handleAssetStatusSelect, handleSaveAssetStatus,
+            selectedAssetPriority, handleAssetPrioritySelect, handleSaveAssetPriority,
+            selectedAssetTag, handleAssetTagSelect, handleSaveAssetTag,
+            selectedAssetTagSub, handleAssetTagSubSelect, handleSaveAssetTagSub,
+            selectedTechnicalManual, handleTechnicalManualSelect, handleSaveTechnicalManual, handleDeleteTechnicalManual, handleAssetSelect,
+            selectedChecklistType, setSelectedChecklistType,
+            selectedLoansChecklist, setSelectedLoansChecklist,
+            selectedUser, setSelectedUser, setSelectedCompany,
+            selectedRoute, handleRouteSelect, handleSaveRoute,
+            handleBack,
+          }}
+        />
+      );
+    }
+
     switch (currentScreen) {
       case 'dashboard':
         return (
@@ -2326,33 +2277,6 @@ const AppContent: React.FC = () => {
           />
         ) : null;
       }
-      case 'all-users':
-        return <AllUsersList
-          onSelectUser={async (user) => {
-            setSelectedUser(user);
-            localStorage.setItem('last_screen_before_profile', 'all-users');
-            setCurrentScreen('user-details');
-          }}
-          onAddUser={currentUser?.companyId && currentUser.companyId !== '1' ? () => {
-            setSelectedCompany({ id: currentUser.companyId! } as Company);
-            setCurrentScreen('user-form');
-          } : undefined}
-          currentUser={currentUser}
-        />;
-      case 'user-details':
-        return selectedUser ? (
-          <UserViewScreen
-            user={selectedUser}
-            onBack={() => {
-              setCurrentScreen('all-users');
-              setSelectedUser(null);
-            }}
-            onEdit={(user) => {
-              setSelectedUser(user);
-              setCurrentScreen('profile');
-            }}
-          />
-        ) : null;
       case 'profile':
         return <ProfileScreen
           user={selectedUser || (currentUser as User)}
@@ -2376,234 +2300,10 @@ const AppContent: React.FC = () => {
           }}
           onStatusChange={handleUserStatusChange}
         />;
-      case 'settings':
-        return <AppSettings currentUser={currentUser} onNavigate={(screen) => setCurrentScreen(screen as any)} />;
-      case 'ai-admin':
-        return <AIKnowledgeAdmin onBack={() => setCurrentScreen('settings')} />;
-      case 'systems':
-        return <SystemsList onAdd={() => setCurrentScreen('system-form')} onSelect={handleSystemSelect} />;
-      case 'system-form':
-        return <SystemForm onSave={handleSaveSystem} onCancel={() => setCurrentScreen('systems')} />;
-      case 'system-edit':
-        return selectedSystem ? <SystemForm initialSystem={selectedSystem} onSave={handleSaveSystem} onCancel={() => setCurrentScreen('systems')} /> : null;
-      case 'unit-types':
-        return <UnitTypesList onAdd={() => setCurrentScreen('unit-type-form')} onSelect={handleUnitTypeSelect} />;
-      case 'unit-type-form':
-        return <UnitTypeForm onSave={handleSaveUnitType} onCancel={() => setCurrentScreen('unit-types')} />;
-      case 'unit-type-edit':
-        return selectedUnitType ? <UnitTypeForm initialUnitType={selectedUnitType} onSave={handleSaveUnitType} onCancel={() => setCurrentScreen('unit-types')} /> : null;
-      case 'clients':
-        return <ClientsList onSelect={handleClientSelect} onAdd={handleAddClick} />;
-      case 'client-details':
-        return selectedClient ? (
-          <ClientDetails
-            client={selectedClient}
-            onEdit={handleEditClient}
-            onDelete={handleDeleteClient}
-            onViewUnits={() => setCurrentScreen('client-units')}
-          />
-        ) : null;
-      case 'client-form':
-        return (
-          <ClientForm
-            onSave={handleSaveClient}
-            onCancel={() => setCurrentScreen('clients')}
-          />
-        );
-      case 'client-edit':
-        return selectedClient ? (
-          <ClientForm
-            initialClient={selectedClient}
-            onSave={handleSaveClient}
-            onCancel={handleBack}
-          />
-        ) : null;
-      case 'client-units':
-        return selectedClient ? <UnitsList key={`units-${unitsListRefreshKey}`} client={selectedClient} onAdd={() => setCurrentScreen('client-unit-form')} onSelect={handleUnitSelect} /> : null;
-      case 'client-unit-form':
-      case 'client-unit-edit':
-        const effectiveClientId = selectedClient?.id || selectedUnit?.clientId;
-        if (!effectiveClientId && currentScreen === 'client-unit-form') return null;
-
-        return (
-          <UnitForm
-            key={`unit-form-${currentScreen === 'client-unit-edit' ? selectedUnit?.id || 'new' : 'new'}`}
-            clientId={effectiveClientId || ''}
-            initialUnit={currentScreen === 'client-unit-form' ? undefined : selectedUnit || undefined}
-            onSave={handleSaveUnit}
-            onCancel={handleBack}
-          />
-        );
-      case 'unit-details':
-        return selectedUnit ? (
-          <UnitDetails
-            key={`unit-${selectedUnit.id}-${unitsListRefreshKey}`}
-            unit={selectedUnit}
-            onBack={handleBack}
-            onEdit={() => setCurrentScreen('client-unit-edit')}
-            onNewOrder={() => console.log('New Order')}
-            onSelectAsset={handleAssetSelect}
-            onManageAvailability={(assetTag) => {
-              setSelectedUnitAssetTag(assetTag);
-              setCurrentScreen('unit-asset-tag-details');
-            }}
-            onInformAvailability={(assetTag) => {
-              setSelectedUnitAssetTag(assetTag);
-              setCurrentScreen('unit-asset-tag-available');
-            }}
-          />
-        ) : null;
-      case 'unit-structure':
-        return selectedUnit ? (
-          <UnitStructure
-            key={`unit-structure-${selectedUnit.id}`}
-            unit={selectedUnit}
-            onBack={handleBack}
-            onStructureChanged={() => setUnitsListRefreshKey(prev => prev + 1)}
-          />
-        ) : null;
-      case 'unit-asset-tag-available':
-        return selectedUnit && selectedUnitAssetTag ? (
-          <UnitAssetTagAvailableForm
-            unitId={selectedUnit.id}
-            assetTagId={selectedUnitAssetTag.id}
-            onBack={() => setCurrentScreen('unit-details')}
-            onSave={() => {
-              setUnitsListRefreshKey(prev => prev + 1);
-              setCurrentScreen('unit-details');
-            }}
-          />
-        ) : null;
-      case 'unit-asset-tag-details':
-        return selectedUnit && selectedUnitAssetTag ? (
-          <UnitAssetTagAvailableDetails
-            unitId={selectedUnit.id}
-            assetTagId={selectedUnitAssetTag.id}
-            onBack={() => setCurrentScreen('unit-details')}
-            onNewEntry={() => setCurrentScreen('unit-asset-tag-available')}
-          />
-        ) : null;
-      case 'activities':
-        return <ActivitiesList onAdd={() => setCurrentScreen('activity-form')} onSelect={handleActivitySelect} />;
-      case 'services':
-        return <ServicesList onAdd={() => setCurrentScreen('service-form')} onSelect={handleServiceSelect} />;
-      case 'service-form':
-        return <ServiceForm onSave={handleSaveService} onCancel={handleBack} />;
-      case 'service-edit':
-        return selectedService ? <ServiceForm initialService={selectedService} onSave={handleSaveService} onCancel={handleBack} /> : null;
-      case 'materials-search':
-        return <MaterialsSearch currentUser={currentUser!} onSelectMaterial={handleMaterialSelect} onAdd={() => setCurrentScreen('material-form')} onDashboard={() => setCurrentScreen('materials-dashboard')} />;
-      case 'materials':
-        return <MaterialsList onAdd={() => setCurrentScreen('material-form')} onSelect={handleMaterialSelect} onDashboard={() => setCurrentScreen('materials-dashboard')} />;
-      case 'material-form':
-        return <MaterialForm onSave={handleSaveMaterial} onCancel={handleBack} />;
-      case 'material-edit':
-        return selectedMaterial ? <MaterialForm initialMaterial={selectedMaterial} onSave={handleSaveMaterial} onCancel={handleBack} /> : null;
-      case 'material-details':
-        return selectedMaterial ? <MaterialDetails material={selectedMaterial} onEdit={() => setCurrentScreen('material-edit')} onUpdate={(updated) => setSelectedMaterial(updated)} defaultTab={materialDefaultTab} /> : null;
-      case 'materials-dashboard':
-        return <MaterialsDashboard onBack={handleBack} onSelectMaterial={handleMaterialSelect} />;
-      case 'evaluation-requirements':
-        return <EvaluationRequirementsScreen onBack={handleBack} />;
-      case 'activity-form':
-        return <ActivityForm onSave={handleSaveActivity} onCancel={handleBack} />;
-      case 'activity-edit':
-        return selectedActivity ? <ActivityForm initialActivity={selectedActivity} onSave={handleSaveActivity} onCancel={handleBack} /> : null;
-      case 'priorities':
-        return <PrioritiesList onAdd={() => setCurrentScreen('priority-form')} onSelect={handlePrioritySelect} />;
-      case 'priority-form':
-        return <PriorityForm onSave={handleSavePriority} onCancel={handleBack} />;
-      case 'priority-edit':
-        return selectedPriority ? <PriorityForm initialPriority={selectedPriority} onSave={handleSavePriority} onCancel={handleBack} /> : null;
-      case 'order-types':
-        return <OrderTypesList onAdd={() => setCurrentScreen('order-type-form')} onSelect={handleOrderTypeSelect} />;
-      case 'order-type-form':
-        return <OrderTypeForm onSave={handleSaveOrderType} onCancel={handleBack} />;
-      case 'order-type-edit':
-        return selectedOrderType ? <OrderTypeForm initialOrderType={selectedOrderType} onSave={handleSaveOrderType} onCancel={handleBack} /> : null;
-      case 'order-sub-types':
-        return <OrderSubTypesList onAdd={() => setCurrentScreen('order-sub-type-form')} onSelect={handleOrderSubTypeSelect} />;
-      case 'order-sub-type-form':
-        return <OrderSubTypeForm onSave={handleSaveOrderSubType} onCancel={handleBack} />;
-      case 'order-sub-type-edit':
-        return selectedOrderSubType ? <OrderSubTypeForm initialOrderSubType={selectedOrderSubType} onSave={handleSaveOrderSubType} onCancel={handleBack} /> : null;
-      case 'order-plans':
-        return <OrderPlansList onAdd={() => setCurrentScreen('order-plan-form')} onSelect={handleOrderPlanSelect} />;
-      case 'order-plan-form':
-        return <OrderPlanForm onSave={handleSaveOrderPlan} onCancel={handleBack} />;
-      case 'order-plan-edit':
-        return selectedOrderPlan ? <OrderPlanForm initialOrderPlan={selectedOrderPlan} onSave={handleSaveOrderPlan} onCancel={handleBack} /> : null;
-      case 'order-objects':
-        return <OrderObjectsList onAdd={() => setCurrentScreen('order-object-form')} onSelect={handleOrderObjectSelect} />;
-      case 'order-object-form':
-        return <OrderObjectForm onSave={handleSaveOrderObject} onCancel={handleBack} />;
-      case 'order-object-edit':
-        return selectedOrderObject ? <OrderObjectForm initialOrderObject={selectedOrderObject} onSave={handleSaveOrderObject} onCancel={handleBack} /> : null;
-      case 'asset-types':
-        return <AssetTypesList onAdd={() => setCurrentScreen('asset-type-form')} onSelect={handleAssetTypeSelect} />;
-      case 'asset-type-form':
-        return <AssetTypeForm onSave={handleSaveAssetType} onCancel={handleBack} />;
-      case 'asset-type-edit':
-        return selectedAssetType ? <AssetTypeForm initialAssetType={selectedAssetType} onSave={handleSaveAssetType} onCancel={handleBack} /> : null;
-      case 'asset-statuses':
-        return <AssetStatusesList onAdd={() => setCurrentScreen('asset-status-form')} onSelect={handleAssetStatusSelect} />;
-      case 'asset-status-form':
-        return <AssetStatusForm onSave={handleSaveAssetStatus} onCancel={handleBack} />;
-      case 'asset-status-edit':
-        return selectedAssetStatus ? <AssetStatusForm initialAssetStatus={selectedAssetStatus} onSave={handleSaveAssetStatus} onCancel={handleBack} /> : null;
-      case 'asset-priorities':
-        return <AssetPrioritiesList onAdd={() => setCurrentScreen('asset-priority-form')} onSelect={handleAssetPrioritySelect} />;
-      case 'asset-priority-form':
-        return <AssetPriorityForm onSave={handleSaveAssetPriority} onCancel={handleBack} />;
-      case 'asset-priority-edit':
-        return selectedAssetPriority ? <AssetPriorityForm initialAssetPriority={selectedAssetPriority} onSave={handleSaveAssetPriority} onCancel={handleBack} /> : null;
-      case 'asset-type-attributes':
-        return <AssetTypeAttributesScreen />;
-      case 'asset-attributes-brands':
-        return <AssetAttributesBrandsScreen />;
-      case 'asset-tags':
-        return <AssetTagsList onAdd={() => setCurrentScreen('asset-tag-form')} onSelect={handleAssetTagSelect} />;
-      case 'asset-tag-form':
-        return <AssetTagForm onSave={handleSaveAssetTag} onCancel={handleBack} />;
-      case 'asset-tag-edit':
-        return selectedAssetTag ? <AssetTagForm initialTag={selectedAssetTag} onSave={handleSaveAssetTag} onCancel={handleBack} /> : null;
-      case 'asset-tag-subs':
-        return <AssetTagSubsList onAdd={() => setCurrentScreen('asset-tag-sub-form')} onSelect={handleAssetTagSubSelect} />;
-      case 'asset-tag-sub-form':
-        return <AssetTagSubForm onSave={handleSaveAssetTagSub} onCancel={handleBack} />;
-      case 'asset-tag-sub-edit':
-        return selectedAssetTagSub ? <AssetTagSubForm initialTagSub={selectedAssetTagSub} onSave={handleSaveAssetTagSub} onCancel={handleBack} /> : null;
-      case 'technical-manuals':
-        return <TechnicalManualsList onAdd={() => setCurrentScreen('technical-manual-form')} onSelect={handleTechnicalManualSelect} />;
-      case 'technical-manual-form':
-        return <TechnicalManualForm onSave={handleSaveTechnicalManual} onCancel={handleBack} />;
-      case 'technical-manual-edit':
-        return selectedTechnicalManual ? <TechnicalManualForm initialManual={selectedTechnicalManual} onSave={handleSaveTechnicalManual} onCancel={handleBack} /> : null;
-      case 'technical-manual-details':
-        return selectedTechnicalManual ? <TechnicalManualDetails manual={selectedTechnicalManual} onEdit={() => setCurrentScreen('technical-manual-edit')} onDelete={handleDeleteTechnicalManual} onSelectAsset={async (assetId) => { try { const asset = await dataService.getAssetById(assetId); if (asset) handleAssetSelect(asset); } catch (e) { console.error(e); } }} /> : null;
-      case 'asset-loan-checklist-types':
-        return <AssetLoanChecklistTypesList onAdd={() => setCurrentScreen('asset-loan-checklist-type-form')} onSelect={(item) => { setSelectedChecklistType(item); setCurrentScreen('asset-loan-checklist-type-edit'); }} />;
-      case 'asset-loan-checklist-type-form':
-        return <AssetLoanChecklistTypeForm onSave={() => setCurrentScreen('asset-loan-checklist-types')} onCancel={handleBack} />;
-      case 'asset-loan-checklist-type-edit':
-        return selectedChecklistType ? <AssetLoanChecklistTypeForm item={selectedChecklistType} onSave={() => setCurrentScreen('asset-loan-checklist-types')} onCancel={handleBack} /> : null;
-      case 'loans-checklists':
-        return <LoansChecklistsList onAdd={() => setCurrentScreen('loans-checklist-form')} onSelect={(item) => { setSelectedLoansChecklist(item); setCurrentScreen('loans-checklist-edit'); }} />;
-      case 'loans-checklist-form':
-        return <LoansChecklistForm onSave={() => setCurrentScreen('loans-checklists')} onCancel={handleBack} />;
-      case 'loans-checklist-edit':
-        return selectedLoansChecklist ? <LoansChecklistForm item={selectedLoansChecklist} onSave={() => setCurrentScreen('loans-checklists')} onCancel={handleBack} /> : null;
       case 'app-notices':
         return <AppNoticesList onBack={handleBack} />;
       case 'extra-workers':
         return <ExtraWorkersList />;
-      case 'app-tips':
-        return <AppTipsList onBack={handleBack} />;
-      case 'maintenance-plans':
-      case 'maintenance-plan-form':
-      case 'maintenance-plan-edit':
-      case 'maintenance-plan-details':
-        return <MaintenancePlansScreen currentScreen={currentScreen} onNavigate={setCurrentScreen} onBack={handleBack} currentUser={currentUser} />;
       case 'tools':
         return <ToolsMainView companyId={currentUser?.companyId || ''} />;
       case 'contracts':
@@ -2997,18 +2697,6 @@ const AppContent: React.FC = () => {
             onBack={() => setCurrentScreen('orders-dashboard')}
           />
         ) : null;
-      case 'profile-permissions':
-        return (
-          <ProfilePermissionsGate onForbidden={() => setCurrentScreen('settings')}>
-            <ProfilePermissionsScreen currentUser={currentUser} onBack={() => setCurrentScreen('settings')} />
-          </ProfilePermissionsGate>
-        );
-      case 'route-management':
-        return <RouteManagementScreen onAdd={() => setCurrentScreen('route-form')} onEdit={handleRouteSelect} onBack={() => setCurrentScreen('settings')} />;
-      case 'route-form':
-        return <RouteFormScreen onSave={handleSaveRoute} onCancel={() => setCurrentScreen('route-management')} />;
-      case 'route-edit':
-        return selectedRoute ? <RouteFormScreen initialRoute={selectedRoute} onSave={handleSaveRoute} onCancel={() => setCurrentScreen('route-management')} /> : null;
       default:
         return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
     }
