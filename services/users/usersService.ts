@@ -1,6 +1,6 @@
 import { supabase } from '../core/supabase';
 import { apiN8nService } from '../core/apiN8nService';
-import { User, UserStatus, Permission, Team, Department, Vehicle } from '../../types';
+import { User, UserStatus, Permission, Team, Department, Vehicle, VehicleCompanyInfo } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
 import { r2Service } from '../media/r2Service';
 import { compressForUpload } from '../media/imageCompressionService';
@@ -252,7 +252,8 @@ export const usersService = {
             code: team.code,
             is_available: true,
             sort_order: nextSortOrder,
-            is_evaluable: team.isEvaluable ?? true
+            is_evaluable: team.isEvaluable ?? true,
+            users_total: 0
         };
 
         const { data, error } = await supabase
@@ -517,17 +518,22 @@ export const usersService = {
         })) as User[];
     },
 
-    async searchVehicles(query: string, companyId?: string): Promise<Vehicle[]> {
+    async searchVehicles(query: string, companyId?: string, limit: number = 50): Promise<Vehicle[]> {
         let q = supabase
             .from('v_vehicles')
             .select('*')
-            .eq('is_available', 'true')
-            .or(`description.ilike.%${query}%,plates.ilike.%${query}%`)
-            .limit(10);
+            .eq('is_available', 'true');
+
+        if (query && query.trim()) {
+            q = q.or(`description.ilike.%${query.trim()}%,plates.ilike.%${query.trim()}%`);
+        }
 
         if (companyId) {
-            q = q.eq('company_id', companyId);
+            const numericCompanyId = parseInt(companyId, 10);
+            q = q.eq('company_id', Number.isFinite(numericCompanyId) ? numericCompanyId : companyId);
         }
+
+        q = q.limit(limit);
 
         const { data, error } = await q;
 
@@ -544,7 +550,9 @@ export const usersService = {
             brand: item.brand,
             color: item.color,
             year: item.year,
-            isAvailable: item.is_available
+            isAvailable: item.is_available,
+            valueUnit: item.value_unit != null ? Number(item.value_unit) : undefined,
+            companyId: item.company_id?.toString() || undefined
         })) as Vehicle[];
     },
 
@@ -568,8 +576,67 @@ export const usersService = {
             brand: data.brand,
             color: data.color,
             year: data.year,
-            isAvailable: data.is_available
+            isAvailable: data.is_available,
+            valueUnit: data.value_unit != null ? Number(data.value_unit) : undefined,
+            companyId: data.company_id?.toString() || undefined
         } as Vehicle;
+    },
+
+    /**
+     * Company (nome + logo) dos veículos informados — usada para exibir o
+     * avatar da empresa nos cards de apuração/contratos. A company é a do
+     * veículo (vehicles.company_id), nunca a do usuário logado.
+     */
+    async getVehiclesCompaniesInfo(vehicleIds: string[]): Promise<VehicleCompanyInfo[]> {
+        const ids = [...new Set((vehicleIds || []).filter(Boolean))]
+            .map(id => parseInt(String(id), 10))
+            .filter(id => Number.isFinite(id));
+        if (ids.length === 0) return [];
+
+        const { data: vehicles, error } = await supabase
+            .from('vehicles')
+            .select('id, company_id')
+            .in('id', ids);
+
+        if (error) {
+            console.error('Error fetching vehicles companies:', error);
+            return [];
+        }
+
+        const companyIds = [...new Set(
+            (vehicles || []).map(v => v.company_id).filter(Boolean)
+        )];
+
+        const companiesById = new Map<number, { name?: string; logoUrl?: string }>();
+        if (companyIds.length > 0) {
+            const { data: companies, error: compError } = await supabase
+                .from('v_companies')
+                .select('id, description, img_file_path, img_file_name')
+                .in('id', companyIds);
+
+            if (compError) {
+                console.error('Error fetching companies for vehicles:', compError);
+            } else {
+                for (const c of companies || []) {
+                    companiesById.set(c.id, {
+                        name: c.description || undefined,
+                        logoUrl: getPublicImageUrl(c.img_file_path, c.img_file_name, {
+                            width: 200, height: 200, resize: 'contain'
+                        }) || undefined
+                    });
+                }
+            }
+        }
+
+        return (vehicles || []).map(v => {
+            const info = v.company_id ? companiesById.get(v.company_id) : undefined;
+            return {
+                vehicleId: v.id.toString(),
+                companyId: v.company_id?.toString() || undefined,
+                companyName: info?.name,
+                companyLogoUrl: info?.logoUrl
+            };
+        });
     },
 
     async updateUserVehicle(userId: string, vehicleId: string | null): Promise<void> {

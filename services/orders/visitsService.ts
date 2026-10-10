@@ -1106,23 +1106,35 @@ export const visitsService = {
             return [];
         }
 
-        return data.map((item: any) => ({
-            id: item.id.toString(),
-            ovId: item.ov_id.toString(),
-            vehicleId: item.vehicle_id.toString(),
-            recorderStart: item.recorder_start,
-            recorderEnd: item.recorder_end,
-            amount: (item.recorder_end && item.recorder_start) ? (item.recorder_end - item.recorder_start) : 0,
-            valueUnit: item.value_unit,
-            valueTotal: item.value_total,
-            createdUserId: item.created_user_id?.toString(),
-            createdAt: item.created_at,
-            // Dados do veículo vêm diretamente da view
-            description: item.vehicle_description,
-            plates: item.vehicle_plates,
-            model: item.vehicle_description, // A view não tem 'model', usar description
-            unit: item.unit
-        }));
+        return data.map((item: any) => {
+            const costType = (item.cost_type || 'odometer') as OrderVisitVehicle['costType'];
+            // Linhas 'rental'/'variable' (rateio) não têm odômetro: o valor
+            // vem da coluna amount. Linhas de Km ('odometer' e 'rate' — a
+            // mesma linha depois de rateada, que preserva o odômetro)
+            // continuam com end - start.
+            const amount = costType === 'rental' || costType === 'variable'
+                ? Number(item.amount || 0)
+                : (item.recorder_end && item.recorder_start) ? (item.recorder_end - item.recorder_start) : 0;
+
+            return {
+                id: item.id.toString(),
+                ovId: item.ov_id.toString(),
+                vehicleId: item.vehicle_id.toString(),
+                recorderStart: item.recorder_start,
+                recorderEnd: item.recorder_end,
+                amount,
+                valueUnit: item.value_unit,
+                valueTotal: item.value_total,
+                createdUserId: item.created_user_id?.toString(),
+                createdAt: item.created_at,
+                costType,
+                // Dados do veículo vêm diretamente da view
+                description: item.vehicle_description,
+                plates: item.vehicle_plates,
+                model: item.vehicle_description, // A view não tem 'model', usar description
+                unit: item.unit
+            };
+        });
     },
 
     async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string): Promise<void> {

@@ -16,6 +16,18 @@ export const isFinancialApprovalEnabled = (): boolean => {
 };
 
 /**
+ * Verifica se o Rateio de Aluguel Veicular (Apuração mensal) está habilitado
+ *
+ * Para ativar: VITE_FEATURE_VEHICLE_RENTAL=true
+ * Para desativar: VITE_FEATURE_VEHICLE_RENTAL=false (ou não definir)
+ *
+ * Pré-requisito: migration 20261008_create_vehicle_rental_rateio.sql aplicada.
+ */
+export const isVehicleRentalEnabled = (): boolean => {
+  return import.meta.env.VITE_FEATURE_VEHICLE_RENTAL === 'true';
+};
+
+/**
  * Status possíveis para aprovação financeira de visitas
  */
 export type VisitCostsStatus = 'pending' | 'waiting' | 'approved' | 'rejected';

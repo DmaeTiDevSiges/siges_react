@@ -101,6 +101,55 @@ export class ManusIntegrationService {
     }
   }
 
+  /**
+   * Garante um contrato de R$/km vigente para o veículo (import Manus).
+   * O banco bloqueia lançar Km (amount > 0) em visita sem contrato vigente,
+   * então o import cria um contrato automático quando não existir nenhum.
+   * Início: 1º do mês corrente · Fim: 31/12/2026 (ou aberto, se já passou) ·
+   * Valor: PriceUnit vindo do Manus.
+   */
+  static async ensureVehicleRateContract(
+    vehicleId: number,
+    priceUnit: number | null | undefined,
+    userId: string
+  ): Promise<void> {
+    try {
+      const today = getBrazilTimestamp().slice(0, 10);
+      const monthStart = `${today.slice(0, 7)}-01`;
+      const endDate = today > '2026-12-31' ? null : '2026-12-31';
+
+      const { data: existing } = await supabase
+        .from('cfg_vehicle_rate_contracts')
+        .select('id')
+        .eq('vehicle_id', vehicleId)
+        .eq('active', true)
+        .eq('is_deleted', false)
+        .lte('start_date', today)
+        .or(`end_date.is.null,end_date.gte.${today}`)
+        .limit(1);
+
+      if (existing && existing.length > 0) return;
+
+      const valueUnit = Number.isFinite(Number(priceUnit)) ? Number(priceUnit) : 0;
+      const { error } = await supabase.from('cfg_vehicle_rate_contracts').insert({
+        vehicle_id: vehicleId,
+        value_unit: valueUnit,
+        start_date: monthStart,
+        end_date: endDate,
+        active: true,
+        description: 'Contrato automático (import Manus)',
+        created_at: getBrazilTimestamp(),
+        created_user_id: userId
+      });
+
+      if (error) {
+        console.error('Erro ao criar contrato automático de R$/km:', error.message);
+      }
+    } catch (error: any) {
+      console.error('Erro ao garantir contrato de R$/km do veículo:', error?.message || error);
+    }
+  }
+
   static async verifyDependencies(visit: ManusVisit, userId: string): Promise<{
     success: boolean;
     contractData?: any;
@@ -205,8 +254,9 @@ export class ManusIntegrationService {
           updated_at: getBrazilTimestamp(),
           updated_user_id: userId
         }).eq('id', vehFound.id);
+        await ManusIntegrationService.ensureVehicleRateContract(vehFound.id, v.PriceUnit, userId);
       } else {
-        await supabase.from('vehicles').insert({
+        const { data: newVeh } = await supabase.from('vehicles').insert({
           company_id: providerCompanyId,
           department_id: providerDepartmentId,
           plates: v.Description,
@@ -217,7 +267,10 @@ export class ManusIntegrationService {
           finger_print: v.VehicleId,
           created_at: getBrazilTimestamp(),
           created_user_id: userId
-        });
+        }).select('id').single();
+        if (newVeh) {
+          await ManusIntegrationService.ensureVehicleRateContract(newVeh.id, v.PriceUnit, userId);
+        }
       }
     }
 

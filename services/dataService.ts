@@ -15,6 +15,27 @@ import type {
 } from './materials/materialsImportService';
 import { ordersService } from './orders/ordersService';
 import { visitsService } from './orders/visitsService';
+import { vehicleRentalService } from './orders/vehicleRentalService';
+import type {
+    VehicleRentalContract,
+    VehicleRentalContractInfo,
+    VehicleRentalDetailRow,
+    VehicleRentalPeriod,
+    VehicleRentalSummaryRow,
+    SaveVehicleRentalContractInput,
+    VehicleMonthlyExpense,
+    SaveVehicleMonthlyExpenseInput,
+    FuelExpenseImages,
+    FuelExpenseImageRefs,
+    VehicleUtilizationRow
+} from './orders/vehicleRentalService';
+import { vehicleRateService } from './orders/vehicleRateService';
+import { vehiclesService, SaveVehicleInput } from './orders/vehiclesService';
+import type {
+    VehicleRateContract,
+    VehicleRateContractInfo,
+    SaveVehicleRateContractInput
+} from './orders/vehicleRateService';
 import { assetTagsService } from './assets/assetTagsService';
 import { companiesService } from './companies/companiesService';
 import { evaluationService } from './companies/evaluationService';
@@ -39,7 +60,7 @@ import { gamificationService } from './gamification/gamificationService';
 import { assetLoansService } from './assets/assetLoansService';
 import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
 import { loansChecklistService } from './assets/loansChecklistService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
 
 
 
@@ -645,12 +666,28 @@ export const dataService = {
         return usersService.searchUsers.apply(usersService, arguments as any);
     },
 
-    async searchVehicles(query: string, companyId?: string): Promise<Vehicle[]> {
+    async searchVehicles(query: string, companyId?: string, limit?: number): Promise<Vehicle[]> {
         return usersService.searchVehicles.apply(usersService, arguments as any);
     },
 
     async getVehicle(id: string): Promise<Vehicle | null> {
         return usersService.getVehicle.apply(usersService, arguments as any);
+    },
+
+    async getVehiclesCompaniesInfo(vehicleIds: string[]): Promise<VehicleCompanyInfo[]> {
+        return usersService.getVehiclesCompaniesInfo.apply(usersService, arguments as any);
+    },
+
+    async getVehicles(): Promise<Vehicle[]> {
+        return vehiclesService.getVehicles.apply(vehiclesService, arguments as any);
+    },
+
+    async saveVehicle(input: SaveVehicleInput, companyId?: string | null): Promise<Vehicle> {
+        return vehiclesService.saveVehicle.apply(vehiclesService, arguments as any);
+    },
+
+    async deleteVehicle(id: string): Promise<void> {
+        return vehiclesService.deleteVehicle.apply(vehiclesService, arguments as any);
     },
 
     async updateUserVehicle(userId: string, vehicleId: string | null): Promise<void> {
@@ -1643,6 +1680,21 @@ export const dataService = {
         return orderConfigService.getOrderCauseReasons.apply(orderConfigService, arguments as any);
     },
 
+    // -------------------------------------------------------------------------
+    // VEHICLE COST TYPES (cfg_vehicles_costs_types — rateio de aluguel)
+    // -------------------------------------------------------------------------
+    async getVehicleCostTypes(): Promise<VehicleCostType[]> {
+        return orderConfigService.getVehicleCostTypes.apply(orderConfigService, arguments as any);
+    },
+
+    async saveVehicleCostType(input: { id?: string; code: string; description: string; color?: string; isAvailable?: boolean }): Promise<VehicleCostType> {
+        return orderConfigService.saveVehicleCostType.apply(orderConfigService, arguments as any);
+    },
+
+    async deleteVehicleCostType(id: string): Promise<void> {
+        return orderConfigService.deleteVehicleCostType.apply(orderConfigService, arguments as any);
+    },
+
 
     async getTeamLeader(teamId: string): Promise<User | null> {
         return usersService.getTeamLeader.apply(usersService, arguments as any);
@@ -2073,6 +2125,113 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string): Promise<void> {
         return visitsService.addVehicleToOrderVisit.apply(visitsService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // VEHICLE RENTAL APPORTIONMENT (rateio de aluguel veicular)
+    // -------------------------------------------------------------------------
+    async getRentalContracts(vehicleId?: string): Promise<VehicleRentalContract[]> {
+        return vehicleRentalService.getContracts.apply(vehicleRentalService, arguments as any);
+    },
+
+    async saveRentalContract(input: SaveVehicleRentalContractInput): Promise<VehicleRentalContract> {
+        return vehicleRentalService.saveContract.apply(vehicleRentalService, arguments as any);
+    },
+
+    async deleteRentalContract(contractId: string): Promise<void> {
+        return vehicleRentalService.deleteContract.apply(vehicleRentalService, arguments as any);
+    },
+
+    async getRentalExpenses(vehicleId: string, referenceMonth: string): Promise<VehicleMonthlyExpense[]> {
+        return vehicleRentalService.getExpenses.apply(vehicleRentalService, arguments as any);
+    },
+
+    async saveRentalExpense(input: SaveVehicleMonthlyExpenseInput): Promise<VehicleMonthlyExpense> {
+        return vehicleRentalService.saveExpense.apply(vehicleRentalService, arguments as any);
+    },
+
+    async deleteRentalExpense(expenseId: string): Promise<void> {
+        return vehicleRentalService.deleteExpense.apply(vehicleRentalService, arguments as any);
+    },
+
+    async getFuelExpensesByUser(userId: string): Promise<VehicleMonthlyExpense[]> {
+        return vehicleRentalService.getFuelExpensesByUser.apply(vehicleRentalService, arguments as any);
+    },
+
+    async getMaxVehicleOdometer(vehicleId: string): Promise<number | null> {
+        return vehicleRentalService.getMaxVehicleOdometer.apply(vehicleRentalService, arguments as any);
+    },
+
+    async uploadFuelExpenseImages(
+        vehicleId: string,
+        companyId: string | undefined | null,
+        images: FuelExpenseImages,
+        onProgress?: (progress: number) => void
+    ): Promise<FuelExpenseImageRefs> {
+        return vehicleRentalService.uploadFuelExpenseImages.apply(vehicleRentalService, arguments as any);
+    },
+
+    async getRentalContractInfo(vehicleId: string, referenceMonth: string): Promise<VehicleRentalContractInfo | null> {
+        return vehicleRentalService.getContractInfo.apply(vehicleRentalService, arguments as any);
+    },
+
+    async getRentalSummary(referenceMonth: string): Promise<VehicleRentalSummaryRow[]> {
+        return vehicleRentalService.getSummary.apply(vehicleRentalService, arguments as any);
+    },
+
+    async getRentalDetail(vehicleId: string, referenceMonth: string): Promise<VehicleRentalDetailRow[]> {
+        return vehicleRentalService.getDetail.apply(vehicleRentalService, arguments as any);
+    },
+
+    async simulateRentalPeriod(vehicleId: string, referenceMonth: string): Promise<VehicleRentalDetailRow[]> {
+        return vehicleRentalService.simulatePeriod.apply(vehicleRentalService, arguments as any);
+    },
+
+    async getRentalUtilization(vehicleId: string, referenceMonth: string): Promise<VehicleUtilizationRow[]> {
+        return vehicleRentalService.getUtilization.apply(vehicleRentalService, arguments as any);
+    },
+
+    async getRentalPeriods(referenceMonth: string): Promise<VehicleRentalPeriod[]> {
+        return vehicleRentalService.getPeriods.apply(vehicleRentalService, arguments as any);
+    },
+
+    async calculateRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
+        return vehicleRentalService.calculatePeriod.apply(vehicleRentalService, arguments as any);
+    },
+
+    async allocateRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
+        return vehicleRentalService.allocatePeriod.apply(vehicleRentalService, arguments as any);
+    },
+
+    async closeRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
+        return vehicleRentalService.closePeriod.apply(vehicleRentalService, arguments as any);
+    },
+
+    async reopenRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
+        return vehicleRentalService.reopenPeriod.apply(vehicleRentalService, arguments as any);
+    },
+
+    async revertRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
+        return vehicleRentalService.revertPeriod.apply(vehicleRentalService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // VEHICLE RATE CONTRACTS (contratos de R$/km — custo operacional por Km)
+    // -------------------------------------------------------------------------
+    async getRateContracts(vehicleId?: string): Promise<VehicleRateContract[]> {
+        return vehicleRateService.getContracts.apply(vehicleRateService, arguments as any);
+    },
+
+    async saveRateContract(input: SaveVehicleRateContractInput): Promise<VehicleRateContract> {
+        return vehicleRateService.saveContract.apply(vehicleRateService, arguments as any);
+    },
+
+    async deleteRateContract(contractId: string): Promise<void> {
+        return vehicleRateService.deleteContract.apply(vehicleRateService, arguments as any);
+    },
+
+    async getRateContractInfo(vehicleId: string, onDate: string): Promise<VehicleRateContractInfo | null> {
+        return vehicleRateService.getContractInfo.apply(vehicleRateService, arguments as any);
     },
 
     // -------------------------------------------------------------------------

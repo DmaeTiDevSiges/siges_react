@@ -499,6 +499,10 @@ export interface VisitReportData {
         amount?: number;
         unit?: string;
         valueTotal?: number;
+        // 'odometer' (Km) | 'rental' (rateio de aluguel mensal) | 'variable'
+        // | 'rate' (linha de Km convertida p/ o componente R$/km — PDF
+        //   continua exibindo a placa, como uma linha de Km normal)
+        costType?: string;
     }>;
     // Assets with their interventions, activities and photos
     assets: Array<{
@@ -752,7 +756,13 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
                             </View>
                             {vehicles.map((v, idx) => (
                                 <View key={v.id} style={styles.tableRow}>
-                                    <Text style={[styles.tdCell, { width: '40%' }]}>{fmt(v.plates || v.description)}</Text>
+                                    <Text style={[styles.tdCell, { width: '40%' }]}>
+                                        {v.costType === 'rental'
+                                            ? `Rateio Aluguel · ${fmt(v.plates || v.description)}`
+                                            : v.costType === 'variable'
+                                                ? `Rateio Despesas · ${fmt(v.plates || v.description)}`
+                                                : fmt(v.plates || v.description)}
+                                    </Text>
                                     <Text style={[styles.tdCellRight, { width: '15%' }]}>{v.amount?.toFixed(2)} {v.unit || 'Km'}</Text>
                                     <Text style={[styles.tdCellRight, { width: '15%' }]}>{fmtCurrency(v.valueTotal ? (v.valueTotal / (v.amount || 1)) : 0)}</Text>
                                     <Text style={[styles.tdCellRight, { width: '15%' }]}>1.0000</Text>

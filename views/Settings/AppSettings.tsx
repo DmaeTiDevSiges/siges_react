@@ -2,6 +2,7 @@
 import React from 'react';
 import { User } from '../../types';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { isVehicleRentalEnabled } from '../../features';
 
 interface AppSettingsProps {
     currentUser?: User | null;
@@ -215,6 +216,23 @@ export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigat
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* ── Transporte (rateio de aluguel veicular) ── */}
+            {isVehicleRentalEnabled() && canView('settings_vehicle_cost_types') && (
+                <div className="space-y-1 mt-6">
+                    <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                        Transporte
+                    </h3>
+                    <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                        <SettingItem
+                            icon="sell"
+                            title="Tipos de Custo Veicular"
+                            subtitle="Parâmetros de custos variáveis dos veículos"
+                            onClick={() => onNavigate?.('vehicle-cost-types')}
+                        />
+                    </div>
+                </div>
             )}
 
             {/* ── Acesso e Segurança (visivel para Super Admin e Empresa Admin) ── */}

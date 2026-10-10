@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OrderVisit, User } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
-import { isFinancialApprovalEnabled, type VisitCostsStatus } from '../../features';
+import { isFinancialApprovalEnabled, isVehicleRentalEnabled, type VisitCostsStatus } from '../../features';
 import { dataService } from '../../services/dataService';
 import { Modal } from '../../components/ui/Modal';
 import { Textarea } from '../../components/ui/Textarea';
@@ -21,6 +21,41 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
     const [rejectionReason, setRejectionReason] = useState('');
 
     const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
+
+    // Subdivisão do card Transporte: Km (odômetro) × Rateio R$/km ×
+    // Rateio de Aluguel × Rateio de Despesas. A soma total continua
+    // vindo de visit.vehiclesValue.
+    const [transportSplit, setTransportSplit] = useState<{ km: number; rate: number; rental: number; variable: number } | null>(null);
+
+    useEffect(() => {
+        if (!isVehicleRentalEnabled() || !visit.id) {
+            setTransportSplit(null);
+            return;
+        }
+        let cancelled = false;
+        dataService.getOrderVisitVehicles(visit.id)
+            .then(rows => {
+                if (cancelled) return;
+                const km = rows
+                    .filter(r => r.costType === 'odometer')
+                    .reduce((sum, r) => sum + (r.valueTotal || 0), 0);
+                // Linha de Km convertida para o componente R$/km
+                const rate = rows
+                    .filter(r => r.costType === 'rate')
+                    .reduce((sum, r) => sum + (r.valueTotal || 0), 0);
+                const rental = rows
+                    .filter(r => r.costType === 'rental')
+                    .reduce((sum, r) => sum + (r.valueTotal || 0), 0);
+                const variable = rows
+                    .filter(r => r.costType === 'variable')
+                    .reduce((sum, r) => sum + (r.valueTotal || 0), 0);
+                setTransportSplit({ km, rate, rental, variable });
+            })
+            .catch(error => {
+                console.error('Error loading transport split:', error);
+            });
+        return () => { cancelled = true; };
+    }, [visit.id, visit.vehiclesValue]);
 
     const items = [
         {
@@ -217,26 +252,54 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 gap-4">
-                {items.map((item, index) => (
-                    <div
-                        key={index}
-                        className="bg-white dark:bg-slate-900 rounded-2xl px-6 border border-slate-100 dark:border-white/5 flex items-center shadow-sm h-[80px]"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className={`${item.bgColor} ${item.color} w-12 h-12 rounded-2xl flex items-center justify-center`}>
-                                <span className="material-symbols-outlined text-2xl">{item.icon}</span>
-                            </div>
-                            <div>
-                                <p className="text-slate-500 dark:text-slate-400 text-xs font-black uppercase tracking-widest mb-0.5">
-                                    {item.label}
-                                </p>
-                                <p className="text-slate-900 dark:text-white text-lg font-black">
-                                    {formatCurrency(item.value)}
-                                </p>
+                {items.map((item, index) => {
+                    // Subdivisão Km × Rateio R$/km × Rateio Aluguel × Despesas,
+                    // exibida abaixo do valor em fontes menores
+                    const splitLines = item.label === 'Transporte' && transportSplit
+                        ? [
+                            { label: 'Km', value: transportSplit.km, cls: 'text-slate-500 dark:text-slate-400', dot: 'bg-slate-400' },
+                            { label: 'Rateio R$/km', value: transportSplit.rate, cls: 'text-blue-500 dark:text-blue-400', dot: 'bg-blue-500' },
+                            { label: 'Rateio Aluguel', value: transportSplit.rental, cls: 'text-indigo-500 dark:text-indigo-400', dot: 'bg-indigo-500' },
+                            { label: 'Rateio Despesas', value: transportSplit.variable, cls: 'text-amber-500 dark:text-amber-400', dot: 'bg-amber-500' }
+                        ].filter(line => line.value > 0)
+                        : [];
+                    const hasSplit = splitLines.length > 0;
+                    return (
+                        <div
+                            key={index}
+                            className={`bg-white dark:bg-slate-900 rounded-2xl px-6 border border-slate-100 dark:border-white/5 flex items-center shadow-sm ${hasSplit ? 'min-h-[80px] py-3' : 'h-[80px]'
+                                }`}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className={`${item.bgColor} ${item.color} w-12 h-12 rounded-2xl flex items-center justify-center`}>
+                                    <span className="material-symbols-outlined text-2xl">{item.icon}</span>
+                                </div>
+                                <div>
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs font-black uppercase tracking-widest mb-0.5">
+                                        {item.label}
+                                    </p>
+                                    <p className="text-slate-900 dark:text-white text-lg font-black">
+                                        {formatCurrency(item.value)}
+                                    </p>
+
+                                    {hasSplit && (
+                                        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+                                            {splitLines.map(line => (
+                                                <p
+                                                    key={line.label}
+                                                    className={`flex items-center gap-1.5 text-[10px] font-bold ${line.cls}`}
+                                                >
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${line.dot}`} />
+                                                    {line.label} · {formatCurrency(line.value)}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Info Message */}

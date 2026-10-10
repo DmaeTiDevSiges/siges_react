@@ -13,6 +13,12 @@ import { Loading } from '../../components/ui/Loading';
 import { TabsBar } from '../../components/ui/TabsBar';
 import { syncPhoneNumber } from '../../services/core/phoneService';
 import { AIContextualBar } from '../../components/ai/AIContextualBar';
+import { formatCurrency } from '../../utils/formatters';
+import { isVehicleRentalEnabled } from '../../features';
+import { FuelExpenseScreen } from '../Transport/FuelExpenseScreen';
+import type { VehicleMonthlyExpense } from '../../services/orders/vehicleRentalService';
+
+type DashboardTab = 'services' | 'visits' | 'fuel';
 
 interface DashboardScreenProps {
     currentUser: User | null;
@@ -20,8 +26,8 @@ interface DashboardScreenProps {
     onResumeVisit?: (visitId: string) => void;
     onSelectVisit?: (visit: OrderVisit) => void;
     onEdit?: (order: Order) => void;
-    initialTab?: 'services' | 'visits';
-    onTabChange?: (tab: 'services' | 'visits') => void;
+    initialTab?: DashboardTab;
+    onTabChange?: (tab: DashboardTab) => void;
     onNavigate?: (screen: string) => void;
 }
 
@@ -33,15 +39,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         VISIT_STATUS: 'dashboard_selected_visit_status'
     };
 
-    const [activeTab, setActiveTab] = useState<'services' | 'visits'>(() => {
+    const [activeTab, setActiveTab] = useState<DashboardTab>(() => {
         const saved = localStorage.getItem(STORAGE_KEYS.TAB);
-        return (saved === 'services' || saved === 'visits') ? saved : initialTab;
+        return (saved === 'services' || saved === 'visits' || saved === 'fuel') ? saved as DashboardTab : initialTab;
     });
 
     const [orders, setOrders] = useState<Order[]>([]);
     const [visits, setVisits] = useState<OrderVisit[]>([]);
     const [openChatVisits, setOpenChatVisits] = useState<OrderVisit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [fuelExpenses, setFuelExpenses] = useState<VehicleMonthlyExpense[]>([]);
+    const [fuelLoading, setFuelLoading] = useState(false);
+    const [showFuelForm, setShowFuelForm] = useState(false);
 
     const [selectedService, setSelectedService] = useState<string>(() => {
         return localStorage.getItem(STORAGE_KEYS.SERVICE) || 'autorizados';
@@ -68,7 +77,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         }
     }, [initialTab]);
 
-    const handleTabChange = (tab: 'services' | 'visits') => {
+    const handleTabChange = (tab: DashboardTab) => {
         setActiveTab(tab);
         localStorage.setItem(STORAGE_KEYS.TAB, tab);
         onTabChange?.(tab);
@@ -92,14 +101,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
         if (showLoading) setIsLoading(true);
         try {
-            const [teamOrders, teamVisits, userChatVisits] = await Promise.all([
+            const fuelPromise = isVehicleRentalEnabled()
+                ? dataService.getFuelExpensesByUser(currentUser.id.toString())
+                : Promise.resolve([]);
+
+            const [teamOrders, teamVisits, userChatVisits, fuelData] = await Promise.all([
                 dataService.getOrdersByLeader(currentUser.id.toString()),
                 dataService.getVisitsByLeader(currentUser.id.toString()),
-                dataService.getOpenChatVisitsForUser(currentUser.id.toString())
+                dataService.getOpenChatVisitsForUser(currentUser.id.toString()),
+                fuelPromise
             ]);
             setOrders(teamOrders);
             setVisits(teamVisits);
             setOpenChatVisits(userChatVisits);
+            if (isVehicleRentalEnabled() && fuelData) {
+                setFuelExpenses(fuelData);
+            }
 
             // Fetch team gamification data (previous month) if team is evaluable
             if (currentUser.teamIsEvaluable && currentUser.departmentId && currentUser.teamId) {
@@ -130,6 +147,32 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     useEffect(() => {
         loadDashboardData(true);
     }, [loadDashboardData]);
+
+    // Histórico de abastecimentos do usuário (aba "Abastecimentos")
+    const loadFuelExpenses = useCallback(async (showLoading = false) => {
+        if (!currentUser?.id) return;
+        if (showLoading) setFuelLoading(true);
+        try {
+            const data = await dataService.getFuelExpensesByUser(currentUser.id.toString());
+            setFuelExpenses(data);
+        } catch (error) {
+            console.error('Error fetching fuel expenses:', error);
+        } finally {
+            if (showLoading) setFuelLoading(false);
+        }
+    }, [currentUser?.id]);
+
+    useEffect(() => {
+        if (activeTab === 'fuel' && isVehicleRentalEnabled()) {
+            loadFuelExpenses(fuelExpenses.length === 0);
+        }
+    }, [activeTab, loadFuelExpenses, fuelExpenses.length]);
+
+    /** Fecha o form inline (cancelar/sucesso) e atualiza a lista da aba. */
+    const closeFuelForm = useCallback(() => {
+        setShowFuelForm(false);
+        loadFuelExpenses(false);
+    }, [loadFuelExpenses]);
 
     // Sync phone number from device (Android only)
     useEffect(() => {
@@ -226,9 +269,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 bg-background-light dark:bg-background-dark safe-area-bottom pt-4">
             {/* Navigation Tabs */}
             <TabsBar
-                tabs={['Serviços', 'Visitas']}
-                activeTab={activeTab === 'services' ? 'Serviços' : 'Visitas'}
-                onTabChange={(tab) => handleTabChange(tab === 'Serviços' ? 'services' : 'visits')}
+                tabs={[
+                    { id: 'services', label: 'Serviços' },
+                    { id: 'visits', label: 'Visitas' },
+                    ...(isVehicleRentalEnabled() ? [{ id: 'fuel', label: 'Abastecimentos' }] : [])
+                ]}
+                activeTab={activeTab}
+                onTabChange={(tab) => handleTabChange(tab as DashboardTab)}
                 className="px-4"
                 leftContent={
                     teamGamification ? (
@@ -274,7 +321,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center py-12">
-                                    <Loading overlay text="Sincronizando..." />
+                                    <Loading overlay={false} text="Sincronizando..." />
                                 </div>
                             ) : filteredOrders.length > 0 ? (
                                 <div className="flex flex-col gap-3">
@@ -299,7 +346,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                             )}
                         </div>
                     </div>
-                ) : (
+                ) : activeTab === 'visits' ? (
                     <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
                         {isInProgress && (
                             <div className="px-4 pt-4 pb-2">
@@ -346,7 +393,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center py-12 gap-3">
-                                    <Loading overlay text="Sincronizando..." />
+                                    <Loading overlay={false} text="Sincronizando..." />
                                 </div>
                             ) : filteredVisits.length > 0 ? (
                                 <div className="flex flex-col gap-3 pb-4">
@@ -367,6 +414,100 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                 </div>
                             )}
                         </div>
+                    </div>
+                ) : (
+                    /* ── Aba Abastecimentos ── */
+                    <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
+                        {showFuelForm ? (
+                            /* Form de abastecimento aberto dentro da aba (sem sair do Meu Painel) */
+                            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+                                <FuelExpenseScreen
+                                    onNavigate={closeFuelForm}
+                                    onSaved={closeFuelForm}
+                                    currentUser={currentUser}
+                                    companyId={currentUser?.companyId}
+                                />
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex-1 px-4 pt-4 overflow-y-auto no-scrollbar pb-20">
+                            <div className="flex items-center justify-between mb-4 px-1">
+                                <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
+                                    Meus Abastecimentos
+                                </h2>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    {fuelExpenses.length} {fuelExpenses.length === 1 ? 'Registro' : 'Registros'}
+                                </span>
+                            </div>
+
+                            {fuelLoading ? (
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <Loading overlay={false} text="Sincronizando..." />
+                                </div>
+                            ) : fuelExpenses.length > 0 ? (
+                                <div className="flex flex-col gap-3 pb-4">
+                                    {fuelExpenses.map(item => (
+                                        <div
+                                            key={item.id}
+                                            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-4"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                                                    <span className="material-symbols-outlined text-[20px] text-amber-500">
+                                                        local_gas_station
+                                                    </span>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className="font-bold text-slate-900 dark:text-white truncate font-mono">
+                                                            {item.vehiclePlates || '---'}
+                                                        </p>
+                                                        <p className="font-black text-sm text-slate-900 dark:text-white shrink-0">
+                                                            {formatCurrency(item.value)}
+                                                        </p>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                                        {item.vehicleDescription || item.description || 'Abastecimento'}
+                                                    </p>
+                                                    <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+                                                        <span className="flex items-center gap-0.5">
+                                                            <span className="material-symbols-outlined text-[13px]">speed</span>
+                                                            {item.odometer != null ? `${item.odometer.toLocaleString('pt-BR')} Km` : '---'}
+                                                        </span>
+                                                        <span className="flex items-center gap-0.5">
+                                                            <span className="material-symbols-outlined text-[13px]">water_drop</span>
+                                                            {item.fuelQuantity != null ? `${item.fuelQuantity.toLocaleString('pt-BR')} L` : '---'}
+                                                        </span>
+                                                        <span className="flex items-center gap-0.5">
+                                                            <span className="material-symbols-outlined text-[13px]">calendar_month</span>
+                                                            {item.createdAt ? new Date(item.createdAt).toLocaleDateString('pt-BR') : '---'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-16 text-center">
+                                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 text-slate-300 dark:text-slate-600">
+                                        <span className="material-symbols-outlined text-4xl">local_gas_station</span>
+                                    </div>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Nenhum abastecimento registrado.</p>
+                                </div>
+                            )}
+                                </div>
+
+                                {/* FAB Novo Abastecimento */}
+                                <button
+                                    onClick={() => setShowFuelForm(true)}
+                                    className="absolute bottom-6 right-4 h-14 w-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:bg-primary-dark transition-colors z-10"
+                                    title="Novo Abastecimento"
+                                >
+                                    <span className="material-symbols-outlined text-2xl">add</span>
+                                </button>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

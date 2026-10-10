@@ -1,11 +1,12 @@
 import React from 'react';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { isVehicleRentalEnabled } from '../../features';
 
 interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
     isAdmin?: boolean;
-    activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers';
+    activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'rental-apportionment' | 'rental-contracts' | 'vehicles' | 'fuel-expense';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -159,6 +160,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         isActive={activeTab === 'extra-workers'}
                         isCollapsed={isCollapsed}
                         onClick={() => { onNavigate('extra-workers'); }}
+                    />
+                )}
+                {(isAdminSuper || canView('transport_vehicles')) && (
+                    <SidebarItem
+                        icon="local_shipping"
+                        label="Veículos"
+                        isActive={activeTab === 'vehicles'}
+                        isCollapsed={isCollapsed}
+                        onClick={() => { onNavigate('vehicles'); }}
+                    />
+                )}
+                {isVehicleRentalEnabled() && (isAdminSuper || canView('transport_rental_apportionment')) && (
+                    <SidebarItem
+                        icon="currency_exchange"
+                        label="Apuração Aluguel"
+                        isActive={activeTab === 'rental-apportionment' || activeTab === 'rental-contracts'}
+                        isCollapsed={isCollapsed}
+                        onClick={() => { onNavigate('rental-apportionment'); }}
                     />
                 )}
                 {(isAdminSuper || isAdmin || canView('settings')) && (

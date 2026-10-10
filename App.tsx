@@ -74,6 +74,11 @@ import {
   UserUnavailableScreen,
   ToolsMainView,
   UnitForm,
+  RentalContractList,
+  RateContractList,
+  RentalApportionmentScreen,
+  VehicleList,
+  FuelExpenseScreen,
 } from './app/routes';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
@@ -86,7 +91,7 @@ import { PermissionsProvider } from './contexts/PermissionsContext';
 type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-structure' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'asset-loan-checklist-types' | 'asset-loan-checklist-type-form' | 'asset-loan-checklist-type-edit'
   | 'loans-checklists' | 'loans-checklist-form' | 'loans-checklist-edit'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period'   | 'vehicle-cost-types' | 'rental-contracts' | 'rental-apportionment' | 'rate-contracts' | 'vehicles' | 'fuel-expense';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/media/imgproxyService';
@@ -291,6 +296,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('app-notices');
     } else if (normalizedTab === 'extra-workers') {
       setCurrentScreen('extra-workers');
+    } else if (normalizedTab === 'fuel-expense') {
+      setCurrentScreen('fuel-expense');
     }
   };
   const [currentScreen, setCurrentScreen] = useState<Screen>(() => {
@@ -482,8 +489,8 @@ const AppContent: React.FC = () => {
     visitActiveTabRef.current = visitActiveTab;
   }, [visitActiveTab]);
 
-  const [dashboardInitialTab, setDashboardInitialTab] = useState<'services' | 'visits'>(() => {
-    return (localStorage.getItem('dashboardInitialTab') as 'services' | 'visits') || 'services';
+  const [dashboardInitialTab, setDashboardInitialTab] = useState<'services' | 'visits' | 'fuel'>(() => {
+    return (localStorage.getItem('dashboardInitialTab') as 'services' | 'visits' | 'fuel') || 'services';
   });
 
   const toggleSidebarCollapse = () => {
@@ -962,12 +969,15 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleVisitSelect = (visit: import('./types').OrderVisit) => {
+  const handleVisitSelect = (
+    visit: import('./types').OrderVisit | { id: string; [key: string]: any },
+    initialTab: 'home' | 'transport' | 'assets' | 'services' | 'costs' | 'chat' = 'home'
+  ) => {
     if (currentScreen !== 'order-visit-execute') {
       setLastVisitSource(currentScreen);
     }
-    setSelectedVisit(visit);
-    setVisitActiveTab('home');
+    setSelectedVisit(visit as any);
+    setVisitActiveTab(initialTab);
     setCurrentScreen('order-visit-execute');
   };
 
@@ -1175,6 +1185,16 @@ const AppContent: React.FC = () => {
       handleMainTabChange(lastTab);
     } else if (currentScreen === 'app-tips') {
       setCurrentScreen('settings');
+    } else if (currentScreen === 'vehicle-cost-types') {
+      setCurrentScreen('settings');
+    } else if (currentScreen === 'rental-contracts' || currentScreen === 'rental-apportionment') {
+      setCurrentScreen('dashboard');
+    } else if (currentScreen === 'rate-contracts') {
+      setCurrentScreen('rental-apportionment');
+    } else if (currentScreen === 'vehicles') {
+      setCurrentScreen('dashboard');
+    } else if (currentScreen === 'fuel-expense') {
+      setCurrentScreen('dashboard');
     } else if (currentScreen === 'client-units') {
       setCurrentScreen('client-details');
     } else if (currentScreen === 'unit-details') {
@@ -2697,6 +2717,21 @@ const AppContent: React.FC = () => {
             onBack={() => setCurrentScreen('orders-dashboard')}
           />
         ) : null;
+      case 'rental-contracts':
+        return <RentalContractList onNavigate={handleNavigate} />;
+      case 'rate-contracts':
+        return <RateContractList onNavigate={handleNavigate} />;
+      case 'rental-apportionment':
+        return (
+          <RentalApportionmentScreen
+            onNavigate={handleNavigate}
+            onSelectVisit={(visit, tab = 'transport') => handleVisitSelect(visit as any, tab)}
+          />
+        );
+      case 'vehicles':
+        return <VehicleList onNavigate={handleNavigate} />;
+      case 'fuel-expense':
+        return <FuelExpenseScreen onNavigate={handleNavigate} />;
       default:
         return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
     }
@@ -2843,6 +2878,12 @@ const AppContent: React.FC = () => {
       case 'app-notices': return 'Avisos';
       case 'extra-workers': return 'MO Extra';
       case 'tools': return 'Ferramentas';
+      case 'vehicle-cost-types': return 'Tipos de Custo Veicular';
+      case 'rental-contracts': return 'Contratos de Aluguel';
+      case 'rental-apportionment': return 'Apuração de Aluguel';
+      case 'rate-contracts': return 'Contratos de R$/km';
+      case 'vehicles': return 'Veículos';
+      case 'fuel-expense': return 'Combustível';
       default: return 'Siges';
     }
   };

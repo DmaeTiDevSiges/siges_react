@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Activity, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Route, Service } from '../../types';
+import { Activity, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Route, Service, VehicleCostType } from '../../types';
 
 // ── Cache TTL para tipos de OS (raramente mudam) ───────────────────────
 const ORDER_TYPES_TTL_MS = 30 * 60 * 1000; // 30 minutos
@@ -910,5 +910,79 @@ export const orderConfigService = {
         }
 
         return data || [];
+    },
+
+    // ── Tipos de custo veicular (rateio de aluguel) ─────────────────────
+    async getVehicleCostTypes(): Promise<VehicleCostType[]> {
+        const { data, error } = await supabase
+            .from('cfg_vehicles_costs_types')
+            .select('id, code, description, color, is_available')
+            .eq('is_deleted', false)
+            .order('id');
+
+        if (error) {
+            console.error('Error fetching vehicle cost types:', error);
+            return [];
+        }
+
+        return (data || []).map((item: any) => ({
+            id: String(item.id),
+            code: item.code,
+            description: item.description,
+            color: item.color || undefined,
+            isAvailable: item.is_available !== false
+        }));
+    },
+
+    async saveVehicleCostType(input: {
+        id?: string;
+        code: string;
+        description: string;
+        color?: string;
+        isAvailable?: boolean;
+    }): Promise<VehicleCostType> {
+        const payload = {
+            code: (input.code || '').trim().toUpperCase(),
+            description: (input.description || '').trim(),
+            color: input.color || null,
+            is_available: input.isAvailable !== false,
+            updated_at: new Date().toISOString()
+        };
+
+        const query = input.id
+            ? supabase.from('cfg_vehicles_costs_types').update(payload).eq('id', parseInt(input.id, 10))
+            : supabase.from('cfg_vehicles_costs_types').insert({
+                ...payload,
+                created_at: new Date().toISOString()
+            });
+
+        const { data, error } = await query
+            .select('id, code, description, color, is_available')
+            .single();
+
+        if (error) {
+            console.error('Error saving vehicle cost type:', error);
+            throw new Error(error.message || 'Erro ao salvar o tipo de custo veicular.');
+        }
+
+        return {
+            id: String(data.id),
+            code: data.code,
+            description: data.description,
+            color: data.color || undefined,
+            isAvailable: data.is_available !== false
+        };
+    },
+
+    async deleteVehicleCostType(id: string): Promise<void> {
+        const { error } = await supabase
+            .from('cfg_vehicles_costs_types')
+            .update({ is_deleted: true, updated_at: new Date().toISOString() })
+            .eq('id', parseInt(id, 10));
+
+        if (error) {
+            console.error('Error deleting vehicle cost type:', error);
+            throw new Error(error.message || 'Erro ao excluir o tipo de custo veicular.');
+        }
     }
 };

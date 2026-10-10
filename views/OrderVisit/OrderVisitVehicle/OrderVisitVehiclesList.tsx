@@ -17,6 +17,41 @@ interface OrderVisitVehiclesListProps {
     onVisitRefresh?: () => void;
 }
 
+/** Linhas geradas pela apuração mensal (nunca editáveis/removíveis aqui):
+ *  'rental' (aluguel), 'variable' (despesas) e 'rate' (a linha de Km
+ *  convertida para o componente R$/km — mesma leitura, outro rótulo). */
+const isRateioLine = (costType?: string | null): boolean =>
+    costType === 'rental' || costType === 'variable' || costType === 'rate';
+
+/** Tom visual por componente do rateio: R$/km x aluguel x despesas variáveis. */
+const rateioTone = (costType?: string | null) =>
+    costType === 'rate'
+        ? {
+            label: 'Rateio R$ / Km',
+            icon: 'payments',
+            badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+            box: 'bg-blue-50 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/10',
+            labelCls: 'text-blue-600 dark:text-blue-400',
+            valueCls: 'text-blue-600 dark:text-blue-400'
+        }
+        : costType === 'variable'
+        ? {
+            label: 'Rateio Despesas',
+            icon: 'local_gas_station',
+            badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+            box: 'bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/10',
+            labelCls: 'text-amber-600 dark:text-amber-400',
+            valueCls: 'text-amber-600 dark:text-amber-400'
+        }
+        : {
+            label: 'Rateio Aluguel',
+            icon: 'currency_exchange',
+            badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+            box: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/10',
+            labelCls: 'text-emerald-600 dark:text-emerald-400',
+            valueCls: 'text-emerald-600 dark:text-emerald-400'
+        };
+
 export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
     visitId,
     isEditable = true,
@@ -115,6 +150,12 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
 
     const confirmRemoveVehicle = async () => {
         if (!vehicleToDelete) return;
+        // Linhas de rateio (aluguel/despesas) são geradas pela apuração
+        // mensal e nunca são removíveis aqui
+        if (isRateioLine(vehicleToDelete.costType)) {
+            setVehicleToDelete(null);
+            return;
+        }
         setIsDeleting(true);
         try {
             await dataService.removeVehicleFromOrderVisit(vehicleToDelete.id);
@@ -312,10 +353,16 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">
                                         {vv.model}
                                     </p>
+                                    {isRateioLine(vv.costType) && (
+                                        <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full ${rateioTone(vv.costType).badge} text-[10px] font-black uppercase tracking-widest`}>
+                                            <span className="material-symbols-outlined text-[12px]">{rateioTone(vv.costType).icon}</span>
+                                            {rateioTone(vv.costType).label}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
-                            {isEditable && (
+                            {isEditable && !isRateioLine(vv.costType) && (
                                 <ButtonDelete
                                     onClick={() => handleRemoveVehicle(vv)}
                                     icon="delete"
@@ -323,6 +370,38 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                             )}
                         </div>
 
+                        {isRateioLine(vv.costType) ? (
+                            /* Linha de rateio: somente leitura (gerada pela apuração mensal) */
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className={`${rateioTone(vv.costType).box} p-3 rounded-xl border`}>
+                                    <label className={`block text-[10px] font-black ${rateioTone(vv.costType).labelCls} uppercase tracking-widest mb-1.5`}>
+                                        KM RATEADO
+                                    </label>
+                                    <span className="text-lg font-bold text-slate-700 dark:text-white">
+                                        {vv.amount != null ? vv.amount.toFixed(1) : '—'}
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-400 ml-1">{vv.unit || 'KM'}</span>
+                                </div>
+
+                                <div className={`${rateioTone(vv.costType).box} p-3 rounded-xl border`}>
+                                    <label className={`block text-[10px] font-black ${rateioTone(vv.costType).labelCls} uppercase tracking-widest mb-1.5`}>
+                                        R$ / KM
+                                    </label>
+                                    <span className="text-lg font-bold text-slate-700 dark:text-white">
+                                        {vv.valueUnit != null ? `R$ ${vv.valueUnit.toFixed(2)}` : '—'}
+                                    </span>
+                                </div>
+
+                                <div className={`${rateioTone(vv.costType).box} p-3 rounded-xl border`}>
+                                    <label className={`block text-[10px] font-black ${rateioTone(vv.costType).labelCls} uppercase tracking-widest mb-1.5`}>
+                                        VALOR
+                                    </label>
+                                    <span className={`text-lg font-bold ${rateioTone(vv.costType).valueCls}`}>
+                                        {vv.valueTotal != null ? `R$ ${vv.valueTotal.toFixed(2)}` : 'R$ 0,00'}
+                                    </span>
+                                </div>
+                            </div>
+                        ) : (
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-slate-50 dark:bg-black/20 p-3 rounded-xl border border-slate-100 dark:border-white/5">
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
@@ -384,6 +463,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                 </div>
                             </div>
                         </div>
+                        )}
 
 
                         {/* Mileage Calc Display */}
@@ -396,8 +476,11 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                         {(vv.recorderEnd - vv.recorderStart).toFixed(1)}
                                     </span>
                                     {vv.valueUnit != null && (
-                                        <span className="text-[10px] font-medium text-slate-400 mt-1 block">
-                                            x R$ {vv.valueUnit.toFixed(2)}
+                                        <span
+                                            className="text-[10px] font-medium text-slate-400 mt-1 block"
+                                            title="R$/km do contrato de R$/km vigente na data do lançamento (Apuração > Contratos de R$/km). Sem contrato vigente, salvar o Km é bloqueado."
+                                        >
+                                            x R$ {vv.valueUnit.toFixed(2)} / km
                                         </span>
                                     )}
                                 </div>

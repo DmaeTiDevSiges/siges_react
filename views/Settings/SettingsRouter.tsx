@@ -35,6 +35,7 @@ import {
   AssetLoanChecklistTypesList, AssetLoanChecklistTypeForm,
   LoansChecklistsList, LoansChecklistForm,
   AppTipsList,
+  VehicleCostTypesList,
   AIKnowledgeAdmin,
   AllUsersList,
   UserViewScreen,
@@ -243,6 +244,7 @@ export const SETTINGS_SCREENS = new Set([
   'asset-loan-checklist-types', 'asset-loan-checklist-type-form', 'asset-loan-checklist-type-edit',
   'loans-checklists', 'loans-checklist-form', 'loans-checklist-edit',
   'app-tips',
+  'vehicle-cost-types',
   'all-users', 'user-details',
   'profile-permissions',
   'route-management', 'route-form', 'route-edit',
@@ -593,6 +595,10 @@ export const SettingsRouter: React.FC<SettingsRouterProps> = ({ currentScreen, o
     // ── Dicas do App ──────────────────────────────────────────────────────────
     case 'app-tips':
       return <AppTipsList onBack={handleBack} />;
+
+    // ── Tipos de custo veicular (rateio de aluguel) ──────────────────────────
+    case 'vehicle-cost-types':
+      return <VehicleCostTypesList onBack={handleBack} />;
 
     // ── Usuários e Acesso ─────────────────────────────────────────────────────
     case 'all-users':

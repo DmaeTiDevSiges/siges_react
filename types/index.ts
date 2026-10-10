@@ -182,6 +182,15 @@ export interface CauseReason {
   description: string;
 }
 
+// Tipos de custo veicular (rateio de aluguel) — cfg_vehicles_costs_types
+export interface VehicleCostType {
+  id: string;
+  code: string;
+  description: string;
+  color?: string;
+  isAvailable?: boolean;
+}
+
 export interface User {
   id: string; // BigInt (Internal ID)
   uuid: string; // UUID (Auth ID)
@@ -350,6 +359,20 @@ export interface Vehicle {
   color: string;
   year: string;
   isAvailable: boolean;
+  /** Valor padrão por Km (R$/km) — origem do contrato automático/import Manus. */
+  valueUnit?: number;
+  /** Fator multiplicador de desconto do veículo (1 = sem desconto). */
+  discount?: number;
+  /** Company dona do veículo (avatar da empresa nos cards de contratos/apuração). */
+  companyId?: string;
+}
+
+/** Company de cada veículo — usada para exibir o avatar da empresa nos cards. */
+export interface VehicleCompanyInfo {
+  vehicleId: string;
+  companyId?: string;
+  companyName?: string;
+  companyLogoUrl?: string;
 }
 
 export interface Activity {
@@ -1127,6 +1150,12 @@ export interface OrderVisitVehicle {
   valueTotal?: number;
   createdUserId?: string;
   createdAt: string;
+
+  // Origem do valor: 'odometer' (Km × vehicles.value_unit),
+  // 'rental' (rateio do aluguel mensal) e 'variable' (rateio das
+  // despesas variáveis) — as duas últimas só leitura, geradas pela
+  // apuração mensal
+  costType?: 'odometer' | 'rental' | 'variable' | 'rate';
 
   // UI Helpers
   description?: string;

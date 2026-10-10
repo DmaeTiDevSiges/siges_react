@@ -163,6 +163,7 @@ export const NotificationsList = lazyWithRetry(() => import('../views/Notificati
 export const AppNoticesList = lazyWithRetry(() => import('../views/AppNotices/AppNoticesList').then(m => ({ default: m.AppNoticesList })));
 export const ExtraWorkersList = lazyWithRetry(() => import('../views/AppNotices/ExtraWorkersList').then(m => ({ default: m.ExtraWorkersList })));
 export const AppTipsList = lazyWithRetry(() => import('../views/Settings/AppTips/AppTipsList').then(m => ({ default: m.AppTipsList })));
+export const VehicleCostTypesList = lazyWithRetry(() => import('../views/Settings/VehicleCostTypes/VehicleCostTypesList').then(m => ({ default: m.VehicleCostTypesList })));
 export const ServiceRequestDetail = lazyWithRetry(() => import('../views/ServiceRequest/ServiceRequestDetail').then(m => ({ default: m.ServiceRequestDetail })));
 export const ServiceRequestPage = lazyWithRetry(() => import('../views/ServiceRequest/ServiceRequestScreen').then(m => ({ default: m.ServiceRequestPage })));
 export const OrderRequestPage = lazyWithRetry(() => import('../views/OrderRequest/OrderRequestScreen').then(m => ({ default: m.OrderRequestPage })));
@@ -187,3 +188,8 @@ export const RouteFormScreen = lazyWithRetry(() => import('../views/Settings/Sec
 export const AIKnowledgeAdmin = lazyWithRetry(() => import('../views/Settings/AI/AIKnowledgeAdmin').then(m => ({ default: m.AIKnowledgeAdmin })));
 export const MaintenancePlansScreen = lazyWithRetry(() => import('../views/Settings/MaintenancePlans/MaintenancePlansScreen').then(m => ({ default: m.MaintenancePlansScreen })));
 export const ToolsMainView = lazyWithRetry(() => import('../views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
+export const RentalContractList = lazyWithRetry(() => import('../views/Transport/RentalContractList').then(m => ({ default: m.RentalContractList })));
+export const RateContractList = lazyWithRetry(() => import('../views/Transport/RateContractList').then(m => ({ default: m.RateContractList })));
+export const RentalApportionmentScreen = lazyWithRetry(() => import('../views/Transport/RentalApportionmentScreen').then(m => ({ default: m.RentalApportionmentScreen })));
+export const VehicleList = lazyWithRetry(() => import('../views/Transport/VehicleList').then(m => ({ default: m.VehicleList })));
+export const FuelExpenseScreen = lazyWithRetry(() => import('../views/Transport/FuelExpenseScreen').then(m => ({ default: m.FuelExpenseScreen })));
