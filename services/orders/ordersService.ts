@@ -3506,6 +3506,53 @@ export const ordersService = {
         }
     },
 
+    async getMaintenancePlansByOrderId(orderId: string | number): Promise<Array<{ id: string; code: string | null; description: string }>> {
+        const numericOrderId = typeof orderId === 'number' ? orderId : parseInt(orderId, 10);
+        if (!Number.isSafeInteger(numericOrderId) || numericOrderId <= 0) {
+            throw new Error('ID da OS inválido para consultar planos de manutenção');
+        }
+
+        const { data, error } = await supabase
+            .from('orders_visits_maintenances_plans')
+            .select('maintenance_plan_id, plan:maintenances_plans(id, code, description)')
+            .eq('o_id', numericOrderId)
+            .order('maintenance_plan_id', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching maintenance plans by order:', error);
+            throw new Error('Erro ao carregar planos de manutenção da OS');
+        }
+
+        const plans = new Map<string, { id: string; code: string | null; description: string }>();
+        for (const row of data || []) {
+            const plan = Array.isArray(row.plan) ? row.plan[0] : row.plan;
+            if (plan) {
+                const id = String(plan.id);
+                plans.set(id, { id, code: plan.code, description: plan.description });
+            }
+        }
+        return [...plans.values()];
+    },
+
+    async getOrderIdsByMaintenancePlanIds(planIds: string | string[]): Promise<string[]> {
+        const ids = (Array.isArray(planIds) ? planIds : [planIds])
+            .map(id => Number(id))
+            .filter(id => Number.isSafeInteger(id) && id > 0);
+        if (ids.length === 0) return [];
+
+        const { data, error } = await supabase
+            .from('orders_visits_maintenances_plans')
+            .select('o_id')
+            .in('maintenance_plan_id', ids);
+
+        if (error) {
+            console.error('Error fetching orders by maintenance plans:', error);
+            throw new Error('Erro ao filtrar OSs por plano de manutenção');
+        }
+
+        return [...new Set((data || []).map(row => String(row.o_id)))];
+    },
+
     async linkAlertsToOrder(orderId: string, alertIds: string[]): Promise<void> {
         if (!alertIds || alertIds.length === 0) return;
 

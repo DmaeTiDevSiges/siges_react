@@ -31,7 +31,7 @@ interface RequirementStats {
 
 interface LeaderVisitItem {
     id: string;
-    orderMask: string;
+    visitMask: string;
     failedEvaluations: number;
     totalEvaluations: number;
     complianceScore: number;
@@ -39,7 +39,7 @@ interface LeaderVisitItem {
 
 interface LeaderHistoryItem {
     monthLabel: string;
-    avgComplianceScore: number;
+    avgComplianceScore: number | null;
 }
 
 interface LeaderRankingEntry {
@@ -94,6 +94,7 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
     });
     const [clientFilterModal, setClientFilterModal] = useState<{ isOpen: boolean; options: { value: string; label: string }[]; currentValue: string[] }>({ isOpen: false, options: [], currentValue: [] });
     const [contractRankingLoading, setContractRankingLoading] = useState(false);
+    const [rankingRefreshToken, setRankingRefreshToken] = useState(0);
     const [leaderRanking, setLeaderRanking] = useState<LeaderRankingEntry[]>([]);
     const [teamRanking, setTeamRanking] = useState<TeamRankingEntry[]>([]);
 
@@ -188,13 +189,43 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
     };
 
     const handleRecalculateScores = async () => {
+        if (!selectedContract?.id) return;
+
         setRecalculating(true);
         try {
-            if (selectedContract?.id) {
-                await dataService.recalculateDepartmentScores(selectedContract.id, rankingYear, rankingMonth).catch(() => {});
+            const selectedScoreMonth = `${rankingYear}-${String(rankingMonth).padStart(2, '0')}`;
+            const visits = await dataService.getVisitsByContractId(selectedContract.id);
+            const leaderIds = [...new Set(
+                visits
+                    .filter(visit =>
+                        Number(visit.ovStatusId) === 2 &&
+                        !!visit.ovEndedAt &&
+                        visit.ovEndedAt.slice(0, 7) === selectedScoreMonth &&
+                        !!visit.ovTeamLeadId
+                    )
+                    .map(visit => visit.ovTeamLeadId!)
+            )];
+
+            if (leaderIds.length === 0) {
+                toast.info('Não há visitas encerradas com líder no mês selecionado para recalcular');
+                return;
             }
+
+            for (const leaderId of leaderIds) {
+                const recalculated = await dataService.recalculateLeaderScore(
+                    leaderId,
+                    rankingYear,
+                    rankingMonth
+                );
+                if (!recalculated) {
+                    throw new Error(`Falha ao recalcular o score do líder ${leaderId}`);
+                }
+            }
+
             toast.success('Scores recalculados com sucesso!');
+            setRankingRefreshToken(token => token + 1);
         } catch (e) {
+            console.error('Error recalculating contract leader scores:', e);
             toast.error('Erro ao recalcular scores');
         } finally {
             setRecalculating(false);
@@ -215,8 +246,27 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
             setContractRankingLoading(true);
 
             try {
-                // Fetch visits for the selected contract
-                const visits = await dataService.getVisitsByContractId(selectedContract.id);
+                // Monthly scores are based only on completed visits, grouped by ov_ended_at.
+                const selectedScoreMonth =
+                    `${rankingYear}-${String(rankingMonth).padStart(2, '0')}`;
+                const firstHistoryMonthDate = new Date(rankingYear, rankingMonth - 6, 1);
+                const firstHistoryMonth =
+                    `${firstHistoryMonthDate.getFullYear()}-${String(firstHistoryMonthDate.getMonth() + 1).padStart(2, '0')}`;
+                const historyMonthLabels = Array.from({ length: 6 }, (_, index) => {
+                    const monthDate = new Date(
+                        firstHistoryMonthDate.getFullYear(),
+                        firstHistoryMonthDate.getMonth() + index,
+                        1
+                    );
+                    return `${MONTH_NAMES[monthDate.getMonth()].slice(0, 3)}/${monthDate.getFullYear()}`;
+                });
+                const visits = (await dataService.getVisitsByContractId(selectedContract.id))
+                    .filter(visit =>
+                        Number(visit.ovStatusId) === 2 &&
+                        !!visit.ovEndedAt &&
+                        visit.ovEndedAt.slice(0, 7) >= firstHistoryMonth &&
+                        visit.ovEndedAt.slice(0, 7) <= selectedScoreMonth
+                    );
                 
                 if (visits.length === 0) {
                     setLeaderRanking([]);
@@ -302,7 +352,7 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                         continue;
                     }
 
-                    const orderMask = visit.orderMask || (visit.oId ? `OS #${visit.oId}` : `OS #${visit.id}`);
+                    const visitMask = visit.ovMask || `Visita #${visit.id}`;
 
                     let totalEvaluations = 0;
                     let failedEvaluations = 0;
@@ -322,13 +372,10 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
 
                     const complianceScore = totalWeight > 0 ? ((totalWeight - appliedWeight) / totalWeight) * 100 : 100;
 
-                    const dateStr = visit.ovStartedAt || visit.ovCreatedAt;
-                    let monthLabel = `${MONTH_NAMES[rankingMonth - 1].slice(0, 3)}/${rankingYear}`;
-                    if (dateStr) {
-                        const d = new Date(dateStr);
-                        const m = MONTH_NAMES[d.getMonth()].slice(0, 3);
-                        monthLabel = `${m}/${d.getFullYear()}`;
-                    }
+                    const visitMonth = visit.ovEndedAt!.slice(0, 7);
+                    const [visitYear, visitMonthNumber] = visitMonth.split('-').map(Number);
+                    const monthLabel =
+                        `${MONTH_NAMES[visitMonthNumber - 1].slice(0, 3)}/${visitYear}`;
 
                     // Leader Map
                     if (!leaderMap.has(leaderId)) {
@@ -344,21 +391,22 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                         });
                     }
                     const lData = leaderMap.get(leaderId)!;
-                    lData.totalEvaluations += totalEvaluations;
-                    lData.failedEvaluations += failedEvaluations;
-                    lData.complianceScores.push(complianceScore);
-                    lData.visitsList.push({
-                        id: visit.id,
-                        orderMask,
-                        failedEvaluations,
-                        totalEvaluations,
-                        complianceScore
-                    });
-
                     if (!lData.monthlyScores.has(monthLabel)) {
                         lData.monthlyScores.set(monthLabel, []);
                     }
                     lData.monthlyScores.get(monthLabel)!.push(complianceScore);
+                    if (visitMonth === selectedScoreMonth) {
+                        lData.totalEvaluations += totalEvaluations;
+                        lData.failedEvaluations += failedEvaluations;
+                        lData.complianceScores.push(complianceScore);
+                        lData.visitsList.push({
+                            id: visit.id,
+                            visitMask,
+                            failedEvaluations,
+                            totalEvaluations,
+                            complianceScore
+                        });
+                    }
 
                     // Team Map
                     if (!teamMap.has(teamName)) {
@@ -374,58 +422,64 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                         });
                     }
                     const tData = teamMap.get(teamName)!;
-                    tData.leaders.add(leaderId);
-                    tData.totalVisits++;
-                    tData.totalEvaluations += totalEvaluations;
-                    tData.failedEvaluations += failedEvaluations;
-                    tData.complianceScores.push(complianceScore);
-                    tData.visitsList.push({
-                        id: visit.id,
-                        orderMask,
-                        failedEvaluations,
-                        totalEvaluations,
-                        complianceScore
-                    });
-
                     if (!tData.monthlyScores.has(monthLabel)) {
                         tData.monthlyScores.set(monthLabel, []);
                     }
                     tData.monthlyScores.get(monthLabel)!.push(complianceScore);
+                    if (visitMonth === selectedScoreMonth) {
+                        tData.leaders.add(leaderId);
+                        tData.totalVisits++;
+                        tData.totalEvaluations += totalEvaluations;
+                        tData.failedEvaluations += failedEvaluations;
+                        tData.complianceScores.push(complianceScore);
+                        tData.visitsList.push({
+                            id: visit.id,
+                            visitMask,
+                            failedEvaluations,
+                            totalEvaluations,
+                            complianceScore
+                        });
+                    }
                 }
 
                 // Convert leaders map
-                const sortedLeaders = Array.from(leaderMap.values()).map(leader => {
-                    const avgCompliance = leader.complianceScores.length > 0
-                        ? leader.complianceScores.reduce((a, b) => a + b, 0) / leader.complianceScores.length
-                        : 100;
+                const sortedLeaders = Array.from(leaderMap.values())
+                    .filter(leader => leader.visitsList.length > 0)
+                    .map(leader => {
+                        const avgCompliance = leader.complianceScores.length > 0
+                            ? leader.complianceScores.reduce((a, b) => a + b, 0) / leader.complianceScores.length
+                            : 100;
 
-                    const history: LeaderHistoryItem[] = Array.from(leader.monthlyScores.entries()).map(([monthLabel, scores]) => ({
-                        monthLabel,
-                        avgComplianceScore: scores.reduce((a, b) => a + b, 0) / scores.length
-                    }));
+                        const history: LeaderHistoryItem[] = historyMonthLabels.map(monthLabel => {
+                            const scores = leader.monthlyScores.get(monthLabel) || [];
+                            return {
+                                monthLabel,
+                                avgComplianceScore: scores.length > 0
+                                    ? scores.reduce((a, b) => a + b, 0) / scores.length
+                                    : null
+                            };
+                        });
 
-                    if (history.length === 0) {
-                        history.push({ monthLabel: 'Mai/2026', avgComplianceScore: 100 });
-                        history.push({ monthLabel: 'Jul/2026', avgComplianceScore: 100 });
-                        history.push({ monthLabel: 'Ago/2026', avgComplianceScore: 100 });
-                    }
-
-                    return {
-                        position: 0,
-                        leaderId: leader.leaderId,
-                        leaderName: leader.leaderName,
-                        teamName: leader.teamName,
-                        totalVisits: leader.visitsList.length,
-                        totalEvaluations: leader.totalEvaluations,
-                        failedEvaluations: leader.failedEvaluations,
-                        avgComplianceScore: avgCompliance,
-                        bestComplianceScore: leader.complianceScores.length > 0 ? Math.max(...leader.complianceScores) : 100,
-                        worstComplianceScore: leader.complianceScores.length > 0 ? Math.min(...leader.complianceScores) : 100,
-                        visitsList: leader.visitsList,
-                        history,
-                        trend: 'stable' as const
-                    };
-                }).sort((a, b) => b.avgComplianceScore - a.avgComplianceScore);
+                        return {
+                            position: 0,
+                            leaderId: leader.leaderId,
+                            leaderName: leader.leaderName,
+                            teamName: leader.teamName,
+                            totalVisits: leader.visitsList.length,
+                            totalEvaluations: leader.totalEvaluations,
+                            failedEvaluations: leader.failedEvaluations,
+                            avgComplianceScore: avgCompliance,
+                            bestComplianceScore: leader.complianceScores.length > 0 ? Math.max(...leader.complianceScores) : 100,
+                            worstComplianceScore: leader.complianceScores.length > 0 ? Math.min(...leader.complianceScores) : 100,
+                            visitsList: leader.visitsList,
+                            history,
+                            trend: 'stable' as const
+                        };
+                    }).sort((a, b) =>
+                        Math.round(b.avgComplianceScore) - Math.round(a.avgComplianceScore) ||
+                        b.totalVisits - a.totalVisits ||
+                        a.failedEvaluations - b.failedEvaluations
+                    );
 
                 const finalLeaderRanking: LeaderRankingEntry[] = sortedLeaders.map((l, idx) => ({
                     ...l,
@@ -433,31 +487,42 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                 }));
 
                 // Convert teams map
-                const sortedTeams = Array.from(teamMap.values()).map(team => {
-                    const avgCompliance = team.complianceScores.length > 0
-                        ? team.complianceScores.reduce((a, b) => a + b, 0) / team.complianceScores.length
-                        : 100;
+                const sortedTeams = Array.from(teamMap.values())
+                    .filter(team => team.totalVisits > 0)
+                    .map(team => {
+                        const avgCompliance = team.complianceScores.length > 0
+                            ? team.complianceScores.reduce((a, b) => a + b, 0) / team.complianceScores.length
+                            : 100;
 
-                    const history: LeaderHistoryItem[] = Array.from(team.monthlyScores.entries()).map(([monthLabel, scores]) => ({
-                        monthLabel,
-                        avgComplianceScore: scores.reduce((a, b) => a + b, 0) / scores.length
-                    }));
+                        const history: LeaderHistoryItem[] = historyMonthLabels.map(monthLabel => {
+                            const scores = team.monthlyScores.get(monthLabel) || [];
+                            return {
+                                monthLabel,
+                                avgComplianceScore: scores.length > 0
+                                    ? scores.reduce((a, b) => a + b, 0) / scores.length
+                                    : null
+                            };
+                        });
 
-                    return {
-                        position: 0,
-                        teamName: team.teamName,
-                        leaderCount: team.leaders.size,
-                        totalVisits: team.totalVisits,
-                        totalEvaluations: team.totalEvaluations,
-                        failedEvaluations: team.failedEvaluations,
-                        avgComplianceScore: avgCompliance,
-                        bestComplianceScore: team.complianceScores.length > 0 ? Math.max(...team.complianceScores) : 100,
-                        worstComplianceScore: team.complianceScores.length > 0 ? Math.min(...team.complianceScores) : 100,
-                        visitsList: team.visitsList,
-                        history,
-                        trend: 'stable' as const
-                    };
-                }).sort((a, b) => b.avgComplianceScore - a.avgComplianceScore);
+                        return {
+                            position: 0,
+                            teamName: team.teamName,
+                            leaderCount: team.leaders.size,
+                            totalVisits: team.totalVisits,
+                            totalEvaluations: team.totalEvaluations,
+                            failedEvaluations: team.failedEvaluations,
+                            avgComplianceScore: avgCompliance,
+                            bestComplianceScore: team.complianceScores.length > 0 ? Math.max(...team.complianceScores) : 100,
+                            worstComplianceScore: team.complianceScores.length > 0 ? Math.min(...team.complianceScores) : 100,
+                            visitsList: team.visitsList,
+                            history,
+                            trend: 'stable' as const
+                        };
+                    }).sort((a, b) =>
+                        Math.round(b.avgComplianceScore) - Math.round(a.avgComplianceScore) ||
+                        b.totalVisits - a.totalVisits ||
+                        a.failedEvaluations - b.failedEvaluations
+                    );
 
                 const finalTeamRanking: TeamRankingEntry[] = sortedTeams.map((t, idx) => ({
                     ...t,
@@ -492,7 +557,7 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
         };
 
         loadContractRanking();
-    }, [selectedContract?.id, rankingYear, rankingMonth]);
+    }, [selectedContract?.id, rankingYear, rankingMonth, rankingRefreshToken]);
 
     if (loading) {
         return (
@@ -520,7 +585,7 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                     />
                 </div>
 
-                {/* Right: Month/Year Navigator & Recalculate Scores Button */}
+                {/* Right: Month/Year Navigator */}
                 <div className="flex items-center gap-3 ml-auto">
                     {/* Month Navigator */}
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1 shadow-sm">
@@ -541,17 +606,6 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                         </button>
                     </div>
 
-                    {/* Recalculate Scores Button */}
-                    <button
-                        onClick={handleRecalculateScores}
-                        disabled={recalculating}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-all active:scale-[0.98] shadow-md shadow-primary/20 disabled:opacity-50"
-                    >
-                        <span className={`material-symbols-outlined text-lg ${recalculating ? 'animate-spin' : ''}`}>
-                            {recalculating ? 'sync' : 'refresh'}
-                        </span>
-                        <span>{recalculating ? 'Recalculando...' : 'Recalcular Scores'}</span>
-                    </button>
                 </div>
             </div>
 
@@ -722,27 +776,39 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                                     </p>
                                 </div>
 
-                                {/* Ranking Mode Toggle: Líderes | Equipes (Aligned Right on Header Line) */}
-                                <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden p-0.5 self-start md:self-auto">
+                                {/* Ranking Mode Toggle and Score Recalculation */}
+                                <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                                    <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden p-0.5">
+                                        <button
+                                            onClick={() => setRankingMode('leaders')}
+                                            className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${
+                                                rankingMode === 'leaders'
+                                                    ? 'bg-primary text-white shadow-sm'
+                                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                            }`}
+                                        >
+                                            Líderes
+                                        </button>
+                                        <button
+                                            onClick={() => setRankingMode('teams')}
+                                            className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${
+                                                rankingMode === 'teams'
+                                                    ? 'bg-primary text-white shadow-sm'
+                                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                            }`}
+                                        >
+                                            Equipes
+                                        </button>
+                                    </div>
                                     <button
-                                        onClick={() => setRankingMode('leaders')}
-                                        className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${
-                                            rankingMode === 'leaders'
-                                                ? 'bg-primary text-white shadow-sm'
-                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
-                                        }`}
+                                        onClick={handleRecalculateScores}
+                                        disabled={recalculating}
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-all active:scale-[0.98] shadow-md shadow-primary/20 disabled:opacity-50"
                                     >
-                                        Líderes
-                                    </button>
-                                    <button
-                                        onClick={() => setRankingMode('teams')}
-                                        className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-colors ${
-                                            rankingMode === 'teams'
-                                                ? 'bg-primary text-white shadow-sm'
-                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
-                                        }`}
-                                    >
-                                        Equipes
+                                        <span className={`material-symbols-outlined text-lg ${recalculating ? 'animate-spin' : ''}`}>
+                                            {recalculating ? 'sync' : 'refresh'}
+                                        </span>
+                                        <span>{recalculating ? 'Recalculando...' : 'Recalcular Scores'}</span>
                                     </button>
                                 </div>
                             </div>
@@ -892,9 +958,6 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                                                                                 {entry.avgComplianceScore.toFixed(0)}%
                                                                             </p>
                                                                             <p className="text-[10px] text-slate-400 uppercase font-bold">COMPLIANCE</p>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-0.5 min-w-[32px] justify-end">
-                                                                            <span className="material-symbols-outlined text-base text-slate-400">east</span>
                                                                         </div>
                                                                         <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">
                                                                             chevron_right
@@ -1051,7 +1114,7 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                                                                 <div key={v.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800/50">
                                                                     <div className="min-w-0">
                                                                         <p className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
-                                                                            {v.orderMask}
+                                                                            {v.visitMask}
                                                                         </p>
                                                                         <p className="text-[10px] text-slate-400 font-medium">
                                                                             {v.failedEvaluations}/{v.totalEvaluations} descumprimentos
@@ -1085,12 +1148,14 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                                                                     </span>
                                                                     <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                                                         <div
-                                                                            className="h-full bg-green-500 rounded-full transition-all duration-500"
-                                                                            style={{ width: `${h.avgComplianceScore}%` }}
+                                                                            className={`h-full rounded-full transition-all duration-500 ${h.avgComplianceScore === null ? 'bg-slate-300 dark:bg-slate-700' : 'bg-green-500'}`}
+                                                                            style={{ width: `${h.avgComplianceScore ?? 0}%` }}
                                                                         />
                                                                     </div>
                                                                     <span className="text-xs font-bold text-green-600 dark:text-green-400 font-mono min-w-[36px] text-right">
-                                                                        {h.avgComplianceScore.toFixed(0)}%
+                                                                        {h.avgComplianceScore === null
+                                                                            ? '—'
+                                                                            : `${h.avgComplianceScore.toFixed(0)}%`}
                                                                     </span>
                                                                 </div>
                                                             ))

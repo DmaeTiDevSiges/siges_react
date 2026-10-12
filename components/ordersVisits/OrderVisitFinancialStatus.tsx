@@ -1,4 +1,6 @@
 import React from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { isFinancialApprovalEnabled, VISIT_COSTS_STATUS_CONFIG, type VisitCostsStatus } from '../../features';
 
 interface OrderVisitFinancialStatusProps {
@@ -46,20 +48,20 @@ export const OrderVisitFinancialStatus: React.FC<OrderVisitFinancialStatusProps>
       
       {costsStatus === 'waiting' && waitingAt && (
         <span className="text-xs text-gray-500">
-          em {new Date(waitingAt).toLocaleDateString('pt-BR')}
+          em {formatDateInBrazil(waitingAt, 'date', 'pt-BR')}
         </span>
       )}
       
       {costsStatus === 'approved' && approvedAt && (
         <span className="text-xs text-green-600">
-          ✓ Aprovado em {new Date(approvedAt).toLocaleDateString('pt-BR')}
+          ✓ Aprovado em {formatDateInBrazil(approvedAt, 'date', 'pt-BR')}
         </span>
       )}
       
       {costsStatus === 'rejected' && rejectedAt && (
         <div className="flex flex-col">
           <span className="text-xs text-red-600">
-            ✗ Rejeitado em {new Date(rejectedAt).toLocaleDateString('pt-BR')}
+            ✗ Rejeitado em {formatDateInBrazil(rejectedAt, 'date', 'pt-BR')}
           </span>
           {rejectionReason && (
             <span className="text-xs text-red-500 mt-0.5">

@@ -1,10 +1,7 @@
-// Contratos de R$/km (custo operacional por Km) — cfg_vehicle_rate_contracts
-// (dev/supabase/migrations/20261010_add_vehicle_rate_contracts.sql)
-//
-// Mesmo modelo dos contratos de aluguel (vehicleRentalService), mas com
-// VALOR POR Km em vez de valor mensal. O preço das linhas de odômetro é
-// resolvido no banco pelo contrato vigente NA DATA da linha — informar
-// Km em veículo sem contrato vigente é bloqueado pelo trigger.
+// Contratos de R$/km (custo operacional por Km) — compatibilidade
+// para o modelo unificado em cfg_vehicles_rentals_contracts.value_unit.
+// A tabela cfg_vehicle_rate_contracts foi removida do modelo atual e o
+// contrato de R$/km agora fica no mesmo registro do contrato de aluguel.
 import { supabase } from '../core/supabase';
 
 export interface VehicleRateContract {
@@ -55,7 +52,7 @@ const toRateContract = (row: any): VehicleRateContract => ({
 export const vehicleRateService = {
     async getContracts(vehicleId?: string): Promise<VehicleRateContract[]> {
         let query = supabase
-            .from('cfg_vehicle_rate_contracts')
+            .from('cfg_vehicles_rentals_contracts')
             .select('*, vehicles!inner(description, plates)')
             .eq('is_deleted', false)
             .order('active', { ascending: false })
@@ -69,11 +66,13 @@ export const vehicleRateService = {
             console.error('Error fetching rate contracts:', error);
             return [];
         }
-        return (data || []).map((row: any) => ({
-            ...toRateContract(row),
-            vehicleDescription: row.vehicles?.description ?? undefined,
-            vehiclePlates: row.vehicles?.plates ?? undefined
-        }));
+        return (data || [])
+            .filter((row: any) => row.value_unit != null)
+            .map((row: any) => ({
+                ...toRateContract(row),
+                vehicleDescription: row.vehicles?.description ?? undefined,
+                vehiclePlates: row.vehicles?.plates ?? undefined
+            }));
     },
 
     async saveContract(input: SaveVehicleRateContractInput): Promise<VehicleRateContract> {
@@ -88,9 +87,10 @@ export const vehicleRateService = {
         };
 
         const query = input.id
-            ? supabase.from('cfg_vehicle_rate_contracts').update(payload).eq('id', parseInt(input.id, 10))
-            : supabase.from('cfg_vehicle_rate_contracts').insert({
+            ? supabase.from('cfg_vehicles_rentals_contracts').update(payload).eq('id', parseInt(input.id, 10))
+            : supabase.from('cfg_vehicles_rentals_contracts').insert({
                 ...payload,
+                monthly_value: 0,
                 created_at: new Date().toISOString()
             });
 
@@ -109,7 +109,7 @@ export const vehicleRateService = {
 
     async deleteContract(contractId: string): Promise<void> {
         const { error } = await supabase
-            .from('cfg_vehicle_rate_contracts')
+            .from('cfg_vehicles_rentals_contracts')
             .update({ is_deleted: true, updated_at: new Date().toISOString() })
             .eq('id', parseInt(contractId, 10));
         if (error) {

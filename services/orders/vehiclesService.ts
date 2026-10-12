@@ -18,7 +18,6 @@ const toVehicle = (row: any): Vehicle => ({
     color: row.color || '',
     year: row.year != null ? String(row.year) : '',
     isAvailable: row.is_available !== false,
-    valueUnit: row.value_unit != null ? Number(row.value_unit) : undefined,
     discount: row.discount != null ? Number(row.discount) : undefined,
     companyId: row.company_id != null ? String(row.company_id) : undefined
 });

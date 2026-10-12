@@ -25,10 +25,9 @@ const getComplianceBg = (score: number) => {
 interface MonthData {
     month: number;
     year: number;
-    compliance: number;
-    position: number;
+    compliance: number | null;
+    position: number | null;
     totalTeams: number;
-    trend: 'up' | 'down' | 'stable';
 }
 
 interface GamificationHistoryModalProps {
@@ -56,27 +55,29 @@ export const GamificationHistoryModal: React.FC<GamificationHistoryModalProps> =
         setLoading(true);
         try {
             const now = new Date();
-            const results: MonthData[] = [];
-
-            for (let i = 0; i < 6; i++) {
+            const months = Array.from({ length: 6 }, (_, i) => {
                 const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                const year = d.getFullYear();
-                const month = d.getMonth() + 1;
+                return { year: d.getFullYear(), month: d.getMonth() + 1 };
+            });
 
-                const teamRanking = await dataService.getTeamRanking(departmentId, year, month);
-                const myTeam = teamRanking.find(t => t.teamId === teamId);
+            const results = await Promise.all(months.map(async ({ year, month }) => {
+                const [teamRanking, visitScores] = await Promise.all([
+                    dataService.getTeamRanking(departmentId, year, month),
+                    dataService.getVisitScores({ departmentId, year, month }),
+                ]);
+                const teamVisits = visitScores.filter(score => score.leaderTeamId === teamId);
+                const myTeam = teamRanking.find(team => team.teamId === teamId);
 
-                if (myTeam) {
-                    results.push({
-                        month,
-                        year,
-                        compliance: myTeam.avgComplianceScore,
-                        position: myTeam.position,
-                        totalTeams: teamRanking.length,
-                        trend: myTeam.trend,
-                    });
-                }
-            }
+                return {
+                    year,
+                    month,
+                    compliance: teamVisits.length > 0
+                        ? teamVisits.reduce((sum, score) => sum + score.complianceScore, 0) / teamVisits.length
+                        : null,
+                    position: myTeam?.position ?? null,
+                    totalTeams: teamRanking.length,
+                };
+            }));
 
             setHistory(results.reverse());
         } catch (error) {
@@ -86,7 +87,9 @@ export const GamificationHistoryModal: React.FC<GamificationHistoryModalProps> =
         }
     };
 
-    const maxCompliance = history.length > 0 ? Math.max(...history.map(h => h.compliance), 100) : 100;
+    const maxCompliance = history.length > 0
+        ? Math.max(...history.map(h => h.compliance ?? 0), 100)
+        : 100;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Historico da Equipe" maxWidth="md">
@@ -109,18 +112,20 @@ export const GamificationHistoryModal: React.FC<GamificationHistoryModalProps> =
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300`}>
-                                        #{item.position}/{item.totalTeams}
+                                        {item.position === null ? '—' : `#${item.position}/${item.totalTeams}`}
                                     </span>
-                                    <span className={`text-sm font-black ${getComplianceColor(item.compliance)}`}>
-                                        {item.compliance.toFixed(0)}%
+                                    <span className={`text-sm font-black ${item.compliance === null ? 'text-slate-400' : getComplianceColor(item.compliance)}`}>
+                                        {item.compliance === null ? 'Sem dados' : `${item.compliance.toFixed(0)}%`}
                                     </span>
                                 </div>
                             </div>
                             <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div
-                                    className={`h-full rounded-full transition-all ${getComplianceBg(item.compliance)}`}
-                                    style={{ width: `${(item.compliance / maxCompliance) * 100}%` }}
-                                />
+                                {item.compliance !== null && (
+                                    <div
+                                        className={`h-full rounded-full transition-all ${getComplianceBg(item.compliance)}`}
+                                        style={{ width: `${(item.compliance / maxCompliance) * 100}%` }}
+                                    />
+                                )}
                             </div>
                         </div>
                     ))}

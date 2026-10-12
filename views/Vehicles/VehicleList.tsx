@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { Vehicle } from '../../types';
 import { dataService } from '../../services/dataService';
 import { usePermissions } from '../../contexts/PermissionsContext';
@@ -15,6 +16,8 @@ import { toast } from 'sonner';
 
 interface VehicleListProps {
     onNavigate?: (screen: string) => void;
+    selectedCompanyId?: string | null;
+    onCompanySelect?: (id: string | null) => void;
 }
 
 interface CompanyBrief {
@@ -22,10 +25,13 @@ interface CompanyBrief {
     companyLogoUrl?: string;
 }
 
-export const VehicleList: React.FC<VehicleListProps> = ({ onNavigate }) => {
+export const VehicleList: React.FC<VehicleListProps> = ({
+    onNavigate,
+    selectedCompanyId: externalCompanyId,
+    onCompanySelect,
+}) => {
     const { canView, loading: permissionsLoading } = usePermissions();
     const { currentUser } = useAuth();
-    // Company do usuário logado — atribuída ao criar um veículo novo
     const companyId = currentUser?.companyId;
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,6 +41,14 @@ export const VehicleList: React.FC<VehicleListProps> = ({ onNavigate }) => {
     const [deleting, setDeleting] = useState<Vehicle | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [companies, setCompanies] = useState<Record<string, CompanyBrief>>({});
+    const companiesScroll = useDraggableScroll();
+
+    // Usa o filtro externo (compartilhado entre abas) ou gerencia localmente
+    const [internalCompanyId, setInternalCompanyId] = useState<string | null>(null);
+    const selectedCompanyId = externalCompanyId !== undefined ? externalCompanyId : internalCompanyId;
+    const setSelectedCompanyId = (id: string | null) => {
+        onCompanySelect ? onCompanySelect(id) : setInternalCompanyId(id);
+    };
 
     const loadVehicles = useCallback(async () => {
         setLoading(true);
@@ -98,18 +112,46 @@ export const VehicleList: React.FC<VehicleListProps> = ({ onNavigate }) => {
         }
     };
 
+    // Compute companies list with count from vehicles
+    const companiesWithCount = useMemo(() => {
+        const map = new Map<string, { id: string; name: string; logoUrl?: string; count: number }>();
+        let withoutCompanyCount = 0;
+        for (const v of vehicles) {
+            if (v.companyId && companies[v.companyId]) {
+                const comp = companies[v.companyId];
+                const existing = map.get(v.companyId);
+                if (existing) existing.count += 1;
+                else map.set(v.companyId, { id: v.companyId, name: comp.companyName || 'Empresa', logoUrl: comp.companyLogoUrl, count: 1 });
+            } else {
+                withoutCompanyCount += 1;
+            }
+        }
+        const list = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+        if (withoutCompanyCount > 0) list.push({ id: 'none', name: 'Sem Empresa', logoUrl: undefined, count: withoutCompanyCount });
+        return list;
+    }, [vehicles, companies]);
+
     const filtered = vehicles.filter(v => {
         const term = search.trim().toLowerCase();
-        if (!term) return true;
-        return v.description.toLowerCase().includes(term)
+        const matchSearch = !term
+            || v.description.toLowerCase().includes(term)
             || v.plates.toLowerCase().includes(term);
+        if (!matchSearch) return false;
+        if (selectedCompanyId) {
+            if (selectedCompanyId === 'none') {
+                if (v.companyId && companies[v.companyId]) return false;
+            } else {
+                if (v.companyId !== selectedCompanyId) return false;
+            }
+        }
+        return true;
     });
 
     if (permissionsLoading) {
         return <div className="p-8"><Loading /></div>;
     }
 
-    if (!canView('transport_vehicles')) {
+    if (!canView('dashboard_vehicles_crud')) {
         return (
             <AccessDenied
                 onBack={() => onNavigate?.('dashboard')}
@@ -124,13 +166,110 @@ export const VehicleList: React.FC<VehicleListProps> = ({ onNavigate }) => {
 
     return (
         <div className="flex flex-col">
-            <div className="px-4 py-4 sticky top-0 z-10 bg-background-light dark:bg-background-dark">
+            {/* ── Barra de filtro por empresa ── */}
+            {companiesWithCount.length > 0 && (
+                <div className="px-4 pt-3 border-b border-slate-100 dark:border-slate-800 bg-background-light dark:bg-background-dark">
+                    <div
+                        ref={companiesScroll.ref}
+                        onMouseDown={companiesScroll.onMouseDown}
+                        onTouchStart={companiesScroll.onTouchStart}
+                        onClickCapture={companiesScroll.onClickCapture}
+                        className="flex items-center gap-3 overflow-x-auto no-scrollbar pt-1.5 pb-2.5 px-3 cursor-grab active:cursor-grabbing touch-auto select-none"
+                    >
+                        {/* Todas */}
+                        <button
+                            type="button"
+                            onClick={() => setSelectedCompanyId(null)}
+                            className={`flex flex-col items-center shrink-0 group focus:outline-none transition-all p-1 ${
+                                selectedCompanyId === null ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                            }`}
+                            title={`Todas as empresas (${vehicles.length} veículos)`}
+                        >
+                            <div
+                                className={`relative w-[55px] h-[55px] rounded-[14px] flex items-center justify-center transition-all ${
+                                    selectedCompanyId === null
+                                        ? 'bg-primary text-white shadow-md ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900'
+                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/50'
+                                }`}
+                            >
+                                <span className="material-symbols-outlined text-[26px]">domain</span>
+                                <span className="absolute -top-1.5 -right-2 min-w-[22px] h-[22px] px-1.5 rounded-full bg-orange-500 text-black text-[11px] font-black flex items-center justify-center shadow-md border-2 border-white dark:border-slate-900">
+                                    {vehicles.length}
+                                </span>
+                            </div>
+                            <span
+                                className={`text-[10px] font-bold text-center leading-tight truncate max-w-[62px] mt-1.5 transition-colors ${
+                                    selectedCompanyId === null
+                                        ? 'text-primary dark:text-primary font-black'
+                                        : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'
+                                }`}
+                            >
+                                Todas
+                            </span>
+                        </button>
+
+                        {companiesWithCount.map(comp => {
+                            const isSelected = selectedCompanyId === comp.id;
+                            return (
+                                <button
+                                    key={comp.id}
+                                    type="button"
+                                    onClick={() => setSelectedCompanyId(isSelected ? null : comp.id)}
+                                    className={`flex flex-col items-center shrink-0 group focus:outline-none transition-all p-1 ${
+                                        isSelected
+                                            ? 'opacity-100'
+                                            : selectedCompanyId !== null
+                                            ? 'opacity-50 hover:opacity-90'
+                                            : 'opacity-85 hover:opacity-100'
+                                    }`}
+                                    title={`${comp.name} (${comp.count} ${comp.count === 1 ? 'veículo' : 'veículos'})`}
+                                >
+                                    <div
+                                        className={`relative rounded-[14px] transition-all ${
+                                            isSelected
+                                                ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900 shadow-md'
+                                                : 'hover:ring-1 hover:ring-slate-300 dark:hover:ring-slate-600'
+                                        }`}
+                                    >
+                                        {comp.id === 'none' ? (
+                                            <div className="w-[55px] h-[55px] rounded-[14px] bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                                                <span className="material-symbols-outlined text-[26px]">help_outline</span>
+                                            </div>
+                                        ) : (
+                                            <CompanyAvatar
+                                                src={comp.logoUrl}
+                                                name={comp.name}
+                                                className="w-[55px]! h-[55px]! rounded-[14px]! shadow-xs"
+                                            />
+                                        )}
+                                        <span className="absolute -top-1.5 -right-2 min-w-[22px] h-[22px] px-1.5 rounded-full bg-orange-500 text-black text-[11px] font-black flex items-center justify-center shadow-md border-2 border-white dark:border-slate-900">
+                                            {comp.count}
+                                        </span>
+                                    </div>
+                                    <span
+                                        className={`text-[10px] font-bold text-center leading-tight truncate max-w-[62px] mt-1.5 transition-colors ${
+                                            isSelected
+                                                ? 'text-primary dark:text-primary font-black'
+                                                : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'
+                                        }`}
+                                    >
+                                        {comp.name}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            <div className="px-4 py-3 sticky top-0 z-10 bg-background-light dark:bg-background-dark">
                 <div className="flex items-center gap-2">
                     <div className="flex-1">
                         <SearchInput
                             placeholder="Buscar por veículo ou placa..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            onClear={() => setSearch('')}
                         />
                     </div>
                     <button
@@ -146,7 +285,17 @@ export const VehicleList: React.FC<VehicleListProps> = ({ onNavigate }) => {
             <div className="px-4 pb-32 overflow-y-auto no-scrollbar">
                 {filtered.length === 0 ? (
                     <div className="text-center py-20 text-slate-400">
-                        {search ? 'Nenhum veículo encontrado para esta busca' : 'Nenhum veículo cadastrado'}
+                        {search || selectedCompanyId
+                            ? 'Nenhum veículo encontrado para os filtros selecionados'
+                            : 'Nenhum veículo cadastrado'}
+                        {(search || selectedCompanyId) && (
+                            <button
+                                onClick={() => { setSearch(''); setSelectedCompanyId(null); }}
+                                className="block mx-auto mt-3 text-xs font-semibold text-primary hover:underline"
+                            >
+                                Limpar filtros
+                            </button>
+                        )}
                     </div>
                 ) : (
                     filtered.map(vehicle => (

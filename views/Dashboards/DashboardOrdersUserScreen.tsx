@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { User, Order, OrderVisit } from '../../types';
 import { UserServicesPanel } from '../../components/ui/UserServicesPanel';
 import { UserVisitsPanel } from '../../components/ui/UserVisitsPanel';
-import { GamificationBadge } from '../../components/ui/GamificationBadge';
-import { GamificationHistoryModal } from '../../components/ui/GamificationHistoryModal';
 import { dataService } from '../../services/dataService';
 import { supabase } from '../../services/core/supabase';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
@@ -15,8 +15,9 @@ import { syncPhoneNumber } from '../../services/core/phoneService';
 import { AIContextualBar } from '../../components/ai/AIContextualBar';
 import { formatCurrency } from '../../utils/formatters';
 import { isVehicleRentalEnabled } from '../../features';
-import { FuelExpenseScreen } from '../Transport/FuelExpenseScreen';
+import { FuelExpenseScreen } from '../Vehicles/FuelExpenseScreen';
 import type { VehicleMonthlyExpense } from '../../services/orders/vehicleRentalService';
+import { usePermissions } from '../../contexts/PermissionsContext';
 
 type DashboardTab = 'services' | 'visits' | 'fuel';
 
@@ -29,9 +30,13 @@ interface DashboardScreenProps {
     initialTab?: DashboardTab;
     onTabChange?: (tab: DashboardTab) => void;
     onNavigate?: (screen: string) => void;
+    onGamificationChange?: (ranking: { position: number; positionChange?: number } | null) => void;
 }
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onSelectVisit, onEdit, initialTab = 'services', onTabChange, onNavigate }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onSelectVisit, onEdit, initialTab = 'services', onTabChange, onNavigate, onGamificationChange }) => {
+    const { canCreate, canView, loading: permissionsLoading } = usePermissions();
+    const fuelTabAvailable = isVehicleRentalEnabled() && canView('vehicles_fuel_expenses');
+
     // Persistence keys
     const STORAGE_KEYS = {
         TAB: 'dashboard_active_tab',
@@ -61,13 +66,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     });
 
     const [teamGamification, setTeamGamification] = useState<{
-        complianceScore: number;
         position: number;
-        totalTeams: number;
-        trend: 'up' | 'down' | 'stable';
+        positionChange?: number;
     } | null>(null);
-
-    const [showGamificationModal, setShowGamificationModal] = useState(false);
 
     // Sync internal state if initialTab changes (optional, but good for forcing)
     useEffect(() => {
@@ -77,11 +78,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         }
     }, [initialTab]);
 
+    useEffect(() => {
+        onGamificationChange?.(teamGamification);
+    }, [onGamificationChange, teamGamification]);
+
     const handleTabChange = (tab: DashboardTab) => {
         setActiveTab(tab);
         localStorage.setItem(STORAGE_KEYS.TAB, tab);
         onTabChange?.(tab);
     };
+
+    useEffect(() => {
+        if (!permissionsLoading && activeTab === 'fuel' && !fuelTabAvailable) {
+            handleTabChange('visits');
+        }
+    }, [activeTab, permissionsLoading, fuelTabAvailable]);
 
     const handleServiceSelect = (service: string) => {
         setSelectedService(service);
@@ -101,7 +112,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
         if (showLoading) setIsLoading(true);
         try {
-            const fuelPromise = isVehicleRentalEnabled()
+            const fuelPromise = fuelTabAvailable
                 ? dataService.getFuelExpensesByUser(currentUser.id.toString())
                 : Promise.resolve([]);
 
@@ -114,7 +125,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
             setOrders(teamOrders);
             setVisits(teamVisits);
             setOpenChatVisits(userChatVisits);
-            if (isVehicleRentalEnabled() && fuelData) {
+            if (fuelTabAvailable && fuelData) {
                 setFuelExpenses(fuelData);
             }
 
@@ -124,25 +135,35 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                 const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
                 const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
 
-                const teamRanking = await dataService.getTeamRanking(
-                    currentUser.departmentId, prevYear, prevMonth
-                );
+                const previousPeriod = new Date(prevYear, prevMonth - 2, 1);
+                const previousPeriodYear = previousPeriod.getFullYear();
+                const previousPeriodMonth = previousPeriod.getMonth() + 1;
+
+                const [teamRanking, previousTeamRanking] = await Promise.all([
+                    dataService.getTeamRanking(currentUser.departmentId, prevYear, prevMonth),
+                    dataService.getTeamRanking(currentUser.departmentId, previousPeriodYear, previousPeriodMonth),
+                ]);
                 const myTeam = teamRanking.find(t => t.teamId === currentUser.teamId);
+                const previousMyTeam = previousTeamRanking.find(t => t.teamId === currentUser.teamId);
                 if (myTeam) {
                     setTeamGamification({
-                        complianceScore: myTeam.avgComplianceScore,
                         position: myTeam.position,
-                        totalTeams: teamRanking.length,
-                        trend: myTeam.trend,
+                        positionChange: previousMyTeam
+                            ? previousMyTeam.position - myTeam.position
+                            : undefined,
                     });
+                } else {
+                    setTeamGamification(null);
                 }
+            } else {
+                setTeamGamification(null);
             }
         } catch (error) {
             console.error('Error fetching dashboard orders:', error);
         } finally {
             if (showLoading) setIsLoading(false);
         }
-    }, [currentUser?.id, currentUser?.teamId, currentUser?.departmentId, currentUser?.teamIsEvaluable]);
+    }, [currentUser?.id, currentUser?.teamId, currentUser?.departmentId, currentUser?.teamIsEvaluable, fuelTabAvailable]);
 
     useEffect(() => {
         loadDashboardData(true);
@@ -163,10 +184,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     }, [currentUser?.id]);
 
     useEffect(() => {
-        if (activeTab === 'fuel' && isVehicleRentalEnabled()) {
+        if (activeTab === 'fuel' && fuelTabAvailable) {
             loadFuelExpenses(fuelExpenses.length === 0);
         }
-    }, [activeTab, loadFuelExpenses, fuelExpenses.length]);
+    }, [activeTab, fuelTabAvailable, loadFuelExpenses, fuelExpenses.length]);
 
     /** Fecha o form inline (cancelar/sucesso) e atualiza a lista da aba. */
     const closeFuelForm = useCallback(() => {
@@ -272,22 +293,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                 tabs={[
                     { id: 'services', label: 'Serviços' },
                     { id: 'visits', label: 'Visitas' },
-                    ...(isVehicleRentalEnabled() ? [{ id: 'fuel', label: 'Abastecimentos' }] : [])
+                    ...(fuelTabAvailable ? [{ id: 'fuel', label: 'Abastecimentos' }] : [])
                 ]}
                 activeTab={activeTab}
                 onTabChange={(tab) => handleTabChange(tab as DashboardTab)}
                 className="px-4"
-                leftContent={
-                    teamGamification ? (
-                        <GamificationBadge
-                            complianceScore={teamGamification.complianceScore}
-                            position={teamGamification.position}
-                            totalTeams={teamGamification.totalTeams}
-                            trend={teamGamification.trend}
-                            onClick={() => setShowGamificationModal(true)}
-                        />
-                    ) : undefined
-                }
             />
 
             {/* AI Suggestions - disabled */}
@@ -415,7 +425,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                             )}
                         </div>
                     </div>
-                ) : (
+                ) : activeTab === 'fuel' && fuelTabAvailable ? (
                     /* ── Aba Abastecimentos ── */
                     <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
                         {showFuelForm ? (
@@ -480,7 +490,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                                         </span>
                                                         <span className="flex items-center gap-0.5">
                                                             <span className="material-symbols-outlined text-[13px]">calendar_month</span>
-                                                            {item.createdAt ? new Date(item.createdAt).toLocaleDateString('pt-BR') : '---'}
+                                                            {item.createdAt ? formatDateInBrazil(item.createdAt, 'date', 'pt-BR') : '---'}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -499,29 +509,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                 </div>
 
                                 {/* FAB Novo Abastecimento */}
-                                <button
-                                    onClick={() => setShowFuelForm(true)}
-                                    className="absolute bottom-6 right-4 h-14 w-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:bg-primary-dark transition-colors z-10"
-                                    title="Novo Abastecimento"
-                                >
-                                    <span className="material-symbols-outlined text-2xl">add</span>
-                                </button>
+                                {canCreate('vehicles_fuel_expenses') && (
+                                    <button
+                                        onClick={() => setShowFuelForm(true)}
+                                        className="absolute bottom-6 right-4 h-14 w-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:bg-primary-dark transition-colors z-10"
+                                        title="Novo Abastecimento"
+                                    >
+                                        <span className="material-symbols-outlined text-2xl">add</span>
+                                    </button>
+                                )}
                             </>
                         )}
                     </div>
-                )}
+                ) : null}
             </div>
 
-            {/* Gamification History Modal */}
-            {currentUser?.departmentId && currentUser?.teamId && (
-                <GamificationHistoryModal
-                    isOpen={showGamificationModal}
-                    onClose={() => setShowGamificationModal(false)}
-                    departmentId={currentUser.departmentId}
-                    teamId={currentUser.teamId}
-                />
-            )}
         </div>
     );
 };
-

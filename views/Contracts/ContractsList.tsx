@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { Contract } from '../../types';
 import { dataService } from '../../services/dataService';
 import { SearchInput } from '../../components/ui/SearchInput';
@@ -132,13 +134,13 @@ export const ContractsList: React.FC<ContractsListProps> = ({ companyId, onSelec
                                 <div className="space-y-0.5">
                                     <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Início</p>
                                     <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
-                                        {contract.dateStart ? new Date(contract.dateStart).toLocaleDateString('pt-BR') : '-'}
+                                        {contract.dateStart ? formatDateInBrazil(contract.dateStart, 'date', 'pt-BR') : '-'}
                                     </p>
                                 </div>
                                 <div className="space-y-0.5 text-right">
                                     <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Término</p>
                                     <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
-                                        {contract.dateEnd ? new Date(contract.dateEnd).toLocaleDateString('pt-BR') : '-'}
+                                        {contract.dateEnd ? formatDateInBrazil(contract.dateEnd, 'date', 'pt-BR') : '-'}
                                     </p>
                                 </div>
                             </div>

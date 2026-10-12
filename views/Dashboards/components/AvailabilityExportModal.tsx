@@ -4,7 +4,7 @@ import { dataService } from '../../../services/dataService';
 import { ExcelExportUtils } from '../../../utils/ExcelExportUtils';
 import { toast } from 'sonner';
 import { RiFileExcel2Fill, RiHistoryLine, RiCalendarCheckLine, RiCalendarEventLine, RiCheckFill, RiCalendarLine } from 'react-icons/ri';
-import { formatDateTime, formatDate } from '../../../utils/formatters';
+import { addBrazilCalendarDays, formatDateTime, formatDate, getBrazilDateInputValue } from '../../../utils/formatters';
 import { Calendar } from '../../../components/ui/Calendar';
 import { Select } from '../../../components/ui/Select';
 import { pdf } from '@react-pdf/renderer';
@@ -36,12 +36,8 @@ export const AvailabilityExportModal: React.FC<AvailabilityExportModalProps> = (
     assetTagDescription,
     availableSubTags
 }) => {
-    const [startDate, setStartDate] = useState(() => {
-        const d = new Date();
-        d.setDate(d.getDate() - 30);
-        return d.toISOString().split('T')[0];
-    });
-    const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [startDate, setStartDate] = useState(() => addBrazilCalendarDays(new Date(), -30));
+    const [endDate, setEndDate] = useState(() => getBrazilDateInputValue());
     const [activeInput, setActiveInput] = useState<'start' | 'end'>('start');
     const [selectedSubTagId, setSelectedSubTagId] = useState('all');
     const [isExporting, setIsExporting] = useState<'excel' | 'pdf' | 'tela' | null>(null);

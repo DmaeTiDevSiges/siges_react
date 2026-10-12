@@ -551,7 +551,6 @@ export const usersService = {
             color: item.color,
             year: item.year,
             isAvailable: item.is_available,
-            valueUnit: item.value_unit != null ? Number(item.value_unit) : undefined,
             companyId: item.company_id?.toString() || undefined
         })) as Vehicle[];
     },
@@ -577,7 +576,6 @@ export const usersService = {
             color: data.color,
             year: data.year,
             isAvailable: data.is_available,
-            valueUnit: data.value_unit != null ? Number(data.value_unit) : undefined,
             companyId: data.company_id?.toString() || undefined
         } as Vehicle;
     },

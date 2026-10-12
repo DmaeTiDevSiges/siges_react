@@ -1,4 +1,5 @@
 import { apiN8nService } from './services/apiN8nService';
+import { formatDateInBrazil } from '../../utils/formatters';
 
 /**
  * Script de teste manual da integração n8n
@@ -6,7 +7,7 @@ import { apiN8nService } from './services/apiN8nService';
 const testN8nIntegration = async () => {
     console.log('--- TESTANDO INTEGRAÇÃO N8N ---');
     try {
-        const message = "🚨 *TESTE DE INTEGRAÇÃO*\n\nEste é um teste manual do SIGES via Antigravity.\n\nStatus: INDISPONÍVEL\nSetor: Teste / Geral\nUnidade: Unidade de Teste\nReportado por: Antigravity AI\nData: " + new Date().toLocaleString('pt-BR');
+        const message = "🚨 *TESTE DE INTEGRAÇÃO*\n\nEste é um teste manual do SIGES via Antigravity.\n\nStatus: INDISPONÍVEL\nSetor: Teste / Geral\nUnidade: Unidade de Teste\nReportado por: Antigravity AI\nData: " + formatDateInBrazil(new Date(), 'dateTime', 'pt-BR');
         
         // Usamos uma imagem de teste padrão (ex: placeholder) para validar o imgUrl
         const testImgUrl = "https://placehold.co/600x400/000000/FFFFFF.png?text=SIGES+TESTE"; 

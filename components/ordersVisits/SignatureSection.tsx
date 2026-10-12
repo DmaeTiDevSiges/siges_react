@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { OrderVisit, User } from '../../types';
 import { Card } from '../ui/Card';
 import { Modal } from '../ui/Modal';
@@ -196,7 +198,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                     
                     {leaderSignatureUrl && (
                         <div className="text-[8px] text-center font-bold text-slate-400 uppercase tracking-widest">
-                            Data: {new Date(visit.ovSignatureLeaderAt!).toLocaleString('pt-BR')}
+                            Data: {formatDateInBrazil(visit.ovSignatureLeaderAt!, 'dateTime', 'pt-BR')}
                         </div>
                     )}
                 </Card>
@@ -256,7 +258,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                     
                     {requesterSignatureUrl && (
                         <div className="text-[8px] text-center font-bold text-slate-400 uppercase tracking-widest">
-                            Data: {new Date(visit.ovSignatureRequesterAt!).toLocaleString('pt-BR')}
+                            Data: {formatDateInBrazil(visit.ovSignatureRequesterAt!, 'dateTime', 'pt-BR')}
                         </div>
                     )}
                 </Card>

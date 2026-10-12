@@ -1106,7 +1106,7 @@ export const visitsService = {
             return [];
         }
 
-        return data.map((item: any) => {
+        const vehicles = data.map((item: any) => {
             const costType = (item.cost_type || 'odometer') as OrderVisitVehicle['costType'];
             // Linhas 'rental'/'variable' (rateio) não têm odômetro: o valor
             // vem da coluna amount. Linhas de Km ('odometer' e 'rate' — a
@@ -1135,6 +1135,36 @@ export const visitsService = {
                 unit: item.unit
             };
         });
+
+        const hasMatchingRental = (componentLine: OrderVisitVehicle) =>
+            vehicles.some(vehicle =>
+                vehicle.costType === 'rental' &&
+                vehicle.vehicleId === componentLine.vehicleId &&
+                vehicle.amount === componentLine.amount
+            );
+
+        return vehicles
+            .filter(vehicle =>
+                !['rate', 'variable'].includes(vehicle.costType || '') ||
+                !hasMatchingRental(vehicle)
+            )
+            .map(vehicle => {
+                if (vehicle.costType !== 'rental') return vehicle;
+                const odometerLine = vehicles.find(candidate =>
+                    ['rate', 'variable'].includes(candidate.costType || '') &&
+                    candidate.vehicleId === vehicle.vehicleId &&
+                    candidate.amount === vehicle.amount &&
+                    candidate.recorderStart != null &&
+                    candidate.recorderEnd != null
+                );
+                return odometerLine
+                    ? {
+                        ...vehicle,
+                        recorderStart: odometerLine.recorderStart,
+                        recorderEnd: odometerLine.recorderEnd
+                    }
+                    : vehicle;
+            });
     },
 
     async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string): Promise<void> {
@@ -2908,16 +2938,31 @@ export const visitsService = {
         }
     },
 
-    async updateOrderVisitProcessing(visitId: string, processingId: number, userId: string, extraData?: { statusId: number; progress: number; suspendedReasonId?: number | null }): Promise<void> {
-        const timestamp = getBrazilTimestamp();
+    async updateOrderVisitProcessing(visitId: string, processingId: number, userId: string, extraData?: { statusId: number; progress: number; suspendedReasonId?: number | null; causeReasonId?: number | null }): Promise<void> {
+        if (processingId === 5) {
+            if (!extraData) {
+                throw new Error('Dados da OS são obrigatórios para aprovar a visita');
+            }
+
+            const { error } = await supabase.rpc('approve_order_visit_with_maintenance_plans', {
+                p_visit_id: parseInt(visitId, 10),
+                p_user_id: parseInt(userId, 10),
+                p_order_status_id: extraData.statusId,
+                p_progress: extraData.progress,
+                p_suspended_reason_id: extraData.suspendedReasonId ?? null,
+                p_cause_reason_id: extraData.causeReasonId ?? null
+            });
+
+            if (error) {
+                console.error('Error approving visit and registering maintenance plans:', error);
+                throw new Error('Erro ao aprovar visita e registrar planos de manutenção');
+            }
+            return;
+        }
+
         const payload: any = {
             ov_processing_id: processingId
         };
-
-        if (processingId === 5) {
-            payload.ov_approved_user_id = parseInt(userId);
-            payload.ov_approved_at = timestamp;
-        }
 
         if (extraData) {
             payload.ov_o_status_id = extraData.statusId;
@@ -3001,39 +3046,15 @@ export const visitsService = {
     },
 
     async reverseOrderVisitApproval(visitId: string): Promise<void> {
-        // 1. Update all assets to processing_id = 2 (Reported)
-        const { error: assetsError } = await supabase
-            .from('orders_visits_assets')
-            .update({ processing_id: 2 })
-            .eq('ov_id', parseInt(visitId));
+        const { error } = await supabase.rpc('reverse_order_visit_approval', {
+            p_visit_id: parseInt(visitId, 10)
+        });
 
-        if (assetsError) {
-            console.error('Error reversing assets approval:', assetsError);
-            throw new Error('Erro ao reverter aprovação dos ativos');
-        }
-
-        // 2. Update visit status to 2 (Reported) and clear approval audit fields
-        const { error: visitError } = await supabase
-            .from('orders_visits')
-            .update({
-                ov_processing_id: 2,
-                ov_assets_approved_no_filed_amount: 0,
-                ov_approved_at: null,
-                ov_approved_user_id: null,
-                ov_costs_status: 'pending',
-                ov_costs_waiting_at: null,
-                ov_costs_approved_at: null,
-                ov_costs_rejected_at: null,
-                ov_costs_rejection_reason: null
-            })
-            .eq('id', parseInt(visitId));
-
-        if (visitError) {
-            console.error('Error reversing visit approval:', visitError);
+        if (error) {
+            console.error('Error reversing visit approval and maintenance plans:', error);
             throw new Error('Erro ao reverter aprovação da visita');
         }
 
-        // 3. Sync counters to be safe
         await visitsService.syncOrderVisitAssetsProcessing(visitId);
     },
 

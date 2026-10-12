@@ -411,6 +411,12 @@ export const dataService = {
         return dashboardService.getOrdersVisitsView.apply(dashboardService, arguments as any);
     },
 
+    async getAuthorizedOrdersFromStatusLogs(
+        orderIds: Array<string | number>
+    ): Promise<Array<{ orderId: string; authorizedAt: string | null }>> {
+        return dashboardService.getAuthorizedOrdersFromStatusLogs.apply(dashboardService, arguments as any);
+    },
+
     async getOrdersForCalendar(filters?: {
         startDate?: string;
         endDate?: string;
@@ -2602,6 +2608,13 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return ordersService.getOrderStatusHistory.apply(ordersService, arguments as any);
     },
 
+    async getMaintenancePlansByOrderId(orderId: string | number): Promise<Array<{ id: string; code: string | null; description: string }>> {
+        return ordersService.getMaintenancePlansByOrderId.apply(ordersService, arguments as any);
+    },
+
+    async getOrderIdsByMaintenancePlanIds(planIds: string | string[]): Promise<string[]> {
+        return ordersService.getOrderIdsByMaintenancePlanIds.apply(ordersService, arguments as any);
+    },
 
     /**
      * Reporta uma visita, alterando o processing_id de 1 (Rascunho) para 2 (Reportada)
@@ -2624,7 +2637,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.markOrderVisitAsRevised.apply(visitsService, arguments as any);
     },
 
-    async updateOrderVisitProcessing(visitId: string, processingId: number, userId: string, extraData?: { statusId: number; progress: number; suspendedReasonId?: number | null }): Promise<void> {
+    async updateOrderVisitProcessing(visitId: string, processingId: number, userId: string, extraData?: { statusId: number; progress: number; suspendedReasonId?: number | null; causeReasonId?: number | null }): Promise<void> {
         return visitsService.updateOrderVisitProcessing.apply(visitsService, arguments as any);
     },
 
@@ -3322,5 +3335,3 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return assetsTypesChecklistService.addChecklistsToAssetType.apply(assetsTypesChecklistService, arguments as any);
     },
 };
-
-

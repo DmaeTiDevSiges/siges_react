@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../../utils/formatters';
+
 import { User, Team, Profile as ProfileType } from '../../../types';
 import { dataService } from '../../../services/dataService';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../../components/ui/UserAvatar';
@@ -128,7 +130,7 @@ export const UserViewScreen: React.FC<UserViewScreenProps> = ({ user, onBack, on
                         <InfoRow
                             icon="calendar_today"
                             label="Membro desde"
-                            value={user.createdAt ? new Date(user.createdAt).toLocaleDateString('pt-BR') : 'N/A'}
+                            value={user.createdAt ? formatDateInBrazil(user.createdAt, 'date', 'pt-BR') : 'N/A'}
                         />
                     </div>
                 </section>

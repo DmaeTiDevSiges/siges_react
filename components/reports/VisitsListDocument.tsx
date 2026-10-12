@@ -1,4 +1,6 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 
 // ---------------------------------------------------------------------------
 // Colors
@@ -131,7 +133,7 @@ const fmtDateTime = (val?: string) => {
     try {
         const d = new Date(val);
         if (isNaN(d.getTime())) return val;
-        return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return formatDateInBrazil(d, 'dateTime', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     } catch { return val; }
 };
 

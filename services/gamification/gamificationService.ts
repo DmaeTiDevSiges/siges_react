@@ -143,7 +143,7 @@ export const gamificationService = {
             );
         });
 
-        return rankings.map((r: any) => ({
+        const ranking = rankings.map((r: any) => ({
             position: r.ranking_position || 0,
             leaderId: r.leader_id?.toString(),
             leaderName: r.leader_name,
@@ -162,6 +162,16 @@ export const gamificationService = {
             avatarUrl: avatarByLeader[r.leader_id?.toString()],
             badges: badgesByLeader[r.leader_id?.toString()] || [],
         }));
+        ranking.sort((a, b) =>
+            Math.round(b.avgComplianceScore) - Math.round(a.avgComplianceScore) ||
+            b.totalVisits - a.totalVisits ||
+            a.failedEvaluations - b.failedEvaluations
+        );
+        ranking.forEach((entry, index) => {
+            entry.position = index + 1;
+        });
+
+        return ranking;
     },
 
     // -------------------------------------------------------------------------
@@ -634,7 +644,11 @@ export const gamificationService = {
         });
 
         // Ordena por compliance e atribui posições
-        teamRanking.sort((a, b) => b.avgComplianceScore - a.avgComplianceScore);
+        teamRanking.sort((a, b) =>
+            Math.round(b.avgComplianceScore) - Math.round(a.avgComplianceScore) ||
+            b.totalVisits - a.totalVisits ||
+            a.failedEvaluations - b.failedEvaluations
+        );
         teamRanking.forEach((entry, idx) => {
             entry.position = idx + 1;
         });

@@ -359,8 +359,6 @@ export interface Vehicle {
   color: string;
   year: string;
   isAvailable: boolean;
-  /** Valor padrão por Km (R$/km) — origem do contrato automático/import Manus. */
-  valueUnit?: number;
   /** Fator multiplicador de desconto do veículo (1 = sem desconto). */
   discount?: number;
   /** Company dona do veículo (avatar da empresa nos cards de contratos/apuração). */
@@ -1151,7 +1149,7 @@ export interface OrderVisitVehicle {
   createdUserId?: string;
   createdAt: string;
 
-  // Origem do valor: 'odometer' (Km × vehicles.value_unit),
+  // Origem do valor: 'odometer' (Km × value_unit do contrato vigente),
   // 'rental' (rateio do aluguel mensal) e 'variable' (rateio das
   // despesas variáveis) — as duas últimas só leitura, geradas pela
   // apuração mensal
@@ -1351,6 +1349,8 @@ export interface OrderFilters {
   providerCompanyId?: string | string[];
   /** Filtro por causa/reason (cause_reason_id). */
   causeReasonId?: string | string[];
+  /** Filtro por Plano de Manutenção Preventiva associado à OS. */
+  maintenancePlanId?: string | string[];
 }
 
 export interface OrderVisitChatMessage {

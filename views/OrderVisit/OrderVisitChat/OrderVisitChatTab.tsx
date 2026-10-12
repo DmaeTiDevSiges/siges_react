@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { formatDateInBrazil } from '../../../utils/formatters';
+
 import { dataService } from '../../../services/dataService';
 import { supabase } from '../../../services/core/supabase';
 import { OrderVisitChatMessage, OrderVisitChatParticipant, User } from '../../../types';
@@ -100,7 +102,7 @@ const ReadReceiptIndicator: React.FC<{
                                             {reader.userName}
                                         </p>
                                         <p className="text-[9px] text-slate-400 dark:text-slate-500">
-                                            {new Date(reader.readAt).toLocaleString('pt-BR', {
+                                            {formatDateInBrazil(reader.readAt, 'dateTime', 'pt-BR', {
                                                 day: '2-digit', month: '2-digit',
                                                 hour: '2-digit', minute: '2-digit'
                                             })}
@@ -818,7 +820,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                                     <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 px-1">
                                         <span>{msg.userName}</span>
                                         <span>•</span>
-                                        <span>{new Date(msg.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} às {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}h</span>
+                                        <span>{formatDateInBrazil(msg.createdAt, 'date', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} às {formatDateInBrazil(msg.createdAt, 'time', [], { hour: '2-digit', minute: '2-digit' })}h</span>
                                     </div>
                                     
                                     <div

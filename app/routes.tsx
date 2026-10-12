@@ -188,8 +188,7 @@ export const RouteFormScreen = lazyWithRetry(() => import('../views/Settings/Sec
 export const AIKnowledgeAdmin = lazyWithRetry(() => import('../views/Settings/AI/AIKnowledgeAdmin').then(m => ({ default: m.AIKnowledgeAdmin })));
 export const MaintenancePlansScreen = lazyWithRetry(() => import('../views/Settings/MaintenancePlans/MaintenancePlansScreen').then(m => ({ default: m.MaintenancePlansScreen })));
 export const ToolsMainView = lazyWithRetry(() => import('../views/Tools/ToolsMainView').then(m => ({ default: m.ToolsMainView })));
-export const RentalContractList = lazyWithRetry(() => import('../views/Transport/RentalContractList').then(m => ({ default: m.RentalContractList })));
-export const RateContractList = lazyWithRetry(() => import('../views/Transport/RateContractList').then(m => ({ default: m.RateContractList })));
-export const RentalApportionmentScreen = lazyWithRetry(() => import('../views/Transport/RentalApportionmentScreen').then(m => ({ default: m.RentalApportionmentScreen })));
-export const VehicleList = lazyWithRetry(() => import('../views/Transport/VehicleList').then(m => ({ default: m.VehicleList })));
-export const FuelExpenseScreen = lazyWithRetry(() => import('../views/Transport/FuelExpenseScreen').then(m => ({ default: m.FuelExpenseScreen })));
+export const RentalContractList = lazyWithRetry(() => import('../views/Vehicles/RentalContractList').then(m => ({ default: m.RentalContractList })));
+export const VehiclesDashboardAdminScreen = lazyWithRetry(() => import('../views/Vehicles/VehiclesDashboardAdminScreen').then(m => ({ default: m.VehiclesDashboardAdminScreen })));
+export const VehicleList = lazyWithRetry(() => import('../views/Vehicles/VehicleList').then(m => ({ default: m.VehicleList })));
+export const FuelExpenseScreen = lazyWithRetry(() => import('../views/Vehicles/FuelExpenseScreen').then(m => ({ default: m.FuelExpenseScreen })));

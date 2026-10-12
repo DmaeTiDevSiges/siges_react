@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { dataService } from '../../services/dataService';
 import { Unit, AssetTag, User } from '../../types';
 import { IconButton } from '../../components/ui/IconButton';
@@ -179,7 +181,7 @@ export const UnitAssetTagAvailableDetails: React.FC<UnitAssetTagAvailableDetails
                                     {assetTag?.last_reported_by_name || 'Desconhecido'}
                                 </span>
                                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-tight">
-                                    {new Date(assetTag?.last_reported_at || Date.now()).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} h
+                                    {formatDateInBrazil(assetTag?.last_reported_at || Date.now(), 'dateTime', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} h
                                 </span>
                             </div>
                         </div>

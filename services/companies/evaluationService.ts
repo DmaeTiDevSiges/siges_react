@@ -1,10 +1,12 @@
 import { supabase } from '../core/supabase';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import type { EvaluationRequirement, ContractEvaluationRequirement, OrderVisitEvaluation } from '../../types';
 
 const BRAZIL_TZ = 'America/Sao_Paulo';
 
 function brazilNow(): string {
-    return new Date().toLocaleString('sv-SE', { timeZone: BRAZIL_TZ }).replace(' ', 'T');
+    return formatDateInBrazil(new Date(), 'dateTime', 'sv-SE', { timeZone: BRAZIL_TZ }).replace(' ', 'T');
 }
 
 export const evaluationService = {

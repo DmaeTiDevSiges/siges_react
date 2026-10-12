@@ -22,6 +22,7 @@ interface HeaderProps {
     onProfileClick?: () => void;
     subtitle?: string;
     rightAction?: React.ReactNode;
+    userLeftElement?: React.ReactNode;
     tabNavigation?: React.ReactNode;
     hideBorder?: boolean;
     titleRightElement?: React.ReactNode;
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
     onProfileClick,
     subtitle,
     rightAction,
+    userLeftElement,
     tabNavigation,
     hideBorder,
     titleRightElement
@@ -122,6 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 className="shadow-sm w-[48px] h-[48px]"
                             />
                         </button>
+                        {userLeftElement}
 
                         {(currentUser.notificationsAmount || 0) > 0 && (
                             <button

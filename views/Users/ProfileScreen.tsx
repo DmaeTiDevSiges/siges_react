@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { Layout } from '../../components/shell/Layout';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
@@ -1244,7 +1246,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                     </p>
                                                 </div>
                                                 <div className="shrink-0 text-xs text-slate-400">
-                                                    {tool.date_start ? new Date(tool.date_start).toLocaleDateString('pt-BR') : '—'}
+                                                    {tool.date_start ? formatDateInBrazil(tool.date_start, 'date', 'pt-BR') : '—'}
                                                 </div>
                                             </div>
                                         ))}

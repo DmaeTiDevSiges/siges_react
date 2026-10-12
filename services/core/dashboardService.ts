@@ -2,6 +2,47 @@ import { supabase } from './supabase';
 import { OrderFilters } from '../../types';
 
 export const dashboardService = {
+    async getAuthorizedOrdersFromStatusLogs(
+        orderIds: Array<string | number>
+    ): Promise<Array<{ orderId: string; authorizedAt: string | null }>> {
+        const ids = [...new Set(orderIds.map(id => Number(id)).filter(id => Number.isInteger(id) && id > 0))];
+        if (ids.length === 0) return [];
+
+        const authorizedOrders = new Map<string, { orderId: string; authorizedAt: string | null }>();
+        const orderIdChunkSize = 500;
+        const pageSize = 1000;
+
+        for (let i = 0; i < ids.length; i += orderIdChunkSize) {
+            const orderIdChunk = ids.slice(i, i + orderIdChunkSize);
+            let from = 0;
+
+            while (true) {
+                const { data, error } = await supabase
+                    .from('orders_statuses_logs')
+                    .select('order_id, order_status_at, created_date')
+                    .eq('order_status_id', 3)
+                    .in('order_id', orderIdChunk)
+                    .order('id', { ascending: true })
+                    .range(from, from + pageSize - 1);
+
+                if (error) throw error;
+
+                for (const row of data ?? []) {
+                    const orderId = String(row.order_id);
+                    authorizedOrders.set(orderId, {
+                        orderId,
+                        authorizedAt: row.order_status_at || row.created_date || null,
+                    });
+                }
+
+                if (!data || data.length < pageSize) break;
+                from += pageSize;
+            }
+        }
+
+        return [...authorizedOrders.values()];
+    },
+
     async getDashboardStats(
         filters?: OrderFilters,
         ssFiltersOverride?: OrderFilters,

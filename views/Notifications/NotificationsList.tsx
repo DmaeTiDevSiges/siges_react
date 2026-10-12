@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { dataService } from '../../services/dataService';
 import { getInitials } from '../../utils/formatters';
 import { UserNotification } from '../../types';
@@ -161,7 +163,7 @@ export const NotificationsList: React.FC<NotificationsListProps> = ({
         if (diffInSeconds < 3600) return `Há ${Math.floor(diffInSeconds / 60)}m`;
         if (diffInSeconds < 86400) return `Há ${Math.floor(diffInSeconds / 3600)}h`;
 
-        return date.toLocaleDateString('pt-BR', {
+        return formatDateInBrazil(date, 'date', 'pt-BR', {
             day: '2-digit',
             month: '2-digit'
         });

@@ -9,6 +9,7 @@ import { imgproxyService } from '../../services/media/imgproxyService';
 import { FaFilePdf } from 'react-icons/fa';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
 import { Loading } from '../ui/Loading';
+import { getBrazilDateInputValue } from '../../utils/formatters';
 
 
 
@@ -361,7 +362,7 @@ export const VisitReportPDFButton = ({
             // 5. Render PDF and download
             toast.loading('Gerando PDF…', { id: toastId });
             const blob = await pdf(<VisitReportDocument data={reportDataWithBase64} />).toBlob();
-            const fileName = `visita-${visitMask ?? visitId}-${new Date().toISOString().slice(0, 10)}.pdf`;
+            const fileName = `visita-${visitMask ?? visitId}-${getBrazilDateInputValue()}.pdf`;
             await FileUtils.downloadFile(blob, fileName);
 
             toast.success('Relatório gerado com sucesso!', { id: toastId });

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { OrderVisit, User } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { isFinancialApprovalEnabled, isVehicleRentalEnabled, type VisitCostsStatus } from '../../features';
@@ -217,7 +219,7 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
 
                     {isFinancialApprovalEnabled() && costsStatus === 'approved' && visit.ovCostsApprovedAt && (
                         <p className="text-indigo-200 dark:text-indigo-100 text-xs font-medium mt-2">
-                            Aprovado por {visit.ovCostsApprovedUserNameShort || '...'} em {new Date(visit.ovCostsApprovedAt).toLocaleDateString('pt-BR')} {new Date(visit.ovCostsApprovedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                            Aprovado por {visit.ovCostsApprovedUserNameShort || '...'} em {formatDateInBrazil(visit.ovCostsApprovedAt, 'date', 'pt-BR')} {formatDateInBrazil(visit.ovCostsApprovedAt, 'time', 'pt-BR', { hour: '2-digit', minute: '2-digit' })}h
                         </p>
                     )}
 
@@ -236,7 +238,7 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                             )}
                             {visit.ovCostsRejectedAt && (
                                 <p className="text-white/80 text-xs font-medium">
-                                    Rejeitado por <span className="font-bold">{visit.ovCostsRejectedUserNameShort || '...'}</span> em {new Date(visit.ovCostsRejectedAt).toLocaleDateString('pt-BR')} {new Date(visit.ovCostsRejectedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                                    Rejeitado por <span className="font-bold">{visit.ovCostsRejectedUserNameShort || '...'}</span> em {formatDateInBrazil(visit.ovCostsRejectedAt, 'date', 'pt-BR')} {formatDateInBrazil(visit.ovCostsRejectedAt, 'time', 'pt-BR', { hour: '2-digit', minute: '2-digit' })}h
                                 </p>
                             )}
                         </div>

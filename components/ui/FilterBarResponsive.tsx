@@ -26,6 +26,7 @@ interface FilterBarResponsiveProps {
     onActiveFiltersChange?: (count: number) => void;
     children?: React.ReactNode;
     hiddenFilters?: string[];
+    showMaintenancePlanFilter?: boolean;
 }
 
 export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterBarResponsiveProps>(({
@@ -43,6 +44,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
     onActiveFiltersChange,
     children,
     hiddenFilters = [],
+    showMaintenancePlanFilter = false,
 }, ref) => {
     const isDesktop = useMediaQuery('(min-width: 768px)');
     const filtersScroll = useDraggableScroll();
@@ -79,18 +81,21 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
             handleParentUnitTypeChange(value);
         } else if (key === 'orderTypeId') {
             handleOrderTypeChange(value);
+        } else if (key === 'assetTagId') {
+            handleSectorChange(value);
         } else {
             setAdvancedFilters((prev: any) => ({ ...prev, [key]: value }));
         }
         setSelectionModal(prev => ({ ...prev, isOpen: false }));
-    }, [selectionModal.filterKey, setAdvancedFilters, handleSystemChange, handleParentUnitTypeChange, handleOrderTypeChange]);
+    }, [selectionModal.filterKey, setAdvancedFilters, handleSystemChange, handleParentUnitTypeChange, handleOrderTypeChange, handleSectorChange]);
 
     const totalActiveFilters = useMemo(() => {
         const keys = [
             'systemParentId', 'systemId', 'unitTypeParentId', 'unitTypeId',
             'unitId', 'assetTagId', 'assetTagSubId', 'orderObjectId',
             'orderTypeId', 'orderTypeSubId', 'contractId', 'orderPlanId', 'orderTeamId',
-            'causeReasonId'
+            'causeReasonId',
+            ...(showMaintenancePlanFilter ? ['maintenancePlanId'] : [])
         ];
         return keys.reduce((count, key) => {
             const val = advancedFilters[key];
@@ -98,7 +103,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
             if (val) return count + 1;
             return count;
         }, 0);
-    }, [advancedFilters]);
+    }, [advancedFilters, showMaintenancePlanFilter]);
 
     const openMobileFilter = useCallback((key: string, label: string, options: { value: string; label: string }[]) => {
         openSelectionModal(key, label, options);
@@ -139,6 +144,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                 <FilterSelect label="CONTRATO" value={advancedFilters.contractId || []} onClick={() => openSelectionModal('contractId', 'CONTRATO', filterSelectOptions.contracts.map((opt: any) => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, contractId: [] }))} hidden={hiddenFilters.includes('contractId')} />
                 <FilterSelect label="CAUSA" value={advancedFilters.causeReasonId || []} onClick={() => openSelectionModal('causeReasonId', 'CAUSA', filterSelectOptions.causeReasons.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, causeReasonId: [] }))} hidden={hiddenFilters.includes('causeReasonId')} />
                 <FilterSelect label="PLANO" value={advancedFilters.orderPlanId || []} onClick={() => openSelectionModal('orderPlanId', 'PLANO', filterSelectOptions.plans.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, orderPlanId: [] }))} hidden={hiddenFilters.includes('orderPlanId')} />
+                {showMaintenancePlanFilter && <FilterSelect label="PMP" value={advancedFilters.maintenancePlanId || []} onClick={() => openSelectionModal('maintenancePlanId', 'PMP', filterSelectOptions.maintenancePlans.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, maintenancePlanId: [] }))} />}
                 <TreeFilterSelect label="EQ.SOLICITANTE" value={advancedFilters.orderTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: [] }))} hidden={hiddenFilters.includes('orderTeamId')} />
                 <TreeFilterSelect label="EQ.RESPONSAVEL" value={advancedFilters.responsibleTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: [] }))} hidden={hiddenFilters.includes('responsibleTeamId')} />
 
@@ -176,6 +182,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                     <FilterSelect variant="vertical" label="CONTRATO" value={advancedFilters.contractId || []} onClick={() => openMobileFilter('contractId', 'CONTRATO', filterSelectOptions.contracts.map((opt: any) => ({ value: String(opt.id), label: opt.description || opt.code || 'S/N' })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, contractId: [] }))} hidden={hiddenFilters.includes('contractId')} />
                     <FilterSelect variant="vertical" label="CAUSA" value={advancedFilters.causeReasonId || []} onClick={() => openMobileFilter('causeReasonId', 'CAUSA', filterSelectOptions.causeReasons.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, causeReasonId: [] }))} hidden={hiddenFilters.includes('causeReasonId')} />
                     <FilterSelect variant="vertical" label="PLANO" value={advancedFilters.orderPlanId || []} onClick={() => openMobileFilter('orderPlanId', 'PLANO', filterSelectOptions.plans.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, orderPlanId: [] }))} hidden={hiddenFilters.includes('orderPlanId')} />
+                    {showMaintenancePlanFilter && <FilterSelect variant="vertical" label="PMP" value={advancedFilters.maintenancePlanId || []} onClick={() => openMobileFilter('maintenancePlanId', 'PMP', filterSelectOptions.maintenancePlans.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, maintenancePlanId: [] }))} />}
                 <TreeFilterSelect label="EQ.SOLICITANTE" value={advancedFilters.orderTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: [] }))} hidden={hiddenFilters.includes('orderTeamId')} />
                 <TreeFilterSelect label="EQ.RESPONSAVEL" value={advancedFilters.responsibleTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: [] }))} hidden={hiddenFilters.includes('responsibleTeamId')} />
 

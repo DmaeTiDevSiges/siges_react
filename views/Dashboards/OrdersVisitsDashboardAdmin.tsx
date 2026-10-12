@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { dataService } from '../../services/dataService';
 import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
@@ -113,7 +115,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, col
     return (
         <div
             onClick={onClick}
-            className={`backdrop-blur-sm p-4 rounded-[16px] border shadow-sm transition-all cursor-pointer group flex-1 min-w-[160px] lg:min-w-[180px] min-h-[110px] shrink-0 flex flex-col justify-between ${active
+            className={`backdrop-blur-sm p-4 rounded-[16px] border shadow-sm transition-all cursor-pointer group w-max min-w-[160px] lg:min-w-[180px] min-h-[110px] shrink-0 flex flex-col justify-between ${active
                 ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900'
                 : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md'
                 }`}
@@ -622,11 +624,11 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                 beforeClientUnit: `${a.beforeClientName || ''} - ${a.beforeUnitDescription || ''}`,
                 beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
                 beforeStatus: a.beforeStatusDescription || '',
-                beforeDate: a.beforeStatusAt ? new Date(a.beforeStatusAt).toLocaleDateString('pt-BR') : '',
+                beforeDate: a.beforeStatusAt ? formatDateInBrazil(a.beforeStatusAt, 'date', 'pt-BR') : '',
                 afterClientUnit: `${a.afterClientName || ''} - ${a.afterUnitDescription || ''}`,
                 afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
                 afterStatus: a.afterStatusDescription || '',
-                afterDate: a.afterStatusAt ? new Date(a.afterStatusAt).toLocaleDateString('pt-BR') : '',
+                afterDate: a.afterStatusAt ? formatDateInBrazil(a.afterStatusAt, 'date', 'pt-BR') : '',
                 comments: a.movedComments || ''
             }));
             const mapping = {
@@ -660,14 +662,14 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                 beforeClientName: a.beforeClientName || '', beforeUnitDescription: a.beforeUnitDescription || '',
                 beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
                 beforeStatus: a.beforeStatusDescription || '',
-                beforeDate: a.beforeStatusAt ? new Date(a.beforeStatusAt).toLocaleDateString('pt-BR') : '',
+                beforeDate: a.beforeStatusAt ? formatDateInBrazil(a.beforeStatusAt, 'date', 'pt-BR') : '',
                 afterClientName: a.afterClientName || '', afterUnitDescription: a.afterUnitDescription || '',
                 afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
                 afterStatus: a.afterStatusDescription || '',
-                afterDate: a.afterStatusAt ? new Date(a.afterStatusAt).toLocaleDateString('pt-BR') : ''
+                afterDate: a.afterStatusAt ? formatDateInBrazil(a.afterStatusAt, 'date', 'pt-BR') : ''
             }));
             const logoBase64 = await getLogoBase64();
-            const doc = <AssetMovementsDocument assets={reportRows} logoBase64={logoBase64} generatedAt={new Date().toLocaleString('pt-BR')} />;
+            const doc = <AssetMovementsDocument assets={reportRows} logoBase64={logoBase64} generatedAt={formatDateInBrazil(new Date(), 'dateTime', 'pt-BR')} />;
             const blob = await pdf(doc).toBlob();
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             await FileUtils.downloadFile(blob, `movimentacoes_ativos_${timestamp}.pdf`);
@@ -2093,5 +2095,3 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         </>
     );
 };
-
-

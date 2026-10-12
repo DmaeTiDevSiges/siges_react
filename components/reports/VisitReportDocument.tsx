@@ -1,4 +1,6 @@
 import React from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 
 // ---------------------------------------------------------------------------
@@ -567,7 +569,7 @@ const fmtFullDate = (val: string | undefined | null) => {
     try {
         const d = new Date(val);
         if (isNaN(d.getTime())) return val;
-        return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+        return formatDateInBrazil(d, 'dateTime', 'pt-BR', { dateStyle: 'short', timeStyle: 'short' });
     } catch {
         return val;
     }
@@ -578,7 +580,7 @@ const fmtDate = (val: string | undefined | null) => {
     try {
         const d = new Date(val);
         if (isNaN(d.getTime())) return val;
-        return d.toLocaleDateString('pt-BR');
+        return formatDateInBrazil(d, 'date', 'pt-BR');
     } catch {
         return val;
     }
@@ -589,7 +591,7 @@ const fmtTime = (val: string | undefined | null) => {
     try {
         const d = new Date(val);
         if (isNaN(d.getTime())) return '—';
-        return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        return formatDateInBrazil(d, 'time', 'pt-BR', { hour: '2-digit', minute: '2-digit' });
     } catch {
         return '—';
     }

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { Order, User, OrderVisit, ServiceHistoryItem } from '../../types';
 import { IconButton } from '../../components/ui/IconButton';
 import { ServiceRequestCardDetail } from '../../components/serviceRequests/ServiceRequestCardDetail';
@@ -319,7 +321,7 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                                                     <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-white dark:bg-card-dark p-4 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-slate-200 dark:hover:border-white/10 ml-12 md:ml-0">
                                                         <div className="flex items-center justify-between mb-2">
                                                             <time className="text-[10px] font-black uppercase tracking-tighter text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-full">
-                                                                {new Date(item.date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                                {formatDateInBrazil(item.date, 'dateTime', 'pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                                             </time>
                                                             {item.visitMask && (
                                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.visitMask}</span>

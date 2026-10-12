@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { Contract, User, ContractManager } from '../../types';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Avatar } from '../../components/ui/Avatar';
@@ -152,7 +154,7 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
 
     const formatDate = (dateString?: string | Date) => {
         if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('pt-BR');
+        return formatDateInBrazil(dateString, 'date', 'pt-BR');
     };
 
 

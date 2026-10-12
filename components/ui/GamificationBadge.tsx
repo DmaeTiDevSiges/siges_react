@@ -1,41 +1,45 @@
 import React from 'react';
 
 interface GamificationBadgeProps {
-    complianceScore: number;
     position: number;
-    totalTeams: number;
-    trend: 'up' | 'down' | 'stable';
+    positionChange?: number;
     onClick?: () => void;
 }
 
-const getComplianceColor = (score: number) => {
-    if (score >= 90) return 'text-green-600 dark:text-green-400';
-    if (score >= 70) return 'text-yellow-600 dark:text-yellow-400';
-    if (score >= 50) return 'text-orange-600 dark:text-orange-400';
-    return 'text-red-600 dark:text-red-400';
-};
-
 export const GamificationBadge: React.FC<GamificationBadgeProps> = ({
-    complianceScore,
     position,
-    totalTeams,
+    positionChange = 0,
     onClick,
 }) => {
+    const movement = positionChange > 0 ? 'up' : positionChange < 0 ? 'down' : null;
+    const movementDescription = movement === 'up'
+        ? `Subiu ${positionChange} ${positionChange === 1 ? 'posição' : 'posições'}`
+        : movement === 'down'
+            ? `Caiu ${Math.abs(positionChange)} ${Math.abs(positionChange) === 1 ? 'posição' : 'posições'}`
+            : null;
+
     return (
-        <button
+        <span
             onClick={onClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-card-dark hover:border-primary dark:hover:border-primary transition-all cursor-pointer group"
-            title="Ver ranking da equipe"
+            onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onClick?.();
+                }
+            }}
+            role={onClick ? 'button' : undefined}
+            tabIndex={onClick ? 0 : undefined}
+            className={`inline-flex items-center ${onClick ? 'cursor-pointer rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary' : ''}`}
+            title={`Ver ranking da equipe${movementDescription ? ` · ${movementDescription} em relação ao mês anterior` : ''}`}
         >
-            <span className="material-symbols-outlined text-base text-yellow-500">
-                workspace_premium
+            <span className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center text-amber-500" aria-hidden="true">
+                <span className="material-symbols-outlined !text-[40px] leading-none">
+                    workspace_premium
+                </span>
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-white bg-amber-600 px-0.5 text-[10px] font-black leading-none text-black shadow-sm dark:border-card-dark">
+                    {position}º
+                </span>
             </span>
-            <span className={`text-xs font-bold ${getComplianceColor(complianceScore)}`}>
-                {complianceScore.toFixed(0)}%
-            </span>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                · #{position}/{totalTeams}
-            </span>
-        </button>
+        </span>
     );
 };

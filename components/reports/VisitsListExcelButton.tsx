@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { VisitListRow } from './VisitsListDocument';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { toast } from 'sonner';
@@ -22,7 +24,7 @@ const fmtDateTime = (val?: string) => {
     try {
         const d = new Date(val);
         if (isNaN(d.getTime())) return val;
-        return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return formatDateInBrazil(d, 'dateTime', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     } catch { return val; }
 };
 

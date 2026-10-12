@@ -20,6 +20,7 @@ interface LayoutProps {
   onProfileClick?: () => void;
   onNotificationsClick?: () => void;
   onStatusChange?: (isAvailable: boolean, ovIdInProgress: string) => Promise<void>;
+  userLeftElement?: React.ReactNode;
   sidebar?: React.ReactNode;
   hidePadding?: boolean;
   tabNavigation?: React.ReactNode;
@@ -45,6 +46,7 @@ export const Layout: React.FC<LayoutProps> = ({
   onProfileClick,
   onNotificationsClick,
   onStatusChange,
+  userLeftElement,
   sidebar,
   hidePadding = false,
   tabNavigation,
@@ -84,6 +86,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 onNotificationsClick={onNotificationsClick}
                 onProfileClick={onProfileClick}
                 rightAction={rightAction}
+                userLeftElement={userLeftElement}
                 tabNavigation={tabNavigation}
                 hideBorder={hideHeaderBorder}
                 titleRightElement={titleRightElement}

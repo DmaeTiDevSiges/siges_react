@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { Modal } from '../ui/Modal';
 import { IconButton } from '../ui/IconButton';
 import { dataService } from '../../services/dataService';
@@ -116,7 +118,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         if (diffInSeconds < 3600) return `Há ${Math.floor(diffInSeconds / 60)}m`;
         if (diffInSeconds < 86400) return `Há ${Math.floor(diffInSeconds / 3600)}h`;
 
-        return date.toLocaleDateString('pt-BR', {
+        return formatDateInBrazil(date, 'date', 'pt-BR', {
             day: '2-digit',
             month: '2-digit'
         });

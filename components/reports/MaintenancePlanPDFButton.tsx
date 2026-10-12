@@ -9,6 +9,7 @@ import { MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity
 import { FaFilePdf } from 'react-icons/fa';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
 import { Loading } from '../ui/Loading';
+import { getBrazilDateInputValue } from '../../utils/formatters';
 
 
 interface MaintenancePlanPDFButtonProps {
@@ -73,7 +74,7 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
                 />
             ).toBlob();
 
-            const fileName = `plano-manutencao-${plan.code || plan.id}-${new Date().toISOString().slice(0, 10)}.pdf`;
+            const fileName = `plano-manutencao-${plan.code || plan.id}-${getBrazilDateInputValue()}.pdf`;
             await FileUtils.downloadFile(blob, fileName);
 
             toast.success('Relatório gerado com sucesso!', { id: toastId });

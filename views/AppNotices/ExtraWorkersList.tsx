@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppNotices } from '../../hooks/useAppNotices';
@@ -288,8 +290,8 @@ export const ExtraWorkersList: React.FC = () => {
           </select>
           {selectedNotice && (
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-              {new Date(selectedNotice.startDate).toLocaleString('pt-BR')} —{' '}
-              {new Date(selectedNotice.endDate).toLocaleString('pt-BR')}
+              {formatDateInBrazil(selectedNotice.startDate, 'dateTime', 'pt-BR')} —{' '}
+              {formatDateInBrazil(selectedNotice.endDate, 'dateTime', 'pt-BR')}
             </p>
           )}
         </div>

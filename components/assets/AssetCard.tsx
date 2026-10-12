@@ -1,4 +1,6 @@
 import React from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { Asset } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { dataService } from '../../services/dataService';
@@ -14,7 +16,7 @@ interface AssetCardProps {
 export const AssetCard: React.FC<AssetCardProps> = ({ asset, onClick, isFavorite, onToggleFavorite }) => {
 
     const status = asset.statusCode || "USO";
-    const date = asset.statusAt ? new Date(asset.statusAt).toLocaleDateString('pt-BR') : "";
+    const date = asset.statusAt ? formatDateInBrazil(asset.statusAt, 'date', 'pt-BR') : "";
     const unitDesc = asset.unitDescriptionFull || asset.location || "Não informada";
     const assetLocation = asset.location || "N/I";
     const system = [asset.tagName, asset.tagSubName]

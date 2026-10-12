@@ -4,24 +4,16 @@
  * Extraído de dataService.ts para uso em todos os services.
  */
 
+import { BRAZIL_TIME_ZONE, getBrazilTimestampOffset, parseBrazilDate } from './formatters';
+
 export const getBrazilTimestamp = (dateInput?: string | Date | null) => {
-    let now: Date;
-    if (dateInput) {
-        if (typeof dateInput === 'string') {
-            const clean = dateInput.replace(' ', 'T');
-            const hasTimezone = clean.includes('Z') || /[-+]\d{2}(:?\d{2})?$/.test(clean);
-            now = new Date(hasTimezone ? clean : clean + 'Z');
-        } else {
-            now = dateInput;
-        }
-    } else {
-        now = new Date();
+    const timestamp = dateInput ? parseBrazilDate(dateInput) : new Date();
+    if (isNaN(timestamp.getTime())) {
+        throw new Error('Data inválida para geração do timestamp de São Paulo');
     }
-    
-    if (isNaN(now.getTime())) now = new Date();
 
     const formatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Sao_Paulo',
+        timeZone: BRAZIL_TIME_ZONE,
         hour12: false,
         year: 'numeric',
         month: '2-digit',
@@ -30,9 +22,9 @@ export const getBrazilTimestamp = (dateInput?: string | Date | null) => {
         minute: '2-digit',
         second: '2-digit'
     });
-    const parts = formatter.formatToParts(now);
+    const parts = formatter.formatToParts(timestamp);
     const map = new Map(parts.map(p => [p.type, p.value]));
-    return `${map.get('year')}-${map.get('month')}-${map.get('day')}T${map.get('hour')}:${map.get('minute')}:${map.get('second')}-03:00`;
+    return `${map.get('year')}-${map.get('month')}-${map.get('day')}T${map.get('hour')}:${map.get('minute')}:${map.get('second')}${getBrazilTimestampOffset(timestamp)}`;
 };
 
 /** Alias for getBrazilTimestamp as requested by user */

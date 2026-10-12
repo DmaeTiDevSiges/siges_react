@@ -1,4 +1,6 @@
 import { useContext } from 'react';
+import { formatDateInBrazil } from '../utils/formatters';
+
 import { DataQualityContext, DataQualityContextType } from '../contexts/DataQualityContext';
 
 /**
@@ -139,7 +141,7 @@ export const useDataQualityFormatter = () => {
     if (minutes < 60) return `há ${minutes}min`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `há ${hours}h`;
-    return new Date(timestamp).toLocaleString('pt-BR');
+    return formatDateInBrazil(timestamp, 'dateTime', 'pt-BR');
   };
 
   return {

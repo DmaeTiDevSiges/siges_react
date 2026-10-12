@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { createPortal } from 'react-dom';
 import { Order, User, OrderVisit, ServiceHistoryItem, AssetAlert } from '../../types';
 import { dataService } from '../../services/dataService';
@@ -92,6 +94,9 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     // Histórico — assets grouped by visit
     const [visitAssetsMap, setVisitAssetsMap] = useState<Record<string, { visit: OrderVisit; assets: OrderVisitAssetView[] }>>({});
     const [isLoadingVisitAssets, setIsLoadingVisitAssets] = useState(false);
+    const [maintenancePlans, setMaintenancePlans] = useState<Array<{ id: string; code: string | null; description: string }>>([]);
+    const [isLoadingMaintenancePlans, setIsLoadingMaintenancePlans] = useState(false);
+    const [maintenancePlansError, setMaintenancePlansError] = useState(false);
     const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
     // Alertas vinculados à OS
@@ -221,6 +226,17 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
     
     useEffect(() => {
         if (activeTab === 'Histórico' && order.id) {
+            setIsLoadingMaintenancePlans(true);
+            setMaintenancePlansError(false);
+            dataService.getMaintenancePlansByOrderId(order.id)
+                .then(data => setMaintenancePlans(data))
+                .catch(err => {
+                    console.error('Error fetching order maintenance plans:', err);
+                    setMaintenancePlans([]);
+                    setMaintenancePlansError(true);
+                })
+                .finally(() => setIsLoadingMaintenancePlans(false));
+
             setIsLoadingVisitAssets(true);
             dataService.getVisitsByOrderId(order.id)
                 .then(async (visitsData) => {
@@ -665,6 +681,39 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
 
                         {activeTab === 'Histórico' && (
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                                    <div className="mb-3 flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-primary">fact_check</span>
+                                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                                            Planos de manutenção realizados
+                                        </h3>
+                                    </div>
+                                    {isLoadingMaintenancePlans ? (
+                                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                                            <Loading size="sm" />
+                                            Carregando planos...
+                                        </div>
+                                    ) : maintenancePlansError ? (
+                                        <p className="text-xs text-rose-600 dark:text-rose-400">
+                                            Não foi possível carregar os planos de manutenção desta OS.
+                                        </p>
+                                    ) : maintenancePlans.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {maintenancePlans.map(plan => (
+                                                <span
+                                                    key={plan.id}
+                                                    className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                                >
+                                                    {plan.code ? `${plan.code} · ` : ''}{plan.description}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                            Nenhum plano de manutenção registrado nas visitas aprovadas.
+                                        </p>
+                                    )}
+                                </section>
                                 {isLoadingVisitAssets ? (
                                     <div className="py-20 text-center space-y-4">
                                         <Loading size="md" />
@@ -721,8 +770,8 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
 
                                                                     <div className="flex flex-col items-end">
                                                                         <span className="text-[10px] font-bold text-slate-400">
-                                                                            {visit.ovStartedAt && new Date(visit.ovStartedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                                            {visit.ovEndedAt && ` — ${new Date(visit.ovEndedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                                                                            {visit.ovStartedAt && formatDateInBrazil(visit.ovStartedAt, 'dateTime', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                                            {visit.ovEndedAt && ` — ${formatDateInBrazil(visit.ovEndedAt, 'time', 'pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
                                                                         </span>
                                                                     </div>
                                                                 </div>

@@ -1,12 +1,11 @@
 import React from 'react';
 import { usePermissions } from '../../contexts/PermissionsContext';
-import { isVehicleRentalEnabled } from '../../features';
 
 interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
     isAdmin?: boolean;
-    activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'rental-apportionment' | 'rental-contracts' | 'vehicles' | 'fuel-expense';
+    activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'rental-apportionment' | 'rental-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -77,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <SidebarItem
                         icon="assignment_add"
                         label="Gestão"
-                        isActive={activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking'}
+                    isActive={activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking' || activeTab === 'grant-dashboard'}
                         isCollapsed={isCollapsed}
                         onClick={() => { 
                             // Navegar para a primeira aba permitida
@@ -87,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             else if (canView('dashboard_units_assets_tags')) onNavigate('dashboard-units-assets-tags');
                             else if (canView('dashboard_units_power_electric')) onNavigate('dashboard-units-power-electric');
                             else if (canView('dashboard_contracts_evaluations')) onNavigate('dashboard-contracts-evaluations');
+                            else onNavigate('grant-dashboard');
                         }}
                     />
                 )}
@@ -160,24 +160,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         isActive={activeTab === 'extra-workers'}
                         isCollapsed={isCollapsed}
                         onClick={() => { onNavigate('extra-workers'); }}
-                    />
-                )}
-                {(isAdminSuper || canView('transport_vehicles')) && (
-                    <SidebarItem
-                        icon="local_shipping"
-                        label="Veículos"
-                        isActive={activeTab === 'vehicles'}
-                        isCollapsed={isCollapsed}
-                        onClick={() => { onNavigate('vehicles'); }}
-                    />
-                )}
-                {isVehicleRentalEnabled() && (isAdminSuper || canView('transport_rental_apportionment')) && (
-                    <SidebarItem
-                        icon="currency_exchange"
-                        label="Apuração Aluguel"
-                        isActive={activeTab === 'rental-apportionment' || activeTab === 'rental-contracts'}
-                        isCollapsed={isCollapsed}
-                        onClick={() => { onNavigate('rental-apportionment'); }}
                     />
                 )}
                 {(isAdminSuper || isAdmin || canView('settings')) && (

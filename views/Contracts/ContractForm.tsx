@@ -7,6 +7,7 @@ import { Select } from '../../components/ui/Select';
 import { DateInput } from '../../components/ui/DateInput';
 import { CurrencyInput } from '../../components/ui/CurrencyInput';
 import { ButtonSave } from '../../components/ui/ButtonSave';
+import { getBrazilDateInputValue } from '../../utils/formatters';
 
 interface ContractFormProps {
     initialContract?: Contract;
@@ -34,8 +35,8 @@ export const ContractForm: React.FC<ContractFormProps> = ({
         clientId: initialContract?.clientId || '',
         code: initialContract?.code || '',
         description: initialContract?.description || '',
-        dateStart: initialContract?.dateStart ? new Date(initialContract.dateStart).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        dateEnd: initialContract?.dateEnd ? new Date(initialContract.dateEnd).toISOString().split('T')[0] : '',
+        dateStart: initialContract?.dateStart ? getBrazilDateInputValue(initialContract.dateStart) : getBrazilDateInputValue(),
+        dateEnd: initialContract?.dateEnd ? getBrazilDateInputValue(initialContract.dateEnd) : '',
         totalValue: initialContract?.totalValue || 0,
         isAvailable: initialContract?.isAvailable ?? true
     });
@@ -67,8 +68,8 @@ export const ContractForm: React.FC<ContractFormProps> = ({
                 clientId: initialContract.clientId || '',
                 code: initialContract.code || '',
                 description: initialContract.description || '',
-                dateStart: initialContract.dateStart ? new Date(initialContract.dateStart).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                dateEnd: initialContract.dateEnd ? new Date(initialContract.dateEnd).toISOString().split('T')[0] : '',
+                dateStart: initialContract.dateStart ? getBrazilDateInputValue(initialContract.dateStart) : getBrazilDateInputValue(),
+                dateEnd: initialContract.dateEnd ? getBrazilDateInputValue(initialContract.dateEnd) : '',
                 totalValue: initialContract.totalValue || 0,
                 isAvailable: initialContract.isAvailable ?? true
             });

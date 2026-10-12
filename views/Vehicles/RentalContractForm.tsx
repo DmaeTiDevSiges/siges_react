@@ -7,11 +7,13 @@ import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { ButtonSave } from '../../components/ui/ButtonSave';
 import { toast } from 'sonner';
+import { getBrazilDateInputValue } from '../../utils/formatters';
 
 export interface RentalContractFormInput {
     id?: string;
     vehicleId: string;
     monthlyValue: number;
+    valueUnit: number;
     startDate: string;
     endDate?: string | null;
     active?: boolean;
@@ -43,13 +45,48 @@ export const RentalContractForm: React.FC<RentalContractFormProps> = ({
     const [search, setSearch] = useState('');
     const [results, setResults] = useState<Vehicle[]>([]);
     const [searching, setSearching] = useState(false);
+    // Tarifa R$/km vigente do veículo (quando existir) — hint abaixo do campo
+    const [currentRate, setCurrentRate] = useState<number | null>(null);
     const [form, setForm] = useState({
         monthlyValue: initial?.monthlyValue != null ? String(initial.monthlyValue) : '',
-        startDate: toISODate(initial?.startDate) || new Date().toISOString().slice(0, 10),
+        valueUnit: initial?.valueUnit != null ? String(initial.valueUnit) : '',
+        startDate: toISODate(initial?.startDate) || getBrazilDateInputValue(),
         endDate: toISODate(initial?.endDate),
         active: initial?.active ?? true,
         description: initial?.description || ''
     });
+
+    // Contratos existentes exibem seu próprio R$/km; novos contratos sugerem
+    // a tarifa vigente do veículo, ou zero quando ainda não há uma.
+    useEffect(() => {
+        let cancelled = false;
+        if (!vehicle) {
+            setCurrentRate(null);
+            return;
+        }
+        if (initial?.id && String(vehicle.id) === String(initial.vehicleId)) {
+            setCurrentRate(initial.valueUnit ?? null);
+            return;
+        }
+        (async () => {
+            try {
+                const info = await dataService.getRateContractInfo(
+                    String(vehicle.id),
+                    form.startDate
+                );
+                if (cancelled) return;
+                setCurrentRate(info ? info.valueUnit : null);
+                setForm(prev => prev.valueUnit === ''
+                    ? { ...prev, valueUnit: info ? String(info.valueUnit) : '0' }
+                    : prev
+                );
+            } catch (err) {
+                console.error('Error fetching rate contract info', err);
+                if (!cancelled) setCurrentRate(null);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [vehicle, initial, form.startDate]);
 
     useEffect(() => {
         if (search.trim().length < 2) {
@@ -96,12 +133,23 @@ export const RentalContractForm: React.FC<RentalContractFormProps> = ({
             return;
         }
 
+        const rateInput = form.valueUnit.trim();
+        const normalizedRate = rateInput.includes(',')
+            ? rateInput.replace(/\./g, '').replace(',', '.')
+            : rateInput;
+        const valueUnit = Number(normalizedRate);
+        if (!Number.isFinite(valueUnit) || valueUnit < 0) {
+            toast.warning('Informe um R$ Fixo/Km válido (maior ou igual a zero).');
+            return;
+        }
+
         try {
             setIsSaving(true);
             await onSave({
                 id: initial?.id,
                 vehicleId: vehicle.id,
                 monthlyValue,
+                valueUnit,
                 startDate: form.startDate,
                 endDate: form.endDate || null,
                 active: form.active,
@@ -136,7 +184,13 @@ export const RentalContractForm: React.FC<RentalContractFormProps> = ({
                         </div>
                         <button
                             type="button"
-                            onClick={() => { setVehicle(null); setSearch(''); setResults([]); }}
+                            onClick={() => {
+                                setVehicle(null);
+                                setSearch('');
+                                setResults([]);
+                                setForm(prev => ({ ...prev, valueUnit: '' }));
+                                setCurrentRate(null);
+                            }}
                             className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                             title="Trocar veículo"
                         >
@@ -192,6 +246,23 @@ export const RentalContractForm: React.FC<RentalContractFormProps> = ({
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 -mt-3 ml-1">
                     Use 0 quando não houver valor fixo: o custo será apurado apenas pelo Km
                     e/ou pelas despesas variáveis do mês.
+                </p>
+
+                {/* O valor por Km pertence ao mesmo contrato e vigência do aluguel. */}
+                <Input
+                    label="R$ Fixo/Km"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    placeholder="Ex: 2.000"
+                    value={form.valueUnit}
+                    onChange={(e) => setForm({ ...form, valueUnit: e.target.value })}
+                    required
+                />
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 -mt-3 ml-1">
+                    {currentRate != null
+                        ? `R$/Km vigente sugerido: R$ ${currentRate.toFixed(3).replace('.', ',')}. O valor salvo terá a mesma vigência do contrato.`
+                        : 'Informe 0 quando não houver cobrança fixa por Km.'}
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">

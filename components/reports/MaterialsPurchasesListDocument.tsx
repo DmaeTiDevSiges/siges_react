@@ -1,4 +1,6 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 
 const styles = StyleSheet.create({
     page: { padding: 30, fontSize: 9, fontFamily: 'Helvetica' },
@@ -143,7 +145,7 @@ export const MaterialsPurchasesListDocument = ({
                 </View>
 
                 <View style={styles.footer} fixed>
-                    <Text>Gerado em {new Date().toLocaleString()}</Text>
+                    <Text>Gerado em {formatDateInBrazil(new Date(), 'dateTime')}</Text>
                     <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
                 </View>
             </Page>

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { Tool, UserTool } from '../../types';
 import { toolsService } from '../../services/tools/toolsService';
 import { toast } from 'sonner';
@@ -134,7 +136,7 @@ export const ToolsList: React.FC<ToolsListProps> = () => {
                                     )}
                                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate flex-1">{ut.user_name}</p>
                                     <p className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">
-                                        {new Date(ut.date_start).toLocaleDateString('pt-BR')}
+                                        {formatDateInBrazil(ut.date_start, 'date', 'pt-BR')}
                                     </p>
                                 </div>
                             )}

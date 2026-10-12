@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import {
     vehicleRentalService,
@@ -9,20 +11,22 @@ import {
 } from '../../services/orders/vehicleRentalService';
 import type { VehicleCompanyInfo, VehicleCostType } from '../../types';
 import { dataService } from '../../services/dataService';
-import { usePermissions } from '../../contexts/PermissionsContext';
-import { AccessDenied } from '../../components/permissions/AccessDenied';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
+import { Button } from '../../components/ui/Button';
 import { CompanyAvatar } from '../../components/ui/CompanyAvatar';
-import { formatCurrency } from '../../utils/formatters';
-import { isVehicleRentalEnabled } from '../../features';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { formatCurrency, getBrazilDateInputValue } from '../../utils/formatters';
 import { toast } from 'sonner';
 
-interface RentalApportionmentScreenProps {
+interface CostsPeriodProps {
     onNavigate?: (screen: string) => void;
     onSelectVisit?: (visit: { id: string; [key: string]: any }, initialTab?: 'home' | 'transport' | 'assets' | 'services' | 'costs' | 'chat') => void;
+    selectedCompanyId: string | null;
+    onCompanySelect: (id: string | null) => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -55,7 +59,7 @@ const shortDate = (ts?: string | null): string => {
     if (!ts) return '—';
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString('pt-BR', {
+    return formatDateInBrazil(d, 'dateTime', 'pt-BR', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -65,16 +69,14 @@ const shortDate = (ts?: string | null): string => {
     });
 };
 
-export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps> = ({ onNavigate, onSelectVisit }) => {
-    const { canView, loading: permissionsLoading } = usePermissions();
-
+export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVisit, selectedCompanyId, onCompanySelect }) => {
     // Company de cada veículo (vehicles.company_id) — avatar dos cards.
     // Nunca usar a company do usuário logado: veículos podem ter outra.
     const [vehicleCompanies, setVehicleCompanies] = useState<Record<string, VehicleCompanyInfo>>({});
 
-    const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+    const [month, setMonth] = useState(() => getBrazilDateInputValue().slice(0, 7));
     const [search, setSearch] = useState('');
-    const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+    const setSelectedCompanyId = onCompanySelect;
     const companiesScroll = useDraggableScroll();
     const [rows, setRows] = useState<VehicleRentalSummaryRow[]>([]);
     const [vehicleGaps, setVehicleGaps] = useState<Record<string, number>>({});
@@ -106,6 +108,13 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
     const [utilizationRows, setUtilizationRows] = useState<VehicleUtilizationRow[]>([]);
     const [utilizationLoading, setUtilizationLoading] = useState(false);
 
+    // Tarifa por Km vigente no contrato unificado de aluguel do veículo.
+    // O card exibe o R$ Fixo/KM do CONTRATO — não a média apurada nas linhas.
+    const [contractRates, setContractRates] = useState<Record<string, number>>({});
+    // Valor mensal informado no contrato vigente, distinto do valor usado
+    // historicamente no rateio da competência.
+    const [contractMonthlyValues, setContractMonthlyValues] = useState<Record<string, number>>({});
+
     const referenceMonth = `${month}-01`;
 
     const loadSummary = useCallback(async (isInitial = false) => {
@@ -132,6 +141,51 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
             } catch (err) {
                 console.error('Error loading vehicle companies', err);
             }
+            // Tarifa contratada R$/km por veículo — o MESMO valor exibido na
+            // aba Contratos R$/km. Usa a RPC oficial fc_vehicle_rate_contract
+            // (fonte da verdade de vigência/conflito, a mesma do trigger do
+            // odômetro). Consulta no 1º dia da competência; sem contrato nele,
+            // tenta o último dia (contrato iniciado durante o mês).
+            try {
+                const monthEnd = new Date(
+                    Date.UTC(
+                        Number(referenceMonth.slice(0, 4)),
+                        Number(referenceMonth.slice(5, 7)),
+                        0
+                    )
+                ).toISOString().slice(0, 10);
+                const uniqVehicles = Array.from(
+                    new Set(data.map(r => String(r.vehicleId)))
+                );
+                const entries = await Promise.all(uniqVehicles.map(async vid => {
+                    const first = await dataService.getRateContractInfo(vid, referenceMonth);
+                    const info = first ?? await dataService.getRateContractInfo(vid, monthEnd);
+                    return info ? [vid, info.valueUnit] as const : null;
+                }));
+                const rates: Record<string, number> = {};
+                entries.forEach(e => { if (e) rates[e[0]] = e[1]; });
+                setContractRates(rates);
+            } catch (rateErr) {
+                console.error('Error loading rate contracts', rateErr);
+            }
+            // R$ Aluguel deve refletir o monthly_value do contrato vigente,
+            // mesmo quando a competência já possui valores de rateio gravados.
+            try {
+                const uniqVehicles = Array.from(
+                    new Set(data.map(r => String(r.vehicleId)))
+                );
+                const entries = await Promise.all(uniqVehicles.map(async vehicleId => {
+                    const info = await dataService.getRentalContractInfo(vehicleId, referenceMonth);
+                    return info ? [vehicleId, info.monthlyValue] as const : null;
+                }));
+                const monthlyValues: Record<string, number> = {};
+                entries.forEach(entry => {
+                    if (entry) monthlyValues[entry[0]] = entry[1];
+                });
+                setContractMonthlyValues(monthlyValues);
+            } catch (contractErr) {
+                console.error('Error loading rental contract values', contractErr);
+            }
             setRows(data);
         } catch (error) {
             console.error('Error loading rental summary', error);
@@ -149,7 +203,9 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
         setExpenseVehicle(null);
         setExpenses([]);
         setExpenseForm(null);
-        setSelectedCompanyId(null);
+        // selectedCompanyId NÃO é resetado aqui: a seleção de empresa vem do
+        // container e deve persistir entre as abas (Custos Mensais, Contratos
+        // Aluguéis, Contratos R$/Km e Veículos).
         const isFirst = !hasLoadedRef.current;
         hasLoadedRef.current = true;
         loadSummary(isFirst);
@@ -395,27 +451,6 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
 
     const expenseTotal = expenses.reduce((sum, item) => sum + item.value, 0);
 
-    if (!isVehicleRentalEnabled()) {
-        return (
-            <div className="p-8 text-center text-slate-400">
-                Recurso de rateio de aluguel veicular desativado.
-            </div>
-        );
-    }
-
-    if (permissionsLoading) {
-        return <div className="p-8"><Loading /></div>;
-    }
-
-    if (!canView('transport_rental_apportionment')) {
-        return (
-            <AccessDenied
-                onBack={() => onNavigate?.('dashboard')}
-                message="Você não tem permissão para acessar a apuração de aluguel veicular."
-            />
-        );
-    }
-
     const companiesWithCount = useMemo(() => {
         const map = new Map<string, { id: string; name: string; logoUrl?: string; count: number }>();
         let withoutCompanyCount = 0;
@@ -476,7 +511,7 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
 
     const totals = filteredRows.reduce(
         (acc, row) => ({
-            contractValue: acc.contractValue + row.contractValue,
+            contractValue: acc.contractValue + (contractMonthlyValues[String(row.vehicleId)] ?? 0),
             variableValue: acc.variableValue + row.variableValue,
             operationalValue: acc.operationalValue + (row.operationalValue ?? 0),
             totalKm: acc.totalKm + row.totalKm,
@@ -488,19 +523,12 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
     );
 
     return (
-        <div className="flex flex-col min-h-full bg-background-light dark:bg-background-dark">
+        <div className="flex flex-col flex-1">
             {/* ── Cabeçalho: empresas no topo + competência + busca ── */}
-            <div className="px-4 py-3 sticky top-0 z-10 bg-background-light dark:bg-background-dark border-b border-slate-100 dark:border-slate-800 space-y-3">
-                {/* Título CUSTOS MENSAIS + Linha horizontal rolável de avatares das empresas */}
-                <div className="pb-1 border-b border-slate-100 dark:border-slate-800">
-                    <div className="px-1 pt-0.5 pb-2">
-                        <h2 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-[17px] text-primary">payments</span>
-                            CUSTOS MENSAIS
-                        </h2>
-                    </div>
-
-                    {companiesWithCount.length > 0 && (
+            <div className="px-4 py-3 bg-background-light dark:bg-background-dark border-b border-slate-100 dark:border-slate-800 space-y-3">
+                {/* Linha horizontal rolável de avatares das empresas */}
+                {companiesWithCount.length > 0 && (
+                    <div className="pb-1 border-b border-slate-100 dark:border-slate-800">
                         <div
                             ref={companiesScroll.ref}
                             onMouseDown={companiesScroll.onMouseDown}
@@ -594,8 +622,8 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                 );
                             })}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 <div className="flex items-center gap-2">
                     <button
@@ -628,27 +656,6 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                         title="Próximo mês"
                     >
                         <span className="material-symbols-outlined">chevron_right</span>
-                    </button>
-                    <button
-                        onClick={() => onNavigate?.('rental-contracts')}
-                        className="flex items-center justify-center h-11 w-11 rounded-xl bg-primary text-white hover:bg-primary-dark transition-colors"
-                        title="Contratos de Aluguel"
-                    >
-                        <span className="material-symbols-outlined">handshake</span>
-                    </button>
-                    <button
-                        onClick={() => onNavigate?.('rate-contracts')}
-                        className="flex items-center justify-center h-11 w-11 rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors"
-                        title="Contratos de R$/km"
-                    >
-                        <span className="material-symbols-outlined">speed</span>
-                    </button>
-                    <button
-                        onClick={() => onNavigate?.('vehicles')}
-                        className="flex items-center justify-center h-11 w-11 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-                        title="Veículos"
-                    >
-                        <span className="material-symbols-outlined">local_shipping</span>
                     </button>
                 </div>
 
@@ -701,6 +708,17 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                         const canApportion = hasContract || hasExpenses;
                         const statusKey = STATUS_STYLE[status] ? status : 'OPEN';
                         const vc = vehicleCompanies[String(row.vehicleId)];
+                        const contractRate = contractRates[String(row.vehicleId)];
+                        const rentalValue = contractMonthlyValues[String(row.vehicleId)] ?? 0;
+                        const rentalPerKm = row.totalKm > 0
+                            ? rentalValue / row.totalKm
+                            : 0;
+                        const expensesPerKm = row.totalKm > 0
+                            ? row.variableValue / row.totalKm
+                            : 0;
+                        const appropriatePerKm = rentalPerKm + expensesPerKm + (contractRate ?? 0);
+                        const allocatedAmount = appropriatePerKm * row.totalKm;
+                        const unallocatedKm = vehicleGaps[String(row.vehicleId)] || 0;
 
                         return (
                             <div
@@ -743,72 +761,57 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                     )}
                                 </div>
 
-                                {/* Números */}
-                                {/* Números: 3 × 3 */}
-                                <div className="grid grid-cols-3 gap-px bg-slate-100 dark:bg-slate-800">
-                                    <div className="bg-white dark:bg-slate-900 px-3 py-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Aluguel</p>
+                                {/* Métricas da competência em três linhas */}
+                                <div className="grid grid-cols-6 gap-px bg-slate-100 dark:bg-slate-800">
+                                    <div className="col-span-3 bg-white dark:bg-slate-900 px-3 py-2.5">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">R$ Aluguel</p>
                                         <p className="font-black text-slate-900 dark:text-white text-sm">
-                                            {formatCurrency(row.contractValue)}
+                                            {formatCurrency(rentalValue)}
                                         </p>
                                     </div>
-                                    <div className="bg-white dark:bg-slate-900 px-3 py-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Despesas</p>
+                                    <div className="col-span-3 bg-white dark:bg-slate-900 px-3 py-2.5">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">R$ Despesas</p>
                                         <p className="font-black text-amber-600 dark:text-amber-400 text-sm">
                                             {formatCurrency(row.variableValue)}
                                         </p>
                                     </div>
-                                    <div className="bg-white dark:bg-slate-900 px-3 py-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Km Apropriado</p>
+                                    <div className="col-span-2 bg-white dark:bg-slate-900 px-3 py-2.5" title="Valor do aluguel dividido pelos Km apropriados">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">R$ Aluguel/Km</p>
+                                        <p className="font-black text-blue-600 dark:text-blue-400 text-sm">
+                                            {row.totalKm > 0 ? formatCurrency(rentalPerKm) : '—'}
+                                        </p>
+                                    </div>
+                                    <div className="col-span-2 bg-white dark:bg-slate-900 px-3 py-2.5" title="Despesas do mês divididas pelos Km apropriados">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">R$ Despesas/Km</p>
+                                        <p className="font-black text-blue-600 dark:text-blue-400 text-sm">
+                                            {row.totalKm > 0 ? formatCurrency(expensesPerKm) : '—'}
+                                        </p>
+                                    </div>
+                                    <div className="col-span-2 bg-white dark:bg-slate-900 px-3 py-2.5" title="Valor fixo por Km do contrato de veículo vigente">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">R$ Fixo/Km</p>
+                                        <p className="font-black text-blue-600 dark:text-blue-400 text-sm">
+                                            {contractRate != null ? formatCurrency(contractRate) : '—'}
+                                        </p>
+                                    </div>
+                                    <div className="col-span-2 bg-white dark:bg-slate-900 px-3 py-2.5">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Km não apropriados</p>
+                                        <p className="font-black text-slate-900 dark:text-white text-sm">
+                                            {unallocatedKm.toLocaleString('pt-BR')} Km
+                                        </p>
+                                    </div>
+                                    <div className="col-span-2 bg-white dark:bg-slate-900 px-3 py-2.5">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Km apropriados</p>
                                         <p className="font-black text-slate-900 dark:text-white text-sm">
                                             {row.totalKm.toLocaleString('pt-BR')} Km
                                         </p>
-                                        {(vehicleGaps[String(row.vehicleId)] || 0) > 0 && (
-                                            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-0.5 mt-0.5" title="Quilômetros entre visitas sem OS registrada (buraco de odômetro)">
-                                                <span className="material-symbols-outlined text-[12px]">warning</span>
-                                                +{vehicleGaps[String(row.vehicleId)].toLocaleString('pt-BR')} Km não apontado
-                                            </p>
-                                        )}
                                     </div>
-
-                                    {/* Componente R$/km (linhas de Km do mês) */}
-                                    <div className="bg-white dark:bg-slate-900 px-3 py-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">R$ Km</p>
-                                        <p className="font-black text-blue-600 dark:text-blue-400 text-sm">
-                                            {row.operationalValue != null ? formatCurrency(row.operationalValue) : '—'}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white dark:bg-slate-900 px-3 py-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">R$/km op.</p>
-                                        <p className="font-black text-blue-600 dark:text-blue-400 text-sm">
-                                            {row.operationalPerKm != null ? formatCurrency(row.operationalPerKm) : '—'}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white dark:bg-slate-900 px-3 py-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Custo total/km</p>
-                                        <p className="font-black text-slate-900 dark:text-white text-sm">
-                                            {row.costPerKm != null || row.operationalPerKm != null
-                                                ? formatCurrency((row.costPerKm ?? 0) + (row.operationalPerKm ?? 0))
-                                                : '—'}
-                                        </p>
-                                    </div>
-
-                                    <div className="bg-white dark:bg-slate-900 px-3 py-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Apropriado</p>
+                                    <div
+                                        className="col-span-2 bg-white dark:bg-slate-900 px-3 py-2.5"
+                                        title="(R$ Aluguel/Km + R$ Despesas/Km + R$ Fixo/Km) × Km apropriados"
+                                    >
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">R$ Apropriados</p>
                                         <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm">
-                                            {formatCurrency(row.allocatedValue)}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white dark:bg-slate-900 px-3 py-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ociosidade</p>
-                                        <p className="font-black text-amber-600 dark:text-amber-400 text-sm">
-                                            {formatCurrency(row.idleValue)}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white dark:bg-slate-900 px-3 py-2.5">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Utilização</p>
-                                        <p className="font-black text-slate-900 dark:text-white text-sm">
-                                            {row.utilization != null ? `${(row.utilization * 100).toFixed(1)}%` : '—'}
+                                            {formatCurrency(allocatedAmount)}
                                         </p>
                                     </div>
                                 </div>
@@ -852,6 +855,7 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                     </button>
 
                                     <button
+                                        type="button"
                                         onClick={() => handleToggleUtilization(row)}
                                         disabled={busy}
                                         title="Detalhar utilização do veículo na competência (visitas, Km e custo)"
@@ -944,13 +948,11 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                                         </div>
                                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                             <div>
-                                                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                                                    Tipo de despesa
-                                                                </label>
-                                                                <select
+                                                                <Select
+                                                                    label="Tipo de despesa"
                                                                     value={expenseForm.costTypeId}
                                                                     onChange={e => setExpenseForm({ ...expenseForm, costTypeId: e.target.value })}
-                                                                    className="w-full h-10 px-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary"
+                                                                    placeholder="Selecione..."
                                                                 >
                                                                     <option value="">Selecione...</option>
                                                                     {costTypes.map(type => (
@@ -958,31 +960,25 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                                                             {type.description}
                                                                         </option>
                                                                     ))}
-                                                                </select>
+                                                                </Select>
                                                             </div>
                                                             <div>
-                                                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                                                    Valor (R$)
-                                                                </label>
-                                                                <input
+                                                                <Input
+                                                                    label="Valor (R$)"
                                                                     type="text"
                                                                     inputMode="decimal"
                                                                     value={expenseForm.value}
                                                                     onChange={e => setExpenseForm({ ...expenseForm, value: e.target.value })}
                                                                     placeholder="0,00"
-                                                                    className="w-full h-10 px-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary"
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                                                    Descrição (opcional)
-                                                                </label>
-                                                                <input
+                                                                <Input
+                                                                    label="Descrição (opcional)"
                                                                     type="text"
                                                                     value={expenseForm.description}
                                                                     onChange={e => setExpenseForm({ ...expenseForm, description: e.target.value })}
                                                                     placeholder="Ex.: combustível, pedágio..."
-                                                                    className="w-full h-10 px-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary"
                                                                 />
                                                             </div>
                                                         </div>
@@ -1146,14 +1142,15 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                                             <th className="text-right px-3 py-2">Km inicial</th>
                                                             <th className="text-right px-3 py-2">Km final</th>
                                                             <th className="text-right px-3 py-2">Km Dif</th>
-                                                            <th className="text-right px-3 py-2">R$ Custo Total/Km</th>
-                                                            <th className="text-right px-3 py-2">Valor Visita</th>
+                                                            <th className="text-right px-3 py-2">R$ /Km Apropriado</th>
+                                                            <th className="text-right px-3 py-2">R$ VISITA</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {utilizationRows.map((u, idx) => {
                                                             const prev = idx > 0 ? utilizationRows[idx - 1] : null;
                                                             const gap = prev && u.kmInitial > prev.kmFinal ? (u.kmInitial - prev.kmFinal) : 0;
+                                                            const visitValue = u.kmDiff * appropriatePerKm;
                                                             return (
                                                                 <React.Fragment key={u.ovvId}>
                                                                     {gap > 0 && (
@@ -1176,7 +1173,7 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                                                                             type="button"
                                                                                             onClick={() => prev && handleOpenVisitTransport(prev.ovId)}
                                                                                             title="Abrir visita anterior na aba Transporte"
-                                                                                            className="font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                                                                            className="font-medium font-sans text-primary hover:underline cursor-pointer"
                                                                                         >
                                                                                             {prev?.visitMask || `#${prev?.ovId}`}
                                                                                         </button>
@@ -1185,7 +1182,7 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                                                                             type="button"
                                                                                             onClick={() => handleOpenVisitTransport(u.ovId)}
                                                                                             title="Abrir visita seguinte na aba Transporte"
-                                                                                            className="font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                                                                            className="font-medium font-sans text-primary hover:underline cursor-pointer"
                                                                                         >
                                                                                             {u.visitMask || `#${u.ovId}`}
                                                                                         </button>
@@ -1214,20 +1211,16 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                                                             {shortDate(u.visitStartAt)} - {shortDate(u.visitEndAt)}
                                                                         </td>
                                                                         <td className="px-3 py-2">
-                                                                            <button
+                                                                            <Button
                                                                                 type="button"
+                                                                                variant="primary"
+                                                                                size="xs"
                                                                                 onClick={() => handleOpenVisitTransport(u.ovId)}
                                                                                 title="Abrir página da visita com a aba Transporte ativa"
-                                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-300 transition-colors group cursor-pointer border border-blue-200/70 dark:border-blue-800/60 shadow-xs"
+                                                                                className="font-sans text-xs font-medium"
                                                                             >
-                                                                                <span className="material-symbols-outlined text-[14px] text-blue-500 group-hover:scale-110 transition-transform">
-                                                                                    directions_car
-                                                                                </span>
-                                                                                <span>{u.visitMask || `#${u.ovId}`}</span>
-                                                                                <span className="material-symbols-outlined text-[13px] opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">
-                                                                                    open_in_new
-                                                                                </span>
-                                                                            </button>
+                                                                                {u.visitMask || `#${u.ovId}`}
+                                                                            </Button>
                                                                         </td>
                                                                         <td className="px-3 py-2 text-right text-slate-700 dark:text-slate-300">
                                                                             {u.kmInitial.toLocaleString('pt-BR')}
@@ -1239,10 +1232,10 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                                                             {u.kmDiff.toLocaleString('pt-BR')}
                                                                         </td>
                                                                         <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-300">
-                                                                            {u.costTotalPerKm != null ? formatCurrency(u.costTotalPerKm) : '—'}
+                                                                            {formatCurrency(appropriatePerKm)}
                                                                         </td>
                                                                         <td className="px-3 py-2 text-right font-black text-slate-900 dark:text-white">
-                                                                            {formatCurrency(u.visitValue)}
+                                                                            {formatCurrency(visitValue)}
                                                                         </td>
                                                                     </tr>
                                                                 </React.Fragment>
@@ -1259,7 +1252,7 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                                                 }
                                                             }
                                                             const kmTotalOdometer = kmAppropriated + kmGaps;
-                                                            const totalVisitValue = utilizationRows.reduce((sum, u) => sum + u.visitValue, 0);
+                                                            const totalVisitValue = kmAppropriated * appropriatePerKm;
 
                                                             return (
                                                                 <>
@@ -1309,16 +1302,12 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                         </p>
                         <div className="grid grid-cols-2 gap-3 text-sm">
                             <div>
-                                <p className="text-slate-400 text-xs">Aluguel</p>
+                                <p className="text-slate-400 text-xs">R$ Aluguel</p>
                                 <p className="font-black">{formatCurrency(totals.contractValue)}</p>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-xs">Despesas</p>
+                                <p className="text-slate-400 text-xs">R$ Despesas</p>
                                 <p className="font-black text-amber-400">{formatCurrency(totals.variableValue)}</p>
-                            </div>
-                            <div>
-                                <p className="text-slate-400 text-xs">R$ Km</p>
-                                <p className="font-black text-blue-400">{formatCurrency(totals.operationalValue)}</p>
                             </div>
                             <div>
                                 <p className="text-slate-400 text-xs">Km Apropriado</p>
@@ -1330,11 +1319,11 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                                 )}
                             </div>
                             <div>
-                                <p className="text-slate-400 text-xs">Apropriado</p>
+                                <p className="text-slate-400 text-xs">R$ Apropriado</p>
                                 <p className="font-black text-emerald-400">{formatCurrency(totals.allocatedValue)}</p>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-xs">Ociosidade</p>
+                                <p className="text-slate-400 text-xs">R$ Ociosidade</p>
                                 <p className="font-black text-amber-400">{formatCurrency(totals.idleValue)}</p>
                             </div>
                         </div>
@@ -1436,8 +1425,6 @@ export const RentalApportionmentScreen: React.FC<RentalApportionmentScreenProps>
                     </div>
                 )}
             </Modal>
-
-
 
             {/* ── Confirmação de exclusão de despesa ── */}
             <ConfirmDeleteModal

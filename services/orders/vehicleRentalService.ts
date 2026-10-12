@@ -11,6 +11,8 @@ export interface VehicleRentalContract {
     vehicleDescription?: string;
     vehiclePlates?: string;
     monthlyValue: number;
+    /** Valor fixo por km integrado ao mesmo contrato do aluguel. */
+    valueUnit: number;
     startDate: string;
     endDate?: string | null;
     active: boolean;
@@ -22,6 +24,8 @@ export interface SaveVehicleRentalContractInput {
     id?: string;
     vehicleId: string;
     monthlyValue: number;
+    /** Valor fixo por km integrado ao mesmo contrato do aluguel. */
+    valueUnit: number;
     startDate: string;
     endDate?: string | null;
     active?: boolean;
@@ -83,10 +87,6 @@ export interface VehicleUtilizationRow {
     kmInitial: number;
     kmFinal: number;
     kmDiff: number;
-    /** (aluguel + despesas + R$ Km) ÷ Km da linha */
-    costTotalPerKm?: number | null;
-    /** aluguel + despesas + R$ Km da linha */
-    visitValue: number;
 }
 
 export interface VehicleRentalPeriod {
@@ -151,6 +151,8 @@ export interface SaveVehicleMonthlyExpenseInput {
     invoiceImgPath?: string | null;
     invoiceImgName?: string | null;
     userId?: string;
+    /** Data do abastecimento importado; grava-se em created_at para preservar o histórico. */
+    createdAt?: string;
 }
 
 /** As 3 imagens obrigatórias do lançamento de combustível */
@@ -180,6 +182,7 @@ const toContract = (row: any): VehicleRentalContract => ({
     vehicleDescription: row.vehicle_description ?? undefined,
     vehiclePlates: row.vehicle_plates ?? undefined,
     monthlyValue: num(row.monthly_value),
+    valueUnit: num(row.value_unit),
     startDate: row.start_date,
     endDate: row.end_date ?? null,
     active: !!row.active,
@@ -318,6 +321,7 @@ export const vehicleRentalService = {
         const payload: Record<string, unknown> = {
             vehicle_id: parseInt(input.vehicleId, 10),
             monthly_value: input.monthlyValue,
+            value_unit: input.valueUnit,
             start_date: input.startDate,
             end_date: input.endDate || null,
             active: input.active !== false,
@@ -415,7 +419,7 @@ export const vehicleRentalService = {
             : supabase.from('vehicles_monthly_expenses').insert({
                 ...payload,
                 created_user_id: input.userId ? parseInt(input.userId, 10) : null,
-                created_at: new Date().toISOString()
+                created_at: input.createdAt ?? new Date().toISOString()
             });
 
         const { data, error } = await query
@@ -616,7 +620,7 @@ export const vehicleRentalService = {
         // visita — linhas com created_at nulo ficariam de fora do `.gte()`.
         const { data: ovvRows, error: ovvError } = await supabase
             .from('orders_visits_vehicles')
-            .select('id, ov_id, recorder_start, recorder_end, amount, value_total, cost_type, created_at')
+            .select('id, ov_id, recorder_start, recorder_end, amount, cost_type, created_at')
             .eq('vehicle_id', parseInt(vehicleId, 10))
             .eq('is_deleted', false)
             .in('cost_type', ['odometer', 'rate'])
@@ -658,24 +662,11 @@ export const vehicleRentalService = {
 
         if (!lines.length) return [];
 
-        // Enriquece com aluguel/despesas rateados (opcional — não bloqueia a lista)
-        let detailByOvv = new Map<string, VehicleRentalDetailRow>();
-        try {
-            const detail = await vehicleRentalService.getDetail(vehicleId, referenceMonth);
-            detailByOvv = new Map(detail.map(d => [d.ovvId, d]));
-        } catch {
-            detailByOvv = new Map();
-        }
-
         const result = lines.map(ovv => {
-            const d = detailByOvv.get(String(ovv.id));
             const visit = visitsById[String(ovv.ov_id)];
             const kmInitial = num(ovv.recorder_start);
             const kmFinal = num(ovv.recorder_end);
             const kmDiff = num(ovv.amount) || (kmFinal - kmInitial);
-            const operational = d?.operationalValue ?? num(ovv.value_total);
-            const visitValue = (d?.rentalValue ?? 0) + (d?.variableValue ?? 0) + operational;
-            const costTotalPerKm = kmDiff > 0 ? visitValue / kmDiff : null;
 
             return {
                 ovId: String(ovv.ov_id),
@@ -685,9 +676,7 @@ export const vehicleRentalService = {
                 visitEndAt: visit?.ov_ended_at ?? null,
                 kmInitial,
                 kmFinal,
-                kmDiff,
-                costTotalPerKm,
-                visitValue
+                kmDiff
             } satisfies VehicleUtilizationRow;
         });
 

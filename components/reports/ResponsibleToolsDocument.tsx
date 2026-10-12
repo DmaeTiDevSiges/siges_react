@@ -1,4 +1,6 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { UserTool } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -129,7 +131,7 @@ const fmtDate = (val?: string) => {
     try {
         const d = new Date(val);
         if (isNaN(d.getTime())) return val;
-        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        return formatDateInBrazil(d, 'date', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch { return val; }
 };
 
@@ -182,7 +184,7 @@ export const ResponsibleToolsDocument = ({
     const now = new Date();
     const genStr = generatedAt || `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-    const currentDate = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const currentDate = formatDateInBrazil(now, 'date', 'pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
     return (
         <Document title={`Ferramentas - ${userName}`}>

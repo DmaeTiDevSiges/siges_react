@@ -1,4 +1,6 @@
 import { Document, Page, Text, View, Image, StyleSheet, Font } from '@react-pdf/renderer';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 
 // Registro de fonte (opcional, para um visual mais premium)
 // Font.register({ family: 'Inter', src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2' });
@@ -163,7 +165,7 @@ export const OSDocument = ({ data }: OSDocumentProps) => (
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text>Documento gerado automaticamente pelo sistema SIGES em {new Date().toLocaleString()}</Text>
+                <Text>Documento gerado automaticamente pelo sistema SIGES em {formatDateInBrazil(new Date(), 'dateTime')}</Text>
                 <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
             </View>
         </Page>

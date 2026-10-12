@@ -10,6 +10,7 @@ import { ButtonSave } from '../../components/ui/ButtonSave';
 import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { Loading } from '../../components/ui/Loading';
+import { FuelExpenseImportModal } from '../../components/vehicles/FuelExpenseImportModal';
 import { isVehicleRentalEnabled } from '../../features';
 import { toast } from 'sonner';
 
@@ -106,10 +107,10 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
 
     const [isSaving, setIsSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [isImportOpen, setIsImportOpen] = useState(false);
 
     const now = new Date();
     const referenceMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthLabel = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
     // ── Tipo de despesa combustível ──────────────────────────────────
     useEffect(() => {
@@ -387,7 +388,7 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
         return <div className="p-8"><Loading /></div>;
     }
 
-    if (!canView('transport_fuel_expenses')) {
+    if (!canView('dashboard_vehicles_costs_periods')) {
         return (
             <AccessDenied
                 onBack={() => onNavigate?.('dashboard')}
@@ -409,18 +410,16 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                 )}
 
                 <div className="px-4 pt-4 pb-32 space-y-5 overflow-y-auto">
-                    {/* Contexto do lançamento */}
-                    <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                            Despesa variável · Competência
-                        </p>
-                        <p className="font-black text-slate-900 dark:text-white first-letter:uppercase">
-                            {monthLabel}
-                        </p>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                            Lançamento automático no mês atual — compõe o rateio de despesas da Apuração.
-                        </p>
-                    </div>
+                    {currentUser?.isAdminSuper === true && (
+                        <button
+                            type="button"
+                            onClick={() => setIsImportOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                            Importar abastecimentos por Excel
+                        </button>
+                    )}
 
                     {fuelCostType === undefined && (
                         <p className="text-xs text-slate-400 px-1">Carregando tipo de despesa...</p>
@@ -598,6 +597,14 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                     saveLabel={isSaving && uploadProgress > 0 ? `Enviando ${uploadProgress}%` : 'Salvar'}
                 />
             </form>
+
+            <FuelExpenseImportModal
+                isOpen={isImportOpen}
+                onClose={() => setIsImportOpen(false)}
+                companyId={effectiveCompanyId}
+                currentUser={currentUser}
+                onImported={onSaved}
+            />
 
             <ImageUploadSheet
                 isOpen={sheetOpen}

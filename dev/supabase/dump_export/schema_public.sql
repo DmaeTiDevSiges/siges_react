@@ -5314,7 +5314,14 @@ BEGIN
     WITH ranked AS (
         SELECT
             id,
-            ROW_NUMBER() OVER (PARTITION BY department_id, score_year, score_month ORDER BY avg_compliance_score DESC, total_penalty_score ASC) AS new_rank
+            ROW_NUMBER() OVER (
+                PARTITION BY department_id, score_year, score_month
+                ORDER BY
+                    ROUND(avg_compliance_score) DESC,
+                    total_visits DESC,
+                    failed_evaluations ASC,
+                    leader_id ASC
+            ) AS new_rank
         FROM public.leader_monthly_scores
         WHERE department_id = v_dept_id
           AND score_year = p_year

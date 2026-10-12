@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { User, OrderVisit, OrderVisitTeam, Order } from '../../types';
 import { dataService } from '../../services/dataService';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
@@ -254,7 +256,7 @@ const VisitDetailPanel: React.FC<{
 
     const formatVisitDate = (date?: string) =>
         date
-            ? new Date(date).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+            ? formatDateInBrazil(date, 'dateTime', 'pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
             : '—';
 
     return (

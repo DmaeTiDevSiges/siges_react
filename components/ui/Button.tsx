@@ -4,13 +4,14 @@ import { Loading } from './Loading';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'dashed' | 'ghost';
+    size?: 'xs' | 'sm' | 'md' | 'lg';
     fullWidth?: boolean;
     withIcon?: boolean;
     loading?: boolean;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-        ({ variant = 'primary', fullWidth = false, withIcon = false, loading = false, className = '', children, disabled, ...props }, ref) => {
+    ({ variant = 'primary', size = 'md', fullWidth = false, withIcon = false, loading = false, className = '', children, disabled, ...props }, ref) => {
         const baseStyles = "inline-flex items-center justify-center font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2";
 
         const variants = {
@@ -20,7 +21,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             ghost: "bg-transparent text-slate-500 hover:text-primary dark:text-slate-400"
         };
 
-        const sizes = variant === 'dashed' ? "py-4 px-4" : "h-12 px-6";
+        const sizeStyles = {
+            xs: "h-7 px-2.5 text-xs",
+            sm: "h-9 px-4 text-xs",
+            md: "h-12 px-6",
+            lg: "h-14 px-6 text-base"
+        };
+
+        const sizes = variant === 'dashed' ? "py-4 px-4" : sizeStyles[size];
         const width = fullWidth ? "w-full" : "";
         const disabledState = disabled || loading;
 

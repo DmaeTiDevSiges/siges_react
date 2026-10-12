@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { UserTool, ToolMovement } from '../../types';
 import { toolsService } from '../../services/tools/toolsService';
 import { toast } from 'sonner';
@@ -268,7 +270,7 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
                                 </div>
                                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                     <p className="text-xs text-slate-400 hidden sm:block">
-                                        {new Date(item.date).toLocaleDateString('pt-BR')}
+                                        {formatDateInBrazil(item.date, 'date', 'pt-BR')}
                                     </p>
                                     {item.type === 'USO' && item.userTool && canMovements && (
                                         <div className="flex items-center gap-1">
@@ -343,7 +345,7 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
                                                             <p className="text-xs text-slate-500 dark:text-slate-400">Para: {mov.to_user_name}</p>
                                                         )}
                                                         <p className="text-xs text-slate-400 mt-0.5">
-                                                            {new Date(mov.created_at).toLocaleString('pt-BR')}
+                                                            {formatDateInBrazil(mov.created_at, 'dateTime', 'pt-BR')}
                                                         </p>
                                                     </div>
                                                 </div>

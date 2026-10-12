@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { UserTool } from '../../types';
 import { toolsService } from '../../services/tools/toolsService';
 import { toast } from 'sonner';
@@ -92,7 +94,7 @@ export const ResponsibleToolsView: React.FC = () => {
                                     </p>
                                 </div>
                                 <p className="text-xs text-slate-400 flex-shrink-0 hidden sm:block">
-                                    {new Date(ut.date_start).toLocaleDateString('pt-BR')}
+                                    {formatDateInBrazil(ut.date_start, 'date', 'pt-BR')}
                                 </p>
                             </div>
                         ))}

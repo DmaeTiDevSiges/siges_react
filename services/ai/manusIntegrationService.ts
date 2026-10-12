@@ -118,8 +118,8 @@ export class ManusIntegrationService {
       const monthStart = `${today.slice(0, 7)}-01`;
       const endDate = today > '2026-12-31' ? null : '2026-12-31';
 
-      const { data: existing } = await supabase
-        .from('cfg_vehicle_rate_contracts')
+      const { data: existing, error: lookupError } = await supabase
+        .from('cfg_vehicles_rentals_contracts')
         .select('id')
         .eq('vehicle_id', vehicleId)
         .eq('active', true)
@@ -128,11 +128,15 @@ export class ManusIntegrationService {
         .or(`end_date.is.null,end_date.gte.${today}`)
         .limit(1);
 
+      if (lookupError) {
+        throw lookupError;
+      }
       if (existing && existing.length > 0) return;
 
       const valueUnit = Number.isFinite(Number(priceUnit)) ? Number(priceUnit) : 0;
-      const { error } = await supabase.from('cfg_vehicle_rate_contracts').insert({
+      const { error } = await supabase.from('cfg_vehicles_rentals_contracts').insert({
         vehicle_id: vehicleId,
+        monthly_value: 0,
         value_unit: valueUnit,
         start_date: monthStart,
         end_date: endDate,
@@ -249,7 +253,6 @@ export class ManusIntegrationService {
           plates: v.Description,
           description: v.Description,
           unit: v.OperationUnit,
-          value_unit: v.PriceUnit,
           discount: v.Discount,
           updated_at: getBrazilTimestamp(),
           updated_user_id: userId
@@ -260,7 +263,6 @@ export class ManusIntegrationService {
           company_id: providerCompanyId,
           department_id: providerDepartmentId,
           plates: v.Description,
-          value_unit: v.PriceUnit,
           unit: v.OperationUnit,
           discount: v.Discount,
           description: v.Description,

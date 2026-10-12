@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { SystemNotice } from '../../types';
 import { useAppNotices } from '../../hooks/useAppNotices';
 import { dataService } from '../../services/dataService';
@@ -11,7 +13,7 @@ interface AppNoticeTickerProps {
 export const AppNoticeTicker: React.FC<AppNoticeTickerProps> = ({ dashboard }) => {
   const { notices, loading } = useAppNotices({ dashboard });
 
-  const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
+  const nowStr = formatDateInBrazil(new Date(), 'dateTime', 'sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
   const now = new Date(nowStr);
   const visibleNotices = notices.filter((notice) => {
     const start = new Date(notice.viewStartDate);

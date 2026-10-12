@@ -2,6 +2,85 @@
  * Utility functions for text formatting and manipulation
  */
 
+export const BRAZIL_TIME_ZONE = 'America/Sao_Paulo';
+
+const getBrazilTimezoneOffset = (timestamp: number): number => {
+    const timeZoneName = new Intl.DateTimeFormat('en', {
+        timeZone: BRAZIL_TIME_ZONE,
+        timeZoneName: 'longOffset'
+    }).formatToParts(new Date(timestamp)).find(part => part.type === 'timeZoneName')?.value;
+    if (!timeZoneName) throw new Error(`Não foi possível determinar o fuso horário ${BRAZIL_TIME_ZONE}`);
+    if (timeZoneName === 'GMT') return 0;
+
+    const offset = timeZoneName.match(/^GMT([+-])(\d{2}):?(\d{2})?$/);
+    if (!offset) throw new Error(`Fuso horário inesperado para ${BRAZIL_TIME_ZONE}: ${timeZoneName}`);
+    const minutes = Number(offset[2]) * 60 + Number(offset[3] || 0);
+    return (offset[1] === '+' ? 1 : -1) * minutes * 60_000;
+};
+
+export const parseBrazilDate = (value: Date | string | number): Date => {
+    if (value instanceof Date || typeof value === 'number') return new Date(value);
+
+    const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const localDateTime = value.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)$/);
+    const wallClock = dateOnly ? `${value}T00:00:00` : localDateTime ? `${localDateTime[1]}T${localDateTime[2]}` : null;
+    if (wallClock) {
+        const wallClockUtc = Date.parse(`${wallClock}Z`);
+        let timestamp = wallClockUtc - getBrazilTimezoneOffset(wallClockUtc);
+        timestamp = wallClockUtc - getBrazilTimezoneOffset(timestamp);
+        return new Date(timestamp);
+    }
+
+    return new Date(value);
+};
+
+export const formatDateInBrazil = (
+    value: Date | string | number,
+    format: 'date' | 'time' | 'dateTime',
+    locales?: string | string[],
+    options: Intl.DateTimeFormatOptions = {}
+): string => {
+    const date = parseBrazilDate(value);
+    if (Number.isNaN(date.getTime())) return 'Invalid Date';
+
+    const safeOptions = { ...options, timeZone: BRAZIL_TIME_ZONE };
+    const locale = Array.isArray(locales) && locales.length === 0 ? 'pt-BR' : locales || 'pt-BR';
+    const formatter = new Intl.DateTimeFormat(
+        locale,
+        format === 'date'
+            ? { ...safeOptions, ...(!safeOptions.dateStyle && !safeOptions.year && !safeOptions.month && !safeOptions.day ? { year: 'numeric', month: 'numeric', day: 'numeric' } : {}) }
+            : format === 'time'
+                ? { ...safeOptions, ...(!safeOptions.timeStyle && !safeOptions.hour && !safeOptions.minute && !safeOptions.second ? { hour: 'numeric', minute: 'numeric', second: 'numeric' } : {}) }
+                : safeOptions
+    );
+    return formatter.format(date);
+};
+
+export const getBrazilDateInputValue = (value: Date | string | number = new Date()): string => {
+    const date = parseBrazilDate(value);
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: BRAZIL_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+    const map = new Map(parts.map(part => [part.type, part.value]));
+    return `${map.get('year')}-${map.get('month')}-${map.get('day')}`;
+};
+
+export const addBrazilCalendarDays = (value: Date | string | number, days: number): string => {
+    const [year, month, day] = getBrazilDateInputValue(value).split('-').map(Number);
+    const adjusted = new Date(Date.UTC(year, month - 1, day + days));
+    return `${adjusted.getUTCFullYear()}-${String(adjusted.getUTCMonth() + 1).padStart(2, '0')}-${String(adjusted.getUTCDate()).padStart(2, '0')}`;
+};
+
+export const getBrazilTimestampOffset = (value: Date): string => {
+    const offsetMinutes = getBrazilTimezoneOffset(value.getTime()) / 60_000;
+    const sign = offsetMinutes < 0 ? '-' : '+';
+    const absoluteMinutes = Math.abs(offsetMinutes);
+    return `${sign}${String(Math.floor(absoluteMinutes / 60)).padStart(2, '0')}:${String(absoluteMinutes % 60).padStart(2, '0')}`;
+};
+
 /**
  * Get initials from a full name
  * @param name - Full name to extract initials from
@@ -46,8 +125,8 @@ export const formatDate = (date: string | Date): string => {
             return `${day}/${month}/${year}`;
         }
     }
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(d);
+    const d = parseBrazilDate(date);
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: BRAZIL_TIME_ZONE }).format(d);
 };
 
 /**
@@ -57,11 +136,11 @@ export const formatDate = (date: string | Date): string => {
  */
 export const formatDateTime = (date: string | Date | null | undefined): string => {
     if (!date) return 'N/A';
-    const d = typeof date === 'string' ? new Date(date) : date;
+    const d = parseBrazilDate(date);
     if (isNaN(d.getTime())) return 'N/A';
 
     const formatter = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
+        timeZone: BRAZIL_TIME_ZONE,
         hour12: false,
         day: '2-digit',
         month: '2-digit',
@@ -89,10 +168,10 @@ export const formatDateTimeCompact = (date: string | Date | null | undefined): s
             return `${day}/${month}/${year} ${hour}:${minute}h`;
         }
     }
-    const d = typeof date === 'string' ? new Date(date) : date;
+    const d = parseBrazilDate(date);
     if (isNaN(d.getTime())) return '-';
     const formatter = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
+        timeZone: BRAZIL_TIME_ZONE,
         hour12: false,
         day: '2-digit',
         month: '2-digit',

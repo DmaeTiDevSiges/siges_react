@@ -1,4 +1,6 @@
 import React from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { StatusBadge, StatusType } from './StatusBadge';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
@@ -43,7 +45,7 @@ const getStatusStyle = (statusId: number): StatusType => {
 
 const formatDate = (date: string) => {
     if (!date) return '—';
-    return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return formatDateInBrazil(date, 'date', 'pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 };
 
 const formatCurrency = (value: number) => {

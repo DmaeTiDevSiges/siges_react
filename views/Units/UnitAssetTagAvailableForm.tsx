@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { dataService } from '../../services/dataService';
 import { Unit, AssetTag, User } from '../../types';
 import { Select } from '../../components/ui/Select';
@@ -241,8 +243,8 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
 
                 // Format reported_at as in the flow: dd/MM/yyyy HH:mmh
                 const now = new Date();
-                const reportedAtFormatted = now.toLocaleDateString('pt-BR') + ' ' +
-                    now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + 'h';
+                const reportedAtFormatted = formatDateInBrazil(now, 'date', 'pt-BR') + ' ' +
+                    formatDateInBrazil(now, 'time', 'pt-BR', { hour: '2-digit', minute: '2-digit' }) + 'h';
 
                 const message = `${msgHeader}` +
                     `${unitIdentification}\n` +

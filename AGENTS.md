@@ -665,3 +665,20 @@ Caso conhecido: a view `v_orders_visits_assets` depende de `v_orders_visits`
 
 5. **Sempre valide: rode a SQL no editor e teste a feature afetada** (ex: aba Ativos
    da visita técnica usa `v_orders_visits_assets`) antes de declarar concluído.
+
+---
+
+## 🕒 Fuso horário — padrão do SIGES
+
+1. Datas e horários exibidos ou formatados pela aplicação devem usar
+   `America/Sao_Paulo`. Para formatação de `Date` ou valores vindos do banco, use
+   `formatDateInBrazil` (`utils/formatters.ts`) em vez de `toLocaleDateString`,
+   `toLocaleTimeString` ou `toLocaleString` diretamente.
+2. Timestamps sem offset recebidos do banco são horários locais de São Paulo;
+   timestamps com `Z` ou offset explícito representam instantes e devem ser
+   convertidos para esse fuso na exibição.
+3. Ao gravar timestamps sem fuso em SQL, use explicitamente
+   `timezone('America/Sao_Paulo', now())`. Não dependa do fuso implícito da sessão.
+4. O fuso padrão de novas sessões Supabase é configurado por
+   `dev/supabase/set_database_timezone_sao_paulo.sql`. Alterações de sessão já
+   abertas exigem reconexão.

@@ -75,23 +75,25 @@ import {
   ToolsMainView,
   UnitForm,
   RentalContractList,
-  RateContractList,
-  RentalApportionmentScreen,
+  VehiclesDashboardAdminScreen,
   VehicleList,
   FuelExpenseScreen,
 } from './app/routes';
+import { GrantDashboardScreen } from './views/Dashboards/DashboardGrantScreen';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
 import { Capacitor } from '@capacitor/core';
 import { useShiftMonitor } from './hooks/useShiftMonitor';
 import { Modal } from './components/ui/Modal';
 import { PermissionsProvider } from './contexts/PermissionsContext';
+import { GamificationBadge } from './components/ui/GamificationBadge';
+import { GamificationHistoryModal } from './components/ui/GamificationHistoryModal';
 
 
 type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-structure' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'asset-loan-checklist-types' | 'asset-loan-checklist-type-form' | 'asset-loan-checklist-type-edit'
   | 'loans-checklists' | 'loans-checklist-form' | 'loans-checklist-edit'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period'   | 'vehicle-cost-types' | 'rental-contracts' | 'rental-apportionment' | 'rate-contracts' | 'vehicles' | 'fuel-expense';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period'   | 'vehicle-cost-types' | 'rental-contracts' | 'rental-apportionment' | 'rate-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/media/imgproxyService';
@@ -331,7 +333,19 @@ const AppContent: React.FC = () => {
     return 'dashboard';
   });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [dashboardGamification, setDashboardGamification] = useState<{
+    position: number;
+    positionChange?: number;
+  } | null>(null);
+  const [showDashboardGamificationHistory, setShowDashboardGamificationHistory] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    if (currentScreen !== 'dashboard') {
+      setDashboardGamification(null);
+      setShowDashboardGamificationHistory(false);
+    }
+  }, [currentScreen]);
   const showSplash = !minTimePassed || authLoading;
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('app_theme') as 'light' | 'dark') || 'dark';
@@ -587,7 +601,12 @@ const AppContent: React.FC = () => {
       currentScreen === 'dashboard-contracts-evaluations' ||
       currentScreen === 'dashboard-orders-admin-calendar' ||
       currentScreen === 'materials-dashboard' ||
-      currentScreen === 'services-history';
+      currentScreen === 'services-history' ||
+      currentScreen === 'rental-apportionment' ||
+      currentScreen === 'rental-contracts' ||
+      currentScreen === 'rate-contracts' ||
+      currentScreen === 'vehicles' ||
+      currentScreen === 'grant-dashboard';
 
     if (!isDashboardScreen) return undefined;
     return (
@@ -1190,7 +1209,7 @@ const AppContent: React.FC = () => {
     } else if (currentScreen === 'rental-contracts' || currentScreen === 'rental-apportionment') {
       setCurrentScreen('dashboard');
     } else if (currentScreen === 'rate-contracts') {
-      setCurrentScreen('rental-apportionment');
+      setCurrentScreen('rental-contracts');
     } else if (currentScreen === 'vehicles') {
       setCurrentScreen('dashboard');
     } else if (currentScreen === 'fuel-expense') {
@@ -1971,6 +1990,7 @@ const AppContent: React.FC = () => {
         return (
           <DashboardScreen
             currentUser={currentUser}
+            onGamificationChange={setDashboardGamification}
             initialTab={dashboardInitialTab}
             onSelectOrder={handleOrderSelect}
             onResumeVisit={(visitId) => {
@@ -2612,24 +2632,15 @@ const AppContent: React.FC = () => {
               if (!selectedVisitForApproval || !currentUser) return;
 
               const approvePromise = async () => {
-                // 1. Update order status/progress only if OS is NOT in Execução (statusId=5)
-                if (selectedOrder?.id && selectedOrder?.statusId !== 5) {
-                  await dataService.updateOrder(selectedOrder.id, {
-                    statusId: parseInt(data.statusId),
-                    statusAt: selectedVisitForApproval.ovEndedAt,
-                    progress: data.progress,
-                    causeReasonId: data.causeReasonId ? parseInt(data.causeReasonId) : undefined
-                  });
-                }
-
-                // 2. Mark visit as approved (5) and update it with the new status/progress
+                // Update the order, approve the visit, and register its plans atomically.
                 await dataService.updateOrderVisitProcessing(selectedVisitForApproval.id, 5, currentUser.id, {
                   statusId: parseInt(data.statusId),
                   progress: data.progress,
-                  suspendedReasonId: data.suspendedReasonId ? parseInt(data.suspendedReasonId) : null
+                  suspendedReasonId: data.suspendedReasonId ? parseInt(data.suspendedReasonId) : null,
+                  causeReasonId: data.causeReasonId ? parseInt(data.causeReasonId) : null
                 });
 
-                // 3. Recarregar a OS para refletir o status atual (inclusive mudanças
+                // Recarregar a OS para refletir o status atual (inclusive mudanças
                 //    propagadas pelo trigger trg_order_status_inheritance na SS pai).
                 //    Sem isso, selectedOrder fica com dados stale ao retornar para order-detail.
                 if (selectedOrder?.id) {
@@ -2718,20 +2729,41 @@ const AppContent: React.FC = () => {
           />
         ) : null;
       case 'rental-contracts':
-        return <RentalContractList onNavigate={handleNavigate} />;
+        return (
+          <VehiclesDashboardAdminScreen
+            onNavigate={handleNavigate}
+            onSelectVisit={(visit, tab) => handleVisitSelect(visit as any, tab ?? 'transport')}
+            initialTab="rental-contracts"
+          />
+        );
       case 'rate-contracts':
-        return <RateContractList onNavigate={handleNavigate} />;
+        return (
+          <VehiclesDashboardAdminScreen
+            onNavigate={handleNavigate}
+            onSelectVisit={(visit, tab) => handleVisitSelect(visit as any, tab ?? 'transport')}
+            initialTab="rental-contracts"
+          />
+        );
       case 'rental-apportionment':
         return (
-          <RentalApportionmentScreen
+          <VehiclesDashboardAdminScreen
             onNavigate={handleNavigate}
-            onSelectVisit={(visit, tab = 'transport') => handleVisitSelect(visit as any, tab)}
+            onSelectVisit={(visit, tab) => handleVisitSelect(visit as any, tab ?? 'transport')}
+            initialTab="costs"
           />
         );
       case 'vehicles':
-        return <VehicleList onNavigate={handleNavigate} />;
+        return (
+          <VehiclesDashboardAdminScreen
+            onNavigate={handleNavigate}
+            onSelectVisit={(visit, tab) => handleVisitSelect(visit as any, tab ?? 'transport')}
+            initialTab="vehicles"
+          />
+        );
       case 'fuel-expense':
         return <FuelExpenseScreen onNavigate={handleNavigate} />;
+      case 'grant-dashboard':
+        return <GrantDashboardScreen onNavigate={handleNavigate} currentUser={currentUser} />;
       default:
         return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
     }
@@ -2879,11 +2911,12 @@ const AppContent: React.FC = () => {
       case 'extra-workers': return 'MO Extra';
       case 'tools': return 'Ferramentas';
       case 'vehicle-cost-types': return 'Tipos de Custo Veicular';
-      case 'rental-contracts': return 'Contratos de Aluguel';
-      case 'rental-apportionment': return 'Apuração de Aluguel';
-      case 'rate-contracts': return 'Contratos de R$/km';
-      case 'vehicles': return 'Veículos';
+      case 'rental-contracts': return 'Gestão Transportes';
+      case 'rental-apportionment': return 'Gestão Transportes';
+      case 'rate-contracts': return 'Gestão Transportes';
+      case 'vehicles': return 'Gestão Transportes';
       case 'fuel-expense': return 'Combustível';
+      case 'grant-dashboard': return 'Cronograma';
       default: return 'Siges';
     }
   };
@@ -3100,7 +3133,12 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) !== 'material-form' &&
                 (currentScreen as string) !== 'material-edit' &&
                 (currentScreen as string) !== 'app-notices' &&
-                (currentScreen as string) !== 'extra-workers'
+                (currentScreen as string) !== 'extra-workers' &&
+                (currentScreen as string) !== 'rental-apportionment' &&
+                (currentScreen as string) !== 'rental-contracts' &&
+                (currentScreen as string) !== 'rate-contracts' &&
+                (currentScreen as string) !== 'vehicles' &&
+                (currentScreen as string) !== 'grant-dashboard'
               }
               onBackClick={handleBack}
               currentUser={currentUser}
@@ -3132,10 +3170,31 @@ const AppContent: React.FC = () => {
               sidebar={!hideMainNavigation ? sidebarContent : undefined}
               onMenuClick={undefined}
               tabNavigation={getTabNavigation()}
+              userLeftElement={
+                currentScreen === 'dashboard' && dashboardGamification ? (
+                  <GamificationBadge
+                    position={dashboardGamification.position}
+                    positionChange={dashboardGamification.positionChange}
+                    onClick={() => setShowDashboardGamificationHistory(true)}
+                  />
+                ) : undefined
+              }
               titleRightElement={
-                (currentScreen as string) === 'assets-search'
-                  ? <AssetsAlertsHeaderWidget onNavigate={(screen) => setCurrentScreen(screen as any)} />
-                  : undefined
+                <>
+                  {currentScreen === 'dashboard' && dashboardGamification && (
+                    currentUser?.departmentId && currentUser?.teamId && (
+                      <GamificationHistoryModal
+                        isOpen={showDashboardGamificationHistory}
+                        onClose={() => setShowDashboardGamificationHistory(false)}
+                        departmentId={currentUser.departmentId}
+                        teamId={currentUser.teamId}
+                      />
+                    )
+                  )}
+                  {currentScreen === 'assets-search' && (
+                    <AssetsAlertsHeaderWidget onNavigate={(screen) => setCurrentScreen(screen as any)} />
+                  )}
+                </>
               }
             >
               <React.Suspense fallback={

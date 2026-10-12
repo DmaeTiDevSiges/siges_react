@@ -12,6 +12,8 @@
  */
 
 import { supabase } from '../../services/core/supabase';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 
 // ============================================================================
 // INTERFACES
@@ -127,7 +129,7 @@ export async function notifyFollowersOnOrderStatusChange(
         // ========================================================================
         // Action: Insert records into users_notifications for each follower
 
-        const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const timestamp = formatDateInBrazil(new Date(), 'dateTime', 'pt-BR', { timeZone: 'America/Sao_Paulo' });
         const notificationsCreated = 0;
 
         for (const follower of followers) {

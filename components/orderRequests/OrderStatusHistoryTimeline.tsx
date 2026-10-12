@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { OrderStatusLogItem } from '../../types';
 import { dataService } from '../../services/dataService';
 import { getStatusConfig } from '../../utils/formatters';
@@ -12,7 +14,7 @@ const formatDateTime = (value?: string | null) => {
     if (!value) return '';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleString('pt-BR', {
+    return formatDateInBrazil(date, 'dateTime', 'pt-BR', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
     });

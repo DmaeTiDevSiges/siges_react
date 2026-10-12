@@ -4,6 +4,8 @@
 **Status:** 🟢 Fase 1 ✅ pronta (migration + DOWN + script de validação, **70/70 checks em PostgreSQL 18 local** — falta aplicar no SQL Editor pelo usuário) · Fase 2 (código) ✅ serviço + proxy + helper puro, 125/125 testes · **Fase 2 (despesas variáveis + componente R$/km) ✅ migration `20261009` (arquivo único) + DOWN + `validate_despesas_variaveis.sql` + serviço/proxies + UI** — harness PG18: **84/84 checks** (run.mjs 70/70 + run_fase2 84/84) — falta aplicar no SQL Editor · Fase 3 ✅ UI completa (Contratos, Apuração, VehicleCostTypes, badges/card/relatório, Sidebar, flag) · **Contrato de R$/km com vigência (Parte A) ✅ `20261010`** (tabela `cfg_vehicle_rate_contracts`, `fc_vehicle_rate_contract`, guard de Km + backfill, rota/permissão, telas Contratos de R$/km, import Manus cria contrato automático) · **Despesas/rateio sem contrato de aluguel (Parte B) ✅ `20261011`** (summary/detail/calculate/allocate aceitam competência sem aluguel, rateio só de despesas) · Fase 4 🟡 lint (tsc) 22 erros preexistentes (nenhum em arquivo alterado) · testes **127/127** · **falta E2E no banco vivo**
 **Fonte da especificação:** conversa ChatGPT "Rateio De Aluguel Veicular" — https://chatgpt.com/share/6ac4c8b3-7a5c-83e9-b801-78fd736a89ad
 
+> **Atualização do modelo:** após aplicar as migrations anteriores até `20261015`, aplique `20261020_merge_vehicle_rate_contracts_into_rentals.sql` no SQL Editor. Ela consolida `monthly_value` e `value_unit` em `cfg_vehicles_rentals_contracts`. Copia primeiro as tarifas versionadas e o valor legado de `vehicles.value_unit`, remove o campo legado e a tabela de tarifas separada, e mantém somente uma view de compatibilidade para o resumo SQL antigo. A tela de contratos exibe e edita aluguel e R$/km no mesmo registro; a aba separada de R$/km foi removida. Após aplicar, rode `dev/supabase/validate_vehicle_contract_unification.sql`.
+
 ### Andamento
 
 | Fase | Entrega | Status |
@@ -174,16 +176,25 @@ Arquivos: `dev/supabase/migrations/20261009_add_vehicles_monthly_expenses.sql` (
 
 Ainda futuros: base horas/dias, CRUD de veículos, dashboard de ociosidade, renomear tabelas para `vehicle_cost_*`.
 
-## 12. Parte A — Contrato de R$/km com vigência ✅ implementada (10/10/2026)
+## 12. Parte A — Contrato de R$/km com vigência ✅ implementada (10/10/2026; modelo original)
 
 Arquivos: `dev/supabase/migrations/20261010_add_vehicle_rate_contracts.sql` (+ `_DOWN.sql`), `dev/supabase/validate_rate_contracts.sql`, `services/orders/vehicleRateService.ts`, `views/Transport/RateContractList.tsx`, `views/Transport/RateContractForm.tsx`.
 
-- Tabela **`cfg_vehicle_rate_contracts`** (`vehicle_id`, `start_date`, `end_date`, `value_unit numeric(14,6) >= 0`, `active`, `description`) — vigência versionada do R$/km (antes era o campo único `vehicles.value_unit`).
+- O modelo desta seção foi **substituído pela migração `20261020_merge_vehicle_rate_contracts_into_rentals.sql`** descrita abaixo. A tabela e a UI separadas são o histórico da implementação original.
+- Na implantação original, `cfg_vehicle_rate_contracts` armazenava a vigência versionada do R$/km (antes era o campo único `vehicles.value_unit`).
 - **`fc_vehicle_rate_contract(p_vehicle_id, p_on_date)`** (STABLE): resolve o contrato vigente (`ORDER BY start_date DESC, id DESC LIMIT 1`) e sinaliza conflito (`count(*) OVER () > 1`) quando há mais de um cobrindo a data.
-- **Guard no trigger** `fc_orders_visits_vehicles_before_save`: `amount > 0` (odômetro) exige contrato vigente na data do lançamento (`COALESCE(NEW.created_at, ov_created_at, now())::date`) → `RAISE EXCEPTION` com instrução de cadastro; `amount = 0` usa `vehicles.value_unit` como fallback.
+- **Guard no trigger** `fc_orders_visits_vehicles_before_save`: `amount > 0` (odômetro) exige contrato vigente na data do lançamento (`COALESCE(NEW.created_at, ov_created_at, now())::date`) → `RAISE EXCEPTION` com instrução de cadastro.
 - **Backfill idempotente**: cria contrato automático para todo veículo com `value_unit > 0` sem contrato (início 1º do mês da 1ª visita ou mês corrente, fim `DATE '2026-12-31'`).
 - Rota/rota filha `transport_rate_contracts` (`/transport/rate-contracts`, icon `speed`, parent `orders`) + grants copiados de `transport_rental_apportionment` (permissão `transport_rate_contracts`).
-- UI: `RateContractList`/`RateContractForm` (espelho dos contratos de aluguel; `valueUnit` step 0.001, pré-preenche do veículo, vigência/situação/observação), ligadas ao mapa de screens (`'rate-contracts'`) com volta para `rental-apportionment`.
+- A rota antiga `'rate-contracts'` continua como alias de navegação para os contratos unificados.
+
+## 13. Unificação do contrato de veículo
+
+- `cfg_vehicles_rentals_contracts` armazena `monthly_value` e `value_unit` no mesmo registro e vigência.
+- A migração copia tarifas de `cfg_vehicle_rate_contracts` para contratos de mesma vigência; tarifas sem correspondência exata são preservadas em novos contratos com aluguel mensal zero.
+- O valor estático `vehicles.value_unit` é usado apenas como fallback de migração para veículos sem tarifa contratual; após a cópia, a coluna e a tabela física de tarifas são removidas. Uma view somente-leitura com o nome antigo mantém compatibilidade com a função de resumo até sua próxima revisão.
+- A tela “Contratos de Veículos” edita os dois valores no mesmo formulário e lista cada um no card. Não existe mais uma aba separada de contratos R$/Km.
+- Importações Manus criam um contrato de veículo com `monthly_value = 0` e `value_unit = PriceUnit` quando não há contrato vigente.
 - **Import Manus** (`manusIntegrationService.ts`): `ensureVehicleRateContract` cria contrato automático (1º do mês corrente → 31/12/2026, `value_unit = PriceUnit`) quando não há vigente, antes de inserir linhas de odômetro — sem isso o import seria bloqueado pelo guard.
 - Visitas lançam Km com `x R$ … / km` + tooltip explicando origem/bloqueio (`OrderVisitVehiclesList`).
 

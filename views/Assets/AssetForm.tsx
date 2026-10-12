@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { toast } from 'sonner';
 import { Asset, Client, Unit, AssetStatus, AssetTag, AssetTagSub, AssetType, AssetAttribute, Material } from '../../types';
 import { dataService } from '../../services/dataService';
@@ -668,7 +670,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                                     {currentStatus?.code || 'STATUS'}
                                                 </span>
                                                 <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">
-                                                    {formData.acquisitionAt ? new Date(formData.acquisitionAt).toLocaleDateString('pt-BR') : '--/--/----'}
+                                                    {formData.acquisitionAt ? formatDateInBrazil(formData.acquisitionAt, 'date', 'pt-BR') : '--/--/----'}
                                                 </span>
                                             </div>
                                         </div>

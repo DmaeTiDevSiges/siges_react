@@ -3,6 +3,7 @@ import { User } from '../types';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { dataService } from '../services/dataService';
+import { formatDateInBrazil, getBrazilDateInputValue } from '../utils/formatters';
 
 export const useShiftMonitor = (currentUser: User | null, isProfilePage: boolean = false) => {
   const [showShiftAlert, setShowShiftAlert] = useState<{
@@ -16,10 +17,12 @@ export const useShiftMonitor = (currentUser: User | null, isProfilePage: boolean
 
     const checkShift = () => {
       const now = new Date();
-      const currentHours = now.getHours().toString().padStart(2, '0');
-      const currentMinutes = now.getMinutes().toString().padStart(2, '0');
-      const currentTimeStr = `${currentHours}:${currentMinutes}`;
-      const todayStr = now.toISOString().split('T')[0];
+      const currentTimeStr = formatDateInBrazil(now, 'time', 'en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23'
+      });
+      const todayStr = getBrazilDateInputValue(now);
 
       const shiftStart = currentUser.shiftStart?.slice(0, 5) || '08:00';
       const shiftEnd = currentUser.shiftEnd?.slice(0, 5) || '18:00';
@@ -85,7 +88,7 @@ export const useShiftMonitor = (currentUser: User | null, isProfilePage: boolean
 
   const dismissAlert = (type: 'START' | 'END' | 'END_WITH_VISIT') => {
     if (!currentUser) return;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getBrazilDateInputValue();
     const alertKey = `${todayStr}_${type}`;
 
     const dismissedAlertsStr = localStorage.getItem(`shift_alert_dismissed_${currentUser.id}`) || '{}';

@@ -1,4 +1,6 @@
 import { supabase } from '../core/supabase';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { r2Service } from '../media/r2Service';
 import { 
     AssetLoan, 
@@ -14,7 +16,7 @@ import { getBrazilTimestamp } from '../../utils/dateUtils';
 const getLocalTimestamp = () => getBrazilTimestamp();
 
 const getSaoPauloDate = () => {
-    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    return formatDateInBrazil(new Date(), 'date', 'en-CA', { timeZone: 'America/Sao_Paulo' });
 };
 
 const mapLoan = (item: any): AssetLoan => ({

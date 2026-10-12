@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useAppNoticesAdmin } from '../../hooks/useAppNotices';
 import { AppNoticeForm } from '../../components/appNotices/AppNoticeForm';
@@ -165,7 +167,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('pt-BR', {
+        return formatDateInBrazil(date, 'date', 'pt-BR', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
@@ -176,7 +178,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
 
     const formatDateTime = (dateString?: string) => {
         if (!dateString) return '';
-        return new Date(dateString).toLocaleString('pt-BR', {
+        return formatDateInBrazil(dateString, 'dateTime', 'pt-BR', {
             day: '2-digit',
             month: '2-digit',
             year: '2-digit',
@@ -186,7 +188,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
     };
 
     const isWithinDates = (notice: SystemNotice) => {
-        const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
+        const nowStr = formatDateInBrazil(new Date(), 'dateTime', 'sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
         const now = new Date(nowStr);
         const start = new Date(notice.startDate);
         const end = new Date(notice.endDate);
@@ -277,7 +279,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                         {notices
                             .filter((notice) => {
                                 if (filterStatus === 'all') return true;
-                                const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
+                                const nowStr = formatDateInBrazil(new Date(), 'dateTime', 'sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
                                 const now = new Date(nowStr);
                                 const start = new Date(notice.startDate);
                                 const end = new Date(notice.endDate);

@@ -18,6 +18,7 @@ export const TabsBar: React.FC<TabsBarProps> = ({ tabs, activeTab, onTabChange, 
 
     return (
         <div className={`flex items-center no-scrollbar overflow-x-auto gap-4 ${className}`}>
+            {leftContent && <div className="flex-shrink-0">{leftContent}</div>}
             {normalizedTabs.map((tab) => (
                 <button
                     key={tab.id}
@@ -34,7 +35,6 @@ export const TabsBar: React.FC<TabsBarProps> = ({ tabs, activeTab, onTabChange, 
                     )}
                 </button>
             ))}
-            {leftContent && <div className="flex-shrink-0 ml-auto">{leftContent}</div>}
         </div>
     );
 };

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateInBrazil } from '../../../utils/formatters';
+
 import { aiService } from '../../../services/ai/aiService';
 import { Button } from '../../../components/ui/Button';
 import { toast } from 'sonner';
@@ -134,7 +136,7 @@ export const AIKnowledgeAdmin: React.FC<{ onBack: () => void }> = ({ onBack }) =
                   {item.content}
                 </p>
                 <div className="mt-2 text-[10px] text-slate-400">
-                  {new Date(item.created_at).toLocaleDateString()}
+                  {formatDateInBrazil(item.created_at, 'date')}
                 </div>
               </div>
             ))}

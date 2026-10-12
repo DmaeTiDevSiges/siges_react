@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { Company, User, OrderVisit, OrderVisitTeam } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Map as LeafletMap, Marker } from 'leaflet';
@@ -1037,8 +1039,8 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                                                 <span className="material-symbols-outlined text-[10px] text-slate-400">schedule</span>
                                                 <span className="text-[9px] text-slate-400 font-medium">
                                                     {isClosed
-                                                        ? (visit.ovEndedAt ? new Date(visit.ovEndedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A')
-                                                        : (visit.ovStartedAt ? new Date(visit.ovStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A')}
+                                                        ? (visit.ovEndedAt ? formatDateInBrazil(visit.ovEndedAt, 'time', [], { hour: '2-digit', minute: '2-digit' }) : 'N/A')
+                                                        : (visit.ovStartedAt ? formatDateInBrazil(visit.ovStartedAt, 'time', [], { hour: '2-digit', minute: '2-digit' }) : 'N/A')}
                                                 </span>
                                             </div>
                                         </div>

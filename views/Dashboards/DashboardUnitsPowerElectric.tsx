@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { dataService } from '../../services/dataService';
 import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
@@ -1217,7 +1219,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
     const formatDate = (dateString?: string) => {
         if (!dateString) return '';
         const date = new Date(dateString);
-        return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        return formatDateInBrazil(date, 'date', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     };
 
     const formatDateDisplay = (dateString?: string) => {
@@ -1605,7 +1607,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                                     if (val) {
                                         const start = `${val}-01`;
                                         const [y, m] = val.split('-');
-                                        const end = new Date(parseInt(y), parseInt(m), 0).toISOString().split('T')[0];
+                                        const end = new Date(Date.UTC(parseInt(y), parseInt(m), 0)).toISOString().split('T')[0];
                                         setDateRange({ start, end });
                                     }
                                 }}
@@ -1623,7 +1625,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                                             const [year, month] = dateRange.start.split('-');
                                             if (!year || !month) return 'Selecionar';
                                             const d = new Date(parseInt(year), parseInt(month) - 1, 1);
-                                            const monthName = d.toLocaleString('pt-BR', { month: 'short' });
+                                            const monthName = formatDateInBrazil(d, 'dateTime', 'pt-BR', { month: 'short' });
                                             // Capitalize first letter
                                             return `${monthName.charAt(0).toUpperCase() + monthName.slice(1).replace('.', '')} ${year}`;
                                         })()}
@@ -1682,5 +1684,4 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
         </div>
     );
 };
-
 

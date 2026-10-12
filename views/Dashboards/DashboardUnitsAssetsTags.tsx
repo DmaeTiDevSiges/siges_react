@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { formatDateInBrazil } from '../../utils/formatters';
+
 import { dataService } from '../../services/dataService';
 import { supabase } from '../../services/core/supabase';
 import { useAppNotices } from '../../hooks/useAppNotices';
@@ -1486,7 +1488,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                     </span>
                                                     {activeOrdersForModal[currentOrderIndex].status_at && (
                                                         <span className="text-[9px] font-bold text-amber-800/40 dark:text-amber-400/40 text-right">
-                                                            {new Date(activeOrdersForModal[currentOrderIndex].status_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} h
+                                                            {formatDateInBrazil(activeOrdersForModal[currentOrderIndex].status_at, 'dateTime', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} h
                                                         </span>
                                                     )}
                                                 </div>

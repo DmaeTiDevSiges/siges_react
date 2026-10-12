@@ -7,6 +7,7 @@ import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { ButtonSave } from '../../components/ui/ButtonSave';
 import { toast } from 'sonner';
+import { getBrazilDateInputValue } from '../../utils/formatters';
 
 export interface RateContractFormInput {
     id?: string;
@@ -45,7 +46,7 @@ export const RateContractForm: React.FC<RateContractFormProps> = ({
     const [searching, setSearching] = useState(false);
     const [form, setForm] = useState({
         valueUnit: initial?.valueUnit != null ? String(initial.valueUnit) : '',
-        startDate: toISODate(initial?.startDate) || new Date().toISOString().slice(0, 10),
+        startDate: toISODate(initial?.startDate) || getBrazilDateInputValue(),
         endDate: toISODate(initial?.endDate),
         active: initial?.active ?? true,
         description: initial?.description || ''
@@ -75,8 +76,8 @@ export const RateContractForm: React.FC<RateContractFormProps> = ({
         setResults([]);
         setSearch('');
         // Pré-preenche com o valor padrão por Km do cadastro (quando novo)
-        if (!form.valueUnit && v.valueUnit != null) {
-            setForm(prev => ({ ...prev, valueUnit: String(v.valueUnit) }));
+        if (!form.valueUnit) {
+            setForm(prev => ({ ...prev, valueUnit: '0' }));
         }
     };
 
@@ -190,7 +191,7 @@ export const RateContractForm: React.FC<RateContractFormProps> = ({
                 )}
 
                 <Input
-                    label="Custo Operacional por Km (R$/km)"
+                    label="R$ Fixo/Km"
                     type="number"
                     min="0"
                     step="0.001"
@@ -200,9 +201,9 @@ export const RateContractForm: React.FC<RateContractFormProps> = ({
                     required
                 />
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 -mt-3 ml-1">
-                    Usado para precificar o Km de cada visita. Não inclui aluguel nem
-                    despesas variáveis (combustível, pedágio...) — esses entram na
-                    apuração mensal.
+                    Valor fixo por Km precificado em cada visita. Não inclui aluguel
+                    nem despesas variáveis (combustível, pedágio...) — esses entram
+                    na apuração mensal como R$ Despesas/Km.
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">
