@@ -25,7 +25,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   const hasPower = canView('dashboard_units_power_electric');
   const hasEvaluations = canView('dashboard_contracts_evaluations');
   const hasTransport = canView('dashboard_vehicles');
-  const hasGrant = canView('dashboard_contracts_evaluations') || canView('dashboard_orders');
+  const hasGrant = canView('orders_timeline');
 
   const isDashboardScreen =
     currentScreen === 'ss-dashboard' ||
