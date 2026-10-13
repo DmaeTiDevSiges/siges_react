@@ -217,6 +217,7 @@ export const dashboardService = {
         orderTypeSubId?: string | string[];
         assetTagId?: string | string[];
         assetTagSubId?: string | string[];
+        causeReasonId?: string | string[];
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
         responsibleTeamId?: string | string[];
@@ -267,6 +268,7 @@ export const dashboardService = {
         applyFilter('o_type_sub_id', filters?.orderTypeSubId);
         applyFilter('o_asset_tag_id', filters?.assetTagId);
         applyFilter('o_asset_tag_sub_id', filters?.assetTagSubId);
+        applyFilter('o_cause_reason_id', filters?.causeReasonId);
         applyFilter('o_plan_id', filters?.orderPlanId);
         applyFilter('o_team_id', filters?.orderTeamId);
         applyFilter('o_team_id', filters?.responsibleTeamId);

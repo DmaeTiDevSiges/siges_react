@@ -514,8 +514,8 @@ export const vehicleRentalService = {
         const folder = `companies/${companyId || 1}/vehicles/${vehicleId}/fuel`;
 
         const jobs: { kind: 'plate' | 'odometer' | 'invoice'; file: File; path: string }[] = [
-            { kind: 'plate', file: images.plate, path: `${folder}/${ts}_${rand}_plate.webp` },
             { kind: 'odometer', file: images.odometer, path: `${folder}/${ts}_${rand}_odometer.webp` },
+            { kind: 'plate', file: images.plate, path: `${folder}/${ts}_${rand}_plate.webp` },
             { kind: 'invoice', file: images.invoice, path: `${folder}/${ts}_${rand}_invoice.webp` }
         ];
 

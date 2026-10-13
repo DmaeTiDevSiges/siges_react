@@ -21,6 +21,9 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { formatCurrency, getBrazilDateInputValue } from '../../utils/formatters';
 import { toast } from 'sonner';
+import { VehiclesCostsPDFButton } from '../../components/reports/VehiclesCostsPDFButton';
+import type { VehicleCostRow } from '../../components/reports/VehiclesCostsDocument';
+import { VehicleRentalSectionPDFButton } from '../../components/reports/VehicleRentalSectionPDFButton';
 
 interface CostsPeriodProps {
     onNavigate?: (screen: string) => void;
@@ -522,6 +525,34 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
         { contractValue: 0, variableValue: 0, operationalValue: 0, totalKm: 0, gapKm: 0, allocatedValue: 0, idleValue: 0 }
     );
 
+    // Linhas de exportação PDF — mesmos cálculos exibidos nos cards
+    const pdfRows = useMemo<VehicleCostRow[]>(() => {
+        return filteredRows.map(row => {
+            const vid = String(row.vehicleId);
+            const vc = vehicleCompanies[vid];
+            const contractRate = contractRates[vid];
+            const rentalValue = contractMonthlyValues[vid] ?? 0;
+            const rentalPerKm = row.totalKm > 0 ? rentalValue / row.totalKm : 0;
+            const expensesPerKm = row.totalKm > 0 ? row.variableValue / row.totalKm : 0;
+            const appropriatePerKm = rentalPerKm + expensesPerKm + (contractRate ?? 0);
+            return {
+                description: row.vehicleDescription || `Veículo #${row.vehicleId}`,
+                plates: row.vehiclePlates || '---',
+                company: vc?.companyName || '',
+                status: STATUS_LABEL[row.periodStatus] || String(row.periodStatus || 'OPEN'),
+                hasConflict: row.hasConflict,
+                rentalValue,
+                expensesValue: row.variableValue,
+                rentalPerKm,
+                expensesPerKm,
+                fixedPerKm: contractRate ?? null,
+                gapKm: vehicleGaps[vid] || 0,
+                totalKm: row.totalKm,
+                allocatedValue: appropriatePerKm * row.totalKm
+            };
+        });
+    }, [filteredRows, vehicleCompanies, contractRates, contractMonthlyValues, vehicleGaps]);
+
     return (
         <div className="flex flex-col flex-1">
             {/* ── Cabeçalho: empresas no topo + competência + busca ── */}
@@ -659,13 +690,22 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                     </button>
                 </div>
 
-                <div>
-                    <SearchInput
-                        placeholder="Buscar por veículo ou placa..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onClear={() => setSearch('')}
-                    />
+                <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                        <SearchInput
+                            placeholder="Buscar por veículo ou placa..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onClear={() => setSearch('')}
+                        />
+                    </div>
+                    {!initialLoading && rows.length > 0 && (
+                        <VehiclesCostsPDFButton
+                            rows={pdfRows}
+                            competency={monthLabel(month)}
+                            totalCount={pdfRows.length}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -914,7 +954,28 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
 
                                 {/* Despesas — tabela colapsável */}
                                 {expenseVehicleId === String(row.vehicleId) && (
-                                    <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+                                    <div className="mt-3 overflow-hidden rounded-xl border border-amber-200 dark:border-amber-900/60 bg-white dark:bg-slate-900">
+                                        <div className="flex items-center justify-between gap-3 border-b border-amber-100 bg-amber-50/70 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/20">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <span className="material-symbols-outlined flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                                    receipt_long
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Despesas do veículo</h3>
+                                                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                                        {row.vehicleDescription || `Veículo #${row.vehicleId}`} · {monthLabel(month)} · {expenses.length} lançamento{expenses.length === 1 ? '' : 's'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <VehicleRentalSectionPDFButton
+                                                section="expenses"
+                                                vehicleName={row.vehicleDescription || `Veículo #${row.vehicleId}`}
+                                                vehiclePlates={row.vehiclePlates}
+                                                competency={monthLabel(month)}
+                                                expenses={expenses}
+                                                disabled={expenseLoading}
+                                            />
+                                        </div>
                                         {expenseLoading ? (
                                             <div className="p-4"><Loading /></div>
                                         ) : (
@@ -1120,7 +1181,29 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
 
                                 {/* Utilização — tabela colapsável (odômetro visita a visita) */}
                                 {utilizationVehicleId === String(row.vehicleId) && (
-                                    <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+                                    <div className="mt-3 overflow-hidden rounded-xl border border-teal-200 dark:border-teal-900/60 bg-white dark:bg-slate-900">
+                                        <div className="flex items-center justify-between gap-3 border-b border-teal-100 bg-teal-50/70 px-4 py-3 dark:border-teal-900/50 dark:bg-teal-950/20">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <span className="material-symbols-outlined flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                                                    speed
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Utilização do veículo</h3>
+                                                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                                        {row.vehicleDescription || `Veículo #${row.vehicleId}`} · {monthLabel(month)} · {utilizationRows.length} visita{utilizationRows.length === 1 ? '' : 's'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <VehicleRentalSectionPDFButton
+                                                section="utilization"
+                                                vehicleName={row.vehicleDescription || `Veículo #${row.vehicleId}`}
+                                                vehiclePlates={row.vehiclePlates}
+                                                competency={monthLabel(month)}
+                                                utilization={utilizationRows}
+                                                appropriatePerKm={appropriatePerKm}
+                                                disabled={utilizationLoading}
+                                            />
+                                        </div>
                                         {utilizationLoading ? (
                                             <div className="p-4"><Loading /></div>
                                         ) : utilizationRows.length === 0 ? (

@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type GrantStatus = 'completed' | 'running' | 'planned' | 'critical';
-type ViewMode = 'monthly' | 'quarterly';
 
 type CapsuleStyle = 'solid-green' | 'outline-green' | 'solid-cyan' | 'outline-cyan' | 'gradient-orange-red' | 'outline-red' | 'outline-amber';
 
@@ -18,6 +17,9 @@ interface PlottedOSBar {
   id: string;
   oId: string;
   orderMask: string;
+  orderTypeCode: string;
+  orderTypeSubCode: string;
+  sectorId?: string;
   label: string;
   badge?: string;
   status: GrantStatus;
@@ -31,6 +33,9 @@ interface PlottedOSBar {
   startDateStr: string;
   endDateStr: string;
   visitsCount: number;
+  sectorDescription: string;
+  positionDescription: string;
+  causeDescription: string;
   progress: number;
   requestedServices?: string;
   orderDescription?: string;
@@ -43,8 +48,25 @@ interface UnitGroup {
 }
 
 const MONTHS_SHORT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-const QUARTERS = ['1º TRIMESTRE (JAN - MAR)', '2º TRIMESTRE (ABR - JUN)', '3º TRIMESTRE (JUL - SET)', '4º TRIMESTRE (OUT - DEZ)'];
 const TOTAL_WEEKS = 48; // 12 months * 4 weeks
+const SECTOR_DOT_COLORS = [
+  'bg-rose-500',
+  'bg-amber-500',
+  'bg-lime-500',
+  'bg-emerald-500',
+  'bg-cyan-500',
+  'bg-blue-500',
+  'bg-violet-500',
+  'bg-fuchsia-500',
+];
+
+const getSectorDotColor = (sectorId: string): string => {
+  let hash = 0;
+  for (let index = 0; index < sectorId.length; index++) {
+    hash = (hash * 31 + sectorId.charCodeAt(index)) | 0;
+  }
+  return SECTOR_DOT_COLORS[Math.abs(hash) % SECTOR_DOT_COLORS.length];
+};
 
 // Helper to convert date string into global week index [0..47]
 const dateToWeekIndex = (dateStr: string, year: number): number => {
@@ -104,9 +126,11 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   const currentWeekInMonth = currentDay <= 7 ? 0 : currentDay <= 14 ? 1 : currentDay <= 21 ? 2 : 3;
 
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [viewMode, setViewMode] = useState<ViewMode>('monthly');
+  const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
+  const [yearPickerDecade, setYearPickerDecade] = useState(Math.floor(currentYear / 10) * 10);
   const [search, setSearch] = useState('');
   const [showAuthorizedOrders, setShowAuthorizedOrders] = useState(true);
+  const yearPickerRef = useRef<HTMLDivElement>(null);
 
   // ── Auto-adjustable and resizable UNIDADES column ──
   const [unitColWidth, setUnitColWidth] = useState<number | null>(null);
@@ -114,6 +138,70 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
   const thRef = useRef<HTMLTableCellElement>(null);
+  const tableDragRef = useRef<{
+    element: HTMLDivElement;
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    scrollTop: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressTableClickRef = useRef(false);
+
+  const handleTableMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || !(event.target instanceof Element)) return;
+    if (event.target.closest('button, input, a, .cursor-col-resize')) return;
+
+    tableDragRef.current = {
+      element: event.currentTarget,
+      startX: event.clientX,
+      startY: event.clientY,
+      scrollLeft: event.currentTarget.scrollLeft,
+      scrollTop: event.currentTarget.scrollTop,
+      moved: false,
+    };
+  };
+
+  const handleTableClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!suppressTableClickRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressTableClickRef.current = false;
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const drag = tableDragRef.current;
+      if (!drag) return;
+
+      const deltaX = event.clientX - drag.startX;
+      const deltaY = event.clientY - drag.startY;
+      if (!drag.moved && Math.hypot(deltaX, deltaY) < 4) return;
+
+      drag.moved = true;
+      drag.element.scrollLeft = drag.scrollLeft - deltaX;
+      drag.element.scrollTop = drag.scrollTop - deltaY;
+      event.preventDefault();
+      setHoveredBar(null);
+    };
+
+    const handleMouseUp = () => {
+      if (tableDragRef.current?.moved) {
+        suppressTableClickRef.current = true;
+        window.setTimeout(() => {
+          suppressTableClickRef.current = false;
+        }, 0);
+      }
+      tableDragRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const handleMouseDownResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -197,12 +285,12 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   const [unitSubTypes, setUnitSubTypes] = useState<any[]>([]);
   const [assetTagSubs, setAssetTagSubs] = useState<any[]>([]);
   const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [hoveredBar, setHoveredBar] = useState<{
     bar: PlottedOSBar;
     anchor: HTMLElement;
     left: number;
     top: number;
-    placement: 'above' | 'below';
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [_osFilterCount, setOsFilterCount] = useState(0);
@@ -213,14 +301,27 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
   const updateBarTooltipPosition = useCallback((bar: PlottedOSBar, anchor: HTMLElement) => {
     const rect = anchor.getBoundingClientRect();
-    const placement = rect.top > 160 ? 'above' : 'below';
+    const viewportHeight = window.innerHeight;
+    const maxTooltipHeight = Math.max(100, viewportHeight - 16);
+    const tooltipHeight = Math.min(tooltipRef.current?.offsetHeight || 220, maxTooltipHeight);
+    const spaceAbove = rect.top - 8;
+    const spaceBelow = viewportHeight - rect.bottom - 8;
+    let top: number;
+
+    if (spaceAbove >= tooltipHeight) {
+      top = rect.top - tooltipHeight - 8;
+    } else if (spaceBelow >= tooltipHeight) {
+      top = rect.bottom + 8;
+    } else {
+      top = Math.max(8, Math.min(rect.top - tooltipHeight / 2, viewportHeight - tooltipHeight - 8));
+    }
+
     const left = Math.max(8, Math.min(rect.left, window.innerWidth - 272));
     setHoveredBar({
       bar,
       anchor,
       left,
-      top: placement === 'above' ? rect.top - 8 : rect.bottom + 8,
-      placement,
+      top,
     });
   }, []);
 
@@ -245,19 +346,10 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
   // ── Fetch Orders & Union of Visits ──
   const fetchGrantOrders = useCallback(async (filters: OrderFilters, year: number) => {
-    // 1) Requirement 1: Single sector is mandatory
+    // Sector is optional; when omitted, all sectors are returned
     const selectedSectors = Array.isArray(filters.assetTagId)
       ? filters.assetTagId.filter(Boolean)
       : (filters.assetTagId ? [filters.assetTagId] : []);
-
-    if (selectedSectors.length === 0) {
-      toast.error('O filtro de SETOR é obrigatório. Selecione um setor.');
-      setUnitsData([]);
-      setHasQueried(true);
-      return;
-    }
-
-    const targetSectorId = String(selectedSectors[0]);
 
     setIsLoading(true);
     setHasQueried(true);
@@ -280,7 +372,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           page,
           pageSize,
           ...orderFilters,
-          assetTagId: targetSectorId,
+          assetTagId: selectedSectors.length > 0 ? selectedSectors.map(String) : undefined,
         });
 
         const data = result?.data || [];
@@ -314,10 +406,16 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       const orderMap = new Map<string, {
         oId: string;
         orderMask: string;
+        orderTypeCode: string;
+        orderTypeSubCode: string;
+        sectorId?: string;
         orderDescription: string;
         requestedServices: string;
         unitId: string;
         unitDescription: string;
+        sectorDescription: string;
+        positionDescription: string;
+        causeDescription: string;
         statusId: number;
         wasAuthorized: boolean;
         authorizedAt: string | null;
@@ -341,10 +439,16 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           orderMap.set(oId, {
             oId,
             orderMask: row.o_mask || `OS-${oId}`,
+            orderTypeCode: row.o_type_code || '',
+            orderTypeSubCode: row.o_type_sub_code || '',
+            sectorId: row.o_asset_tag_id ? String(row.o_asset_tag_id) : undefined,
             orderDescription: row.o_description || row.o_type_description || '',
             requestedServices: row.o_requested_services || '',
             unitId: String(row.o_unit_id || ''),
             unitDescription: row.o_unit_description || row.unit_description || 'Unidade Sem Nome',
+            sectorDescription: row.o_asset_tag_description || '',
+            positionDescription: row.o_asset_tag_sub_description || '',
+            causeDescription: row.o_cause_reason_description || '',
             statusId: Number(row.ov_o_status_id || row.o_status_id || 0),
             wasAuthorized: authorizationByOrderId.has(oId),
             authorizedAt: authorizationByOrderId.get(oId) || null,
@@ -440,7 +544,10 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           id: `bar-${os.oId}`,
           oId: os.oId,
           orderMask: os.orderMask,
-          label: os.orderMask,
+          orderTypeCode: os.orderTypeCode,
+          orderTypeSubCode: os.orderTypeSubCode,
+          sectorId: os.sectorId,
+          label: '',
           badge,
           status,
           statusId: os.statusId,
@@ -453,6 +560,9 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           startDateStr,
           endDateStr,
           visitsCount: os.visits.length,
+          sectorDescription: os.sectorDescription,
+          positionDescription: os.positionDescription,
+          causeDescription: os.causeDescription,
           progress: os.progress,
           requestedServices: os.requestedServices,
           orderDescription: os.orderDescription,
@@ -633,19 +743,12 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   };
 
   const handleAssetTagChange = async (id: string | string[]) => {
-    let singleId: string[] = [];
-    if (Array.isArray(id)) {
-      if (id.length > 0) {
-        singleId = [String(id[id.length - 1])];
-      }
-    } else if (id) {
-      singleId = [String(id)];
-    }
+    const selectedIds = (Array.isArray(id) ? id : id ? [id] : []).map(String);
 
-    setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: singleId, assetTagSubId: [] }));
-    if (singleId.length > 0) {
-      const results = await dataService.getAssetTagSubs(singleId[0], 'active');
-      setAssetTagSubs(results);
+    setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, assetTagId: selectedIds, assetTagSubId: [] }));
+    if (selectedIds.length > 0) {
+      const results = await Promise.all(selectedIds.map(sectorId => dataService.getAssetTagSubs(sectorId, 'active')));
+      setAssetTagSubs(results.flat());
     } else {
       setAssetTagSubs([]);
     }
@@ -667,32 +770,45 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       ? advancedOrdersFilters.assetTagId.filter(Boolean)
       : (advancedOrdersFilters.assetTagId ? [advancedOrdersFilters.assetTagId] : []);
 
-    if (selectedSectors.length === 0) {
-      toast.error('O filtro de SETOR é obrigatório. Selecione um setor.');
-      return;
-    }
-    if (selectedSectors.length > 1) {
-      toast.error('Apenas um setor deve ser selecionado.');
-      return;
-    }
-
     const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
     if (filterOptions.contracts.length > 0 && selectedContracts.length === 0) {
       toast.error('Selecione ao menos um contrato para filtrar');
       return;
     }
 
-    const newFilters = { ...advancedOrdersFilters, assetTagId: [selectedSectors[0]] };
+    const newFilters = {
+      ...advancedOrdersFilters,
+      assetTagId: selectedSectors.map(String),
+    };
     setAppliedFilters(newFilters);
     fetchGrantOrders(newFilters, selectedYear);
   }, [advancedOrdersFilters, filterOptions.contracts.length, selectedYear, fetchGrantOrders]);
 
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
+    setIsYearPickerOpen(false);
     fetchGrantOrders(appliedFilters, year);
   };
 
-  const years = [currentYear - 1, currentYear, currentYear + 1];
+  useEffect(() => {
+    if (!isYearPickerOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (event.target instanceof Node && !yearPickerRef.current?.contains(event.target)) {
+        setIsYearPickerOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsYearPickerOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isYearPickerOpen]);
 
   // Filter units and OSs according to search query
   const filteredUnits = useMemo(() => {
@@ -761,13 +877,21 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
     };
   }, [filteredUnits]);
 
+  const renderSectorDot = (bar: PlottedOSBar) => bar.sectorId ? (
+    <span
+      aria-label={`Setor: ${bar.sectorDescription || bar.sectorId}`}
+      title={bar.sectorDescription || bar.sectorId}
+      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/70 ${getSectorDotColor(bar.sectorId)}`}
+    />
+  ) : null;
+
   // Render a capsule according to its style
   const renderCapsule = (bar: PlottedOSBar) => {
     switch (bar.style) {
       case 'solid-green':
         return (
-          <div className="relative z-20 flex items-center justify-between w-full h-[26px] px-2.5 rounded-full bg-[#10b981] text-white text-[10px] font-bold shadow-sm shadow-emerald-950/40 select-none overflow-visible hover:brightness-110 transition-all cursor-pointer">
-            <span className="whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-between w-full h-[26px] px-2.5 rounded-full bg-[#10b981] text-white text-[10px] font-bold shadow-sm shadow-emerald-950/40 select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
+            {renderSectorDot(bar)}
             {bar.badge && (
               <span className="ml-1.5 shrink-0 px-1.5 py-0.5 rounded-full bg-emerald-700/60 text-[9px] font-bold">
                 {bar.badge}
@@ -778,15 +902,15 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
       case 'outline-green':
         return (
-          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-[#10b981] bg-[#10b981] text-white text-[10px] font-bold shadow-sm select-none overflow-visible hover:brightness-110 transition-all cursor-pointer">
-            <span className="whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-[#10b981] bg-[#10b981] text-white text-[10px] font-bold shadow-sm select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
+            {renderSectorDot(bar)}
           </div>
         );
 
       case 'solid-cyan':
         return (
-          <div className="relative z-20 flex items-center justify-between w-full h-[26px] px-2.5 rounded-full bg-[#0284c7] text-white text-[10px] font-bold shadow-md shadow-sky-900/30 select-none overflow-visible hover:brightness-110 transition-all cursor-pointer">
-            <span className="whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-between w-full h-[26px] px-2.5 rounded-full bg-[#0284c7] text-white text-[10px] font-bold shadow-md shadow-sky-900/30 select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
+            {renderSectorDot(bar)}
             {bar.badge && (
               <span className="ml-1.5 shrink-0 px-1.5 py-0.5 rounded-full bg-sky-900/70 text-[9px] font-bold">
                 {bar.badge}
@@ -797,15 +921,15 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
       case 'outline-cyan':
         return (
-          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-sky-500 bg-sky-100 text-sky-700 text-[10px] font-bold shadow-sm select-none overflow-visible hover:bg-sky-200 dark:border-[#38bdf8] dark:bg-[#0c4a6e]/30 dark:text-[#38bdf8] dark:hover:bg-[#0c4a6e]/60 transition-all cursor-pointer">
-            <span className="whitespace-nowrap dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-sky-500 bg-sky-100 text-sky-700 text-[10px] font-bold shadow-sm select-none overflow-hidden hover:bg-sky-200 dark:border-[#38bdf8] dark:bg-[#0c4a6e]/30 dark:text-[#38bdf8] dark:hover:bg-[#0c4a6e]/60 transition-all cursor-pointer">
+            {renderSectorDot(bar)}
           </div>
         );
 
       case 'gradient-orange-red':
         return (
-          <div className="relative z-20 flex items-center justify-between w-full h-[28px] px-2.5 rounded-full bg-gradient-to-r from-[#ea580c] to-[#dc2626] text-white text-[10px] font-bold shadow-lg shadow-orange-950/40 select-none overflow-visible hover:brightness-110 transition-all cursor-pointer">
-            <span className="whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-between w-full h-[28px] px-2.5 rounded-full bg-gradient-to-r from-[#ea580c] to-[#dc2626] text-white text-[10px] font-bold shadow-lg shadow-orange-950/40 select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
+            {renderSectorDot(bar)}
             <div className="flex items-center gap-1 ml-1.5 shrink-0 px-1.5 py-0.5 rounded-full bg-black/30 border border-white/20 text-[8px]">
               <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
               <span>{bar.badge}</span>
@@ -815,15 +939,15 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
       case 'outline-red':
         return (
-          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-red-500 bg-red-100 text-red-700 text-[10px] font-bold shadow-sm select-none overflow-visible hover:bg-red-200 dark:border-[#ef4444] dark:bg-[#7f1d1d]/40 dark:text-[#fca5a5] dark:hover:bg-[#7f1d1d]/70 transition-all cursor-pointer">
-            <span className="whitespace-nowrap dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-red-500 bg-red-100 text-red-700 text-[10px] font-bold shadow-sm select-none overflow-hidden hover:bg-red-200 dark:border-[#ef4444] dark:bg-[#7f1d1d]/40 dark:text-[#fca5a5] dark:hover:bg-[#7f1d1d]/70 transition-all cursor-pointer">
+            {renderSectorDot(bar)}
           </div>
         );
 
       case 'outline-amber':
         return (
-          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-amber-500 bg-amber-100 text-amber-700 text-[10px] font-bold shadow-sm select-none overflow-visible hover:bg-amber-200 dark:border-[#f59e0b] dark:bg-[#78350f]/30 dark:text-[#fcd34d] dark:hover:bg-[#78350f]/60 transition-all cursor-pointer">
-            <span className="whitespace-nowrap dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-amber-500 bg-amber-100 text-amber-700 text-[10px] font-bold shadow-sm select-none overflow-hidden hover:bg-amber-200 dark:border-[#f59e0b] dark:bg-[#78350f]/30 dark:text-[#fcd34d] dark:hover:bg-[#78350f]/60 transition-all cursor-pointer">
+            {renderSectorDot(bar)}
           </div>
         );
 
@@ -833,153 +957,34 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   };
 
   const renderUnitRow = (unit: UnitGroup) => {
-    const weekCells: React.ReactNode[] = [];
-    let w = 0;
-    const renderedBars = new Set<string>();
-    const getAuthorizationWeek = (bar: PlottedOSBar) => (
-      bar.wasAuthorized &&
-      (bar.statusId === 6 || bar.statusId === 8) &&
-      bar.authorizedAt
+    const cellWidth = TOTAL_WEEKS * 34;
+    const laneHeight = 72;
+    const timelineBars = unit.bars.map(bar => {
+      const authorizationWeek = bar.wasAuthorized && (bar.statusId === 6 || bar.statusId === 8) && bar.authorizedAt
         ? dateToWeekIndex(bar.authorizedAt, selectedYear)
-        : null
-    );
-    const getTimelineStartWeek = (bar: PlottedOSBar) => {
-      const authorizationWeek = getAuthorizationWeek(bar);
-      return authorizationWeek === null ? bar.startWeek : Math.min(bar.startWeek, authorizationWeek);
-    };
-    const getTimelineEndWeek = (bar: PlottedOSBar) => {
-      const authorizationWeek = getAuthorizationWeek(bar);
-      return authorizationWeek === null ? bar.endWeek : Math.max(bar.endWeek, authorizationWeek);
-    };
+        : null;
+      const timelineStartWeek = authorizationWeek === null
+        ? bar.startWeek
+        : Math.max(0, Math.min(bar.startWeek, authorizationWeek) - 1);
+      const timelineEndWeek = authorizationWeek === null
+        ? bar.endWeek
+        : Math.min(TOTAL_WEEKS - 1, Math.max(bar.endWeek, authorizationWeek) + 1);
+      return {
+        bar,
+        authorizationWeek,
+        startWeek: timelineStartWeek,
+        endWeek: timelineEndWeek,
+      };
+    }).sort((a, b) => a.startWeek - b.startWeek || b.endWeek - a.endWeek || a.bar.id.localeCompare(b.bar.id));
 
-    while (w < TOTAL_WEEKS) {
-      const monthIdx = Math.floor(w / 4);
-      const weekInMonth = w % 4;
-      const isCurrentMonth = monthIdx === currentMonthIndex && selectedYear === currentYear;
-      const isCurrentWeek = isCurrentMonth && weekInMonth === currentWeekInMonth;
-      const isMonthEnd = weekInMonth === 3;
-
-      const startingBars = unit.bars.filter(b => getTimelineStartWeek(b) === w && !renderedBars.has(b.id));
-
-      if (startingBars.length > 0) {
-        const maxSpan = Math.max(...startingBars.map(b => getTimelineEndWeek(b) - w + 1));
-        const effectiveSpan = Math.min(maxSpan, TOTAL_WEEKS - w);
-        const hasAuthorizationMarker = startingBars.some(b => getAuthorizationWeek(b) !== null);
-
-        startingBars.forEach(b => renderedBars.add(b.id));
-
-        const borderClass = (w + effectiveSpan) % 4 === 0 ? 'border-r-2 border-slate-300 dark:border-[#1e2a44]' : 'border-r border-slate-200 dark:border-[#1e2a44]/50';
-
-        weekCells.push(
-          <td
-            key={`${unit.id}-w-${w}`}
-            colSpan={effectiveSpan}
-            className={`relative ${startingBars.some(bar => bar.id === hoveredBar?.bar.id) ? 'z-50' : 'z-10'} overflow-visible px-1 py-2 align-middle ${borderClass} ${
-              isCurrentWeek ? 'bg-sky-500/10' : (isCurrentMonth ? 'bg-sky-500/5' : '')
-            }`}
-            style={{ minWidth: effectiveSpan * 34 }}
-          >
-            <div className="flex flex-col gap-1.5 w-full">
-              {startingBars.map(bar => (
-                (() => {
-                  const authorizationWeek = getAuthorizationWeek(bar);
-                  const barSpan = bar.endWeek - bar.startWeek + 1;
-                  const barOffsetWeeks = bar.startWeek - w;
-                  const authorizationOffsetWeeks = authorizationWeek === null ? 0 : authorizationWeek - w;
-                  const hasMarker = authorizationWeek !== null;
-                  const cellWidth = effectiveSpan * 34;
-                  const barWidth = barSpan * 34;
-                  const barCenter = barOffsetWeeks * 34 + barWidth / 2;
-                  const authorizationCenter = authorizationOffsetWeeks * 34 + 17;
-                  const connectorPath = authorizationWeek === null
-                    ? ''
-                    : authorizationCenter === barCenter
-                      ? `M ${authorizationCenter} 28 V 42`
-                      : (() => {
-                          const direction = barCenter > authorizationCenter ? 1 : -1;
-                          const radius = Math.min(4, Math.abs(barCenter - authorizationCenter) / 2);
-                          const authTurn = authorizationCenter + direction * radius;
-                          const barTurn = barCenter - direction * radius;
-                          return `M ${authorizationCenter} 28 V 32 Q ${authorizationCenter} 36 ${authTurn} 36 H ${barTurn} Q ${barCenter} 36 ${barCenter} 40 V 42`;
-                        })();
-
-                  return (
-                    <div
-                      key={bar.id}
-                      tabIndex={0}
-                      aria-label={`OS ${bar.orderMask}, ${bar.statusId === 8 ? 'Concluída' : bar.statusId === 6 ? 'Suspensa' : bar.statusDescription || 'Em andamento'}`}
-                      className="group/bar relative focus:outline-none"
-                      onMouseEnter={event => updateBarTooltipPosition(bar, event.currentTarget)}
-                      onMouseLeave={() => setHoveredBar(null)}
-                      onFocus={event => updateBarTooltipPosition(bar, event.currentTarget)}
-                      onBlur={() => setHoveredBar(null)}
-                      style={{ width: cellWidth, minHeight: hasMarker ? 68 : 26 }}
-                    >
-                      {hasMarker && (
-                        <>
-                          <svg
-                            aria-hidden="true"
-                            className="pointer-events-none absolute left-0 top-0 z-0 h-[42px] overflow-visible"
-                            width={cellWidth}
-                            height="42"
-                          >
-                            <path
-                              d={connectorPath}
-                              className="stroke-sky-400 dark:stroke-sky-500"
-                              fill="none"
-                              strokeWidth="1"
-                            />
-                          </svg>
-                          <span
-                            title={`Autorizada em ${bar.authorizedAt ? formatGrantDate(bar.authorizedAt) : 'data não informada'}`}
-                            aria-label={`Autorizada no dia ${new Date(bar.authorizedAt!).getDate()}`}
-                            className="absolute top-0 z-10 inline-flex h-7 min-w-[52px] -translate-x-1/2 items-center justify-center gap-1 rounded-full border border-sky-200 bg-white px-2 text-[11px] font-bold leading-none text-sky-700 shadow-sm dark:border-sky-500/30 dark:bg-slate-900 dark:text-sky-300"
-                            style={{ left: authorizationCenter }}
-                          >
-                            <span className="material-symbols-outlined text-[15px] leading-none">verified</span>
-                            <span>{String(new Date(bar.authorizedAt!).getDate()).padStart(2, '0')}</span>
-                          </span>
-                        </>
-                      )}
-                      <div
-                        className="absolute top-[42px]"
-                        style={{
-                          left: barOffsetWeeks * 34,
-                          width: barWidth,
-                          top: hasMarker ? 42 : 0,
-                        }}
-                      >
-                        {renderCapsule(bar)}
-                      </div>
-                    </div>
-                  );
-                })()
-              ))}
-            </div>
-          </td>
-        );
-        w += effectiveSpan;
-      } else {
-        const isCovered = unit.bars.some(
-          b => renderedBars.has(b.id) && w >= getTimelineStartWeek(b) && w <= getTimelineEndWeek(b)
-        );
-        if (isCovered) {
-          w++;
-        } else {
-          const borderClass = isMonthEnd ? 'border-r-2 border-slate-300 dark:border-[#1e2a44]' : 'border-r border-slate-200 dark:border-[#1e2a44]/40';
-          weekCells.push(
-            <td
-              key={`${unit.id}-empty-w-${w}`}
-              className={`px-0.5 py-2 ${borderClass} ${
-                isCurrentWeek ? 'bg-sky-500/10' : (isCurrentMonth ? 'bg-sky-500/5' : '')
-              }`}
-              style={{ minWidth: 34, width: 34 }}
-            />
-          );
-          w++;
-        }
-      }
-    }
+    const laneEnds: number[] = [];
+    const positionedBars = timelineBars.map(item => {
+      let lane = laneEnds.findIndex(endWeek => endWeek < item.startWeek);
+      if (lane === -1) lane = laneEnds.length;
+      laneEnds[lane] = item.endWeek;
+      return { ...item, lane };
+    });
+    const timelineHeight = Math.max(1, laneEnds.length) * laneHeight;
 
     return (
       <tr
@@ -997,16 +1002,112 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
         >
           {unit.name}
         </td>
-        {weekCells}
+        <td
+          colSpan={TOTAL_WEEKS}
+          className={`relative p-0 ${positionedBars.some(({ bar }) => bar.id === hoveredBar?.bar.id) ? 'z-50' : ''}`}
+          style={{ width: cellWidth, minWidth: cellWidth }}
+        >
+          <div className="relative" style={{ width: cellWidth, height: timelineHeight }}>
+            <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${TOTAL_WEEKS}, 34px)` }}>
+              {Array.from({ length: TOTAL_WEEKS }, (_, week) => {
+                const monthIndex = Math.floor(week / 4);
+                const isCurrentMonth = monthIndex === currentMonthIndex && selectedYear === currentYear;
+                const isCurrentWeek = isCurrentMonth && week % 4 === currentWeekInMonth;
+                const isMonthEnd = week % 4 === 3;
+                return (
+                  <div
+                    key={`${unit.id}-week-bg-${week}`}
+                    className={`h-full border-r ${isMonthEnd ? 'border-r-2 border-slate-300 dark:border-[#1e2a44]' : 'border-slate-200 dark:border-[#1e2a44]/40'} ${
+                      isCurrentWeek ? 'bg-sky-500/10' : isCurrentMonth ? 'bg-sky-500/5' : ''
+                    }`}
+                  />
+                );
+              })}
+            </div>
+            {positionedBars.map(({ bar, authorizationWeek, startWeek, endWeek, lane }) => {
+              const hasMarker = authorizationWeek !== null;
+              const barWidth = (bar.endWeek - bar.startWeek + 1) * 34;
+              const timelineOffset = (bar.startWeek - startWeek) * 34;
+              const markerCenter = hasMarker ? (authorizationWeek - startWeek) * 34 + 17 : 0;
+              const barCenter = timelineOffset + barWidth / 2;
+              const connectorPath = !hasMarker
+                ? ''
+                : markerCenter === barCenter
+                  ? `M ${markerCenter} 28 V 42`
+                  : (() => {
+                      const direction = barCenter > markerCenter ? 1 : -1;
+                      const radius = Math.min(4, Math.abs(barCenter - markerCenter) / 2);
+                      const markerTurn = markerCenter + direction * radius;
+                      const barTurn = barCenter - direction * radius;
+                      return `M ${markerCenter} 28 V 32 Q ${markerCenter} 36 ${markerTurn} 36 H ${barTurn} Q ${barCenter} 36 ${barCenter} 40 V 42`;
+                    })();
+
+              return (
+                <div
+                  key={bar.id}
+                  tabIndex={0}
+                  aria-label={`OS ${bar.orderMask}, ${bar.statusId === 8 ? 'Concluída' : bar.statusId === 6 ? 'Suspensa' : bar.statusDescription || 'Em andamento'}`}
+                  className="group/bar absolute left-0 right-0 z-10 focus:outline-none"
+                  onMouseEnter={event => updateBarTooltipPosition(bar, event.currentTarget)}
+                  onMouseLeave={() => setHoveredBar(null)}
+                  onFocus={event => updateBarTooltipPosition(bar, event.currentTarget)}
+                  onBlur={() => setHoveredBar(null)}
+                  style={{
+                    top: lane * laneHeight,
+                    height: laneHeight,
+                    left: startWeek * 34,
+                    width: (endWeek - startWeek + 1) * 34,
+                  }}
+                >
+                  {hasMarker && (
+                    <>
+                      <svg
+                        aria-hidden="true"
+                        className="pointer-events-none absolute left-0 top-0 z-0"
+                        width={(endWeek - startWeek + 1) * 34}
+                        height="42"
+                      >
+                        <path d={connectorPath} className="stroke-sky-400 dark:stroke-sky-500" fill="none" strokeWidth="1" />
+                      </svg>
+                      <span
+                        title={`Autorizada em ${bar.authorizedAt ? formatGrantDate(bar.authorizedAt) : 'data não informada'}`}
+                        aria-label={`Autorizada no dia ${new Date(bar.authorizedAt!).getDate()}`}
+                        className="absolute top-0 z-10 inline-flex h-7 min-w-[52px] -translate-x-1/2 items-center justify-center gap-1 rounded-full border border-sky-200 bg-white px-2 text-[11px] font-bold leading-none text-sky-700 shadow-sm dark:border-sky-500/30 dark:bg-slate-900 dark:text-sky-300"
+                        style={{ left: markerCenter }}
+                      >
+                        <span className="material-symbols-outlined text-[15px] leading-none">verified</span>
+                        <span>{String(new Date(bar.authorizedAt!).getDate()).padStart(2, '0')}</span>
+                      </span>
+                    </>
+                  )}
+                  <div
+                    className="absolute left-0"
+                    style={{ left: timelineOffset, top: hasMarker ? 42 : 22, width: barWidth }}
+                    title={`OS ${bar.orderMask}`}
+                  >
+                    {renderCapsule(bar)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </td>
       </tr>
     );
   };
 
-  const selectedSectorName = useMemo(() => {
-    const sId = Array.isArray(appliedFilters.assetTagId) && appliedFilters.assetTagId[0];
-    if (!sId) return '';
-    const match = filterOptions.sectors.find((s: any) => String(s.id) === String(sId));
-    return match ? (match.description || match.name) : '';
+  const selectedSectors = useMemo(() => {
+    const ids = Array.isArray(appliedFilters.assetTagId)
+      ? appliedFilters.assetTagId
+      : appliedFilters.assetTagId ? [appliedFilters.assetTagId] : [];
+    return ids.map(id => {
+      const sectorId = String(id);
+      const sector = filterOptions.sectors.find((item: any) => String(item.id) === sectorId);
+      return {
+        id: sectorId,
+        name: sector?.description || sector?.name || sectorId,
+      };
+    });
   }, [appliedFilters.assetTagId, filterOptions.sectors]);
 
   return (
@@ -1038,6 +1139,20 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
             />
             <button
               type="button"
+              onClick={() => filterBarRef.current?.openMobileFilters()}
+              className="relative md:hidden flex items-center justify-center gap-2 h-12 px-4 bg-[#0284c7] hover:bg-[#0369a1] text-white shadow-lg shadow-sky-600/30 rounded-xl transition-all active:scale-[0.98] shrink-0 cursor-pointer select-none"
+              title="Abrir filtros"
+            >
+              <span className="material-symbols-outlined text-xl">filter_list</span>
+              <span className="tracking-wider text-xs uppercase font-extrabold">Filtros</span>
+              {_osFilterCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[9px] font-black rounded-full px-1 shadow-sm">
+                  {_osFilterCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
               onClick={handleApply}
               disabled={isLoading}
               className="hidden md:inline-flex items-center justify-center gap-2 h-12 px-6 font-bold rounded-xl transition-all focus:outline-none bg-[#0284c7] hover:bg-[#0369a1] text-white shadow-lg shadow-sky-600/30 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed shrink-0"
@@ -1051,59 +1166,93 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
         </div>
       </div>
 
-      {/* ── Sub-controls Bar: Year Selector, Current Sector indicator & View Mode Toggle ── */}
+      {/* ── Sub-controls Bar: Year Selector and Current Sector indicator ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-4 pb-3">
         <div className="flex items-center gap-3">
-          {/* Years Group */}
-          <div className="flex items-center gap-1.5 bg-white dark:bg-[#090f1d] border border-slate-200 dark:border-[#17233f] p-1 rounded-xl">
-            {years.map(y => {
-              const isActive = selectedYear === y;
-              return (
-                <button
-                  key={y}
-                  type="button"
-                  onClick={() => handleYearChange(y)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    isActive
-                      ? 'bg-[#0284c7] text-white shadow-md shadow-sky-600/30'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#131e38]'
-                  }`}
-                >
-                  {y}
-                </button>
-              );
-            })}
+          <div ref={yearPickerRef} className="relative">
+            <button
+              type="button"
+              aria-label={`Ano selecionado: ${selectedYear}. Clique para escolher outro ano`}
+              aria-haspopup="dialog"
+              aria-expanded={isYearPickerOpen}
+              onClick={() => {
+                setYearPickerDecade(Math.floor(selectedYear / 10) * 10);
+                setIsYearPickerOpen(open => !open);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-sky-600 shadow-sm transition-colors hover:border-sky-400 dark:border-[#17233f] dark:bg-[#090f1d] dark:text-sky-400"
+            >
+              <span className="material-symbols-outlined text-base">calendar_month</span>
+              {selectedYear}
+              <span className="material-symbols-outlined text-base">
+                {isYearPickerOpen ? 'expand_less' : 'expand_more'}
+              </span>
+            </button>
+            {isYearPickerOpen && (
+              <div
+                role="dialog"
+                aria-label="Selecionar ano"
+                className="absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-xl dark:border-[#1e2a44] dark:bg-[#090f1d]"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <button
+                    type="button"
+                    aria-label="Década anterior"
+                    onClick={() => setYearPickerDecade(decade => decade - 10)}
+                    className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-[#131e38] dark:hover:text-white"
+                  >
+                    <span className="material-symbols-outlined block text-lg">chevron_left</span>
+                  </button>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                    {yearPickerDecade}–{yearPickerDecade + 9}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Próxima década"
+                    onClick={() => setYearPickerDecade(decade => decade + 10)}
+                    className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-[#131e38] dark:hover:text-white"
+                  >
+                    <span className="material-symbols-outlined block text-lg">chevron_right</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {Array.from({ length: 10 }, (_, index) => yearPickerDecade + index).map(year => (
+                    <button
+                      key={year}
+                      type="button"
+                      aria-pressed={selectedYear === year}
+                      onClick={() => handleYearChange(year)}
+                      className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                        selectedYear === year
+                          ? 'bg-[#0284c7] text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-300 dark:hover:bg-[#131e38] dark:hover:text-sky-300'
+                      }`}
+                    >
+                      {year}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Current Mandatory Sector Badge */}
-          {selectedSectorName && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#090f1d] border border-slate-200 dark:border-[#17233f] text-xs font-medium text-slate-600 dark:text-slate-300">
-              <span className="text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">Setor:</span>
-              <span className="font-bold text-sky-600 dark:text-sky-400">{selectedSectorName}</span>
+          {/* Selected Sector Legend */}
+          {selectedSectors.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-[#17233f] dark:bg-[#090f1d]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Setores:</span>
+              {selectedSectors.map(sector => (
+                <span
+                  key={sector.id}
+                  className="inline-flex max-w-48 items-center gap-1.5 truncate font-bold text-slate-600 dark:text-slate-300"
+                  title={sector.name}
+                >
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${getSectorDotColor(sector.id)}`} />
+                  {sector.name}
+                </span>
+              ))}
             </div>
           )}
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center gap-1 bg-white dark:bg-[#090f1d] border border-slate-200 dark:border-[#17233f] p-1 rounded-xl">
-          {(['monthly', 'quarterly'] as const).map(mode => {
-            const isActive = viewMode === mode;
-            return (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setViewMode(mode)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  isActive
-                    ? 'bg-[#0284c7] text-white shadow-md shadow-sky-600/30'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#131e38]'
-                }`}
-              >
-                {mode === 'monthly' ? 'Mensal' : 'Trimestral'}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* ── Main Timeline Card ── */}
@@ -1162,7 +1311,11 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           </div>
 
           {/* Gantt Table with Weeks inside each month */}
-          <div className="flex-1 overflow-auto">
+          <div
+            className="flex-1 overflow-auto cursor-grab active:cursor-grabbing"
+            onMouseDown={handleTableMouseDown}
+            onClickCapture={handleTableClickCapture}
+          >
             <table className="w-full border-collapse" style={{ minWidth: 1680 }}>
               <thead>
                 {/* Row 1: Months / Quarters */}
@@ -1201,34 +1354,22 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                     </div>
                   </th>
 
-                  {viewMode === 'monthly' ? (
-                    MONTHS_SHORT.map((month, i) => {
-                      const isCurrentMonth = i === currentMonthIndex && selectedYear === currentYear;
-                      return (
-                        <th
-                          key={month}
-                          colSpan={4}
-                          className={`px-2 py-2.5 text-center text-[11px] uppercase tracking-wider border-r-2 border-slate-200 dark:border-[#1e2a44] ${
-                            isCurrentMonth
-                              ? 'text-sky-600 dark:text-[#38bdf8] font-black bg-sky-500/10'
-                              : 'text-slate-600 dark:text-slate-300 font-bold bg-transparent'
-                          }`}
-                        >
-                          {month}
-                        </th>
-                      );
-                    })
-                  ) : (
-                    QUARTERS.map(q => (
+                  {MONTHS_SHORT.map((month, i) => {
+                    const isCurrentMonth = i === currentMonthIndex && selectedYear === currentYear;
+                    return (
                       <th
-                        key={q}
-                        colSpan={12}
-                        className="px-2 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 border-r-2 border-slate-200 dark:border-[#1e2a44] bg-transparent"
+                        key={month}
+                        colSpan={4}
+                        className={`px-2 py-2.5 text-center text-[11px] uppercase tracking-wider border-r-2 border-slate-200 dark:border-[#1e2a44] ${
+                          isCurrentMonth
+                            ? 'text-sky-600 dark:text-[#38bdf8] font-black bg-sky-500/10'
+                            : 'text-slate-600 dark:text-slate-300 font-bold bg-transparent'
+                        }`}
                       >
-                        {q}
+                        {month}
                       </th>
-                    ))
-                  )}
+                    );
+                  })}
                 </tr>
 
                 {/* Row 2: Weeks (S1, S2, S3, S4) inside each month */}
@@ -1265,7 +1406,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                         <span className="material-symbols-outlined text-4xl animate-spin text-[#0284c7]">
                           progress_activity
                         </span>
-                        <span className="text-sm font-medium">Carregando Ordens de Serviço do setor...</span>
+                        <span className="text-sm font-medium">Carregando Ordens de Serviço...</span>
                       </div>
                     </td>
                   </tr>
@@ -1276,8 +1417,8 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                         <span className="material-symbols-outlined text-4xl">search_off</span>
                         <span className="text-sm font-medium">
                           {hasQueried
-                            ? 'Nenhuma Ordem de Serviço encontrada com os filtros selecionados para este setor.'
-                            : 'Selecione um setor no filtro acima e clique em FILTRAR para carregar as OSs.'}
+                            ? 'Nenhuma Ordem de Serviço encontrada com os filtros selecionados.'
+                            : 'Clique em FILTRAR para carregar as OSs.'}
                         </span>
                       </div>
                     </td>
@@ -1295,19 +1436,26 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
     </div>
     {hoveredBar && createPortal(
       <div
+        ref={tooltipRef}
         role="tooltip"
-        className="pointer-events-none fixed w-64 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl dark:border-slate-700 dark:bg-slate-900"
+        className="pointer-events-none fixed max-h-[calc(100vh-16px)] w-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl dark:border-slate-700 dark:bg-slate-900"
         style={{
           left: hoveredBar.left,
           top: hoveredBar.top,
           zIndex: 10000,
-          transform: hoveredBar.placement === 'above' ? 'translateY(-100%)' : undefined,
         }}
       >
         <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
-          <span className="truncate text-sm font-bold text-slate-900 dark:text-white">
-            OS {hoveredBar.bar.orderMask}
-          </span>
+          <div className="flex min-w-0 items-baseline gap-1.5">
+            <span className="truncate text-sm font-bold text-slate-900 dark:text-white">
+              OS {hoveredBar.bar.orderMask}
+            </span>
+            {(hoveredBar.bar.orderTypeCode || hoveredBar.bar.orderTypeSubCode) && (
+              <span className="shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                {[hoveredBar.bar.orderTypeCode, hoveredBar.bar.orderTypeSubCode].filter(Boolean).join(' / ')}
+              </span>
+            )}
+          </div>
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
             hoveredBar.bar.statusId === 8
               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
@@ -1319,6 +1467,18 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           </span>
         </div>
         <dl className="space-y-1.5 text-xs">
+          <div className="flex justify-between gap-3">
+            <dt className="shrink-0 text-slate-500 dark:text-slate-400">Setor/Posição</dt>
+            <dd className="min-w-0 break-words text-right font-medium text-slate-700 dark:text-slate-200">
+              {[hoveredBar.bar.sectorDescription, hoveredBar.bar.positionDescription].filter(Boolean).join(' / ') || '—'}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="shrink-0 text-slate-500 dark:text-slate-400">Autorizada</dt>
+            <dd className="text-right font-medium text-slate-700 dark:text-slate-200">
+              {hoveredBar.bar.authorizedAt ? formatGrantDate(hoveredBar.bar.authorizedAt) : '—'}
+            </dd>
+          </div>
           <div className="flex justify-between gap-3">
             <dt className="text-slate-500 dark:text-slate-400">Início</dt>
             <dd className="text-right font-medium text-slate-700 dark:text-slate-200">
@@ -1334,6 +1494,12 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           <div className="flex justify-between gap-3">
             <dt className="text-slate-500 dark:text-slate-400">Visitas</dt>
             <dd className="font-semibold text-slate-700 dark:text-slate-200">{hoveredBar.bar.visitsCount}</dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="shrink-0 text-slate-500 dark:text-slate-400">Causa</dt>
+            <dd className="min-w-0 break-words text-right font-medium text-slate-700 dark:text-slate-200">
+              {hoveredBar.bar.causeDescription || '—'}
+            </dd>
           </div>
           {hoveredBar.bar.statusId !== 8 && (
             <div className="flex justify-between gap-3">

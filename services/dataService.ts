@@ -403,6 +403,7 @@ export const dataService = {
         orderTypeSubId?: string | string[];
         assetTagId?: string | string[];
         assetTagSubId?: string | string[];
+        causeReasonId?: string | string[];
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
         responsibleTeamId?: string | string[];

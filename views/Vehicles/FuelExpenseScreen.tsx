@@ -25,8 +25,8 @@ interface FuelExpenseScreenProps {
 type ImageSlot = 'plate' | 'odometer' | 'invoice';
 
 const SLOT_META: { key: ImageSlot; label: string; icon: string }[] = [
-    { key: 'plate', label: 'Placa', icon: 'pin' },
     { key: 'odometer', label: 'Odômetro', icon: 'speed' },
+    { key: 'plate', label: 'Placa', icon: 'pin' },
     { key: 'invoice', label: 'Nota Fiscal', icon: 'receipt_long' }
 ];
 
@@ -311,7 +311,7 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
             return;
         }
         if (!images.plate || !images.odometer || !images.invoice) {
-            toast.warning('Adicione as 3 fotos obrigatórias: placa, odômetro e nota fiscal.');
+            toast.warning('Adicione as 3 fotos obrigatórias: odômetro, placa e nota fiscal.');
             return;
         }
 
@@ -585,7 +585,7 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                             ))}
                         </div>
                         <p className="text-[11px] text-slate-400 dark:text-slate-500 ml-1">
-                            Placa, odômetro e nota fiscal são obrigatórios para registrar o abastecimento.
+                            Odômetro, placa e nota fiscal são obrigatórios para registrar o abastecimento.
                         </p>
                     </div>
                 </div>
