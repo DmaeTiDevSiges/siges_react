@@ -797,8 +797,8 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
       case 'outline-cyan':
         return (
-          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-[#38bdf8] bg-[#0c4a6e]/30 text-[#38bdf8] text-[10px] font-bold shadow-sm select-none overflow-visible hover:bg-[#0c4a6e]/60 transition-all cursor-pointer">
-            <span className="whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-sky-500 bg-sky-100 text-sky-700 text-[10px] font-bold shadow-sm select-none overflow-visible hover:bg-sky-200 dark:border-[#38bdf8] dark:bg-[#0c4a6e]/30 dark:text-[#38bdf8] dark:hover:bg-[#0c4a6e]/60 transition-all cursor-pointer">
+            <span className="whitespace-nowrap dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
           </div>
         );
 
@@ -815,15 +815,15 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
       case 'outline-red':
         return (
-          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-[#ef4444] bg-[#7f1d1d]/40 text-[#fca5a5] text-[10px] font-bold shadow-sm select-none overflow-visible hover:bg-[#7f1d1d]/70 transition-all cursor-pointer">
-            <span className="whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-red-500 bg-red-100 text-red-700 text-[10px] font-bold shadow-sm select-none overflow-visible hover:bg-red-200 dark:border-[#ef4444] dark:bg-[#7f1d1d]/40 dark:text-[#fca5a5] dark:hover:bg-[#7f1d1d]/70 transition-all cursor-pointer">
+            <span className="whitespace-nowrap dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
           </div>
         );
 
       case 'outline-amber':
         return (
-          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-[#f59e0b] bg-[#78350f]/30 text-[#fcd34d] text-[10px] font-bold shadow-sm select-none overflow-visible hover:bg-[#78350f]/60 transition-all cursor-pointer">
-            <span className="whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
+          <div className="relative z-20 flex items-center justify-center w-full h-[26px] px-2 rounded-full border border-amber-500 bg-amber-100 text-amber-700 text-[10px] font-bold shadow-sm select-none overflow-visible hover:bg-amber-200 dark:border-[#f59e0b] dark:bg-[#78350f]/30 dark:text-[#fcd34d] dark:hover:bg-[#78350f]/60 transition-all cursor-pointer">
+            <span className="whitespace-nowrap dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{bar.label}</span>
           </div>
         );
 
@@ -868,7 +868,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
         startingBars.forEach(b => renderedBars.add(b.id));
 
-        const borderClass = (w + effectiveSpan) % 4 === 0 ? 'border-r-2 border-[#1e2a44]' : 'border-r border-[#1e2a44]/50';
+        const borderClass = (w + effectiveSpan) % 4 === 0 ? 'border-r-2 border-slate-300 dark:border-[#1e2a44]' : 'border-r border-slate-200 dark:border-[#1e2a44]/50';
 
         weekCells.push(
           <td
@@ -966,7 +966,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
         if (isCovered) {
           w++;
         } else {
-          const borderClass = isMonthEnd ? 'border-r-2 border-[#1e2a44]' : 'border-r border-[#1e2a44]/40';
+          const borderClass = isMonthEnd ? 'border-r-2 border-slate-300 dark:border-[#1e2a44]' : 'border-r border-slate-200 dark:border-[#1e2a44]/40';
           weekCells.push(
             <td
               key={`${unit.id}-empty-w-${w}`}
@@ -984,10 +984,10 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
     return (
       <tr
         key={unit.id}
-        className="border-b border-[#1e2a44] hover:bg-[#131e38]/50 transition-colors"
+        className="border-b border-slate-200 dark:border-[#1e2a44] hover:bg-slate-50 dark:hover:bg-[#131e38]/50 transition-colors"
       >
         <td
-          className="sticky left-0 z-10 bg-[#090f1d] px-4 py-3 border-r-2 border-[#1e2a44] font-bold text-xs text-slate-200 tracking-wider whitespace-nowrap"
+          className="sticky left-0 z-10 bg-white dark:bg-[#090f1d] px-4 py-3 border-r-2 border-slate-300 dark:border-[#1e2a44] font-bold text-xs text-slate-700 dark:text-slate-200 tracking-wider whitespace-nowrap"
           style={
             unitColWidth !== null
               ? { width: unitColWidth, minWidth: unitColWidth, maxWidth: unitColWidth }
@@ -1011,10 +1011,10 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
   return (
     <>
-    <div className="flex flex-col min-h-full bg-[#050914] text-slate-200">
+    <div className="flex flex-col min-h-full bg-slate-50 dark:bg-[#050914] text-slate-800 dark:text-slate-200">
 
       {/* ── Filter Bar (from OrdersRequestsDashboardAdmin) ── */}
-      <div className="z-30 bg-[#090f1d] border-b border-[#17233f] shadow-sm shrink-0">
+      <div className="z-30 bg-white dark:bg-[#090f1d] border-b border-slate-200 dark:border-[#17233f] shadow-sm shrink-0">
         <div className="flex flex-col p-4">
           <div className="flex items-center gap-2">
             <FilterBarResponsive
@@ -1055,7 +1055,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-4 pb-3">
         <div className="flex items-center gap-3">
           {/* Years Group */}
-          <div className="flex items-center gap-1.5 bg-[#090f1d] border border-[#17233f] p-1 rounded-xl">
+          <div className="flex items-center gap-1.5 bg-white dark:bg-[#090f1d] border border-slate-200 dark:border-[#17233f] p-1 rounded-xl">
             {years.map(y => {
               const isActive = selectedYear === y;
               return (
@@ -1066,7 +1066,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     isActive
                       ? 'bg-[#0284c7] text-white shadow-md shadow-sky-600/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#131e38]'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#131e38]'
                   }`}
                 >
                   {y}
@@ -1077,15 +1077,15 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
           {/* Current Mandatory Sector Badge */}
           {selectedSectorName && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#090f1d] border border-[#17233f] text-xs font-medium text-slate-300">
-              <span className="text-slate-500 uppercase tracking-wider text-[10px]">Setor:</span>
-              <span className="font-bold text-sky-400">{selectedSectorName}</span>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#090f1d] border border-slate-200 dark:border-[#17233f] text-xs font-medium text-slate-600 dark:text-slate-300">
+              <span className="text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">Setor:</span>
+              <span className="font-bold text-sky-600 dark:text-sky-400">{selectedSectorName}</span>
             </div>
           )}
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center gap-1 bg-[#090f1d] border border-[#17233f] p-1 rounded-xl">
+        <div className="flex items-center gap-1 bg-white dark:bg-[#090f1d] border border-slate-200 dark:border-[#17233f] p-1 rounded-xl">
           {(['monthly', 'quarterly'] as const).map(mode => {
             const isActive = viewMode === mode;
             return (
@@ -1096,7 +1096,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                 className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-[#0284c7] text-white shadow-md shadow-sky-600/30'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-[#131e38]'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#131e38]'
                 }`}
               >
                 {mode === 'monthly' ? 'Mensal' : 'Trimestral'}
@@ -1108,10 +1108,10 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
       {/* ── Main Timeline Card ── */}
       <div className="flex-1 px-6 pb-6">
-        <div className="flex flex-col h-full bg-[#090f1d] border border-[#17233f] rounded-2xl overflow-hidden shadow-2xl">
+        <div className="flex flex-col h-full bg-white dark:bg-[#090f1d] border border-slate-200 dark:border-[#17233f] rounded-2xl overflow-hidden shadow-2xl">
 
           {/* Card Top Header: Search input on left, Legend on right */}
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b border-[#17233f] bg-[#070c18]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b border-slate-200 dark:border-[#17233f] bg-slate-50 dark:bg-[#070c18]">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative w-80 max-w-full">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
@@ -1122,39 +1122,39 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                   placeholder="Buscar unidade ou OS..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#0d162d] border border-[#1e2a44] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#0284c7] transition-all"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-[#0d162d] border border-slate-200 dark:border-[#1e2a44] text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#0284c7] transition-all"
                 />
               </div>
-              <label className="inline-flex items-center gap-2 rounded-xl border border-[#1e2a44] bg-[#0d162d] px-3 py-2 text-xs font-semibold text-slate-300 cursor-pointer hover:border-[#0284c7]/60 transition-colors">
+              <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-[#1e2a44] bg-white dark:bg-[#0d162d] px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:border-[#0284c7]/60 transition-colors">
                 <input
                   type="checkbox"
                   checked={showAuthorizedOrders}
                   onChange={e => setShowAuthorizedOrders(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-600 bg-[#090f1d] text-[#0284c7] focus:ring-[#0284c7] focus:ring-offset-0"
+                  className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-[#090f1d] text-[#0284c7] focus:ring-[#0284c7] focus:ring-offset-0"
                 />
                 Mostrar OS's Autorizadas
               </label>
             </div>
 
             {/* OS Statistics: Total, Suspensas, Concluídas */}
-            <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-300">
-              <div className="flex items-center gap-1.5 bg-[#0d162d] border border-[#1e2a44] px-3 py-1.5 rounded-xl shadow-sm">
-                <span className="text-slate-400">Total OS's:</span>
-                <span className="text-white font-extrabold">{kpiStats.total}</span>
+            <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <div className="flex items-center gap-1.5 bg-white dark:bg-[#0d162d] border border-slate-200 dark:border-[#1e2a44] px-3 py-1.5 rounded-xl shadow-sm">
+                <span className="text-slate-400 dark:text-slate-400">Total OS's:</span>
+                <span className="text-slate-900 dark:text-white font-extrabold">{kpiStats.total}</span>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-[#0d162d] border border-[#1e2a44] px-3 py-1.5 rounded-xl shadow-sm">
+              <div className="flex items-center gap-1.5 bg-white dark:bg-[#0d162d] border border-slate-200 dark:border-[#1e2a44] px-3 py-1.5 rounded-xl shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-rose-500" />
-                <span className="text-slate-400">OS's Suspensas:</span>
-                <span className="text-rose-400 font-extrabold">
+                <span className="text-slate-400 dark:text-slate-400">OS's Suspensas:</span>
+                <span className="text-rose-600 dark:text-rose-400 font-extrabold">
                   {kpiStats.suspended} ({kpiStats.suspendedPercent}%)
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-[#0d162d] border border-[#1e2a44] px-3 py-1.5 rounded-xl shadow-sm">
+              <div className="flex items-center gap-1.5 bg-white dark:bg-[#0d162d] border border-slate-200 dark:border-[#1e2a44] px-3 py-1.5 rounded-xl shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-slate-400">OS's Concluídas:</span>
-                <span className="text-emerald-400 font-extrabold">
+                <span className="text-slate-400 dark:text-slate-400">OS's Concluídas:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
                   {kpiStats.completed} ({kpiStats.completedPercent}%)
                 </span>
               </div>
@@ -1166,11 +1166,11 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
             <table className="w-full border-collapse" style={{ minWidth: 1680 }}>
               <thead>
                 {/* Row 1: Months / Quarters */}
-                <tr className="bg-[#070c18] border-b border-[#1e2a44] sticky top-0 z-20">
+                <tr className="bg-slate-100 dark:bg-[#070c18] border-b border-slate-200 dark:border-[#1e2a44] sticky top-0 z-20">
                   <th
                     ref={thRef}
                     rowSpan={2}
-                    className="relative sticky left-0 z-30 bg-[#070c18] text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest border-r-2 border-[#1e2a44] border-b-2 border-[#2b3d63] select-none whitespace-nowrap shadow-[inset_0_-2px_0_#2b3d63]"
+                    className="relative sticky left-0 z-30 bg-slate-100 dark:bg-[#070c18] text-left px-4 py-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest border-r-2 border-slate-300 dark:border-[#1e2a44] border-b-2 border-slate-300 dark:border-[#2b3d63] select-none whitespace-nowrap shadow-[inset_0_-2px_0_#cbd5e1] dark:shadow-[inset_0_-2px_0_#2b3d63]"
                     style={
                       unitColWidth !== null
                         ? { width: unitColWidth, minWidth: unitColWidth, maxWidth: unitColWidth }
@@ -1184,7 +1184,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                           type="button"
                           onClick={handleDoubleClickResize}
                           title="Restaurar tamanho automático"
-                          className="text-[10px] text-sky-400 hover:text-sky-300 ml-1.5 p-0.5 rounded hover:bg-sky-500/10 transition-colors"
+                          className="text-[10px] text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 ml-1.5 p-0.5 rounded hover:bg-sky-500/10 transition-colors"
                         >
                           <span className="material-symbols-outlined text-[13px]">restart_alt</span>
                         </button>
@@ -1208,10 +1208,10 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                         <th
                           key={month}
                           colSpan={4}
-                          className={`px-2 py-2.5 text-center text-[11px] uppercase tracking-wider border-r-2 border-[#1e2a44] ${
+                          className={`px-2 py-2.5 text-center text-[11px] uppercase tracking-wider border-r-2 border-slate-200 dark:border-[#1e2a44] ${
                             isCurrentMonth
-                              ? 'text-[#38bdf8] font-black bg-sky-500/10'
-                              : 'text-slate-300 font-bold bg-[#070c18]'
+                              ? 'text-sky-600 dark:text-[#38bdf8] font-black bg-sky-500/10'
+                              : 'text-slate-600 dark:text-slate-300 font-bold bg-transparent'
                           }`}
                         >
                           {month}
@@ -1223,7 +1223,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                       <th
                         key={q}
                         colSpan={12}
-                        className="px-2 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-slate-300 border-r-2 border-[#1e2a44] bg-[#070c18]"
+                        className="px-2 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 border-r-2 border-slate-200 dark:border-[#1e2a44] bg-transparent"
                       >
                         {q}
                       </th>
@@ -1232,7 +1232,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                 </tr>
 
                 {/* Row 2: Weeks (S1, S2, S3, S4) inside each month */}
-                <tr className="bg-[#090f1d] border-b border-[#1e2a44] sticky top-[38px] z-20">
+                <tr className="bg-white dark:bg-[#090f1d] border-b border-slate-200 dark:border-[#1e2a44] sticky top-[38px] z-20">
                   {MONTHS_SHORT.map((month, mIdx) => {
                     const isCurrentMonth = mIdx === currentMonthIndex && selectedYear === currentYear;
                     return ['S1', 'S2', 'S3', 'S4'].map((wLabel, wIdx) => {
@@ -1241,12 +1241,12 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                       return (
                         <th
                           key={`${month}-${wLabel}`}
-                          className={`py-1 px-0.5 text-center text-[10px] uppercase font-semibold select-none border-b-2 border-[#2b3d63] shadow-[inset_0_-2px_0_#2b3d63] ${
-                            isMonthEnd ? 'border-r-2 border-[#1e2a44]' : 'border-r border-[#1e2a44]/50'
+                          className={`py-1 px-0.5 text-center text-[10px] uppercase font-semibold select-none border-b-2 border-slate-200 dark:border-[#2b3d63] shadow-[inset_0_-2px_0_#e2e8f0] dark:shadow-[inset_0_-2px_0_#2b3d63] ${
+                            isMonthEnd ? 'border-r-2 border-slate-200 dark:border-[#1e2a44]' : 'border-r border-slate-100 dark:border-[#1e2a44]/50'
                           } ${
                             isCurrentWeek
-                              ? 'text-sky-300 font-bold bg-sky-500/20'
-                              : (isCurrentMonth ? 'text-sky-400/80 bg-sky-500/5' : 'text-slate-400')
+                              ? 'text-sky-600 dark:text-sky-300 font-bold bg-sky-500/20'
+                              : (isCurrentMonth ? 'text-sky-600/80 dark:text-sky-400/80 bg-sky-500/5' : 'text-slate-400 dark:text-slate-400')
                           }`}
                           style={{ minWidth: 34, width: 34 }}
                         >
