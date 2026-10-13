@@ -742,7 +742,7 @@ export const dataService = {
 
 
 
-    async createCompanyProfile(companyId: string, description: string, permissions: Partial<Permission>[]): Promise<void> {
+    async createCompanyProfile(companyId: string, description: string, permissions: Partial<Permission>[]): Promise<string> {
         return companiesService.createCompanyProfile.apply(companiesService, arguments as any);
     },
 
@@ -2562,6 +2562,10 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async updateProfilePermissions(profileId: string, permissions: any[]): Promise<void> {
         return usersService.updateProfilePermissions.apply(usersService, arguments as any);
+    },
+
+    async copyProfilePermissions(sourceProfileId: string, targetProfileId: string): Promise<Permission[]> {
+        return usersService.copyProfilePermissions.apply(usersService, arguments as any);
     },
 
     // -------------------------------------------------------------------------

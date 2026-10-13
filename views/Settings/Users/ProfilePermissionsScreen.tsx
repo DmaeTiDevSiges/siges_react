@@ -28,6 +28,10 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
     const [companies, setCompanies] = useState<Company[]>([]);
     const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
     const [profileUsers, setProfileUsers] = useState<User[]>([]);
+    const [showCopyModal, setShowCopyModal] = useState(false);
+    const [copySourceId, setCopySourceId] = useState('');
+    const [copying, setCopying] = useState(false);
+    const [newProfileSourceId, setNewProfileSourceId] = useState('');
 
     const isSuperAdmin = currentUser?.isAdminSuper;
 
@@ -192,17 +196,50 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
         if (!newProfileName.trim() || !companyId) return;
         try {
             setCreatingProfile(true);
-            await dataService.createCompanyProfile(companyId, newProfileName.trim(), []);
+            const newProfileId = await dataService.createCompanyProfile(companyId, newProfileName.trim(), []);
+            let copied = false;
+            if (newProfileSourceId) {
+                try {
+                    await dataService.copyProfilePermissions(newProfileSourceId, newProfileId);
+                    copied = true;
+                } catch (copyError) {
+                    console.error('Error copying permissions on profile creation:', copyError);
+                    toast.warning('Perfil criado, mas não foi possível copiar as permissões');
+                }
+            }
             const profilesData = await dataService.getCompanyProfiles(companyId);
             setProfiles(profilesData);
             setShowNewProfileModal(false);
             setNewProfileName('');
-            toast.success('Perfil criado com sucesso!');
+            setNewProfileSourceId('');
+            setSelectedProfileId(newProfileId);
+            toast.success(copied ? 'Perfil criado com permissões copiadas!' : 'Perfil criado com sucesso!');
         } catch (error) {
             console.error('Error creating profile:', error);
             toast.error('Erro ao criar perfil');
         } finally {
             setCreatingProfile(false);
+        }
+    };
+
+    const handleCopyPermissions = async () => {
+        if (!copySourceId || !selectedProfileId) return;
+        try {
+            setCopying(true);
+            const sourcePerms = await dataService.getProfilePermissions(copySourceId);
+            setPermissions(sourcePerms.map(p => ({ ...p, id: '0', profileId: selectedProfileId })));
+            setShowCopyModal(false);
+            setCopySourceId('');
+            if (sourcePerms.length > 0) {
+                toast.success('Permissões copiadas — revise e clique em Salvar');
+            } else {
+                toast.warning('O perfil de origem não tem permissões — a matriz ficará desmarcada. Revise e clique em Salvar');
+            }
+        } catch (error) {
+            console.error('Error copying permissions:', error);
+            toast.error('Erro ao copiar permissões');
+        } finally {
+            setCopying(false);
         }
     };
 
@@ -275,6 +312,16 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                         <span className="material-symbols-outlined text-base mr-1">add</span>
                         Novo Perfil
                     </Button>
+                    {selectedProfileId && (
+                        <Button
+                            onClick={() => { setCopySourceId(''); setShowCopyModal(true); }}
+                            variant="ghost"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                            <span className="material-symbols-outlined text-base mr-1">content_copy</span>
+                            Copiar De...
+                        </Button>
+                    )}
                     {selectedProfileId && (
                         <Button
                             onClick={handleDeleteProfile}
@@ -421,9 +468,22 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                             autoFocus
                             onKeyDown={(e) => { if (e.key === 'Enter') handleCreateProfile(); }}
                         />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-1">
+                            Copiar permissões de
+                        </label>
+                        <select
+                            value={newProfileSourceId}
+                            onChange={(e) => setNewProfileSourceId(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Nenhuma (perfil vazio)</option>
+                            {profiles.map(profile => (
+                                <option key={profile.id} value={profile.id}>{profile.description}</option>
+                            ))}
+                        </select>
                         <div className="flex justify-end gap-2 mt-4">
                             <Button
-                                onClick={() => { setShowNewProfileModal(false); setNewProfileName(''); }}
+                                onClick={() => { setShowNewProfileModal(false); setNewProfileName(''); setNewProfileSourceId(''); }}
                                 variant="ghost"
                             >
                                 Cancelar
@@ -434,6 +494,49 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                                 variant="primary"
                             >
                                 {creatingProfile ? 'Criando...' : 'Criar Perfil'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Copiar permissões de outro perfil */}
+            {showCopyModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Copiar Permissões</h3>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Copiar de
+                        </label>
+                        <select
+                            value={copySourceId}
+                            onChange={(e) => setCopySourceId(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            autoFocus
+                        >
+                            <option value="">Selecione o perfil de origem...</option>
+                            {profiles
+                                .filter(profile => String(profile.id) !== String(selectedProfileId))
+                                .map(profile => (
+                                    <option key={profile.id} value={profile.id}>{profile.description}</option>
+                                ))}
+                        </select>
+                        <p className="text-sm text-amber-600 dark:text-amber-400 mt-3">
+                            As permissões atuais deste perfil serão substituídas pelas do perfil de origem após clicar em Salvar.
+                        </p>
+                        <div className="flex justify-end gap-2 mt-4">
+                            <Button
+                                onClick={() => { setShowCopyModal(false); setCopySourceId(''); }}
+                                variant="ghost"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleCopyPermissions}
+                                disabled={!copySourceId || copying}
+                                variant="primary"
+                            >
+                                {copying ? 'Copiando...' : 'Copiar'}
                             </Button>
                         </div>
                     </div>

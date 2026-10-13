@@ -1609,6 +1609,20 @@ export const usersService = {
         }
     },
 
+    async copyProfilePermissions(sourceProfileId: string, targetProfileId: string): Promise<Permission[]> {
+        const sourcePermissions = await usersService.getProfilePermissions(sourceProfileId);
+
+        const remapped = sourcePermissions.map(p => ({
+            ...p,
+            id: '0',
+            profileId: targetProfileId
+        }));
+
+        await usersService.updateProfilePermissions(targetProfileId, remapped);
+
+        return remapped;
+    },
+
     async getUserTrackerInterval(userId: string): Promise<number | null> {
         const { data, error } = await supabase
             .from('users')

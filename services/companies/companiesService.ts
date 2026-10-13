@@ -1004,7 +1004,7 @@ export const companiesService = {
         })) as Profile[];
     },
 
-    async createCompanyProfile(companyId: string, description: string, permissions: Partial<Permission>[]): Promise<void> {
+    async createCompanyProfile(companyId: string, description: string, permissions: Partial<Permission>[]): Promise<string> {
         const { data: profile, error: profileError } = await supabase
             .from('cfg_profiles')
             .insert({
@@ -1033,6 +1033,8 @@ export const companiesService = {
 
             if (permsError) throw permsError;
         }
+
+        return profile.id.toString();
     },
 
     async updateCompanyProfile(profileId: string, description: string, permissions: Partial<Permission>[]): Promise<void> {
