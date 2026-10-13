@@ -2,6 +2,9 @@
 .env
 .env.local
 .env.*
+# .env.production só tem feature flags (sem segredos) — versionado para que
+# builds feitos a partir do Git não percam os recursos habilitados.
+!.env.production
 *.local
 
 # Data files
