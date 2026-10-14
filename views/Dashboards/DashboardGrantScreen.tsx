@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { formatDateInBrazil } from '../../utils/formatters';
 
-import { User, OrderFilters } from '../../types';
+import { User, OrderFilters, Order } from '../../types';
 import { dataService } from '../../services/dataService';
 import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components/ui/FilterBarResponsive';
 import { toast } from 'sonner';
@@ -110,6 +110,7 @@ const formatGrantDate = (dateStr: string): string => {
 interface GrantDashboardScreenProps {
   currentUser?: User | null;
   onNavigate?: (screen: string) => void;
+  onSelectOrder?: (order: Order) => void;
   onFilterBarRef?: (ref: FilterBarResponsiveHandle | null) => void;
   onMobileFilterCountChange?: (count: number) => void;
 }
@@ -117,6 +118,7 @@ interface GrantDashboardScreenProps {
 export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   currentUser,
   onNavigate: _onNavigate,
+  onSelectOrder,
   onFilterBarRef,
   onMobileFilterCountChange,
 }) => {
@@ -134,6 +136,8 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
   // ── Auto-adjustable and resizable UNIDADES column ──
   const [unitColWidth, setUnitColWidth] = useState<number | null>(null);
+  const [autoUnitColWidth, setAutoUnitColWidth] = useState(160);
+  const unitMeasureRef = useRef<HTMLSpanElement>(null);
   const isResizingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
@@ -286,6 +290,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   const [assetTagSubs, setAssetTagSubs] = useState<any[]>([]);
   const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const tooltipHideTimerRef = useRef<number | null>(null);
   const [hoveredBar, setHoveredBar] = useState<{
     bar: PlottedOSBar;
     anchor: HTMLElement;
@@ -300,23 +305,34 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   const [hasQueried, setHasQueried] = useState(false);
 
   const updateBarTooltipPosition = useCallback((bar: PlottedOSBar, anchor: HTMLElement) => {
-    const rect = anchor.getBoundingClientRect();
+    const capsule = anchor.querySelector<HTMLElement>('[data-os-capsule]');
+    const rect = capsule ? capsule.getBoundingClientRect() : anchor.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const maxTooltipHeight = Math.max(100, viewportHeight - 16);
     const tooltipHeight = Math.min(tooltipRef.current?.offsetHeight || 220, maxTooltipHeight);
-    const spaceAbove = rect.top - 8;
-    const spaceBelow = viewportHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 4;
+    const spaceBelow = viewportHeight - rect.bottom - 4;
     let top: number;
 
     if (spaceAbove >= tooltipHeight) {
-      top = rect.top - tooltipHeight - 8;
+      top = rect.top - tooltipHeight - 4;
     } else if (spaceBelow >= tooltipHeight) {
-      top = rect.bottom + 8;
+      top = rect.bottom + 4;
     } else {
-      top = Math.max(8, Math.min(rect.top - tooltipHeight / 2, viewportHeight - tooltipHeight - 8));
+      top = Math.max(4, Math.min(rect.top - tooltipHeight / 2, viewportHeight - tooltipHeight - 4));
     }
 
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - 272));
+    const tooltipWidth = tooltipRef.current?.offsetWidth || 276;
+    const viewportWidth = window.innerWidth;
+    const maxLeft = viewportWidth - tooltipWidth - 4;
+    let left: number;
+    if (rect.left + tooltipWidth <= viewportWidth - 4) {
+      left = rect.left;
+    } else if (rect.right - tooltipWidth >= 4) {
+      left = rect.right - tooltipWidth;
+    } else {
+      left = Math.max(4, Math.min(rect.left, maxLeft));
+    }
     setHoveredBar({
       bar,
       anchor,
@@ -324,6 +340,38 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       top,
     });
   }, []);
+
+  const scheduleTooltipHide = useCallback(() => {
+    if (tooltipHideTimerRef.current) window.clearTimeout(tooltipHideTimerRef.current);
+    tooltipHideTimerRef.current = window.setTimeout(() => setHoveredBar(null), 150);
+  }, []);
+
+  const cancelTooltipHide = useCallback(() => {
+    if (tooltipHideTimerRef.current) {
+      window.clearTimeout(tooltipHideTimerRef.current);
+      tooltipHideTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (tooltipHideTimerRef.current) window.clearTimeout(tooltipHideTimerRef.current);
+  }, []);
+
+  const handleTooltipOsClick = async () => {
+    const bar = hoveredBar?.bar;
+    if (!bar) return;
+    try {
+      const order = await dataService.getOrderById(bar.oId);
+      if (order) {
+        setHoveredBar(null);
+        onSelectOrder?.(order);
+      } else {
+        toast.error('OS não encontrada.');
+      }
+    } catch {
+      toast.error('Erro ao carregar OS.');
+    }
+  };
 
   useEffect(() => {
     if (!hoveredBar) return;
@@ -841,6 +889,21 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       .filter((u): u is UnitGroup => u !== null);
   }, [unitsData, search, showAuthorizedOrders]);
 
+  // Auto-adjust UNIDADES column width to fit the longest unit name
+  useEffect(() => {
+    if (unitColWidth !== null) return;
+    const el = unitMeasureRef.current;
+    if (!el) return;
+    let max = 0;
+    for (const unit of filteredUnits) {
+      el.textContent = unit.name;
+      max = Math.max(max, el.offsetWidth);
+    }
+    el.textContent = 'UNIDADES';
+    max = Math.max(max, el.offsetWidth);
+    if (max > 0) setAutoUnitColWidth(Math.min(600, max + 52));
+  }, [filteredUnits, unitColWidth]);
+
   // ── KPI Statistics (Total OS's, OS's Suspensas, OS's Concluídas) ──
   const kpiStats = useMemo(() => {
     const uniqueOrders = new Map<string, PlottedOSBar>();
@@ -890,7 +953,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
     switch (bar.style) {
       case 'solid-green':
         return (
-          <div className="relative z-20 flex items-center justify-between w-full h-[26px] px-2.5 rounded-full bg-[#10b981] text-white text-[10px] font-bold shadow-sm shadow-emerald-950/40 select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
+          <div className="relative z-20 flex items-center justify-between w-full h-[26px] px-2 rounded-full bg-[#10b981] text-white text-[10px] font-bold shadow-sm shadow-emerald-950/40 select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
             {renderSectorDot(bar)}
             {bar.badge && (
               <span className="ml-1.5 shrink-0 px-1.5 py-0.5 rounded-full bg-emerald-700/60 text-[9px] font-bold">
@@ -909,7 +972,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
       case 'solid-cyan':
         return (
-          <div className="relative z-20 flex items-center justify-between w-full h-[26px] px-2.5 rounded-full bg-[#0284c7] text-white text-[10px] font-bold shadow-md shadow-sky-900/30 select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
+          <div className="relative z-20 flex items-center justify-between w-full h-[26px] px-2 rounded-full bg-[#0284c7] text-white text-[10px] font-bold shadow-md shadow-sky-900/30 select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
             {renderSectorDot(bar)}
             {bar.badge && (
               <span className="ml-1.5 shrink-0 px-1.5 py-0.5 rounded-full bg-sky-900/70 text-[9px] font-bold">
@@ -928,7 +991,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
       case 'gradient-orange-red':
         return (
-          <div className="relative z-20 flex items-center justify-between w-full h-[28px] px-2.5 rounded-full bg-gradient-to-r from-[#ea580c] to-[#dc2626] text-white text-[10px] font-bold shadow-lg shadow-orange-950/40 select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
+          <div className="relative z-20 flex items-center justify-between w-full h-[28px] px-2 rounded-full bg-gradient-to-r from-[#ea580c] to-[#dc2626] text-white text-[10px] font-bold shadow-lg shadow-orange-950/40 select-none overflow-hidden hover:brightness-110 transition-all cursor-pointer">
             {renderSectorDot(bar)}
             <div className="flex items-center gap-1 ml-1.5 shrink-0 px-1.5 py-0.5 rounded-full bg-black/30 border border-white/20 text-[8px]">
               <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
@@ -958,7 +1021,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
   const renderUnitRow = (unit: UnitGroup) => {
     const cellWidth = TOTAL_WEEKS * 34;
-    const laneHeight = 72;
+    const laneHeight = 44;
     const timelineBars = unit.bars.map(bar => {
       const authorizationWeek = bar.wasAuthorized && (bar.statusId === 6 || bar.statusId === 8) && bar.authorizedAt
         ? dateToWeekIndex(bar.authorizedAt, selectedYear)
@@ -993,11 +1056,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       >
         <td
           className="sticky left-0 z-10 bg-white dark:bg-[#090f1d] px-4 py-3 border-r-2 border-slate-300 dark:border-[#1e2a44] font-bold text-xs text-slate-700 dark:text-slate-200 tracking-wider whitespace-nowrap"
-          style={
-            unitColWidth !== null
-              ? { width: unitColWidth, minWidth: unitColWidth, maxWidth: unitColWidth }
-              : { width: '1%', minWidth: 'max-content', whiteSpace: 'nowrap' }
-          }
+          style={{ width: unitColWidth ?? autoUnitColWidth, minWidth: unitColWidth ?? autoUnitColWidth, maxWidth: unitColWidth ?? autoUnitColWidth }}
           title={unit.name}
         >
           {unit.name}
@@ -1033,13 +1092,13 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
               const connectorPath = !hasMarker
                 ? ''
                 : markerCenter === barCenter
-                  ? `M ${markerCenter} 28 V 42`
+                  ? `M ${markerCenter} 16 V 20`
                   : (() => {
                       const direction = barCenter > markerCenter ? 1 : -1;
                       const radius = Math.min(4, Math.abs(barCenter - markerCenter) / 2);
                       const markerTurn = markerCenter + direction * radius;
                       const barTurn = barCenter - direction * radius;
-                      return `M ${markerCenter} 28 V 32 Q ${markerCenter} 36 ${markerTurn} 36 H ${barTurn} Q ${barCenter} 36 ${barCenter} 40 V 42`;
+                      return `M ${markerCenter} 16 V 17 Q ${markerCenter} 20 ${markerTurn} 20 H ${barTurn} Q ${barCenter} 20 ${barCenter} 20 V 20`;
                     })();
 
               return (
@@ -1065,24 +1124,25 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                         aria-hidden="true"
                         className="pointer-events-none absolute left-0 top-0 z-0"
                         width={(endWeek - startWeek + 1) * 34}
-                        height="42"
+                        height="20"
                       >
                         <path d={connectorPath} className="stroke-sky-400 dark:stroke-sky-500" fill="none" strokeWidth="1" />
                       </svg>
                       <span
                         title={`Autorizada em ${bar.authorizedAt ? formatGrantDate(bar.authorizedAt) : 'data não informada'}`}
                         aria-label={`Autorizada no dia ${new Date(bar.authorizedAt!).getDate()}`}
-                        className="absolute top-0 z-10 inline-flex h-7 min-w-[52px] -translate-x-1/2 items-center justify-center gap-1 rounded-full border border-sky-200 bg-white px-2 text-[11px] font-bold leading-none text-sky-700 shadow-sm dark:border-sky-500/30 dark:bg-slate-900 dark:text-sky-300"
+                        className="absolute top-0 z-10 inline-flex h-4 min-w-[48px] -translate-x-1/2 items-center justify-center gap-0.5 rounded-full border border-sky-200 bg-white px-1.5 text-[9px] font-bold leading-none text-sky-700 shadow-sm dark:border-sky-500/30 dark:bg-slate-900 dark:text-sky-300"
                         style={{ left: markerCenter }}
                       >
-                        <span className="material-symbols-outlined text-[15px] leading-none">verified</span>
+                        <span className="material-symbols-outlined text-[11px] leading-none">verified</span>
                         <span>{String(new Date(bar.authorizedAt!).getDate()).padStart(2, '0')}</span>
                       </span>
                     </>
                   )}
                   <div
+                    data-os-capsule=""
                     className="absolute left-0"
-                    style={{ left: timelineOffset, top: hasMarker ? 42 : 22, width: barWidth }}
+                    style={{ left: timelineOffset, top: hasMarker ? 18 : 8, width: barWidth }}
                     title={`OS ${bar.orderMask}`}
                   >
                     {renderCapsule(bar)}
@@ -1324,11 +1384,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                     ref={thRef}
                     rowSpan={2}
                     className="relative sticky left-0 z-30 bg-slate-100 dark:bg-[#070c18] text-left px-4 py-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest border-r-2 border-slate-300 dark:border-[#1e2a44] border-b-2 border-slate-300 dark:border-[#2b3d63] select-none whitespace-nowrap shadow-[inset_0_-2px_0_#cbd5e1] dark:shadow-[inset_0_-2px_0_#2b3d63]"
-                    style={
-                      unitColWidth !== null
-                        ? { width: unitColWidth, minWidth: unitColWidth, maxWidth: unitColWidth }
-                        : { width: '1%', minWidth: 'max-content', whiteSpace: 'nowrap' }
-                    }
+                    style={{ width: unitColWidth ?? autoUnitColWidth, minWidth: unitColWidth ?? autoUnitColWidth, maxWidth: unitColWidth ?? autoUnitColWidth }}
                   >
                     <div className="flex items-center justify-between pr-2">
                       <span>UNIDADES</span>
@@ -1438,7 +1494,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       <div
         ref={tooltipRef}
         role="tooltip"
-        className="pointer-events-none fixed max-h-[calc(100vh-16px)] w-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl dark:border-slate-700 dark:bg-slate-900"
+        className="pointer-events-none fixed max-h-[calc(100vh-16px)] w-[276px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl dark:border-slate-700 dark:bg-slate-900"
         style={{
           left: hoveredBar.left,
           top: hoveredBar.top,
@@ -1511,6 +1567,11 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       </div>,
       document.body
     )}
+    <span
+      ref={unitMeasureRef}
+      aria-hidden="true"
+      className="pointer-events-none fixed top-0 left-0 -z-[9999] invisible whitespace-nowrap px-4 font-bold text-xs tracking-wider"
+    />
     </>
   );
 };

@@ -35,7 +35,7 @@ interface DashboardScreenProps {
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onSelectVisit, onEdit, initialTab = 'services', onTabChange, onNavigate, onGamificationChange }) => {
     const { canCreate, canView, loading: permissionsLoading } = usePermissions();
-    const fuelTabAvailable = isVehicleRentalEnabled() && canView('vehicles_fuel_expenses');
+    const fuelTabAvailable = isVehicleRentalEnabled() && canView('dashboard_vehicles_costs_periods');
 
     // Persistence keys
     const STORAGE_KEYS = {
@@ -509,7 +509,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                 </div>
 
                                 {/* FAB Novo Abastecimento */}
-                                {canCreate('vehicles_fuel_expenses') && (
+                                {canView('dashboard_vehicles_costs_periods') && (
                                     <button
                                         onClick={() => setShowFuelForm(true)}
                                         className="absolute bottom-6 right-4 h-14 w-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:bg-primary-dark transition-colors z-10"
