@@ -2763,7 +2763,7 @@ const AppContent: React.FC = () => {
       case 'fuel-expense':
         return <FuelExpenseScreen onNavigate={handleNavigate} />;
       case 'grant-dashboard':
-        return <GrantDashboardScreen onNavigate={handleNavigate} currentUser={currentUser} />;
+        return <GrantDashboardScreen onNavigate={handleNavigate} onSelectOrder={handleOrderSelect} currentUser={currentUser} />;
       default:
         return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
     }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePermissions } from '../../../contexts/PermissionsContext';
 import { OrderVisitVehicle, Vehicle } from '../../../types';
-import { dataService } from '../../../services/dataService';
+import { dataService, competenceLabel, previousCompetenceMonth } from '../../../services/dataService';
+import { getBrazilDateInputValue } from '../../../utils/formatters';
+import type { VehicleRentalContract } from '../../../services/orders/vehicleRentalService';
 import { Card } from '../../../components/ui/Card';
 import { ButtonDelete } from '../../../components/ui/ButtonDelete';
 import { ButtonNew } from '../../../components/ui/ButtonNew';
@@ -23,6 +25,14 @@ interface OrderVisitVehiclesListProps {
 const isRateioLine = (costType?: string | null): boolean =>
     costType === 'rental' || costType === 'variable' || costType === 'rate';
 
+/** Registro manual de ociosidade do veículo parado (contrato só-aluguel). */
+const isIdleLine = (costType?: string | null): boolean =>
+    costType === 'idle';
+
+/** Contrato vigente só-aluguel: mensalidade > 0 sem R$/km. */
+const isRentalOnlyContract = (contract?: VehicleRentalContract | null): boolean =>
+    !!contract && (contract.valueUnit || 0) === 0 && (contract.monthlyValue || 0) > 0;
+
 export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
     visitId,
     isEditable = true,
@@ -32,6 +42,19 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
     const [visitVehicles, setVisitVehicles] = useState<OrderVisitVehicle[]>([]);
     const [loading, setLoading] = useState(true);
     const { canView } = usePermissions();
+
+    // Contrato de aluguel vigente por veículo (para detectar só-aluguel)
+    const [rentalContracts, setRentalContracts] = useState<Record<string, VehicleRentalContract | null>>({});
+
+    // Último Km final registrado do veículo (excluindo a visita atual):
+    // informativo no campo INÍCIO e base da validação de progressão
+    const [lastOdometers, setLastOdometers] = useState<Record<string, number | null>>({});
+
+    // Registro de ociosidade (veículo parado, competência explícita)
+    const [idleTargetId, setIdleTargetId] = useState<string | null>(null);
+    const [idleMonth, setIdleMonth] = useState('');
+    const [idleValue, setIdleValue] = useState('');
+    const [idleSaving, setIdleSaving] = useState(false);
 
     // Add Vehicle State
     const [isAdding, setIsAdding] = useState(false);
@@ -50,11 +73,75 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
             setLoading(true);
             const data = await dataService.getOrderVisitVehicles(visitId);
             setVisitVehicles(data);
+            // Contratos vigentes (um por veículo) para o botão de ociosidade
+            // e último Km final registrado (excluindo esta visita) para
+            // validar/informativo do Km inicial
+            const ids = Array.from(new Set(data.map(v => v.vehicleId)));
+            if (ids.length > 0) {
+                const [contractEntries, odometerEntries] = await Promise.all([
+                    Promise.all(ids.map(async (vehicleId) => {
+                        try {
+                            const contracts = await dataService.getRentalContracts(vehicleId);
+                            const current = contracts.find(c => c.active !== false) || contracts[0] || null;
+                            return [vehicleId, current] as const;
+                        } catch {
+                            return [vehicleId, null] as const;
+                        }
+                    })),
+                    Promise.all(ids.map(async (vehicleId) => {
+                        try {
+                            const max = await dataService.getMaxVehicleOdometer(vehicleId, visitId);
+                            return [vehicleId, max] as const;
+                        } catch {
+                            return [vehicleId, null] as const;
+                        }
+                    }))
+                ]);
+                setRentalContracts(Object.fromEntries(contractEntries));
+                setLastOdometers(Object.fromEntries(odometerEntries));
+            } else {
+                setLastOdometers({});
+            }
         } catch (error) {
             console.error('Error loading visit vehicles:', error);
             toast.error('Erro ao carregar veículos da visita');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const openIdleForm = (vv: OrderVisitVehicle) => {
+        const contract = rentalContracts[vv.vehicleId];
+        const currentMonth = getBrazilDateInputValue().slice(0, 7);
+        setIdleTargetId(vv.id);
+        setIdleMonth(previousCompetenceMonth(currentMonth));
+        setIdleValue(contract && contract.monthlyValue > 0 ? String(contract.monthlyValue) : '');
+    };
+
+    const confirmIdleRecord = async () => {
+        const target = visitVehicles.find(v => v.id === idleTargetId);
+        if (!target || !currentUserId) return;
+        const value = Number(String(idleValue).replace(/\./g, '').replace(',', '.'));
+        if (!idleMonth || idleMonth.length < 7) {
+            toast.error('Escolha a competência da ociosidade.');
+            return;
+        }
+        if (!Number.isFinite(value) || value <= 0) {
+            toast.error('Informe o valor mensal do aluguel.');
+            return;
+        }
+        setIdleSaving(true);
+        try {
+            await dataService.addIdleToOrderVisit(visitId, target.vehicleId, currentUserId, value, idleMonth);
+            toast.success(`Ociosidade de ${competenceLabel(idleMonth)} registrada!`);
+            setIdleTargetId(null);
+            loadVehicles();
+            if (onVisitRefresh) onVisitRefresh();
+        } catch (error: any) {
+            console.error('Error registering idle:', error);
+            toast.error(error?.message || 'Erro ao registrar ociosidade');
+        } finally {
+            setIdleSaving(false);
         }
     };
 
@@ -150,9 +237,23 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
 
         // Validation logic
         const targetVehicle = visitVehicles.find(v => v.id === visitVehicleId);
+        let effectiveValue = numValue;
         if (targetVehicle && numValue !== null) {
+            // Bloqueia Km inicial inferior ao último Km final já registrado do
+            // veículo (excluindo esta visita) — odômetro deve ser progressivo
+            if (type === 'initial') {
+                const lastKm = lastOdometers[targetVehicle.vehicleId];
+                if (lastKm != null && numValue < lastKm) {
+                    toast.error(`Km inicial inválido: o último Km final registrado deste veículo é ${lastKm.toLocaleString('pt-BR')}. Informe um valor igual ou maior.`);
+                    // Limpa o campo inválido sem salvar
+                    setVisitVehicles(prev => prev.map(v => v.id === visitVehicleId ? { ...v, recorderStart: undefined } : v));
+                    return;
+                }
+            }
             if (type === 'final' && targetVehicle.recorderStart != null && numValue < targetVehicle.recorderStart) {
-                toast.warning('Aviso: Valor final menor que o inicial.');
+                // Km final menor que o inicial: valor corrigido para 0
+                effectiveValue = 0;
+                toast.warning('Valor final menor que o inicial — valor alterado para 0.');
             }
             if (type === 'initial' && targetVehicle.recorderEnd != null && targetVehicle.recorderEnd > 0 && numValue > targetVehicle.recorderEnd) {
                 toast.warning('Aviso: Valor inicial maior que o final.');
@@ -162,8 +263,8 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
         // Optimistic update for UI responsiveness
         setVisitVehicles(prev => prev.map(v => {
             if (v.id === visitVehicleId) {
-                const newStart = type === 'initial' ? (numValue ?? undefined) : v.recorderStart;
-                const newEnd = type === 'final' ? (numValue ?? undefined) : v.recorderEnd;
+                const newStart = type === 'initial' ? (effectiveValue ?? undefined) : v.recorderStart;
+                const newEnd = type === 'final' ? (effectiveValue ?? undefined) : v.recorderEnd;
 
                 // Recalculate total optimistically
                 let newValueTotal = v.valueTotal;
@@ -174,7 +275,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
 
                 return {
                     ...v,
-                    [type === 'initial' ? 'recorderStart' : 'recorderEnd']: numValue ?? undefined,
+                    [type === 'initial' ? 'recorderStart' : 'recorderEnd']: effectiveValue ?? undefined,
                     valueTotal: newValueTotal
                 };
             }
@@ -185,8 +286,8 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
             // Force cast to any to allow null until service is updated
             await dataService.updateVehicleKm(
                 visitVehicleId,
-                type === 'initial' ? (numValue as any) : undefined,
-                type === 'final' ? (numValue as any) : undefined
+                type === 'initial' ? (effectiveValue as any) : undefined,
+                type === 'final' ? (effectiveValue as any) : undefined
             );
             if (onVisitRefresh) onVisitRefresh();
         } catch (error: any) {
@@ -335,7 +436,30 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                             )}
                         </div>
 
-                        {isRateioLine(vv.costType) ? (
+                        {isIdleLine(vv.costType) ? (
+                            /* Registro de ociosidade: somente leitura, fora do total */
+                            <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-xl border border-amber-200 dark:border-amber-800/40">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-black text-amber-600 dark:text-amber-300 uppercase tracking-widest flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-sm">bedtime</span>
+                                        Parado — Ociosidade
+                                    </span>
+                                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-300">
+                                        {vv.createdAt ? competenceLabel(vv.createdAt.slice(0, 7)) : ''}
+                                    </span>
+                                </div>
+                                <div className="mt-2 flex items-end justify-between gap-2">
+                                    <p className="text-[11px] font-medium text-amber-700/80 dark:text-amber-200/70 leading-snug">
+                                        Fora do total da visita. Entra na apuração da competência.
+                                    </p>
+                                    {canView('orders_visits_costs') && (
+                                        <span className="text-lg font-black text-amber-600 dark:text-amber-300 whitespace-nowrap">
+                                            {vv.valueTotal ? `R$ ${vv.valueTotal.toFixed(2)}` : 'R$ 0,00'}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ) : isRateioLine(vv.costType) ? (
                             /* Linha de rateio: somente leitura (gerada pela apuração mensal) */
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-slate-50 dark:bg-black/20 p-3 rounded-xl border border-slate-100 dark:border-white/5">
@@ -389,6 +513,11 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                     />
                                     <span className="text-xs font-bold text-slate-400 absolute right-0 top-1.5 pointer-events-none">{vv.unit || 'KM'}</span>
                                 </div>
+                                {lastOdometers[vv.vehicleId] != null && (
+                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 leading-snug">
+                                        Último Km final registrado: <span className="font-bold">{lastOdometers[vv.vehicleId]!.toLocaleString('pt-BR')}</span> — informe um valor igual ou maior.
+                                    </p>
+                                )}
                             </div>
 
                             <div className="bg-slate-50 dark:bg-black/20 p-3 rounded-xl border border-slate-100 dark:border-white/5">
@@ -401,7 +530,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                         inputMode="numeric"
                                         placeholder="0"
                                         disabled={!isEditable}
-                                        value={vv.recorderEnd || ''}
+                                        value={vv.recorderEnd ?? ''}
                                         onBlur={(e) => handleUpdateKm(vv.id, 'final', e.target.value)}
                                         onChange={(e) => {
                                             const val = e.target.value;
@@ -418,6 +547,74 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                 </div>
                             </div>
                         </div>
+                        )}
+
+                        {/* Registrar ociosidade: veículo parado com contrato só-aluguel e sem Km */}
+                        {isEditable && !isRateioLine(vv.costType) && !isIdleLine(vv.costType)
+                            && isRentalOnlyContract(rentalContracts[vv.vehicleId])
+                            && (vv.recorderStart == null || vv.recorderEnd == null) && (
+                            <div className="mt-3">
+                                {idleTargetId !== vv.id ? (
+                                    <button
+                                        onClick={() => openIdleForm(vv)}
+                                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">bedtime</span>
+                                        Registrar ociosidade
+                                    </button>
+                                ) : (
+                                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800/40 p-3 space-y-3">
+                                        <p className="text-[10px] font-black text-amber-600 dark:text-amber-300 uppercase tracking-widest">
+                                            Ociosidade — {vv.plates}
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                                    Competência
+                                                </label>
+                                                <input
+                                                    type="month"
+                                                    value={idleMonth}
+                                                    onChange={(e) => setIdleMonth(e.target.value)}
+                                                    className="w-full px-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                                />
+                                                <p className="text-[10px] text-slate-400 mt-1">
+                                                    Conta no último dia do mês escolhido.
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                                    Aluguel (R$)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    inputMode="decimal"
+                                                    placeholder="0,00"
+                                                    value={idleValue}
+                                                    onChange={(e) => setIdleValue(e.target.value)}
+                                                    className="w-full px-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setIdleTargetId(null)}
+                                                disabled={idleSaving}
+                                                className="flex-1 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={confirmIdleRecord}
+                                                disabled={idleSaving}
+                                                className="flex-1 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
+                                            >
+                                                {idleSaving ? 'Salvando...' : 'Confirmar'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         )}
 
 
@@ -453,14 +650,19 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                     </Card>
                 ))}
 
-                {/* Total de Veículos */}
+                {/* Total de Veículos (ociosidade fora do total) */}
                 {visitVehicles.length > 0 && canView('orders_visits_costs') && (
                     <div className="mt-2 flex justify-end">
                         <div className="text-right">
                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1">TOTAL</span>
                             <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                                R$ {visitVehicles.reduce((sum, vv) => sum + (vv.valueTotal || 0), 0).toFixed(2)}
+                                R$ {visitVehicles.filter(vv => !isIdleLine(vv.costType)).reduce((sum, vv) => sum + (vv.valueTotal || 0), 0).toFixed(2)}
                             </span>
+                            {visitVehicles.some(vv => isIdleLine(vv.costType)) && (
+                                <span className="text-xs font-bold text-amber-600 dark:text-amber-300 block mt-1">
+                                    Ociosidade (fora do total): R$ {visitVehicles.filter(vv => isIdleLine(vv.costType)).reduce((sum, vv) => sum + (vv.valueTotal || 0), 0).toFixed(2)}
+                                </span>
+                            )}
                         </div>
                     </div>
                 )}

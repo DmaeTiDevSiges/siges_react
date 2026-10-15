@@ -25,9 +25,10 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
     const costsStatus = visit.ovCostsStatus as VisitCostsStatus | null;
 
     // Subdivisão do card Transporte: Km (odômetro) × Rateio R$/km ×
-    // Rateio de Aluguel × Rateio de Despesas. A soma total continua
+    // Rateio de Aluguel × Rateio de Despesas. A ociosidade ('idle') fica
+    // em linha própria, fora do total (extraível). A soma total continua
     // vindo de visit.vehiclesValue.
-    const [transportSplit, setTransportSplit] = useState<{ km: number; rate: number; rental: number; variable: number } | null>(null);
+    const [transportSplit, setTransportSplit] = useState<{ km: number; rate: number; rental: number; variable: number; idle: number } | null>(null);
 
     useEffect(() => {
         if (!isVehicleRentalEnabled() || !visit.id) {
@@ -51,7 +52,11 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                 const variable = rows
                     .filter(r => r.costType === 'variable')
                     .reduce((sum, r) => sum + (r.valueTotal || 0), 0);
-                setTransportSplit({ km, rate, rental, variable });
+                // Ociosidade do veículo parado (fora do total da visita)
+                const idle = rows
+                    .filter(r => r.costType === 'idle')
+                    .reduce((sum, r) => sum + (r.valueTotal || 0), 0);
+                setTransportSplit({ km, rate, rental, variable, idle });
             })
             .catch(error => {
                 console.error('Error loading transport split:', error);
@@ -99,6 +104,11 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
 
     const totalValue = (visit.servicesValue || 0) + (visit.materialsValue || 0) + (visit.vehiclesValue || 0);
     const isRejected = isFinancialApprovalEnabled() && costsStatus === 'rejected';
+
+    // Visita com transporte envolvido: valor total > 0 ou linhas de transporte lançadas
+    const hasTransport = (visit.vehiclesValue || 0) > 0 ||
+        (!!transportSplit &&
+            (transportSplit.km + transportSplit.rate + transportSplit.rental + transportSplit.variable + transportSplit.idle) > 0);
 
     const handleSubmitCosts = async () => {
         if (!visit.id) return;
@@ -256,7 +266,8 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
             <div className="grid grid-cols-1 gap-4">
                 {items.map((item, index) => {
                     // Subdivisão Km × Rateio R$/km × Rateio Aluguel × Despesas,
-                    // exibida abaixo do valor em fontes menores
+                    // exibida abaixo do valor em fontes menores. A ociosidade
+                    // aparece separada (fora do total).
                     const splitLines = item.label === 'Transporte' && transportSplit
                         ? [
                             { label: 'Km', value: transportSplit.km, cls: 'text-slate-500 dark:text-slate-400', dot: 'bg-slate-400' },
@@ -265,7 +276,10 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                             { label: 'Rateio Despesas', value: transportSplit.variable, cls: 'text-amber-500 dark:text-amber-400', dot: 'bg-amber-500' }
                         ].filter(line => line.value > 0)
                         : [];
-                    const hasSplit = splitLines.length > 0;
+                    const idleLine = item.label === 'Transporte' && transportSplit && transportSplit.idle > 0
+                        ? { label: 'Ociosidade (fora do total)', value: transportSplit.idle }
+                        : null;
+                    const hasSplit = splitLines.length > 0 || !!idleLine;
                     return (
                         <div
                             key={index}
@@ -295,6 +309,12 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                                                     {line.label} · {formatCurrency(line.value)}
                                                 </p>
                                             ))}
+                                            {idleLine && (
+                                                <p className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-300">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                                    {idleLine.label} · {formatCurrency(idleLine.value)}
+                                                </p>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -303,6 +323,22 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                     );
                 })}
             </div>
+
+            {/* Aviso: transporte envolvido — custo definido após despesas variáveis */}
+            {hasTransport && (
+                <div className="bg-amber-50 dark:bg-amber-500/5 rounded-2xl p-4 flex gap-4 items-start border border-amber-100/60 dark:border-amber-500/10">
+                    <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0 mt-0.5">
+                        <span className="material-symbols-outlined text-lg">local_shipping</span>
+                    </div>
+                    <div>
+                        <p className="text-[10px] uppercase font-black text-amber-600 dark:text-amber-400 tracking-widest mb-1">Atenção</p>
+                        <p className="text-amber-900/80 dark:text-amber-200/60 text-[13px] font-medium leading-relaxed">
+                            Esta visita possui <strong>transporte</strong> envolvido. O custo do transporte será definido
+                            somente após a confirmação de <strong>todos os dados de despesas variáveis</strong>.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Info Message */}
             <div className="bg-indigo-50 dark:bg-indigo-500/5 rounded-2xl p-4 flex gap-4 items-start border border-indigo-100/50 dark:border-indigo-500/10">

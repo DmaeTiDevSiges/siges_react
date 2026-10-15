@@ -155,18 +155,16 @@ export interface SaveVehicleMonthlyExpenseInput {
     createdAt?: string;
 }
 
-/** As 3 imagens obrigatórias do lançamento de combustível */
+/** A imagem obrigatória do lançamento de combustível (comprovante) */
 export interface FuelExpenseImages {
-    plate: File;
-    odometer: File;
     invoice: File;
 }
 
 export interface FuelExpenseImageRefs {
-    plateImgPath: string;
-    plateImgName: string;
-    odometerImgPath: string;
-    odometerImgName: string;
+    plateImgPath: string | null;
+    plateImgName: string | null;
+    odometerImgPath: string | null;
+    odometerImgName: string | null;
     invoiceImgPath: string;
     invoiceImgName: string;
 }
@@ -478,9 +476,11 @@ export const vehicleRentalService = {
      * Base da validação de progressão do odômetro: maior recorder_end já
      * registrado em visitas técnicas (orders_visits_vehicles) do veículo.
      * null = veículo sem visita fechada → aceita qualquer valor.
+     * `excludeVisitId` opcional ignora as linhas da visita atual (para não
+     * bloquear correções de Km inicial contra o próprio fim já lançado).
      */
-    async getMaxVehicleOdometer(vehicleId: string): Promise<number | null> {
-        const { data, error } = await supabase
+    async getMaxVehicleOdometer(vehicleId: string, excludeVisitId?: string): Promise<number | null> {
+        let query = supabase
             .from('orders_visits_vehicles')
             .select('recorder_end')
             .eq('vehicle_id', parseInt(vehicleId, 10))
@@ -489,6 +489,10 @@ export const vehicleRentalService = {
             .gt('recorder_end', 0)
             .order('recorder_end', { ascending: false })
             .limit(1);
+        if (excludeVisitId) {
+            query = query.neq('ov_id', parseInt(excludeVisitId, 10));
+        }
+        const { data, error } = await query;
 
         if (error) {
             console.error('Error fetching max vehicle odometer:', error);
@@ -499,9 +503,8 @@ export const vehicleRentalService = {
     },
 
     /**
-     * Sobe as 3 imagens obrigatórias do abastecimento (placa, odômetro e
-     * nota fiscal) no R2 com variantes. Falha parcial ⇒ limpa o que já
-     * subiu (best-effort) e lança erro — as imagens são obrigatórias.
+     * Sobe a imagem obrigatória do abastecimento (comprovante) no R2.
+     * Falha ⇒ lança erro — a imagem é obrigatória.
      */
     async uploadFuelExpenseImages(
         vehicleId: string,
@@ -512,45 +515,25 @@ export const vehicleRentalService = {
         const ts = Date.now();
         const rand = Math.random().toString(36).slice(2, 8);
         const folder = `companies/${companyId || 1}/vehicles/${vehicleId}/fuel`;
-
-        const jobs: { kind: 'plate' | 'odometer' | 'invoice'; file: File; path: string }[] = [
-            { kind: 'odometer', file: images.odometer, path: `${folder}/${ts}_${rand}_odometer.webp` },
-            { kind: 'plate', file: images.plate, path: `${folder}/${ts}_${rand}_plate.webp` },
-            { kind: 'invoice', file: images.invoice, path: `${folder}/${ts}_${rand}_invoice.webp` }
-        ];
-
-        const uploadedPaths: string[] = [];
-        const results: Partial<Record<'plate' | 'odometer' | 'invoice', { path: string; filename: string }>> = {};
+        const path = `${folder}/${ts}_${rand}_invoice.webp`;
 
         try {
-            let done = 0;
-            for (const job of jobs) {
-                const res = await r2Service.uploadImageWithVariants(job.file, job.path, (p) => {
-                    onProgress?.(Math.round((done * 100 + p) / jobs.length));
-                });
-                uploadedPaths.push(res.path);
-                results[job.kind] = { path: res.path, filename: res.filename };
-                done++;
-            }
+            const res = await r2Service.uploadImageWithVariants(images.invoice, path, (p) => {
+                onProgress?.(Math.round(p));
+            });
+            onProgress?.(100);
+            return {
+                plateImgPath: null,
+                plateImgName: null,
+                odometerImgPath: null,
+                odometerImgName: null,
+                invoiceImgPath: res.path,
+                invoiceImgName: res.filename
+            };
         } catch (error) {
-            console.error('Error uploading fuel expense images:', error);
-            try {
-                await r2Service.deleteFiles(uploadedPaths);
-            } catch (cleanupError) {
-                console.error('Error cleaning up partial fuel image upload:', cleanupError);
-            }
-            throw new Error('Falha ao enviar as imagens do abastecimento. Tente novamente.');
+            console.error('Error uploading fuel expense image:', error);
+            throw new Error('Falha ao enviar o comprovante do abastecimento. Tente novamente.');
         }
-
-        onProgress?.(100);
-        return {
-            plateImgPath: results.plate!.path,
-            plateImgName: results.plate!.filename,
-            odometerImgPath: results.odometer!.path,
-            odometerImgName: results.odometer!.filename,
-            invoiceImgPath: results.invoice!.path,
-            invoiceImgName: results.invoice!.filename
-        };
     },
 
     // -------------------------------------------------------------------------

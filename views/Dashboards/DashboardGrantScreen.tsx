@@ -508,7 +508,8 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
         }
 
         const order = orderMap.get(oId)!;
-        if (row.ov_id || row.ov_mask || row.ov_started_at) {
+        const isApprovedVisit = Number(row.ov_processing_id) === 5;
+        if (isApprovedVisit && (row.ov_id || row.ov_mask || row.ov_started_at)) {
           order.visits.push({
             id: String(row.ov_id || row.id),
             mask: row.ov_mask || '',
@@ -1107,8 +1108,8 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                   tabIndex={0}
                   aria-label={`OS ${bar.orderMask}, ${bar.statusId === 8 ? 'Concluída' : bar.statusId === 6 ? 'Suspensa' : bar.statusDescription || 'Em andamento'}`}
                   className="group/bar absolute left-0 right-0 z-10 focus:outline-none"
-                  onMouseEnter={event => updateBarTooltipPosition(bar, event.currentTarget)}
-                  onMouseLeave={() => setHoveredBar(null)}
+                  onMouseEnter={event => { cancelTooltipHide(); updateBarTooltipPosition(bar, event.currentTarget); }}
+                  onMouseLeave={scheduleTooltipHide}
                   onFocus={event => updateBarTooltipPosition(bar, event.currentTarget)}
                   onBlur={() => setHoveredBar(null)}
                   style={{
@@ -1494,6 +1495,8 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       <div
         ref={tooltipRef}
         role="tooltip"
+        onMouseEnter={cancelTooltipHide}
+        onMouseLeave={() => setHoveredBar(null)}
         className="pointer-events-none fixed max-h-[calc(100vh-16px)] w-[276px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl dark:border-slate-700 dark:bg-slate-900"
         style={{
           left: hoveredBar.left,
@@ -1503,9 +1506,14 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       >
         <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
           <div className="flex min-w-0 items-baseline gap-1.5">
-            <span className="truncate text-sm font-bold text-slate-900 dark:text-white">
+            <button
+              type="button"
+              onClick={handleTooltipOsClick}
+              title="Ver detalhes da OS"
+              className="pointer-events-auto truncate text-sm font-bold text-slate-900 underline decoration-slate-300 underline-offset-2 transition-colors hover:text-sky-600 hover:decoration-sky-400 dark:text-white dark:decoration-slate-600 dark:hover:text-sky-400"
+            >
               OS {hoveredBar.bar.orderMask}
-            </span>
+            </button>
             {(hoveredBar.bar.orderTypeCode || hoveredBar.bar.orderTypeSubCode) && (
               <span className="shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-400">
                 {[hoveredBar.bar.orderTypeCode, hoveredBar.bar.orderTypeSubCode].filter(Boolean).join(' / ')}
@@ -1548,7 +1556,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
             </dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500 dark:text-slate-400">Visitas</dt>
+            <dt className="text-slate-500 dark:text-slate-400">Visitas aprovadas</dt>
             <dd className="font-semibold text-slate-700 dark:text-slate-200">{hoveredBar.bar.visitsCount}</dd>
           </div>
           <div className="flex justify-between gap-3">

@@ -541,6 +541,8 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                         {structureMode && (
                             <UnitStructureOrganogram
                                 unitId={unit.id}
+                                unitName={unit.description || unit.code}
+                                unitDescription={unit.descriptionFull}
                                 onStructureChanged={() => {
                                     loadSectors();
                                     fetchAvailability();

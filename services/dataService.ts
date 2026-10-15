@@ -15,6 +15,7 @@ import type {
 } from './materials/materialsImportService';
 import { ordersService } from './orders/ordersService';
 import { visitsService } from './orders/visitsService';
+export { competenceLabel, previousCompetenceMonth, toCompetenceClosingInstant, toCompetenceMonthStart } from './orders/visitsService';
 import { vehicleRentalService } from './orders/vehicleRentalService';
 import type {
     VehicleRentalContract,
@@ -2134,6 +2135,13 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.addVehicleToOrderVisit.apply(visitsService, arguments as any);
     },
 
+    /**
+     * Registra a ociosidade do veículo parado (contrato só-aluguel) na
+     * visita, com competência explícita (YYYY-MM ou YYYY-MM-DD).
+     */
+    async addIdleToOrderVisit(visitId: string, vehicleId: string, userId: string, monthlyValue: number, referenceMonth: string): Promise<void> {
+        return visitsService.addIdleToOrderVisit.apply(visitsService, arguments as any);
+    },
     // -------------------------------------------------------------------------
     // VEHICLE RENTAL APPORTIONMENT (rateio de aluguel veicular)
     // -------------------------------------------------------------------------
@@ -2165,7 +2173,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return vehicleRentalService.getFuelExpensesByUser.apply(vehicleRentalService, arguments as any);
     },
 
-    async getMaxVehicleOdometer(vehicleId: string): Promise<number | null> {
+    async getMaxVehicleOdometer(vehicleId: string, excludeVisitId?: string): Promise<number | null> {
         return vehicleRentalService.getMaxVehicleOdometer.apply(vehicleRentalService, arguments as any);
     },
 

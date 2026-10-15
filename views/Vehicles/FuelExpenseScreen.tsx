@@ -22,12 +22,10 @@ interface FuelExpenseScreenProps {
     currentUser?: User | null;
 }
 
-type ImageSlot = 'plate' | 'odometer' | 'invoice';
+type ImageSlot = 'invoice';
 
 const SLOT_META: { key: ImageSlot; label: string; icon: string }[] = [
-    { key: 'odometer', label: 'Odômetro', icon: 'speed' },
-    { key: 'plate', label: 'Placa', icon: 'pin' },
-    { key: 'invoice', label: 'Nota Fiscal', icon: 'receipt_long' }
+    { key: 'invoice', label: 'Comprovante', icon: 'receipt_long' }
 ];
 
 /** '1.234,56' | '1234.56' => número (mesma regra do modal de despesas) */
@@ -85,18 +83,12 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
 
     const [form, setForm] = useState({ odometer: '', fuelQuantity: '', totalValue: '' });
     const [images, setImages] = useState<Record<ImageSlot, File | null>>({
-        plate: null,
-        odometer: null,
         invoice: null
     });
     const [previews, setPreviews] = useState<Record<ImageSlot, string | null>>({
-        plate: null,
-        odometer: null,
         invoice: null
     });
     const previewsRef = useRef<Record<ImageSlot, string | null>>({
-        plate: null,
-        odometer: null,
         invoice: null
     });
 
@@ -275,7 +267,7 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                 URL.revokeObjectURL(previewsRef.current[slot]!);
             }
         });
-        const cleared = { plate: null, odometer: null, invoice: null };
+        const cleared = { invoice: null };
         previewsRef.current = { ...cleared };
         setPreviews({ ...cleared });
         setImages({ ...cleared });
@@ -310,8 +302,8 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
             toast.warning('Informe o valor total do abastecimento.');
             return;
         }
-        if (!images.plate || !images.odometer || !images.invoice) {
-            toast.warning('Adicione as 3 fotos obrigatórias: odômetro, placa e nota fiscal.');
+        if (!images.invoice) {
+            toast.warning('Adicione a foto do comprovante.');
             return;
         }
 
@@ -336,11 +328,11 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                 return;
             }
 
-            // 1) Upload das 3 imagens obrigatórias (falha ⇒ aborta)
+            // 1) Upload da imagem obrigatória do comprovante (falha ⇒ aborta)
             const refs = await dataService.uploadFuelExpenseImages(
                 vehicle.id,
                 vehicle.companyId,
-                { plate: images.plate, odometer: images.odometer, invoice: images.invoice },
+                { invoice: images.invoice },
                 setUploadProgress
             );
 
@@ -365,7 +357,7 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
             const message = String(error?.message || '');
             if (message.includes('bloqueadas')) {
                 toast.warning('A competência deste veículo está alocada/fechada — despesas somente leitura. Faça o estorno na Apuração antes de lançar.');
-            } else if (message.includes('imagens')) {
+            } else if (message.includes('comprovante')) {
                 toast.error(message);
             } else {
                 toast.error('Erro ao registrar o abastecimento. Tente novamente.');
@@ -535,12 +527,12 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                         />
                     </div>
 
-                    {/* Fotos obrigatórias */}
+                    {/* Foto obrigatória do comprovante */}
                     <div className="space-y-2">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                            Fotos obrigatórias <span className="text-red-500">*</span>
+                            Comprovante <span className="text-red-500">*</span>
                         </p>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 gap-2 max-w-[220px]">
                             {SLOT_META.map(slot => (
                                 <div
                                     key={slot.key}
@@ -585,7 +577,7 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                             ))}
                         </div>
                         <p className="text-[11px] text-slate-400 dark:text-slate-500 ml-1">
-                            Odômetro, placa e nota fiscal são obrigatórios para registrar o abastecimento.
+                            O comprovante é obrigatório para registrar o abastecimento.
                         </p>
                     </div>
                 </div>

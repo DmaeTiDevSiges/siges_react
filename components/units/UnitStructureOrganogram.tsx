@@ -22,10 +22,15 @@ import { UnitStructureNode } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loading } from '../ui/Loading';
 import { UnitStructureLinkDialog } from './UnitStructureLinkDialog';
+import { UnitStructurePDFButton } from '../reports/UnitStructurePDFButton';
 import { collectUnitStructureDescendants } from '../../utils/unitStructureGraph';
 
 interface UnitStructureOrganogramProps {
     unitId: string;
+    /** nome curto da unidade */
+    unitName?: string;
+    /** descrição completa da unidade (description_full, cabeçalho do PDF) */
+    unitDescription?: string;
     /** chave para forçar recarga externa (ex: após criar setor no UnitView) */
     refreshKey?: number;
     onStructureChanged?: () => void;
@@ -504,6 +509,8 @@ const TreeBranch: React.FC<{
 // ---------- Main component ----------
 export const UnitStructureOrganogram: React.FC<UnitStructureOrganogramProps> = ({
     unitId,
+    unitName,
+    unitDescription,
     refreshKey = 0,
     onStructureChanged
 }) => {
@@ -894,12 +901,19 @@ export const UnitStructureOrganogram: React.FC<UnitStructureOrganogramProps> = (
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                         <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600" /> Sem registro
                     </span>
-                    {canInteract && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary/70 uppercase tracking-wider ml-auto">
-                            <span className="material-symbols-outlined text-[14px]">drag_pan</span>
-                            Arraste para reorganizar
-                        </span>
-                    )}
+                    <div className="flex items-center gap-3 ml-auto">
+                        {canInteract && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary/70 uppercase tracking-wider">
+                                <span className="material-symbols-outlined text-[14px]">drag_pan</span>
+                                Arraste para reorganizar
+                            </span>
+                        )}
+                        <UnitStructurePDFButton
+                            unitId={unitId}
+                            unitName={unitName}
+                            unitDescription={unitDescription}
+                        />
+                    </div>
                 </div>
 
                 {/* Tree */}

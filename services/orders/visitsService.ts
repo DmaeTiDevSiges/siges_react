@@ -7,6 +7,8 @@ import type { Order, User, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderV
 import { ordersService } from './ordersService';
 
 let processingConfigurationsCache: any[] | null = null;
+import { toCompetenceClosingInstant, toCompetenceMonthStart } from '../../utils/vehicleRentalAllocation';
+export { competenceLabel, previousCompetenceMonth, toCompetenceClosingInstant, toCompetenceMonthStart } from '../../utils/vehicleRentalAllocation';
 const getProcessingConfigurations = async () => {
     if (processingConfigurationsCache) return processingConfigurationsCache;
 
@@ -1108,11 +1110,11 @@ export const visitsService = {
 
         const vehicles = data.map((item: any) => {
             const costType = (item.cost_type || 'odometer') as OrderVisitVehicle['costType'];
-            // Linhas 'rental'/'variable' (rateio) não têm odômetro: o valor
-            // vem da coluna amount. Linhas de Km ('odometer' e 'rate' — a
-            // mesma linha depois de rateada, que preserva o odômetro)
-            // continuam com end - start.
-            const amount = costType === 'rental' || costType === 'variable'
+            // Linhas 'rental'/'variable' (rateio) e 'idle' (ociosidade) não
+            // têm odômetro: o valor vem da coluna amount. Linhas de Km
+            // ('odometer' e 'rate' — a mesma linha depois de rateada, que
+            // preserva o odômetro) continuam com end - start.
+            const amount = costType === 'rental' || costType === 'variable' || costType === 'idle'
                 ? Number(item.amount || 0)
                 : (item.recorder_end && item.recorder_start) ? (item.recorder_end - item.recorder_start) : 0;
 
@@ -1179,6 +1181,96 @@ export const visitsService = {
 
         if (error) {
             console.error('Error adding vehicle to visit:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Registra a ociosidade do veículo parado (contrato só-aluguel) nesta
+     * visita, com competência explícita (ex. lançado em novembro com
+     * competência outubro). Cria linha cost_type='idle' carimbada no
+     * último instante do mês da competência — a visita permanece no mês
+     * em que foi aberta. Remove a linha de Km vazia do mesmo veículo na
+     * visita (se houver), pois parado × rodado são excludentes.
+     */
+    async addIdleToOrderVisit(
+        visitId: string,
+        vehicleId: string,
+        userId: string,
+        monthlyValue: number,
+        referenceMonth: string
+    ): Promise<void> {
+        const competence = toCompetenceMonthStart(referenceMonth);
+
+        // Veículo com Km apontado nesta visita não está parado
+        const { data: kmRows, error: kmError } = await supabase
+            .from('orders_visits_vehicles')
+            .select('id, recorder_start, recorder_end, cost_type')
+            .eq('ov_id', parseInt(visitId))
+            .eq('vehicle_id', parseInt(vehicleId))
+            .eq('is_deleted', false)
+            .eq('cost_type', 'odometer');
+        if (kmError) throw kmError;
+        const usedRow = (kmRows || []).find((r: any) =>
+            r.recorder_start != null || r.recorder_end != null
+        );
+        if (usedRow) {
+            throw new Error('Veículo com Km apontado nesta visita — não é possível registrar ociosidade.');
+        }
+
+        // 1 ociosidade por veículo + competência (mensagem com a visita dona)
+        const monthStart = `${competence.slice(0, 7)}-01T00:00:00Z`;
+        const nextMonth = new Date(`${competence.slice(0, 7)}-01T00:00:00Z`);
+        nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+        const { data: existing, error: existingError } = await supabase
+            .from('orders_visits_vehicles')
+            .select('id, ov_id')
+            .eq('vehicle_id', parseInt(vehicleId))
+            .eq('cost_type', 'idle')
+            .eq('is_deleted', false)
+            .gte('created_at', monthStart)
+            .lt('created_at', nextMonth.toISOString());
+        if (existingError) throw existingError;
+        if (existing && existing.length > 0) {
+            const ownerVisitId = String((existing[0] as any).ov_id);
+            let ownerLabel = `visita #${ownerVisitId}`;
+            const { data: ownerVisit } = await supabase
+                .from('orders_visits')
+                .select('ov_mask')
+                .eq('id', parseInt(ownerVisitId))
+                .maybeSingle();
+            if (ownerVisit?.ov_mask) ownerLabel = `visita ${ownerVisit.ov_mask}`;
+            throw new Error(`Este veículo já tem ociosidade registrada na competência ${competence.slice(0, 7)} (${ownerLabel}).`);
+        }
+
+        // Remove a linha de Km vazia do mesmo veículo nesta visita
+        const emptyIds = (kmRows || []).map((r: any) => r.id);
+        if (emptyIds.length > 0) {
+            const { error: deleteError } = await supabase
+                .from('orders_visits_vehicles')
+                .delete()
+                .in('id', emptyIds);
+            if (deleteError) throw deleteError;
+        }
+
+        const { error } = await supabase
+            .from('orders_visits_vehicles')
+            .insert({
+                ov_id: parseInt(visitId),
+                vehicle_id: parseInt(vehicleId),
+                cost_type: 'idle',
+                amount: 1,
+                value_unit: monthlyValue,
+                discount: 1,
+                created_user_id: parseInt(userId),
+                created_at: toCompetenceClosingInstant(competence.slice(0, 7))
+            });
+
+        if (error) {
+            console.error('Error adding vehicle idle record:', error);
+            if ((error as any).code === '23505' || String(error.message || '').includes('uq_ovv_idle_vehicle_month')) {
+                throw new Error(`Este veículo já tem ociosidade registrada na competência ${competence.slice(0, 7)}.`);
+            }
             throw error;
         }
     },
@@ -2518,7 +2610,10 @@ export const visitsService = {
         if (vehError) throw vehError;
 
         if (vehicles && vehicles.length > 0) {
-            const hasInvalid = vehicles.some(v =>
+            // Registro de ociosidade ('idle') não tem odômetro e não entra
+            // na validação de Km (é excluído do total da visita no banco).
+            const kmVehicles = vehicles.filter(v => v.cost_type !== 'idle');
+            const hasInvalid = kmVehicles.some(v =>
                 v.recorder_start === null ||
                 v.recorder_end === null ||
                 Number(v.recorder_start) >= Number(v.recorder_end)

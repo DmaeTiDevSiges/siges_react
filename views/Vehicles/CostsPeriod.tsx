@@ -58,8 +58,21 @@ const monthLabel = (month: string): string => {
     return `${names[m - 1]}/${y}`;
 };
 
-const shortDate = (ts?: string | null): string => {
-    if (!ts) return '—';
+/** Traduz erros técnicos da apuração para orientação acionável. */
+const friendlyRentalError = (message: string, month: string): string => {
+    if (message.includes('sem registro de ociosidade')) {
+        return `Veículo 100% ocioso em ${monthLabel(month)}: sem Km e sem registro de ociosidade. Registre a ociosidade numa visita (aba Transporte) para vincular o aluguel a uma OS, ou feche a competência para manter o valor em ociosidade.`;
+    }
+    if (message.includes('sem visita vinculada')) {
+        return `Não é possível fechar ${monthLabel(month)} sem visita vinculada: registre a ociosidade do veículo em uma OS (aba Transporte da visita) antes de fechar.`;
+    }
+    if (message.includes('sem Km rodado')) {
+        return `Veículo 100% ocioso em ${monthLabel(month)}: nada a distribuir por Km. Feche a competência para manter o valor em ociosidade.`;
+    }
+    return message;
+};
+
+const shortDate = (ts?: string | null): string => {    if (!ts) return '—';
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return '—';
     return formatDateInBrazil(d, 'dateTime', 'pt-BR', {
@@ -226,7 +239,8 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
             await loadSummary();
         } catch (error: any) {
             console.error('Rental apportionment error', error);
-            toast.error(error?.message || 'Erro na apuração');
+            const raw = error?.message || 'Erro na apuração';
+            toast.error(friendlyRentalError(raw, month), { duration: 8000 });
         } finally {
             setBusyVehicleId(null);
         }
@@ -785,6 +799,14 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                     Contrato conflitante
                                                 </span>
                                             )}
+                                            {row.totalKm === 0 && hasContract && (
+                                                <span
+                                                    title="Veículo parado na competência: sem Km rodado. Registre a ociosidade numa visita (aba Transporte) para vincular o aluguel a uma OS, ou feche a competência para manter o valor em ociosidade."
+                                                    className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                                                >
+                                                    100% ocioso
+                                                </span>
+                                            )}
                                         </div>
                                         <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                                             {row.vehiclePlates || '---'}
@@ -868,6 +890,14 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                             nada a apurar. Cadastre um contrato de aluguel ou lance despesas.
                                         </p>
                                     )
+                                )}
+
+                                {hasContract && row.totalKm === 0 && (
+                                    <p className="px-4 py-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20">
+                                        Veículo parado: Confirmar não distribui sem Km. Para vincular o
+                                        aluguel a uma OS, registre a ociosidade numa visita (aba
+                                        Transporte); para manter em ociosidade, feche a competência.
+                                    </p>
                                 )}
 
                                 {/* Ações */}
@@ -1221,6 +1251,7 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                                     <span className="material-symbols-outlined text-[13px] text-amber-500 font-black" title="Ordenado em ordem crescente de data de início">arrow_upward</span>
                                                                 </span>
                                                             </th>
+                                                            <th className="text-left px-3 py-2">Data Fim</th>
                                                             <th className="text-left px-3 py-2">Visita</th>
                                                             <th className="text-right px-3 py-2">Km inicial</th>
                                                             <th className="text-right px-3 py-2">Km final</th>
@@ -1239,7 +1270,10 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                                     {gap > 0 && (
                                                                         <tr className="bg-amber-500/10 dark:bg-amber-500/15 border-y border-amber-500/30 text-amber-800 dark:text-amber-300">
                                                                             <td className="px-3 py-2 text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap">
-                                                                                {shortDate(prev?.visitEndAt)} - {shortDate(u.visitStartAt)}
+                                                                                {shortDate(prev?.visitEndAt)}
+                                                                            </td>
+                                                                            <td className="px-3 py-2 text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                                                                                {shortDate(u.visitStartAt)}
                                                                             </td>
                                                                             <td className="px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-300">
                                                                                 <div className="flex flex-col gap-0.5">
@@ -1291,7 +1325,10 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                                     )}
                                                                     <tr className="border-b border-slate-100 dark:border-slate-800/60 last:border-0 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                                                                         <td className="px-3 py-2 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                                                                            {shortDate(u.visitStartAt)} - {shortDate(u.visitEndAt)}
+                                                                            {shortDate(u.visitStartAt)}
+                                                                        </td>
+                                                                        <td className="px-3 py-2 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                                                                            {shortDate(u.visitEndAt)}
                                                                         </td>
                                                                         <td className="px-3 py-2">
                                                                             <Button
@@ -1341,7 +1378,7 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                                 <>
                                                                     {kmGaps > 0 && (
                                                                         <tr className="text-[11px] font-bold text-amber-600 dark:text-amber-400 border-t border-slate-100 dark:border-slate-800 bg-amber-500/5">
-                                                                            <td className="px-3 py-2" colSpan={4}>
+                                                                            <td className="px-3 py-2" colSpan={5}>
                                                                                 <span className="flex items-center gap-1">
                                                                                     <span className="material-symbols-outlined text-[15px]">info</span>
                                                                                     Km Não Apontado (Total de buracos entre visitas no mês)
@@ -1354,7 +1391,7 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                                         </tr>
                                                                     )}
                                                                     <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-t border-slate-100 dark:border-slate-800">
-                                                                        <td className="px-3 py-2" colSpan={4}>
+                                                                        <td className="px-3 py-2" colSpan={5}>
                                                                             Totais (Km Apropriado {kmGaps > 0 ? `+ ${kmGaps.toLocaleString('pt-BR')} Km não apontados = ${kmTotalOdometer.toLocaleString('pt-BR')} Km odômetro` : ''})
                                                                         </td>
                                                                         <td className="px-3 py-2 text-right text-sm font-black text-slate-900 dark:text-white">
@@ -1425,7 +1462,9 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                     <div className="p-6"><Loading /></div>
                 ) : detailRows.length === 0 ? (
                     <div className="p-6 text-center text-slate-400 text-sm">
-                        Nenhuma visita com Km rodado nesta competência.
+                        {detailVehicle && detailVehicle.totalKm === 0
+                            ? 'Nenhuma visita com Km rodado nesta competência — o valor está integralmente em ociosidade.'
+                            : 'Nenhuma visita com Km rodado nesta competência.'}
                     </div>
                 ) : (
                     <div className="p-2">

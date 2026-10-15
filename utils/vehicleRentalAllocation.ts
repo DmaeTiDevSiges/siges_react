@@ -204,3 +204,40 @@ export function summarizeVehicles(
         };
     });
 }
+
+// -------------------------------------------------------------------------
+// Registro de ociosidade (cost_type = 'idle') — competência explícita.
+// A competência da linha é o mês de created_at: o registro é carimbado
+// no último instante do mês escolhido (ex. lançado em novembro com
+// competência outubro => created_at = 31/10 23:59), de modo que a
+// apuração o ancora no mês certo sem mover a visita.
+// -------------------------------------------------------------------------
+
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+/** '2026-10' ou '2026-10-01' => '2026-10-01' (dia 1 = competência). */
+export function toCompetenceMonthStart(month: string): string {
+    return `${month.slice(0, 7)}-01`;
+}
+
+/** '2026-10' => '2026-10-31T23:59:00Z' (último instante da competência). */
+export function toCompetenceClosingInstant(month: string): string {
+    const [y, m] = month.slice(0, 7).split('-').map(Number);
+    const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return `${y}-${pad2(m)}-${pad2(lastDay)}T23:59:00Z`;
+}
+
+/** '2026-11' => '2026-10' (mês anterior, sugestão padrão da competência). */
+export function previousCompetenceMonth(month: string): string {
+    const [y, m] = month.slice(0, 7).split('-').map(Number);
+    const d = new Date(Date.UTC(y, m - 2, 1));
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
+}
+
+/** '2026-10' => 'Out/2026' (rótulo curto pt-BR da competência). */
+export function competenceLabel(month: string): string {
+    const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const [y, m] = month.slice(0, 7).split('-').map(Number);
+    if (!y || !m || m < 1 || m > 12) return month;
+    return `${names[m - 1]}/${y}`;
+}

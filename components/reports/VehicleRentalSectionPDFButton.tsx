@@ -71,13 +71,14 @@ export const VehicleRentalSectionPDFButton: React.FC<VehicleRentalSectionPDFButt
             { label: 'VALOR', width: '18%', right: true },
         ]
         : [
-            { label: 'DATA INÍCIO', width: '22%' },
-            { label: 'VISITA', width: '17%' },
-            { label: 'KM INICIAL', width: '12%', right: true },
-            { label: 'KM FINAL', width: '12%', right: true },
-            { label: 'KM DIF.', width: '10%', right: true },
-            { label: 'R$/KM', width: '13%', right: true },
-            { label: 'R$ VISITA', width: '14%', right: true },
+            { label: 'DATA INÍCIO', width: '14%' },
+            { label: 'DATA FIM', width: '14%' },
+            { label: 'VISITA', width: '16%' },
+            { label: 'KM INICIAL', width: '11%', right: true },
+            { label: 'KM FINAL', width: '11%', right: true },
+            { label: 'KM DIF.', width: '9%', right: true },
+            { label: 'R$/KM', width: '12%', right: true },
+            { label: 'R$ VISITA', width: '13%', right: true },
         ];
 
     const rows: Array<{ cells: string[]; total?: boolean }> = isExpenses
@@ -119,7 +120,8 @@ export const VehicleRentalSectionPDFButton: React.FC<VehicleRentalSectionPDFButt
                 if (gap > 0) {
                     utilizationRows.push({
                         cells: [
-                            `${formatPdfDate(previous?.visitEndAt)} - ${formatPdfDate(item.visitStartAt)}`,
+                            formatPdfDate(previous?.visitEndAt),
+                            formatPdfDate(item.visitStartAt),
                             'Km não apontado',
                             formatNumber(previous!.kmFinal),
                             formatNumber(item.kmInitial),
@@ -133,6 +135,7 @@ export const VehicleRentalSectionPDFButton: React.FC<VehicleRentalSectionPDFButt
                 utilizationRows.push({
                     cells: [
                         formatPdfDate(item.visitStartAt),
+                        formatPdfDate(item.visitEndAt),
                         item.visitMask || `#${item.ovId}`,
                         formatNumber(item.kmInitial),
                         formatNumber(item.kmFinal),
@@ -146,6 +149,7 @@ export const VehicleRentalSectionPDFButton: React.FC<VehicleRentalSectionPDFButt
             utilizationRows.push({
                 cells: [
                     `Totais · ${formatNumber(kmTotal)} Km apropriados${gapTotal ? ` · ${formatNumber(gapTotal)} Km não apontados` : ''}`,
+                    '',
                     '',
                     '',
                     '',

@@ -1152,8 +1152,10 @@ export interface OrderVisitVehicle {
   // Origem do valor: 'odometer' (Km × value_unit do contrato vigente),
   // 'rental' (rateio do aluguel mensal) e 'variable' (rateio das
   // despesas variáveis) — as duas últimas só leitura, geradas pela
-  // apuração mensal
-  costType?: 'odometer' | 'rental' | 'variable' | 'rate';
+  // apuração mensal. 'idle' = registro manual de ociosidade do veículo
+  // parado (contrato só-aluguel): amount 1 × mensalidade, sem odômetro,
+  // excluído do total produtivo da visita (extraível no financeiro).
+  costType?: 'odometer' | 'rental' | 'variable' | 'rate' | 'idle';
 
   // UI Helpers
   description?: string;

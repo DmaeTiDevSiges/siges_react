@@ -85,6 +85,8 @@ export const UnitStructure: React.FC<UnitStructureProps> = ({
                 <UnitStructureOrganogram
                     key={`structure-${unit.id}`}
                     unitId={unit.id}
+                    unitName={unit.description || unit.code}
+                    unitDescription={unit.descriptionFull}
                     refreshKey={refreshKey}
                     onStructureChanged={handleStructureChanged}
                 />
