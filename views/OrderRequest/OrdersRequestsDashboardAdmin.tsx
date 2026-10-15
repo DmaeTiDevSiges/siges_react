@@ -209,6 +209,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         } catch { return {}; }
     });
     const [teamsModalCompanyId, setTeamsModalCompanyId] = useState<string | null>(null);
+    // Efeito de ping no avatar da empresa ao clicar (limpo por timeout)
+    const [avatarPingCompanyId, setAvatarPingCompanyId] = useState<string | null>(null);
+    const avatarPingTimeoutRef = useRef<number | null>(null);
     // Cache de todas as equipes (buscado sob demanda quando o filtro por departamento não cobre alguma equipe de líder)
     const [allTeamsCache, setAllTeamsCache] = useState<any[] | null>(null);
     const [totalOrders, setTotalOrders] = useState(() => {
@@ -354,6 +357,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     useEffect(() => {
         localStorage.setItem('leaderCardTeamSelections', JSON.stringify(leaderTeamSelections));
     }, [leaderTeamSelections]);
+
+    useEffect(() => () => {
+        if (avatarPingTimeoutRef.current !== null) window.clearTimeout(avatarPingTimeoutRef.current);
+    }, []);
 
     // Persist Data State (Moved here to ensure all state vars are declared)
     useEffect(() => {
@@ -1394,13 +1401,19 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
+                                                setAvatarPingCompanyId(group.companyId);
+                                                if (avatarPingTimeoutRef.current !== null) window.clearTimeout(avatarPingTimeoutRef.current);
+                                                avatarPingTimeoutRef.current = window.setTimeout(() => setAvatarPingCompanyId(null), 600);
                                                 setTeamsModalCompanyId(group.companyId);
                                             }}
-                                            className="flex flex-col items-center shrink-0 border-r border-slate-100 dark:border-white/10 pr-3 cursor-pointer group/empresa"
+                                            className="flex flex-col items-center shrink-0 border-r border-slate-100 dark:border-white/10 pr-3 cursor-pointer group/empresa transition-transform active:scale-95"
                                             title={`Filtrar equipes — ${group.companyName}`}
                                         >
                                             <div className="relative">
-                                                <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="sm" className="shrink-0 text-[10px] transition-transform group-hover/empresa:scale-105" />
+                                                {avatarPingCompanyId === group.companyId && (
+                                                    <span className="absolute -inset-1 rounded-[14px] bg-primary/30 animate-ping-button pointer-events-none z-10" />
+                                                )}
+                                                <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="sm" className={`shrink-0 text-[10px] transition-transform ${avatarPingCompanyId === group.companyId ? 'scale-95' : 'group-hover/empresa:scale-105'}`} />
                                                 {selectedTeamCount > 0 && (
                                                     <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center shadow-md border border-white dark:border-slate-800 pointer-events-none">
                                                         {selectedTeamCount}

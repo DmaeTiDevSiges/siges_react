@@ -106,7 +106,18 @@ O primeiro ajuste apresentava lentidão ao marcar/desmarcar equipes. Causas e co
    com o modal aberto). Agora o reset ocorre **apenas na transição fechado → aberto**
    (`wasOpenRef`), e o dashboard usa a referência estável `NO_TEAM_SELECTION`.
 
-## 7. Validação
+## 7. Animações
+
+- **Botão Confirmar** (`TreeFilterModal`): ao clicar, o botão entra em estado
+  `confirming` — vira verde (`bg-emerald-500`), exibe `check_circle` com
+  `animate-success-pop` e o texto "Confirmado (N)" por 450 ms antes de fechar;
+  Cancelar/X/backdrop ficam bloqueados durante a animação (`safeClose`).
+- **Avatar da empresa**: ao clicar, um ripple `animate-ping-button` (keyframe já
+  existente em `index.css`) cobre o logo por ~600 ms (`avatarPingCompanyId` +
+  timeout), o logo dá um "press-in" (`scale-95`) e o botão tem `active:scale-95`.
+  O overlay é `pointer-events-none` e o timeout é limpo no unmount.
+
+## 8. Validação
 
 - `npx tsc --noEmit` — sem erros novos.
 - `npm test` — suíte existente (Jest, `*.test.ts`) sem regressões.

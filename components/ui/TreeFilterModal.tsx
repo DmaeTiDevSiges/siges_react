@@ -161,7 +161,13 @@ export const TreeFilterModal: React.FC<{
     const [search, setSearch] = useState('');
     const [tempValue, setTempValue] = useState<string[]>(value);
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+    const [confirming, setConfirming] = useState(false);
     const wasOpenRef = useRef(false);
+    const confirmTimeoutRef = useRef<number | null>(null);
+
+    useEffect(() => () => {
+        if (confirmTimeoutRef.current !== null) window.clearTimeout(confirmTimeoutRef.current);
+    }, []);
 
     const tree = useMemo(() => buildTree(options), [options]);
 
@@ -211,6 +217,7 @@ export const TreeFilterModal: React.FC<{
         if (isOpen && !wasOpenRef.current) {
             setTempValue(Array.isArray(value) ? [...value] : []);
             setSearch('');
+            setConfirming(false);
             setExpandedNodes(collectAllParentValues(buildTree(options)));
         }
         wasOpenRef.current = isOpen;
@@ -241,11 +248,23 @@ export const TreeFilterModal: React.FC<{
     }, [tree]);
 
     const handleConfirm = useCallback(() => {
-        onConfirm(tempValue);
-    }, [tempValue, onConfirm]);
+        if (confirming) return;
+        setConfirming(true);
+        confirmTimeoutRef.current = window.setTimeout(() => {
+            confirmTimeoutRef.current = null;
+            onConfirm(tempValue);
+            setConfirming(false);
+        }, 450);
+    }, [confirming, tempValue, onConfirm]);
+
+    // Bloqueia fechamento (Cancelar/X/backdrop) enquanto a animação de confirmação roda.
+    const safeClose = useCallback(() => {
+        if (confirming) return;
+        onClose();
+    }, [confirming, onClose]);
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={title || `Filtrar por ${label}`} maxWidth="md">
+        <Modal isOpen={isOpen} onClose={safeClose} title={title || `Filtrar por ${label}`} maxWidth="md">
             <div className="flex flex-col gap-4">
                 <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
@@ -283,16 +302,29 @@ export const TreeFilterModal: React.FC<{
 
                 <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                     <button
-                        onClick={onClose}
-                        className="flex-1 py-3 items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm cursor-pointer"
+                        onClick={safeClose}
+                        disabled={confirming}
+                        className="flex-1 py-3 items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:disabled:hover:bg-transparent"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={handleConfirm}
-                        className="flex-1 py-3 bg-primary text-white rounded-xl font-bold font-['Inter'] shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 text-sm cursor-pointer"
+                        disabled={confirming}
+                        className={`flex-1 py-3 rounded-xl font-bold font-['Inter'] shadow-lg transition-all active:scale-95 text-sm cursor-pointer disabled:cursor-not-allowed disabled:active:scale-100 ${
+                            confirming
+                                ? 'bg-emerald-500 text-white shadow-emerald-500/30'
+                                : 'bg-primary text-white shadow-primary/20 hover:bg-primary-dark'
+                        }`}
                     >
-                        Confirmar ({tempValue.length})
+                        {confirming ? (
+                            <span className="flex items-center justify-center gap-1.5">
+                                <span className="material-symbols-outlined text-[18px] animate-success-pop">check_circle</span>
+                                <span>Confirmado ({tempValue.length})</span>
+                            </span>
+                        ) : (
+                            `Confirmar (${tempValue.length})`
+                        )}
                     </button>
                 </div>
             </div>
