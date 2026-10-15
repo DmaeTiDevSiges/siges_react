@@ -11,6 +11,8 @@ import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { Loading } from '../../components/ui/Loading';
 import { FuelExpenseImportModal } from '../../components/vehicles/FuelExpenseImportModal';
+import { fuelReceiptService, FuelReceiptExtraction } from '../../services/ai/fuelReceiptService';
+import { fuelExpenseImportService } from '../../services/orders/fuelExpenseImportService';
 import { isVehicleRentalEnabled } from '../../features';
 import { toast } from 'sonner';
 
@@ -57,6 +59,27 @@ const normalizeCode = (code: string): string =>
 
 const FUEL_CODES = ['FUEL', 'COMBUSTIVEL', 'COMBUSTVEL'];
 
+// ── Extração do comprovante (Gemini Vision) ────────────────────────────
+type AutoField = 'odometer' | 'fuelQuantity' | 'totalValue' | 'date';
+
+const emptyAutoFilled = (): Record<AutoField, boolean> => ({
+    odometer: false,
+    fuelQuantity: false,
+    totalValue: false,
+    date: false
+});
+
+/** 42.5 => máscara '42,50' (mesmo formato do campo enquanto digita). */
+const numberToCurrencyMask = (value: number, maxDigits = 10): string => {
+    const digits = String(Math.round(Math.abs(value) * 100)).slice(0, maxDigits);
+    return applyCurrencyMask(digits, maxDigits);
+};
+
+const todayIsoDate = (): string => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+};
+
 export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
     onNavigate,
     onSaved,
@@ -81,7 +104,7 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
     // undefined = carregando, null = sem registro
     const [odometerBase, setOdometerBase] = useState<number | null | undefined>(undefined);
 
-    const [form, setForm] = useState({ odometer: '', fuelQuantity: '', totalValue: '' });
+    const [form, setForm] = useState({ odometer: '', fuelQuantity: '', totalValue: '', date: '' });
     const [images, setImages] = useState<Record<ImageSlot, File | null>>({
         invoice: null
     });
@@ -97,12 +120,19 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
     // Fluxo dos relatórios de ativos: captura => editor => confirma
     const [editingImage, setEditingImage] = useState<{ slot: ImageSlot; src: File | string } | null>(null);
 
+    // Leitura automática do comprovante (Gemini Vision)
+    const [isExtracting, setIsExtracting] = useState(false);
+    const [autoFilled, setAutoFilled] = useState<Record<AutoField, boolean>>(emptyAutoFilled());
+    const formRef = useRef(form);
+    const autoFilledRef = useRef<Record<AutoField, boolean>>(emptyAutoFilled());
+    useEffect(() => { formRef.current = form; }, [form]);
+
     const [isSaving, setIsSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isImportOpen, setIsImportOpen] = useState(false);
 
     const now = new Date();
-    const referenceMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     // ── Tipo de despesa combustível ──────────────────────────────────
     useEffect(() => {
@@ -251,17 +281,108 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
         }
     };
 
+    // ── Extração automática do comprovante (Gemini Vision) ────────────
+    // Layout varia por estabelecimento; o serviço localiza os campos por
+    // semântica/rótulo. Preenche apenas campos vazios ou já auto-preenchidos
+    // (nunca sobrescreve o que o usuário digitou à mão). Falha nunca bloqueia.
+    const applyExtraction = async (data: FuelReceiptExtraction) => {
+        if (data.plate) {
+            if (vehicle) {
+                if (fuelExpenseImportService.normalizePlate(vehicle.plates) !== data.plate) {
+                    toast.warning(
+                        `O comprovante indica a placa ${data.plate}, mas o veículo selecionado é ${vehicle.plates || vehicle.description}. Confira e troque o veículo se necessário.`
+                    );
+                }
+            } else {
+                try {
+                    const found = await dataService.searchVehicles(data.plate, effectiveCompanyId, 50);
+                    const exact = found.filter(
+                        v => fuelExpenseImportService.normalizePlate(v.plates) === data.plate
+                    );
+                    if (exact.length === 1) {
+                        setVehicle(exact[0]);
+                        setSearch('');
+                        setResults([]);
+                        toast.info(`Veículo ${exact[0].description} selecionado pela placa do comprovante.`);
+                    } else {
+                        setSearch(data.plate);
+                        toast.warning(exact.length === 0
+                            ? `Placa ${data.plate} não encontrada na sua empresa — selecione o veículo manualmente.`
+                            : `Placa ${data.plate} encontrada em ${exact.length} veículos — escolha o correto na lista.`);
+                    }
+                } catch (error) {
+                    console.error('Error resolving plate from receipt', error);
+                    setSearch(data.plate);
+                }
+            }
+        }
+
+        const current = formRef.current;
+        const auto = autoFilledRef.current;
+        const next = { ...current };
+        const touched = emptyAutoFilled();
+
+        if (data.date && (!current.date || auto.date)) {
+            next.date = data.date;
+            touched.date = true;
+        }
+        if (data.fuelQuantity != null && (!current.fuelQuantity || auto.fuelQuantity)) {
+            next.fuelQuantity = numberToCurrencyMask(data.fuelQuantity, 8);
+            touched.fuelQuantity = true;
+        }
+        if (data.totalValue != null && (!current.totalValue || auto.totalValue)) {
+            next.totalValue = numberToCurrencyMask(data.totalValue);
+            touched.totalValue = true;
+        }
+        if (data.odometer != null && (!current.odometer || auto.odometer)) {
+            next.odometer = String(Math.round(data.odometer));
+            touched.odometer = true;
+        }
+
+        formRef.current = next;
+        setForm(next);
+        if (touched.date || touched.fuelQuantity || touched.totalValue || touched.odometer) {
+            autoFilledRef.current = { ...auto, ...touched };
+            setAutoFilled(autoFilledRef.current);
+        }
+    };
+
+    const runExtraction = async (file: File) => {
+        setIsExtracting(true);
+        try {
+            const data = await fuelReceiptService.extractFuelReceipt(file);
+            await applyExtraction(data);
+            if (data.plate || data.date || data.fuelQuantity != null || data.totalValue != null) {
+                toast.success('Dados lidos do comprovante — confira antes de salvar.');
+            } else {
+                toast.warning('Não foi possível identificar os dados no comprovante — preencha manualmente.');
+            }
+        } catch (error) {
+            console.error('Error extracting fuel receipt', error);
+            const message = error instanceof Error && error.message
+                ? error.message
+                : 'Não foi possível ler o comprovante — preencha manualmente.';
+            toast.warning(message);
+        } finally {
+            setIsExtracting(false);
+        }
+    };
+
     const handleSaveEditedImage = (editedFile: File) => {
         if (!editingImage) return;
         setImage(editingImage.slot, editedFile);
         setEditingImage(null);
+        void runExtraction(editedFile);
     };
 
     const resetForm = () => {
         setVehicle(null);
         setSearch('');
         setResults([]);
-        setForm({ odometer: '', fuelQuantity: '', totalValue: '' });
+        setForm({ odometer: '', fuelQuantity: '', totalValue: '', date: '' });
+        formRef.current = { odometer: '', fuelQuantity: '', totalValue: '', date: '' };
+        autoFilledRef.current = emptyAutoFilled();
+        setAutoFilled(emptyAutoFilled());
         (Object.keys(images) as ImageSlot[]).forEach(slot => {
             if (previewsRef.current[slot]) {
                 URL.revokeObjectURL(previewsRef.current[slot]!);
@@ -307,6 +428,14 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
             return;
         }
 
+        // Data do comprovante (extração da imagem) vs data/hora da inclusão (manual)
+        const dateFromReceipt = form.date;
+        const referenceMonth = dateFromReceipt ? dateFromReceipt.slice(0, 7) : currentMonth;
+        if (dateFromReceipt && dateFromReceipt > todayIsoDate()) {
+            toast.warning('A data do comprovante não pode ser futura.');
+            return;
+        }
+
         try {
             setIsSaving(true);
             setUploadProgress(0);
@@ -336,7 +465,7 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                 setUploadProgress
             );
 
-            // 2) Grava a despesa variável do mês atual
+            // 2) Grava a despesa variável
             await dataService.saveRentalExpense({
                 vehicleId: vehicle.id,
                 referenceMonth,
@@ -346,6 +475,10 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                 odometer,
                 fuelQuantity,
                 ...refs,
+                // Manual => data/hora da inclusão; comprovante lido => data do documento
+                createdAt: dateFromReceipt
+                    ? new Date(`${dateFromReceipt}T12:00:00.000Z`).toISOString()
+                    : undefined,
                 userId: currentUser?.id
             });
 
@@ -424,6 +557,73 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                         </div>
                     )}
 
+                    {/* Foto obrigatória do comprovante — primeiro campo do formulário */}
+                    <div className="space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                            Comprovante <span className="text-red-500">*</span>
+                        </p>
+                        <div className="grid grid-cols-1 gap-2 max-w-[220px]">
+                            {SLOT_META.map(slot => (
+                                <div
+                                    key={slot.key}
+                                    className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                >
+                                    <div className="px-2 py-1.5 flex items-center justify-between gap-1 bg-slate-50 dark:bg-slate-800/60">
+                                        <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+                                            <span className="material-symbols-outlined text-[13px]">{slot.icon}</span>
+                                            <span className="truncate">{slot.label}</span>
+                                        </span>
+                                        {images[slot.key] && (
+                                            <button
+                                                type="button"
+                                                onClick={() => clearImage(slot.key)}
+                                                className="text-slate-400 hover:text-red-500 shrink-0"
+                                                title="Remover foto"
+                                            >
+                                                <span className="material-symbols-outlined text-[15px]">close</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setSheetSlot(slot.key); setSheetOpen(true); }}
+                                        className="block w-full aspect-[4/3] relative group"
+                                        title={images[slot.key] ? 'Trocar foto' : 'Adicionar foto'}
+                                    >
+                                        {previews[slot.key] ? (
+                                            <img
+                                                src={previews[slot.key]!}
+                                                alt={slot.label}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-slate-400 group-hover:text-primary transition-colors">
+                                                <span className="material-symbols-outlined text-xl">add_a_photo</span>
+                                                <span className="text-[10px] font-bold">Adicionar</span>
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 ml-1">
+                            Adicione a foto primeiro — os dados serão lidos automaticamente.
+                        </p>
+                        {isExtracting && (
+                            <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 ml-1">
+                                <span className="material-symbols-outlined text-primary text-[16px] animate-spin">progress_activity</span>
+                                <p className="text-[11px] font-bold text-primary">
+                                    Lendo o comprovante com IA… os campos serão preenchidos automaticamente.
+                                </p>
+                            </div>
+                        )}
+                        {!isExtracting && (autoFilled.date || autoFilled.fuelQuantity || autoFilled.totalValue || autoFilled.odometer) && (
+                            <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 ml-1">
+                                Dados pré-preenchidos pela leitura do comprovante — confira antes de salvar.
+                            </p>
+                        )}
+                    </div>
+
                     {/* Veículo (placa) */}
                     {vehicle ? (
                         <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
@@ -486,6 +686,21 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                         </div>
                     )}
 
+                    {/* Data — somente quando lida do comprovante (senão: data/hora da inclusão) */}
+                    {form.date && (
+                        <div className="space-y-2">
+                            <Input
+                                label="Data do Abastecimento"
+                                type="date"
+                                value={form.date}
+                                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                            />
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 -mt-1 ml-1">
+                                Data lida no comprovante. Apague o campo para usar a data/hora da inclusão.
+                            </p>
+                        </div>
+                    )}
+
                     {/* Odômetro + Quantidade + Valor */}
                     <div className="space-y-2">
                         <Input
@@ -525,60 +740,6 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                             onChange={(e) => setForm({ ...form, totalValue: applyCurrencyMask(e.target.value) })}
                             required
                         />
-                    </div>
-
-                    {/* Foto obrigatória do comprovante */}
-                    <div className="space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                            Comprovante <span className="text-red-500">*</span>
-                        </p>
-                        <div className="grid grid-cols-1 gap-2 max-w-[220px]">
-                            {SLOT_META.map(slot => (
-                                <div
-                                    key={slot.key}
-                                    className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
-                                >
-                                    <div className="px-2 py-1.5 flex items-center justify-between gap-1 bg-slate-50 dark:bg-slate-800/60">
-                                        <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
-                                            <span className="material-symbols-outlined text-[13px]">{slot.icon}</span>
-                                            <span className="truncate">{slot.label}</span>
-                                        </span>
-                                        {images[slot.key] && (
-                                            <button
-                                                type="button"
-                                                onClick={() => clearImage(slot.key)}
-                                                className="text-slate-400 hover:text-red-500 shrink-0"
-                                                title="Remover foto"
-                                            >
-                                                <span className="material-symbols-outlined text-[15px]">close</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setSheetSlot(slot.key); setSheetOpen(true); }}
-                                        className="block w-full aspect-[4/3] relative group"
-                                        title={images[slot.key] ? 'Trocar foto' : 'Adicionar foto'}
-                                    >
-                                        {previews[slot.key] ? (
-                                            <img
-                                                src={previews[slot.key]!}
-                                                alt={slot.label}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-slate-400 group-hover:text-primary transition-colors">
-                                                <span className="material-symbols-outlined text-xl">add_a_photo</span>
-                                                <span className="text-[10px] font-bold">Adicionar</span>
-                                            </span>
-                                        )}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 ml-1">
-                            O comprovante é obrigatório para registrar o abastecimento.
-                        </p>
                     </div>
                 </div>
 

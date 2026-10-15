@@ -128,9 +128,9 @@ const COL = {
 };
 
 const situationOf = (isAvailable: boolean | null) => {
-    if (isAvailable === true) return { label: 'Disponível', color: C.available };
-    if (isAvailable === false) return { label: 'Indisponível', color: C.unavailable };
-    return { label: 'Sem registro', color: C.noRecord };
+    if (isAvailable === true) return { label: 'Disponível', color: C.available, dot: C.available };
+    if (isAvailable === false) return { label: 'Indisponível', color: C.unavailable, dot: C.unavailable };
+    return { label: 'Sem registro', color: C.noRecord, dot: C.noRecordDot };
 };
 
 // ---------------------------------------------------------------------------
@@ -249,12 +249,22 @@ export const UnitStructureDocument = ({
                                 key={`${r.depth}-${idx}`}
                                 style={[styles.tableRow, idx % 2 === 0 ? styles.tableRowEven : styles.tableRowOdd]}
                             >
-                                <View style={{ width: COL.setor, flexDirection: 'row' }}>
+                                <View style={{ width: COL.setor, flexDirection: 'row', alignItems: 'center' }}>
+                                    <View
+                                        style={{
+                                            width: 6,
+                                            height: 6,
+                                            borderRadius: 3,
+                                            backgroundColor: situation.dot,
+                                            marginRight: 3,
+                                            marginLeft: r.depth * 10,
+                                            flexShrink: 0,
+                                        }}
+                                    />
                                     <Text
                                         style={[
                                             styles.td,
                                             { fontWeight: r.depth === 0 && !r.isAlias ? 'bold' : 'normal' },
-                                            { marginLeft: r.depth * 10 },
                                         ]}
                                     >
                                         {r.depth > 0 ? '└ ' : ''}

@@ -27,13 +27,17 @@ import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components
 import { ChevronButton } from '../../components/ui/ChevronButton';
 import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';
+import { TreeFilterModal } from '../../components/ui/TreeFilterModal';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 
 // Sessão do app: busca automática só na primeira entrada; retornos usam cache + realtime.
 let osDashboardSessionLoaded = false;
 // Última carga deste dashboard — comparado com o carimbo de invalidação
-// (ex: cancelamento feito na tela de detalhe) para forçar refetch no retorno.
+// (ex.: cancelamento feito na tela de detalhe) para forçar refetch no retorno.
 let osDashboardLastLoadedAt = 0;
+// Referência estável para "nenhuma equipe selecionada" — evita criar um array
+// novo a cada render e disparar resets/renders desnecessários no TreeFilterModal.
+const NO_TEAM_SELECTION: string[] = [];
 
 interface OrdersRequestsDashboardAdminProps {
     currentUser: User | null;
@@ -196,6 +200,17 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     const [modalVisit, setModalVisit] = useState<OrderVisit | null>(null);
     const [modalVisitTeam, setModalVisitTeam] = useState<OrderVisitTeam[]>([]);
     const [loadingLeaderId, setLoadingLeaderId] = useState<string | null>(null);
+    // Seleção de equipes por empresa no card de líderes (avatar da empresa).
+    // Sem entrada para a empresa = todas as equipes visíveis; array = só essas equipes (badge no avatar).
+    const [leaderTeamSelections, setLeaderTeamSelections] = useState<Record<string, string[]>>(() => {
+        try {
+            const saved = localStorage.getItem('leaderCardTeamSelections');
+            return saved ? JSON.parse(saved) : {};
+        } catch { return {}; }
+    });
+    const [teamsModalCompanyId, setTeamsModalCompanyId] = useState<string | null>(null);
+    // Cache de todas as equipes (buscado sob demanda quando o filtro por departamento não cobre alguma equipe de líder)
+    const [allTeamsCache, setAllTeamsCache] = useState<any[] | null>(null);
     const [totalOrders, setTotalOrders] = useState(() => {
         return Number(localStorage.getItem('cachedTotalOrders_v2')) || 0;
     });
@@ -335,6 +350,10 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     useEffect(() => {
         localStorage.setItem('hasAppliedOrdersFilters', String(hasAppliedFilters));
     }, [hasAppliedFilters]);
+
+    useEffect(() => {
+        localStorage.setItem('leaderCardTeamSelections', JSON.stringify(leaderTeamSelections));
+    }, [leaderTeamSelections]);
 
     // Persist Data State (Moved here to ensure all state vars are declared)
     useEffect(() => {
@@ -507,13 +526,22 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                 });
         }
 
-        const leaders = users
+        const activeLeaders = users
             .filter(u => u.isTeamLeader && u.statusId === 2)
-            .filter(u => relevantCompanyIds.size === 0 || relevantCompanyIds.has(String(u.companyId || '')))
+            .filter(u => relevantCompanyIds.size === 0 || relevantCompanyIds.has(String(u.companyId || '')));
+
+        const leaders = activeLeaders
             .filter(u => u.isAvailable || (u.ovIdInProgress && Number(u.ovIdInProgress) > 0))
             .sort((a, b) => (a.nameShort || a.nameFull || "").localeCompare(b.nameShort || b.nameFull || ""));
 
-        const grouped: Record<string, { companyId: string; companyName: string; companyLogoUrl?: string; leaders: User[] }> = {};
+        const allLeadersByCompany: Record<string, User[]> = {};
+        activeLeaders.forEach(leader => {
+            const companyId = leader.companyId || 'unknown';
+            if (!allLeadersByCompany[companyId]) allLeadersByCompany[companyId] = [];
+            allLeadersByCompany[companyId].push(leader);
+        });
+
+        const grouped: Record<string, { companyId: string; companyName: string; companyLogoUrl?: string; leaders: User[]; allLeaders: User[] }> = {};
 
         leaders.forEach(leader => {
             const companyId = leader.companyId || 'unknown';
@@ -522,14 +550,58 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     companyId,
                     companyName: leader.companyName || 'Outras',
                     companyLogoUrl: leader.companyLogoUrl,
-                    leaders: []
+                    leaders: [],
+                    allLeaders: allLeadersByCompany[companyId] || []
                 };
             }
             grouped[companyId].leaders.push(leader);
         });
 
+        // Filtro por equipe selecionada no avatar da empresa: líder sem teamId
+        // permanece sempre visível; seleção vazia/ausente = todas as equipes.
+        Object.values(grouped).forEach(group => {
+            const selected = leaderTeamSelections[group.companyId];
+            if (Array.isArray(selected) && selected.length > 0) {
+                group.leaders = group.leaders.filter(l => !l.teamId || selected.includes(l.teamId));
+            }
+        });
+
         return Object.values(grouped);
-    }, [users, appliedFilters.contractId, filterOptions.contracts]);
+    }, [users, appliedFilters.contractId, filterOptions.contracts, leaderTeamSelections]);
+
+    // O carregamento de equipes é limitado ao departamento do usuário; se alguma equipe
+    // de líder não estiver na lista, busca a lista completa uma única vez (cacheada).
+    useEffect(() => {
+        if (!teamsModalCompanyId || allTeamsCache) return;
+        const group = leadersByCompany.find(g => g.companyId === teamsModalCompanyId);
+        if (!group) return;
+        const knownTeamIds = new Set(filterOptions.teams.map((t: any) => String(t.id)));
+        const hasMissing = group.allLeaders.some(l => l.teamId && !knownTeamIds.has(String(l.teamId)));
+        if (hasMissing) {
+            dataService.getTeams()
+                .then(setAllTeamsCache)
+                .catch(err => console.error('Error fetching all teams for leader card filter:', err));
+        }
+    }, [teamsModalCompanyId, allTeamsCache, leadersByCompany, filterOptions.teams]);
+
+    const leaderTeamsModalOptions = useMemo(() => {
+        if (!teamsModalCompanyId) return [];
+        const group = leadersByCompany.find(g => g.companyId === teamsModalCompanyId);
+        if (!group) return [];
+        const lookup = new Map<string, any>();
+        [...(allTeamsCache || []), ...filterOptions.teams].forEach((t: any) => lookup.set(String(t.id), t));
+        const teamIds = Array.from(new Set(group.allLeaders.map(l => l.teamId).filter(Boolean))) as string[];
+        return teamIds
+            .map(id => {
+                const team = lookup.get(String(id));
+                return {
+                    value: String(id),
+                    label: team?.name || team?.description || `Equipe ${id}`,
+                    parentId: team?.parentId ? String(team.parentId) : undefined
+                };
+            })
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }, [teamsModalCompanyId, leadersByCompany, allTeamsCache, filterOptions.teams]);
 
     const handleBusyLeaderClick = useCallback(async (leader: User) => {
         const visitId = leader.ovIdInProgress?.toString();
@@ -1314,12 +1386,29 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 onTouchStart={leadersScroll.onTouchStart}
                                 onClickCapture={leadersScroll.onClickCapture}>
 
-                                {leadersByCompany.map((group) => (
+                                {leadersByCompany.map((group) => {
+                                    const selectedTeamCount = leaderTeamSelections[group.companyId]?.length || 0;
+                                    return (
                                     <div key={group.companyId} className="flex items-center gap-3 shrink-0 p-2 px-3 bg-white dark:bg-slate-800/40 rounded-[12px] border border-slate-100 dark:border-white/5 shadow-sm w-max max-w-none">
-                                        <div className="flex flex-col items-center shrink-0 border-r border-slate-100 dark:border-white/10 pr-3" title={group.companyName}>
-                                            <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="sm" className="shrink-0 text-[10px]" />
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setTeamsModalCompanyId(group.companyId);
+                                            }}
+                                            className="flex flex-col items-center shrink-0 border-r border-slate-100 dark:border-white/10 pr-3 cursor-pointer group/empresa"
+                                            title={`Filtrar equipes — ${group.companyName}`}
+                                        >
+                                            <div className="relative">
+                                                <CompanyAvatar src={group.companyLogoUrl} name={group.companyName} size="sm" className="shrink-0 text-[10px] transition-transform group-hover/empresa:scale-105" />
+                                                {selectedTeamCount > 0 && (
+                                                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center shadow-md border border-white dark:border-slate-800 pointer-events-none">
+                                                        {selectedTeamCount}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 text-center leading-none mt-1 truncate w-12 h-[14px] overflow-hidden">{group.companyName}</span>
-                                        </div>
+                                        </button>
 
                                         <div className="flex gap-2.5">
                                             {group.leaders.map((leader) => {
@@ -1385,8 +1474,29 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                             </div>
                                         )}
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
+
+                            {teamsModalCompanyId && (
+                                <TreeFilterModal
+                                    isOpen
+                                    onClose={() => setTeamsModalCompanyId(null)}
+                                    label="EQ.RESPONSAVEL"
+                                    title={`Filtrar equipes — ${leadersByCompany.find(g => g.companyId === teamsModalCompanyId)?.companyName || ''}`}
+                                    options={leaderTeamsModalOptions}
+                                    value={leaderTeamSelections[teamsModalCompanyId] || NO_TEAM_SELECTION}
+                                    onConfirm={(values) => {
+                                        setLeaderTeamSelections(prev => {
+                                            const next = { ...prev };
+                                            if (values.length > 0) next[teamsModalCompanyId] = values;
+                                            else delete next[teamsModalCompanyId];
+                                            return next;
+                                        });
+                                        setTeamsModalCompanyId(null);
+                                    }}
+                                />
+                            )}
                         </div>
                     </div>
 
