@@ -29,4 +29,25 @@ describe('formatDateInBrazil', () => {
     it('creates database timestamps using Sao Paulo wall-clock time', () => {
         expect(getBrazilTimestamp('2026-10-12 01:30:00')).toBe('2026-10-12T01:30:00-03:00');
     });
+
+    it('includes the Sao Paulo time in dateTime format when no components are given', () => {
+        expect(
+            formatDateInBrazil('2026-10-16T14:30:45Z', 'dateTime', 'sv-SE', { timeZone: 'America/Sao_Paulo' })
+        ).toBe('2026-10-16 11:30:45');
+        expect(
+            formatDateInBrazil('2026-10-16T14:30:45Z', 'dateTime', 'sv-SE', { timeZone: 'America/Sao_Paulo' })
+                .replace(' ', 'T')
+        ).toBe('2026-10-16T11:30:45');
+    });
+
+    it('keeps explicit components in dateTime format', () => {
+        expect(
+            formatDateInBrazil('2026-10-16T14:30:45Z', 'dateTime', 'pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+        ).toBe('16/10, 11:30');
+    });
 });

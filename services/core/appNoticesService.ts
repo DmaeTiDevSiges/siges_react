@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { formatDateInBrazil } from '../../utils/formatters';
+import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 import { appNoticesWorkersService } from './appNoticesWorkersService';
 import {
@@ -42,8 +42,8 @@ export const appNoticesService = {
   },
 
   async getActiveNotices(dashboard?: string): Promise<SystemNotice[]> {
-    const now = formatDateInBrazil(new Date(), 'dateTime', 'sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
-    
+    const now = getBrazilTimestamp();
+
     let query = supabase
       .from('v_app_notices')
       .select('*')

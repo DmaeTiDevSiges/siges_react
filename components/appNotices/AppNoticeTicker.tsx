@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { formatDateInBrazil } from '../../utils/formatters';
 
 import { SystemNotice } from '../../types';
 import { useAppNotices } from '../../hooks/useAppNotices';
+import { isNoticeWithinViewWindow } from '../../utils/appNoticeWindow';
 import { dataService } from '../../services/dataService';
 import { Modal } from '../ui/Modal';
 
@@ -13,13 +13,8 @@ interface AppNoticeTickerProps {
 export const AppNoticeTicker: React.FC<AppNoticeTickerProps> = ({ dashboard }) => {
   const { notices, loading } = useAppNotices({ dashboard });
 
-  const nowStr = formatDateInBrazil(new Date(), 'dateTime', 'sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
-  const now = new Date(nowStr);
-  const visibleNotices = notices.filter((notice) => {
-    const start = new Date(notice.viewStartDate);
-    const end = new Date(notice.viewEndDate);
-    return notice.isActive && start <= now && end >= now;
-  });
+  const now = new Date();
+  const visibleNotices = notices.filter((notice) => isNoticeWithinViewWindow(notice, now));
 
   if (loading || visibleNotices.length === 0) {
     return null;

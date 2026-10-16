@@ -45,13 +45,25 @@ export const formatDateInBrazil = (
 
     const safeOptions = { ...options, timeZone: BRAZIL_TIME_ZONE };
     const locale = Array.isArray(locales) && locales.length === 0 ? 'pt-BR' : locales || 'pt-BR';
+    // 'dateTime' sem componentes de data/hora informados cai no default do Intl,
+    // que devolve APENAS a data ("2026-10-16", meia-noite). Chamadas de comparação
+    // (ex.: getActiveNotices/AppNoticeTicker) precisam do horário: sem ele, um aviso
+    // que começa hoje só aparece amanhã e um aviso que termina hoje some só à meia-noite.
+    const hasDateTimePart = Boolean(
+        safeOptions.dateStyle || safeOptions.timeStyle ||
+        safeOptions.year || safeOptions.month || safeOptions.day || safeOptions.weekday || safeOptions.era ||
+        safeOptions.hour || safeOptions.minute || safeOptions.second || safeOptions.timeZoneName ||
+        safeOptions.hourCycle || safeOptions.hour12 || safeOptions.fractionalSecondDigits
+    );
     const formatter = new Intl.DateTimeFormat(
         locale,
         format === 'date'
             ? { ...safeOptions, ...(!safeOptions.dateStyle && !safeOptions.year && !safeOptions.month && !safeOptions.day ? { year: 'numeric', month: 'numeric', day: 'numeric' } : {}) }
             : format === 'time'
                 ? { ...safeOptions, ...(!safeOptions.timeStyle && !safeOptions.hour && !safeOptions.minute && !safeOptions.second ? { hour: 'numeric', minute: 'numeric', second: 'numeric' } : {}) }
-                : safeOptions
+                : format === 'dateTime'
+                    ? { ...safeOptions, ...(!hasDateTimePart ? { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' } : {}) }
+                    : safeOptions
     );
     return formatter.format(date);
 };

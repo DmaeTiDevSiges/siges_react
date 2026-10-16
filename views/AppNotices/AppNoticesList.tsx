@@ -4,6 +4,7 @@ import { formatDateInBrazil } from '../../utils/formatters';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useAppNoticesAdmin } from '../../hooks/useAppNotices';
 import { AppNoticeForm } from '../../components/appNotices/AppNoticeForm';
+import { isNoticeExpired, isNoticeWithinVigencia } from '../../utils/appNoticeWindow';
 import { SystemNotice, CreateSystemNoticeInput, NoticeWorkersSummaryItem } from '../../types';
 import { appNoticesService } from '../../services/core/appNoticesService';
 import { dataService } from '../../services/dataService';
@@ -187,13 +188,9 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
         });
     };
 
-    const isWithinDates = (notice: SystemNotice) => {
-        const nowStr = formatDateInBrazil(new Date(), 'dateTime', 'sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
-        const now = new Date(nowStr);
-        const start = new Date(notice.startDate);
-        const end = new Date(notice.endDate);
-        return start <= now && end >= now;
-    };
+    // Vigência (start/end_date) é gravada em horário de São Paulo: a comparação
+    // fica no util para não depender do fuso do aparelho nem de string de data.
+    const isWithinDates = (notice: SystemNotice) => isNoticeWithinVigencia(notice);
 
     if (!canView('app_notices') || !canSearch('app_notices')) {
         return (
@@ -279,16 +276,9 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                         {notices
                             .filter((notice) => {
                                 if (filterStatus === 'all') return true;
-                                const nowStr = formatDateInBrazil(new Date(), 'dateTime', 'sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
-                                const now = new Date(nowStr);
-                                const start = new Date(notice.startDate);
-                                const end = new Date(notice.endDate);
-                                const isActive = notice.isActive && start <= now && end >= now;
-                                const isExpired = end < now;
-                                
-                                if (filterStatus === 'active') return isActive;
+                                if (filterStatus === 'active') return notice.isActive && isWithinDates(notice);
                                 if (filterStatus === 'inactive') return !notice.isActive;
-                                if (filterStatus === 'expired') return isExpired;
+                                if (filterStatus === 'expired') return isNoticeExpired(notice);
                                 return true;
                             })
                             .map((notice) => {
