@@ -1,12 +1,14 @@
 import { supabase } from '../core/supabase';
 import { r2Service } from '../media/r2Service';
-import { Asset, AssetAlert, AssetHistoryItem } from '../../types';
+import { Asset, AssetActivityEntry, AssetAlert, AssetHistoryItem } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { unitsService } from '../core/unitsService';
 import { getPublicImageUrl } from '../media/imageUtils';
 import { formatDateTime } from '../../utils/formatters';
 import { assetAttributesService } from './assetAttributesService';
 
+/** `cfg_orders_visits_processing.id` da visita aprovada (PROCESSING_STATUSES.APROVADAS). */
+const APPROVED_VISIT_PROCESSING_ID = 5;
 
 export const assetsService = {
     // ── Asset CRUD ───────────────────────────────────────────────
@@ -620,6 +622,103 @@ export const assetsService = {
         });
 
         return { data, total: count || 0 };
+    },
+
+    // ── Atividades do ativo em visitas aprovadas ────────────────
+    /**
+     * Atividades executadas neste ativo em visitas APROVADAS
+     * (`orders_visits.ov_processing_id = 5`), com a Unidade/Setor/Posição de
+     * origem (`before_*` de `v_orders_visits_assets`).
+     *
+     * A agregação por ano/mês não é feita no SQL: o volume por ativo é pequeno e
+     * o recorte fica em `utils/assetActivityMatrix` (puro, testável e imune ao
+     * fuso do aparelho). Os merges são manuais para não depender das FKs do cache
+     * do PostgREST — mesmo padrão de `getOrderVisitAssetsActivitiesByVisit`.
+     */
+    async getApprovedAssetActivities(assetId: string): Promise<AssetActivityEntry[]> {
+        // 1. Linhas do ativo nas visitas (view: unidade/setor/posição + data)
+        const { data: ovAssetRows, error: ovAssetError } = await supabase
+            .from('v_orders_visits_assets')
+            .select('id, ov_id, before_unit_description, before_tag_description, before_tag_sub_description, ov_started_at, ov_ended_at')
+            .eq('asset_id', Number(assetId));
+
+        if (ovAssetError) {
+            console.error('Error fetching asset visits for activities:', ovAssetError);
+            return [];
+        }
+        if (!ovAssetRows || ovAssetRows.length === 0) return [];
+
+        // 2. Mantém apenas visitas aprovadas
+        const ovIds = [...new Set(
+            ovAssetRows.map((row: any) => row.ov_id).filter((id: any) => id !== null && id !== undefined)
+        )];
+        if (ovIds.length === 0) return [];
+
+        const { data: approvedVisits, error: visitsError } = await supabase
+            .from('orders_visits')
+            .select('id')
+            .in('id', ovIds)
+            .eq('ov_processing_id', APPROVED_VISIT_PROCESSING_ID);
+
+        if (visitsError) {
+            console.error('Error fetching approved visits for asset activities:', visitsError);
+            return [];
+        }
+
+        const approvedOvIds = new Set((approvedVisits || []).map((visit: any) => visit.id));
+        const approvedRows = ovAssetRows.filter((row: any) => approvedOvIds.has(row.ov_id));
+        if (approvedRows.length === 0) return [];
+
+        // 3. Atividades registradas nessas linhas
+        const ovaIds = approvedRows.map((row: any) => row.id);
+        const { data: bridgeRows, error: bridgeError } = await supabase
+            .from('orders_visits_assets_activities')
+            .select('ova_id, activity_id')
+            .in('ova_id', ovaIds)
+            .eq('is_deleted', false)
+            .is('maintenance_plan_id', null);
+
+        if (bridgeError) {
+            console.error('Error fetching asset activities:', bridgeError);
+            return [];
+        }
+        if (!bridgeRows || bridgeRows.length === 0) return [];
+
+        // 4. Descrições de cfg_activities (merge manual, sem join)
+        const activityIds = [...new Set(bridgeRows.map((row: any) => row.activity_id).filter(Boolean))];
+        const { data: activities, error: activitiesError } = await supabase
+            .from('cfg_activities')
+            .select('id, description, code')
+            .in('id', activityIds);
+
+        if (activitiesError) {
+            console.error('Error fetching cfg_activities:', activitiesError);
+            return [];
+        }
+
+        const activityById = new Map<string, any>(
+            (activities || []).map((activity: any) => [String(activity.id), activity])
+        );
+        const rowById = new Map<string, any>(approvedRows.map((row: any) => [String(row.id), row]));
+
+        // 5. Uma entrada por atividade por visita-ativo
+        return bridgeRows.reduce((acc: AssetActivityEntry[], bridge: any) => {
+            const row = rowById.get(String(bridge.ova_id));
+            if (!row) return acc;
+
+            const activity = activityById.get(String(bridge.activity_id));
+            acc.push({
+                ovAssetId: String(row.id),
+                ovId: String(row.ov_id),
+                unitDescription: row.before_unit_description || '',
+                tagDescription: row.before_tag_description || '',
+                tagSubDescription: row.before_tag_sub_description || '',
+                activityId: String(bridge.activity_id),
+                activityDescription: activity?.description || activity?.code || 'Atividade não identificada',
+                date: row.ov_started_at || row.ov_ended_at || null,
+            });
+            return acc;
+        }, []);
     },
 
     // ── Asset Alerts ─────────────────────────────────────────────

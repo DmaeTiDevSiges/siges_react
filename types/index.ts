@@ -1323,6 +1323,50 @@ export interface AssetHistoryItem {
   totalValue?: number;
 }
 
+/**
+ * Uma atividade executada em um ativo durante uma visita aprovada.
+ * Alimenta a aba "Atividades" do Detalhe do Ativo.
+ * Unidade/Setor/Posição vêm de `v_orders_visits_assets` (before_unit_description,
+ * before_tag_description, before_tag_sub_description).
+ */
+export interface AssetActivityEntry {
+  /** orders_visits_assets.id (linha da visita-ativo, `v_orders_visits_assets.id`) */
+  ovAssetId: string;
+  /** v_orders_visits_assets.ov_id */
+  ovId: string;
+  /** v_orders_visits_assets.before_unit_description */
+  unitDescription: string;
+  /** v_orders_visits_assets.before_tag_description */
+  tagDescription: string;
+  /** v_orders_visits_assets.before_tag_sub_description */
+  tagSubDescription: string;
+  activityId: string;
+  activityDescription: string;
+  /** ov_started_at (fallback ov_ended_at), em horário de São Paulo */
+  date: string | null;
+}
+
+/** Linha da matriz Atividades x Meses: um conjunto Unidade+Setor+Posição+Atividade. */
+export interface AssetActivityMatrixRow {
+  key: string;
+  unitDescription: string;
+  tagDescription: string;
+  tagSubDescription: string;
+  activityId: string;
+  activityDescription: string;
+  /** 12 posições, índice 0 = Janeiro */
+  months: number[];
+  total: number;
+}
+
+/** Resultado agregado de um ano para a aba Atividades. */
+export interface AssetActivityMatrix {
+  rows: AssetActivityMatrixRow[];
+  /** Soma de cada mês (índice 0 = Janeiro) em todas as linhas */
+  monthTotals: number[];
+  total: number;
+}
+
 export interface OrderFilters {
   id?: string | string[];
   systemParentId?: string | string[];

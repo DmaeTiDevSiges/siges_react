@@ -22,6 +22,7 @@ import { AssetAlertListItem } from './AssetAlertListItem';
 import { AssetLoanCard } from '../../components/assetLoans/AssetLoanCard';
 import { AssetLoanForm } from '../../components/assetLoans/AssetLoanForm';
 import { AssetLoanDetails } from '../../components/assetLoans/AssetLoanDetails';
+import { AssetActivitiesTab } from '../../components/assets/AssetActivitiesTab';
 
 import QRCode from 'react-qr-code';
 import { Loading } from '../../components/ui/Loading';
@@ -176,7 +177,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
     const [selectedLoan, setSelectedLoan] = useState<AssetLoan | null>(null);
     const [showLoanImpedimentModal, setShowLoanImpedimentModal] = useState(false);
 
-    const tabs = ['Dados', 'Histórico', 'Manuais', 'Componentes', 'Alertas', 'Empréstimos', 'QR CODE'];
+    const tabs = ['Dados', 'Histórico', 'Atividades', 'Manuais', 'Componentes', 'Alertas', 'Empréstimos', 'QR CODE'];
 
     useEffect(() => {
         const fetchAlerts = async () => {
@@ -1105,6 +1106,13 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                         );})()}
 
                         {/* Documentation Section */}
+                        {activeTab === 'Atividades' && (
+                            <AssetActivitiesTab
+                                assetId={asset.id}
+                                onError={(message) => toast.error(message)}
+                            />
+                        )}
+
                         {activeTab === 'Manuais' && (
                             <section>
                                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Manuais Técnicos</h3>
