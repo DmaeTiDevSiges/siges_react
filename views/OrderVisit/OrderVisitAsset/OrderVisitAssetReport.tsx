@@ -303,7 +303,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
     const { canView, canCreate } = usePermissions();
 
-    const isApproved = asset ? (Number(asset.processingId) === 3 || Number(asset.processingId) === 5) : false;
+    const canRemoveActivities = !readOnly && asset ? Number(asset.processingId) !== 5 : false;
 
     const isReadOnly = readOnly || (asset ? (
         ![1, 4].includes(asset.processingId || 1) && !localEditMode
@@ -1213,7 +1213,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                         <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest leading-none pt-0.5">
                                             {act.activityDescription}
                                         </span>
-                                        {!isApproved && (
+                                        {canRemoveActivities && (
                                             <>
                                                 <div className="self-stretch -my-2 w-px bg-emerald-200 dark:bg-emerald-500/30 ml-1 mr-0.5" />
                                                 <button

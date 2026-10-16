@@ -589,6 +589,46 @@ export const vehicleRentalService = {
     },
 
     /**
+     * Agregado das visitas da competência (do detalhe simulado/apurado):
+     * contagem e soma de ov_total_value por ov_costs_status. Usado pelo modal
+     * de confirmação de "Confirmar Apropriação".
+     */
+    async getCompetenceVisitsCostsSummary(vehicleId: string, referenceMonth: string): Promise<{
+        totalVisits: number;
+        byStatus: Record<string, { count: number; totalValue: number }>;
+    }> {
+        const result = { totalVisits: 0, byStatus: {} as Record<string, { count: number; totalValue: number }> };
+        try {
+            const detail = await vehicleRentalService.getDetail(vehicleId, referenceMonth);
+            const ovIds = Array.from(new Set(detail.map(r => Number(r.ovId)).filter(id => Number.isFinite(id) && id > 0)));
+            if (!ovIds.length) return result;
+
+            const { data, error } = await supabase
+                .from('orders_visits')
+                .select('id, ov_costs_status, ov_total_value')
+                .in('id', ovIds);
+            if (error) {
+                console.error('Error fetching competence visits costs summary:', error);
+                return result;
+            }
+
+            for (const row of (data as any[]) || []) {
+                const status = String(row.ov_costs_status || 'pending');
+                if (!result.byStatus[status]) {
+                    result.byStatus[status] = { count: 0, totalValue: 0 };
+                }
+                result.byStatus[status].count += 1;
+                result.byStatus[status].totalValue += num(row.ov_total_value);
+            }
+            result.totalVisits = ovIds.length;
+            return result;
+        } catch (error) {
+            console.error('Error computing competence visits costs summary:', error);
+            return result;
+        }
+    },
+
+    /**
      * Utilização do veículo na competência: linhas de odômetro com datas da
      * visita, Km inicial/fim e custo total. Mesma âncora de mês do RPC de
      * detalhe: COALESCE(ovv.created_at, ovs.ov_created_at).

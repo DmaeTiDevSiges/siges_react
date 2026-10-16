@@ -323,7 +323,14 @@ export const dataService = {
         return visitsService.submitVisitCosts.apply(visitsService, arguments as any);
     },
 
-    async approveVisitFinancial(visitId: string, userId: string): Promise<boolean> {
+    async approveVisitFinancial(visitId: string, userId: string, snapshot?: {
+        total: number;
+        services: number;
+        materials: number;
+        vehicles: number;
+        vehiclePending?: boolean;
+        vehicleEstimated?: number;
+    }): Promise<boolean> {
         return visitsService.approveVisitFinancial.apply(visitsService, arguments as any);
     },
 
@@ -343,6 +350,10 @@ export const dataService = {
         ov_costs_rejection_reason: string | null;
     } | null> {
         return visitsService.getVisitFinancialStatus.apply(visitsService, arguments as any);
+    },
+
+    async getVisitVehiclePending(visitId: string): Promise<{ pending: boolean; estimated: number }> {
+        return visitsService.getVisitVehiclePending.apply(visitsService, arguments as any);
     },
 
     // Private helper for mapping raw database items (v_orders) to Order type
@@ -2202,6 +2213,13 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return vehicleRentalService.simulatePeriod.apply(vehicleRentalService, arguments as any);
     },
 
+    async getCompetenceVisitsCostsSummary(vehicleId: string, referenceMonth: string): Promise<{
+        totalVisits: number;
+        byStatus: Record<string, { count: number; totalValue: number }>;
+    }> {
+        return vehicleRentalService.getCompetenceVisitsCostsSummary.apply(vehicleRentalService, arguments as any);
+    },
+
     async getRentalUtilization(vehicleId: string, referenceMonth: string): Promise<VehicleUtilizationRow[]> {
         return vehicleRentalService.getUtilization.apply(vehicleRentalService, arguments as any);
     },
@@ -2591,6 +2609,15 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         user: User
     ): Promise<void> {
         return visitsService.closeOrderVisit.apply(visitsService, arguments as any);
+    },
+
+    /**
+     * Exclusão completa (soft delete) de uma visita técnica e de todos os filhos.
+     * Guards: visita encerrada, não arquivada/aprovada e sem ativos avaliados.
+     * Plano: docs/plano-exclusao-visita-is-deleted.md
+     */
+    async deleteOrderVisit(visitId: string | number, currentUser: User): Promise<void> {
+        return visitsService.deleteOrderVisit.apply(visitsService, arguments as any);
     },
 
     async getOrdersVisitsServicesMerged(ovIds: string[]): Promise<any[]> {

@@ -1115,6 +1115,13 @@ export interface OrderVisit {
   ovCostsRejectedUserId?: string | null;
   ovCostsRejectedUserNameShort?: string | null;
   ovCostsRejectionReason?: string | null;
+  // Snapshot da aprovação financeira (20261025): valores no momento da decisão
+  ovCostsApprovedTotal?: number | null;
+  ovCostsApprovedServices?: number | null;
+  ovCostsApprovedMaterials?: number | null;
+  ovCostsApprovedVehicles?: number | null;
+  ovCostsVehiclePending?: boolean | null;
+  ovCostsVehicleEstimated?: number | null;
 
   // Chat status
   chatStatus?: 'open' | 'closed';

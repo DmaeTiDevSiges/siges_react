@@ -5,6 +5,7 @@ import { getPublicImageUrl } from '../media/imageUtils';
 import { formatRelativeTime } from '../../utils/formatters';
 import type { Order, User, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, OrderVisitAssetMaterial, ServiceHistoryItem, Activity, Material, OrderVisitChatMessage, OrderVisitChatParticipant, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity } from '../../types';
 import { ordersService } from './ordersService';
+import { vehicleRentalService } from './vehicleRentalService';
 
 let processingConfigurationsCache: any[] | null = null;
 import { toCompetenceClosingInstant, toCompetenceMonthStart } from '../../utils/vehicleRentalAllocation';
@@ -575,6 +576,12 @@ export const visitsService = {
             ovCostsRejectedUserId: data.ov_costs_rejected_user_id?.toString() || null,
             ovCostsRejectedUserNameShort: data.ov_costs_rejected_user_name_short || null,
             ovCostsRejectionReason: data.ov_costs_rejection_reason || null,
+            ovCostsApprovedTotal: data.ov_costs_approved_total != null ? Number(data.ov_costs_approved_total) : null,
+            ovCostsApprovedServices: data.ov_costs_approved_services != null ? Number(data.ov_costs_approved_services) : null,
+            ovCostsApprovedMaterials: data.ov_costs_approved_materials != null ? Number(data.ov_costs_approved_materials) : null,
+            ovCostsApprovedVehicles: data.ov_costs_approved_vehicles != null ? Number(data.ov_costs_approved_vehicles) : null,
+            ovCostsVehiclePending: data.ov_costs_vehicle_pending ?? false,
+            ovCostsVehicleEstimated: data.ov_costs_vehicle_estimated != null ? Number(data.ov_costs_vehicle_estimated) : null,
             chatStatus: data.chat_status || 'open',
             chatClosedAt: data.chat_closed_at,
             chatClosedUserId: data.chat_closed_user_id?.toString(),
@@ -4313,18 +4320,38 @@ export const visitsService = {
     },
 
     /**
-     * Aprova custos financeiros (waiting → approved)
+     * Aprova custos financeiros (waiting → approved).
+     * O snapshot grava os valores aprovados no momento da decisão: quando a
+     * visita é aprovada antes do rateio mensal (transporte ainda pendente),
+     * o total atual pode subir depois — o delta pós-aprovação é calculado
+     * comparando ov_total_value com ov_costs_approved_total.
      */
-    async approveVisitFinancial(visitId: string, userId: string): Promise<boolean> {
+    async approveVisitFinancial(visitId: string, userId: string, snapshot?: {
+        total: number;
+        services: number;
+        materials: number;
+        vehicles: number;
+        vehiclePending?: boolean;
+        vehicleEstimated?: number;
+    }): Promise<boolean> {
         try {
             const now = getBrazilTimestamp();
-            
+            const round2 = (v: number) => Math.round((Number(v) || 0) * 100) / 100;
+
             const { error } = await supabase
                 .from('orders_visits')
                 .update({
                     ov_costs_status: 'approved',
                     ov_costs_approved_at: now,
                     ov_costs_approved_user_id: userId,
+                    ov_costs_approved_total: snapshot ? round2(snapshot.total) : null,
+                    ov_costs_approved_services: snapshot ? round2(snapshot.services) : null,
+                    ov_costs_approved_materials: snapshot ? round2(snapshot.materials) : null,
+                    ov_costs_approved_vehicles: snapshot ? round2(snapshot.vehicles) : null,
+                    ov_costs_vehicle_pending: snapshot ? !!snapshot.vehiclePending : false,
+                    ov_costs_vehicle_estimated: snapshot?.vehicleEstimated != null
+                        ? round2(snapshot.vehicleEstimated)
+                        : null,
                     updated_at: now,
                     updated_user_id: userId
                 })
@@ -4369,11 +4396,12 @@ export const visitsService = {
 
     /**
      * Reseta status financeiro para pendente (rejected → waiting para correção)
+     * Limpa também o snapshot da aprovação anterior (valores e flags de transporte).
      */
     async resetVisitCostsStatus(visitId: string, userId: string): Promise<boolean> {
         try {
             const now = getBrazilTimestamp();
-            
+
             const { error } = await supabase
                 .from('orders_visits')
                 .update({
@@ -4383,6 +4411,12 @@ export const visitsService = {
                     ov_costs_rejected_at: null,
                     ov_costs_rejected_user_id: null,
                     ov_costs_rejection_reason: null,
+                    ov_costs_approved_total: null,
+                    ov_costs_approved_services: null,
+                    ov_costs_approved_materials: null,
+                    ov_costs_approved_vehicles: null,
+                    ov_costs_vehicle_pending: false,
+                    ov_costs_vehicle_estimated: null,
                     updated_at: now,
                     updated_user_id: userId
                 })
@@ -4419,6 +4453,182 @@ export const visitsService = {
         } catch (error) {
             console.error('[visitsService] Error getting visit financial status:', error);
             return null;
+        }
+    },
+
+    /**
+     * Verifica se a visita tem transporte (linhas de Km) cujo rateio de
+     * aluguel/despesas ainda NÃO foi injetado na visita (período da
+     * competência ainda sem alocação). Usa a mesma âncora de competência
+     * do RPC de rateio: COALESCE(ovv.created_at, ov_created_at).
+     * Estimativa = soma de rental+variable previstos (fc_vehicle_rental_detail).
+     */
+    async getVisitVehiclePending(visitId: string): Promise<{ pending: boolean; estimated: number }> {
+        const result = { pending: false, estimated: 0 };
+        try {
+            const { data: visit, error: visitError } = await supabase
+                .from('orders_visits')
+                .select('id, ov_created_at')
+                .eq('id', visitId)
+                .single();
+            if (visitError || !visit) return result;
+
+            const { data: lines, error: linesError } = await supabase
+                .from('orders_visits_vehicles')
+                .select('vehicle_id, amount, cost_type, created_at')
+                .eq('ov_id', visitId)
+                .eq('is_deleted', false)
+                .in('cost_type', ['odometer', 'rate'])
+                .gt('amount', 0);
+            if (linesError || !lines?.length) return result;
+
+            // Agrupa Km por veículo+competência (âncora do rateio)
+            const byKey = new Map<string, { vehicleId: string; month: string }>();
+            for (const line of lines as any[]) {
+                const anchor = line.created_at || visit.ov_created_at;
+                if (!anchor) continue;
+                const month = String(anchor).slice(0, 7);
+                const vehicleId = String(line.vehicle_id);
+                byKey.set(`${vehicleId}:${month}`, { vehicleId, month });
+            }
+
+            const periodsCache = new Map<string, Map<string, string>>();
+            const detailsCache = new Map<string, Awaited<ReturnType<typeof vehicleRentalService.getDetail>>>();
+            let estimated = 0;
+            let pending = false;
+
+            for (const { vehicleId, month } of byKey.values()) {
+                let periodStatusByVehicle = periodsCache.get(month);
+                if (!periodStatusByVehicle) {
+                    const periods = await vehicleRentalService.getPeriods(month);
+                    periodStatusByVehicle = new Map(
+                        periods.map(p => [p.vehicleId, p.status])
+                    );
+                    periodsCache.set(month, periodStatusByVehicle);
+                }
+                const status = periodStatusByVehicle.get(vehicleId);
+
+                // Só existe lacuna quando a competência ainda não foi ALOCADA:
+                // depois de alocar, fc_vehicle_rental_allocate injeta as linhas
+                // rental/variable na visita preservando ov_costs_status (decisão #4).
+                if (status === 'ALLOCATED' || status === 'CLOSED') continue;
+
+                pending = true;
+                const detailKey = `${vehicleId}:${month}`;
+                let detail = detailsCache.get(detailKey);
+                if (!detail) {
+                    detail = await vehicleRentalService.getDetail(vehicleId, month);
+                    detailsCache.set(detailKey, detail);
+                }
+                for (const row of detail) {
+                    if (row.ovId === visitId) {
+                        estimated += (row.rentalValue || 0) + (row.variableValue || 0);
+                    }
+                }
+            }
+
+            result.pending = pending;
+            result.estimated = Math.round(estimated * 100) / 100;
+            return result;
+        } catch (error) {
+            console.error('[visitsService] Error checking visit vehicle pending:', error);
+            return result;
+        }
+    },
+
+    /**
+     * Exclusão completa (soft delete) de uma visita técnica.
+     * Marca is_deleted=true na visita e em todas as tabelas filhas
+     * (assets, services, vehicles, activities, materials, teams, chat,
+     * participants, reads, evaluations). Guards: visita encerrada, não
+     * arquivada/aprovada e sem ativos avaliados. Não toca em orders/users/storage.
+     * Plano: docs/plano-exclusao-visita-is-deleted.md
+     */
+    async deleteOrderVisit(visitId: string | number, currentUser: User): Promise<void> {
+        const ovId = Number(visitId);
+
+        const { data: visit, error: visitError } = await supabase
+            .from('orders_visits')
+            .select('id, ov_status_id, ov_ended_at, is_deleted, ov_is_filed, ov_approved_at, ov_approved_filed_at, ov_costs_status')
+            .eq('id', ovId)
+            .maybeSingle();
+
+        if (visitError) throw visitError;
+        if (!visit) throw new Error('Visita não encontrada.');
+
+        if (visit.is_deleted) throw new Error('Visita já foi excluída.');
+        if (Number(visit.ov_status_id) === 1 || !visit.ov_ended_at) {
+            throw new Error('Visita em andamento. Encerre-a antes de excluir.');
+        }
+        if (visit.ov_is_filed) throw new Error('Visita arquivada não pode ser excluída.');
+        if (visit.ov_approved_at || visit.ov_approved_filed_at) {
+            throw new Error('Visita aprovada não pode ser excluída.');
+        }
+        if (visit.ov_costs_status === 'approved') {
+            throw new Error('Financeiro aprovado. Não é possível excluir a visita.');
+        }
+
+        const { count: evaluatedAssets, error: evaluatedAssetsError } = await supabase
+            .from('orders_visits_assets')
+            .select('id', { count: 'exact', head: true })
+            .eq('ov_id', ovId)
+            .eq('is_deleted', false)
+            .or('reported_at.not.is.null,revised_at.not.is.null,disapproved_at.not.is.null,approved_at.not.is.null,is_filed.eq.true');
+
+        if (evaluatedAssetsError) throw evaluatedAssetsError;
+        if ((evaluatedAssets ?? 0) > 0) {
+            throw new Error('A visita possui ativos avaliados e não pode ser excluída.');
+        }
+
+        const [assetIdsRes, chatIdsRes] = await Promise.all([
+            supabase.from('orders_visits_assets').select('id').eq('ov_id', ovId),
+            supabase.from('orders_visits_chat').select('id').eq('ov_id', ovId)
+        ]);
+        if (assetIdsRes.error) throw assetIdsRes.error;
+        if (chatIdsRes.error) throw chatIdsRes.error;
+
+        const assetIds = (assetIdsRes.data || []).map(a => a.id);
+        const chatIds = (chatIdsRes.data || []).map(c => c.id);
+
+        const deletedAt = getBrazilTimestamp();
+        const deletedUserId = Number(currentUser.id);
+        const softDelete = { is_deleted: true, deleted_at: deletedAt, deleted_user_id: deletedUserId };
+
+        const updates: Promise<any>[] = [
+            supabase.from('orders_visits').update({
+                is_deleted: true,
+                deleted_at: deletedAt,
+                ov_deleted_user_id: deletedUserId,
+                ov_updated_at: deletedAt,
+                ov_updated_user_id: deletedUserId
+            }).eq('id', ovId).eq('is_deleted', false),
+            supabase.from('orders_visits_assets').update(softDelete).eq('ov_id', ovId).eq('is_deleted', false),
+            supabase.from('orders_visits_services').update(softDelete).eq('ov_id', ovId).eq('is_deleted', false),
+            supabase.from('orders_visits_vehicles').update(softDelete).eq('ov_id', ovId).eq('is_deleted', false),
+            supabase.from('orders_visits_teams').update(softDelete).eq('ov_id', ovId).eq('is_deleted', false),
+            supabase.from('orders_visits_chat').update(softDelete).eq('ov_id', ovId).eq('is_deleted', false),
+            supabase.from('orders_visits_chat_participants').update(softDelete).eq('ov_id', ovId).eq('is_deleted', false),
+            supabase.from('orders_visits_evaluations').update(softDelete).eq('ov_id', ovId).eq('is_deleted', false)
+        ];
+
+        if (assetIds.length > 0) {
+            updates.push(
+                supabase.from('orders_visits_assets_activities').update(softDelete).in('ova_id', assetIds).eq('is_deleted', false),
+                supabase.from('orders_visits_assets_materials').update(softDelete).in('ova_id', assetIds).eq('is_deleted', false)
+            );
+        }
+        if (chatIds.length > 0) {
+            updates.push(
+                supabase.from('orders_visits_chat_reads').update(softDelete).in('chat_id', chatIds).eq('is_deleted', false)
+            );
+        }
+
+        const results = await Promise.all(updates);
+        for (const result of results) {
+            if (result.error) {
+                console.error('[visitsService] Error soft-deleting visit:', result.error);
+                throw result.error;
+            }
         }
     }
 

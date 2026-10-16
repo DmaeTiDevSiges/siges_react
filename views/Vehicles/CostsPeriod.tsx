@@ -104,6 +104,15 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
     const [detailRows, setDetailRows] = useState<VehicleRentalDetailRow[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
 
+    // Confirmação de "Confirmar Apropriação": resumo agregado das visitas da
+    // competência (sem itens individuais) antes de recalcular e alocar.
+    const [allocateTarget, setAllocateTarget] = useState<VehicleRentalSummaryRow | null>(null);
+    const [allocateSummary, setAllocateSummary] = useState<{
+        totalVisits: number;
+        byStatus: Record<string, { count: number; totalValue: number }>;
+    } | null>(null);
+    const [allocateLoading, setAllocateLoading] = useState(false);
+
     // Despesas variáveis do mês (lançamento manual por veículo/competência)
     const [expenseVehicleId, setExpenseVehicleId] = useState<string | null>(null);
     const [expenseVehicle, setExpenseVehicle] = useState<VehicleRentalSummaryRow | null>(null);
@@ -294,7 +303,7 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
     };
 
     // Navega para a tela de execução da visita abrindo diretamente na aba de Transporte
-    const handleOpenVisitTransport = async (visitId: string) => {
+    const handleOpenVisitVehicle = async (visitId: string) => {
         if (!visitId) return;
         if (onSelectVisit) {
             try {
@@ -309,8 +318,27 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
         }
     };
 
-    // CONFIRMAR APROPRIAÇÃO: recalcula a competência e aloca os rateios
-    const handleAllocate = (row: VehicleRentalSummaryRow) =>
+    // CONFIRMAR APROPRIAÇÃO: abre modal com o resumo agregado da competência
+    const handleAllocate = async (row: VehicleRentalSummaryRow) => {
+        setAllocateTarget(row);
+        setAllocateSummary(null);
+        setAllocateLoading(true);
+        try {
+            const summary = await dataService.getCompetenceVisitsCostsSummary(row.vehicleId, referenceMonth);
+            setAllocateSummary(summary);
+        } catch (error) {
+            console.error('Error loading competence costs summary', error);
+            // Modal mesmo sem resumo — confirmação não depende do agregado
+        } finally {
+            setAllocateLoading(false);
+        }
+    };
+
+    // Recalcula a competência e aloca os rateios (após confirmação)
+    const confirmAllocate = () => {
+        const row = allocateTarget;
+        if (!row) return;
+        setAllocateTarget(null);
         runAction(
             row.vehicleId,
             async () => {
@@ -319,6 +347,7 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
             },
             `Rateio confirmado para ${row.vehicleDescription || row.vehicleId}`
         );
+    };
 
     const handleClose = (row: VehicleRentalSummaryRow) =>
         runAction(
@@ -1288,7 +1317,7 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                                                         <span>Entre</span>
                                                                                         <button
                                                                                             type="button"
-                                                                                            onClick={() => prev && handleOpenVisitTransport(prev.ovId)}
+                                                                                            onClick={() => prev && handleOpenVisitVehicle(prev.ovId)}
                                                                                             title="Abrir visita anterior na aba Transporte"
                                                                                             className="font-medium font-sans text-primary hover:underline cursor-pointer"
                                                                                         >
@@ -1297,7 +1326,7 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                                                         <span>e</span>
                                                                                         <button
                                                                                             type="button"
-                                                                                            onClick={() => handleOpenVisitTransport(u.ovId)}
+                                                                                            onClick={() => handleOpenVisitVehicle(u.ovId)}
                                                                                             title="Abrir visita seguinte na aba Transporte"
                                                                                             className="font-medium font-sans text-primary hover:underline cursor-pointer"
                                                                                         >
@@ -1335,7 +1364,7 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                                                 type="button"
                                                                                 variant="primary"
                                                                                 size="xs"
-                                                                                onClick={() => handleOpenVisitTransport(u.ovId)}
+                                                                                onClick={() => handleOpenVisitVehicle(u.ovId)}
                                                                                 title="Abrir página da visita com a aba Transporte ativa"
                                                                                 className="font-sans text-xs font-medium"
                                                                             >
@@ -1546,6 +1575,77 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                         </div>
                     </div>
                 )}
+            </Modal>
+
+            {/* ── Modal de confirmação de Apropriação ── */}
+            <Modal
+                isOpen={!!allocateTarget}
+                onClose={() => setAllocateTarget(null)}
+                title="Confirmar Apropriação"
+                maxWidth="sm"
+                draggable
+            >
+                <div className="flex flex-col gap-4 py-2">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined text-primary">checklist</span>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-400 text-sm">
+                            Confirma a apropriação do rateio de <strong>{allocateTarget?.vehicleDescription || allocateTarget?.vehicleId}</strong> em <strong>{monthLabel(referenceMonth)}</strong>?
+                            O rateio será injetado nas visitas da competência, respeitando o status financeiro de cada uma.
+                        </p>
+                    </div>
+
+                    {allocateLoading ? (
+                        <div className="py-4 flex justify-center"><Loading /></div>
+                    ) : allocateSummary && allocateSummary.totalVisits > 0 ? (
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                                Visitas da Competência ({allocateSummary.totalVisits})
+                            </span>
+                            {Object.entries(allocateSummary.byStatus)
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .map(([status, info]) => {
+                                    const labels: Record<string, string> = {
+                                        pending: 'Pendente',
+                                        waiting: 'Aguardando aprovação',
+                                        approved: 'Aprovada',
+                                        rejected: 'Rejeitada'
+                                    };
+                                    return (
+                                        <div key={status} className="flex justify-between text-sm">
+                                            <span className="text-slate-600 dark:text-slate-400">
+                                                {labels[status] || status}
+                                            </span>
+                                            <span className="font-bold text-slate-900 dark:text-white">
+                                                {info.count} · {formatCurrency(info.totalValue)}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    ) : (
+                        <p className="text-slate-500 dark:text-slate-400 text-sm">
+                            Nenhuma visita com Km vinculada a esta competência.
+                        </p>
+                    )}
+
+                    <div className="flex gap-3 mt-2">
+                        <button
+                            onClick={() => setAllocateTarget(null)}
+                            className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={confirmAllocate}
+                            disabled={allocateLoading}
+                            className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-bold rounded-xl transition-colors text-sm shadow-md"
+                        >
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
             </Modal>
 
             {/* ── Confirmação de exclusão de despesa ── */}

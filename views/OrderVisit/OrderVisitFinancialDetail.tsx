@@ -19,6 +19,7 @@ interface OrderVisitFinancialDetailProps {
 export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps> = ({ visit, onVisitUpdated, isApprover = false, currentUser }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [showZeroCostModal, setShowZeroCostModal] = useState(false);
+    const [showApproveModal, setShowApproveModal] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
 
@@ -28,11 +29,11 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
     // Rateio de Aluguel × Rateio de Despesas. A ociosidade ('idle') fica
     // em linha própria, fora do total (extraível). A soma total continua
     // vindo de visit.vehiclesValue.
-    const [transportSplit, setTransportSplit] = useState<{ km: number; rate: number; rental: number; variable: number; idle: number } | null>(null);
+    const [vehicleSplit, setVehicleSplit] = useState<{ km: number; rate: number; rental: number; variable: number; idle: number } | null>(null);
 
     useEffect(() => {
         if (!isVehicleRentalEnabled() || !visit.id) {
-            setTransportSplit(null);
+            setVehicleSplit(null);
             return;
         }
         let cancelled = false;
@@ -56,13 +57,40 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                 const idle = rows
                     .filter(r => r.costType === 'idle')
                     .reduce((sum, r) => sum + (r.valueTotal || 0), 0);
-                setTransportSplit({ km, rate, rental, variable, idle });
+                setVehicleSplit({ km, rate, rental, variable, idle });
             })
             .catch(error => {
                 console.error('Error loading transport split:', error);
             });
         return () => { cancelled = true; };
     }, [visit.id, visit.vehiclesValue]);
+
+    // Transporte pendente: rateio de aluguel/despesas ainda não injetado na
+    // visita (período da competência não alocado). Estimativa vem do RPC de
+    // detalhe (mesmo da tela SIMULAR). Consultado quando o financeiro está em
+    // análise ou já aprovado (para o delta pós-aprovação).
+    const [vehiclePending, setVehiclePending] = useState<{ pending: boolean; estimated: number } | null>(null);
+
+    useEffect(() => {
+        if (!isVehicleRentalEnabled() || !visit.id) {
+            setVehiclePending(null);
+            return;
+        }
+        const status = visit.ovCostsStatus;
+        if (status !== 'waiting' && status !== 'approved') {
+            setVehiclePending(null);
+            return;
+        }
+        let cancelled = false;
+        dataService.getVisitVehiclePending(visit.id)
+            .then(res => {
+                if (!cancelled) setVehiclePending(res);
+            })
+            .catch(error => {
+                console.error('Error loading transport pending:', error);
+            });
+        return () => { cancelled = true; };
+    }, [visit.id, visit.ovCostsStatus]);
 
     const items = [
         {
@@ -106,9 +134,9 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
     const isRejected = isFinancialApprovalEnabled() && costsStatus === 'rejected';
 
     // Visita com transporte envolvido: valor total > 0 ou linhas de transporte lançadas
-    const hasTransport = (visit.vehiclesValue || 0) > 0 ||
-        (!!transportSplit &&
-            (transportSplit.km + transportSplit.rate + transportSplit.rental + transportSplit.variable + transportSplit.idle) > 0);
+    const hasVehicle = (visit.vehiclesValue || 0) > 0 ||
+        (!!vehicleSplit &&
+            (vehicleSplit.km + vehicleSplit.rate + vehicleSplit.rental + vehicleSplit.variable + vehicleSplit.idle) > 0);
 
     const handleSubmitCosts = async () => {
         if (!visit.id) return;
@@ -136,10 +164,18 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
 
     const handleApproveFinancial = async () => {
         if (!visit.id || !currentUser?.id) return;
-        
+
+        setShowApproveModal(false);
         setIsLoading(true);
         try {
-            await dataService.approveVisitFinancial(visit.id, currentUser.id);
+            await dataService.approveVisitFinancial(visit.id, currentUser.id, {
+                total: totalValue,
+                services: visit.servicesValue || 0,
+                materials: visit.materialsValue || 0,
+                vehicles: visit.vehiclesValue || 0,
+                vehiclePending: vehiclePending?.pending || false,
+                vehicleEstimated: vehiclePending?.pending ? vehiclePending.estimated : null
+            });
             onVisitUpdated?.();
         } catch (error) {
             console.error('Error approving financial:', error);
@@ -218,7 +254,7 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                                 REJEITAR
                             </button>
                             <button
-                                onClick={handleApproveFinancial}
+                                onClick={() => setShowApproveModal(true)}
                                 disabled={isLoading}
                                 className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-xl transition-colors"
                             >
@@ -228,9 +264,22 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                     )}
 
                     {isFinancialApprovalEnabled() && costsStatus === 'approved' && visit.ovCostsApprovedAt && (
-                        <p className="text-indigo-200 dark:text-indigo-100 text-xs font-medium mt-2">
-                            Aprovado por {visit.ovCostsApprovedUserNameShort || '...'} em {formatDateInBrazil(visit.ovCostsApprovedAt, 'date', 'pt-BR')} {formatDateInBrazil(visit.ovCostsApprovedAt, 'time', 'pt-BR', { hour: '2-digit', minute: '2-digit' })}h
-                        </p>
+                        <div className="mt-2 space-y-1">
+                            <p className="text-indigo-200 dark:text-indigo-100 text-xs font-medium">
+                                Aprovado por {visit.ovCostsApprovedUserNameShort || '...'} em {formatDateInBrazil(visit.ovCostsApprovedAt, 'date', 'pt-BR')} {formatDateInBrazil(visit.ovCostsApprovedAt, 'time', 'pt-BR', { hour: '2-digit', minute: '2-digit' })}h
+                            </p>
+                            {visit.ovCostsApprovedTotal != null && (() => {
+                                const approvedTotal = Number(visit.ovCostsApprovedTotal);
+                                const delta = totalValue - approvedTotal;
+                                if (Math.abs(delta) < 0.01) return null;
+                                return (
+                                    <p className="text-amber-300 text-xs font-bold">
+                                        Valor aprovado: {formatCurrency(approvedTotal)}
+                                        {' — '}{delta > 0 ? '+' : ''}{formatCurrency(delta)} após rateio de transporte
+                                    </p>
+                                );
+                            })()}
+                        </div>
                     )}
 
                     {isRejected && (
@@ -268,16 +317,16 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                     // Subdivisão Km × Rateio R$/km × Rateio Aluguel × Despesas,
                     // exibida abaixo do valor em fontes menores. A ociosidade
                     // aparece separada (fora do total).
-                    const splitLines = item.label === 'Transporte' && transportSplit
+                    const splitLines = item.label === 'Transporte' && vehicleSplit
                         ? [
-                            { label: 'Km', value: transportSplit.km, cls: 'text-slate-500 dark:text-slate-400', dot: 'bg-slate-400' },
-                            { label: 'Rateio R$/km', value: transportSplit.rate, cls: 'text-blue-500 dark:text-blue-400', dot: 'bg-blue-500' },
-                            { label: 'Rateio Aluguel', value: transportSplit.rental, cls: 'text-indigo-500 dark:text-indigo-400', dot: 'bg-indigo-500' },
-                            { label: 'Rateio Despesas', value: transportSplit.variable, cls: 'text-amber-500 dark:text-amber-400', dot: 'bg-amber-500' }
+                            { label: 'Km', value: vehicleSplit.km, cls: 'text-slate-500 dark:text-slate-400', dot: 'bg-slate-400' },
+                            { label: 'Rateio R$/km', value: vehicleSplit.rate, cls: 'text-blue-500 dark:text-blue-400', dot: 'bg-blue-500' },
+                            { label: 'Rateio Aluguel', value: vehicleSplit.rental, cls: 'text-indigo-500 dark:text-indigo-400', dot: 'bg-indigo-500' },
+                            { label: 'Rateio Despesas', value: vehicleSplit.variable, cls: 'text-amber-500 dark:text-amber-400', dot: 'bg-amber-500' }
                         ].filter(line => line.value > 0)
                         : [];
-                    const idleLine = item.label === 'Transporte' && transportSplit && transportSplit.idle > 0
-                        ? { label: 'Ociosidade (fora do total)', value: transportSplit.idle }
+                    const idleLine = item.label === 'Transporte' && vehicleSplit && vehicleSplit.idle > 0
+                        ? { label: 'Ociosidade (fora do total)', value: vehicleSplit.idle }
                         : null;
                     const hasSplit = splitLines.length > 0 || !!idleLine;
                     return (
@@ -325,17 +374,29 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
             </div>
 
             {/* Aviso: transporte envolvido — custo definido após despesas variáveis */}
-            {hasTransport && (
+            {hasVehicle && (
                 <div className="bg-amber-50 dark:bg-amber-500/5 rounded-2xl p-4 flex gap-4 items-start border border-amber-100/60 dark:border-amber-500/10">
                     <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0 mt-0.5">
                         <span className="material-symbols-outlined text-lg">local_shipping</span>
                     </div>
                     <div>
                         <p className="text-[10px] uppercase font-black text-amber-600 dark:text-amber-400 tracking-widest mb-1">Atenção</p>
-                        <p className="text-amber-900/80 dark:text-amber-200/60 text-[13px] font-medium leading-relaxed">
-                            Esta visita possui <strong>transporte</strong> envolvido. O custo do transporte será definido
-                            somente após a confirmação de <strong>todos os dados de despesas variáveis</strong>.
-                        </p>
+                        {vehiclePending?.pending ? (
+                            <>
+                                <p className="text-amber-900/80 dark:text-amber-200/60 text-[13px] font-medium leading-relaxed">
+                                    O <strong>rateio de transporte (aluguel/despesas)</strong> desta visita ainda não foi
+                                    definido. O valor total pode aumentar após a alocação da competência.
+                                </p>
+                                <p className="text-amber-900/90 dark:text-amber-200/80 text-[13px] font-bold mt-1.5">
+                                    Estimativa do rateio: {formatCurrency(vehiclePending.estimated)}
+                                </p>
+                            </>
+                        ) : (
+                            <p className="text-amber-900/80 dark:text-amber-200/60 text-[13px] font-medium leading-relaxed">
+                                Esta visita possui <strong>transporte</strong> envolvido. O custo do transporte será definido
+                                somente após a confirmação de <strong>todos os dados de despesas variáveis</strong>.
+                            </p>
+                        )}
                     </div>
                 </div>
             )}
@@ -389,6 +450,79 @@ export const OrderVisitFinancialDetail: React.FC<OrderVisitFinancialDetailProps>
                             className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold rounded-xl transition-colors text-sm shadow-md"
                         >
                             {isLoading ? 'Enviando...' : (costsStatus === 'rejected' ? 'Confirmar Reenvio' : 'Confirmar Envio')}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Approve Confirmation Modal */}
+            <Modal
+                isOpen={showApproveModal}
+                onClose={() => setShowApproveModal(false)}
+                title="Confirmar Aprovação Financeira"
+                maxWidth="sm"
+                draggable
+            >
+                <div className="flex flex-col gap-4 py-2">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined text-green-500">check_circle</span>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-400 text-sm">
+                            Confirma a aprovação financeira dos custos desta visita?
+                        </p>
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Valores Aprovados</span>
+                        <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+                            <span>Serviços</span>
+                            <span className="font-bold">{formatCurrency(visit.servicesValue || 0)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+                            <span>Materiais</span>
+                            <span className="font-bold">{formatCurrency(visit.materialsValue || 0)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+                            <span>Transporte</span>
+                            <span className="font-bold">{formatCurrency(visit.vehiclesValue || 0)}</span>
+                        </div>
+                        <div className="flex justify-between text-base font-black text-slate-900 dark:text-white pt-1.5 border-t border-slate-200 dark:border-slate-700">
+                            <span>Total</span>
+                            <span>{formatCurrency(totalValue)}</span>
+                        </div>
+                    </div>
+
+                    {vehiclePending?.pending && (
+                        <div className="bg-amber-50 dark:bg-amber-500/5 p-4 rounded-xl border border-amber-100/60 dark:border-amber-500/10 flex gap-3 items-start">
+                            <span className="material-symbols-outlined text-amber-500 text-lg shrink-0 mt-0.5">warning</span>
+                            <div>
+                                <p className="text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest mb-1">Transporte pendente</p>
+                                <p className="text-amber-900/80 dark:text-amber-200/60 text-sm font-medium leading-relaxed">
+                                    O rateio de aluguel/despesas ainda não foi definido. Estimativa: <strong>{formatCurrency(vehiclePending.estimated)}</strong>.
+                                    O valor total pode aumentar após a alocação da competência.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <p className="text-slate-500 dark:text-slate-500 text-xs leading-relaxed">
+                        Os valores serão congelados no momento da aprovação. Alterações posteriores (como rateio de transporte) serão exibidas como diferença sobre o valor aprovado.
+                    </p>
+
+                    <div className="flex gap-3 mt-2">
+                        <button
+                            onClick={() => setShowApproveModal(false)}
+                            className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleApproveFinancial}
+                            disabled={isLoading}
+                            className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-bold rounded-xl transition-colors text-sm shadow-md"
+                        >
+                            {isLoading ? 'Aprovando...' : 'Confirmar Aprovação'}
                         </button>
                     </div>
                 </div>

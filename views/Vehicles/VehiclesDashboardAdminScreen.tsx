@@ -7,16 +7,16 @@ import { CostsPeriod } from './CostsPeriod';
 import { RentalContractList } from './RentalContractList';
 import { VehicleList } from './VehicleList';
 
-export type TransportTab = 'costs' | 'rental-contracts' | 'vehicles';
+export type VehicleTab = 'costs' | 'rental-contracts' | 'vehicles';
 
 interface TabItem {
-    id: TransportTab;
+    id: VehicleTab;
     label: string;
     icon: string;
     permission?: string;
 }
 
-const TRANSPORT_TABS: { id: TransportTab; label: string; icon: string; permission?: string }[] = [
+const VEHICLE_TABS: { id: VehicleTab; label: string; icon: string; permission?: string }[] = [
     { id: 'costs', label: 'Custos Mensais', icon: 'payments', permission: 'dashboard_vehicles_costs_periods' },
     { id: 'rental-contracts', label: 'Contratos', icon: 'handshake', permission: 'dashboard_vehicles_rentals' },
     { id: 'vehicles', label: 'Veículos', icon: 'local_shipping', permission: 'dashboard_vehicles_crud' }
@@ -25,12 +25,12 @@ const TRANSPORT_TABS: { id: TransportTab; label: string; icon: string; permissio
 interface VehiclesDashboardAdminScreenProps {
     onNavigate?: (screen: string) => void;
     onSelectVisit?: (visit: { id: string; [key: string]: any }, initialTab?: 'home' | 'transport' | 'assets' | 'services' | 'costs' | 'chat') => void;
-    initialTab?: TransportTab;
+    initialTab?: VehicleTab;
 }
 
 export const VehiclesDashboardAdminScreen: React.FC<VehiclesDashboardAdminScreenProps> = ({ onNavigate, onSelectVisit, initialTab = 'costs' }) => {
     const { canView, loading: permissionsLoading } = usePermissions();
-    const [currentTab, setCurrentTab] = useState<TransportTab>(initialTab);
+    const [currentTab, setCurrentTab] = useState<VehicleTab>(initialTab);
 
     useEffect(() => {
         if (initialTab) {
@@ -43,7 +43,7 @@ export const VehiclesDashboardAdminScreen: React.FC<VehiclesDashboardAdminScreen
 
     // Anti-flicker: cada aba é montada apenas na primeira visita e permanece
     // montada (escondida) ao alternar — evita recarregar dados a cada clique.
-    const [visited, setVisited] = useState<Set<TransportTab>>(() => new Set([initialTab]));
+    const [visited, setVisited] = useState<Set<VehicleTab>>(() => new Set([initialTab]));
 
     useEffect(() => {
         setVisited(prev => (prev.has(currentTab) ? prev : new Set(prev).add(currentTab)));
@@ -75,7 +75,7 @@ export const VehiclesDashboardAdminScreen: React.FC<VehiclesDashboardAdminScreen
             {/* ── Barra de Navegação por Abas (Gestão Transportes) ── */}
             <div className="bg-white dark:bg-card-dark border-b border-slate-200 dark:border-slate-800 px-4 pt-2 sticky top-0 z-20 shadow-xs">
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                    {TRANSPORT_TABS.filter(tab => !tab.permission || canView(tab.permission)).map((tab) => {
+                    {VEHICLE_TABS.filter(tab => !tab.permission || canView(tab.permission)).map((tab) => {
                         const isActive = currentTab === tab.id;
                         return (
                             <button

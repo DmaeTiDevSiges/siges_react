@@ -30,6 +30,7 @@ interface OrderVisitPageProps {
 import { OrderVisitBottomNav, VisitTab } from '../../components/ordersVisits/OrderVisitBottomNav';
 import { CloseVisitModal } from '../../components/ordersVisits/CloseVisitModal';
 import { ConfirmDisapproveVisitModal } from '../../components/ordersVisits/ConfirmDisapproveVisitModal';
+import { DeleteVisitModal } from '../../components/ordersVisits/DeleteVisitModal';
 import { OrderVisitVehiclesList } from './OrderVisitVehicle/OrderVisitVehiclesList';
 import { VisitReportPDFButton } from '../../components/reports/VisitReportPDFButton';
 import { OrderVisitServicesList } from './OrderVisitService/OrderVisitServicesList';
@@ -78,6 +79,8 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isReverseConfirmModalOpen, setIsReverseConfirmModalOpen] = useState(false);
     const [isReverseAlertModalOpen, setIsReverseAlertModalOpen] = useState(false);
     const [isReversingApproval, setIsReversingApproval] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
     const [evaluationCount, setEvaluationCount] = useState(0);
     const [totalRequirements, setTotalRequirements] = useState(0);
@@ -559,6 +562,29 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         }
     };
 
+    const handleDeleteVisit = () => {
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleConfirmDeleteVisit = async () => {
+        if (!visit || !currentUser) return;
+
+        try {
+            setIsDeleting(true);
+            await dataService.deleteOrderVisit(visit.id, currentUser);
+            toast.success('Visita excluída com sucesso!');
+            setIsDeleteModalOpen(false);
+            window.dispatchEvent(new Event('refresh_dashboard'));
+            onBack();
+        } catch (error) {
+            console.error('Error deleting visit:', error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao excluir visita');
+            setIsDeleteModalOpen(false);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
 
 
     if (loading) {
@@ -613,7 +639,11 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             onRemoveTeamMember={!visit.isFiled ? handleRemoveMember : undefined}
                             onAddTeamMember={!visit.isFiled ? handleAddMember : undefined}
                             onEndVisit={visit.ovStatusId === 1 ? handleEndVisit : undefined}
-                            onDeleteVisit={() => toast.success('Funcionalidade em desenvolvimento')}
+                            onDeleteVisit={(
+                                Number(visit.ovStatusId) === 2 &&
+                                !visit.isFiled &&
+                                !visit.approvedAt
+                            ) ? handleDeleteVisit : undefined}
                             onEditVisit={() => toast.success('Funcionalidade em desenvolvimento')}
                             isReportLoading={isReporting}
                             isApproveLoading={isApproving}
@@ -867,6 +897,14 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 onClose={() => setIsDisapproveModalOpen(false)}
                 onConfirm={handleConfirmDisapproveVisit}
                 isLoading={isDisapproving}
+            />
+
+            {/* Modal de Exclusão (soft delete) da Visita */}
+            <DeleteVisitModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleConfirmDeleteVisit}
+                isLoading={isDeleting}
             />
 
             {/* Modal de Arquivamento */}

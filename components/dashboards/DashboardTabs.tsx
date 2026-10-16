@@ -24,7 +24,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   const hasUnits = canView('dashboard_units_assets_tags');
   const hasPower = canView('dashboard_units_power_electric');
   const hasEvaluations = canView('dashboard_contracts_evaluations');
-  const hasTransport = canView('dashboard_vehicles');
+  const hasVehicle = canView('dashboard_vehicles');
   const hasGrant = canView('orders_timeline');
 
   const isDashboardScreen =
@@ -47,7 +47,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
 
   if (!isDashboardScreen) return null;
 
-  const isTransportActive =
+  const isVehicleActive =
     currentScreen === 'rental-apportionment' ||
     currentScreen === 'rental-contracts' ||
     currentScreen === 'rate-contracts' ||
@@ -141,18 +141,18 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
             )}
           </button>
         )}
-        {hasTransport && (
+        {hasVehicle && (
           <button
             onClick={() => {
               setCurrentScreen('rental-apportionment');
               setActiveTab('rental-apportionment');
             }}
             className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${
-              isTransportActive ? 'text-primary' : 'text-slate-400 hover:text-slate-300'
+              isVehicleActive ? 'text-primary' : 'text-slate-400 hover:text-slate-300'
             }`}
           >
             Transportes
-            {isTransportActive && (
+            {isVehicleActive && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
             )}
           </button>

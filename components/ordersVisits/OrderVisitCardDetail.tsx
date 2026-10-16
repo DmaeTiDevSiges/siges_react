@@ -381,6 +381,17 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                     {isReverseApprovalLoading ? 'CARREGANDO...' : 'Estornar Aprovação'}
                 </button>
             )}
+
+            {/* Delete Visit Button — soft delete (visita encerrada, não arquivada/aprovada) */}
+            {onDeleteVisit && (
+                <button
+                    onClick={onDeleteVisit}
+                    className="w-full mt-4 py-3 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 font-black uppercase tracking-widest text-xs rounded-2xl border border-rose-200 dark:border-rose-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                    Excluir Visita
+                </button>
+            )}
         </Card>
     );
 };
