@@ -773,7 +773,8 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         contracts: [] as any[],
         plans: [] as any[],
         teams: [] as any[],
-        sectors: [] as any[]
+        sectors: [] as any[],
+        causeReasons: [] as any[]
     });
     const [unitSubTypes, setUnitSubTypes] = useState<any[]>([]);
     const [assetTagSubOptions, setAssetTagSubOptions] = useState<any[]>([]);
@@ -790,7 +791,8 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                 dataService.getManagedContracts(currentUser.id.toString()),
                 dataService.getTeams(undefined, currentUser?.departmentId),
                 dataService.getUnits('active'),
-                dataService.getAssetTags('active')
+                dataService.getAssetTags('active'),
+                dataService.getCauseReasons()
             ]);
 
             const getVal = (res: any) => (res.status === 'fulfilled' ? res.value : []);
@@ -807,7 +809,8 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                 contracts,
                 teams: getVal(results[6]),
                 units: getVal(results[7]),
-                sectors: getVal(results[8])
+                sectors: getVal(results[8]),
+                causeReasons: getVal(results[9])
             }));
 
             setAssetTagSubOptions(await dataService.getAssetTagSubs(undefined, 'active'));

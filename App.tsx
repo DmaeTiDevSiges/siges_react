@@ -2892,7 +2892,7 @@ const AppContent: React.FC = () => {
       case 'order-detail': return 'Detalhes da OS';
       case 'order-visit-execute': return 'Visita';
       case 'order-visit-asset-report': return 'Relatório de Ativo';
-      case 'order-visit-asset-activities': return 'Intervenções';
+      case 'order-visit-asset-activities': return 'Atividades';
       case 'order-visit-asset-materials': return 'Materiais';
       case 'profile-permissions': return 'Gestão Permissões';
       case 'route-management': return 'Gerenciar Rotas';

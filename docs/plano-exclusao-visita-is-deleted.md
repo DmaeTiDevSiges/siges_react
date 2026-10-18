@@ -17,7 +17,8 @@ visita desaparecer de todas as telas sem alterar nenhuma query de leitura.
 
 ## 2. Por que funciona sem mudar leituras
 
-- A view `v_orders_visits` **já filtra** `WHERE is_deleted = false` (`dev/supabase/migrations/20260913_remove_security_definer_from_v_orders_visits.sql`) — quase toda leitura da app passa por ela.
+- A view `v_orders_visits` filtra `WHERE is_deleted = false` **no query externo** (migration `dev/supabase/migrations/20261027_fix_v_orders_visits_soft_delete_filter.sql`) — quase toda leitura da app passa por ela.
+  - ⚠️ **Correção (2026-10-16):** até esta migration, o filtro existia apenas dentro de um CTE `ov` que nunca era referenciado pelo `SELECT` externo (código morto) — visitas excluídas continuavam aparecendo em todas as telas. O CTE foi removido e o filtro movido para o `WHERE` externo.
 - `ordersService.hasActiveVisits` e os guards da RPC `flow_order_visit_reassign_v1` **já** filtram `is_deleted = false`.
 - Realtime (`subscribeToVisits`) dispara no UPDATE → listas se atualizam sozinhas.
 - **Nenhuma view/RPC precisa ser recriada** — a migration é puramente aditiva.

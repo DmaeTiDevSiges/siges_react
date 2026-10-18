@@ -93,7 +93,7 @@ export const OrderVisitAssetActivities: React.FC<OrderVisitAssetActivitiesProps>
                 </div>
                 <div>
                     <h2 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide">
-                        Intervenções Disponíveis
+                        Atividades Disponíveis
                     </h2>
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
                         Selecione as ações realizadas
@@ -108,7 +108,7 @@ export const OrderVisitAssetActivities: React.FC<OrderVisitAssetActivitiesProps>
                 </div>
                 <input
                     type="text"
-                    placeholder="Pesquisar intervenção por nome ou código..."
+                    placeholder="Pesquisar atividade por nome ou código..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder:text-slate-400"
@@ -135,7 +135,7 @@ export const OrderVisitAssetActivities: React.FC<OrderVisitAssetActivitiesProps>
                         <span className="material-symbols-outlined text-3xl text-slate-300">search_off</span>
                     </div>
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                        Nenhuma intervenção encontrada <br /> para "<span className="text-indigo-500">{searchTerm}</span>"
+                        Nenhuma atividade encontrada <br /> para "<span className="text-indigo-500">{searchTerm}</span>"
                     </p>
                     <button
                         onClick={() => setSearchTerm('')}

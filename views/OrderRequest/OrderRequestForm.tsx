@@ -460,6 +460,20 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
             : undefined);
     const hasContextInfo = !!(displayClient || displayUnit);
 
+    // Campo de serviços — na Edição de OS é renderizado DEPOIS de
+    // Unidade e Setor > Posição (ver ordem no step 1), nos demais casos
+    // permanece no topo do formulário.
+    const servicesField = !showCardHeader ? (
+        <Textarea
+            label="Serviços a serem realizados"
+            required
+            rows={4}
+            value={formData.requestedServices}
+            onChange={e => setFormData(prev => ({ ...prev, requestedServices: e.target.value }))}
+            placeholder="Detalhamento do que deve ser executado..."
+        />
+    ) : null;
+
     const alertsByAsset = useMemo(() => {
         const map = new Map<string, AssetAlert[]>();
         for (const alert of availableAlerts) {
@@ -580,16 +594,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                     <div className={`px-4 pt-0 ${hideFooter ? 'pb-0' : 'pb-6'} space-y-4 animate-in slide-in-from-right-4 duration-300`}>
                         {(step === 1 || hideFooter) && (
                             <section className="space-y-4">
-                                {!showCardHeader && (
-                                    <Textarea
-                                        label="Serviços a serem executados"
-                                        required
-                                        rows={4}
-                                        value={formData.requestedServices}
-                                        onChange={e => setFormData(prev => ({ ...prev, requestedServices: e.target.value }))}
-                                        placeholder="Detalhamento do que deve ser executado..."
-                                    />
-                                )}
+                                {!isEdit && servicesField}
 
                                 {!hasContextInfo && (
                                     <>
@@ -610,6 +615,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                         />
                                         <Select
                                             label="Setor > Posição"
+                                            required={isEdit}
                                             value={formData.unitAssetTagId}
                                             disabled={!formData.unitId}
                                             onChange={(e) => setFormData(prev => ({ ...prev, unitAssetTagId: e.target.value }))}
@@ -620,14 +626,31 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                 )}
 
                                 {hasContextInfo && (
-                                    <Select
-                                        label="Setor > Posição"
-                                        value={formData.unitAssetTagId}
-                                        disabled={!formData.unitId}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, unitAssetTagId: e.target.value }))}
-                                        options={assetTags.map(s => ({ value: s.id, label: s.description }))}
-                                    />
+                                    <>
+                                        {isEdit && (
+                                            <div className="mt-[12px]">
+                                                <Select
+                                                    label="Unidade"
+                                                    required
+                                                    value={formData.unitId}
+                                                    disabled={!formData.clientId}
+                                                    onChange={(e) => setFormData(prev => ({ ...prev, unitId: e.target.value, unitAssetTagId: '' }))}
+                                                    options={units.map(u => ({ value: u.id, label: u.descriptionFull || u.description }))}
+                                                />
+                                            </div>
+                                        )}
+                                        <Select
+                                            label="Setor > Posição"
+                                            required={isEdit}
+                                            value={formData.unitAssetTagId}
+                                            disabled={!formData.unitId}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, unitAssetTagId: e.target.value }))}
+                                            options={assetTags.map(s => ({ value: s.id, label: s.description }))}
+                                        />
+                                    </>
                                 )}
+
+                                {isEdit && servicesField}
 
                                 <Select
                                     label="Tipo OS"

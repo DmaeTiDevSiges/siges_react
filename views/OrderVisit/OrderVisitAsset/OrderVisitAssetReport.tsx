@@ -1077,10 +1077,10 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
             await dataService.toggleOrderVisitAssetActivity(assetId, activityId, userId, false);
             setActivities(prev => prev.filter(a => a.activityId !== activityId));
-            toast.success('Intervenção removida');
+            toast.success('Atividade removida');
         } catch (error) {
             console.error('Error removing activity:', error);
-            toast.error('Erro ao remover intervenção');
+            toast.error('Erro ao remover atividade');
         } finally {
             setRemovingActivityId(null);
         }
@@ -1185,11 +1185,11 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     disabled={isReadOnly || isVisitFiled}
                 />
 
-                {/* Intervencoes realizadas */}
+                {/* Atividades realizadas */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
                     <SectionHeader
                         icon="build"
-                        title="Intervencoes realizadas"
+                        title="Atividades realizadas"
                         action={!isReadOnly && <ButtonNew onClick={() => {
                             if (asset?.orderTypeId && onManageActivities) {
                                 onManageActivities(asset.orderTypeId);
@@ -1221,7 +1221,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                                     onClick={() => handleRemoveActivity(act.activityId)}
                                                     disabled={isRemoving}
                                                     className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-0.5 rounded-md flex items-center justify-center -mr-1 cursor-pointer disabled:cursor-not-allowed"
-                                                    title="Remover intervenção"
+                                                    title="Remover atividade"
                                                 >
                                                     {isRemoving ? (
                                                         <span className="material-symbols-outlined text-sm animate-spin text-red-500">
@@ -1240,7 +1240,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     ) : (
                         <div className="p-8 border-2 border-dashed border-slate-50 dark:border-slate-800/50 rounded-2xl text-center">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                                Nenhuma intervenção selecionada.
+                                Nenhuma atividade selecionada.
                             </p>
                         </div>
                     )}

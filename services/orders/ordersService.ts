@@ -666,7 +666,29 @@ export const ordersService = {
         if (order.planId !== undefined) dbData.plan_id = order.planId ? parseInt(order.planId) : null;
         if (order.requestedServices !== undefined) dbData.requested_services = order.requestedServices;
         if (order.clientId !== undefined) dbData.client_id = order.clientId ? parseInt(order.clientId) : null;
-        if (order.unitId !== undefined) dbData.unit_id = order.unitId ? parseInt(order.unitId) : null;
+        if (order.unitId !== undefined) {
+            const newUnitId = order.unitId ? parseInt(order.unitId) : null;
+            dbData.unit_id = newUnitId;
+
+            if (newUnitId) {
+                const { data: unitData, error: unitError } = await supabase
+                    .from('units')
+                    .select('system_parent_id, system_id, unit_type_parent_id, unit_type_id, latitude, longitude')
+                    .eq('id', newUnitId)
+                    .single();
+
+                if (unitError) {
+                    throw new Error('Unidade informada não encontrada');
+                }
+
+                dbData.system_parent_id = unitData?.system_parent_id ?? null;
+                dbData.system_id = unitData?.system_id ?? null;
+                dbData.unit_type_parent_id = unitData?.unit_type_parent_id ?? null;
+                dbData.unit_type_id = unitData?.unit_type_id ?? null;
+                dbData.unit_latitude = unitData?.latitude ?? null;
+                dbData.unit_longitude = unitData?.longitude ?? null;
+            }
+        }
 
         if (order.unitAssetTagId !== undefined) {
             const newUnitAssetTagId = order.unitAssetTagId ? parseInt(order.unitAssetTagId) : null;
@@ -2278,9 +2300,9 @@ export const ordersService = {
                 typeCode: item.type_code,
                 typeSubCode: item.type_sub_code,
                 typeDescription: item.type_description,
+                objectId: item.object_id?.toString(),
                 objectCode: item.object_code,
                 objectDescription: item.object_description,
-                orderObjectId: item.object_id?.toString(),
                 systemParentDescription: item.system_parent_description,
                 systemDescription: item.system_description,
                 unitTypeParentDescription: item.unit_type_parent_description,
@@ -2288,6 +2310,7 @@ export const ordersService = {
                 unitDescription: item.unit_description,
                 unitAddress: item.unit_address,
                 unitId: item.unit_id?.toString(),
+                unitAssetTagId: item.unit_asset_tag_id?.toString(),
                 companyId: item.company_id?.toString(),
                 companyName: item.company_description,
                 logo: getPublicImageUrl(

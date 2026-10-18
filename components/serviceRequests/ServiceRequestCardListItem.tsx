@@ -205,7 +205,7 @@ export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProp
                     {req.requesterNameShort || req.requesterName || 'Solicitante não identificado'}
                 </div>
                 <div className="text-xs font-bold text-slate-700 dark:text-slate-300 text-right">
-                    {req.providerCompanyName || ''}
+                    {req.requesterTeamCode || (req as any).requester_team_code || ''}
                 </div>
                 <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                     {req.requesterPhone || req.phone}

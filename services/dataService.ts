@@ -140,6 +140,10 @@ export const dataService = {
         return settingsService.getProcessingConfigurations.apply(settingsService, arguments as any);
     },
 
+    async getCauseReasons(): Promise<{ id: number; description: string }[]> {
+        return orderConfigService.getOrderCauseReasons.apply(orderConfigService, arguments as any);
+    },
+
     // Atualização de Heartbeat do usuário
     async updateLastOnline(userId: string): Promise<void> {
         return usersService.updateLastOnline.apply(usersService, arguments as any);
