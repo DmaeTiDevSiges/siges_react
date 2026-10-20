@@ -450,11 +450,13 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
                 return;
             }
 
-            // Progressão do odômetro (base: maior odômetro final de visitas)
+            // Progressão do odômetro: apenas INFORMA, não impede a inclusão
+            // (decisão de produto — a leitura não pode bloquear o abastecimento)
             const base = await dataService.getMaxVehicleOdometer(vehicle.id);
             if (base != null && odometer <= base) {
-                toast.warning(`Odômetro inválido: o último registro do veículo é ${base.toLocaleString('pt-BR')} Km. Informe um valor maior.`);
-                return;
+                toast.info(
+                    `Atenção: o último registro do veículo é ${base.toLocaleString('pt-BR')} Km — a leitura informada não é maior que ela.`
+                );
             }
 
             // 1) Upload da imagem obrigatória do comprovante (falha ⇒ aborta)

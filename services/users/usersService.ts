@@ -56,14 +56,17 @@ export const usersService = {
             phone: item.phone,
             avatarUrl: getPublicImageUrl(item.img_file_path, item.img_file_name || 'noImageUser.png', { width: 70, height: 70, resize: 'cover' }),
 
-            companyId: (item.company_id || item.cfg_teams?.company_id)?.toString(),
+            // `??` (não `||`): sem company_id próprio, herda a company da equipe.
+            // O `?.toString()` precisa envolver o valor final, senão o fallback
+            // devolvia `undefined` cru e o consumidor fazia Number(undefined) → NaN.
+            companyId: (item.company_id ?? item.cfg_teams?.company_id)?.toString(),
             departmentId: item.cfg_teams?.department_id?.toString(),
             name: item.name_full,
             createdAt: item.created_at,
             teamId: item.team_id?.toString(),
             teamName: item.cfg_teams?.description,
-            companyName: companyMap.get(item.company_id || item.cfg_teams?.company_id)?.name || 'N/A',
-            companyLogoUrl: companyMap.get(item.company_id || item.cfg_teams?.company_id)?.logoUrl,
+            companyName: companyMap.get(item.company_id ?? item.cfg_teams?.company_id)?.name || 'N/A',
+            companyLogoUrl: companyMap.get(item.company_id ?? item.cfg_teams?.company_id)?.logoUrl,
             vehicleId: item.vehicle_id?.toString(),
             isTeamLeader: item.is_team_leader,
             isAvailable: item.is_available,
@@ -1487,9 +1490,14 @@ export const usersService = {
             console.error('Unexpected error during sign out:', e);
         } finally {
             const savedCompanyId = localStorage.getItem('last_company_id');
+            // O tema é preferência do dispositivo, não da sessão — preserva na limpeza
+            const savedTheme = localStorage.getItem('app_theme');
             localStorage.clear();
             if (savedCompanyId) {
                 localStorage.setItem('last_company_id', savedCompanyId);
+            }
+            if (savedTheme) {
+                localStorage.setItem('app_theme', savedTheme);
             }
             window.location.href = '/';
         }

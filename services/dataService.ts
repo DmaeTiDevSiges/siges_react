@@ -61,7 +61,7 @@ import { gamificationService } from './gamification/gamificationService';
 import { assetLoansService } from './assets/assetLoansService';
 import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
 import { loansChecklistService } from './assets/loansChecklistService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
 
 
 
@@ -3106,8 +3106,46 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
     // -------------------------------------------------------------------------
     // NOTICE WORKERS (Trabalhadores Extras por Aviso)
     // -------------------------------------------------------------------------
-    async getNoticeWorkers(noticeId: number, companyId?: string | number | null): Promise<NoticeWorker[]> {
+    async getNoticeWorkers(
+        noticeId: number,
+        companyId?: string | number | null,
+        periodId?: number | null
+    ): Promise<NoticeWorker[]> {
         return appNoticesWorkersService.getWorkersByNotice.apply(appNoticesWorkersService, arguments as any);
+    },
+
+    async getNoticeWorkerPeriods(noticeId: number): Promise<NoticeWorkerPeriod[]> {
+        return appNoticesWorkersService.getPeriodsByNotice.apply(appNoticesWorkersService, arguments as any);
+    },
+
+    async getNoticeWorkerPeriodForDate(noticeId: number, dateISO: string): Promise<NoticeWorkerPeriod | null> {
+        return appNoticesWorkersService.getPeriodForDate.apply(appNoticesWorkersService, arguments as any);
+    },
+
+    async getNoticeWorkerCurrentPeriod(noticeId: number): Promise<NoticeWorkerPeriod | null> {
+        return appNoticesWorkersService.getCurrentPeriod.apply(appNoticesWorkersService, arguments as any);
+    },
+
+    /**
+     * Cria um TURNO (escala) explícito no aviso — permite várias escalas no
+     * mesmo dia. Erros tipados: PERIODO_INVALIDO, PERIODO_FORA_DA_JANELA,
+     * PERIODO_SOBREPOSTO, NOTICE_NOT_FOUND.
+     */
+    async createNoticeWorkerPeriod(params: {
+        noticeId: number;
+        startDate: string;
+        endDate: string;
+        userId?: number | null;
+    }): Promise<NoticeWorkerPeriod> {
+        return appNoticesWorkersService.createPeriod.apply(appNoticesWorkersService, arguments as any);
+    },
+
+    async getNoticeWorkersForDate(
+        noticeId: number,
+        dateISO: string,
+        companyId?: string | number | null
+    ): Promise<NoticeWorker[]> {
+        return appNoticesWorkersService.getWorkersForDate.apply(appNoticesWorkersService, arguments as any);
     },
 
     async setNoticeWorkers(params: {
@@ -3116,11 +3154,15 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         unitId: string | number;
         amount: number;
         userId?: number | null;
+        periodId?: number;
     }): Promise<void> {
         return appNoticesWorkersService.setWorkers.apply(appNoticesWorkersService, arguments as any);
     },
 
-    async getNoticeWorkersSummaryByNotices(noticeIds: Array<number | string>): Promise<NoticeWorkersSummaryItem[]> {
+    async getNoticeWorkersSummaryByNotices(
+        noticeIds: Array<number | string>,
+        options?: NoticeWorkersSummaryOptions
+    ): Promise<NoticeWorkersSummaryItem[]> {
         return appNoticesWorkersService.getWorkersSummaryByNotices.apply(appNoticesWorkersService, arguments as any);
     },
 

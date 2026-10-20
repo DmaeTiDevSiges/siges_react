@@ -39,7 +39,9 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
         loadCategoriesAndSeverities();
     }, []);
 
-    // Total de MO extra por company para os avisos listados (1 query)
+    // MO extra por company para os avisos listados (1 query em lote):
+    // considera apenas o PERÍODO vigente do momento (escala atual), evitando
+    // somar períodos históricos já encerrados da mesma vigência.
     useEffect(() => {
         let cancelled = false;
         const ids = notices.map((notice) => notice.id);
@@ -48,7 +50,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
             return;
         }
         dataService
-            .getNoticeWorkersSummaryByNotices(ids)
+            .getNoticeWorkersSummaryByNotices(ids, { onlyCurrent: true })
             .then((items) => {
                 if (cancelled) return;
                 const map: Record<number, NoticeWorkersSummaryItem[]> = {};

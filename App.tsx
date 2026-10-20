@@ -83,6 +83,7 @@ import { GrantDashboardScreen } from './views/Dashboards/DashboardGrantScreen';
 import { useLocationTracker } from './hooks/useLocationTracker';
 import { useKeyboard } from './hooks/useKeyboard';
 import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 import { useShiftMonitor } from './hooks/useShiftMonitor';
 import { Modal } from './components/ui/Modal';
 import { PermissionsProvider } from './contexts/PermissionsContext';
@@ -350,6 +351,13 @@ const AppContent: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('app_theme') as 'light' | 'dark') || 'dark';
   });
+  // No nativo, o localStorage do WebView pode ser apagado ao sair/atualizar o app
+  // (mesmo motivo pelo qual a sessão do Supabase usa @capacitor/preferences).
+  // Enquanto o espelho em Preferences não é lido no boot, a gravação do espelho
+  // fica suspensa para não sobrescrever o valor guardado.
+  const themeHydrationRef = useRef<'pending' | 'done'>(
+    !Capacitor.isNativePlatform() || localStorage.getItem('app_theme') ? 'done' : 'pending'
+  );
 
   // Computed once from the URL at the time the app loads.
   // Used to know if this page load originated from a password recovery link.
@@ -752,6 +760,25 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
+  // Restaura o tema do Preferences nativo (SharedPreferences/UserDefaults) quando
+  // o localStorage do WebView foi apagado — evita voltar ao dark no modo light
+  // depois de sair e reabrir o app. Se o valor não existir ainda, semeia o espelho.
+  useEffect(() => {
+    if (themeHydrationRef.current !== 'pending') return;
+    Preferences.get({ key: 'app_theme' })
+      .then(({ value }) => {
+        if (value === 'light' || value === 'dark') {
+          setTheme(value);
+        } else {
+          return Preferences.set({ key: 'app_theme', value: theme });
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        themeHydrationRef.current = 'done';
+      });
+  }, []);
+
   // Sync theme + StatusBar
   useEffect(() => {
     console.log('Switching theme to:', theme);
@@ -763,6 +790,11 @@ const AppContent: React.FC = () => {
     localStorage.setItem('app_theme', theme);
 
     if (Capacitor.isNativePlatform()) {
+      // Espelha o tema no Preferences nativo (só depois da hidratação no boot,
+      // para não sobrescrever o valor restaurado).
+      if (themeHydrationRef.current === 'done') {
+        Preferences.set({ key: 'app_theme', value: theme }).catch(() => {});
+      }
       import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
         if (theme === 'dark') {
           StatusBar.setStyle({ style: Style.Dark });
@@ -2343,7 +2375,7 @@ const AppContent: React.FC = () => {
       case 'app-notices':
         return <AppNoticesList onBack={handleBack} />;
       case 'extra-workers':
-        return <ExtraWorkersList />;
+        return <ExtraWorkersList onNavigate={handleNavigate} />;
       case 'tools':
         return <ToolsMainView companyId={currentUser?.companyId || ''} />;
       case 'contracts':

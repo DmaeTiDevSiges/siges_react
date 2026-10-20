@@ -1,4 +1,10 @@
-import { isNoticeExpired, isNoticeWithinVigencia, isNoticeWithinViewWindow } from './appNoticeWindow';
+import {
+    getBloqueioLancamento,
+    getNoticeJanelaStatus,
+    isNoticeExpired,
+    isNoticeWithinVigencia,
+    isNoticeWithinViewWindow,
+} from './appNoticeWindow';
 
 const notice = {
     isActive: true,
@@ -80,5 +86,69 @@ describe('isNoticeExpired', () => {
 
     it('does not mark notices with invalid dates as expired', () => {
         expect(isNoticeExpired({ ...vigencia, endDate: 'invalid' }, at('2026-10-16T09:31:00-03:00'))).toBe(false);
+    });
+});
+
+describe('getNoticeJanelaStatus', () => {
+    const janela = {
+        viewStartDate: '2026-10-16T09:00:00',
+        viewEndDate: '2026-10-16T09:30:00',
+    };
+
+    it('reports "active" inside the janela (único estado lançável)', () => {
+        expect(getNoticeJanelaStatus(janela, at('2026-10-16T09:15:00-03:00'))).toBe('active');
+        // Bordas: o instante exato de início/fim ainda está dentro da janela.
+        expect(getNoticeJanelaStatus(janela, at('2026-10-16T09:00:00-03:00'))).toBe('active');
+        expect(getNoticeJanelaStatus(janela, at('2026-10-16T09:30:00-03:00'))).toBe('active');
+    });
+
+    it('reports "ended" after the janela encerra', () => {
+        expect(getNoticeJanelaStatus(janela, at('2026-10-16T09:30:01-03:00'))).toBe('ended');
+        expect(getNoticeJanelaStatus(janela, at('2026-10-17T09:30:00-03:00'))).toBe('ended');
+    });
+
+    it('reports "future" antes da janela começar', () => {
+        expect(getNoticeJanelaStatus(janela, at('2026-10-16T08:59:59-03:00'))).toBe('future');
+        expect(getNoticeJanelaStatus(janela, at('2026-10-15T09:00:00-03:00'))).toBe('future');
+    });
+
+    it('does not depend on the device timezone', () => {
+        expect(getNoticeJanelaStatus(janela, at('2026-10-16T12:15:00Z'))).toBe('active');
+        expect(getNoticeJanelaStatus(janela, at('2026-10-16T12:30:01Z'))).toBe('ended');
+        expect(getNoticeJanelaStatus(janela, at('2026-10-16T11:59:59Z'))).toBe('future');
+    });
+
+    it('treats notices with invalid dates as ended', () => {
+        expect(getNoticeJanelaStatus({ ...janela, viewEndDate: 'invalid' }, at('2026-10-16T09:15:00-03:00'))).toBe('ended');
+    });
+});
+
+describe('getBloqueioLancamento', () => {
+    const livre = { canEdit: true, hasNotice: true, isShiftOpen: true, janelaStatus: 'active' as const };
+
+    it('libera o lançamento com permissao, aviso, escala aberta e janela ativa', () => {
+        expect(getBloqueioLancamento(livre)).toBeNull();
+    });
+
+    it('bloqueia sem permissao de edicao', () => {
+        expect(getBloqueioLancamento({ ...livre, canEdit: false })).toBe('sem_permissao_edicao');
+    });
+
+    it('bloqueia sem aviso selecionado', () => {
+        expect(getBloqueioLancamento({ ...livre, hasNotice: false })).toBe('sem_aviso');
+    });
+
+    it('prioriza a janela futura/encerrada sobre a escala encerrada', () => {
+        // Fora da janela o motivo correto é a janela, não a escala escolhida.
+        expect(getBloqueioLancamento({ ...livre, isShiftOpen: false, janelaStatus: 'future' })).toBe('janela_futura');
+        expect(getBloqueioLancamento({ ...livre, isShiftOpen: false, janelaStatus: 'ended' })).toBe('janela_encerrada');
+    });
+
+    it('bloqueia escala encerrada com janela ativa', () => {
+        expect(getBloqueioLancamento({ ...livre, isShiftOpen: false })).toBe('escala_encerrada');
+    });
+
+    it('classifica o caso generico como indisponivel', () => {
+        expect(getBloqueioLancamento({ ...livre, janelaStatus: null })).toBe('indisponivel');
     });
 });

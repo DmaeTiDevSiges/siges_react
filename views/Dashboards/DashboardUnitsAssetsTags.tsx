@@ -4,6 +4,7 @@ import { formatDateInBrazil } from '../../utils/formatters';
 import { dataService } from '../../services/dataService';
 import { supabase } from '../../services/core/supabase';
 import { useAppNotices } from '../../hooks/useAppNotices';
+import { pickPeriodForNow } from '../../utils/appNoticePeriod';
 import { User, System, OrderType, Priority } from '../../types';
 import { toast } from 'sonner';
 import { Card } from '../../components/ui/Card';
@@ -176,18 +177,28 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [selectedUnitIdFromMap, setSelectedUnitIdFromMap] = useState<number | null>(null);
 
     // MO Extra: notice ativo + workers agrupados por unidade
+    // A contagem só considera o PERÍODO vigente do momento (data/hora atual
+    // do app em São Paulo entre period_start e o fim efetivo do período).
     const { notices: activeNotices } = useAppNotices();
     const [noticeWorkers, setNoticeWorkers] = useState<any[]>([]);
 
     const loadNoticeWorkers = useCallback(async (noticeId: number) => {
         try {
+            const periods = await dataService.getNoticeWorkerPeriods(noticeId);
+            const windowEnd = activeNotices.find((n: any) => n.id === noticeId)?.viewEndDate;
+            const period = pickPeriodForNow(periods, new Date(), windowEnd);
+            if (!period) {
+                // Nada cobre "agora": 1º dia sem lançamento ou vigência encerrada
+                setNoticeWorkers([]);
+                return;
+            }
             // undefined = sem filtro de company → retorna todas as companies
-            const workers = await dataService.getNoticeWorkers(noticeId, undefined);
+            const workers = await dataService.getNoticeWorkers(noticeId, undefined, period.id);
             setNoticeWorkers(workers);
         } catch (err) {
             setNoticeWorkers([]);
         }
-    }, []);
+    }, [activeNotices]);
 
     useEffect(() => {
         const notice = activeNotices[0];

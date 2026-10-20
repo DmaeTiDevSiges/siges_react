@@ -1660,6 +1660,7 @@ export interface NoticeWorker {
   companyId: number;
   unitId: number;
   workersExtraAmount: number;
+  workersPeriodId?: number;
   createdAt: string;
   updatedAt: string;
   // UI helpers (embed da unidade)
@@ -1670,6 +1671,33 @@ export interface NoticeWorker {
   companyName?: string;
   companyCode?: string;
   companyLogoUrl?: string;
+  // UI helpers (embed do período — modo consulta por data)
+  periodLabel?: string;
+  periodStartDate?: string;
+  periodEndDate?: string | null;
+}
+
+/**
+ * Período de disponibilidade de MO extra dentro da vigência de um aviso.
+ * `endDate === null` indica período em aberto (vigente), que vale até a
+ * `endDate` do aviso. Os períodos são contínuos: end(p) = start(p+1) e o
+ * último termina na vigência (end_date da notice).
+ */
+export interface NoticeWorkerPeriod {
+  id: number;
+  noticeId: number;
+  label: string;
+  startDate: string;
+  endDate: string | null;
+  positionIndex: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Opções de resumo de MO extra por aviso. */
+export interface NoticeWorkersSummaryOptions {
+  /** Agrega apenas o período vigente do momento (escala do momento). */
+  onlyCurrent?: boolean;
 }
 
 export interface NoticeWorkersSummaryItem {

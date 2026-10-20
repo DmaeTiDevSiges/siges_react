@@ -32,9 +32,14 @@ const UpdateNotifier: React.FC = () => {
     const forceRefresh = async () => {
         resetUpdateAttempts();
 
-        // 1. Limpar completamente o localStorage
+        // 1. Limpar completamente o localStorage (preserva o tema — é preferência
+        //    do dispositivo, não dado de sessão/cache)
         try {
+            const savedTheme = localStorage.getItem('app_theme');
             localStorage.clear();
+            if (savedTheme) {
+                localStorage.setItem('app_theme', savedTheme);
+            }
         } catch (e) {
             console.error('Failed to clear localStorage:', e);
         }
