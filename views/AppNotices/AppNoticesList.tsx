@@ -5,7 +5,13 @@ import { usePermissions } from '../../contexts/PermissionsContext';
 import { useAppNoticesAdmin } from '../../hooks/useAppNotices';
 import { AppNoticeForm } from '../../components/appNotices/AppNoticeForm';
 import { isNoticeExpired, isNoticeWithinVigencia } from '../../utils/appNoticeWindow';
-import { SystemNotice, CreateSystemNoticeInput, NoticeWorkersSummaryItem } from '../../types';
+import {
+    SystemNotice,
+    CreateSystemNoticeInput,
+    NoticeWorkersSummaryItem,
+    NoticeWorker,
+    NoticeWorkerPeriod,
+} from '../../types';
 import { appNoticesService } from '../../services/core/appNoticesService';
 import { dataService } from '../../services/dataService';
 import { Select } from '../../components/ui/Select';
@@ -34,14 +40,15 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
     // Ativar/desativar: resposta imediata (otimista) + destaque temporário do card
     const [togglingId, setTogglingId] = useState<number | null>(null);
     const [flash, setFlash] = useState<{ id: number; active: boolean } | null>(null);
+    // Notice id whose MO Extra breakdown is expanded inline in the card
+    const [expandedMoExtraNoticeId, setExpandedMoExtraNoticeId] = useState<number | null>(null);
 
     useEffect(() => {
         loadCategoriesAndSeverities();
     }, []);
 
     // MO extra por company para os avisos listados (1 query em lote):
-    // considera apenas o PERÍODO vigente do momento (escala atual), evitando
-    // somar períodos históricos já encerrados da mesma vigência.
+    // considera todas as escalas (soma total)
     useEffect(() => {
         let cancelled = false;
         const ids = notices.map((notice) => notice.id);
@@ -50,7 +57,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
             return;
         }
         dataService
-            .getNoticeWorkersSummaryByNotices(ids, { onlyCurrent: true })
+            .getNoticeWorkersSummaryByNotices(ids, { onlyCurrent: false })
             .then((items) => {
                 if (cancelled) return;
                 const map: Record<number, NoticeWorkersSummaryItem[]> = {};
@@ -381,10 +388,17 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                                 <span className="material-symbols-outlined text-[15px] text-amber-500">engineering</span>
                                                                 <span className="flex items-center -space-x-2">
                                                                     {items.map((item) => (
-                                                                        <span
+                                                                        <button
+                                                                            type="button"
                                                                             key={`mo-extra-${item.companyId}`}
                                                                             className="relative shrink-0"
-                                                                            title={`${item.companyName || 'Empresa'}: ${item.total} MO Extra`}
+                                                                            title={`${item.companyName || 'Empresa'}: ${item.total} MO Extra (ver por escala)`}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setExpandedMoExtraNoticeId((current) =>
+                                                                                    current === notice.id ? null : notice.id
+                                                                                );
+                                                                            }}
                                                                         >
                                                                             {item.companyLogoUrl ? (
                                                                                 <img
@@ -402,7 +416,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                                             <span className="absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] px-0.5 rounded-full bg-amber-500 border-[1.5px] border-white dark:border-slate-800 flex items-center justify-center">
                                                                                 <span className="text-[9px] font-black text-black leading-none">{item.total}</span>
                                                                             </span>
-                                                                        </span>
+                                                                        </button>
                                                                     ))}
                                                                 </span>
                                                             </span>
@@ -473,6 +487,12 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                 </span>
                                             )}
                                         </div>
+
+                                        {/* MO Extra: inline breakdown by shift × unit */}
+                                        <MoExtraDetailSection
+                                            open={expandedMoExtraNoticeId === notice.id}
+                                            noticeId={notice.id}
+                                        />
                                     </div>
                                 </div>
                             );
@@ -530,6 +550,384 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                         </div>
                     </div>
                 </div>
+            )}
+        </div>
+    );
+};
+
+/**
+ * Inline collapsible breakdown of MO Extra for a notice card, opened by
+ * clicking a company avatar badge.
+ * Groups every launch by `companyId → periodId → unitId` and renders one
+ * block per shift with the unit amounts and totals.
+ */
+const MoExtraDetailSection: React.FC<{
+    open: boolean;
+    noticeId: number;
+}> = ({ open, noticeId }) => {
+    const [loading, setLoading] = useState(false);
+    const [workers, setWorkers] = useState<NoticeWorker[]>([]);
+    const [periods, setPeriods] = useState<NoticeWorkerPeriod[]>([]);
+    const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (!open || !noticeId) return;
+        let cancelled = false;
+        const load = async () => {
+            setLoading(true);
+            try {
+                const [periodsList, workersList] = await Promise.all([
+                    dataService.getNoticeWorkerPeriods(noticeId),
+                    dataService.getNoticeWorkers(noticeId, undefined, undefined),
+                ]);
+                if (cancelled) return;
+                setPeriods(periodsList);
+                setWorkers(workersList);
+            } catch {
+                if (!cancelled) {
+                    setPeriods([]);
+                    setWorkers([]);
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        void load();
+        return () => {
+            cancelled = true;
+        };
+    }, [open, noticeId]);
+
+    // companyId → periodId → unitId → amount
+    const grouped = React.useMemo(() => {
+        const map = new Map<number, Map<number, Map<number, number>>>();
+        workers.forEach((w) => {
+            const cid = Number(w.companyId);
+            const pid = Number(w.workersPeriodId);
+            const uid = Number(w.unitId);
+            const amount = Number(w.workersExtraAmount) || 0;
+            if (!cid || !pid || !uid || amount <= 0) return;
+            if (!map.has(cid)) map.set(cid, new Map());
+            const byPeriod = map.get(cid)!;
+            if (!byPeriod.has(pid)) byPeriod.set(pid, new Map());
+            byPeriod.get(pid)!.set(uid, amount);
+        });
+        return map;
+    }, [workers]);
+
+    const periodMap = React.useMemo(() => {
+        const m = new Map<number, NoticeWorkerPeriod>();
+        periods.forEach((p) => m.set(Number(p.id), p));
+        return m;
+    }, [periods]);
+
+    const unitInfo = React.useMemo(() => {
+        const m = new Map<number, { title: string; subtitle?: string }>();
+        workers.forEach((w) => {
+            const uid = Number(w.unitId);
+            if (m.has(uid)) return;
+            const title =
+                w.unitDescriptionFull || w.unitDescription || w.unitCode || `Unidade ${uid}`;
+            const subtitleParts: string[] = [];
+            if (w.unitCode && w.unitCode !== title) subtitleParts.push(`Cód. ${w.unitCode}`);
+            if (w.unitAddressFull) subtitleParts.push(w.unitAddressFull);
+            m.set(uid, {
+                title,
+                subtitle: subtitleParts.length > 0 ? subtitleParts.join(' · ') : undefined,
+            });
+        });
+        return m;
+    }, [workers]);
+
+    const companyTotals = React.useMemo(() => {
+        const m = new Map<number, number>();
+        grouped.forEach((byPeriod, cid) => {
+            let total = 0;
+            byPeriod.forEach((byUnit) => byUnit.forEach((v) => (total += v)));
+            m.set(cid, total);
+        });
+        return m;
+    }, [grouped]);
+
+    const totals = React.useMemo(() => {
+        let workersTotal = 0;
+        const unitIds = new Set<number>();
+        grouped.forEach((byPeriod) => {
+            byPeriod.forEach((byUnit) => {
+                byUnit.forEach((amount, uid) => {
+                    workersTotal += amount;
+                    unitIds.add(uid);
+                });
+            });
+        });
+        return { units: unitIds.size, workers: workersTotal };
+    }, [grouped]);
+
+    const sortedPeriods = React.useMemo(
+        () =>
+            [...periods].sort((a, b) =>
+                String(a.startDate || '').localeCompare(String(b.startDate || ''))
+            ),
+        [periods]
+    );
+
+    // Total MO per shift (across every company)
+    const periodTotals = React.useMemo(() => {
+        const m = new Map<number, number>();
+        grouped.forEach((byPeriod) => {
+            byPeriod.forEach((byUnit, pid) => {
+                let total = 0;
+                byUnit.forEach((v) => (total += v));
+                m.set(pid, total);
+            });
+        });
+        return m;
+    }, [grouped]);
+
+    // Default to the latest shift that already has launches
+    useEffect(() => {
+        if (!open || sortedPeriods.length === 0) return;
+        setSelectedPeriodId((previous) => {
+            if (previous != null && sortedPeriods.some((p) => Number(p.id) === previous)) {
+                return previous;
+            }
+            const withData = sortedPeriods.filter((p) => periodTotals.has(Number(p.id)));
+            const pool = withData.length > 0 ? withData : sortedPeriods;
+            return Number(pool[pool.length - 1].id);
+        });
+    }, [open, sortedPeriods, periodTotals]);
+
+    // Units / total for the selected shift
+    const selectedTotals = React.useMemo(() => {
+        const unitIds = new Set<number>();
+        let total = 0;
+        let companies = 0;
+        if (selectedPeriodId != null) {
+            grouped.forEach((byPeriod) => {
+                const byUnit = byPeriod.get(selectedPeriodId);
+                if (!byUnit) return;
+                companies += 1;
+                byUnit.forEach((amount, uid) => {
+                    unitIds.add(uid);
+                    total += amount;
+                });
+            });
+        }
+        return { units: unitIds.size, total, companies };
+    }, [grouped, selectedPeriodId]);
+
+    const selectedPeriod =
+        selectedPeriodId != null ? periodMap.get(selectedPeriodId) : undefined;
+
+    const formatShiftRange = (period?: NoticeWorkerPeriod) => {
+        if (!period) return '';
+        const start = formatDateInBrazil(period.startDate, 'dateTime', 'pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+        if (!period.endDate) return `${start} · em aberto`;
+        const end = formatDateInBrazil(period.endDate, 'dateTime', 'pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+        return `${start} → ${end}`;
+    };
+
+    return (
+        <div
+            className="mt-3 border-t border-slate-100 dark:border-slate-700/50 pt-3"
+            hidden={!open}
+        >
+            {/* Section header */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="material-symbols-outlined text-[16px] text-amber-500">
+                        engineering
+                    </span>
+                    <p className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-tight truncate">
+                        MO Extra por escala
+                    </p>
+                </div>
+                {!loading && grouped.size > 0 && (
+                    <span className="shrink-0 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-black uppercase tracking-tight">
+                        {totals.units} unid. · {totals.workers} MO
+                    </span>
+                )}
+            </div>
+
+            {loading ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-xs font-medium text-slate-400 dark:text-slate-500">
+                    <span className="animate-spin material-symbols-outlined text-[18px] text-primary">
+                        progress_activity
+                    </span>
+                    <span>Carregando lançamentos...</span>
+                </div>
+            ) : sortedPeriods.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 px-3 py-5 text-center">
+                    <span className="material-symbols-outlined text-2xl text-slate-300 dark:text-slate-600">
+                        calendar_month
+                    </span>
+                    <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1">
+                        Nenhuma escala criada para este aviso.
+                    </p>
+                </div>
+            ) : (
+                <>
+                    {/* Shift tags (horizontal scroll, same as the MO Extra form) */}
+                    <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar w-full max-w-full min-w-0 pb-1 mb-2 scroll-smooth">
+                        {sortedPeriods.map((period) => {
+                            const pid = Number(period.id);
+                            const isSelected = pid === selectedPeriodId;
+                            const total = periodTotals.get(pid) || 0;
+                            return (
+                                <button
+                                    key={pid}
+                                    type="button"
+                                    onClick={() => setSelectedPeriodId(pid)}
+                                    className={`shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-black uppercase tracking-tight border transition-colors ${
+                                        isSelected
+                                            ? 'bg-primary text-white border-primary shadow-sm'
+                                            : 'bg-white dark:bg-card-dark text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                    }`}
+                                    title={formatShiftRange(period)}
+                                >
+                                    <span className="material-symbols-outlined text-[13px]">
+                                        schedule
+                                    </span>
+                                    <span>{period.label}</span>
+                                    <span
+                                        className={`rounded px-1 py-0.5 text-[10px] font-black leading-none ${
+                                            isSelected
+                                                ? 'bg-white/20 text-white'
+                                                : 'bg-primary/10 text-primary'
+                                        }`}
+                                    >
+                                        {total}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Summary tiles for the selected shift */}
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div className="rounded-xl bg-primary/10 border border-primary/20 px-3 py-2">
+                            <p className="text-[10px] font-black text-primary uppercase tracking-tight truncate">
+                                Unidades{selectedPeriod ? ` · ${selectedPeriod.label}` : ''}
+                            </p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white leading-tight">
+                                {selectedTotals.units}
+                            </p>
+                        </div>
+                        <div className="rounded-xl bg-primary/10 border border-primary/20 px-3 py-2">
+                            <p className="text-[10px] font-black text-primary uppercase tracking-tight truncate">
+                                MO Extra{selectedPeriod ? ` · ${selectedPeriod.label}` : ''}
+                            </p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white leading-tight">
+                                {selectedTotals.total}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Companies + units of the selected shift */}
+                    {selectedTotals.companies === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 px-3 py-5 text-center">
+                            <span className="material-symbols-outlined text-2xl text-slate-300 dark:text-slate-600">
+                                groups
+                            </span>
+                            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1">
+                                Nenhuma unidade lançada nesta escala.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {Array.from(grouped.entries())
+                                .filter(
+                                    ([, byPeriod]) =>
+                                        selectedPeriodId != null && byPeriod.has(selectedPeriodId)
+                                )
+                                .map(([cid, byPeriod]) => {
+                                    const company = workers.find(
+                                        (w) => Number(w.companyId) === cid
+                                    );
+                                    const byUnit = byPeriod.get(selectedPeriodId as number)!;
+                                    const totalCompany = Array.from(byUnit.values()).reduce(
+                                        (acc, v) => acc + v,
+                                        0
+                                    );
+                                    return (
+                                        <div
+                                            key={cid}
+                                            className="rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden bg-slate-50/60 dark:bg-slate-800/20"
+                                        >
+                                            {/* Company header */}
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-card-dark border-b border-slate-100 dark:border-slate-800">
+                                                {company?.companyLogoUrl ? (
+                                                    <img
+                                                        src={company.companyLogoUrl}
+                                                        alt={company.companyName || ''}
+                                                        className="w-8 h-8 rounded-full object-cover bg-white border border-slate-100 dark:border-slate-700"
+                                                    />
+                                                ) : (
+                                                    <span className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-xs font-black text-black dark:text-amber-400 uppercase">
+                                                        {(company?.companyName || '?')[0]}
+                                                    </span>
+                                                )}
+                                                <p className="flex-1 min-w-0 text-sm font-bold text-slate-900 dark:text-white truncate">
+                                                    {company?.companyName || `Empresa ${cid}`}
+                                                </p>
+                                                <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-tight">
+                                                    {totalCompany} MO
+                                                </span>
+                                            </div>
+
+                                            {/* Units */}
+                                            <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                                {Array.from(byUnit.entries()).map(
+                                                    ([uid, amount]) => {
+                                                        const info = unitInfo.get(uid);
+                                                        return (
+                                                            <div
+                                                                key={`${cid}-${uid}`}
+                                                                className="bg-white dark:bg-card-dark rounded-[12px] border border-slate-100 dark:border-slate-800 shadow-sm px-3 py-2 flex items-start gap-2"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[15px] text-slate-400 dark:text-slate-500 shrink-0 mt-0.5">
+                                                                    apartment
+                                                                </span>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p
+                                                                        className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-tight line-clamp-2"
+                                                                        title={info?.title || `Unidade ${uid}`}
+                                                                    >
+                                                                        {info?.title || `Unidade ${uid}`}
+                                                                    </p>
+                                                                    {info?.subtitle && (
+                                                                        <p
+                                                                            className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5 line-clamp-2"
+                                                                            title={info.subtitle}
+                                                                        >
+                                                                            {info.subtitle}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                                <span className="shrink-0 min-w-[24px] text-center rounded-lg bg-amber-500/15 px-1.5 py-0.5 text-xs font-black text-amber-700 dark:text-amber-300">
+                                                                    {amount}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    }
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
