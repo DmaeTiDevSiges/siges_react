@@ -450,3 +450,22 @@ export const suggestNextShiftStart = (
   const mm = String(end.getMinutes()).padStart(2, '0');
   return `${hh}:${mm}`;
 };
+
+/** All shifts covering the current instant `now` (SP). */
+export const pickActivePeriodsAt = (
+  periods: NoticeWorkerPeriod[],
+  now: Date = new Date(),
+  windowEndDate?: string
+): NoticeWorkerPeriod[] => {
+  if (periods.length === 0) return [];
+  const nowMs = now.getTime();
+  return periods
+    .filter((p) => {
+      const startMs = parseBrazilDate(p.startDate).getTime();
+      if (Number.isNaN(startMs) || startMs > nowMs) return false;
+      const endMsEffective = effectiveEnd(p, windowEndDate);
+      if (Number.isNaN(endMsEffective)) return false;
+      return endMsEffective > nowMs;
+    })
+    .sort((a, b) => parseBrazilDate(a.startDate).getTime() - parseBrazilDate(b.startDate).getTime());
+};
