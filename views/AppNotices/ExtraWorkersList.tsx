@@ -34,7 +34,7 @@ interface UnitEntry {
 }
 
 const JANELA_LABEL: Record<JanelaStatus, string> = {
-  active: 'em exibição',
+  active: 'ativo',
   future: 'exibição ainda não iniciada',
   ended: 'exibição encerrada',
 };
@@ -635,7 +635,7 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
             onChange={(e) => setSelectedNoticeId(e.target.value ? Number(e.target.value) : null)}
             options={notices.map((notice) => ({
               value: String(notice.id),
-              label: `${notice.title} — ${JANELA_LABEL[getNoticeJanelaStatus(notice, nowInstant)]}`,
+              label: notice.title,
             }))}
             placeholder="Selecione um aviso"
           />
