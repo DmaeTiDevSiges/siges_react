@@ -469,3 +469,151 @@ export const pickActivePeriodsAt = (
     })
     .sort((a, b) => parseBrazilDate(a.startDate).getTime() - parseBrazilDate(b.startDate).getTime());
 };
+
+
+/**
+ * Interface para ajustes ao excluir período/escala, garantindo cadeia contínua
+ * sem gaps entre as escalas restantes.
+ */
+export interface PeriodDeletionAdjustments {
+  /** Fim efetivo do período anterior após ajuste (fecha o vão). */
+  prevEndDate: string | null;
+  /** Início efetivo do próximo período após ajuste (fecha o vão). */
+  nextStartDate: string | null;
+  /** IDs de períodos a remover (totalmente engolidos pelo ajuste). */
+  removals: number[];
+}
+
+/**
+ * Plano de ajustes para exclusão de período, garantindo cadeia contínua
+ * sem gaps entre as escalas restantes.
+ *
+ * Regras:
+ * - Se há período anterior e posterior, o fim do anterior é ajustado para o
+ *   início do próximo, fechando qualquer vão.
+ * - Se só há período anterior (última escala), encerra no fim da janela.
+ * - Se só há período posterior (primeira escala), mantém início original.
+ * - Períodos totalmente engolidos pelo ajuste são marcados para remoção.
+ */
+
+/**
+ * Executa os ajustes necessários ao excluir um período/escala, garantindo
+ * que não haja vão (gap) entre as escalas restantes após a exclusão.
+ *
+ * @param periods - Todos os períodos do aviso, ordenados por startDate
+ * @param deletedPeriodId - ID do período que está sendo excluído
+ * @param windowEndDate - Fim da janela de visualização do aviso (opcional)
+ * @returns Objeto com o fim ajustado do período anterior, o início ajustado
+ *          do próximo período, e lista de IDs de períodos a remover
+ */
+export const planPeriodDeletionAdjustments = (
+  periods: NoticeWorkerPeriod[],
+  deletedPeriodId: number,
+  windowEndDate?: string
+): PeriodDeletionAdjustments => {
+  // Encontra o período excluído e seus vizinhos no array ordenado
+  const deleted = periods.find((p) => p.id === deletedPeriodId);
+  if (!deleted) {
+    return { prevEndDate: null, nextStartDate: null, removals: [] };
+  }
+
+  // Ordena períodos por startDate
+  const sorted = [...periods].sort(
+    (a, b) => parseBrazilDate(a.startDate).getTime() - parseBrazilDate(b.startDate).getTime()
+  );
+
+  // Encontra índices no array ordenado
+  const delIndex = sorted.findIndex((p) => p.id === deletedPeriodId);
+  const prev = delIndex > 0 ? sorted[delIndex - 1] : null;
+  const next = delIndex < sorted.length - 1 ? sorted[delIndex + 1] : null;
+
+  // Iniciais de resultado
+  let prevEndDate: string | null = null;
+  let nextStartDate: string | null = null;
+  const removals: number[] = [];
+
+  // Fim efetivo do período anterior
+  let prevEffectiveEnd: number;
+  if (prev) {
+    prevEffectiveEnd = endMs(prev, windowEndDate);
+  } else {
+    prevEffectiveEnd = Number.POSITIVE_INFINITY;
+  }
+
+  // Início efetivo do próximo período
+  let nextEffectiveStart: number;
+  if (next) {
+    if (next.endDate === null) {
+      nextEffectiveStart = Number.NEGATIVE_INFINITY;
+    } else {
+      nextEffectiveStart = parseBrazilDate(next.startDate).getTime();
+    }
+  } else {
+    nextEffectiveStart = Number.POSITIVE_INFINITY;
+  }
+
+  // Regra 1: Se há período anterior e período posterior, fechar o vão entre eles
+  if (prev && next) {
+    // Se o período anterior está fechado e há vão antes do próximo
+    if (prev.endDate !== null && prevEffectiveEnd < nextEffectiveStart) {
+      // Ajusta o fim do período anterior para o início do próximo
+      prevEndDate = next.startDate;
+    } else if (prev.endDate === null) {
+      // Período anterior em aberto: encerra no início do próximo
+      prevEndDate = next.startDate;
+    } else {
+      // Períodos já encostados ou sobrepostos, sem ajuste
+      prevEndDate = prev.endDate ?? null;
+    }
+
+    // Ajusta o início do próximo período para o fim do anterior ajustado
+    if (prevEndDate) {
+      nextStartDate = prevEndDate;
+    }
+  }
+
+  // Regra 2: Se só há período anterior (última escala sendo excluída)
+  if (prev && !next) {
+    // Se o período anterior está em aberto, mantém como está
+    if (prev.endDate === null) {
+      prevEndDate = null;
+    } else {
+      // Fecha o período anterior no fim da janela de visualização
+      prevEndDate = windowEndDate ?? prev.endDate;
+    }
+  }
+
+  // Regra 3: Se só há período posterior (primeira escala sendo excluída)
+  if (!prev && next) {
+    // Se o próximo está em aberto, mantém início original
+    if (next.endDate === null) {
+      nextStartDate = next.startDate;
+    } else {
+      // Se excluir a primeira escala, o próximo mantém seu início
+      nextStartDate = next.startDate;
+    }
+  }
+
+  // Identifica períodos totalmente engolidos pelo ajuste
+  const adjustedPrevEnd = prevEndDate ? parseBrazilDate(prevEndDate).getTime() : Number.POSITIVE_INFINITY;
+  const adjustedNextStart = nextStartDate ? parseBrazilDate(nextStartDate).getTime() : Number.NEGATIVE_INFINITY;
+
+  for (const p of sorted) {
+    if (p.id === deletedPeriodId) continue;
+    const pStart = parseBrazilDate(p.startDate).getTime();
+    const pEnd = endMs(p, windowEndDate);
+
+    // Se o período está totalmente entre o anterior ajustado e o próximo ajustado
+    if (pStart >= adjustedPrevEnd && pEnd <= adjustedNextStart) {
+      removals.push(p.id);
+    }
+  }
+
+  return { prevEndDate, nextStartDate, removals };
+};
+
+/**
+ * Houve perda de dados (escala removida ou tempo descartado) que merece aviso
+ * ao usuário? Encadeamento simples — fechar a anterior no início da nova — não
+ * conta, porque é o comportamento esperado.
+ */

@@ -1,21 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Modal } from '../../components/ui/Modal';
 import { formatDateInBrazil } from '../../utils/formatters';
 import {
   describePeriod,
   isShiftOpen,
   pickPeriodForNow,
+  planPeriodDeletionAdjustments,
   suggestNextShiftRange,
 } from '../../utils/appNoticePeriod';
 import {
   getBloqueioLancamento,
-  getNoticeJanelaStatus,
+  getNoticeWindowStatus,
   type JanelaStatus,
 } from '../../utils/appNoticeWindow';
-
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppNotices } from '../../hooks/useAppNotices';
 import { dataService } from '../../services/dataService';
+import { supabase } from '../../services/core/supabase';
 import { NoticeWorker, NoticeWorkerPeriod, SystemNotice, Unit } from '../../types';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Select } from '../../components/ui/Select';
@@ -24,6 +26,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ExtraWorkersListItem } from '../../components/appNotices/ExtraWorkersListItem';
 import { ShiftCreator } from '../../components/appNotices/ShiftCreator';
 import { toast } from 'sonner';
+
 
 interface UnitEntry {
   unitId: number;
@@ -62,6 +65,8 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
   const [results, setResults] = useState<Unit[]>([]);
   const [searching, setSearching] = useState(false);
   const [savingUnitId, setSavingUnitId] = useState<number | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetPeriodId, setDeleteTargetPeriodId] = useState<number | null>(null);
 
   const companyId = currentUser?.companyId;
   const isSuper = !!currentUser?.isAdminSuper;
@@ -88,7 +93,7 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
     if (!notices.some((n) => n.id === selectedNoticeId)) {
       const now = new Date();
       const preferred =
-        notices.find((n) => getNoticeJanelaStatus(n, now) === 'active') || notices[0];
+        notices.find((n) => getNoticeWindowStatus(n, now) === 'active') || notices[0];
       setSelectedNoticeId(preferred.id);
     }
   }, [notices, selectedNoticeId]);
@@ -186,7 +191,7 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
   );
 
   // Situação da janela de visualização do aviso selecionado (explica bloqueios)
-  const janelaStatus = selectedNotice ? getNoticeJanelaStatus(selectedNotice, nowInstant) : null;
+  const janelaStatus = selectedNotice ? getNoticeWindowStatus(selectedNotice, nowInstant) : null;
 
   // A escala exibida ainda não terminou? (critério de edição da MO extra dela)
   const shiftIsOpen = isShiftOpen(viewPeriod, nowInstant, selectedNotice?.viewEndDate);
@@ -396,7 +401,7 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
     [results, byUnit]
   );
 
-  /**
+  /** 
    * Cria uma nova escala a partir dos timestamps naive escolhidos
    * (`YYYY-MM-DDTHH:mm:00`). A primeira escala de um aviso vem pré-preenchida
    * com a janela de visualização inteira (ver `suggestNextShiftRange`).
@@ -462,6 +467,77 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
     },
     [selectedNotice, canCreateShift, bloqueioTexto, currentUser?.id, loadAll]
   );
+
+  // Handler para excluir uma escala/período
+  const handleDeletePeriod = useCallback(async (periodId: number) => {
+    if (!selectedNotice) return;
+
+    try {
+      // Planeja os ajustes necessários para manter cadeia contínua sem gaps
+      const adjustments = planPeriodDeletionAdjustments(
+        periods,
+        periodId,
+        selectedNotice?.viewEndDate
+      );
+
+      // Se houver períodos a remover, verifica se têm lançamentos
+      if (adjustments.removals.length > 0) {
+        // Busca lançamentos no período usando supabase diretamente
+        const { data: workers } = await supabase
+          .from('cfg_app_notices_workers')
+          .select('id')
+          .eq('notice_id', selectedNotice.id)
+          .eq('workers_period_id', periodId)
+          .gt('workers_extra_amount', 0)
+          .limit(1);
+
+        // Se houver lançamentos, bloqueia exclusão
+        if (workers && workers.length > 0) {
+          toast.error(
+            'Não é possível excluir esta escala — ela tem lançamentos de MO extra. Remova os lançamentos primeiro.'
+          );
+          return;
+        }
+      }
+
+      // Ajusta o período anterior se houver um vizinho (fecha o gap)
+      if (adjustments.prevEndDate) {
+        const prevPeriod = periods.find((p) => String(p.id) === String(adjustments.prevEndDate) || p.endDate === adjustments.prevEndDate);
+        if (prevPeriod) {
+          await supabase
+            .from('cfg_app_notices_workers_periods')
+            .update({ period_end: adjustments.prevEndDate, updated_at: new Date().toISOString() })
+            .eq('id', prevPeriod.id);
+        }
+      }
+
+      // Remove o período selecionado
+      const { error } = await supabase
+        .from('cfg_app_notices_workers_periods')
+        .delete()
+        .eq('id', periodId);
+
+      if (error) {
+        console.error('Error deleting notice worker period:', error);
+        toast.error('Erro ao excluir escala. Tente novamente.');
+        return;
+      }
+
+      // Recarrega os dados
+      await loadAll(selectedNotice);
+      toast.success('Escala excluída com sucesso');
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      console.error('Error deleting notice worker period:', error);
+      if (code === 'PERIODO_ENGOLIDO_COM_LANCAMENTOS') {
+        toast.error(
+          'Não é possível excluir esta escala — ela tem lançamentos de MO extra. Remova os lançamentos primeiro.'
+        );
+      } else {
+        toast.error('Erro ao excluir escala. Tente novamente.');
+      }
+    }
+  }, [periods, selectedNotice, loadAll]);
 
   const handleSave = useCallback(
     async (unitId: number, amount: number) => {
@@ -555,9 +631,9 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
         await loadAll(selectedNotice, selectedPeriodId);
       } catch (error) {
         const code = error instanceof Error ? error.message : '';
-        if (code === 'JANELA_ENCERRADA') {
+        if (code === 'WINDOW_ENDED') {
           toast.error('A visualização do aviso já foi encerrada');
-        } else if (code === 'JANELA_NAO_INICIADA') {
+        } else if (code === 'WINDOW_NOT_STARTED') {
           toast.error('A visualização do aviso ainda não começou');
         } else if (code === 'NOTICE_NOT_FOUND') {
           toast.error('Aviso não encontrado');
@@ -642,7 +718,7 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
           {selectedNotice && (
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               <p className="text-xs text-slate-400 dark:text-slate-500">
-                {formatDateInBrazil(selectedNotice.viewStartDate, 'dateTime', 'pt-BR')} —{' '}
+                {formatDateInBrazil(selectedNotice.viewStartDate, 'dateTime', 'pt-BR')} —
                 {formatDateInBrazil(selectedNotice.viewEndDate, 'dateTime', 'pt-BR')}
               </p>
               <span
@@ -724,7 +800,7 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
                         isSelected
                           ? 'bg-primary text-white border-primary'
                           : isCurrent
-                            ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/40 hover:border-emerald-500'
+                            ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-300 dark:border-emerald-500/40 hover:border-emerald-500'
                             : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-primary/50'
                       }`}
                     >
@@ -764,28 +840,45 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
                 : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
             }`}
           >
-            <div className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-[16px] text-amber-600 dark:text-amber-400 mt-0.5">
-                {viewPeriod ? 'schedule' : 'hourglass_empty'}
-              </span>
-              <div className="min-w-0">
-                {viewPeriod ? (
-                  <>
-                    <p className="text-[11px] font-black uppercase tracking-tight text-amber-700 dark:text-amber-300">
-                      {shiftIsOpen ? 'Escala em curso' : 'Escala encerrada (consulta)'}
-                      {canWriteHere && ' · edição liberada'}
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <span className="material-symbols-outlined text-[16px] text-amber-600 dark:text-amber-400 mt-0.5">
+                  {viewPeriod ? 'schedule' : 'hourglass_empty'}
+                </span>
+                <div className="min-w-0">
+                  {viewPeriod ? (
+                    <>
+                      <p className="text-[11px] font-black uppercase tracking-tight text-amber-700 dark:text-amber-300">
+                        {shiftIsOpen ? 'Escala em curso' : 'Escala encerrada (consulta)'}
+                        {canWriteHere && ' · edição liberada'}
+                      </p>
+                      <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                        {periodBadge}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      Nenhuma escala lançada.
+                      {canWriteHere && ' O primeiro lançamento cria o período automaticamente.'}
                     </p>
-                    <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                      {periodBadge}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    Nenhuma escala lançada.
-                    {canWriteHere && ' O primeiro lançamento cria o período automaticamente.'}
-                  </p>
-                )}
+                  )}
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!viewPeriod) return;
+                  setDeleteTargetPeriodId(viewPeriod.id);
+                  setShowDeleteModal(true);
+                }}
+                className={`shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-black uppercase tracking-tight border transition-colors hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-white dark:focus:ring-red-600 dark:focus:ring-offset-black ${
+                  viewPeriod ? 'border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10' : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                }`}
+                title="Excluir escala"
+                disabled={!viewPeriod}
+              >
+                <span className="material-symbols-outlined text-[16px]">delete</span>
+              </button>
             </div>
           </div>
         )}
@@ -810,6 +903,24 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmação de exclusão */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Excluir escala"
+        message="Tem certeza que deseja excluir esta escala? Essa ação não pode ser desfeita e pode afetar a exibição das demais escalas."
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        type="warning"
+        onConfirm={async () => {
+          if (deleteTargetPeriodId !== null) {
+            await handleDeletePeriod(deleteTargetPeriodId);
+          }
+          setShowDeleteModal(false);
+          setDeleteTargetPeriodId(null);
+        }}
+      />
 
       {/* Pesquisa de unidades — visível apenas com escala aberta */}
       {shiftIsOpen && (

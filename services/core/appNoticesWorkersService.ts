@@ -76,8 +76,8 @@ export const appNoticesWorkersService = {
 
   /**
    * Máquina de períodos para uma gravação:
-   * 1. Janela encerrada → fecha o aberto na view_end_date e bloqueia (JANELA_ENCERRADA).
-   * 1b. Janela ainda não iniciada: bloqueia (JANELA_NAO_INICIADA).
+   * 1. Window ended → closes the open period at view_end_date and blocks (WINDOW_ENDED).
+   * 1b. Window not yet started: blocks (WINDOW_NOT_STARTED).
    * 2. Sem períodos → cria o inicial no instante do lançamento (em aberto).
    * 3. Mesmo dia SP do aberto → edita o período atual.
    * 4. Outro dia → fecha o aberto em `now` e abre um novo (`end(p) = start(p+1)`).
@@ -107,13 +107,13 @@ export const appNoticesWorkersService = {
     const windowEnd = parseBrazilDate(noticeRow.view_end_date);
     if (!Number.isNaN(windowEnd.getTime()) && windowEnd.getTime() < now.getTime()) {
       if (open) await this.closePeriodAt(open.id, noticeRow.view_end_date);
-      throw new Error('JANELA_ENCERRADA');
+      throw new Error('WINDOW_ENDED');
     }
 
     // 1b) Vigência ainda não iniciada: não abre período no futuro
     const windowStart = parseBrazilDate(noticeRow.view_start_date);
     if (!Number.isNaN(windowStart.getTime()) && windowStart.getTime() > now.getTime()) {
-      throw new Error('JANELA_NAO_INICIADA');
+      throw new Error('WINDOW_NOT_STARTED');
     }
 
     // 2) Primeiro lançamento da notice

@@ -51,7 +51,7 @@ export const isNoticeExpired = (
  */
 export type JanelaStatus = 'active' | 'future' | 'ended';
 
-export const getNoticeJanelaStatus = (
+export const getNoticeWindowStatus = (
     notice: { viewStartDate: string; viewEndDate: string },
     now: Date = new Date()
 ): JanelaStatus => {

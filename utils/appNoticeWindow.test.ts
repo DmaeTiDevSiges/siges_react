@@ -1,6 +1,6 @@
 import {
     getBloqueioLancamento,
-    getNoticeJanelaStatus,
+    getNoticeWindowStatus,
     isNoticeExpired,
     isNoticeWithinVigencia,
     isNoticeWithinViewWindow,
@@ -89,37 +89,37 @@ describe('isNoticeExpired', () => {
     });
 });
 
-describe('getNoticeJanelaStatus', () => {
+describe('getNoticeWindowStatus', () => {
     const janela = {
         viewStartDate: '2026-10-16T09:00:00',
         viewEndDate: '2026-10-16T09:30:00',
     };
 
     it('reports "active" inside the janela (único estado lançável)', () => {
-        expect(getNoticeJanelaStatus(janela, at('2026-10-16T09:15:00-03:00'))).toBe('active');
+        expect(getNoticeWindowStatus(janela, at('2026-10-16T09:15:00-03:00'))).toBe('active');
         // Bordas: o instante exato de início/fim ainda está dentro da janela.
-        expect(getNoticeJanelaStatus(janela, at('2026-10-16T09:00:00-03:00'))).toBe('active');
-        expect(getNoticeJanelaStatus(janela, at('2026-10-16T09:30:00-03:00'))).toBe('active');
+        expect(getNoticeWindowStatus(janela, at('2026-10-16T09:00:00-03:00'))).toBe('active');
+        expect(getNoticeWindowStatus(janela, at('2026-10-16T09:30:00-03:00'))).toBe('active');
     });
 
     it('reports "ended" after the janela encerra', () => {
-        expect(getNoticeJanelaStatus(janela, at('2026-10-16T09:30:01-03:00'))).toBe('ended');
-        expect(getNoticeJanelaStatus(janela, at('2026-10-17T09:30:00-03:00'))).toBe('ended');
+        expect(getNoticeWindowStatus(janela, at('2026-10-16T09:30:01-03:00'))).toBe('ended');
+        expect(getNoticeWindowStatus(janela, at('2026-10-17T09:30:00-03:00'))).toBe('ended');
     });
 
     it('reports "future" antes da janela começar', () => {
-        expect(getNoticeJanelaStatus(janela, at('2026-10-16T08:59:59-03:00'))).toBe('future');
-        expect(getNoticeJanelaStatus(janela, at('2026-10-15T09:00:00-03:00'))).toBe('future');
+        expect(getNoticeWindowStatus(janela, at('2026-10-16T08:59:59-03:00'))).toBe('future');
+        expect(getNoticeWindowStatus(janela, at('2026-10-15T09:00:00-03:00'))).toBe('future');
     });
 
     it('does not depend on the device timezone', () => {
-        expect(getNoticeJanelaStatus(janela, at('2026-10-16T12:15:00Z'))).toBe('active');
-        expect(getNoticeJanelaStatus(janela, at('2026-10-16T12:30:01Z'))).toBe('ended');
-        expect(getNoticeJanelaStatus(janela, at('2026-10-16T11:59:59Z'))).toBe('future');
+        expect(getNoticeWindowStatus(janela, at('2026-10-16T12:15:00Z'))).toBe('active');
+        expect(getNoticeWindowStatus(janela, at('2026-10-16T12:30:01Z'))).toBe('ended');
+        expect(getNoticeWindowStatus(janela, at('2026-10-16T11:59:59Z'))).toBe('future');
     });
 
     it('treats notices with invalid dates as ended', () => {
-        expect(getNoticeJanelaStatus({ ...janela, viewEndDate: 'invalid' }, at('2026-10-16T09:15:00-03:00'))).toBe('ended');
+        expect(getNoticeWindowStatus({ ...janela, viewEndDate: 'invalid' }, at('2026-10-16T09:15:00-03:00'))).toBe('ended');
     });
 });
 
