@@ -76,7 +76,7 @@ export const MaterialsPurchasesListDocument = ({
 }) => {
     const title = 'Relatório de Compras';
     const subtitle = purchaseCodeFilter
-        ? `Filtro código autorização: ${purchaseCodeFilter} — ${purchases.length} compra(s)`
+        ? `Filtro (código compra/material): ${purchaseCodeFilter} — ${purchases.length} compra(s)`
         : `${purchases.length} compra(s)`;
     const totalValue = purchases.reduce((sum, p) => sum + (p.total_price || 0), 0);
 

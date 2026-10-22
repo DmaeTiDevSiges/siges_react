@@ -227,6 +227,15 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
                             label={contract.isAvailable ? 'Ativo' : 'Inativo'}
                             size="sm"
                         />
+                        {contract.isManualVisitStartEnd === true && (
+                            <span
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider"
+                                title="Este contrato exige informar data/hora de início e fim da visita"
+                            >
+                                <span className="material-symbols-outlined text-[14px]">schedule</span>
+                                Horário manual
+                            </span>
+                        )}
                     </div>
                 </div>
 

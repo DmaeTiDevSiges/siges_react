@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { formatDateInBrazil } from '../../utils/formatters';
+import { formatDateInBrazil, formatDurationHuman, getBrazilDateTimeInputValue, getNaiveDurationHours } from '../../utils/formatters';
 
 import { createPortal } from 'react-dom';
 import { Order, User, OrderVisit, ServiceHistoryItem, AssetAlert } from '../../types';
@@ -40,7 +40,7 @@ interface OrderRequestViewProps {
     onCancel?: () => void;
     onSelectParentOrder?: (order: Order) => void;
     onSelectVisit?: (visit: OrderVisit) => void;
-    onStartVisit?: () => void;
+    onStartVisit?: (startedAt?: string) => void;
     onVisitTransferred?: (info: { newMask: string; sourceOrderId: string }) => void;
     onRefreshOrder?: () => void;
     activeTab?: string;
@@ -75,6 +75,8 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
 
     const [showMenu, setShowMenu] = useState(false);
     const [showConfirmVisit, setShowConfirmVisit] = useState(false);
+    const [manualStartEnabled, setManualStartEnabled] = useState(false);
+    const [startedAtInput, setStartedAtInput] = useState<string>(() => getBrazilDateTimeInputValue());
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [isStartingVisit, setIsStartingVisit] = useState(false);
     const [showTransferModal, setShowTransferModal] = useState(false);
@@ -118,6 +120,28 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
 
     // Use the custom hook for follow functionality
     const { isOrderFollowed, toggleFollow } = useOrderFollow(currentUser?.id);
+
+    // Contrato pode exigir apontamento manual de início/fim da visita.
+    useEffect(() => {
+        let cancelled = false;
+        const contractId = order.contractId;
+
+        if (!contractId) {
+            setManualStartEnabled(false);
+            return;
+        }
+
+        dataService.getContractById(contractId)
+            .then(contract => {
+                if (!cancelled) setManualStartEnabled(contract?.isManualVisitStartEnd === true);
+            })
+            .catch(error => {
+                console.error('Error loading contract manual visit flag:', error);
+                if (!cancelled) setManualStartEnabled(false);
+            });
+
+        return () => { cancelled = true; };
+    }, [order.contractId]);
 
     // Transferência de visita (D10) — guards baratos de UI.
     // O líder é validado pela RPC (guard 2b) — aqui só checamos estado/destino.
@@ -481,14 +505,53 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                     </p>
                                 </div>
 
+                                {manualStartEnabled && (() => {
+                                    const nowInput = getBrazilDateTimeInputValue();
+                                    const durationHours = getNaiveDurationHours(startedAtInput, nowInput);
+
+                                    return (
+                                        <div className="px-6 pb-2 text-left">
+                                            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                                                Data/hora de início
+                                            </label>
+                                            <input
+                                                type="datetime-local"
+                                                value={startedAtInput}
+                                                max={nowInput}
+                                                onChange={(e) => setStartedAtInput(e.target.value)}
+                                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                            />
+                                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-2 leading-snug">
+                                                Pode ser em outro dia. A visita será contabilizada no mês da data informada.
+                                            </p>
+                                            {Number.isFinite(durationHours) && durationHours >= 0 && (
+                                                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold mt-1">
+                                                    Duração até agora: {formatDurationHuman(durationHours)}
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+
                                 <div className="p-6 pt-0 flex flex-col gap-3">
                                     <button
                                         onClick={async () => {
+                                            if (manualStartEnabled) {
+                                                if (!startedAtInput) {
+                                                    toast.error('Informe a data/hora de início.');
+                                                    return;
+                                                }
+                                                if (startedAtInput > getBrazilDateTimeInputValue()) {
+                                                    toast.error('Data/hora de início não pode ser futura.');
+                                                    return;
+                                                }
+                                            }
+
                                             setShowConfirmVisit(false);
                                             if (onStartVisit) {
                                                 setIsStartingVisit(true);
                                                 try {
-                                                    await onStartVisit();
+                                                    await onStartVisit(manualStartEnabled ? startedAtInput : undefined);
                                                 } catch (e) {
                                                     setIsStartingVisit(false);
                                                 }
@@ -520,7 +583,10 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                 <OrderCardDetail
                                     order={order}
                                     currentUser={currentUser}
-                                    onStartVisit={canStartVisit ? () => setShowConfirmVisit(true) : undefined}
+                                    onStartVisit={canStartVisit ? () => {
+                                        setStartedAtInput(getBrazilDateTimeInputValue());
+                                        setShowConfirmVisit(true);
+                                    } : undefined}
                                     onTransferVisit={canTransfer ? () => setShowTransferModal(true) : undefined}
                                     onSuccess={onRefreshOrder}
                                     onEdit={onEdit}

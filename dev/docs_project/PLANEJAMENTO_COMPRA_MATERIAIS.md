@@ -214,7 +214,7 @@ getMaterialPurchasesAll(): Promise<MaterialPurchase[]>
 | Criar requisição   | `materials_purchases_create`             |
 | Autorizar          | `materials_purchases_authorizations`     |
 | Cancelar           | `materials_purchases_authorizations`     |
-| Concluir entrada   | `materials_purchases_create`             |
+| Concluir entrada   | `materials_purchases_complete` (visualizar) |
 | Visualizar dashboard| `materials_search`                       |
 
 ---

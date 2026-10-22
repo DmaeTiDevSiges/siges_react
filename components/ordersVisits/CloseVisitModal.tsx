@@ -3,12 +3,13 @@ import { Card } from '../ui/Card';
 import { Select } from '../ui/Select';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
+import { formatDurationHuman, getBrazilDateTimeInputValue, getNaiveDurationHours } from '../../utils/formatters';
 import { SuspendedReason, CauseReason } from '../../types';
 
 interface CloseVisitModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (data: { statusId: number; suspendedReasonId?: number; causeReasonId: number; progress: number }) => Promise<void>;
+    onConfirm: (data: { statusId: number; suspendedReasonId?: number; causeReasonId: number; progress: number; endedAt?: string }) => Promise<void>;
     isLoading?: boolean;
     visit?: any; // To check signatures
 }
@@ -27,6 +28,14 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
     const [reasons, setReasons] = useState<SuspendedReason[]>([]);
     const [causeReasons, setCauseReasons] = useState<CauseReason[]>([]);
     const [loadingReasons, setLoadingReasons] = useState(false);
+    const [endedAtInput, setEndedAtInput] = useState<string>(() => getBrazilDateTimeInputValue());
+
+    const requiresManualEnd = visit?.isManualVisitStartEnd === true;
+    const minEndAt = visit?.ovStartedAt ? getBrazilDateTimeInputValue(visit.ovStartedAt) : undefined;
+    const nowInput = getBrazilDateTimeInputValue();
+    const durationHours = requiresManualEnd && visit?.ovStartedAt
+        ? getNaiveDurationHours(visit.ovStartedAt, endedAtInput)
+        : NaN;
 
     useEffect(() => {
         if (isOpen && !statusType) {
@@ -46,6 +55,8 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
             setSuspendedReasonId('');
             setCauseReasonId('');
             setProgress(50);
+        } else {
+            setEndedAtInput(getBrazilDateTimeInputValue());
         }
     }, [isOpen]);
 
@@ -80,11 +91,29 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
             return;
         }
 
+        let manualEndedAt: string | undefined;
+        if (requiresManualEnd) {
+            if (!endedAtInput) {
+                toast.error('Informe a data/hora de encerramento');
+                return;
+            }
+            if (endedAtInput > getBrazilDateTimeInputValue()) {
+                toast.error('Data/hora de encerramento não pode ser futura');
+                return;
+            }
+            if (minEndAt && endedAtInput < minEndAt) {
+                toast.error('Data/hora de encerramento não pode ser anterior ao início da visita');
+                return;
+            }
+            manualEndedAt = endedAtInput;
+        }
+
         if (statusType === 'concluded') {
             onConfirm({
                 statusId: 8, // Concluida
                 causeReasonId: Number(causeReasonId),
-                progress: 100
+                progress: 100,
+                endedAt: manualEndedAt
             });
         } else {
             if (!suspendedReasonId) {
@@ -99,7 +128,8 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                 statusId: 6, // Suspensa
                 suspendedReasonId: Number(suspendedReasonId),
                 causeReasonId: Number(causeReasonId),
-                progress: Number(progress)
+                progress: Number(progress),
+                endedAt: manualEndedAt
             });
         }
     };
@@ -142,6 +172,30 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                             <span className="font-bold uppercase text-xs tracking-widest">Concluída</span>
                         </button>
                     </div>
+
+                    {requiresManualEnd && (
+                        <div className="space-y-2 animate-in slide-in-from-top-4 duration-300">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                Data/hora de encerramento
+                            </label>
+                            <input
+                                type="datetime-local"
+                                value={endedAtInput}
+                                min={minEndAt}
+                                max={nowInput}
+                                onChange={(e) => setEndedAtInput(e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                            />
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-snug">
+                                Pode ser em outro dia. O encerramento será gravado com o horário informado.
+                            </p>
+                            {Number.isFinite(durationHours) && durationHours >= 0 && (
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold">
+                                    Duração da visita: {formatDurationHuman(durationHours)}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     {/* Signature Status Summary (Optional Reminder) */}
                     {statusType === 'concluded' && visit && (

@@ -38,7 +38,8 @@ export const ContractForm: React.FC<ContractFormProps> = ({
         dateStart: initialContract?.dateStart ? getBrazilDateInputValue(initialContract.dateStart) : getBrazilDateInputValue(),
         dateEnd: initialContract?.dateEnd ? getBrazilDateInputValue(initialContract.dateEnd) : '',
         totalValue: initialContract?.totalValue || 0,
-        isAvailable: initialContract?.isAvailable ?? true
+        isAvailable: initialContract?.isAvailable ?? true,
+        isManualVisitStartEnd: initialContract?.isManualVisitStartEnd ?? false
     });
 
     useEffect(() => {
@@ -71,7 +72,8 @@ export const ContractForm: React.FC<ContractFormProps> = ({
                 dateStart: initialContract.dateStart ? getBrazilDateInputValue(initialContract.dateStart) : getBrazilDateInputValue(),
                 dateEnd: initialContract.dateEnd ? getBrazilDateInputValue(initialContract.dateEnd) : '',
                 totalValue: initialContract.totalValue || 0,
-                isAvailable: initialContract.isAvailable ?? true
+                isAvailable: initialContract.isAvailable ?? true,
+                isManualVisitStartEnd: initialContract.isManualVisitStartEnd ?? false
             });
         }
     }, [initialContract, companyId]);
@@ -246,6 +248,17 @@ export const ContractForm: React.FC<ContractFormProps> = ({
                     options={[
                         { value: 'true', label: 'Ativo' },
                         { value: 'false', label: 'Inativo' },
+                    ]}
+                    required
+                />
+
+                <Select
+                    label="Exigir data/hora manual na visita"
+                    value={formData.isManualVisitStartEnd ? 'true' : 'false'}
+                    onChange={(e) => setFormData({ ...formData, isManualVisitStartEnd: e.target.value === 'true' })}
+                    options={[
+                        { value: 'false', label: 'Não' },
+                        { value: 'true', label: 'Sim' },
                     ]}
                     required
                 />

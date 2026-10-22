@@ -3,6 +3,7 @@ import { r2Service } from '../media/r2Service';
 import { Company, Client, Contract, ContractManager, ContractService, Department, Profile, Permission, Unit, OrderVisit, User } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
+import { getBrazilDateInputValue } from '../../utils/formatters';
 import { usersService } from '../users/usersService';
 
 export const companiesService = {
@@ -262,6 +263,7 @@ export const companiesService = {
                 dateStart: item.date_start,
                 dateEnd: item.date_end,
                 totalValue: item.total_value,
+                isManualVisitStartEnd: item.is_manual_visit_start_end ?? false,
                 clientCompanyName: companyMap.get(item.client_company_id?.toString())?.name || 'N/A',
                 providerCompanyName: providerCompany?.name || 'N/A',
                 providerCompanyCode: providerCode,
@@ -297,6 +299,7 @@ export const companiesService = {
             isDeleted: data.is_deleted,
             code: data.code,
             statusId: data.status_id,
+            isManualVisitStartEnd: data.is_manual_visit_start_end ?? false,
         } as Contract;
     },
 
@@ -439,7 +442,8 @@ export const companiesService = {
             is_dev: contract.isDev,
             version: contract.version,
             default_ov_asset_id: contract.defaultOvAssetId ? parseInt(contract.defaultOvAssetId) : null,
-            default_activity_id: contract.defaultActivityId ? parseInt(contract.defaultActivityId) : null
+            default_activity_id: contract.defaultActivityId ? parseInt(contract.defaultActivityId) : null,
+            is_manual_visit_start_end: contract.isManualVisitStartEnd ?? false
         };
 
         const { data, error } = await supabase
@@ -475,6 +479,7 @@ export const companiesService = {
         if (contract.version !== undefined) dbData.version = contract.version;
         if (contract.defaultOvAssetId !== undefined) dbData.default_ov_asset_id = contract.defaultOvAssetId ? parseInt(contract.defaultOvAssetId) : null;
         if (contract.defaultActivityId !== undefined) dbData.default_activity_id = contract.defaultActivityId ? parseInt(contract.defaultActivityId) : null;
+        if (contract.isManualVisitStartEnd !== undefined) dbData.is_manual_visit_start_end = contract.isManualVisitStartEnd;
 
         const { data, error } = await supabase
             .from('contracts')
@@ -896,15 +901,18 @@ export const companiesService = {
     },
 
     async getTodayVisitsByCompany(companyId: string): Promise<OrderVisit[]> {
-        const today = new Date();
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+        // Usa a data de São Paulo para comparar com as colunas naive.
+        // Inclui visitas abertas (independente do dia de início) e visitas
+        // encerradas hoje, mesmo que tenham começado em outro dia.
+        const today = getBrazilDateInputValue();
+        const startOfDay = `${today} 00:00:00`;
+        const endOfDay = `${today} 23:59:59`;
 
         const { data, error } = await supabase
             .from('v_orders_visits')
             .select('*')
             .eq('o_provider_company_id', companyId)
-            .or(`ov_status_id.eq.1,and(ov_status_id.eq.2,ov_started_at.gte.${startOfDay},ov_started_at.lte.${endOfDay})`)
+            .or(`ov_status_id.eq.1,and(ov_status_id.eq.2,or(and(ov_started_at.gte.${startOfDay},ov_started_at.lte.${endOfDay}),and(ov_ended_at.gte.${startOfDay},ov_ended_at.lte.${endOfDay})))`)
             .order('ov_started_at', { ascending: true });
 
         if (error) {

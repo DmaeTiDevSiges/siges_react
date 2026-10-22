@@ -11,6 +11,9 @@ DECLARE
     v_order_id bigint;
     v_user_id bigint;
     v_now timestamp;
+    v_started_at timestamp;
+    v_requested_start timestamp;
+    v_allow_manual boolean := false;
     v_visit_id bigint;
     v_ov_mask text;
     v_new_ov_counter int;
@@ -29,6 +32,28 @@ BEGIN
     v_user_id := (payload->>'user_id')::bigint;
     v_now := TIMEZONE('America/Sao_Paulo', CURRENT_TIMESTAMP);
 
+    -- 1.1 A flag do contrato decide se o início informado é aceito.
+    SELECT COALESCE(c.is_manual_visit_start_end, false)
+      INTO v_allow_manual
+      FROM orders o
+      LEFT JOIN contracts c ON c.id = o.contract_id
+     WHERE o.id = v_order_id;
+
+    v_allow_manual := COALESCE(v_allow_manual, false);
+    v_requested_start := NULLIF(payload->>'started_at', '')::timestamp;
+
+    IF v_allow_manual AND v_requested_start IS NOT NULL THEN
+        IF v_requested_start > v_now THEN
+            RETURN jsonb_build_object(
+                'success', false,
+                'message', 'Data/hora de início não pode ser futura.'
+            );
+        END IF;
+        v_started_at := v_requested_start;
+    ELSE
+        v_started_at := v_now;
+    END IF;
+
     -- 2. Fetch User and Order Info
     SELECT team_id, vehicle_id INTO v_team_id, v_vehicle_id FROM users WHERE id = v_user_id;
     SELECT parent_id, order_mask, COALESCE(ov_counter, 0) INTO v_parent_id, v_order_mask, v_new_ov_counter FROM orders WHERE id = v_order_id;
@@ -46,7 +71,7 @@ BEGIN
         UPDATE orders
         SET 
             status_id = 5, -- Em Andamento
-            status_at = v_now,
+            status_at = v_started_at,
             ov_counter = ov_counter + 1 -- According to flow, parent also increments counter? Flow says "SS referente ao parent_id da OS ... ov_counter = ov_counter + 1"
         WHERE id = v_parent_id;
     END IF;
@@ -55,11 +80,12 @@ BEGIN
     UPDATE orders
     SET 
         status_id = 5, -- Em Andamento
-        status_at = v_now,
+        status_at = v_started_at,
         ov_counter = v_new_ov_counter
     WHERE id = v_order_id;
 
     -- C. Insert orders_visits
+    -- ov_started_at segue o horário informado; ov_created_at é auditoria (agora).
     INSERT INTO orders_visits (
         o_id,
         ov_status_id,
@@ -73,7 +99,7 @@ BEGIN
         v_order_id,
         1, -- Em Andamento
         1, -- Rascunho
-        v_now,
+        v_started_at,
         v_user_id,
         v_user_id,
         v_now,

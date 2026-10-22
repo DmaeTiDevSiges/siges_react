@@ -1,8 +1,8 @@
 import { supabase } from '../core/supabase';
 import { r2Service } from '../media/r2Service';
-import { getBrazilTimestamp } from '../../utils/dateUtils';
+import { getBrazilNaiveTimestamp, getBrazilTimestamp } from '../../utils/dateUtils';
 import { getPublicImageUrl } from '../media/imageUtils';
-import { formatRelativeTime } from '../../utils/formatters';
+import { formatRelativeTime, getBrazilDateInputValue, toBrazilNaiveDateTime } from '../../utils/formatters';
 import type { Order, User, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, OrderVisitAssetMaterial, ServiceHistoryItem, Activity, Material, OrderVisitChatMessage, OrderVisitChatParticipant, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity } from '../../types';
 import { ordersService } from './ordersService';
 import { vehicleRentalService } from './vehicleRentalService';
@@ -30,15 +30,18 @@ export const visitsService = {
     // -------------------------------------------------------------------------
 
     async getTodayVisitsByCompany(companyId: string): Promise<OrderVisit[]> {
-        const today = new Date();
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+        // Usa a data de São Paulo para comparar com as colunas naive.
+        // Inclui visitas abertas (independente do dia de início) e visitas
+        // encerradas hoje, mesmo que tenham começado em outro dia.
+        const today = getBrazilDateInputValue();
+        const startOfDay = `${today} 00:00:00`;
+        const endOfDay = `${today} 23:59:59`;
 
         const { data, error } = await supabase
             .from('v_orders_visits')
             .select('*')
             .eq('o_provider_company_id', companyId)
-            .or(`ov_status_id.eq.1,and(ov_status_id.eq.2,ov_started_at.gte.${startOfDay},ov_started_at.lte.${endOfDay})`)
+            .or(`ov_status_id.eq.1,and(ov_status_id.eq.2,or(and(ov_started_at.gte.${startOfDay},ov_started_at.lte.${endOfDay}),and(ov_ended_at.gte.${startOfDay},ov_ended_at.lte.${endOfDay})))`)
             .order('ov_started_at', { ascending: true });
 
         if (error) {
@@ -320,12 +323,18 @@ export const visitsService = {
     // VISIT START
     // -------------------------------------------------------------------------
 
-    async startOrderVisit(order: Order, currentUser: User): Promise<void> {
+    async startOrderVisit(order: Order, currentUser: User, startedAt?: string): Promise<void> {
+        const payload: { order_id: number; user_id: number; started_at?: string } = {
+            order_id: Number(order.id),
+            user_id: Number(currentUser.id)
+        };
+
+        if (startedAt) {
+            payload.started_at = toBrazilNaiveDateTime(startedAt);
+        }
+
         const { data, error } = await supabase.rpc('flow_order_visit_create_v2', {
-            payload: {
-                order_id: Number(order.id),
-                user_id: currentUser.id
-            }
+            payload
         });
 
         if (error) {
@@ -461,6 +470,7 @@ export const visitsService = {
 
         let orderData: any = null;
         let contractObject: any = null;
+        let isManualVisitStartEnd = false;
         const fetchPromises: PromiseLike<any>[] = [];
 
         const cId = data.o_contract_id;
@@ -469,7 +479,10 @@ export const visitsService = {
         fetchPromises.push(p1);
 
         if (cId) {
-            const p2 = supabase.from('contracts').select('object').eq('id', cId).single().then(res => { contractObject = res.data?.object; });
+            const p2 = supabase.from('contracts').select('object, is_manual_visit_start_end').eq('id', cId).single().then(res => {
+                contractObject = res.data?.object;
+                isManualVisitStartEnd = res.data?.is_manual_visit_start_end === true;
+            });
             fetchPromises.push(p2);
         }
 
@@ -477,8 +490,9 @@ export const visitsService = {
 
         // Fallback in case o_contract_id was missing but v_orders has it
         if (!cId && orderData?.contract_id) {
-            const res = await supabase.from('contracts').select('object').eq('id', orderData.contract_id).single();
+            const res = await supabase.from('contracts').select('object, is_manual_visit_start_end').eq('id', orderData.contract_id).single();
             contractObject = res.data?.object;
+            isManualVisitStartEnd = res.data?.is_manual_visit_start_end === true;
         }
 
         return {
@@ -531,6 +545,7 @@ export const visitsService = {
             oRequesterPhone: data.o_requester_phone,
             contractDescription: data.o_contract_description,
             contractObject: contractObject,
+            isManualVisitStartEnd,
             planDescription: data.o_plan_description || data.plan_description,
             oReasonDescription: data.o_reason_description,
             oCauseDescription: data.o_cause_description,
@@ -2606,7 +2621,8 @@ export const visitsService = {
         suspendedReasonId: string | null,
         causeReasonId: number,
         progress: number,
-        user: User
+        user: User,
+        endedAt?: string
     ): Promise<void> {
         // 1. Validate Vehicles
         const { data: vehicles, error: vehError } = await supabase
@@ -2631,11 +2647,46 @@ export const visitsService = {
             }
         }
 
-        const timestamp = getBrazilTimestamp();
+        const nowTimestamp = getBrazilNaiveTimestamp();
+        let endTimestamp = nowTimestamp;
+
+        // Encerramento manual só é aceito quando o contrato da OS permite.
+        if (endedAt) {
+            const [{ data: visitInfo }, { data: orderInfo }] = await Promise.all([
+                supabase.from('orders_visits').select('ov_started_at').eq('id', visitId).maybeSingle(),
+                supabase.from('orders').select('contract_id').eq('id', orderId).maybeSingle()
+            ]);
+
+            let manualAllowed = false;
+            if (orderInfo?.contract_id) {
+                const { data: contract, error: contractError } = await supabase
+                    .from('contracts')
+                    .select('is_manual_visit_start_end')
+                    .eq('id', orderInfo.contract_id)
+                    .maybeSingle();
+                // Enquanto a migration não estiver aplicada, mantém o comportamento antigo.
+                if (!contractError) manualAllowed = contract?.is_manual_visit_start_end === true;
+            }
+
+            if (manualAllowed) {
+                endTimestamp = toBrazilNaiveDateTime(endedAt);
+
+                if (endTimestamp > nowTimestamp) {
+                    throw new Error('Data/hora de encerramento não pode ser futura.');
+                }
+
+                if (visitInfo?.ov_started_at) {
+                    const startedAtNaive = toBrazilNaiveDateTime(String(visitInfo.ov_started_at));
+                    if (endTimestamp < startedAtNaive) {
+                        throw new Error('Data/hora de encerramento não pode ser anterior ao início da visita.');
+                    }
+                }
+            }
+        }
 
         // 2. Update Order Visit
         const visitUpdate: any = {
-            ov_ended_at: timestamp,
+            ov_ended_at: endTimestamp,
             ov_status_id: 2, // Encerrada
             ov_o_status_id: statusId,
             ov_o_progress: statusId === 8 ? 1 : (progress / 100)
@@ -2654,7 +2705,7 @@ export const visitsService = {
         // 3. Update Order
         const orderUpdate: any = {
             status_id: statusId,
-            status_at: timestamp,
+            status_at: endTimestamp,
             progress: statusId === 8 ? 1 : (progress / 100),
             cause_reason_id: causeReasonId
         };
@@ -2714,7 +2765,7 @@ export const visitsService = {
                     op_id_in_progress: 0,
                     is_ov_in_progress: false,
                     ov_id_in_progress_mask: null,
-                    updated_at: timestamp
+                    updated_at: nowTimestamp
                 })
                 .in('id', userIds);
 
@@ -2751,7 +2802,7 @@ export const visitsService = {
                         title: 'Visita encerrada.',
                         body: `${user.nameShort || user.nameFull} encerrou a visita:\nOS ${order.order_mask}: ${statusDescription}\nCliente: ${clientName}\nUnidade: ${unitDesc}\nSetor/Posição: ${assetTag}${assetTagSub ? '/' + assetTagSub : ''}\nServicos a realizar: ${order.requested_services || ''}`,
                         type: 'Visita encerrada',
-                        created_at: timestamp,
+                        created_at: nowTimestamp,
                         is_read: false,
                         user_to_whatsapp: fUser?.mobile_whatsapp
                     };

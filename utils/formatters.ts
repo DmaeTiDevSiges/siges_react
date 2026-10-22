@@ -80,6 +80,83 @@ export const getBrazilDateInputValue = (value: Date | string | number = new Date
     return `${map.get('year')}-${map.get('month')}-${map.get('day')}`;
 };
 
+/**
+ * Valor para `<input type="datetime-local">` no fuso de São Paulo
+ * (`YYYY-MM-DDTHH:mm`).
+ */
+export const getBrazilDateTimeInputValue = (value: Date | string | number = new Date()): string => {
+    const date = parseBrazilDate(value);
+    if (Number.isNaN(date.getTime())) {
+        throw new Error('Data inválida para geração do valor de data/hora');
+    }
+
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: BRAZIL_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23'
+    }).formatToParts(date);
+    const map = new Map(parts.map(part => [part.type, part.value]));
+    return `${map.get('year')}-${map.get('month')}-${map.get('day')}T${map.get('hour')}:${map.get('minute')}`;
+};
+
+/**
+ * Normaliza um valor de `datetime-local` (`YYYY-MM-DDTHH:mm`) para o
+ * timestamp naive (`YYYY-MM-DDTHH:mm:ss`) usado nas colunas
+ * `timestamp without time zone`.
+ *
+ * Não aplica offset: o valor digitado já é o horário de parede de São Paulo.
+ */
+export const toBrazilNaiveDateTime = (value: string): string => {
+    const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (!match) {
+        throw new Error('Data/hora inválida. Use o formato AAAA-MM-DDTHH:mm.');
+    }
+    return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6] || '00'}`;
+};
+
+/**
+ * Duração em horas entre dois timestamps naive (sem conversão de fuso).
+ * Retorna `NaN` quando algum valor é inválido.
+ */
+export const getNaiveDurationHours = (start: string, end: string): number => {
+    const toUtc = (value: string): number => {
+        const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+        if (!match) return NaN;
+        return Date.UTC(
+            Number(match[1]),
+            Number(match[2]) - 1,
+            Number(match[3]),
+            Number(match[4]),
+            Number(match[5]),
+            Number(match[6] || 0)
+        );
+    };
+
+    const diffMs = toUtc(end) - toUtc(start);
+    return Number.isFinite(diffMs) ? diffMs / 3_600_000 : NaN;
+};
+
+/**
+ * Formata uma duração em horas para texto curto (ex.: "1 d 8 h 30 min").
+ */
+export const formatDurationHuman = (hours: number): string => {
+    if (!Number.isFinite(hours) || hours < 0) return '';
+    const totalMinutes = Math.round(hours * 60);
+    const days = Math.floor(totalMinutes / 1440);
+    const remainingHours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
+
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days} d`);
+    if (remainingHours > 0) parts.push(`${remainingHours} h`);
+    if (minutes > 0 || parts.length === 0) parts.push(`${minutes} min`);
+    return parts.join(' ');
+};
+
 export const addBrazilCalendarDays = (value: Date | string | number, days: number): string => {
     const [year, month, day] = getBrazilDateInputValue(value).split('-').map(Number);
     const adjusted = new Date(Date.UTC(year, month - 1, day + days));

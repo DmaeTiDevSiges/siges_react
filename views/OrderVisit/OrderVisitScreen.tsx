@@ -355,7 +355,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         setIsCloseModalOpen(true);
     };
 
-    const handleConfirmCloseVisit = async (data: { statusId: number; suspendedReasonId?: number; causeReasonId: number; progress: number }) => {
+    const handleConfirmCloseVisit = async (data: { statusId: number; suspendedReasonId?: number; causeReasonId: number; progress: number; endedAt?: string }) => {
         if (!visit || !currentUser) return;
 
         setIsClosing(true);
@@ -370,7 +370,8 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 data.suspendedReasonId ? String(data.suspendedReasonId) : null,
                 data.causeReasonId,
                 data.progress,
-                currentUser
+                currentUser,
+                data.endedAt
             );
 
             toast.success('Visita encerrada com sucesso!');

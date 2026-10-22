@@ -426,6 +426,7 @@ export const dataService = {
         orderTeamId?: string | string[];
         responsibleTeamId?: string | string[];
         searchQuery?: string;
+        includeEndedInRange?: boolean;
     }) {
         return dashboardService.getOrdersVisitsView.apply(dashboardService, arguments as any);
     },
@@ -2106,7 +2107,7 @@ export const dataService = {
         return visitsService.getOpenChatVisitsForUser.apply(visitsService, arguments as any);
     },
 
-    async startOrderVisit(order: Order, currentUser: User): Promise<void> {
+    async startOrderVisit(order: Order, currentUser: User, startedAt?: string): Promise<void> {
         return visitsService.startOrderVisit.apply(visitsService, arguments as any);
     },
     async getReassignPreview(visitId: string | number, targetOrderId: string | number): Promise<{
@@ -2654,7 +2655,8 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         suspendedReasonId: string | null,
         causeReasonId: number,
         progress: number,
-        user: User
+        user: User,
+        endedAt?: string
     ): Promise<void> {
         return visitsService.closeOrderVisit.apply(visitsService, arguments as any);
     },

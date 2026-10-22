@@ -221,7 +221,9 @@ export const dashboardService = {
         orderPlanId?: string | string[];
         orderTeamId?: string | string[];
         responsibleTeamId?: string | string[];
+        providerCompanyId?: string | string[];
         searchQuery?: string;
+        includeEndedInRange?: boolean;
     }) {
         const pageSize = filters?.pageSize ?? 100;
         const page = filters?.page ?? 0;
@@ -243,10 +245,23 @@ export const dashboardService = {
         const endDate = filters?.endDate || monthEnd;
 
         const startStr = startDate.includes('T') || startDate.includes(' ') ? startDate : `${startDate} 00:00:00`;
-        query = query.or(`ov_started_at.gte.${startStr},and(ov_started_at.is.null,o_requested_at.gte.${startStr})`);
-
         const endStr = endDate.includes('T') || endDate.includes(' ') ? endDate : `${endDate} 23:59:59`;
-        query = query.or(`ov_started_at.lte.${endStr},and(ov_started_at.is.null,o_requested_at.lte.${endStr})`);
+
+        if (filters?.includeEndedInRange) {
+            // Modo "visitas do dia": inclui visitas abertas (independente do
+            // dia de início) e visitas cujo início OU fim cai no intervalo.
+            // Usado apenas pela tela de visitas de hoje para não duplicar
+            // visitas de vários dias nos dashboards de período.
+            query = query.or(
+                `ov_status_id.eq.1,` +
+                `and(ov_started_at.gte.${startStr},ov_started_at.lte.${endStr}),` +
+                `and(ov_ended_at.gte.${startStr},ov_ended_at.lte.${endStr}),` +
+                `and(ov_started_at.is.null,o_requested_at.gte.${startStr},o_requested_at.lte.${endStr})`
+            );
+        } else {
+            query = query.or(`ov_started_at.gte.${startStr},and(ov_started_at.is.null,o_requested_at.gte.${startStr})`);
+            query = query.or(`ov_started_at.lte.${endStr},and(ov_started_at.is.null,o_requested_at.lte.${endStr})`);
+        }
 
         const applyFilter = (col: string, val?: string | string[]) => {
             if (!val) return;

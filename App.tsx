@@ -2533,7 +2533,7 @@ const AppContent: React.FC = () => {
             onCancel={() => {
               setCurrentScreen('orders-dashboard');
             }}
-            onStartVisit={() => {
+            onStartVisit={(startedAt?: string) => {
               return new Promise<void>(async (resolve, reject) => {
                 if (selectedOrder && currentUser) {
                   if (!navigator.geolocation) {
@@ -2546,7 +2546,7 @@ const AppContent: React.FC = () => {
                     async (position) => {
                       try {
                         toast.loading('Iniciando visita...');
-                        await dataService.startOrderVisit(selectedOrder, currentUser);
+                        await dataService.startOrderVisit(selectedOrder, currentUser, startedAt);
                         toast.dismiss();
                         toast.success('Visita iniciada com sucesso!');
 
@@ -2566,7 +2566,7 @@ const AppContent: React.FC = () => {
                         resolve();
                       } catch (e) {
                         toast.dismiss();
-                        toast.error('Erro ao iniciar visita');
+                        toast.error(e instanceof Error ? e.message : 'Erro ao iniciar visita');
                         console.error(e);
                         reject(e);
                       }

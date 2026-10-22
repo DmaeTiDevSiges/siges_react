@@ -206,10 +206,16 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
     }, [completePurchase, loadDashboard]);
 
     const filteredByCodePurchases = useMemo(() => {
-        const code = (purchaseCodeFilter || '').trim();
-        if (!code) return allPurchases;
-        const lower = code.toLowerCase();
-        return allPurchases.filter((p: any) => String(p.purchase_code || '').toLowerCase().includes(lower));
+        const terms = (purchaseCodeFilter || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+        if (terms.length === 0) return allPurchases;
+        return allPurchases.filter((p: any) => {
+            // Código da compra + searchable do material (v_materials.searchable = code + description)
+            const haystack = [p.purchase_code, p.material_code, p.material_description]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+            return terms.every((term: string) => haystack.includes(term));
+        });
     }, [allPurchases, purchaseCodeFilter]);
 
     const stats = useMemo(() => {
@@ -274,7 +280,7 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                         type="text"
                         value={purchaseCodeFilter}
                         onChange={(e) => setPurchaseCodeFilter(e.target.value)}
-                        placeholder="Filtrar por código da autorização (compra)"
+                        placeholder="Pesquisar por código da compra ou material (código/descrição)"
                         className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                     />
                     {purchaseCodeFilter && (
@@ -332,7 +338,7 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                     <div className="space-y-3">
                         <div className="flex items-center justify-between px-1">
                             <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                                {selectedStatus === 1 ? 'Pendentes' : selectedStatus === 2 ? 'Autorizadas' : (selectedStatus === null && (purchaseCodeFilter || '').trim() ? 'Filtro por código' : 'Canceladas')}
+                                {selectedStatus === 1 ? 'Pendentes' : selectedStatus === 2 ? 'Autorizadas' : (selectedStatus === null && (purchaseCodeFilter || '').trim() ? 'Filtro por código/material' : 'Canceladas')}
                             </h2>
                             <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                                 {filteredPurchases.length} • {formatCurrency(filteredTotal)}

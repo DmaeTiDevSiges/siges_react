@@ -46,6 +46,7 @@ export interface Contract {
   dateEnd?: string;
   totalValue?: number;
   isUseManus?: boolean; // Integration with Manus system
+  isManualVisitStartEnd?: boolean; // Exige apontamento manual de início/fim da visita
 
   // UI helpers
   clientCompanyName?: string;
@@ -1024,6 +1025,7 @@ export interface OrderVisit {
   ovStartedAt?: string;
   ovEndedAt?: string;
   ovTeamLeadId: string;
+  isManualVisitStartEnd?: boolean; // Vem do contrato da OS
   ovComments?: string;
   ovProcessingId: number;
   ovOStatusId?: number;

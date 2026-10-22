@@ -15,6 +15,7 @@ L.Icon.Default.mergeOptions({
 import 'leaflet/dist/leaflet.css';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { getInitials } from '../../utils/formatters';
+import { getBrazilDateInputValue } from '../../utils/formatters';
 import { Modal } from '../../components/ui/Modal';
 import { toast } from 'sonner';
 import { Calendar } from '../../components/ui/Calendar';
@@ -22,6 +23,22 @@ import { FilterSelect } from '../../components/ui/FilterSelect';
 import { formatCurrency } from '../../utils/formatters';
 import { Select } from '../../components/ui/Select';
 import { Loading } from '../../components/ui/Loading';
+
+// Uma visita pertence ao dia selecionado quando começou OU terminou nele.
+// Visitas abertas aparecem quando o período inclui hoje (tracking ao vivo).
+const visitMatchesDay = (visit: any, rangeStart: string, rangeEnd: string, includeOpen: boolean): boolean => {
+    const dateKey = (value?: string | null) => (value ? String(value).slice(0, 10) : '');
+    const inRange = (day: string) => !!day && day >= rangeStart && day <= rangeEnd;
+
+    if (includeOpen && Number(visit.ov_status_id) === 1) return true;
+
+    const started = dateKey(visit.ov_started_at);
+    const ended = dateKey(visit.ov_ended_at);
+    if (inRange(started) || inRange(ended)) return true;
+
+    // Fallback para visitas antigas sem ov_started_at.
+    return !visit.ov_started_at && inRange(dateKey(visit.ov_created_at || visit.o_requested_at));
+};
 
 interface DashboardOrdersVisitsTodayScreenProps {
     company: Company;
@@ -244,13 +261,15 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
         try {
             const visitsData = await dataService.getOrdersVisitsView({
                 startDate: dateRange.start,
-                endDate: dateRange.end
+                endDate: dateRange.end,
+                includeEndedInRange: true
             });
             const actualVisitsData = (visitsData as any).data || visitsData;
-            const filteredByDate = actualVisitsData.filter((v: any) => {
-                const date = (v.ov_started_at || v.ov_created_at || '').split('T')[0];
-                return date >= dateRange.start && date <= dateRange.end;
-            });
+            const today = getBrazilDateInputValue();
+            const includeOpen = today >= dateRange.start && today <= dateRange.end;
+            const filteredByDate = actualVisitsData.filter((v: any) =>
+                visitMatchesDay(v, dateRange.start, dateRange.end, includeOpen)
+            );
 
             localMappedVisits = filteredByDate.map(row => ({
                 id: row.id.toString(),
@@ -352,13 +371,15 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
             try {
                 const visitsData = await dataService.getOrdersVisitsView({
                     startDate: dateRange.start,
-                    endDate: dateRange.end
+                    endDate: dateRange.end,
+                    includeEndedInRange: true
                 });
                 const actualVisitsData = (visitsData as any).data || visitsData;
-                const filteredByDate = actualVisitsData.filter((v: any) => {
-                    const date = (v.ov_started_at || v.ov_created_at || '').split('T')[0];
-                    return date >= dateRange.start && date <= dateRange.end;
-                });
+                const today = getBrazilDateInputValue();
+                const includeOpen = today >= dateRange.start && today <= dateRange.end;
+                const filteredByDate = actualVisitsData.filter((v: any) =>
+                    visitMatchesDay(v, dateRange.start, dateRange.end, includeOpen)
+                );
                 if (!cancelled) {
                     setVisits(filteredByDate.map((row: any) => ({
                         id: row.id.toString(),
