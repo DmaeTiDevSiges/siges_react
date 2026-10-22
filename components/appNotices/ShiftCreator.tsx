@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fromDateTimeLocalValue, shiftCrossesMidnight } from '../../utils/appNoticePeriod';
+import { Input } from '../ui/Input';
 
 interface ShiftCreatorProps {
   /**
@@ -96,39 +97,33 @@ export const ShiftCreator: React.FC<ShiftCreatorProps> = ({
   const invalid = missing || invalidRange;
   const crossesMidnight = !invalid && shiftCrossesMidnight(startNaive, endNaive);
 
-  const fieldClass =
-    'w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-primary focus:border-transparent';
+  const calendarIcon = (
+    <span className="material-symbols-outlined text-[20px] text-slate-400">calendar_month</span>
+  );
 
   return (
-    <div className="rounded-xl border border-primary/30 bg-primary/5 p-2.5 space-y-2">
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
       <p className="text-[10px] font-black uppercase tracking-tight text-primary">
         Nova escala
       </p>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-            Início
-          </label>
-          <input
-            type="datetime-local"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            disabled={disabled}
-            className={fieldClass}
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-            Fim
-          </label>
-          <input
-            type="datetime-local"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            disabled={disabled}
-            className={fieldClass}
-          />
-        </div>
+      <div className="grid grid-cols-1 gap-4">
+        <Input
+          label="Início"
+          type="datetime-local"
+          value={start}
+          onChange={(e) => setStart(e.target.value)}
+          disabled={disabled}
+          leftIcon={calendarIcon}
+        />
+        <Input
+          label="Fim"
+          type="datetime-local"
+          value={end}
+          onChange={(e) => setEnd(e.target.value)}
+          disabled={disabled}
+          min={start || undefined}
+          leftIcon={calendarIcon}
+        />
       </div>
 
       {crossesMidnight && (

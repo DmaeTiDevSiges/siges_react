@@ -38,6 +38,8 @@ import type {
     SaveVehicleRateContractInput
 } from './orders/vehicleRateService';
 import { assetTagsService } from './assets/assetTagsService';
+import { assetAvailabilityNotificationService } from './assets/assetAvailabilityNotificationService';
+import type { AvailabilityNotificationResult } from './assets/assetAvailabilityNotificationService';
 import { companiesService } from './companies/companiesService';
 import { evaluationService } from './companies/evaluationService';
 import { unitsService } from './core/unitsService';
@@ -1057,6 +1059,32 @@ export const dataService = {
 
     async canEvaluateVisit(ovId: string, userId: string): Promise<{ canEvaluate: boolean; reason?: string }> {
         return evaluationService.canEvaluateVisit.apply(evaluationService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
+    // ASSETS AVAILABILITY NOTIFICATION (WhatsApp)
+    // -------------------------------------------------------------------------
+    /**
+     * Grupo de WhatsApp configurado para o sistema (disponibilidade de ativos).
+     * null = sistema sem grupo configurado → a mensagem não deve ser enviada.
+     */
+    async getSystemWhatsAppGroupId(systemId: string | number): Promise<string | null> {
+        return settingsService.getSystemWhatsAppGroupId.apply(settingsService, arguments as any);
+    },
+
+    /**
+     * Envia a mensagem de disponibilidade dos ativos para o grupo do sistema.
+     * Retorna `{ sent, systemParentId, groupId, reason }` — `sent` false quando
+     * o envio é ignorado (unidade sem sistema ou sistema sem grupo de WhatsApp
+     * configurado); `systemParentId` é o `v_units.system_parent_id` usado na
+     * resolução e `groupId` traz o valor de `systems_whatsapp_group_id`.
+     */
+    async sendAssetAvailabilityWhatsAppMessage(params: {
+        message: string;
+        imageUrl?: string;
+        systemParentId?: string | number | null;
+    }): Promise<AvailabilityNotificationResult> {
+        return assetAvailabilityNotificationService.sendAvailabilityMessage.apply(assetAvailabilityNotificationService, arguments as any);
     },
 
     async getAssets(filter: 'all' | 'active' | 'inactive' = 'all', search: string = '', unitId?: string, unitAssetTagId?: string): Promise<Asset[]> {
@@ -2198,6 +2226,14 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async getMaxVehicleOdometer(vehicleId: string, excludeVisitId?: string): Promise<number | null> {
         return vehicleRentalService.getMaxVehicleOdometer.apply(vehicleRentalService, arguments as any);
+    },
+
+    /**
+     * Km final do ÚLTIMO LANÇAMENTO anterior do mesmo veículo, excluindo o
+     * registro atual (`v_orders_visits_vehicles.id`).
+     */
+    async getPreviousVehicleOdometer(vehicleId: string, excludeRowId?: string): Promise<number | null> {
+        return vehicleRentalService.getPreviousVehicleOdometer.apply(vehicleRentalService, arguments as any);
     },
 
     async uploadFuelExpenseImages(

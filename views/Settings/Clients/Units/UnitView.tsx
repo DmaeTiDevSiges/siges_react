@@ -16,7 +16,6 @@ import { UnitAssetTagForm } from '../../../Units/UnitAssetTagForm';
 import { PhotoViewer } from '../../../../components/ui/PhotoViewer';
 import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { toast } from 'sonner';
-import { apiN8nService } from '../../../../services/core/apiN8nService';
 import { Loading } from '../../../../components/ui/Loading';
 import { useDraggableScroll } from '../../../../hooks/useDraggableScroll';
 import { UnitStructureOrganogram } from '../../../../components/units/UnitStructureOrganogram';
@@ -321,7 +320,16 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
             const imgUrl = item.reportedImageOriginal || item.reportedImage || '';
 
             toast.loading('Enviando WhatsApp...', { id: 'wp-send' });
-            await apiN8nService.sendWhatsAppMessage(message, imgUrl);
+            // Destino: grupo de WhatsApp do SISTEMA (pai) da unidade
+            const result = await dataService.sendAssetAvailabilityWhatsAppMessage({
+                message,
+                imageUrl: imgUrl,
+                systemParentId: unit.systemParentId,
+            });
+            if (!result.sent) {
+                toast.error('Sistema sem grupo de WhatsApp configurado. Mensagem não enviada.', { id: 'wp-send' });
+                return;
+            }
             toast.success('Mensagem enviada!', { id: 'wp-send' });
         } catch (err) {
             console.error('[WhatsApp] Erro ao enviar:', err);

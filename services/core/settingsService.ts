@@ -110,6 +110,33 @@ export const settingsService = {
         })) as System[];
     },
 
+    /**
+     * Grupo de WhatsApp configurado para o sistema (notificação de
+     * disponibilidade dos ativos).
+     *
+     * Origem: `cfg_systems.units_assets_tags_available_whatsapp_group_id` — JID
+     * do grupo no Evolution (ex.: `120363402140206159@g.us`). O sistema da
+     * unidade é resolvido via `v_units.system_id`.
+     *
+     * null = sistema sem grupo configurado → a mensagem NÃO deve ser enviada.
+     */
+    async getSystemWhatsAppGroupId(systemId: string | number): Promise<string | null> {
+        const id = parseInt(String(systemId), 10);
+        if (!id || Number.isNaN(id)) return null;
+
+        const { data, error } = await supabase
+            .from('cfg_systems')
+            .select('units_assets_tags_available_whatsapp_group_id')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error fetching system WhatsApp group:', error);
+            return null;
+        }
+        return data?.units_assets_tags_available_whatsapp_group_id || null;
+    },
+
     async updateSystem(id: string, data: Partial<System>): Promise<void> {
         const { error } = await supabase.from('cfg_systems').update(data).eq('id', id);
         if (error) throw error;

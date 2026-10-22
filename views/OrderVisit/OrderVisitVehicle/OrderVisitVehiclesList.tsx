@@ -46,7 +46,8 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
     // Contrato de aluguel vigente por veículo (para detectar só-aluguel)
     const [rentalContracts, setRentalContracts] = useState<Record<string, VehicleRentalContract | null>>({});
 
-    // Último Km final registrado do veículo (excluindo a visita atual):
+    // Km final do ÚLTIMO LANÇAMENTO anterior do veículo, por REGISTRO
+    // (chave = orders_visits_vehicles.id, o registro atual é excluído):
     // informativo no campo INÍCIO e base da validação de progressão
     const [lastOdometers, setLastOdometers] = useState<Record<string, number | null>>({});
 
@@ -74,8 +75,8 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
             const data = await dataService.getOrderVisitVehicles(visitId);
             setVisitVehicles(data);
             // Contratos vigentes (um por veículo) para o botão de ociosidade
-            // e último Km final registrado (excluindo esta visita) para
-            // validar/informativo do Km inicial
+            // e Km final do último lançamento anterior (por registro, excluindo
+            // o registro atual) para validar/informativo do Km inicial
             const ids = Array.from(new Set(data.map(v => v.vehicleId)));
             if (ids.length > 0) {
                 const [contractEntries, odometerEntries] = await Promise.all([
@@ -88,12 +89,14 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                             return [vehicleId, null] as const;
                         }
                     })),
-                    Promise.all(ids.map(async (vehicleId) => {
+                    // Referência por REGISTRO: último lançamento do mesmo
+                    // veículo, excluindo o registro atual (v_..._vehicles.id).
+                    Promise.all(data.map(async (v) => {
                         try {
-                            const max = await dataService.getMaxVehicleOdometer(vehicleId, visitId);
-                            return [vehicleId, max] as const;
+                            const previous = await dataService.getPreviousVehicleOdometer(v.vehicleId, v.id);
+                            return [v.id, previous] as const;
                         } catch {
-                            return [vehicleId, null] as const;
+                            return [v.id, null] as const;
                         }
                     }))
                 ]);
@@ -239,12 +242,13 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
         const targetVehicle = visitVehicles.find(v => v.id === visitVehicleId);
         let effectiveValue = numValue;
         if (targetVehicle && numValue !== null) {
-            // Bloqueia Km inicial inferior ao último Km final já registrado do
-            // veículo (excluindo esta visita) — odômetro deve ser progressivo
+            // Bloqueia Km inicial inferior ao Km final do ÚLTIMO LANÇAMENTO
+            // anterior do veículo (registro atual excluído) — odômetro
+            // progressivo
             if (type === 'initial') {
-                const lastKm = lastOdometers[targetVehicle.vehicleId];
+                const lastKm = lastOdometers[targetVehicle.id];
                 if (lastKm != null && numValue < lastKm) {
-                    toast.error(`Km inicial inválido: o último Km final registrado deste veículo é ${lastKm.toLocaleString('pt-BR')}. Informe um valor igual ou maior.`);
+                    toast.error(`Km inicial inválido: o Km final do lançamento anterior deste veículo é ${lastKm.toLocaleString('pt-BR')}. Informe um valor igual ou maior.`);
                     // Limpa o campo inválido sem salvar
                     setVisitVehicles(prev => prev.map(v => v.id === visitVehicleId ? { ...v, recorderStart: undefined } : v));
                     return;
@@ -513,9 +517,9 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                     />
                                     <span className="text-xs font-bold text-slate-400 absolute right-0 top-1.5 pointer-events-none">{vv.unit || 'KM'}</span>
                                 </div>
-                                {lastOdometers[vv.vehicleId] != null && (
+                                {lastOdometers[vv.id] != null && (
                                     <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 leading-snug">
-                                        Último Km final registrado: <span className="font-bold">{lastOdometers[vv.vehicleId]!.toLocaleString('pt-BR')}</span> — informe um valor igual ou maior.
+                                        Último Km final registrado (lançamento anterior): <span className="font-bold">{lastOdometers[vv.id]!.toLocaleString('pt-BR')}</span> — informe um valor igual ou maior.
                                     </p>
                                 )}
                             </div>

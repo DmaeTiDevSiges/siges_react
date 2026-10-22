@@ -15,9 +15,11 @@ export const apiN8nService = {
      * Envia uma mensagem via WhatsApp usando o fluxo do n8n.
      * @param msg Conteúdo da mensagem
      * @param imgUrl URL da imagem de evidência (opcional)
-     * @param to Número de telefone (opcional, se não for fixo no n8n)
+     * @param groupId JID do grupo de WhatsApp (opcional) — enviado no body como
+     *        `systems_whatsapp_group_id` (ex.: `120363402140206159@g.us`).
+     *        Sem ele, o workflow do n8n aplica o destinatário padrão dele.
      */
-    async sendWhatsAppMessage(msg: string, imgUrl: string = '', to?: string) {
+    async sendWhatsAppMessage(msg: string, imgUrl: string = '', groupId?: string) {
         if (!EXTERNAL_WEBHOOK_URL && !isDev) {
             console.error('N8N Webhook URL não configurada no .env');
             return;
@@ -25,7 +27,7 @@ export const apiN8nService = {
 
         try {
             const body: any = { msg, imgUrl };
-            if (to) body.to = to; // Inclui o destinatário se fornecido
+            if (groupId) body.systems_whatsapp_group_id = groupId; // Grupo de destino
 
             const url = isDev ? `/${WHATSAPP_SEND_MSG_ENDPOINT}` : `${EXTERNAL_WEBHOOK_URL}/${WHATSAPP_SEND_MSG_ENDPOINT}`;
             const response = await fetch(url, {

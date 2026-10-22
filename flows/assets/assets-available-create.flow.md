@@ -99,8 +99,15 @@ Após a inclusão e atualização da disponibilidade, enviar mensagem via WhatsA
 - API
     method: POST
     endpoint: VITE_API_N8N_WEBHOOK/VITE_API_N8N_WEBHOOK_WHATSAPP_SEND_MSG
+    workflow n8n: SigesWhatsAppAssetsAvailable
     body:
     {
         "msg":"msg",
-        "imgUrl":"imgUrl"
+        "imgUrl":"imgUrl",
+        "systems_whatsapp_group_id":"systems_whatsapp_group_id"
     }
+
+- Destino (systems_whatsapp_group_id):
+    - JID do grupo de WhatsApp do SISTEMA (pai) da unidade (ex.: 120363402140206159@g.us)
+    - Origem: cfg_systems.units_assets_tags_available_whatsapp_group_id, resolvido pelo v_units.system_parent_id da unidade
+    - Se o sistema não tiver grupo configurado, a mensagem NÃO é enviada (o webhook nem é chamado)

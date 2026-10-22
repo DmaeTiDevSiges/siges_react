@@ -599,6 +599,10 @@ export interface AssetTag {
   description: string;
   isAvailable: boolean;
   unit_id: number;
+  /** Sistema (subsistema) da unidade (v_units_assets_tags.system_id → cfg_systems.id) */
+  system_id?: number | null;
+  /** Sistema pai da unidade (v_units_assets_tags.system_parent_id → cfg_systems.id) */
+  system_parent_id?: number | null;
   asset_tag_id: number;
   asset_tag_sub_id?: number | null;
   unit_description?: string;

@@ -217,9 +217,8 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                 }
             }
 
-            // 4. Enviar mensagem via n8n
-            const { apiN8nService } = await import('../../services/core/apiN8nService');
-
+            // 4. Enviar mensagem via n8n (destino: grupo de WhatsApp do
+            // SISTEMA da unidade — v_units.system_id)
             let msgHeader = '';
             const statusLabel = isAvailable ? 'DISPONÍVEL' : 'INDISPONÍVEL';
             const statusChanged = initialAvailable !== isAvailable;
@@ -254,8 +253,14 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                     `${currentUser.nameShort || currentUser.nameFull || currentUser.email}\n` +
                     `${reportedAtFormatted}`;
 
-                // Chamada não bloqueante
-                apiN8nService.sendWhatsAppMessage(message, finalImageUrl).catch(err => {
+                // Chamada não bloqueante. Sem grupo de WhatsApp configurado
+                // para o sistema (pai) da unidade, o envio é ignorado.
+                const systemParentId = unit?.systemParentId ?? assetTag?.system_parent_id ?? null;
+                dataService.sendAssetAvailabilityWhatsAppMessage({
+                    message,
+                    imageUrl: finalImageUrl,
+                    systemParentId,
+                }).catch(err => {
                     console.error('Falha ao enviar notificação WhatsApp:', err);
                 });
             }

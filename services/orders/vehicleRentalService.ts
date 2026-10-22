@@ -503,6 +503,41 @@ export const vehicleRentalService = {
     },
 
     /**
+     * Km final (recorder_end) do ÚLTIMO LANÇAMENTO anterior do mesmo veículo.
+     *
+     * Fonte: view `v_orders_visits_vehicles` (o `id` da view é o
+     * `orders_visits_vehicles.id`; a view já exclui `is_deleted = true`).
+     * `excludeRowId` = id do REGISTRO ATUAL — o próprio lançamento é ignorado,
+     * de modo que a referência é o lançamento imediatamente anterior do mesmo
+     * veículo (não o maior número já registrado).
+     *
+     * Diferente de `getMaxVehicleOdometer` (maior VALOR registrado, usado como
+     * base de odômetro em abastecimentos): aqui vale o último lançamento.
+     */
+    async getPreviousVehicleOdometer(vehicleId: string, excludeRowId?: string): Promise<number | null> {
+        let query = supabase
+            .from('v_orders_visits_vehicles')
+            .select('id, recorder_end')
+            .eq('vehicle_id', parseInt(vehicleId, 10))
+            .not('recorder_end', 'is', null)
+            .gt('recorder_end', 0)
+            // Último lançamento do veículo (id = orders_visits_vehicles.id)
+            .order('id', { ascending: false })
+            .limit(1);
+        if (excludeRowId) {
+            query = query.neq('id', parseInt(excludeRowId, 10));
+        }
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching previous vehicle odometer:', error);
+            return null;
+        }
+        const row = ((data as any[]) || [])[0];
+        return row?.recorder_end != null ? num(row.recorder_end) : null;
+    },
+
+    /**
      * Sobe a imagem obrigatória do abastecimento (comprovante) no R2.
      * Falha ⇒ lança erro — a imagem é obrigatória.
      */
