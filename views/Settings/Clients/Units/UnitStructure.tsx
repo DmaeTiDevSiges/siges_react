@@ -16,10 +16,11 @@ export const UnitStructure: React.FC<UnitStructureProps> = ({
     onBack,
     onStructureChanged
 }) => {
-    const { canView } = usePermissions();
+    const { canView, canEdit } = usePermissions();
     const { currentUser } = useAuth();
-    // Interação no organograma (arrastar/reordenar) é exclusiva de is_admin_super
-    const canInteract = currentUser?.isAdminSuper === true;
+    // Interação no organograma (arrastar/reordenar) exige is_admin_super ou
+    // permissão de edição em units_assets_tags_structure_organogram
+    const canInteract = currentUser?.isAdminSuper === true || canEdit('units_assets_tags_structure_organogram');
     const [refreshKey, setRefreshKey] = useState(0);
 
     const handleStructureChanged = () => {

@@ -20,6 +20,7 @@ import { dataService } from '../../services/dataService';
 import { supabase } from '../../services/core/supabase';
 import { UnitStructureNode } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import { Loading } from '../ui/Loading';
 import { UnitStructureLinkDialog } from './UnitStructureLinkDialog';
 import { UnitStructurePDFButton } from '../reports/UnitStructurePDFButton';
@@ -80,7 +81,7 @@ interface OrganogramNodeCardProps {
     dragHandleProps?: Record<string, any>;
     /** Mostra o handle de arrasto (apenas usuários que podem interagir) */
     canDrag?: boolean;
-    /** Permite abrir o diálogo de vínculos secundários (super admin + edição) */
+    /** Permite abrir o diálogo de vínculos secundários (super admin + canEdit('units_assets_tags_structure_organogram')) */
     canManageLinks?: boolean;
     onManageLinks?: (node: TreeNode) => void;
 }
@@ -515,10 +516,12 @@ export const UnitStructureOrganogram: React.FC<UnitStructureOrganogramProps> = (
     onStructureChanged
 }) => {
     const { currentUser } = useAuth();
-    // Apenas usuários com is_admin_super interagem no organograma (arrastar,
-    // reordenar, mover para o nível principal, vincular/desvincular).
-    // Demais usuários apenas visualizam (expandir/recolher continua liberado).
-    const canInteract = currentUser?.isAdminSuper === true;
+    const { canEdit } = usePermissions();
+    // Interagem no organograma (arrastar, reordenar, mover para o nível
+    // principal, vincular/desvincular) apenas super admin ou quem tem edição
+    // em units_assets_tags_structure_organogram. Demais usuários apenas visualizam
+    // (expandir/recolher continua liberado).
+    const canInteract = currentUser?.isAdminSuper === true || canEdit('units_assets_tags_structure_organogram');
 
     const [nodes, setNodes] = useState<UnitStructureNode[]>([]);
     const [loading, setLoading] = useState(true);
