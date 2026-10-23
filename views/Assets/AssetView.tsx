@@ -747,7 +747,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                     <>
                                         <div className="flex items-center justify-between mb-6">
                                             <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Alertas</h3>
-                                            {currentUserIsAdminSuper && canCreate('assets_alerts') && (
+                                            {(currentUserIsAdminSuper || canCreate('assets_alerts')) && (
                                                 <button
                                                     className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-full transition-all active:scale-95 border-none cursor-pointer"
                                                     onClick={() => setIsAddingAlert(true)}
@@ -807,13 +807,14 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                         tagName: asset.tagName,
                                                         tagSubName: asset.tagSubName
                                                     };
-                                                    const canEditDelete = !alert.isDone && currentUserIsAdminSuper && canEdit('assets_alerts') && canDelete('assets_alerts');
+                                                    const canEditAlert = !alert.isDone && (currentUserIsAdminSuper || canEdit('assets_alerts'));
+                                                    const canDeleteAlert = !alert.isDone && (currentUserIsAdminSuper || canDelete('assets_alerts'));
                                                     return (
                                                         <AssetAlertListItem
                                                             key={alert.id}
                                                             alert={enrichedAlert}
-                                                            onEdit={canEditDelete ? setEditingAlert : undefined}
-                                                            onDelete={canEditDelete ? handleAlertDelete : undefined}
+                                                            onEdit={canEditAlert ? setEditingAlert : undefined}
+                                                            onDelete={canDeleteAlert ? handleAlertDelete : undefined}
                                                             onViewReport={onViewReport}
                                                             hideAssetIdentification={true}
                                                         />
