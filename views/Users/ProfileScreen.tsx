@@ -103,6 +103,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             ? dataService.getUserSignatureUrl(user.signatureImagePath, user.signatureImageName)
             : undefined
     );
+
+    // Mantém a prévia sincronizada quando os dados do usuário são (re)carregados.
+    // Sem isso, a assinatura salva só aparecia se já estivesse no primeiro render.
+    useEffect(() => {
+        const path = user?.signatureImagePath;
+        const name = user?.signatureImageName;
+        setSignatureUrl(path && name ? dataService.getUserSignatureUrl(path, name) : undefined);
+    }, [user?.signatureImagePath, user?.signatureImageName]);
+
     const [showSignaturePad, setShowSignaturePad] = useState(false);
     const [isSavingSignature, setIsSavingSignature] = useState(false);
     const [signatureUploadProgress, setSignatureUploadProgress] = useState(0);
@@ -1293,7 +1302,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                 <img
                                                     src={signatureUrl}
                                                     alt="Assinatura Padrão"
-                                                    className="max-h-full p-2 object-contain brightness-0 dark:invert transition-transform duration-500 group-hover:scale-105"
+                                                    className="max-h-full p-2 object-contain dark:invert transition-transform duration-500 group-hover:scale-105"
                                                 />
                                             ) : (
                                                 <div className="flex flex-col items-center gap-2 opacity-30">
@@ -1567,6 +1576,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                         setIsSavingSignature(true);
                         await dataService.deleteUserSignature(user.uuid);
                         setSignatureUrl(undefined);
+                        setUser(prev => prev ? { ...prev, signatureImagePath: undefined, signatureImageName: undefined } : prev);
                         if (onUserUpdate) {
                             onUserUpdate({ ...user, signatureImagePath: undefined, signatureImageName: undefined } as User);
                         }
@@ -1684,6 +1694,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
 
                                     const newUrl = dataService.getUserSignatureUrl(path, filename);
                                     setSignatureUrl(newUrl);
+                                    setUser(prev => prev ? { ...prev, signatureImagePath: path, signatureImageName: filename } : prev);
 
                                     if (onUserUpdate) {
                                         onUserUpdate({

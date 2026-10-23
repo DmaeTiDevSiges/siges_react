@@ -2671,10 +2671,6 @@ export const visitsService = {
             if (manualAllowed) {
                 endTimestamp = toBrazilNaiveDateTime(endedAt);
 
-                if (endTimestamp > nowTimestamp) {
-                    throw new Error('Data/hora de encerramento não pode ser futura.');
-                }
-
                 if (visitInfo?.ov_started_at) {
                     const startedAtNaive = toBrazilNaiveDateTime(String(visitInfo.ov_started_at));
                     if (endTimestamp < startedAtNaive) {

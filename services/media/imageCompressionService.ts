@@ -16,10 +16,24 @@ export interface CompressionOptions {
     /** Qualidade WebP (0-1). Default: 0.80 */
     quality?: number;
     /** Formato de saída. Default: 'webp' */
-    format?: 'webp' | 'jpeg';
+    format?: 'webp' | 'jpeg' | 'png';
     /** Se true, ignora compressão. Default: false */
     skip?: boolean;
 }
+
+type OutputFormat = NonNullable<CompressionOptions['format']>;
+
+const MIME_BY_FORMAT: Record<OutputFormat, string> = {
+    webp: 'image/webp',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+};
+
+const EXT_BY_FORMAT: Record<OutputFormat, string> = {
+    webp: 'webp',
+    jpeg: 'jpg',
+    png: 'png',
+};
 
 const DEFAULT_OPTIONS: Required<CompressionOptions> = {
     maxDimension: 2048,
@@ -83,7 +97,7 @@ export const compressForUpload = async (
 
         ctx.drawImage(img, 0, 0, width, height);
 
-        const mimeType = opts.format === 'webp' ? 'image/webp' : 'image/jpeg';
+        const mimeType = MIME_BY_FORMAT[opts.format];
         const blob = await canvasToBlob(canvas, mimeType, opts.quality);
 
         if (!blob) return file;
@@ -99,7 +113,7 @@ export const compressForUpload = async (
         }
 
         if (file instanceof File) {
-            const ext = opts.format === 'webp' ? 'webp' : 'jpg';
+            const ext = EXT_BY_FORMAT[opts.format];
             return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.${ext}`, {
                 type: mimeType,
             });
@@ -126,7 +140,7 @@ const encodeFromImage = async (
     sourceFile: File | Blob,
     maxDim: number,
     quality: number,
-    format: 'webp' | 'jpeg'
+    format: OutputFormat
 ): Promise<File | Blob> => {
     const { width, height } = calculateResize(img.naturalWidth, img.naturalHeight, maxDim);
     const canvas = document.createElement('canvas');
@@ -136,12 +150,12 @@ const encodeFromImage = async (
     if (!ctx) throw new Error('Canvas 2D context indisponível');
     ctx.drawImage(img, 0, 0, width, height);
 
-    const mimeType = format === 'webp' ? 'image/webp' : 'image/jpeg';
+    const mimeType = MIME_BY_FORMAT[format];
     const blob = await canvasToBlob(canvas, mimeType, quality);
     if (!blob) throw new Error('canvas.toBlob retornou null');
 
     if (sourceFile instanceof File) {
-        const ext = format === 'webp' ? 'webp' : 'jpg';
+        const ext = EXT_BY_FORMAT[format];
         return new File([blob], `${sourceFile.name.replace(/\.[^.]+$/, '')}.${ext}`, {
             type: mimeType,
         });
@@ -204,10 +218,10 @@ export const compressForAvatar = (file: File | Blob): Promise<File | Blob> =>
 
 /**
  * Para assinaturas e imagens que preservam formato (PNG).
- * Apenas redimensiona, sem converter para WebP.
+ * Apenas redimensiona, sem converter para WebP/JPEG — mantém o canal alpha.
  */
 export const compressPng = (file: File | Blob, maxDim = 1200): Promise<File | Blob> =>
-    compressForUpload(file, { maxDimension: maxDim, quality: 1.0, format: 'jpeg' });
+    compressForUpload(file, { maxDimension: maxDim, quality: 1.0, format: 'png' });
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

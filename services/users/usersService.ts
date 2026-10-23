@@ -3,7 +3,7 @@ import { apiN8nService } from '../core/apiN8nService';
 import { User, UserStatus, Permission, Team, Department, Vehicle, VehicleCompanyInfo } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
 import { r2Service } from '../media/r2Service';
-import { compressForUpload } from '../media/imageCompressionService';
+import { compressPng } from '../media/imageCompressionService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 let currentUserPromise: Promise<User | null> | null = null;
@@ -1252,11 +1252,14 @@ export const usersService = {
     },
 
     async uploadUserSignature(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        // Assinaturas são PNGs — apenas redimensiona, mantém formato para preservar transparência
-        const compressed = await compressForUpload(file, { maxDimension: 1200, format: 'jpeg', quality: 0.90 });
-        const uploadFile = compressed instanceof File ? compressed : compressed;
-        const fileExt = (uploadFile as File).name ? (uploadFile as File).name.split('.').pop() : 'png';
-        const fileName = `signature_${Date.now()}.${fileExt}`;
+        // Assinaturas são PNGs com fundo TRANSPARENTE. Converter para JPEG/WebP
+        // com perda de alpha pinta o fundo de preto e o perfil exibe um
+        // retângulo sólido (preto no tema claro / branco no tema escuro).
+        const compressed = await compressPng(file, 1200);
+        const uploadFile = compressed instanceof File
+            ? compressed
+            : new File([compressed], `signature_${Date.now()}.png`, { type: 'image/png' });
+        const fileName = `signature_${Date.now()}.png`;
         const folderPath = `users/${userId}/signature`;
         const fullPath = `${folderPath}/${fileName}`;
 

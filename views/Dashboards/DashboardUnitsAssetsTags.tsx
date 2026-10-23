@@ -176,64 +176,140 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     // Track unit selected via map
     const [selectedUnitIdFromMap, setSelectedUnitIdFromMap] = useState<number | null>(null);
 
-    // MO Extra: notice ativo + workers agrupados por unidade
+    // MO Extra: considera TODOS os avisos ativos (soma e identifica por aviso)
     // A contagem só considera o PERÍODO vigente do momento (data/hora atual
     // do app em São Paulo entre period_start e o fim efetivo do período).
     const { notices: activeNotices } = useAppNotices();
-    const [noticeWorkers, setNoticeWorkers] = useState<any[]>([]);
+    const [noticeWorkersAll, setNoticeWorkersAll] = useState<any[]>([]);
 
-    const loadNoticeWorkers = useCallback(async (noticeId: number) => {
+    const loadAllNoticeWorkers = useCallback(async () => {
+        if (!activeNotices || activeNotices.length === 0) {
+            setNoticeWorkersAll([]);
+            return;
+        }
+
         try {
-            const periods = await dataService.getNoticeWorkerPeriods(noticeId);
-            const windowEnd = activeNotices.find((n: any) => n.id === noticeId)?.viewEndDate;
-            const activePeriods = pickActivePeriodsAt(periods, new Date(), windowEnd);
-            if (activePeriods.length === 0) {
-                // Nada cobre "agora": 1º dia sem lançamento ou vigência encerrada
-                setNoticeWorkers([]);
-                return;
-            }
-            // undefined = sem filtro de company → retorna todas as companies
-            const periodIds = activePeriods.map((p) => p.id);
-            const workersLists = await Promise.all(
-                periodIds.map((pid) => dataService.getNoticeWorkers(noticeId, undefined, pid))
+            const allWorkers: any[] = [];
+
+            await Promise.all(
+                activeNotices.map(async (notice: any) => {
+                    const noticeId = notice.id;
+                    if (!noticeId) return;
+
+                    const periods = await dataService.getNoticeWorkerPeriods(noticeId);
+                    const windowEnd = notice.viewEndDate || notice.endDate;
+                    const activePeriods = pickActivePeriodsAt(periods, new Date(), windowEnd);
+
+                    if (activePeriods.length === 0) {
+                        return;
+                    }
+
+                    const periodIds = activePeriods.map((p: any) => p.id);
+                    const workersLists = await Promise.all(
+                        periodIds.map((pid) => dataService.getNoticeWorkers(noticeId, undefined, pid))
+                    );
+
+                    const workers = workersLists.flat();
+                    workers.forEach((w: any) => {
+                        allWorkers.push({
+                            ...w,
+                            noticeId,
+                            noticeTitle: notice.title,
+                            noticeColor: notice.color || notice.categoryColor,
+                            noticeCategoryLabel: notice.categoryLabel || notice.categoryName
+                        });
+                    });
+                })
             );
-            const workers = workersLists.flat();
-            setNoticeWorkers(workers);
+
+            setNoticeWorkersAll(allWorkers);
         } catch (err) {
-            setNoticeWorkers([]);
+            console.error('Erro ao carregar MO Extra de todos os avisos:', err);
+            setNoticeWorkersAll([]);
         }
     }, [activeNotices]);
 
     useEffect(() => {
-        const notice = activeNotices[0];
-        
-        if (notice?.id) {
-            void loadNoticeWorkers(notice.id);
-        } else {
-            setNoticeWorkers([]);
-        }
-    }, [activeNotices, loadNoticeWorkers]);
+        void loadAllNoticeWorkers();
+    }, [loadAllNoticeWorkers]);
 
-    // Agrupa workers por unitId: { total, companies: [{ name, logoUrl, amount }] }
+    // Agrupa workers por unitId: soma geral + breakdown por aviso + rateio por empresa
     const moExtraByUnit = useMemo(() => {
-        const map = new Map<number, { total: number; companies: { name?: string; logoUrl?: string; amount: number }[] }>();
-        noticeWorkers.forEach(w => {
+        const map = new Map<number, {
+            total: number;
+            notices: Array<{
+                noticeId: number;
+                title?: string;
+                color?: string;
+                categoryLabel?: string;
+                total: number;
+                companies: Array<{ name?: string; logoUrl?: string; amount: number }>;
+            }>;
+            companies: Array<{ name?: string; logoUrl?: string; amount: number }>;
+        }>();
+
+        noticeWorkersAll.forEach(w => {
             const uid = Number(w.unitId);
             const amount = Number(w.workersExtraAmount) || 0;
             if (!uid || amount <= 0) return;
-            const entry = map.get(uid) ?? { total: 0, companies: [] };
+
+            const entry = map.get(uid) ?? { total: 0, notices: [], companies: [] };
             entry.total += amount;
-            entry.companies.push({ name: w.companyName, logoUrl: w.companyLogoUrl, amount });
+
+            // Agrupa por aviso dentro da unidade
+            let noticeEntry = entry.notices.find(n => n.noticeId === w.noticeId);
+            if (!noticeEntry) {
+                noticeEntry = {
+                    noticeId: w.noticeId,
+                    title: w.noticeTitle,
+                    color: w.noticeColor,
+                    categoryLabel: w.noticeCategoryLabel,
+                    total: 0,
+                    companies: []
+                };
+                entry.notices.push(noticeEntry);
+            }
+            noticeEntry.total += amount;
+            noticeEntry.companies.push({
+                name: w.companyName,
+                logoUrl: w.companyLogoUrl,
+                amount
+            });
+
+            // Mantém rateio geral por empresa (compatível com UI atual)
+            entry.companies.push({
+                name: w.companyName,
+                logoUrl: w.companyLogoUrl,
+                amount
+            });
+
             map.set(uid, entry);
         });
-        return map;
-    }, [noticeWorkers]);
 
-    // Resumo global de MO Extra (total + por empresa)
+        // Ordena avisos conforme ordem de activeNotices para manter consistência
+        const noticeOrder = new Map<number, number>();
+        activeNotices?.forEach((n: any, idx: number) => {
+            if (n?.id) noticeOrder.set(Number(n.id), idx);
+        });
+
+        for (const entry of map.values()) {
+            entry.notices.sort((a, b) => {
+                const oa = noticeOrder.get(a.noticeId) ?? 999;
+                const ob = noticeOrder.get(b.noticeId) ?? 999;
+                if (oa !== ob) return oa - ob;
+                return a.noticeId - b.noticeId;
+            });
+            // Opcional: normaliza empresas para evitar duplicados pesados no tooltip
+        }
+
+        return map;
+    }, [noticeWorkersAll, activeNotices]);
+
+    // Resumo global de MO Extra (total + por empresa) - considera todos os avisos ativos
     const moExtraSummary = useMemo(() => {
         const companiesMap = new Map<string, { name?: string; logoUrl?: string; amount: number }>();
         let total = 0;
-        noticeWorkers.forEach(w => {
+        noticeWorkersAll.forEach(w => {
             const amount = Number(w.workersExtraAmount) || 0;
             if (amount <= 0) return;
             total += amount;
@@ -246,7 +322,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             }
         });
         return { total, companies: Array.from(companiesMap.values()).sort((a, b) => b.amount - a.amount) };
-    }, [noticeWorkers]);
+    }, [noticeWorkersAll]);
 
     // Active Asset Tag ID based on selectedSectorName
     const activeAssetTagId = useMemo(() => {
@@ -1080,18 +1156,38 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                         {(() => {
                                                             const mo = moExtraByUnit.get(Number(unit.id));
                                                             if (!mo || mo.total <= 0) return null;
+                                                            const hasMultipleNotices = mo.notices.length > 1;
+
+                                                            const tooltipLines = mo.notices.map((n) => {
+                                                                const companiesTxt = n.companies.length > 0
+                                                                    ? n.companies.map(c => `${c.name || 'Empresa'}: ${c.amount}`).join(' • ')
+                                                                    : '';
+                                                                return `• ${n.title || 'Aviso'}: ${n.total}${companiesTxt ? ` (${companiesTxt})` : ''}`;
+                                                            });
+                                                            const tooltipContent = tooltipLines.join('\n');
+
                                                             return (
-                                                                <div className="flex items-center gap-1 mt-1.5 pl-[44px] sm:pl-[46px]">
-                                                                    <span
-                                                                        className="material-symbols-outlined text-[13px] text-amber-500"
-                                                                        title={`${mo.total} MO Extra`}
-                                                                    >engineering</span>
+                                                                <div
+                                                                    className="flex items-center gap-1.5 mt-1.5 pl-[44px] sm:pl-[46px]"
+                                                                    title={hasMultipleNotices ? tooltipContent : `${mo.total} MO Extra`}
+                                                                >
+                                                                    <span className="material-symbols-outlined text-[13px] text-amber-500">engineering</span>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-tight">
+                                                                            MO Extra: {mo.total}
+                                                                        </span>
+                                                                        {hasMultipleNotices && (
+                                                                            <span className="text-[8px] font-black text-amber-500/80 dark:text-amber-400/70 uppercase tracking-tight">
+                                                                                (+{mo.notices.length} avisos)
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                     <div className="flex items-center -space-x-2.5">
                                                                         {mo.companies.map((c, i) => (
                                                                             <div
                                                                                 key={i}
                                                                                 className="relative shrink-0"
-                                                                                title={`${c.name ?? 'Empresa'}: ${c.amount}`}
+                                                                                title={hasMultipleNotices ? tooltipContent : `${c.name ?? 'Empresa'}: ${c.amount}`}
                                                                             >
                                                                                 {c.logoUrl ? (
                                                                                     <img

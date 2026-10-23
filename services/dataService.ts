@@ -279,14 +279,18 @@ export const dataService = {
         // r2Service is now static
 
         const folderPath = `signatures/visits/${ovId}`;
-        const fileName = `${type}_${Date.now()}.png`;
-        const fullPath = `${folderPath}/${fileName}`;
 
-        // Convert base64 to Blob and upload as-is (signatures are small PNGs from SignaturePad)
+        // Convert base64 to Blob and upload as-is (signatures are small PNGs from SignaturePad).
+        // Preserva a extensão/Content-Type reais do blob: assinaturas antigas em JPEG
+        // (fundo preto, sem alpha) não devem ser gravadas como .png.
         try {
             const res = await fetch(base64);
             const blob = await res.blob();
-            const uploadFile = new File([blob], `signature_${type}.png`, { type: 'image/png' });
+            const mimeType = blob.type || 'image/png';
+            const ext = mimeType.includes('jpeg') ? 'jpg' : mimeType.includes('webp') ? 'webp' : 'png';
+            const fileName = `${type}_${Date.now()}.${ext}`;
+            const fullPath = `${folderPath}/${fileName}`;
+            const uploadFile = new File([blob], `signature_${type}.${ext}`, { type: mimeType });
             await r2Service.uploadFile(uploadFile as any, fullPath, onProgress);
 
             const updateData: any = {};
@@ -1533,7 +1537,7 @@ export const dataService = {
     },
 
     getUserSignatureUrl(path: string, name: string): string {
-        return this.getPublicImageUrl(path, name, { width: 600, height: 300, resize: 'fit' });
+        return this.getPublicImageUrl(path, name, { width: 600, height: 300, resize: 'contain' }) || '';
     },
 
     async uploadUnitImage(clientId: string, unitId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {

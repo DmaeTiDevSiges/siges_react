@@ -32,7 +32,6 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
 
     const requiresManualEnd = visit?.isManualVisitStartEnd === true;
     const minEndAt = visit?.ovStartedAt ? getBrazilDateTimeInputValue(visit.ovStartedAt) : undefined;
-    const nowInput = getBrazilDateTimeInputValue();
     const durationHours = requiresManualEnd && visit?.ovStartedAt
         ? getNaiveDurationHours(visit.ovStartedAt, endedAtInput)
         : NaN;
@@ -95,10 +94,6 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
         if (requiresManualEnd) {
             if (!endedAtInput) {
                 toast.error('Informe a data/hora de encerramento');
-                return;
-            }
-            if (endedAtInput > getBrazilDateTimeInputValue()) {
-                toast.error('Data/hora de encerramento não pode ser futura');
                 return;
             }
             if (minEndAt && endedAtInput < minEndAt) {
@@ -182,12 +177,11 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                                 type="datetime-local"
                                 value={endedAtInput}
                                 min={minEndAt}
-                                max={nowInput}
                                 onChange={(e) => setEndedAtInput(e.target.value)}
                                 className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                             />
                             <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-snug">
-                                Pode ser em outro dia. O encerramento será gravado com o horário informado.
+                                Pode ser em outro dia, inclusive com data futura. O encerramento será gravado com o horário informado.
                             </p>
                             {Number.isFinite(durationHours) && durationHours >= 0 && (
                                 <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold">
