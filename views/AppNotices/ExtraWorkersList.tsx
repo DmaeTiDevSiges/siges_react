@@ -13,6 +13,7 @@ import {
   getNoticeWindowStatus,
   type JanelaStatus,
 } from '../../utils/appNoticeWindow';
+import { resolveNoticeSystemParentIds } from '../../utils/appNoticeSystemScope';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppNotices } from '../../hooks/useAppNotices';
@@ -82,6 +83,12 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
   }, [companyId]);
 
   const selectedNotice = notices.find((n) => n.id === selectedNoticeId) || null;
+
+  // A busca de unidades fica restrita aos sistemas pai do aviso.
+  const noticeSystemParentIds = useMemo(
+    () => resolveNoticeSystemParentIds(selectedNotice?.systemParentIds),
+    [selectedNotice?.systemParentIds]
+  );
 
   // Seleciona um aviso ativo ("em andamento") — prefere o primeiro com
   // janela de visualização em curso (lançável); senão, o primeiro da lista.
@@ -312,9 +319,12 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
       return;
     }
     setSearching(true);
+    // Limpa resultados do aviso anterior para não permitir selecionar uma
+    // unidade fora do novo escopo durante o debounce.
+    setResults([]);
     const timer = setTimeout(async () => {
       try {
-        const units = await dataService.searchUnits(term, 50);
+        const units = await dataService.searchUnits(term, 50, noticeSystemParentIds);
         setResults(units);
       } catch (error) {
         console.error('Error searching units:', error);
@@ -324,7 +334,7 @@ export const ExtraWorkersList: React.FC<ExtraWorkersListProps> = ({ onNavigate }
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [search, canSearchUnits]);
+  }, [search, canSearchUnits, noticeSystemParentIds]);
 
   // Ao sair do modo de lançamento, limpa a pesquisa pendente
   useEffect(() => {

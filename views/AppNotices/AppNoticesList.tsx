@@ -57,7 +57,10 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
             return;
         }
         dataService
-            .getNoticeWorkersSummaryByNotices(ids, { onlyCurrent: false })
+            .getNoticeWorkersSummaryByNotices(ids, {
+                onlyCurrent: false,
+                respectNoticeSystemScope: true,
+            })
             .then((items) => {
                 if (cancelled) return;
                 const map: Record<number, NoticeWorkersSummaryItem[]> = {};
@@ -100,6 +103,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
             setIsFormOpen(false);
         } catch (error) {
             toast.error('Erro ao criar aviso');
+            throw error;
         }
     };
 
@@ -111,7 +115,13 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
             setIsFormOpen(false);
             setEditingNotice(null);
         } catch (error) {
-            toast.error('Erro ao atualizar aviso');
+            const message = error instanceof Error && error.message === 'NOTICE_UPDATE_NO_ROWS'
+                ? 'Sem permissão para alterar este aviso'
+                : error instanceof Error && error.message === 'NOTICE_UPDATE_NOT_APPLIED'
+                    ? 'Não foi possível gravar os sistemas do aviso'
+                    : 'Erro ao atualizar aviso';
+            toast.error(message);
+            throw error;
         }
     };
 
@@ -378,6 +388,19 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
                                                     >
                                                         {notice.severityLabel}
                                                     </span>
+
+                                                    {/* Sistemas pai do aviso (escopo da MO Extra) */}
+                                                    {notice.systemParentNames && notice.systemParentNames.length > 0 && (
+                                                        <span
+                                                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                                                            title={`Sistemas: ${notice.systemParentNames.join(', ')}`}
+                                                        >
+                                                            <span className="material-symbols-outlined text-[13px]">lan</span>
+                                                            <span className="max-w-[220px] truncate">
+                                                                {notice.systemParentNames.join(' · ')}
+                                                            </span>
+                                                        </span>
+                                                    )}
 
                                                     {/* MO Extra: avatar da company + contador */}
                                                     {(() => {

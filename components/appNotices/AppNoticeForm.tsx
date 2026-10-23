@@ -1,7 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '../ui/Modal';
-import { SystemNotice, SystemNoticeCategory, SystemNoticeSeverity, CreateSystemNoticeInput } from '../../types';
+import {
+  CreateSystemNoticeInput,
+  System,
+  SystemNotice,
+  SystemNoticeCategory,
+  SystemNoticeSeverity,
+} from '../../types';
 import { appNoticesService } from '../../services/core/appNoticesService';
+import { dataService } from '../../services/dataService';
+import { resolveNoticeSystemParentIds } from '../../utils/appNoticeSystemScope';
 
 interface AppNoticeFormProps {
   isOpen: boolean;
@@ -27,19 +35,35 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
   const [viewStartDate, setViewStartDate] = useState('');
   const [viewEndDate, setViewEndDate] = useState('');
   const [dashboards, setDashboards] = useState<string[]>(['dashboard', 'orders', 'units']);
+  const [systemParentIds, setSystemParentIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [categories, setCategories] = useState<SystemNoticeCategory[]>([]);
   const [severities, setSeverities] = useState<SystemNoticeSeverity[]>([]);
+  const [systems, setSystems] = useState<System[]>([]);
+
+  // Hidrata o formulário uma única vez por abertura/aviso. Sem isso, o
+  // recarregamento assíncrono de categorias/severidades (novas referências de
+  // array) reexecutava a hidratação e sobrescrevia os sistemas que o usuário
+  // acabou de marcar/desmarcar.
+  const hydratedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      loadCategoriesAndSeverities();
+      loadFormOptions();
     }
   }, [isOpen]);
 
   useEffect(() => {
-    if (notice && categories.length > 0 && severities.length > 0) {
+    if (!isOpen) {
+      hydratedKeyRef.current = null;
+      return;
+    }
+
+    const hydrationKey = notice ? `notice:${notice.id}` : 'new';
+    if (hydratedKeyRef.current === hydrationKey) return;
+
+    if (notice) {
       setTitle(notice.title);
       setMessage(notice.message);
       setCategoryId(notice.categoryId);
@@ -49,22 +73,34 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
       setViewStartDate(notice.viewStartDate?.slice(0, 16) || '');
       setViewEndDate(notice.viewEndDate?.slice(0, 16) || '');
       setDashboards(notice.dashboards?.length ? notice.dashboards : ['dashboard', 'orders', 'units']);
-    } else if (isOpen && !notice && categories.length > 0 && severities.length > 0) {
+      setSystemParentIds(resolveNoticeSystemParentIds(notice.systemParentIds));
+    } else {
       resetForm();
     }
-  }, [notice, isOpen, categories, severities]);
 
-  const loadCategoriesAndSeverities = async () => {
-    const [cats, sevs] = await Promise.all([
+    hydratedKeyRef.current = hydrationKey;
+  }, [notice, isOpen]);
+
+  const loadFormOptions = async () => {
+    const [cats, sevs, systemList] = await Promise.all([
       appNoticesService.getCategories(),
       appNoticesService.getSeverities(),
+      dataService.getSystemsParent().catch((error) => {
+        console.error('Error loading parent systems for notice form:', error);
+        return [] as System[];
+      }),
     ]);
     setCategories(cats);
     setSeverities(sevs);
+    setSystems(
+      [...systemList].sort((a, b) =>
+        a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' })
+      )
+    );
 
     if (!notice && cats.length > 0 && sevs.length > 0) {
-      setCategoryId(cats[0].id);
-      setSeverityId(sevs[0].id);
+      setCategoryId((current) => (current > 0 ? current : cats[0].id));
+      setSeverityId((current) => (current > 0 ? current : sevs[0].id));
     }
   };
 
@@ -83,12 +119,22 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
     setViewStartDate(local.toISOString().slice(0, 16));
     setViewEndDate(endLocal.toISOString().slice(0, 16));
     setDashboards(['dashboard', 'orders', 'units']);
+    setSystemParentIds([]);
+  };
+
+  const toggleSystemParent = (systemParentId: number) => {
+    setSystemParentIds((prev) =>
+      prev.includes(systemParentId)
+        ? prev.filter((id) => id !== systemParentId)
+        : [...prev, systemParentId]
+    );
   };
 
   const handleSave = async () => {
     if (
       !title.trim() || !message.trim() || !startDate || !endDate ||
-      !viewStartDate || !viewEndDate || !categoryId || !severityId || dashboards.length === 0
+      !viewStartDate || !viewEndDate || !categoryId || !severityId ||
+      dashboards.length === 0 || systemParentIds.length === 0
     ) {
       return;
     }
@@ -108,6 +154,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
         viewStartDate: viewStartDate.replace('T', ' ') + ':00',
         viewEndDate: viewEndDate.replace('T', ' ') + ':00',
         dashboards,
+        systemParentIds,
       });
       onClose();
     } catch (error) {
@@ -211,6 +258,40 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
               )}
             </div>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            Sistemas *
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {systems.map((system) => {
+              const systemParentId = Number(system.id);
+              const selected = systemParentIds.includes(systemParentId);
+              return (
+                <button
+                  key={system.id}
+                  type="button"
+                  onClick={() => toggleSystemParent(systemParentId)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                    selected
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-primary/50'
+                  }`}
+                >
+                  {system.description}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            A MO Extra deste aviso fica restrita às unidades dos sistemas selecionados.
+          </p>
+          {systemParentIds.length === 0 && (
+            <p className="text-xs font-semibold text-amber-600 mt-1">
+              Selecione pelo menos um sistema.
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">

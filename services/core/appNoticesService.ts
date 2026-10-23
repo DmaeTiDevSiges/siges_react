@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
+import { resolveNoticeSystemParentIds } from '../../utils/appNoticeSystemScope';
 
 import { appNoticesWorkersService } from './appNoticesWorkersService';
 import {
@@ -171,6 +172,7 @@ export const appNoticesService = {
         view_start_date: input.viewStartDate,
         view_end_date: input.viewEndDate,
         dashboards: input.dashboards,
+        system_parent_ids: input.systemParentIds,
         created_user_id: currentUserId,
         is_active: true,
       })
@@ -196,6 +198,7 @@ export const appNoticesService = {
     if (data.viewStartDate !== undefined) updateData.view_start_date = data.viewStartDate;
     if (data.viewEndDate !== undefined) updateData.view_end_date = data.viewEndDate;
     if (data.dashboards !== undefined) updateData.dashboards = data.dashboards;
+    if (data.systemParentIds !== undefined) updateData.system_parent_ids = data.systemParentIds;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     await this.applyNoticeUpdate(id, updateData);
@@ -236,12 +239,22 @@ export const appNoticesService = {
     const currentUserId = await this.getCurrentUserId();
     if (currentUserId !== null) data.updated_user_id = currentUserId;
 
-    const { error } = await supabase
+    // `.select(...)` permite detectar update bloqueado por RLS (0 linhas,
+    // sem erro) e confirmar que `system_parent_ids` foi realmente gravado.
+    // Sem isso a tela fechava como se tivesse salvo.
+    const { data: updatedRows, error } = await supabase
       .from('cfg_app_notices')
       .update(data)
-      .eq('id', id);
+      .eq('id', id)
+      .select('id, system_parent_ids');
 
-    if (!error) return;
+    if (!error) {
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error('NOTICE_UPDATE_NO_ROWS');
+      }
+      this.assertSystemParentIdsApplied(data, updatedRows[0]);
+      return;
+    }
 
     // 42703 = undefined_column (coluna updated_user_id ainda não existe)
     if (error.code === '42703' && 'updated_user_id' in data) {
@@ -250,19 +263,44 @@ export const appNoticesService = {
         error
       );
       delete data.updated_user_id;
-      const { error: retryError } = await supabase
+      const { data: retryRows, error: retryError } = await supabase
         .from('cfg_app_notices')
         .update(data)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id, system_parent_ids');
       if (retryError) {
         console.error('Error updating notice:', retryError);
         throw retryError;
       }
+      if (!retryRows || retryRows.length === 0) {
+        throw new Error('NOTICE_UPDATE_NO_ROWS');
+      }
+      this.assertSystemParentIdsApplied(data, retryRows[0]);
       return;
     }
 
     console.error('Error updating notice:', error);
     throw error;
+  },
+
+  /**
+   * Sanidade pós-update: garante que o array gravado é o enviado. Protege
+   * contra updates silenciosamente ignorados (RLS/trigger) sem depender do
+   * reload da lista.
+   */
+  assertSystemParentIdsApplied(
+    payload: Record<string, any>,
+    updatedRow: Record<string, any> | null | undefined
+  ): void {
+    if (!Array.isArray(payload.system_parent_ids)) return;
+    const expected = resolveNoticeSystemParentIds(payload.system_parent_ids).sort((a, b) => a - b);
+    const actual = resolveNoticeSystemParentIds(updatedRow?.system_parent_ids).sort((a, b) => a - b);
+    const same =
+      expected.length === actual.length &&
+      expected.every((id, index) => id === actual[index]);
+    if (!same) {
+      throw new Error('NOTICE_UPDATE_NOT_APPLIED');
+    }
   },
 
   /** Incrementa o contador de visualizações do aviso (RPC atômica no banco). */
@@ -317,6 +355,8 @@ export const appNoticesService = {
       viewStartDate: row.view_start_date,
       viewEndDate: row.view_end_date,
       dashboards: row.dashboards || [],
+      systemParentIds: resolveNoticeSystemParentIds(row.system_parent_ids),
+      systemParentNames: row.system_parent_names || [],
       createdBy: row.created_user_id,
       viewCount: row.view_count ?? 0,
       createdAt: row.created_at,

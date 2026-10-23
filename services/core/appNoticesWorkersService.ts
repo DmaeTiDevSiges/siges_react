@@ -6,6 +6,7 @@ import {
   parseBrazilDate,
 } from '../../utils/formatters';
 import { findOpenPeriod, pickPeriodForDate, pickPeriodForNow, planShiftAdjustments, validatePeriodWindow } from '../../utils/appNoticePeriod';
+import { noticeAppliesToUnitSystemParent } from '../../utils/appNoticeSystemScope';
 
 import { NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryItem, NoticeWorkersSummaryOptions } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
@@ -494,7 +495,7 @@ export const appNoticesWorkersService = {
     const { data, error } = await supabase
       .from(TABLE)
       .select(
-        'notice_id, company_id, workers_extra_amount, cfg_companies(id, description, code, img_file_path, img_file_name)'
+        'notice_id, company_id, workers_extra_amount, units(system_parent_id), cfg_app_notices(system_parent_ids), cfg_companies(id, description, code, img_file_path, img_file_name)'
       )
       .in('notice_id', scopedIds)
       .gt('workers_extra_amount', 0);
@@ -510,6 +511,18 @@ export const appNoticesWorkersService = {
       const companyId = Number(row.company_id);
       const amount = Number(row.workers_extra_amount) || 0;
       if (!Number.isFinite(noticeId) || !Number.isFinite(companyId) || amount <= 0) return;
+
+      // Exibição: ignora lançamentos de unidades fora dos sistemas do aviso.
+      // A checagem de exclusão usa o total bruto (opção desligada).
+      if (
+        options.respectNoticeSystemScope &&
+        !noticeAppliesToUnitSystemParent(
+          row.cfg_app_notices?.system_parent_ids,
+          row.units?.system_parent_id
+        )
+      ) {
+        return;
+      }
 
       const key = `${noticeId}:${companyId}`;
       const comp = row.cfg_companies;
@@ -595,7 +608,7 @@ export const appNoticesWorkersService = {
     let query = supabase
       .from(TABLE)
       .select(
-        '*, units(id, description, description_full, code, address_full), cfg_companies(id, description, code, img_file_path, img_file_name), cfg_app_notices_workers_periods(id, label, period_start, period_end)'
+        '*, units(id, description, description_full, code, address_full, system_parent_id), cfg_companies(id, description, code, img_file_path, img_file_name), cfg_app_notices_workers_periods(id, label, period_start, period_end)'
       )
       .eq('notice_id', noticeId)
       .gt('workers_extra_amount', 0);
@@ -744,6 +757,7 @@ export const appNoticesWorkersService = {
       unitDescriptionFull: row.units?.description_full,
       unitCode: row.units?.code,
       unitAddressFull: row.units?.address_full,
+      unitSystemParentId: row.units?.system_parent_id ?? null,
       companyName: comp?.description,
       companyCode: comp?.code,
       companyLogoUrl: comp?.img_file_name

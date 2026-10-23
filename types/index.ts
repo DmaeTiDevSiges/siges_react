@@ -1606,6 +1606,9 @@ export interface SystemNotice {
   viewStartDate: string;
   viewEndDate: string;
   dashboards: string[];
+  /** Sistemas pai do aviso (a MO Extra só considera unidades desses sistemas). */
+  systemParentIds: number[];
+  systemParentNames?: string[];
   createdBy?: number;
   viewCount?: number;
   createdAt: string;
@@ -1637,6 +1640,7 @@ export interface CreateSystemNoticeInput {
   viewStartDate: string;
   viewEndDate: string;
   dashboards: string[];
+  systemParentIds: number[];
 }
 
 export const DASHBOARD_OPTIONS = [
@@ -1674,6 +1678,8 @@ export interface NoticeWorker {
   unitDescriptionFull?: string;
   unitCode?: string;
   unitAddressFull?: string;
+  /** Sistema pai da unidade (units.system_parent_id) — escopo da MO Extra. */
+  unitSystemParentId?: number | null;
   companyName?: string;
   companyCode?: string;
   companyLogoUrl?: string;
@@ -1704,6 +1710,11 @@ export interface NoticeWorkerPeriod {
 export interface NoticeWorkersSummaryOptions {
   /** Agrega apenas o período vigente do momento (escala do momento). */
   onlyCurrent?: boolean;
+  /**
+   * Considera apenas unidades cujo `system_parent_id` está nos sistemas do aviso.
+   * Use para exibição; verificações de exclusão devem manter o total bruto.
+   */
+  respectNoticeSystemScope?: boolean;
 }
 
 export interface NoticeWorkersSummaryItem {

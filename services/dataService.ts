@@ -848,7 +848,11 @@ export const dataService = {
         return companiesService.getUnitsByClient.apply(companiesService, arguments as any);
     },
 
-    async searchUnits(search: string = '', limit: number = 50): Promise<Unit[]> {
+    async searchUnits(
+        search: string = '',
+        limit: number = 50,
+        systemParentIds?: Array<string | number> | null
+    ): Promise<Unit[]> {
         return unitsService.searchUnits.apply(unitsService, arguments as any);
     },
 

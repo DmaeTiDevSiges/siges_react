@@ -5,6 +5,10 @@ import { dataService } from '../../services/dataService';
 import { supabase } from '../../services/core/supabase';
 import { useAppNotices } from '../../hooks/useAppNotices';
 import { pickActivePeriodsAt } from '../../utils/appNoticePeriod';
+import {
+    noticeAppliesToUnitSystemParent,
+    resolveNoticeSystemParentIds,
+} from '../../utils/appNoticeSystemScope';
 import { User, System, OrderType, Priority } from '../../types';
 import { toast } from 'sonner';
 import { Card } from '../../components/ui/Card';
@@ -196,6 +200,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     const noticeId = notice.id;
                     if (!noticeId) return;
 
+                    const noticeSystemParentIds = resolveNoticeSystemParentIds(notice.systemParentIds);
                     const periods = await dataService.getNoticeWorkerPeriods(noticeId);
                     const windowEnd = notice.viewEndDate || notice.endDate;
                     const activePeriods = pickActivePeriodsAt(periods, new Date(), windowEnd);
@@ -211,9 +216,14 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
                     const workers = workersLists.flat();
                     workers.forEach((w: any) => {
+                        // MO Extra só vale para unidades dos sistemas pai do aviso.
+                        if (!noticeAppliesToUnitSystemParent(noticeSystemParentIds, w.unitSystemParentId)) {
+                            return;
+                        }
                         allWorkers.push({
                             ...w,
                             noticeId,
+                            noticeSystemParentIds,
                             noticeTitle: notice.title,
                             noticeColor: notice.color || notice.categoryColor,
                             noticeCategoryLabel: notice.categoryLabel || notice.categoryName
@@ -305,13 +315,21 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         return map;
     }, [noticeWorkersAll, activeNotices]);
 
-    // Resumo global de MO Extra (total + por empresa) - considera todos os avisos ativos
+    // Unidades do sistema exibido — o total de MO Extra do topo reflete apenas
+    // as unidades visíveis (e já filtradas pelos sistemas dos avisos).
+    const dashboardUnitIds = useMemo(
+        () => new Set(allData.map(row => Number(row.unit_id)).filter(id => Number.isFinite(id))),
+        [allData]
+    );
+
+    // Resumo de MO Extra (total + por empresa) das unidades do sistema exibido
     const moExtraSummary = useMemo(() => {
         const companiesMap = new Map<string, { name?: string; logoUrl?: string; amount: number }>();
         let total = 0;
         noticeWorkersAll.forEach(w => {
             const amount = Number(w.workersExtraAmount) || 0;
             if (amount <= 0) return;
+            if (!dashboardUnitIds.has(Number(w.unitId))) return;
             total += amount;
             const key = String(w.companyId ?? w.companyName ?? 'unknown');
             const prev = companiesMap.get(key);
@@ -322,7 +340,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             }
         });
         return { total, companies: Array.from(companiesMap.values()).sort((a, b) => b.amount - a.amount) };
-    }, [noticeWorkersAll]);
+    }, [noticeWorkersAll, dashboardUnitIds]);
 
     // Active Asset Tag ID based on selectedSectorName
     const activeAssetTagId = useMemo(() => {

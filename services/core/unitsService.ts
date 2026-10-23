@@ -3,11 +3,22 @@ import { Unit } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
 
 export const unitsService = {
-    async searchUnits(search: string = '', limit: number = 50): Promise<Unit[]> {
+    async searchUnits(
+        search: string = '',
+        limit: number = 50,
+        systemParentIds?: Array<string | number> | null
+    ): Promise<Unit[]> {
         let query = supabase
             .from('units')
             .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
             .eq('is_deleted', 'false');
+
+        const scopeSystemParentIds = (systemParentIds ?? [])
+            .map(Number)
+            .filter((id) => Number.isFinite(id) && id > 0);
+        if (scopeSystemParentIds.length > 0) {
+            query = query.in('system_parent_id', scopeSystemParentIds);
+        }
 
         if (search && search.trim().length > 0) {
             const terms = search.trim().split(/\s+/);
