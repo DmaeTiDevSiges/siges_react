@@ -641,6 +641,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             onAddTeamMember={!visit.isFiled ? handleAddMember : undefined}
                             onEndVisit={visit.ovStatusId === 1 ? handleEndVisit : undefined}
                             onDeleteVisit={(
+                                currentUser?.isAdminSuper === true &&
                                 canDelete('orders_visits') &&
                                 Number(visit.ovStatusId) === 2 &&
                                 !visit.isFiled &&

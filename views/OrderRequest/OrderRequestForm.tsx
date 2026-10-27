@@ -46,6 +46,9 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
     const [orderObjects, setOrderObjects] = useState<OrderObject[]>([]);
     const [orderPlans, setOrderPlans] = useState<OrderPlan[]>([]);
     const [contracts, setContracts] = useState<Contract[]>([]);
+    // Contratos em que o usuário atual é viewer ou manager (contracts_managers).
+    // null = ainda carregando.
+    const [managedContracts, setManagedContracts] = useState<Contract[] | null>(null);
     const [teams, setTeams] = useState<Team[]>([]);
     const [priorities, setPriorities] = useState<Priority[]>([]);
 
@@ -123,12 +126,8 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                     }));
 
                     if (currentInitialData.clientId) {
-                        const [clientUnits, clientContracts] = await Promise.all([
-                            dataService.getUnitsByClient(currentInitialData.clientId),
-                            dataService.getContractsByClientId(currentInitialData.clientId)
-                        ]);
+                        const clientUnits = await dataService.getUnitsByClient(currentInitialData.clientId);
                         setUnits(clientUnits);
-                        setContracts(clientContracts);
 
                         if (currentInitialData.unitId) {
                             const unitAssets = await dataService.getUnitsAssetsByUnit(currentInitialData.unitId);
@@ -172,21 +171,45 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
         }
     }, [formData.clientId]);
 
+    // Carrega os contratos em que o usuário atual é viewer ou manager.
     useEffect(() => {
-        const loadContracts = async () => {
+        const loadManagedContracts = async () => {
             try {
                 const user = await dataService.getCurrentUser();
-                if (user && user.departmentId) {
-                    const contractsByDept = await dataService.getContractsByClientDepartmentId(user.departmentId, formData.clientId || undefined);
-                    const validContracts = contractsByDept.filter(c => Number(c.statusId) === 1);
-                    setContracts(validContracts);
-                }
+                setManagedContracts(user ? await dataService.getManagedContracts(user.id.toString()) : []);
             } catch (err) {
-                console.error("Error loading contracts", err);
+                console.error("Error loading managed contracts", err);
+                setManagedContracts([]);
             }
         };
-        loadContracts();
-    }, [formData.clientId]);
+        loadManagedContracts();
+    }, []);
+
+    // Dropdown de Contrato: somente contratos ativos em que o usuário é
+    // viewer/manager, restringidos ao cliente selecionado.
+    useEffect(() => {
+        if (managedContracts === null) return;
+
+        const matchesClient = (c: Contract) => !formData.clientId || c.clientId === formData.clientId;
+        const visible = managedContracts.filter(c =>
+            matchesClient(c) && !c.isDeleted && c.isAvailable !== false && Number(c.statusId) === 1
+        );
+        setContracts(visible);
+
+        // Mantém no dropdown o contrato já vinculado à OS (edição ou OS filha),
+        // mesmo que o usuário não seja mais viewer/manager dele.
+        if (formData.contractId && !visible.some(c => c.id === formData.contractId)) {
+            let cancelled = false;
+            dataService.getContractById(formData.contractId)
+                .then(current => {
+                    if (!cancelled && current && matchesClient(current)) {
+                        setContracts(prev => prev.some(c => c.id === current.id) ? prev : [...prev, current]);
+                    }
+                })
+                .catch(err => console.error("Error loading contract", err));
+            return () => { cancelled = true; };
+        }
+    }, [managedContracts, formData.clientId, formData.contractId]);
 
     useEffect(() => {
         if (formData.unitId) {

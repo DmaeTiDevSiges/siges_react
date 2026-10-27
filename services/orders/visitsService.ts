@@ -4603,6 +4603,9 @@ export const visitsService = {
         if (visitError) throw visitError;
         if (!visit) throw new Error('Visita não encontrada.');
 
+        if (currentUser?.isAdminSuper !== true) {
+            throw new Error('Apenas o Admin Super pode excluir visitas.');
+        }
         if (visit.is_deleted) throw new Error('Visita já foi excluída.');
         if (Number(visit.ov_status_id) === 1 || !visit.ov_ended_at) {
             throw new Error('Visita em andamento. Encerre-a antes de excluir.');
