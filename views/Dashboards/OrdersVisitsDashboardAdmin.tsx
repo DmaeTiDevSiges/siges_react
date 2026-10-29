@@ -23,6 +23,8 @@ import { pdf } from '@react-pdf/renderer';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { FaFilePdf } from 'react-icons/fa';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
+import { useClientScope } from '../../hooks/useClientScope';
+import { systemsScopeOption } from '../../utils/clientScope';
 
 interface OrdersVisitsDashboardAdminProps {
     currentUser: User;
@@ -36,6 +38,27 @@ interface OrdersVisitsDashboardAdminProps {
     filterBarRef?: React.RefObject<FilterBarResponsiveHandle>;
     onActiveFiltersChange?: (count: number) => void;
 }
+
+const PROVIDER_HIDDEN_VISIT_FILTERS = [
+    'systemParentId',
+    'systemId',
+    'unitTypeParentId',
+    'unitTypeId',
+    'orderObjectId',
+    'causeReasonId',
+    'orderPlanId',
+];
+
+const clearProviderVisitFilters = (filters: OrderFilters): OrderFilters => ({
+    ...filters,
+    systemParentId: [],
+    systemId: [],
+    unitTypeParentId: [],
+    unitTypeId: [],
+    orderObjectId: [],
+    causeReasonId: [],
+    orderPlanId: [],
+});
 
 interface VisitStats {
     avaliacao: number;
@@ -474,11 +497,20 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
     filterBarRef,
     onActiveFiltersChange
 }) => {
+    const companyId = Number(currentUser.companyId);
+    const isProviderMode = currentUser.companyId != null
+        && Number.isFinite(companyId)
+        && companyId !== 1;
+    const hiddenVisitFilters = isProviderMode
+        ? ['orderTeamId', ...PROVIDER_HIDDEN_VISIT_FILTERS]
+        : ['orderTeamId'];
+
     const [advancedFilters, setAdvancedFilters] = useState<OrderFilters>(() => {
-        if (currentFilters) return currentFilters;
+        if (currentFilters) return isProviderMode ? clearProviderVisitFilters(currentFilters) : currentFilters;
         try {
             const saved = localStorage.getItem('advancedOrdersFilters');
-            return saved ? JSON.parse(saved) : {};
+            const filters = saved ? JSON.parse(saved) : {};
+            return isProviderMode ? clearProviderVisitFilters(filters) : filters;
         } catch (e) { return {}; }
     });
 
@@ -509,34 +541,37 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
     }, [debouncedSearchQuery, onSearchQueryChange]);
 
     const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => {
-        if (appliedFiltersProp) return appliedFiltersProp;
+        if (appliedFiltersProp) return isProviderMode ? clearProviderVisitFilters(appliedFiltersProp) : appliedFiltersProp;
         try {
             const saved = localStorage.getItem('appliedOrdersFilters');
-            return saved ? JSON.parse(saved) : {};
+            const filters = saved ? JSON.parse(saved) : {};
+            return isProviderMode ? clearProviderVisitFilters(filters) : filters;
         } catch (e) { return {}; }
     });
 
     useEffect(() => {
         if (currentFilters) {
+            const nextFilters = isProviderMode ? clearProviderVisitFilters(currentFilters) : currentFilters;
             setAdvancedFilters(prev => {
-                if (JSON.stringify(prev) !== JSON.stringify(currentFilters)) {
-                    return currentFilters;
+                if (JSON.stringify(prev) !== JSON.stringify(nextFilters)) {
+                    return nextFilters;
                 }
                 return prev;
             });
         }
-    }, [currentFilters]);
+    }, [currentFilters, isProviderMode]);
 
     useEffect(() => {
         if (appliedFiltersProp) {
+            const nextFilters = isProviderMode ? clearProviderVisitFilters(appliedFiltersProp) : appliedFiltersProp;
             setAppliedFilters(prev => {
-                if (JSON.stringify(prev) !== JSON.stringify(appliedFiltersProp)) {
-                    return appliedFiltersProp;
+                if (JSON.stringify(prev) !== JSON.stringify(nextFilters)) {
+                    return nextFilters;
                 }
                 return prev;
             });
         }
-    }, [appliedFiltersProp]);
+    }, [appliedFiltersProp, isProviderMode]);
 
     useEffect(() => {
         if (onFiltersChange && currentFilters) {
@@ -780,17 +815,24 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
     const [assetTagSubOptions, setAssetTagSubOptions] = useState<any[]>([]);
     const [orderSubTypes, setOrderSubTypes] = useState<any[]>([]);
 
+    // Escopo de cliente do filtro SISTEMA (Fase 1D): undefined = sem corte
+    // (super admin); lista = clients_ids do departamento do usuário.
+    const { clientIds, scopeReady } = useClientScope();
+    const systemsScope = systemsScopeOption(clientIds);
+
     const loadFilterOptions = React.useCallback(async () => {
+        // Só carrega depois que o escopo resolver — antes disso a lista vazia
+        // seria interpretada como "sem acesso".
+        if (!scopeReady) return;
         try {
             const results = await Promise.allSettled([
-                dataService.getSystemsParent(),
+                dataService.getSystemsParent(systemsScope),
                 dataService.getUnitTypesParent(),
                 dataService.getOrdersObjects(),
                 dataService.getOrderTypes(),
                 dataService.getPlans(),
                 dataService.getManagedContracts(currentUser.id.toString()),
                 dataService.getTeams(undefined, currentUser?.departmentId),
-                dataService.getUnits('active'),
                 dataService.getAssetTags('active'),
                 dataService.getCauseReasons()
             ]);
@@ -808,9 +850,9 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                 plans: getVal(results[4]),
                 contracts,
                 teams: getVal(results[6]),
-                units: getVal(results[7]),
-                sectors: getVal(results[8]),
-                causeReasons: getVal(results[9])
+                units: [],
+                sectors: getVal(results[7]),
+                causeReasons: getVal(results[8])
             }));
 
             setAssetTagSubOptions(await dataService.getAssetTagSubs(undefined, 'active'));
@@ -831,7 +873,41 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         } catch (error) {
             console.error('Error loading filter options:', error);
         }
-    }, [currentUser.id]);
+    }, [currentUser.id, scopeReady, systemsScope]);
+
+    useEffect(() => {
+        let active = true;
+        const selectedContractIds = Array.isArray(advancedFilters.contractId)
+            ? advancedFilters.contractId.map(String)
+            : advancedFilters.contractId != null && advancedFilters.contractId !== ''
+                ? [String(advancedFilters.contractId)]
+                : [];
+        const selectedContractClientIds = [...new Set<string>(
+            filterOptions.contracts
+                .filter((contract: any) =>
+                    selectedContractIds.length === 0 || selectedContractIds.includes(String(contract.id))
+                )
+                .map((contract: any) => contract.clientId)
+                .filter((clientId: any) => clientId !== null && clientId !== undefined)
+                .map((clientId: any) => String(clientId))
+        )];
+
+        if (!scopeReady || selectedContractClientIds.length === 0) {
+            setFilterOptions(prev => prev.units.length === 0 ? prev : { ...prev, units: [] });
+            return () => { active = false; };
+        }
+
+        dataService.getUnits('active', '', selectedContractClientIds)
+            .then(units => {
+                if (active) setFilterOptions(prev => ({ ...prev, units }));
+            })
+            .catch(error => {
+                console.error('Error loading units for selected contracts:', error);
+                if (active) setFilterOptions(prev => ({ ...prev, units: [] }));
+            });
+
+        return () => { active = false; };
+    }, [advancedFilters.contractId, filterOptions.contracts, scopeReady]);
 
     const [isFetchingAll, setIsFetchingAll] = useState(false);
 
@@ -987,7 +1063,6 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
 
     useEffect(() => {
         loadDataRef.current(true);
-        loadFilterOptionsRef.current();
 
         const handleRefresh = () => loadDataRef.current(true);
         window.addEventListener('refresh_dashboard', handleRefresh);
@@ -1021,6 +1096,14 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
             visitSub.unsubscribe();
         };
     }, []); // Run ONLY once on mount!
+
+    // Opções de filtro (inclui o SISTEMA escopado): carregam exatamente uma
+    // vez, quando o escopo de cliente do usuário resolver.
+    useEffect(() => {
+        if (!scopeReady) return;
+        loadFilterOptionsRef.current();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scopeReady]);
 
     // Trigger loadData when parameters change, without tearing down/recreating subscriptions
     useEffect(() => {
@@ -1063,7 +1146,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         setAdvancedFilters(prev => ({ ...prev, systemParentId: systemId, systemId: [] }));
         if (systemId && (Array.isArray(systemId) ? systemId.length > 0 : true)) {
             const ids = Array.isArray(systemId) ? systemId : [systemId];
-            const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+            const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
             setFilterOptions(prev => ({ ...prev, subSystems: results.flat() }));
         } else {
             setFilterOptions(prev => ({ ...prev, subSystems: [] }));
@@ -1238,6 +1321,18 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
             });
     }, [baseFilteredVisits, activeOrderVisitProcessingIdSelected, sortOrder, allStageIds]);
 
+    const appropriationVisitsKey = useMemo(() => JSON.stringify(
+        filteredVisits.map(visit => [
+            visit.id,
+            visit.ovProcessingId,
+            visit.ovCostsStatus,
+            visit.servicesValue,
+            visit.materialsValue,
+            visit.vehiclesValue,
+            visit.totalValue,
+        ])
+    ), [filteredVisits]);
+
     const financialTotals = useMemo(() => {
         return {
             services: appropriationData.services.reduce((acc, i) => acc + (i.value_total || 0), 0),
@@ -1352,7 +1447,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         return () => {
             if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
         };
-    }, [filteredVisits, loading, activeOrderVisitProcessingIdSelected]);
+    }, [appropriationVisitsKey, loading, activeOrderVisitProcessingIdSelected]);
 
     const fetchAppropriationData = async () => {
         try {
@@ -1467,13 +1562,14 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                                 setAdvancedFilters={setAdvancedFilters}
                                 filterSelectOptions={filterOptions}
                                 handleSystemChange={handleSystemChange}
+                                onClearSystem={() => handleSystemChange(filterOptions.systems.map((system: any) => String(system.id)))}
                                 handleParentUnitTypeChange={handleParentUnitTypeChange}
                                 handleOrderTypeChange={handleOrderTypeChange}
                                 handleSectorChange={handleSectorChange}
                                 unitSubTypes={unitSubTypes}
                                 assetTagSubOptions={assetTagSubOptions}
                                 orderSubTypes={orderSubTypes}
-                                hiddenFilters={['orderTeamId']}
+                                hiddenFilters={hiddenVisitFilters}
                                 onActiveFiltersChange={(count) => { setVisitFilterCount(count); onActiveFiltersChange?.(count); }}
                                 onApply={() => {
                                     const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];
@@ -1624,6 +1720,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                         })}
                     </div>
 
+                    {!isProviderMode && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 px-1 py-2 bg-slate-50/50 dark:bg-slate-800/10 rounded-[16px]">
                         <div className="flex flex-col bg-white dark:bg-slate-800/50 p-6 rounded-[16px] border border-slate-200 dark:border-slate-700/50 shadow-sm transition-all hover:shadow-md group">
                             <div className="flex items-center gap-3 mb-6">
@@ -1694,6 +1791,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                             </button>
                         </div>
                     </div>
+                    )}
 
                     <div className="flex flex-col gap-4 mb-8 px-1">
                         <AppropriationSection

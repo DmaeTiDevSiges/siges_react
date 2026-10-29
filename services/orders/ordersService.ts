@@ -1738,176 +1738,52 @@ export const ordersService = {
         ssSectorCounts?: Array<{ id: string, label: string, count: number }>;
         osSectorCounts?: Array<{ id: string, label: string, count: number }>;
     }> {
-        const ssViewName = viewName || 'v_orders';
-        const osViewName = viewName || 'v_orders';
-        
-        let ssUnscheduledQuery = supabase.from(ssViewName)
-            .select('requested_at, asset_tag_id, unit_asset_tag_id, asset_tag_description')
-            .eq('status_id', 1)
-            .is('parent_id', null);
+        const { data, error } = await supabase.rpc('fn_orders_dashboard_stats', {
+            p_filters: filters ?? {},
+            p_ss_filters: ssFiltersOverride ?? null,
+            p_os_filters: osFiltersOverride ?? null,
+            p_parent_view: viewName === 'v_orders_parent',
+            p_start_date: startDate ?? null,
+            p_end_date: endDate ?? null,
+            p_skip_ss: skipSs ?? false,
+        });
 
-        let osQuery = supabase.from(osViewName)
-            .select('status_id, parent_id, asset_tag_id, asset_tag_description');
-
-        if (osViewName === 'v_orders_parent') {
-            osQuery = osQuery.in('status_id', [2, 3, 4, 5, 6]).is('parent_id', null);
-        } else {
-            osQuery = osQuery.not('status_id', 'in', '(7,8)').not('parent_id', 'is', null);
+        if (error) {
+            console.error('Error fetching aggregated dashboard stats:', error);
+            throw error;
         }
 
-        const applyFiltersToQuery = (query: any, f: OrderFilters) => {
-            const applyFilter = (column: string, val: any) => {
-                if (!val) return;
-                if (Array.isArray(val)) {
-                    const filteredVal = val.filter((v: any) =>
-                        v !== null && v !== undefined && v !== '' &&
-                        String(v).toLowerCase() !== 'null' &&
-                        String(v).toLowerCase() !== 'undefined'
-                    );
-                    if (filteredVal.length > 0) query = query.in(column, filteredVal);
-                } else {
-                    query = query.eq(column, val);
-                }
-            };
-
-            applyFilter('system_parent_id', f.systemParentId);
-            applyFilter('system_id', f.systemId);
-            applyFilter('unit_type_parent_id', f.unitTypeParentId);
-            applyFilter('unit_type_id', f.unitTypeId);
-            applyFilter('unit_id', f.unitId);
-            applyFilter('asset_tag_id', f.assetTagId);
-            applyFilter('object_id', f.orderObjectId);
-            applyFilter('type_id', f.orderTypeId);
-            applyFilter('type_sub_id', f.orderTypeSubId);
-            applyFilter('contract_id', f.contractId);
-            applyFilter('plan_id', f.orderPlanId);
-            applyFilter('requester_team_id', f.orderTeamId);
-            applyFilter('team_id', f.responsibleTeamId);
-            applyFilter('priority_id', f.priorityId);
-            applyFilter('provider_company_id', f.providerCompanyId);
-            applyFilter('cause_reason_id', f.causeReasonId);
-
-            if (f.search) {
-                const s = `%${f.search}%`;
-                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
-            }
-            return query;
+        const stats = data as {
+            ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number; between16And30: number; moreThan30: number };
+            osCounts: Record<number, number>;
+            ssSectorCounts: Array<{ id: string; label: string; count: number }>;
+            osSectorCounts: Array<{ id: string; label: string; count: number }>;
         };
-
-        if (filters) {
-            ssUnscheduledQuery = applyFiltersToQuery(ssUnscheduledQuery, ssFiltersOverride || filters);
-            osQuery = applyFiltersToQuery(osQuery, osFiltersOverride || filters);
-        }
-
-        if (startDate) {
-            ssUnscheduledQuery = ssUnscheduledQuery.gte('requested_at', `${startDate}T00:00:00`);
-            osQuery = osQuery.gte('requested_at', `${startDate}T00:00:00`);
-        }
-        if (endDate) {
-            ssUnscheduledQuery = ssUnscheduledQuery.lte('requested_at', `${endDate}T23:59:59`);
-            osQuery = osQuery.lte('requested_at', `${endDate}T23:59:59`);
-        }
-
-        const [ssUnscheduledRes, osRes] = await Promise.all([
-            skipSs ? Promise.resolve({ data: [] as any[], error: null as any }) : ssUnscheduledQuery,
-            osQuery
-        ]);
-
-        if (ssUnscheduledRes.error || osRes.error) {
-            console.error('Error fetching dashboard stats:', ssUnscheduledRes.error || osRes.error);
-            return {
-                ssCounts: { today: 0, yesterday: 0, sevenDays: 0, fifteenDays: 0, between16And30: 0, moreThan30: 0 },
-                osCounts: {}
-            };
-        }
-
-        const ssDataList = ssUnscheduledRes.data || [];
-        const osDataList = osRes.data || [];
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 7);
-        const fifteenDaysAgo = new Date(today);
-        fifteenDaysAgo.setDate(today.getDate() - 15);
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-
-        const parseDate = (d: string) => d ? new Date(d) : null;
-
-        const ssCounts = {
-            today: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= today; }).length,
-            yesterday: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= yesterday && d < today; }).length,
-            sevenDays: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= sevenDaysAgo && d < yesterday; }).length,
-            fifteenDays: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= fifteenDaysAgo && d < sevenDaysAgo; }).length,
-            between16And30: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d >= thirtyDaysAgo && d < fifteenDaysAgo; }).length,
-            moreThan30: ssDataList.filter((o: any) => { const d = parseDate(o.requested_at); return d && d < thirtyDaysAgo; }).length
-        };
-
-        const osCounts: Record<number, number> = {};
-        osDataList.forEach((o: any) => {
-            if (o.status_id) {
-                osCounts[o.status_id] = (osCounts[o.status_id] || 0) + 1;
-            }
-        });
-
-        const ssSectorMap: Record<string, { id: string, label: string, count: number }> = {};
-        const selectedPeriod = (ssFiltersOverride || filters)?.period;
-        let sectorDataList = ssDataList;
-        if (selectedPeriod && selectedPeriod !== 'Todas') {
-            sectorDataList = ssDataList.filter((o: any) => {
-                const d = parseDate(o.requested_at);
-                if (!d) return false;
-                if (selectedPeriod === 'Hoje') return d >= today;
-                if (selectedPeriod === 'Ontem') return d >= yesterday && d < today;
-                if (selectedPeriod === '2-7 dias') return d >= sevenDaysAgo && d < yesterday;
-                if (selectedPeriod === '8-15 dias') return d >= fifteenDaysAgo && d < sevenDaysAgo;
-                if (selectedPeriod === '16-30 dias') return d >= thirtyDaysAgo && d < fifteenDaysAgo;
-                if (selectedPeriod === '> 30 dias') return d < thirtyDaysAgo;
-                return true;
-            });
-        }
-
-        sectorDataList.forEach((o: any) => {
-            const id = o.asset_tag_id ? o.asset_tag_id.toString() : 'null';
-            const label = o.asset_tag_description || 'Sem Setor';
-            if (!ssSectorMap[id]) {
-                ssSectorMap[id] = { id, label, count: 0 };
-            }
-            ssSectorMap[id].count += 1;
-        });
-        const ssSectorCounts = Object.values(ssSectorMap).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
-
-        const osStatusFilter = osFiltersOverride?.statusId;
-        let osSectorCountSource = osDataList;
-        if (osStatusFilter) {
-            const statusIdNum = Array.isArray(osStatusFilter) ? Number(osStatusFilter[0]) : Number(osStatusFilter);
-            if (!Number.isNaN(statusIdNum)) {
-                osSectorCountSource = osDataList.filter((o: any) => o.status_id === statusIdNum);
-            }
-        }
-
-        const osSectorMap: Record<string, { id: string, label: string, count: number }> = {};
-        osSectorCountSource.forEach((o: any) => {
-            const id = o.asset_tag_id ? o.asset_tag_id.toString() : 'null';
-            const label = o.asset_tag_description || 'Sem Setor';
-            if (!osSectorMap[id]) {
-                osSectorMap[id] = { id, label, count: 0 };
-            }
-            osSectorMap[id].count += 1;
-        });
-        const osSectorCounts = Object.values(osSectorMap).sort((a, b) => b.count - a.count);
-
-        return { ssCounts, osCounts, ssSectorCounts, osSectorCounts };
+        stats.ssSectorCounts.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+        return stats;
     },
 
     async getUnscheduledSS(filters?: OrderFilters & { viewName?: string; startDate?: string; endDate?: string }): Promise<Order[]> {
         const viewName = filters?.viewName || 'v_orders';
         let query = supabase
             .from(viewName)
-            .select('*')
+            .select([
+                'id', 'order_mask', 'type_id', 'type_sub_id', 'object_id', 'contract_id', 'plan_id',
+                'unit_id', 'client_id', 'department_id', 'unit_asset_tag_id', 'asset_tag_id',
+                'system_id', 'system_parent_id', 'team_id', 'type_code', 'unit_description',
+                'requested_services', 'requested_at', 'status_at', 'status_description', 'priority_id',
+                'priority_description', 'priority_code', 'type_description', 'requester_name',
+                'requester_team_id', 'requester_team_code', 'requester_phone', 'client_name',
+                'contract_description', 'plan_description', 'progress', 'img_file_path', 'img_file_name',
+                'img_files_names', 'company_id', 'cause_reason_id',
+                'cause_reason_description', 'provider_company_description',
+                'provider_company_img_file_path', 'provider_company_img_file_name', 'unit_latitude',
+                'unit_longitude',
+                'asset_tag_description', 'asset_tag_sub_description', 'team_code', 'team_description',
+                'system_description', 'cancel_reason_id', 'cancel_reason_description', 'cancel_comments',
+                'canceled_team_code', 'canceled_user_name_short', 'status_id', 'parent_id', 'ov_counter',
+                'unit_type_parent_id', 'unit_type_id', 'provider_company_id'
+            ].join(','))
             .eq('status_id', 1)
             .is('parent_id', null);
 
@@ -1983,22 +1859,17 @@ export const ordersService = {
 
             if (filters.search) {
                 const s = `%${filters.search}%`;
-                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
             }
         }
 
         const { data, error } = await query.order('requested_at', { ascending: false });
-        if (error) { console.error('Error fetching unscheduled SS:', error); return []; }
+        if (error) {
+            console.error('Error fetching unscheduled SS:', error);
+            throw error;
+        }
 
-        let filteredData = data || [];
-
-        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
-        const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
-
-        return filteredData.map((item: any) => {
-            const providerCompanyIdStr = item.provider_company_id?.toString();
-            const company = providerCompanyIdStr ? companyMap.get(providerCompanyIdStr) : null;
-
+        return (data || []).map((item: any) => {
             return {
                 id: item.id.toString(),
                 orderMask: item.order_mask,
@@ -2013,6 +1884,7 @@ export const ordersService = {
                 unitAssetTagId: item.unit_asset_tag_id?.toString(),
                 assetTagId: item.asset_tag_id?.toString(),
                 systemId: item.system_id?.toString(),
+                systemParentId: item.system_parent_id?.toString(),
                 teamId: item.team_id?.toString(),
                 typeCode: item.type_code,
                 unitDescription: item.unit_description,
@@ -2048,10 +1920,10 @@ export const ordersService = {
                 companyId: item.company_id?.toString(),
                 causeReasonId: item.cause_reason_id ? Number(item.cause_reason_id) : undefined,
                 causeReasonDescription: item.cause_reason_description,
-                providerCompanyName: item.provider_company_description || item.provider_company_name || company?.description,
+                providerCompanyName: item.provider_company_description,
                 providerLogo: getPublicImageUrl(
-                    item.provider_company_img_file_path || item.provider_company_img_path || company?.img_file_path,
-                    item.provider_company_img_file_name || item.provider_company_img_name || company?.img_file_name,
+                    item.provider_company_img_file_path,
+                    item.provider_company_img_file_name,
                     { width: 100, height: 100, resize: 'contain' }
                 ),
                 unitLatitude: item.unit_latitude,
@@ -2165,6 +2037,7 @@ export const ordersService = {
                 unitAssetTagId: item.unit_asset_tag_id?.toString(),
                 assetTagId: item.asset_tag_id?.toString(),
                 systemId: item.system_id?.toString(),
+                systemParentId: item.system_parent_id?.toString(),
                 teamId: item.team_id?.toString(),
                 typeCode: item.type_code,
                 typeSubCode: item.type_sub_code,
@@ -2660,6 +2533,7 @@ export const ordersService = {
                 unitAssetTagId: item.unit_asset_tag_id?.toString(),
                 assetTagId: item.asset_tag_id?.toString(),
                 systemId: item.system_id?.toString(),
+                systemParentId: item.system_parent_id?.toString(),
                 teamId: item.team_id?.toString(),
                 typeCode: item.type_code,
                 typeSubCode: item.type_sub_code,
@@ -2844,6 +2718,7 @@ export const ordersService = {
                 unitAssetTagId: item.unit_asset_tag_id?.toString(),
                 assetTagId: item.asset_tag_id?.toString(),
                 systemId: item.system_id?.toString(),
+                systemParentId: item.system_parent_id?.toString(),
                 teamId: item.team_id?.toString(),
                 typeCode: item.type_code,
                 typeSubCode: item.type_sub_code,
@@ -3036,6 +2911,7 @@ export const ordersService = {
                 unitAssetTagId: item.unit_asset_tag_id?.toString(),
                 assetTagId: item.asset_tag_id?.toString(),
                 systemId: item.system_id?.toString(),
+                systemParentId: item.system_parent_id?.toString(),
                 teamId: item.team_id?.toString(),
                 typeCode: item.type_code,
                 typeSubCode: item.type_sub_code,

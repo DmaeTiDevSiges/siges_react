@@ -25,6 +25,7 @@ import { MaintenanceChecklistView } from '../../../components/ordersVisits/order
 import { ImageUploadSheet } from '../../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../../components/ui/ImageEditorModal';
 import { Loading } from '../../../components/ui/Loading';
+import { useAuth } from '../../../contexts/AuthContext';
 
 
 const Switch: React.FC<{ checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => {
@@ -229,7 +230,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [usedMaterials, setUsedMaterials] = useState<OrderVisitAssetMaterial[]>([]);
     const [uploadingCount, setUploadingCount] = useState(0);
     const [currentUserId, setCurrentUserId] = useState<string>('');
-    const [currentUserIsAdminSuper, setCurrentUserIsAdminSuper] = useState(false);
+    const { currentUser: authUser } = useAuth();
+    const currentUserIsAdminSuper = authUser?.isAdminSuper === true;
     const [showRejectionModal, setShowRejectionModal] = useState(false);
     const [rejectionNotes, setRejectionNotes] = useState('');
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -335,7 +337,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
             if (user) {
                 setCurrentUserId(user.id);
-                setCurrentUserIsAdminSuper(!!user.isAdminSuper);
             }
             let isManager = false;
 
@@ -1132,7 +1133,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         pendingPrompt={assetAssistantPrompt}
                     />
                 )} */}
-                {asset?.code && Number(asset.processingId) !== 5 && (
+                {currentUserIsAdminSuper && asset?.code && Number(asset.processingId) !== 5 && (
                     <div>
                         {/* 📚 Manuais Técnicos do ativo — seção sempre visível */}
                         <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">

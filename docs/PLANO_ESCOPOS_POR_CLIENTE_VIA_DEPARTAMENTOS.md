@@ -1,8 +1,8 @@
 # Plano — Escopo de dados por cliente via `cfg_departments.clients_ids`
 
-> **Status:** EM PLANEJAMENTO — implantação incremental; aguardando autorização para a Fase 1A  
+> **Status:** EM PLANEJAMENTO — **Gate 2 concluído** (Fase 1B validada); Fase 1C em execução (dados e observação)  
 > **Data de criação:** 2026-10-23  
-> **Última atualização:** 2026-10-26  
+> **Última atualização:** 2026-10-27  
 > **Responsável:** Implementação SIGES  
 > **Migrations:**
 > - `dev/supabase/migrations/20261026_units_clients_ids_compat.sql` — Fase 1A (aditiva, compatível com a web antiga)
@@ -117,34 +117,40 @@ Regras da fase de transição:
 - [ ] Manter estes documentos atualizados
 
 #### Fase 1A — Compatibilidade aditiva de `units.clients_ids`
-> Objetivo: preparar os dados sem mudar nada do que a web antiga consome.
+> Objetivo: preparar os dados sem mudar nada do que a web antiga consome.  
+> **Status:** CONCLUÍDA (2026-10-27). Migration aplicada e Gate 1 aprovado.
 
-- [ ] Snapshot/backup e export de `units(id, client_id)` (ver rollback §0)
-- [ ] Criar migration `dev/supabase/migrations/20261026_units_clients_ids_compat.sql`
-- [ ] Adicionar `units.clients_ids bigint[] NOT NULL DEFAULT '{}'`
-- [ ] Criar trigger `trg_units_sync_clients_ids` + função `fn_sync_units_clients_ids` (single-client, scalar-wins, guarda multi-cliente)
-- [ ] Backfill `clients_ids = ARRAY[client_id]` onde `client_id IS NOT NULL` e array vazio
-- [ ] Criar índice `idx_units_clients_ids_gin` (`GIN`; `CONCURRENTLY` opcional, em execução separada)
-- [ ] (Opcional) Criar view aditiva `v_units_clients` para o app novo
-- [ ] Validar: 0 divergências, sem `NULL` dentro do array; registrar `client_id` inválidos para a Fase 1C
-- [ ] Smoke tests da web antiga (unidades, ativos, ordens, visitas, manuais)
-- [ ] Testar rollback da Fase 1A
-- [ ] **Não alterar** `v_units`, `fc_units_search*`, `nearby_units` nem policies
+- [x] Snapshot/backup e export de `units(id, client_id)` (ver rollback §0)
+- [x] Criar migration `dev/supabase/migrations/20261026_units_clients_ids_compat.sql`
+- [x] Adicionar `units.clients_ids bigint[] NOT NULL DEFAULT '{}'`
+- [x] Criar trigger `trg_units_sync_clients_ids` + função `fn_sync_units_clients_ids` (single-client, scalar-wins, guarda multi-cliente)
+- [x] Backfill `clients_ids = ARRAY[client_id]` onde `client_id IS NOT NULL` e array vazio
+- [x] Criar índice `idx_units_clients_ids_gin` (`GIN`; `CONCURRENTLY` opcional, em execução separada)
+- [x] (Opcional) Criar view aditiva `v_units_clients` para o app novo
+- [x] Validar: 0 divergências, sem `NULL` dentro do array; registrar `client_id` inválidos para a Fase 1C
+- [x] Smoke tests da web antiga (unidades, ativos, ordens, visitas, manuais)
+- [x] Testar rollback da Fase 1A
+- [x] **Não alterar** `v_units`, `fc_units_search*`, `nearby_units` nem policies
 
 #### Fase 1B — App novo em modo single-client
-> Objetivo: o app novo passa a ler/escrever `clients_ids`, mas ainda com um cliente por unidade.
+> Objetivo: o app novo passa a ler/escrever `clients_ids`, mas ainda com um cliente por unidade.  
+> **Status:** CONCLUÍDA (2026-10-27). Gate 2 aprovado.
 
-- [ ] Atualizar `types/index.ts`: `Unit.clientsIds`, `clientId` como legado derivado
-- [ ] Atualizar `services/core/unitsService.ts`: selecionar `clients_ids`; criar/atualizar enviando **somente** `clients_ids`
-- [ ] Atualizar `services/companies/companiesService.ts` (`getUnitsByClient`): `.contains('clients_ids', [Number(clientId)])`
-- [ ] Atualizar `views/Settings/Clients/Units/UnitForm.tsx`: select único -> salvar `[cliente]`
-- [ ] Atualizar `views/Units/UnitsSearch.tsx`: exibir/filtrar por `clientsIds`/`v_units_clients`
-- [ ] Atualizar `views/Settings/SettingsRouter.tsx`: `selectedUnit?.clientsIds?.[0]`
-- [ ] Atualizar fallback de `views/ServiceRequest/ServiceRequestForm.tsx`: `clientsIds.includes(...)`
-- [ ] Feature flag `MULTI_CLIENT_UNITS=false` (UI multi-cliente desligada)
-- [ ] Deploy em preview/canário; web antiga permanece
-- [ ] Testar: criar/editar unidade no app novo e ver o efeito na web antiga; editar na web antiga e ver no app novo
-- [ ] **Não alterar** `v_units`, `fc_units_search*`, `nearby_units` nem policies
+- [x] Atualizar `types/index.ts`: `Unit.clientsIds`, `clientId` como legado derivado
+- [x] Atualizar `services/core/unitsService.ts`: selecionar `clients_ids`; criar/atualizar enviando **somente** `clients_ids`
+- [x] Atualizar `services/companies/companiesService.ts` (`getUnitsByClient`): `.contains('clients_ids', [Number(clientId)])`
+- [x] Atualizar `views/Settings/Clients/Units/UnitForm.tsx`: select único -> salvar `[cliente]`
+- [x] Atualizar `views/Units/UnitsSearch.tsx`: exibir/filtrar por `clientsIds`/`v_units_clients`
+- [x] Atualizar `views/Settings/SettingsRouter.tsx`: `selectedUnit?.clientsIds?.[0]`
+- [x] Atualizar fallback de `views/ServiceRequest/ServiceRequestForm.tsx`: `clientsIds.includes(...)`
+- [x] Feature flag `MULTI_CLIENT_UNITS=false` (UI multi-cliente desligada)
+- [x] Deploy direto (sem canário); web antiga permanece
+- [x] Testar: criar/editar unidade no app novo e ver o efeito na web antiga; editar na web antiga e ver no app novo
+- [x] **Não alterar** `v_units`, `fc_units_search*`, `nearby_units` nem policies
+
+#### Fase 1C — Dados e observação (pré-escopo)
+> Objetivo: resolver pendências de dados e observar a convivência antes de ligar a barreira real.  
+> **Status:** EM EXECUÇÃO (2026-10-27).
 
 > **Efeito esperado:** as 73 unidades com `clients_ids = '{}'` (e os ativos vinculados a elas) não aparecem em `getUnitsByClient` no app novo. A web antiga continua exibindo. Resolver na Fase 1C antes de ampliar o canário.
 
@@ -306,6 +312,10 @@ Detalhes em `docs/PLANO_ESCOPOS_POR_CLIENTE_VIA_DEPARTAMENTOS_ROLLBACK.md`.
 | 2026-10-26 | 0 | Reestruturação em fases incrementais | 1A (compatibilidade) → 1B (app single-client) → 1C (dados/observação) → 1D (RLS) → 5 (limpeza) |
 | 2026-10-26 | 0 | Compatibilidade com web antiga | Web antiga continua em `client_id`; app novo escreve `clients_ids`; trigger sincroniza; multi-cliente desligado |
 | 2026-10-26 | 0 | Runbook criado | `docs/RUNBOOK_IMPLANTACAO_INCREMENTAL_ESCOPO_CLIENTES.md` |
+| 2026-10-27 | 1A | Migration criada e aplicada | `dev/supabase/migrations/20261026_units_clients_ids_compat.sql` — coluna `units.clients_ids`, trigger de sincronia, backfill, índice GIN e view `v_units_clients` |
+| 2026-10-27 | 1A | Gate 1 aprovado | 0 divergências, smoke tests da web antiga OK, rollback testado. Liberado para iniciar Fase 1B. |
+| 2026-10-27 | 1B | Código adaptado para `clients_ids` | `types/index.ts`, `unitsService.ts`, `companiesService.ts`, `UnitForm.tsx`, `UnitsSearch.tsx`, `SettingsRouter.tsx`, `ServiceRequestForm.tsx`, `features.ts` |
+| 2026-10-27 | 1B | Gate 2 aprovado | App novo escreve `clients_ids` em modo single-client. Deploy direto sem canário. Liberado para Fase 1C. |
 
 ---
 

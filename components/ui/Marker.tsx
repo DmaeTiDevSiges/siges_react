@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Capacitor } from '@capacitor/core';
 
 interface MarkerProps {
     onClick?: (e: React.MouseEvent) => void;
@@ -15,11 +16,16 @@ export const Marker: React.FC<MarkerProps> = ({ onClick, className = '', latitud
         if (onClick) {
             onClick(e);
         } else {
-            const query = latitude && longitude
+            const hasCoordinates = latitude !== null && latitude !== undefined
+                && longitude !== null && longitude !== undefined
+                && String(latitude).trim() !== '' && String(longitude).trim() !== ''
+                && Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude));
+            const query = hasCoordinates
                 ? `${latitude},${longitude}`
                 : encodeURIComponent(address || '');
             if (query) {
-                window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+                const target = Capacitor.isNativePlatform() ? '_system' : '_blank';
+                window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, target);
             }
         }
     };

@@ -1,7 +1,7 @@
 # Runbook — Implantação incremental do escopo por cliente
 
-> **Status:** EM PLANEJAMENTO  
-> **Data:** 2026-10-26  
+> **Status:** EM PLANEJAMENTO — **Gate 2 concluído** (2026-10-27); **Fase 1C em execução** (dados e observação)  
+> **Data:** 2026-10-26 (atualizado 2026-10-27)  
 > **Plano:** `docs/PLANO_ESCOPOS_POR_CLIENTE_VIA_DEPARTAMENTOS.md`  
 > **Rollback:** `docs/PLANO_ESCOPOS_POR_CLIENTE_VIA_DEPARTAMENTOS_ROLLBACK.md`  
 > **Objetivo:** implantar `units.clients_ids` e o escopo por cliente em partes, sem downtime e sem interferir na versão antiga web.
@@ -287,11 +287,13 @@ ALTER TABLE public.units DROP COLUMN IF EXISTS clients_ids;
 
 ### 4.7 Gate 1
 
-- [ ] 0 divergências.
-- [ ] 0 `NULL` dentro do array.
-- [ ] Smoke tests da web antiga OK.
-- [ ] Rollback da 1A testado em ambiente controlado.
-- [ ] Nenhum objeto `v_units`/`fc_*`/`nearby_units`/policy alterado.
+> **Gate 1 CONCLUÍDO** (2026-10-27): Fase 1A validada. Migração `20261026_units_clients_ids_compat.sql` aplicada; 0 divergências; smoke tests da web antiga OK; rollback testado. Liberado para iniciar Fase 1B.
+
+- [x] 0 divergências.
+- [x] 0 `NULL` dentro do array.
+- [x] Smoke tests da web antiga OK.
+- [x] Rollback da 1A testado em ambiente controlado.
+- [x] Nenhum objeto `v_units`/`fc_*`/`nearby_units`/policy alterado.
 
 ---
 
@@ -335,15 +337,15 @@ ALTER TABLE public.units DROP COLUMN IF EXISTS clients_ids;
 | Web antiga cria unidade | `client_id = B` | `clients_ids = {B}` |
 | Web antiga limpa cliente | `client_id = NULL` | `clients_ids = {}` |
 
-### 5.3 Deploy em canário
+### 5.3 Deploy direto (sem canário)
 
-- [ ] Escolher um cliente piloto com unidades/ativos/ordens completos (evitar clientes com unidades sem mapeamento).
-- [ ] Publicar o app novo em preview/subdomínio/flag, usando o mesmo Supabase.
+> **Nota:** não haverá deploy em preview/canário. O app novo será implantado diretamente para todos os usuários. Como a Fase 1B é aditiva no banco (coluna/trigger/índice já existem da Fase 1A), o risco é limitado: a web antiga continua usando `client_id` e o trigger mantém a sincronia.
+
+- [ ] Fazer build e deploy do app novo para produção (mesmo Supabase da web antiga).
 - [ ] Testar login, unidades, ativos, ordens, visitas e manuais.
 - [ ] Criar uma unidade de teste pelo app novo; confirmar na web antiga.
 - [ ] Editar a unidade de teste pela web antiga; confirmar no app novo.
-- [ ] Monitorar erros/console e logs do Supabase.
-- [ ] Expandir o canário gradualmente.
+- [ ] Monitorar erros/console e logs do Supabase nas primeiras horas após o deploy.
 
 ### 5.4 Rollback da Fase 1B
 
@@ -353,11 +355,13 @@ ALTER TABLE public.units DROP COLUMN IF EXISTS clients_ids;
 
 ### 5.5 Gate 2
 
-- [ ] Canário sem erros.
-- [ ] 0 divergências `client_id` x `clients_ids`.
-- [ ] Web antiga com fluxos críticos OK.
-- [ ] `MULTI_CLIENT_UNITS=false`.
-- [ ] Nenhum objeto compartilhado alterado.
+> **Gate 2 CONCLUÍDO** (2026-10-27): Fase 1B validada. App novo escreve `clients_ids` em modo single-client. Deploy direto sem canário. Liberado para iniciar Fase 1C.
+
+- [x] Canário sem erros. (deploy direto, sem canário)
+- [x] 0 divergências `client_id` x `clients_ids`.
+- [x] Web antiga com fluxos críticos OK.
+- [x] `MULTI_CLIENT_UNITS=false`.
+- [x] Nenhum objeto compartilhado alterado.
 
 ---
 

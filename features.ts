@@ -28,6 +28,19 @@ export const isVehicleRentalEnabled = (): boolean => {
 };
 
 /**
+ * Verifica se a escrita multi-cliente em unidades está habilitada.
+ *
+ * Fase 1B: desligada (false). O app novo escreve somente clients_ids com 1 cliente.
+ * Fase 1D: pode ser habilitada para Admin/Super Admin após o Gate 4.
+ *
+ * Para ativar: VITE_FEATURE_MULTI_CLIENT_UNITS=true
+ * Para desativar: VITE_FEATURE_MULTI_CLIENT_UNITS=false (ou não definir)
+ */
+export const isMultiClientUnitsEnabled = (): boolean => {
+  return import.meta.env.VITE_FEATURE_MULTI_CLIENT_UNITS === 'true';
+};
+
+/**
  * Status possíveis para aprovação financeira de visitas
  */
 export type VisitCostsStatus = 'pending' | 'waiting' | 'approved' | 'rejected';

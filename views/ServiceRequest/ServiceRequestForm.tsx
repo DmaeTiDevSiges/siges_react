@@ -480,7 +480,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         {clients.find(c => c.id === formData.clientId)?.name}
                                     </span>
                                     <span className="text-xs font-bold text-slate-200">
-                                        {units.find(u => u.id === formData.unitId)?.descriptionFull || units.find(u => u.clientId === formData.clientId)?.description}
+                                        {units.find(u => u.id === formData.unitId)?.descriptionFull || units.find(u => u.clientsIds?.includes(formData.clientId))?.description}
                                     </span>
                                     {formData.unitAssetTagId && (
                                         <span className="text-xs font-bold text-slate-200">

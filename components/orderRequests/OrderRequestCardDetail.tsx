@@ -12,6 +12,7 @@ import { copyImageWithFallback } from '../../utils/imageClipboard';
 import { PhotoViewer } from '../ui/PhotoViewer';
 import { Avatar } from '../ui/Avatar';
 import { Loading } from '../ui/Loading';
+import { Marker } from '../ui/Marker';
 
 
 interface OrderCardDetailProps {
@@ -149,15 +150,27 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
                 </div>
             </div>
 
-            {req.clientName && (
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0 leading-none">{req.clientName}</p>
-            )}
-            <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight mb-0.5 mt-0.5">{req.unitDescription || req.typeDescription}</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 leading-none">
-                {req.unitAssetTagDescription
-                    ? `${req.unitAssetTagDescription}${req.assetTagSubDescription ? ` / ${req.assetTagSubDescription}` : ''}`
-                    : req.typeDescription}
-            </p>
+            <div className="flex items-stretch justify-between gap-2 min-w-0 mb-0.5 mt-0.5">
+                <div className="flex flex-col justify-center flex-1 min-w-0">
+                    {req.clientName && (
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0 leading-tight break-words">{req.clientName}</p>
+                    )}
+                    <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight break-words">
+                        {req.unitDescription || req.typeDescription}
+                    </h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight break-words">
+                        {req.unitAssetTagDescription
+                            ? `${req.unitAssetTagDescription}${req.assetTagSubDescription ? ` / ${req.assetTagSubDescription}` : ''}`
+                            : req.typeDescription}
+                    </p>
+                </div>
+                <Marker
+                    latitude={req.unitLatitude}
+                    longitude={req.unitLongitude}
+                    address={req.unitDescription || req.typeDescription}
+                    className="!w-12 !h-12 self-center shrink-0"
+                />
+            </div>
             <div className="relative">
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-1 leading-tight whitespace-pre-line flex-1 pr-6">{req.requestedServices}</p>
             </div>

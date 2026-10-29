@@ -327,7 +327,10 @@ export interface UnitType {
 
 export interface Unit {
   id: string;
-  clientId: string;
+  /** Legado derivado: clientes_ids[0] quando disponível */
+  clientId?: string;
+  /** Fonte autoritativa do app novo (Fase 1B). Array com 1 cliente em modo single-client. */
+  clientsIds: string[];
   description: string;
   code: string;
   installationCodePowerSupply: string;

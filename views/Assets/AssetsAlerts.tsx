@@ -5,6 +5,7 @@ import { Loading } from '../../components/ui/Loading';
 import { AssetsAlertsPDFButton } from '../../components/reports/AssetsAlertsPDFButton';
 import { AssetAlertGroupCard } from './AssetAlertGroupCard';
 import { FilterSelect } from '../../components/ui/FilterSelect';
+import { getFilterSelectionValue } from '../../components/ui/FilterSelectionContent';
 import { Modal } from '../../components/ui/Modal';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 
@@ -143,7 +144,9 @@ export const AssetsAlerts: React.FC<AssetsAlertsProps> = ({ onSelectAsset, onSel
             filterKey: key,
             label,
             options,
-            currentValue: key === 'situation' ? [alertFilter] : (advancedFilters[key as keyof AlertFilters] || [])
+            currentValue: key === 'situation'
+                ? [alertFilter]
+                : getFilterSelectionValue(options, advancedFilters[key as keyof AlertFilters] || [])
         });
         setSelectionSearch('');
     }, [alertFilter, advancedFilters]);
@@ -358,6 +361,14 @@ export const AssetsAlerts: React.FC<AssetsAlertsProps> = ({ onSelectAsset, onSel
                     </div>
 
                     <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                        {selectionModal.filterKey !== 'situation' && (
+                            <button
+                                onClick={() => setSelectionModal(prev => ({ ...prev, currentValue: [] }))}
+                                className="flex-1 py-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm active:scale-95"
+                            >
+                                LIMPAR
+                            </button>
+                        )}
                         <button
                             onClick={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))}
                             className="flex-1 py-3 items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm"
@@ -365,10 +376,18 @@ export const AssetsAlerts: React.FC<AssetsAlertsProps> = ({ onSelectAsset, onSel
                             Cancelar
                         </button>
                         <button
-                            onClick={() => handleModalConfirm(selectionModal.currentValue)}
+                            onClick={() => {
+                                if (selectionModal.filterKey === 'situation') {
+                                    handleModalConfirm(selectionModal.currentValue);
+                                    return;
+                                }
+                                const allOptionsSelected = selectionModal.options.length > 0
+                                    && selectionModal.options.every(opt => selectionModal.currentValue.includes(opt.value));
+                                handleModalConfirm(allOptionsSelected ? [] : selectionModal.currentValue);
+                            }}
                             className="flex-1 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95 text-sm"
                         >
-                            Confirmar ({selectionModal.currentValue.length})
+                            CONFIRMAR
                         </button>
                     </div>
                 </div>

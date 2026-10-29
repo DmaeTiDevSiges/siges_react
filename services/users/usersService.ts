@@ -118,6 +118,33 @@ export const usersService = {
         })) as Department[];
     },
 
+    /**
+     * `cfg_departments.clients_ids` do departamento — escopo de cliente do
+     * usuário logado (Fase 1D do plano de escopos por cliente).
+     * Departamento sem vínculo (NULL) devolve lista vazia = sem escopo.
+     */
+    async getDepartmentClientsIds(departmentId: string): Promise<string[]> {
+        if (!departmentId) return [];
+
+        const { data, error } = await supabase
+            .from('cfg_departments')
+            .select('clients_ids')
+            .eq('id', departmentId)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error fetching department clients_ids:', error);
+            throw error;
+        }
+
+        const ids = data?.clients_ids;
+        if (!Array.isArray(ids)) return [];
+
+        return ids
+            .filter((id: any) => id !== null && id !== undefined && id !== '')
+            .map(String);
+    },
+
     async createDepartment(department: Partial<Department>): Promise<Department> {
         const dbData = {
             company_id: department.companyId,
@@ -677,18 +704,27 @@ export const usersService = {
     async removeUserFromTeam(userId: string): Promise<void> {
         const { data: user, error: fetchError } = await supabase
             .from('users')
-            .select('team_id_previous')
+            .select('team_id, team_id_previous')
             .eq('uuid', userId)
             .single();
 
         if (fetchError) throw fetchError;
 
-        const { error } = await supabase
+        const previousTeamId = user.team_id_previous;
+        const teamId = previousTeamId != null && previousTeamId !== user.team_id
+            ? previousTeamId
+            : null;
+        const { data: updatedUser, error } = await supabase
             .from('users')
-            .update({ team_id: user.team_id_previous })
-            .eq('uuid', userId);
+            .update({ team_id: teamId, team_id_previous: null })
+            .eq('uuid', userId)
+            .select('uuid, team_id')
+            .maybeSingle();
 
         if (error) throw error;
+        if (!updatedUser || updatedUser.team_id === user.team_id) {
+            throw new Error('The team membership could not be removed.');
+        }
     },
 
     async updateUserTeam(userId: string, teamId: string | null): Promise<void> {
@@ -922,7 +958,7 @@ export const usersService = {
                         ? getPublicImageUrl(data.img_file_path, data.img_file_name, { width: 400, height: 400, resize: 'cover' })
                         : undefined,
 
-                    companyId: company?.id?.toString(),
+                    companyId: teamCompanyId?.toString(),
                     companyName: company?.description,
                     companyLogoUrl: company
                         ? getPublicImageUrl(company.img_file_path, company.img_file_name, { width: 400, height: 400, resize: 'contain' })

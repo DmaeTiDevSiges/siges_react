@@ -16,6 +16,7 @@ interface FilterBarResponsiveProps {
     setAdvancedFilters: React.Dispatch<React.SetStateAction<any>>;
     filterSelectOptions: Record<string, any>;
     handleSystemChange: (id: string | string[]) => void;
+    onClearSystem?: () => void;
     handleParentUnitTypeChange: (id: string | string[]) => void;
     handleOrderTypeChange: (id: string | string[]) => void;
     handleSectorChange: (id: string | string[]) => void;
@@ -34,6 +35,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
     setAdvancedFilters,
     filterSelectOptions,
     handleSystemChange,
+    onClearSystem,
     handleParentUnitTypeChange,
     handleOrderTypeChange,
     handleSectorChange,
@@ -94,16 +96,17 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
             'systemParentId', 'systemId', 'unitTypeParentId', 'unitTypeId',
             'unitId', 'assetTagId', 'assetTagSubId', 'orderObjectId',
             'orderTypeId', 'orderTypeSubId', 'contractId', 'orderPlanId', 'orderTeamId',
-            'causeReasonId',
+            'causeReasonId', 'responsibleTeamId',
             ...(showMaintenancePlanFilter ? ['maintenancePlanId'] : [])
         ];
         return keys.reduce((count, key) => {
+            if (hiddenFilters.includes(key)) return count;
             const val = advancedFilters[key];
             if (Array.isArray(val)) return count + val.length;
             if (val) return count + 1;
             return count;
         }, 0);
-    }, [advancedFilters, showMaintenancePlanFilter]);
+    }, [advancedFilters, hiddenFilters, showMaintenancePlanFilter]);
 
     const openMobileFilter = useCallback((key: string, label: string, options: { value: string; label: string }[]) => {
         openSelectionModal(key, label, options);
@@ -131,10 +134,10 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                 onTouchStart={filtersScroll.onTouchStart}
                 onClickCapture={filtersScroll.onClickCapture}
             >
-                <FilterSelect label="SISTEMA" value={advancedFilters.systemParentId || []} onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterSelectOptions.systems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSystemChange([])} />
-                <FilterSelect label="SUB-SISTEMA" value={advancedFilters.systemId || []} onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterSelectOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, systemId: [] }))} hidden={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)} />
-                <FilterSelect label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} />
-                <FilterSelect label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitTypeId: [] }))} hidden={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
+                <FilterSelect label="SISTEMA" value={advancedFilters.systemParentId || []} onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterSelectOptions.systems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => onClearSystem ? onClearSystem() : handleSystemChange([])} hidden={hiddenFilters.includes('systemParentId')} />
+                <FilterSelect label="SUB-SISTEMA" value={advancedFilters.systemId || []} onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterSelectOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, systemId: [] }))} hidden={hiddenFilters.includes('systemId') || !advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)} />
+                <FilterSelect label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} hidden={hiddenFilters.includes('unitTypeParentId')} />
+                <FilterSelect label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitTypeId: [] }))} hidden={hiddenFilters.includes('unitTypeId') || !advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
                 <FilterSelect label="UNIDADES" value={advancedFilters.unitId || []} onClick={() => openSelectionModal('unitId', 'UNIDADES', filterSelectOptions.units.map((opt: any) => ({ value: String(opt.id), label: opt.description_full || opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitId: [] }))} />
                 <FilterSelect label="SETORES" value={advancedFilters.assetTagId || []} onClick={() => openSelectionModal('assetTagId', 'SETORES', filterSelectOptions.sectors.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSectorChange([])} />
                 <FilterSelect label="POSIÇÕES" value={advancedFilters.assetTagSubId || []} onClick={() => openSelectionModal('assetTagSubId', 'POSIÇÕES', assetTagSubOptions.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, assetTagSubId: [] }))} hidden={!advancedFilters.assetTagId || (Array.isArray(advancedFilters.assetTagId) && advancedFilters.assetTagId.length === 0)} />
@@ -169,10 +172,10 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                 draggable
             >
                 <div className="flex flex-col gap-3">
-                    <FilterSelect variant="vertical" label="SISTEMA" value={advancedFilters.systemParentId || []} onClick={() => openMobileFilter('systemParentId', 'SISTEMA', filterSelectOptions.systems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSystemChange([])} />
-                    <FilterSelect variant="vertical" label="SUB-SISTEMA" value={advancedFilters.systemId || []} onClick={() => openMobileFilter('systemId', 'SUB-SISTEMA', filterSelectOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, systemId: [] }))} hidden={!advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)} />
-                    <FilterSelect variant="vertical" label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openMobileFilter('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} />
-                    <FilterSelect variant="vertical" label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openMobileFilter('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitTypeId: [] }))} hidden={!advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
+                    <FilterSelect variant="vertical" label="SISTEMA" value={advancedFilters.systemParentId || []} onClick={() => openMobileFilter('systemParentId', 'SISTEMA', filterSelectOptions.systems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => onClearSystem ? onClearSystem() : handleSystemChange([])} hidden={hiddenFilters.includes('systemParentId')} />
+                    <FilterSelect variant="vertical" label="SUB-SISTEMA" value={advancedFilters.systemId || []} onClick={() => openMobileFilter('systemId', 'SUB-SISTEMA', filterSelectOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, systemId: [] }))} hidden={hiddenFilters.includes('systemId') || !advancedFilters.systemParentId || (Array.isArray(advancedFilters.systemParentId) && advancedFilters.systemParentId.length === 0)} />
+                    <FilterSelect variant="vertical" label="TIPO UNIDADE" value={advancedFilters.unitTypeParentId || []} onClick={() => openMobileFilter('unitTypeParentId', 'TIPO UNIDADE', filterSelectOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleParentUnitTypeChange([])} hidden={hiddenFilters.includes('unitTypeParentId')} />
+                    <FilterSelect variant="vertical" label="SUB-TIPO UNIDADE" value={advancedFilters.unitTypeId || []} onClick={() => openMobileFilter('unitTypeId', 'SUB-TIPO UNIDADE', unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitTypeId: [] }))} hidden={hiddenFilters.includes('unitTypeId') || !advancedFilters.unitTypeParentId || (Array.isArray(advancedFilters.unitTypeParentId) && advancedFilters.unitTypeParentId.length === 0)} />
                     <FilterSelect variant="vertical" label="UNIDADES" value={advancedFilters.unitId || []} onClick={() => openMobileFilter('unitId', 'UNIDADES', filterSelectOptions.units.map((opt: any) => ({ value: String(opt.id), label: opt.description_full || opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, unitId: [] }))} />
                     <FilterSelect variant="vertical" label="SETORES" value={advancedFilters.assetTagId || []} onClick={() => openMobileFilter('assetTagId', 'SETORES', filterSelectOptions.sectors.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => handleSectorChange([])} />
                     <FilterSelect variant="vertical" label="POSIÇÕES" value={advancedFilters.assetTagSubId || []} onClick={() => openMobileFilter('assetTagSubId', 'POSIÇÕES', assetTagSubOptions.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, assetTagSubId: [] }))} hidden={!advancedFilters.assetTagId || (Array.isArray(advancedFilters.assetTagId) && advancedFilters.assetTagId.length === 0)} />

@@ -12,6 +12,7 @@ export const FilterSelect: React.FC<{
 }> = ({ label, value, onClick, onClear, disabled, required, hidden, variant = 'horizontal' }) => {
     const count = Array.isArray(value) ? value.length : (value ? 1 : 0);
     const isEmpty = count === 0;
+    const isAllSelected = typeof value === 'string' && value.toLowerCase() === 'todos';
     const showRequiredError = required && isEmpty;
 
     if (hidden) return null;
@@ -49,7 +50,7 @@ export const FilterSelect: React.FC<{
                         </div>
                     </div>
 
-                    {count > 0 && (
+                    {count > 0 && !isAllSelected && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onClear(); }}
                             className="px-4 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors border-l border-slate-100 dark:border-slate-700/50"
@@ -94,7 +95,7 @@ export const FilterSelect: React.FC<{
                     </div>
                 </div>
 
-                {count > 0 && (
+                {count > 0 && !isAllSelected && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onClear(); }}
                         className="px-3 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors border-l border-slate-100 dark:border-slate-700/50"

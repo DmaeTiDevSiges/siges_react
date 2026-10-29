@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { formatDateInBrazil } from '../../utils/formatters';
 
 import { dataService } from '../../services/dataService';
+import { useClientScope } from '../../hooks/useClientScope';
+import { systemsScopeOption, pruneSystemFilterOutsideOptions } from '../../utils/clientScope';
 import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
@@ -1055,9 +1057,13 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
 
     // Modal state was moved to FilterBarSection for performance
 
+    // Escopo de cliente do filtro SISTEMA (Fase 1D): undefined = sem corte
+    // (super admin); lista = clients_ids do departamento do usuário.
+    const { clientIds, scopeReady } = useClientScope();
+    const systemsScope = systemsScopeOption(clientIds);
+
      useEffect(() => {
          loadData();
-         loadFilterOptions();
  
          const handleRefresh = () => loadData();
          window.addEventListener('refresh_dashboard', handleRefresh);
@@ -1078,9 +1084,12 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
      }, [dateRange]);
 
     const loadFilterOptions = async () => {
+        // Opções só depois que o escopo de cliente resolver (evita exibir
+        // sistemas fora do escopo durante o carregamento).
+        if (!scopeReady) return;
         try {
             const results = await Promise.allSettled([
-                dataService.getSystemsParent(),
+                dataService.getSystemsParent(systemsScope),
                 dataService.getUnitTypesParent(),
                 dataService.getOrdersObjects(),
                 dataService.getOrderTypes(),
@@ -1101,10 +1110,20 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                 contracts: getVal(results[5]),
                 teams: getVal(results[6])
             }));
+
+            // Filtro SISTEMA persistido fora do escopo: limpa a seleção.
+            const visibleSystemIds = getVal(results[0]).map((s: any) => s.id);
+            setAdvancedFilters(prev => pruneSystemFilterOutsideOptions(prev, visibleSystemIds));
         } catch (error) {
             console.error('Error loading filter options:', error);
         }
     };
+
+    // Carrega as opções de filtro exatamente uma vez, quando o escopo resolver.
+    useEffect(() => {
+        loadFilterOptions();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scopeReady]);
 
     const loadData = async () => {
         try {
@@ -1247,7 +1266,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
         setAdvancedFilters(prev => ({ ...prev, systemParentId: systemId, systemId: [] }));
         if (systemId && (Array.isArray(systemId) ? systemId.length > 0 : true)) {
             const ids = Array.isArray(systemId) ? systemId : [systemId];
-            const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+            const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
             setFilterOptions(prev => ({ ...prev, subSystems: results.flat() }));
         } else {
             setFilterOptions(prev => ({ ...prev, subSystems: [] }));

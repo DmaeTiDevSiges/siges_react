@@ -489,6 +489,10 @@ export const dataService = {
         return usersService.getDepartmentsByCompany.apply(usersService, arguments as any);
     },
 
+    async getDepartmentClientsIds(departmentId: string): Promise<string[]> {
+        return usersService.getDepartmentClientsIds.apply(usersService, arguments as any);
+    },
+
     async createDepartment(department: Partial<Department>): Promise<Department> {
         return usersService.createDepartment.apply(usersService, arguments as any);
     },
@@ -851,9 +855,17 @@ export const dataService = {
     async searchUnits(
         search: string = '',
         limit: number = 50,
-        systemParentIds?: Array<string | number> | null
+        systemParentIds?: Array<string | number> | null,
+        scopeClientsIds?: Array<string | number> | null
     ): Promise<Unit[]> {
         return unitsService.searchUnits.apply(unitsService, arguments as any);
+    },
+
+    async searchUnitsByClient(
+        clientId: string,
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<any[]> {
+        return unitsService.searchUnitsByClient.apply(unitsService, arguments as any);
     },
 
     async getUnitById(id: string): Promise<Unit | null> {
@@ -1096,7 +1108,13 @@ export const dataService = {
         return assetAvailabilityNotificationService.sendAvailabilityMessage.apply(assetAvailabilityNotificationService, arguments as any);
     },
 
-    async getAssets(filter: 'all' | 'active' | 'inactive' = 'all', search: string = '', unitId?: string, unitAssetTagId?: string): Promise<Asset[]> {
+    async getAssets(
+        filter: 'all' | 'active' | 'inactive' = 'all',
+        search: string = '',
+        unitId?: string,
+        unitAssetTagId?: string,
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<Asset[]> {
         return assetsService.getAssets.apply(assetsService, arguments as any);
     },
 
@@ -1106,6 +1124,7 @@ export const dataService = {
         unitTypeParentId?: string | string[];
         unitTypeId?: string | string[];
         unitId?: string | string[];
+        scopeClientsIds?: Array<string | number> | null;
         tagId?: string | string[];
         tagSubId?: string | string[];
         typeId?: string | string[];
@@ -1640,11 +1659,11 @@ export const dataService = {
         return assetsService.getFollowedAssetIds.apply(assetsService, arguments as any);
     },
 
-    async getSystemsParent(): Promise<System[]> {
+    async getSystemsParent(scopeClientsIds?: Array<string | number> | null): Promise<System[]> {
         return settingsService.getSystemsParent.apply(settingsService, arguments as any);
     },
 
-    async getSystems(parentId?: string): Promise<System[]> {
+    async getSystems(parentId?: string, scopeClientsIds?: Array<string | number> | null): Promise<System[]> {
         return settingsService.getSystems.apply(settingsService, arguments as any);
     },
 
@@ -1676,8 +1695,20 @@ export const dataService = {
         return data || [];
     },
 
-    async getUnits(filter: 'all' | 'active' | 'inactive' = 'active', search: string = ''): Promise<any[]> {
+    async getUnits(
+        filter: 'all' | 'active' | 'inactive' = 'active',
+        search: string = '',
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<any[]> {
         return unitsService.getUnits.apply(unitsService, arguments as any);
+    },
+
+    async getUnitsForSearch(
+        filter: 'all' | 'active' | 'inactive' = 'active',
+        search: string = '',
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<any[]> {
+        return unitsService.getUnitsForSearch.apply(unitsService, arguments as any);
     },
 
     async getUnitsByIds(ids: string[]): Promise<{ data: any[] | null, error: any }> {
@@ -1698,7 +1729,10 @@ export const dataService = {
      * Get all units with coordinates for client-side proximity filtering.
      * Returns units with latitude/longitude for distance calculation.
      */
-    async getUnitsWithCoordinates(statusFilter?: 'all' | 'active' | 'inactive'): Promise<any[]> {
+    async getUnitsWithCoordinates(
+        statusFilter?: 'all' | 'active' | 'inactive',
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<any[]> {
         return unitsService.getUnitsWithCoordinates.apply(unitsService, arguments as any);
     },
 

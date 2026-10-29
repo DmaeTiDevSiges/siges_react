@@ -6,6 +6,7 @@ import { Marker } from '../../../../components/ui/Marker';
 import { UnitCardDetail } from '../../../../components/units/UnitCardDetail';import { dataService } from '../../../../services/dataService';
 import { supabase } from '../../../../services/core/supabase';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
+import { useUnitEditScope } from '../../../../hooks/useUnitEditScope';
 import { Modal } from '../../../../components/ui/Modal';
 import { AssetCard } from '../../../../components/assets/AssetCard';
 import { AssetMovementListItem } from '../../../../components/assets/AssetMovementListItem';
@@ -89,7 +90,9 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
     onManageAvailability,
     onInformAvailability
 }) => {
-    const { canView, canEdit, canCreate, canDelete } = usePermissions();
+    const { canView, canCreate } = usePermissions();
+    // Gestão da unidade (editar/excluir): rota units + escopo de cliente
+    const { canEditUnit, canDeleteUnit } = useUnitEditScope();
     const [selectedSector, setSelectedSector] = useState<string | null>(() => {
         return localStorage.getItem(`unit_active_sector_${unit.id}`);
     });
@@ -378,7 +381,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                 <>
                                     <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
                                     <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 z-20 py-2 overflow-hidden animate-in fade-in zoom-in duration-200">
-                                        {onEdit && canEdit('units') && (
+                                        {onEdit && canEditUnit(unit.clientsIds) && (
                                             <button
                                                 onClick={() => { setShowMenu(false); onEdit(); }}
                                                 className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-center gap-3 transition-colors"
@@ -387,7 +390,7 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
                                                 <span className="font-medium">Editar Unidade</span>
                                             </button>
                                         )}
-                                        {onDelete && canDelete('units') && (
+                                        {onDelete && canDeleteUnit(unit.clientsIds) && (
                                             <button
                                                 onClick={() => { setShowMenu(false); onDelete(); }}
                                                 className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center gap-3 transition-colors border-t border-slate-50 dark:border-slate-800/50"

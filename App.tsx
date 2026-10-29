@@ -334,6 +334,10 @@ const AppContent: React.FC = () => {
     return 'dashboard';
   });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const numericCompanyId = Number(currentUser?.companyId);
+  const providerCompanyId = currentUser?.companyId && Number.isFinite(numericCompanyId) && numericCompanyId !== 1
+    ? currentUser.companyId
+    : undefined;
   const [dashboardGamification, setDashboardGamification] = useState<{
     position: number;
     positionChange?: number;
@@ -624,6 +628,7 @@ const AppContent: React.FC = () => {
         ordersDashboardTab={ordersDashboardTab}
         setOrdersDashboardTab={setOrdersDashboardTab}
         setActiveTab={setActiveTab}
+        isAdminSuper={currentUser?.isAdminSuper}
       />
     );
   };
@@ -677,6 +682,8 @@ const AppContent: React.FC = () => {
         if (user && currentUserRef.current) {
           const hasChanges =
             user.id !== currentUserRef.current.id ||
+            user.companyId !== currentUserRef.current.companyId ||
+            user.teamId !== currentUserRef.current.teamId ||
             user.isAvailable !== currentUserRef.current.isAvailable ||
             user.isOvInProgress !== currentUserRef.current.isOvInProgress ||
             user.ovIdInProgress !== currentUserRef.current.ovIdInProgress ||
@@ -2069,7 +2076,7 @@ const AppContent: React.FC = () => {
                 setSelectedOrder(order);
                 setCurrentScreen('order-create');
               }}
-              providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+              providerCompanyId={providerCompanyId}
             />
           </SsScreenGate>
         );
@@ -2101,7 +2108,7 @@ const AppContent: React.FC = () => {
                 setSelectedOrder(order);
                 setCurrentScreen('order-create');
               }}
-              providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+              providerCompanyId={providerCompanyId}
               onlineScreenKey={ssPeriodReturnScreen}
             />
           </SsScreenGate>
@@ -2123,7 +2130,7 @@ const AppContent: React.FC = () => {
               setCurrentScreen('order-create');
             }}
             activeTab={ordersDashboardTab}
-            providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+            providerCompanyId={providerCompanyId}
           />
         );
       case 'orders-dashboard-period':
@@ -2143,7 +2150,7 @@ const AppContent: React.FC = () => {
               setCurrentScreen('order-create');
             }}
             activeTab="OS"
-            providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+            providerCompanyId={providerCompanyId}
           />
         );
       case 'visits-dashboard':
@@ -2163,7 +2170,7 @@ const AppContent: React.FC = () => {
               setCurrentScreen('order-create');
             }}
             activeTab="VISITAS"
-            providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+            providerCompanyId={providerCompanyId}
           />
         );
       case 'visits-today':
@@ -2210,7 +2217,7 @@ const AppContent: React.FC = () => {
                   setCurrentScreen('ss-dashboard-period');
                 }
               }}
-              providerCompanyId={currentUser?.companyId !== '1' ? currentUser?.companyId : undefined}
+              providerCompanyId={providerCompanyId}
               onlineScreenKey="services-history"
             />
           </SsScreenGate>

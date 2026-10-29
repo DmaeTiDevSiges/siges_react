@@ -650,8 +650,8 @@ export const companiesService = {
     async getUnitsByClient(clientId: string): Promise<Unit[]> {
         const { data: units, error: unitsError } = await supabase
             .from('units')
-            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
-            .eq('client_id', clientId)
+            .select('id, clients_ids, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
+            .contains('clients_ids', [Number(clientId)])
             .eq('is_deleted', 'false');
 
         if (unitsError) {
@@ -674,9 +674,11 @@ export const companiesService = {
         const statusesMap = new Map(statuses?.map(st => [st.id, st.description]));
 
         return (units || []).map((item: any) => {
+            const clientsIds = Array.isArray(item.clients_ids) ? item.clients_ids : (item.clients_ids ? [item.clients_ids] : []);
             return {
                 id: item.id.toString(),
-                clientId: item.client_id.toString(),
+                clientId: clientsIds[0]?.toString() || item.client_id?.toString(),
+                clientsIds: clientsIds.map(String),
                 description: item.description,
                 code: item.code,
                 installationCodePowerSupply: item.installation_code_power_supply,

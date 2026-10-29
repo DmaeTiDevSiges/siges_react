@@ -7,6 +7,7 @@ interface DashboardTabsProps {
   ordersDashboardTab: 'OS' | 'VISITAS';
   setOrdersDashboardTab: React.Dispatch<React.SetStateAction<'OS' | 'VISITAS'>>;
   setActiveTab: React.Dispatch<React.SetStateAction<any>>;
+  isAdminSuper?: boolean;
 }
 
 export const DashboardTabs: React.FC<DashboardTabsProps> = ({
@@ -15,6 +16,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   ordersDashboardTab,
   setOrdersDashboardTab,
   setActiveTab,
+  isAdminSuper = false,
 }) => {
   const { canView } = usePermissions();
 
@@ -118,7 +120,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
             )}
           </button>
         )}
-        {hasVisits && (
+        {hasVisits && isAdminSuper && (
           <button
             onClick={() => setCurrentScreen('dashboard-orders-admin-calendar')}
             className={`pb-4 px-2 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${currentScreen === 'dashboard-orders-admin-calendar' ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}

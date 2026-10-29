@@ -12,8 +12,11 @@ import { AssetCard } from '../../components/assets/AssetCard';
 import { Loading } from '../../components/ui/Loading';
 import { FilterSelect } from '../../components/ui/FilterSelect';
 import { Modal } from '../../components/ui/Modal';
+import { getFilterSelectionValue } from '../../components/ui/FilterSelectionContent';
 import { AssetsSearchPDFButton } from '../../components/reports/AssetsSearchPDFButton';
 import { AssetsSearchExcelButton } from '../../components/reports/AssetsSearchExcelButton';
+import { useClientScope } from '../../hooks/useClientScope';
+import { pruneSystemFilterOutsideOptions, systemsScopeOption } from '../../utils/clientScope';
 
 interface AssetsSearchProps {
     currentUser?: User;
@@ -24,6 +27,8 @@ interface AssetsSearchProps {
 export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelectAsset, onAdd }) => {
     const { canCreate, canSearch, permissions, loading: permissionsLoading } = usePermissions();
     const hasSearchPermission = canSearch('assets');
+    const { clientIds, scopeReady } = useClientScope();
+    const systemsScope = useMemo(() => systemsScopeOption(clientIds), [clientIds]);
 
     const [search, setSearch] = useState(() => localStorage.getItem('assets_search') || '');
     const [activeSearch, setActiveSearch] = useState(search);
@@ -89,7 +94,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
         try {
             // Try to find exact match immediately
-            const exactAssets = await dataService.getAssets('all', result);
+            const exactAssets = await dataService.getAssets('all', result, undefined, undefined, clientIds);
             const exactMatch = exactAssets.find(a =>
                 a.code?.toLowerCase() === result.toLowerCase() ||
                 a.id === result
@@ -210,16 +215,15 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
     const initializedDefaults = useRef(false);
 
     useEffect(() => {
-        if (!hasSearchPermission) return;
+        if (!hasSearchPermission || !scopeReady) return;
         
         const fetchFilters = async () => {
             try {
-                const [systems, subSystems, unitTypes, unitSubTypes, units, tags, tagSubs, assetTypes, statuses] = await Promise.all([
-                    dataService.getSystemsParent(),
-                    dataService.getSystems(),
+                const [systems, unitTypes, unitSubTypes, units, tags, tagSubs, assetTypes, statuses] = await Promise.all([
+                    dataService.getSystemsParent(systemsScope),
                     dataService.getUnitTypesParent(),
                     dataService.getUnitTypes(),
-                    dataService.getUnits('active'),
+                    dataService.getUnits('active', '', clientIds),
                     dataService.getAssetsTags(),
                     dataService.getAssetTagSubs(undefined, 'active'),
                     dataService.getAssetTypes('all'),
@@ -228,7 +232,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
                 setFilterSelectOptions({
                     systems,
-                    subSystems,
+                    subSystems: [],
                     unitTypes,
                     unitSubTypes,
                     units,
@@ -237,6 +241,11 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                     assetTypes,
                     statuses
                 });
+
+                setAdvancedFilters((prev: any) => pruneSystemFilterOutsideOptions(
+                    prev,
+                    systems.map((system: any) => String(system.id))
+                ));
 
                 if (!initializedDefaults.current) {
                      // Only set default status if not already set from localStorage
@@ -254,7 +263,50 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         };
 
         fetchFilters();
-    }, [hasSearchPermission]);
+    }, [hasSearchPermission, scopeReady, clientIds]);
+
+    useEffect(() => {
+        if (!hasSearchPermission || !scopeReady) return;
+
+        const selectedParentIds = Array.isArray(advancedFilters.systemParentId)
+            ? advancedFilters.systemParentId.map(String)
+            : advancedFilters.systemParentId
+                ? [String(advancedFilters.systemParentId)]
+                : [];
+
+        if (selectedParentIds.length === 0) {
+            setFilterSelectOptions((prev: any) => ({ ...prev, subSystems: [] }));
+            setAdvancedFilters((prev: any) => prev.systemId?.length
+                ? { ...prev, systemId: [] }
+                : prev);
+            return;
+        }
+
+        let active = true;
+        Promise.all(selectedParentIds.map(id => dataService.getSystems(id, systemsScope)))
+            .then(results => {
+                if (!active) return;
+                const subSystems = results.flat();
+                const availableSubSystemIds = new Set(subSystems.map((system: any) => String(system.id)));
+                setFilterSelectOptions((prev: any) => ({ ...prev, subSystems }));
+                setAdvancedFilters((prev: any) => {
+                    const selected = Array.isArray(prev.systemId)
+                        ? prev.systemId
+                        : prev.systemId ? [prev.systemId] : [];
+                    const validSystemIds = selected.filter((id: string | number) =>
+                        availableSubSystemIds.has(String(id))
+                    );
+                    return validSystemIds.length === selected.length
+                        ? prev
+                        : { ...prev, systemId: validSystemIds };
+                });
+            })
+            .catch(error => {
+                console.error('Error loading scoped sub-systems for asset search:', error);
+            });
+
+        return () => { active = false; };
+    }, [hasSearchPermission, scopeReady, systemsScope, advancedFilters.systemParentId]);
 
     // Persist filters to localStorage
     useEffect(() => {
@@ -267,7 +319,14 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
             field,
             label,
             options,
-            currentValue: advancedFilters[field] || []
+            currentValue: getFilterSelectionValue(
+                options,
+                Array.isArray(advancedFilters[field])
+                    ? advancedFilters[field].map(String)
+                    : advancedFilters[field] != null && advancedFilters[field] !== ''
+                        ? [String(advancedFilters[field])]
+                        : []
+            )
         });
     };
 
@@ -329,6 +388,11 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
     useEffect(() => {
         if (!hasSearchPermission) return;
+        if (!scopeReady) {
+            setAssets([]);
+            setLoading(false);
+            return;
+        }
         // Só executa a busca se o usuário clicou em "Buscar"
         if (!hasSearched) return;
 
@@ -349,7 +413,8 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                 setError(null);
                 const data = await dataService.getFilteredAssets({
                     search: activeSearch,
-                    ...activeFilters
+                    ...activeFilters,
+                    scopeClientsIds: clientIds
                 });
                 setAssets(data);
             } catch (err: any) {
@@ -361,7 +426,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         };
 
         fetchData();
-    }, [activeSearch, activeFilters, hasSearched, hasSearchPermission]);
+    }, [activeSearch, activeFilters, hasSearched, hasSearchPermission, scopeReady, clientIds]);
 
     // Use server-side filtered assets directly
     const filteredAssets = assets;
@@ -580,7 +645,7 @@ const FilterSelectionContent: React.FC<{
     onConfirm: (value: string[]) => void;
 }> = ({ label, options, initialValue, onConfirm }) => {
     const [selectionSearch, setSelectionSearch] = useState('');
-    const [currentValue, setCurrentValue] = useState<string[]>(initialValue);
+    const [currentValue, setCurrentValue] = useState<string[]>(() => getFilterSelectionValue(options, initialValue));
 
     const filteredOptions = useMemo(() => {
         const query = selectionSearch.toLowerCase().trim();
@@ -632,14 +697,20 @@ const FilterSelectionContent: React.FC<{
 
             <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
-                    onClick={() => onConfirm(currentValue)}
-                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all"
+                    type="button"
+                    onClick={() => setCurrentValue([])}
+                    className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-sm uppercase hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                 >
-                    Confirmar Seleção ({currentValue.length})
+                    Limpar
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onConfirm(currentValue)}
+                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 active:scale-95 active:brightness-90 transition-all"
+                >
+                    Confirmar
                 </button>
             </div>
         </div>
     );
 };
-
-

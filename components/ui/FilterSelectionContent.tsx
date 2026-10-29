@@ -1,5 +1,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
 
+export const getFilterSelectionValue = (
+    options: { value: string; label: string }[],
+    selectedValues: string[]
+): string[] => selectedValues.length > 0 ? selectedValues : options.map(option => option.value);
+
 const FilterOptionItem = React.memo(({
     opt,
     isSelected,
@@ -34,7 +39,7 @@ export const FilterSelectionContent: React.FC<{
     onConfirm: (value: string[]) => void;
 }> = ({ label, options, initialValue, onConfirm }) => {
     const [selectionSearch, setSelectionSearch] = useState('');
-    const [currentValue, setCurrentValue] = useState<string[]>(initialValue);
+    const [currentValue, setCurrentValue] = useState<string[]>(() => getFilterSelectionValue(options, initialValue));
 
     const filteredOptions = useMemo(() => {
         const query = selectionSearch.toLowerCase().trim();
@@ -86,10 +91,19 @@ export const FilterSelectionContent: React.FC<{
 
             <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
-                    onClick={() => onConfirm(currentValue)}
-                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all"
+                    onClick={() => setCurrentValue([])}
+                    className="flex-1 py-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-sm transition-all active:scale-95"
                 >
-                    Confirmar Seleção ({currentValue.length})
+                    LIMPAR
+                </button>
+                <button
+                    onClick={() => {
+                        const allOptionsSelected = options.length > 0 && options.every(option => selectedSet.has(option.value));
+                        onConfirm(allOptionsSelected ? [] : currentValue);
+                    }}
+                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all active:scale-95"
+                >
+                    CONFIRMAR
                 </button>
             </div>
         </div>

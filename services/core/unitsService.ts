@@ -1,23 +1,33 @@
 import { supabase } from './supabase';
 import { Unit } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
+import { normalizeClientScope } from '../../utils/clientScope';
 
 export const unitsService = {
     async searchUnits(
         search: string = '',
         limit: number = 50,
-        systemParentIds?: Array<string | number> | null
+        systemParentIds?: Array<string | number> | null,
+        scopeClientsIds?: Array<string | number> | null
     ): Promise<Unit[]> {
+        // Escopo de cliente: lista vazia = sem acesso, não consulta o banco.
+        const clientScope = normalizeClientScope(scopeClientsIds);
+        if (clientScope !== null && clientScope.length === 0) return [];
+
         let query = supabase
-            .from('units')
-            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
-            .eq('is_deleted', 'false');
+            .from('v_units')
+            .select('id, clients_ids, client_id, client_name, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_parent_description, unit_type_id, unit_type_child_description, system_parent_id, system_parent_description, system_id, system_child_description, status_id, status_description, img_file_path, img_file_name, description_full')
+            .eq('is_deleted', false);
 
         const scopeSystemParentIds = (systemParentIds ?? [])
             .map(Number)
             .filter((id) => Number.isFinite(id) && id > 0);
         if (scopeSystemParentIds.length > 0) {
             query = query.in('system_parent_id', scopeSystemParentIds);
+        }
+
+        if (clientScope !== null) {
+            query = query.overlaps('clients_ids', clientScope);
         }
 
         if (search && search.trim().length > 0) {
@@ -36,48 +46,65 @@ export const unitsService = {
             throw unitsError;
         }
 
-        const [
-            { data: unitTypes },
-            { data: systems },
-            { data: statuses }
-        ] = await Promise.all([
-            supabase.from('cfg_units_types').select('id, description'),
-            supabase.from('cfg_systems').select('id, description'),
-            supabase.from('v_units_statuses').select('id, description')
-        ]);
+        return (units || []).map((item: any) => {
+            const clientsIds = Array.isArray(item.clients_ids) ? item.clients_ids : (item.clients_ids ? [item.clients_ids] : []);
+            return {
+                id: item.id.toString(),
+                clientId: clientsIds[0]?.toString() || item.client_id?.toString() || '',
+                clientsIds: clientsIds.map(String),
+                description: item.description,
+                code: item.code,
+                installationCodePowerSupply: item.installation_code_power_supply,
+                addressFull: item.address_full,
+                latitude: item.latitude,
+                longitude: item.longitude,
+                unitTypeParentId: item.unit_type_parent_id?.toString(),
+                unitTypeId: item.unit_type_id?.toString(),
+                typeName: item.unit_type_parent_description,
+                subTypeName: item.unit_type_child_description,
+                systemParentId: item.system_parent_id?.toString(),
+                systemId: item.system_id?.toString(),
+                systemParentName: item.system_parent_description,
+                systemName: item.system_child_description,
+                imgFilePath: item.img_file_path,
+                imgFileName: item.img_file_name,
+                statusId: item.status_id?.toString() || '1',
+                statusName: item.status_description,
+                logoUrl: getPublicImageUrl(item.img_file_path, item.img_file_name, {
+                    width: 400,
+                    height: 400,
+                    resize: 'cover'
+                }),
+                descriptionFull: item.description_full,
+                clientName: item.client_name
+            };
+        }) as Unit[];
+    },
 
-        const typesMap = new Map(unitTypes?.map(t => [t.id, t.description]));
-        const systemsMap = new Map(systems?.map(s => [s.id, s.description]));
-        const statusesMap = new Map(statuses?.map(st => [st.id, st.description]));
+    async searchUnitsByClient(
+        clientId: string,
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<any[]> {
+        const clientScope = normalizeClientScope(scopeClientsIds);
+        if (clientScope !== null && clientScope.length === 0) return [];
 
-        return (units || []).map((item: any) => ({
-            id: item.id.toString(),
-            clientId: item.client_id?.toString() || '',
-            description: item.description,
-            code: item.code,
-            installationCodePowerSupply: item.installation_code_power_supply,
-            addressFull: item.address_full,
-            latitude: item.latitude,
-            longitude: item.longitude,
-            unitTypeParentId: item.unit_type_parent_id?.toString(),
-            unitTypeId: item.unit_type_id?.toString(),
-            typeName: typesMap.get(item.unit_type_parent_id),
-            subTypeName: typesMap.get(item.unit_type_id),
-            systemParentId: item.system_parent_id?.toString(),
-            systemId: item.system_id?.toString(),
-            systemParentName: systemsMap.get(item.system_parent_id),
-            systemName: systemsMap.get(item.system_id),
-            imgFilePath: item.img_file_path,
-            imgFileName: item.img_file_name,
-            statusId: item.status_id?.toString() || '1',
-            statusName: statusesMap.get(item.status_id),
-            logoUrl: getPublicImageUrl(item.img_file_path, item.img_file_name, {
-                width: 400,
-                height: 400,
-                resize: 'cover'
-            }),
-            descriptionFull: item.description_full
-        })) as Unit[];
+        let query = supabase
+            .from('v_units')
+            .select('*')
+            .contains('clients_ids', [Number(clientId)])
+            .eq('is_deleted', false);
+
+        if (clientScope !== null) {
+            query = query.overlaps('clients_ids', clientScope);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+            console.error('Error searching units by client:', error);
+            throw error;
+        }
+
+        return data || [];
     },
 
     async getUnitById(id: string): Promise<Unit | null> {
@@ -109,7 +136,8 @@ export const unitsService = {
 
         const mapped: Unit = {
             id: unitData.id.toString(),
-            clientId: unitData.client_id?.toString(),
+            clientId: unitData.clients_ids?.[0]?.toString() || unitData.client_id?.toString(),
+            clientsIds: Array.isArray(unitData.clients_ids) ? unitData.clients_ids.map(String) : (unitData.clients_ids ? [unitData.clients_ids.toString()] : []),
             clientName: clientRes.data?.name,
             description: unitData.description,
             code: unitData.code,
@@ -138,7 +166,9 @@ export const unitsService = {
 
     async createUnit(unit: Partial<Unit>): Promise<Unit> {
         const dbData = {
-            client_id: parseInt(unit.clientId!),
+            clients_ids: unit.clientsIds && unit.clientsIds.length > 0
+                ? unit.clientsIds.map(id => parseInt(id))
+                : (unit.clientId ? [parseInt(unit.clientId)] : []),
             description: unit.description,
             code: unit.code,
             installation_code_power_supply: unit.installationCodePowerSupply,
@@ -157,7 +187,7 @@ export const unitsService = {
         const { data, error } = await supabase
             .from('units')
             .insert(dbData)
-            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
+            .select('id, clients_ids, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
             .single();
 
         if (error) throw error;
@@ -167,7 +197,11 @@ export const unitsService = {
 
     async updateUnit(id: string, unit: Partial<Unit>): Promise<Unit> {
         const dbData: any = {};
-        if (unit.clientId !== undefined) dbData.client_id = parseInt(unit.clientId);
+        if (unit.clientsIds !== undefined) {
+            dbData.clients_ids = unit.clientsIds.length > 0
+                ? unit.clientsIds.map(id => parseInt(id))
+                : [];
+        }
         if (unit.description !== undefined) dbData.description = unit.description;
         if (unit.code !== undefined) dbData.code = unit.code;
         if (unit.installationCodePowerSupply !== undefined) dbData.installation_code_power_supply = unit.installationCodePowerSupply;
@@ -190,7 +224,7 @@ export const unitsService = {
             .from('units')
             .update(dbData)
             .eq('id', id)
-            .select('id, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
+            .select('id, clients_ids, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
             .single();
 
         if (error) {
@@ -210,13 +244,24 @@ export const unitsService = {
         if (error) throw error;
     },
 
-    async getUnitsWithCoordinates(statusFilter?: 'all' | 'active' | 'inactive'): Promise<any[]> {
+    async getUnitsWithCoordinates(
+        statusFilter?: 'all' | 'active' | 'inactive',
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<any[]> {
+        // Escopo de cliente: lista vazia = sem acesso, não consulta o banco.
+        const clientScope = normalizeClientScope(scopeClientsIds);
+        if (clientScope !== null && clientScope.length === 0) return [];
+
         let query = supabase
-            .from('units')
-            .select('id, description, code, address_full, latitude, longitude, status_id, client_id, system_id, unit_type_id')
-            .eq('is_deleted', 'false')
+            .from('v_units')
+            .select('id, clients_ids, client_id, client_name, description, code, address_full, latitude, longitude, status_id, status_description, system_parent_id, system_parent_description, system_id, system_child_description, unit_type_parent_id, unit_type_parent_description, unit_type_id, unit_type_child_description')
+            .eq('is_deleted', false)
             .not('latitude', 'is', null)
             .not('longitude', 'is', null);
+
+        if (clientScope !== null) {
+            query = query.overlaps('clients_ids', clientScope);
+        }
 
         if (statusFilter === 'active') {
             query = query.eq('status_id', 1);
@@ -282,11 +327,68 @@ export const unitsService = {
             .sort((a: any, b: any) => a.distance - b.distance)
             .slice(0, limit);
     },
-    async getUnits(filter: 'all' | 'active' | 'inactive' = 'active', search: string = ''): Promise<any[]> {
+    async getUnitsForSearch(
+        filter: 'all' | 'active' | 'inactive' = 'active',
+        search: string = '',
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<any[]> {
+        // Escopo de cliente: lista vazia = sem acesso, não consulta o banco.
+        const clientScope = normalizeClientScope(scopeClientsIds);
+        if (clientScope !== null && clientScope.length === 0) return [];
+
+        let query = supabase.from('v_units').select('*').order('description_full');
+
+        if (filter === 'active') query = query.eq('is_available', true);
+        if (filter === 'inactive') query = query.eq('is_available', false);
+
+        if (clientScope !== null) {
+            query = query.overlaps('clients_ids', clientScope);
+        }
+
+        if (search && search.trim().length > 0) {
+            const terms = search.trim().split(/\s+/);
+            terms.forEach(term => {
+                query = query.ilike('description_full', `%${term}%`);
+            });
+        }
+
+        const { data: units, error } = await query;
+        if (error) {
+            console.error('Error fetching units:', error);
+            return [];
+        }
+
+        return (units || []).map((item: any) => ({
+            ...item,
+            typeName: item.unit_type_parent_description,
+            subTypeName: item.unit_type_child_description,
+            systemParentName: item.system_parent_description,
+            systemName: item.system_child_description,
+            statusName: item.status_description,
+            logoUrl: getPublicImageUrl(item.img_file_path, item.img_file_name, {
+                width: 400,
+                height: 400,
+                resize: 'cover'
+            }),
+        }));
+    },
+
+    async getUnits(
+        filter: 'all' | 'active' | 'inactive' = 'active',
+        search: string = '',
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<any[]> {
+        const clientScope = normalizeClientScope(scopeClientsIds);
+        if (clientScope !== null && clientScope.length === 0) return [];
+
         let query = supabase.from('units').select('*').order('description_full');
 
         if (filter === 'active') query = query.eq('is_available', true);
         if (filter === 'inactive') query = query.eq('is_available', false);
+
+        if (clientScope !== null) {
+            query = query.overlaps('clients_ids', clientScope);
+        }
 
         if (search && search.trim().length > 0) {
             const terms = search.trim().split(/\s+/);
@@ -345,9 +447,21 @@ export const unitsService = {
         systemId?: string | string[];
         unitTypeParentId?: string | string[];
         unitTypeId?: string | string[];
+        scopeClientsIds?: Array<string | number> | null;
+        availableOnly?: boolean;
         search?: string;
     }): Promise<any[]> {
-        let query = supabase.from('units').select('*').eq('is_available', true).order('description_full');
+        let query = supabase.from('units').select('id').order('description_full');
+
+        if (filters.availableOnly !== false) {
+            query = query.eq('is_available', true);
+        }
+
+        const clientScope = normalizeClientScope(filters.scopeClientsIds);
+        if (clientScope !== null && clientScope.length === 0) return [];
+        if (clientScope !== null) {
+            query = query.overlaps('clients_ids', clientScope);
+        }
 
         if (filters.systemParentId && (Array.isArray(filters.systemParentId) ? filters.systemParentId.length > 0 : true)) {
             if (Array.isArray(filters.systemParentId)) query = query.in('system_parent_id', filters.systemParentId);
@@ -376,10 +490,10 @@ export const unitsService = {
             });
         }
 
-        const { data, error } = await query;
+        const { data, error } = await query.limit(5000);
         if (error) {
             console.error('Error fetching filtered units:', error);
-            return [];
+            throw error;
         }
         return data || [];
     }

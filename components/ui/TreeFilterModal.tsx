@@ -215,7 +215,7 @@ export const TreeFilterModal: React.FC<{
     // re-renders do componente pai apagam o rascunho do usuário.
     useEffect(() => {
         if (isOpen && !wasOpenRef.current) {
-            setTempValue(Array.isArray(value) ? [...value] : []);
+            setTempValue(Array.isArray(value) && value.length > 0 ? [...value] : options.map(option => option.value));
             setSearch('');
             setConfirming(false);
             setExpandedNodes(collectAllParentValues(buildTree(options)));
@@ -247,17 +247,23 @@ export const TreeFilterModal: React.FC<{
         });
     }, [tree]);
 
+    const allOptionsSelected = options.length > 0 && options.every(option => selectedSet.has(option.value));
+
+    const handleToggleAll = useCallback(() => {
+        setTempValue(allOptionsSelected ? [] : options.map(option => option.value));
+    }, [allOptionsSelected, options]);
+
     const handleConfirm = useCallback(() => {
         if (confirming) return;
         setConfirming(true);
         confirmTimeoutRef.current = window.setTimeout(() => {
             confirmTimeoutRef.current = null;
-            onConfirm(tempValue);
+            onConfirm(allOptionsSelected ? [] : tempValue);
             setConfirming(false);
         }, 450);
-    }, [confirming, tempValue, onConfirm]);
+    }, [confirming, allOptionsSelected, tempValue, onConfirm]);
 
-    // Bloqueia fechamento (Cancelar/X/backdrop) enquanto a animação de confirmação roda.
+    // Bloqueia fechamento pelo X ou backdrop enquanto a confirmação é processada.
     const safeClose = useCallback(() => {
         if (confirming) return;
         onClose();
@@ -277,6 +283,18 @@ export const TreeFilterModal: React.FC<{
                         autoFocus
                     />
                 </div>
+
+                <label className="flex items-center gap-2 px-1 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        aria-label="Selecionar ou desmarcar todas as opções"
+                        checked={allOptionsSelected}
+                        disabled={options.length === 0 || confirming}
+                        onChange={handleToggleAll}
+                        className="h-4 w-4 accent-primary cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    <span>Selecionar todas as opções</span>
+                </label>
 
                 <div className="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-0.5">
                     {visibleRows.length > 0 ? (
@@ -302,13 +320,6 @@ export const TreeFilterModal: React.FC<{
 
                 <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                     <button
-                        onClick={safeClose}
-                        disabled={confirming}
-                        className="flex-1 py-3 items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:disabled:hover:bg-transparent"
-                    >
-                        Cancelar
-                    </button>
-                    <button
                         onClick={handleConfirm}
                         disabled={confirming}
                         className={`flex-1 py-3 rounded-xl font-bold font-['Inter'] shadow-lg transition-all active:scale-95 text-sm cursor-pointer disabled:cursor-not-allowed disabled:active:scale-100 ${
@@ -323,7 +334,7 @@ export const TreeFilterModal: React.FC<{
                                 <span>Confirmado ({tempValue.length})</span>
                             </span>
                         ) : (
-                            `Confirmar (${tempValue.length})`
+                            'CONFIRMAR'
                         )}
                     </button>
                 </div>

@@ -4,6 +4,9 @@ import { dataService } from '../../services/dataService';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { UnitCardListItem } from '../../components/units/UnitCardListItem';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { useClientScope } from '../../hooks/useClientScope';
+import { unitScopeQueryIds } from '../../utils/unitEditScope';
+import { normalizeSystemParentFilterIds, resolveSystemParentFilterIds, systemsScopeOption } from '../../utils/clientScope';
 import { Loading } from '../../components/ui/Loading';
 import { UnitsListPDFButton } from '../../components/reports/UnitsListPDFButton';
 import { FilterSelect } from '../../components/ui/FilterSelect';
@@ -18,6 +21,19 @@ interface SelectedFilters {
     statusId?: string | string[];
 }
 
+const getFilterDisplayValue = (
+    value: string | string[] | undefined,
+    options: { id: string | number }[]
+): string | string[] => {
+    const optionIds = options.map(option => String(option.id));
+    const selectedIds = new Set(
+        Array.isArray(value) ? value.map(String) : value ? [String(value)] : []
+    );
+    const allOptionsSelected = optionIds.length > 0 && optionIds.every(id => selectedIds.has(id));
+
+    return allOptionsSelected ? 'Todos' : (value || []);
+};
+
 interface UnitsSearchProps {
     currentUser: User;
     onSelectUnit?: (unit: Unit & { clientName?: string }) => void;
@@ -27,6 +43,13 @@ interface UnitsSearchProps {
 export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectUnit, onAdd }) => {
     const { canSearch, canCreate } = usePermissions();
     const hasSearchPermission = canSearch('units');
+    // Escopo de cliente: units.clients_ids ∩ cfg_departments.clients_ids do usuário
+    const { clientIds, isAdminSuper, scopeReady, inScope } = useClientScope();
+    const systemsScope = useMemo(() => systemsScopeOption(clientIds), [clientIds]);
+    const scopeClientsIds = useMemo(
+        () => unitScopeQueryIds(isAdminSuper, clientIds),
+        [isAdminSuper, clientIds]
+    );
     // ... hook logic ...
     const [search, setSearch] = useState(() => localStorage.getItem('units_search') || '');
     const [appliedSearch, setAppliedSearch] = useState(search);
@@ -50,6 +73,11 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             return saved ? JSON.parse(saved) : defaultFilters;
         } catch { return defaultFilters; }
     });
+    const [hasStoredSelectedFilters] = useState(() => {
+        try {
+            return sessionStorage.getItem('units_selected_filters') !== null;
+        } catch { return false; }
+    });
 
     const [appliedFilters, setAppliedFilters] = useState<SelectedFilters>(() => {
         try {
@@ -71,6 +99,19 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         unitSubTypes: [],
         statuses: []
     });
+    const visibleSystemIds = useMemo(
+        () => filterOptions.systems.map(system => String(system.id)),
+        [filterOptions.systems]
+    );
+    const systemFilterDisplayValue = getFilterDisplayValue(selectedFilters.systemParentId, filterOptions.systems);
+    const subSystemFilterDisplayValue = getFilterDisplayValue(selectedFilters.systemId, filterOptions.subSystems);
+    const unitTypeFilterDisplayValue = getFilterDisplayValue(selectedFilters.unitTypeParentId, filterOptions.unitTypes);
+    const unitSubTypeFilterDisplayValue = getFilterDisplayValue(selectedFilters.unitTypeId, filterOptions.unitSubTypes);
+    const statusFilterDisplayValue = getFilterDisplayValue(selectedFilters.statusId, filterOptions.statuses);
+    const normalizeSystemSelection = useCallback(
+        (value: unknown) => resolveSystemParentFilterIds(value, visibleSystemIds),
+        [visibleSystemIds]
+    );
 
     const [selectionModal, setSelectionModal] = useState<{
         isOpen: boolean;
@@ -94,28 +135,50 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
     const [unitDistances, setUnitDistances] = useState<Map<string, number>>(new Map());
     const [searchTrigger, setSearchTrigger] = useState(0);
     const [showRadiusModal, setShowRadiusModal] = useState(false);
+    const [showSystemRequiredModal, setShowSystemRequiredModal] = useState(false);
+    const [showStatusRequiredModal, setShowStatusRequiredModal] = useState(false);
 
-    // Load parent options on mount
+    // Load parent options after the user's client scope is resolved.
     useEffect(() => {
+        if (!scopeReady) return;
+
+        let active = true;
         const loadInitialFilterOptions = async () => {
             try {
                 const [systemsParent, unitTypesParent, unitStatuses] = await Promise.all([
-                    dataService.getSystemsParent(),
+                    dataService.getSystemsParent(systemsScope),
                     dataService.getUnitTypesParent(),
                     dataService.getUnitsStatuses()
                 ]);
+                if (!active) return;
+
+                const systems = systemsParent || [];
                 setFilterOptions(prev => ({
                     ...prev,
-                    systems: systemsParent || [],
+                    systems,
                     unitTypes: unitTypesParent || [],
                     statuses: unitStatuses || []
                 }));
+                const visibleIds = systems.map(system => String(system.id));
+                setSelectedFilters(prev => ({
+                    ...prev,
+                    systemParentId: hasStoredSelectedFilters
+                        ? resolveSystemParentFilterIds(prev.systemParentId, visibleIds)
+                        : visibleIds
+                }));
+                setAppliedFilters(prev => {
+                    return {
+                        ...prev,
+                        systemParentId: resolveSystemParentFilterIds(prev.systemParentId, visibleIds)
+                    };
+                });
             } catch (error) {
                 console.error('Error loading initial filter options:', error);
             }
         };
         loadInitialFilterOptions();
-    }, []);
+        return () => { active = false; };
+    }, [scopeReady, systemsScope, hasStoredSelectedFilters]);
 
     // Persist filters to sessionStorage so they survive navigation
     useEffect(() => {
@@ -157,15 +220,14 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
     }, [nearbyEnabled, userLocation, currentUser.latitude, currentUser.longitude]);
 
     const handleSystemParentChange = useCallback(async (systemParentId: string | string[]) => {
-        setSelectedFilters(prev => ({ ...prev, systemParentId, systemId: [] }));
+        const selectedSystemIds = normalizeSystemSelection(systemParentId);
+        setSelectedFilters(prev => ({ ...prev, systemParentId: selectedSystemIds, systemId: [] }));
         
-        const ids = Array.isArray(systemParentId) 
-            ? systemParentId 
-            : (systemParentId ? [systemParentId] : []);
+        const ids = selectedSystemIds;
 
         if (ids.length > 0) {
             try {
-                const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+                const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
                 setFilterOptions(prev => ({ ...prev, subSystems: results.flat() }));
             } catch (err) {
                 console.error('Error loading subSystems:', err);
@@ -173,7 +235,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         } else {
             setFilterOptions(prev => ({ ...prev, subSystems: [] }));
         }
-    }, []);
+    }, [systemsScope, normalizeSystemSelection]);
 
     const handleUnitTypeParentChange = useCallback(async (unitTypeParentId: string | string[]) => {
         setSelectedFilters(prev => ({ ...prev, unitTypeParentId, unitTypeId: [] }));
@@ -196,9 +258,13 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
 
     const openSelectionModal = useCallback((key: keyof SelectedFilters, label: string, options: { value: string; label: string }[]) => {
         const value = selectedFilters[key];
-        const currentValue = Array.isArray(value)
+        const selectedValues = Array.isArray(value)
             ? (value as any[]).map(String)
             : (value !== undefined && value !== null ? [String(value)] : []);
+        const normalizedSelectedValues = key === 'systemParentId'
+            ? resolveSystemParentFilterIds(selectedValues, options.map(option => option.value))
+            : selectedValues;
+        const currentValue = normalizedSelectedValues;
 
         setSelectionModal({
             isOpen: true,
@@ -222,6 +288,19 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
     }, [selectionModal.filterKey, handleSystemParentChange, handleUnitTypeParentChange]);
 
     const handleSearch = () => {
+        if (normalizeSystemParentFilterIds(selectedFilters.systemParentId, visibleSystemIds).length === 0) {
+            setShowSystemRequiredModal(true);
+            return;
+        }
+
+        const selectedStatuses = Array.isArray(selectedFilters.statusId)
+            ? selectedFilters.statusId
+            : selectedFilters.statusId ? [selectedFilters.statusId] : [];
+        if (selectedStatuses.length === 0) {
+            setShowStatusRequiredModal(true);
+            return;
+        }
+
         setAppliedSearch(search);
         setAppliedFilters(selectedFilters);
         setSearchTrigger(prev => prev + 1);
@@ -265,9 +344,12 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             const statusObj = filterOptions.statuses.find(s => s.id?.toString() === rawId?.toString());
             const statusName = statusObj ? statusObj.description : (item.status_description || item.statusName);
 
+            const clientsIds = Array.isArray(item.clients_ids) ? item.clients_ids : (item.clients_ids ? [item.clients_ids] : []);
+
             return {
                 id: (item.id || item.id)?.toString(),
-                clientId: (item.client_id || item.clientId)?.toString() || '',
+                clientId: clientsIds[0]?.toString() || (item.client_id || item.clientId)?.toString() || '',
+                clientsIds: clientsIds.map(String),
                 description: item.description,
                 code: item.code,
                 installationCodePowerSupply: item.installation_code_power_supply || item.installationCodePowerSupply,
@@ -300,6 +382,13 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                 return;
             }
 
+            // Escopo de cliente ainda resolvendo → não consulta "às cegas"
+            // (o efeito roda de novo quando scopeReady virar true).
+            if (!scopeReady) {
+                setLoading(true);
+                return;
+            }
+
             setLoading(true);
             try {
                 // Ensure clients are loaded for name mapping
@@ -326,7 +415,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                         statusParam = 'all';
                     }
 
-                    const dbUnits = await dataService.getUnitsWithCoordinates(statusParam);
+                    const dbUnits = await dataService.getUnitsWithCoordinates(statusParam, scopeClientsIds);
                     const distances = new Map<string, number>();
 
                     dbUnits.forEach((u: any) => {
@@ -348,16 +437,18 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                     const searchNorm = appliedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
                     // 1. Search Units directly (Server-Side)
-                    const textSearchResults = await dataService.searchUnits(appliedSearch);
+                    const textSearchResults = await dataService.searchUnits(appliedSearch, 50, undefined, scopeClientsIds);
 
                     // 2. Search Units by Client Name (Server-Side via getUnitsByClient for matching clients)
+                    // Escopo de cliente: só clientes em cfg_departments.clients_ids do usuário
                     const matchingClients = currentClients.filter(c =>
+                        inScope([c.id]) &&
                         c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(searchNorm)
                     );
 
                     const limitClients = matchingClients.slice(0, 5);
                     const clientUnitsPromises = limitClients.map(client =>
-                        dataService.getUnitsByClient(client.id)
+                        dataService.searchUnitsByClient(client.id, scopeClientsIds)
                     );
 
                     const clientUnitsArrays = await Promise.all(clientUnitsPromises);
@@ -385,7 +476,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                         statusParam = 'all';
                     }
 
-                    const dbUnits = await dataService.getUnits(statusParam);
+                    const dbUnits = await dataService.getUnitsForSearch(statusParam, '', scopeClientsIds);
                     dbUnits.forEach(u => allUnitsMap.set(u.id, mapRawUnit(u)));
                 }
 
@@ -402,7 +493,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             }
         };
         fetchData();
-    }, [appliedSearch, appliedFiltersKey, hasActiveAppliedFilters, nearbyEnabled, userLocation, searchTrigger]);
+    }, [appliedSearch, appliedFiltersKey, hasActiveAppliedFilters, nearbyEnabled, userLocation, searchTrigger, scopeReady, scopeClientsIds]);
 
     // Apply filters client-side and sort alphabetically by description
     const filteredUnits = useMemo(() => {
@@ -597,35 +688,37 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                     </div>
                     <FilterSelect
                         label="SISTEMA"
-                        value={selectedFilters.systemParentId || []}
+                        value={systemFilterDisplayValue}
                         onClick={() => openSelectionModal('systemParentId', 'SISTEMA', filterOptions.systems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                         onClear={() => handleSystemParentChange([])}
+                        required
                     />
                     <FilterSelect
                         label="SUB-SISTEMA"
-                        value={selectedFilters.systemId || []}
+                        value={subSystemFilterDisplayValue}
                         onClick={() => openSelectionModal('systemId', 'SUB-SISTEMA', filterOptions.subSystems.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                         onClear={() => setSelectedFilters(prev => ({ ...prev, systemId: [] }))}
                         disabled={!selectedFilters.systemParentId || (Array.isArray(selectedFilters.systemParentId) && selectedFilters.systemParentId.length === 0)}
                     />
                     <FilterSelect
                         label="TIPO UNIDADE"
-                        value={selectedFilters.unitTypeParentId || []}
+                        value={unitTypeFilterDisplayValue}
                         onClick={() => openSelectionModal('unitTypeParentId', 'TIPO UNIDADE', filterOptions.unitTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                         onClear={() => handleUnitTypeParentChange([])}
                     />
                     <FilterSelect
                         label="SUB-TIPO UNIDADE"
-                        value={selectedFilters.unitTypeId || []}
+                        value={unitSubTypeFilterDisplayValue}
                         onClick={() => openSelectionModal('unitTypeId', 'SUB-TIPO UNIDADE', filterOptions.unitSubTypes.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                         onClear={() => setSelectedFilters(prev => ({ ...prev, unitTypeId: [] }))}
                         disabled={!selectedFilters.unitTypeParentId || (Array.isArray(selectedFilters.unitTypeParentId) && selectedFilters.unitTypeParentId.length === 0)}
                     />
                     <FilterSelect
                         label="SITUAÇÃO"
-                        value={selectedFilters.statusId || []}
+                        value={statusFilterDisplayValue}
                         onClick={() => openSelectionModal('statusId', 'SITUAÇÃO', filterOptions.statuses.map((opt: any) => ({ value: String(opt.id), label: opt.description })))}
                         onClear={() => setSelectedFilters(prev => ({ ...prev, statusId: [] }))}
+                        required
                     />
                 </div>
 
@@ -736,9 +829,32 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                     label={selectionModal.label}
                     options={selectionModal.options}
                     initialValue={selectionModal.currentValue}
+                    showSelectAll={selectionModal.filterKey === 'systemParentId' || selectionModal.filterKey === 'statusId'}
                     onConfirm={handleModalConfirm}
                 />
             </Modal>
+
+            <Modal
+                isOpen={showSystemRequiredModal}
+                onClose={() => setShowSystemRequiredModal(false)}
+                title="Atenção"
+                message="Selecione ao menos um Sistema para realizar a busca."
+                type="warning"
+                confirmLabel="Entendi"
+                onConfirm={() => setShowSystemRequiredModal(false)}
+                hideCancelButton
+            />
+
+            <Modal
+                isOpen={showStatusRequiredModal}
+                onClose={() => setShowStatusRequiredModal(false)}
+                title="Atenção"
+                message="Selecione ao menos uma Situação para realizar a busca."
+                type="warning"
+                confirmLabel="Entendi"
+                onConfirm={() => setShowStatusRequiredModal(false)}
+                hideCancelButton
+            />
 
             {/* Radius Selection Modal */}
             <Modal
@@ -823,8 +939,9 @@ const FilterSelectionContent: React.FC<{
     label: string;
     options: { value: string; label: string }[];
     initialValue: string[];
+    showSelectAll?: boolean;
     onConfirm: (value: string[]) => void;
-}> = ({ label, options, initialValue, onConfirm }) => {
+}> = ({ label, options, initialValue, showSelectAll = false, onConfirm }) => {
     const [selectionSearch, setSelectionSearch] = useState('');
     const [currentValue, setCurrentValue] = useState<string[]>(initialValue);
 
@@ -835,6 +952,7 @@ const FilterSelectionContent: React.FC<{
     }, [options, selectionSearch]);
 
     const selectedSet = useMemo(() => new Set(currentValue), [currentValue]);
+    const allOptionsSelected = options.length > 0 && options.every(option => selectedSet.has(option.value));
 
     const handleToggle = useCallback((value: string) => {
         setCurrentValue(prev =>
@@ -846,16 +964,32 @@ const FilterSelectionContent: React.FC<{
 
     return (
         <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100">
-            <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                <input
-                    type="text"
-                    placeholder={`Pesquisar ${label}...`}
-                    value={selectionSearch}
-                    onChange={(e) => setSelectionSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-                    autoFocus
-                />
+            <div className="flex items-center gap-3">
+                {showSelectAll && (
+                    <label className="flex shrink-0 items-center justify-center cursor-pointer" title="Selecionar ou desmarcar todos">
+                        <input
+                            type="checkbox"
+                            aria-label={`Selecionar ou desmarcar todas as opções de ${label.toLowerCase()}`}
+                            checked={allOptionsSelected}
+                            disabled={options.length === 0}
+                            onChange={() => setCurrentValue(
+                                allOptionsSelected ? [] : options.map(option => option.value)
+                            )}
+                            className="h-5 w-5 accent-primary cursor-pointer disabled:cursor-not-allowed"
+                        />
+                    </label>
+                )}
+                <div className="relative flex-1">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                    <input
+                        type="text"
+                        placeholder={`Pesquisar ${label}...`}
+                        value={selectionSearch}
+                        onChange={(e) => setSelectionSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                        autoFocus
+                    />
+                </div>
             </div>
 
             <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
@@ -879,7 +1013,7 @@ const FilterSelectionContent: React.FC<{
             <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                     onClick={() => onConfirm(currentValue)}
-                    className="w-full py-3.5 bg-primary text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 hover:brightness-110"
+                    className="flex-1 py-3.5 bg-primary text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 hover:brightness-110"
                 >
                     Confirmar Seleção ({currentValue.length})
                 </button>

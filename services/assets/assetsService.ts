@@ -12,12 +12,31 @@ const APPROVED_VISIT_PROCESSING_ID = 5;
 
 export const assetsService = {
     // ── Asset CRUD ───────────────────────────────────────────────
-    async getAssets(filter: 'all' | 'active' | 'inactive' = 'all', search: string = '', unitId?: string, unitAssetTagId?: string): Promise<Asset[]> {
+    async getAssets(
+        filter: 'all' | 'active' | 'inactive' = 'all',
+        search: string = '',
+        unitId?: string,
+        unitAssetTagId?: string,
+        scopeClientsIds?: Array<string | number> | null
+    ): Promise<Asset[]> {
         try {
+            const scopedUnitIds = scopeClientsIds !== undefined
+                ? (await unitsService.getFilteredUnits({
+                    scopeClientsIds,
+                    availableOnly: false
+                })).map((unit: any) => String(unit.id))
+                : null;
+
+            if (scopedUnitIds && scopedUnitIds.length === 0) return [];
+
             let query = supabase
                 .from('v_assets')
                 .select('*')
                 .order('description');
+
+            if (scopedUnitIds) {
+                query = query.in('unit_id', scopedUnitIds);
+            }
 
             if (search && search.trim().length > 0) {
                 const terms = search.trim().split(/\s+/);
@@ -112,6 +131,7 @@ export const assetsService = {
         unitTypeParentId?: string | string[];
         unitTypeId?: string | string[];
         unitId?: string | string[];
+        scopeClientsIds?: Array<string | number> | null;
         tagId?: string | string[];
         tagSubId?: string | string[];
         typeId?: string | string[];
@@ -120,18 +140,22 @@ export const assetsService = {
     }): Promise<Asset[]> {
         try {
             let unitIdsToFilter: string[] | null = null;
-            
-            if (
+            const hasUnitHierarchyFilters = Boolean(
                 (filters.systemParentId && (Array.isArray(filters.systemParentId) ? filters.systemParentId.length > 0 : true)) ||
                 (filters.systemId && (Array.isArray(filters.systemId) ? filters.systemId.length > 0 : true)) ||
                 (filters.unitTypeParentId && (Array.isArray(filters.unitTypeParentId) ? filters.unitTypeParentId.length > 0 : true)) ||
                 (filters.unitTypeId && (Array.isArray(filters.unitTypeId) ? filters.unitTypeId.length > 0 : true))
-            ) {
+            );
+            const hasClientScope = filters.scopeClientsIds !== undefined;
+
+            if (hasUnitHierarchyFilters || hasClientScope) {
                 const units = await unitsService.getFilteredUnits({
                     systemParentId: filters.systemParentId,
                     systemId: filters.systemId,
                     unitTypeParentId: filters.unitTypeParentId,
                     unitTypeId: filters.unitTypeId,
+                    scopeClientsIds: filters.scopeClientsIds,
+                    availableOnly: hasUnitHierarchyFilters,
                 });
                 
                 unitIdsToFilter = units.map(u => u.id.toString());
@@ -156,7 +180,9 @@ export const assetsService = {
             if (filters.unitId && (Array.isArray(filters.unitId) ? filters.unitId.length > 0 : true)) {
                 if (Array.isArray(filters.unitId)) query = query.in('unit_id', filters.unitId);
                 else query = query.eq('unit_id', filters.unitId);
-            } else if (unitIdsToFilter) {
+            }
+
+            if (unitIdsToFilter) {
                 query = query.in('unit_id', unitIdsToFilter);
             }
 

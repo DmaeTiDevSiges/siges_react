@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { System, UnitType } from '../../types';
+import { normalizeClientScope } from '../../utils/clientScope';
 
 // ── Cache TTL para dados de configuração (raramente mudam) ──────────────────
 const TTL_MS = 30 * 60 * 1000; // 30 minutos
@@ -10,7 +11,12 @@ interface CacheEntry<T> {
 }
 
 const cache: {
-    systemsParent?: CacheEntry<System[]>;
+    /**
+     * Cache de `getSystemsParent` **por escopo de cliente**: a chave é o
+     * `clients_ids` normalizado (vazio = sem acesso). Sem a chave, um usuário
+     * enxergaria a lista de sistemas de outro.
+     */
+    systemsParentByScope?: Record<string, CacheEntry<System[]>>;
     unitTypesParent?: CacheEntry<UnitType[]>;
     processingConfigs?: CacheEntry<any[]>;
 } = {};
@@ -56,16 +62,39 @@ export const settingsService = {
     },
 
     // ── Systems ──────────────────────────────────────────────────
-    async getSystemsParent(): Promise<System[]> {
-        if (isFresh(cache.systemsParent)) return cache.systemsParent.data;
+    /**
+     * Sistemas pai (opções do filtro SISTEMA).
+     *
+     * @param scopeClientsIds `cfg_departments.clients_ids` do usuário (Fase 1D
+     *        do escopo por cliente). `undefined`/`null` = sem corte
+     *        (comportamento histórico / super admin); `[]` = sem acesso;
+     *        lista preenchida = apenas sistemas com
+     *        `cfg_systems.clients_ids && scope` (NULL = sem escopo, fica de fora).
+     */
+    async getSystemsParent(scopeClientsIds?: Array<string | number> | null): Promise<System[]> {
+        const scope = normalizeClientScope(scopeClientsIds);
+        const cacheKey = scope === null ? 'all' : scope.join(',');
+        const entries = (cache.systemsParentByScope = cache.systemsParentByScope || {});
 
-        const { data, error } = await supabase
+        if (isFresh(entries[cacheKey])) return entries[cacheKey].data;
+
+        // Escopo vazio = sem acesso: nenhuma opção, sem consulta ao banco.
+        if (scope !== null && scope.length === 0) {
+            entries[cacheKey] = { data: [], expiresAt: Date.now() + TTL_MS };
+            return [];
+        }
+
+        let query = supabase
             .from('cfg_systems')
             .select('*')
             .is('parent_id', null)
             .eq('is_deleted', 'false')
             .eq('is_available', 'true')
             .order('description');
+
+        if (scope !== null) query = query.overlaps('clients_ids', scope);
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Error fetching parent systems:', error);
@@ -80,11 +109,19 @@ export const settingsService = {
             isAvailable: item.is_available
         })) as System[];
 
-        cache.systemsParent = { data: result, expiresAt: Date.now() + TTL_MS };
+        entries[cacheKey] = { data: result, expiresAt: Date.now() + TTL_MS };
         return result;
     },
 
-    async getSystems(parentId?: string): Promise<System[]> {
+    /**
+     * Sub-sistemas (opções do filtro SUB-SISTEMA). Mesmo escopo de
+     * `getSystemsParent` — filhos usam o próprio `clients_ids`.
+     */
+    async getSystems(parentId?: string, scopeClientsIds?: Array<string | number> | null): Promise<System[]> {
+        const scope = normalizeClientScope(scopeClientsIds);
+        // Escopo vazio = sem acesso.
+        if (scope !== null && scope.length === 0) return [];
+
         let query = supabase
             .from('cfg_systems')
             .select('*')
@@ -93,6 +130,7 @@ export const settingsService = {
             .order('description');
 
         if (parentId) query = query.eq('parent_id', parentId);
+        if (scope !== null) query = query.overlaps('clients_ids', scope);
 
         const { data, error } = await query;
 
@@ -140,13 +178,15 @@ export const settingsService = {
     async updateSystem(id: string, data: Partial<System>): Promise<void> {
         const { error } = await supabase.from('cfg_systems').update(data).eq('id', id);
         if (error) throw error;
-        cache.systemsParent = undefined; // Invalida cache após escrita
+        // Invalida cache (todas as chaves de escopo) após escrita
+        cache.systemsParentByScope = undefined;
     },
 
     async createSystem(data: Partial<System>): Promise<void> {
         const { error } = await supabase.from('cfg_systems').insert(data);
         if (error) throw error;
-        cache.systemsParent = undefined; // Invalida cache após escrita
+        // Invalida cache (todas as chaves de escopo) após escrita
+        cache.systemsParentByScope = undefined;
     },
 
     async getSubSystems(systemId?: string): Promise<any[]> {

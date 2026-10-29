@@ -4,6 +4,8 @@ import { formatDateInBrazil } from '../../utils/formatters';
 import { dataService } from '../../services/dataService';
 import { supabase } from '../../services/core/supabase';
 import { useAppNotices } from '../../hooks/useAppNotices';
+import { useClientScope } from '../../hooks/useClientScope';
+import { systemsScopeOption } from '../../utils/clientScope';
 import { pickActivePeriodsAt } from '../../utils/appNoticePeriod';
 import {
     noticeAppliesToUnitSystemParent,
@@ -127,6 +129,11 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 }) => {
     const [selectedSystemId, setSelectedSystemId] = useState<string>(() => localStorage.getItem('siges_dashboard_system_id') || '');
     const [systems, setSystems] = useState<System[]>([]);
+
+    // Escopo de cliente do filtro SISTEMA (Fase 1D): undefined = sem corte
+    // (super admin); lista = clients_ids do departamento do usuário.
+    const { clientIds, scopeReady } = useClientScope();
+    const systemsScope = systemsScopeOption(clientIds);
     const [allData, setAllData] = useState<any[]>([]);
     const [sectorsData, setSectorsData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -416,8 +423,9 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
 
     useEffect(() => {
+        if (!scopeReady) return;
         loadSystems();
-    }, []);
+    }, [scopeReady]);
 
     useEffect(() => {
         if (selectedSystemId) {
@@ -457,7 +465,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     }, [selectedSectorName]);
 
     const loadSystems = async () => {
-        const data = await dataService.getSystemsParent();
+        const data = await dataService.getSystemsParent(systemsScope);
         setSystems(data);
 
         // If we have a persisted ID but it's not in the list, or if we don't have one, default to first
@@ -466,6 +474,10 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             if (!selectedSystemId || !exists) {
                 setSelectedSystemId(data[0].id);
             }
+        } else if (selectedSystemId) {
+            // Sistema persistido fora do escopo do usuário: limpa a seleção para
+            // não carregar dados de um sistema que não está nas opções.
+            setSelectedSystemId('');
         }
     };
 

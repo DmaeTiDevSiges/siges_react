@@ -6,6 +6,8 @@ import { User, OrderFilters, Order } from '../../types';
 import { dataService } from '../../services/dataService';
 import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components/ui/FilterBarResponsive';
 import { toast } from 'sonner';
+import { useClientScope } from '../../hooks/useClientScope';
+import { systemsScopeOption, pruneSystemFilterOutsideOptions } from '../../utils/clientScope';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -638,22 +640,28 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
     }
   }, []);
 
+  // Escopo de cliente do filtro SISTEMA (Fase 1D): undefined = sem corte
+  // (super admin); lista = clients_ids do departamento do usuário.
+  const { clientIds, scopeReady } = useClientScope();
+  const systemsScope = systemsScopeOption(clientIds);
+
   // Load initial filter options and preselect 1 sector if none
   const currentUserId = currentUser?.id;
   const currentUserDepartmentId = currentUser?.departmentId;
 
   useEffect(() => {
+    if (!scopeReady) return;
     const loadOptions = async () => {
       try {
         const results = await Promise.allSettled([
-          dataService.getSystemsParent(),
+          dataService.getSystemsParent(systemsScope),
           dataService.getUnitTypesParent(),
           dataService.getOrdersObjects(),
           dataService.getOrderTypes(),
           dataService.getPlans(),
           currentUserId ? dataService.getManagedContracts(currentUserId.toString()) : dataService.getContracts(),
           dataService.getTeams(undefined, currentUserDepartmentId),
-          dataService.getUnits('active'),
+          dataService.getUnits('active', '', systemsScope),
           dataService.getAssetTags('active'),
           dataService.getOrderCauseReasons(),
           dataService.getMaintenancePlans(),
@@ -695,13 +703,13 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           initialSector = [String(sectors[0].id)];
         }
 
-        const initialFilters: OrderFilters = {
+        const initialFilters: OrderFilters = pruneSystemFilterOutsideOptions({
           ...advancedOrdersFilters,
           contractId: (Array.isArray(advancedOrdersFilters.contractId) && advancedOrdersFilters.contractId.length > 0)
             ? advancedOrdersFilters.contractId
             : defaultContractIds,
           assetTagId: initialSector,
-        };
+        }, getVal(results[0], 'systems').map((s: any) => s.id));
 
         setAdvancedOrdersFilters(initialFilters);
         setAppliedFilters(initialFilters);
@@ -715,7 +723,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
     };
 
     loadOptions();
-  }, [currentUserId, currentUserDepartmentId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentUserId, currentUserDepartmentId, scopeReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist filters
   useEffect(() => {
@@ -728,6 +736,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
 
   // Dynamic filter options recoveries
   useEffect(() => {
+    if (!scopeReady) return;
     const recoverOptions = async () => {
       if (advancedOrdersFilters.unitTypeParentId) {
         const ids = Array.isArray(advancedOrdersFilters.unitTypeParentId)
@@ -743,7 +752,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           ? advancedOrdersFilters.systemParentId
           : [advancedOrdersFilters.systemParentId];
         if (ids.length > 0) {
-          const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+          const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
           setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
         }
       }
@@ -767,13 +776,13 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       }
     };
     recoverOptions();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scopeReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSystemChange = async (systemId: string | string[]) => {
     setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, systemParentId: systemId, systemId: [] }));
     if (systemId && (Array.isArray(systemId) ? systemId.length > 0 : true)) {
       const ids = Array.isArray(systemId) ? systemId : [systemId];
-      const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+      const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
       setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
     } else {
       setFilterOptions((prev: any) => ({ ...prev, subSystems: [] }));

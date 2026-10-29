@@ -329,7 +329,7 @@ export const SettingsRouter: React.FC<SettingsRouterProps> = ({ currentScreen, o
         : null;
     case 'client-unit-form':
     case 'client-unit-edit': {
-      const effectiveClientId = selectedClient?.id || selectedUnit?.clientId;
+      const effectiveClientId = selectedClient?.id || selectedUnit?.clientsIds?.[0];
       if (!effectiveClientId && currentScreen === 'client-unit-form') return null;
       return (
         <UnitForm

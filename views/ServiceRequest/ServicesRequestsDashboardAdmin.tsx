@@ -4,6 +4,10 @@ import { dataService } from '../../services/dataService';
 import { getDashboardRefreshRequestedAt } from '../../services/core/dashboardRefresh';
 import { toast } from 'sonner';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { useClientScope } from '../../hooks/useClientScope';
+import { pruneSystemFilterOutsideOptions, systemsScopeOption } from '../../utils/clientScope';
+import { filterOrdersBySystem } from '../../utils/orderSystemFilter';
+import { scheduleIdleTask } from '../../utils/scheduleIdleTask';
 import { Select } from '../../components/ui/Select';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { IconButton } from '../../components/ui/IconButton';
@@ -69,6 +73,13 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     const ssSectorScroll = useDraggableScroll();
 
     const { canCreate, canView } = usePermissions();
+
+    // O escopo de clientes do departamento também se aplica ao super admin.
+    // scopeReady impede carregar opções antes de resolver o departamento.
+    const { clientIds, scopeReady } = useClientScope();
+    const systemsScope = systemsScopeOption(clientIds);
+    const systemsScopeKey = systemsScope.join(',');
+    const [loadedSystemsScope, setLoadedSystemsScope] = useState<string | null>(null);
 
     const filterBarRef = useRef<FilterBarResponsiveHandle>(null);
     const visitsFilterBarRef = useRef<FilterBarResponsiveHandle>(null);
@@ -324,6 +335,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             teams: [] as any[]
         };
     });
+    const scopedSystemOptions = loadedSystemsScope === systemsScopeKey ? filterOptions.systems : [];
+    const scopedFilterOptions = { ...filterOptions, systems: scopedSystemOptions };
 
     // Create SS State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -393,25 +406,27 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     // Persist Data State (Moved here to ensure all state vars are declared)
     useEffect(() => {
-        try {
-            localStorage.setItem('cachedRecentRequests_v4', JSON.stringify(recentRequests));
-            localStorage.setItem('cachedCurrentPage_v2', String(currentPage));
-            localStorage.setItem('cachedHasMore_v2', String(hasMore));
-            localStorage.setItem('cachedTotalOrders_v2', String(totalOrders));
-            localStorage.setItem('ssdash_cachedUnscheduledSS_v2', JSON.stringify(unscheduledSS));
-            localStorage.setItem('ssdash_cachedOpenOS_v2', JSON.stringify(openOS));
-            localStorage.setItem('ssdash_cachedOsAssetTagId', JSON.stringify(osAssetTagId));
-            localStorage.setItem('ssdash_cachedCompletedOS_v2', JSON.stringify(completedOS));
-            localStorage.setItem('ssdash_cachedCanceledOS_v2', JSON.stringify(canceledOS));
-            localStorage.setItem('cachedTeams', JSON.stringify(teams));
-            localStorage.setItem('cachedUsers', JSON.stringify(users));
-            localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
-            localStorage.setItem('cachedUnitSubTypes', JSON.stringify(unitSubTypes));
-            localStorage.setItem('cachedOrderSubTypes', JSON.stringify(orderSubTypes));
-            localStorage.setItem('cachedAssetTagSubs', JSON.stringify(assetTagSubs));
-        } catch (e) {
-            console.error('💾 Dashboard: Erro ao salvar cache no localStorage', e);
-        }
+        return scheduleIdleTask(() => {
+            try {
+                localStorage.setItem('cachedRecentRequests_v4', JSON.stringify(recentRequests));
+                localStorage.setItem('cachedCurrentPage_v2', String(currentPage));
+                localStorage.setItem('cachedHasMore_v2', String(hasMore));
+                localStorage.setItem('cachedTotalOrders_v2', String(totalOrders));
+                localStorage.setItem('ssdash_cachedUnscheduledSS_v2', JSON.stringify(unscheduledSS));
+                localStorage.setItem('ssdash_cachedOpenOS_v2', JSON.stringify(openOS));
+                localStorage.setItem('ssdash_cachedOsAssetTagId', JSON.stringify(osAssetTagId));
+                localStorage.setItem('ssdash_cachedCompletedOS_v2', JSON.stringify(completedOS));
+                localStorage.setItem('ssdash_cachedCanceledOS_v2', JSON.stringify(canceledOS));
+                localStorage.setItem('cachedTeams', JSON.stringify(teams));
+                localStorage.setItem('cachedUsers', JSON.stringify(users));
+                localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
+                localStorage.setItem('cachedUnitSubTypes', JSON.stringify(unitSubTypes));
+                localStorage.setItem('cachedOrderSubTypes', JSON.stringify(orderSubTypes));
+                localStorage.setItem('cachedAssetTagSubs', JSON.stringify(assetTagSubs));
+            } catch (e) {
+                console.error('💾 Dashboard: Erro ao salvar cache no localStorage', e);
+            }
+        });
     }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, completedOS, canceledOS, teams, users, filterOptions, unitSubTypes, orderSubTypes, assetTagSubs]);
 
     const [isPendingCompleted, startCompletedTransition] = useTransition();
@@ -640,6 +655,13 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     }, [recentRequests, selectedStatusId, selectedPeriod]);
 
     // Client-side filter for the unscheduled SS carousel by selected sector (assetTagId)
+    const systemFilteredUnscheduledSS = React.useMemo(
+        () => filterOrdersBySystem(unscheduledSS, appliedFilters, {
+            allowedSystemParentIds: scopedSystemOptions.map((system: any) => system.id),
+            allowedClientIds: clientIds,
+        }),
+        [unscheduledSS, appliedFilters.systemParentId, appliedFilters.systemId, scopedSystemOptions, clientIds]
+    );
     const displayedUnscheduledSS = React.useMemo(() => {
         const activeAssetTagIds = ssAssetTagId.length > 0
             ? ssAssetTagId
@@ -648,12 +670,16 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                     ? appliedFilters.assetTagId.filter(v => v != null && String(v) !== '')
                     : [appliedFilters.assetTagId]
                 : [];
-        if (activeAssetTagIds.length === 0) return unscheduledSS;
-        return unscheduledSS.filter(ss =>
+        if (activeAssetTagIds.length === 0) return systemFilteredUnscheduledSS;
+        return systemFilteredUnscheduledSS.filter(ss =>
             ss.assetTagId != null && activeAssetTagIds.includes(ss.assetTagId.toString())
         );
-    }, [unscheduledSS, ssAssetTagId, appliedFilters.assetTagId]);
+    }, [systemFilteredUnscheduledSS, ssAssetTagId, appliedFilters.assetTagId]);
 
+    const systemFilteredOpenOS = React.useMemo(
+        () => filterOrdersBySystem(openOS, appliedFilters),
+        [openOS, appliedFilters.systemParentId, appliedFilters.systemId]
+    );
     const displayedOpenOS = React.useMemo(() => {
         const activeAssetTagIds = osAssetTagId.length > 0
             ? osAssetTagId
@@ -662,11 +688,11 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                     ? appliedFilters.assetTagId.filter(v => v != null && String(v) !== '')
                     : [appliedFilters.assetTagId]
                 : [];
-        if (activeAssetTagIds.length === 0) return openOS;
-        return openOS.filter(os =>
+        if (activeAssetTagIds.length === 0) return systemFilteredOpenOS;
+        return systemFilteredOpenOS.filter(os =>
             os.assetTagId != null && activeAssetTagIds.includes(os.assetTagId.toString())
         );
-    }, [openOS, osAssetTagId, appliedFilters.assetTagId]);
+    }, [systemFilteredOpenOS, osAssetTagId, appliedFilters.assetTagId]);
 
     // Effective filters for reports - combining persisted filters with interactive dashboard filters
     const effectiveFilters = React.useMemo(() => {
@@ -732,9 +758,13 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         };
     }, [appliedFilters, dateRange]);
 
+    const systemFilteredCompletedOS = React.useMemo(
+        () => filterOrdersBySystem(completedOS.data, appliedFilters),
+        [completedOS.data, appliedFilters.systemParentId, appliedFilters.systemId]
+    );
     const completedSectorCounts = React.useMemo(() => {
         const map: Record<string, { id: string; label: string; count: number }> = {};
-        completedOS.data.forEach((o: any) => {
+        systemFilteredCompletedOS.forEach((o: any) => {
             const id = o.assetTagId ? o.assetTagId.toString() : 'null';
             const label = o.assetTagDescription || 'Sem Setor';
             if (!map[id]) {
@@ -743,15 +773,15 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             map[id].count += 1;
         });
         return Object.values(map).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
-    }, [completedOS.data]);
+    }, [systemFilteredCompletedOS]);
 
     const displayedCompletedOS = React.useMemo(() => {
-        if (completedAssetTagId.length === 0) return completedOS.data;
-        return completedOS.data.filter((o: any) => {
+        if (completedAssetTagId.length === 0) return systemFilteredCompletedOS;
+        return systemFilteredCompletedOS.filter((o: any) => {
             const id = o.assetTagId ? o.assetTagId.toString() : 'null';
             return completedAssetTagId.includes(id);
         });
-    }, [completedOS.data, completedAssetTagId]);
+    }, [systemFilteredCompletedOS, completedAssetTagId]);
 
     const canceledOSEffectiveFilters = React.useMemo(() => {
         return {
@@ -772,9 +802,13 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         };
     }, [appliedFilters, dateRange]);
 
+    const systemFilteredCanceledOS = React.useMemo(
+        () => filterOrdersBySystem(canceledOS.data, appliedFilters),
+        [canceledOS.data, appliedFilters.systemParentId, appliedFilters.systemId]
+    );
     const canceledSectorCounts = React.useMemo(() => {
         const map: Record<string, { id: string; label: string; count: number }> = {};
-        canceledOS.data.forEach((o: any) => {
+        systemFilteredCanceledOS.forEach((o: any) => {
             const id = o.assetTagId ? o.assetTagId.toString() : 'null';
             const label = o.assetTagDescription || 'Sem Setor';
             if (!map[id]) {
@@ -783,15 +817,15 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             map[id].count += 1;
         });
         return Object.values(map).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
-    }, [canceledOS.data]);
+    }, [systemFilteredCanceledOS]);
 
     const displayedCanceledOS = React.useMemo(() => {
-        if (canceledAssetTagId.length === 0) return canceledOS.data;
-        return canceledOS.data.filter((o: any) => {
+        if (canceledAssetTagId.length === 0) return systemFilteredCanceledOS;
+        return systemFilteredCanceledOS.filter((o: any) => {
             const id = o.assetTagId ? o.assetTagId.toString() : 'null';
             return canceledAssetTagId.includes(id);
         });
-    }, [canceledOS.data, canceledAssetTagId]);
+    }, [systemFilteredCanceledOS, canceledAssetTagId]);
 
     const fetchData = useCallback(async (
         loadMore: boolean = false,
@@ -990,18 +1024,18 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length, dateRange]);
 
     useEffect(() => {
-        if (!shouldInitialLoad) return;
+        if (!scopeReady) return;
         const loadOptions = async () => {
             try {
                 const results = await Promise.allSettled([
-                    dataService.getSystemsParent(),
+                    dataService.getSystemsParent(systemsScope),
                     dataService.getUnitTypesParent(),
                     dataService.getOrdersObjects(),
                     dataService.getOrderTypes(),
                     dataService.getPlans(),
                     currentUser ? dataService.getManagedContracts(currentUser.id.toString()) : dataService.getContracts(),
                     dataService.getTeams(undefined, currentUser?.departmentId),
-                    dataService.getUnits('active'),
+                    dataService.getUnits('active', '', systemsScope),
                     dataService.getAssetTags('active')
                 ]);
 
@@ -1014,10 +1048,11 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 };
 
                 const contracts = getVal(results[5], 'contracts');
+                const systems = getVal(results[0], 'systems');
 
                 setFilterOptions((prev: any) => ({
                     ...prev,
-                    systems: getVal(results[0], 'systems'),
+                    systems,
                     unitTypes: getVal(results[1], 'unitTypes'),
                     orderObjects: getVal(results[2], 'orderObjects'),
                     orderTypes: getVal(results[3], 'orderTypes'),
@@ -1027,6 +1062,15 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                     units: getVal(results[7], 'units'),
                     sectors: getVal(results[8], 'sectors')
                 }));
+                setLoadedSystemsScope(systemsScopeKey);
+
+                const visibleSystemIds = systems.map((system: any) => system.id);
+                setAdvancedOrdersFilters((prev: OrderFilters) =>
+                    pruneSystemFilterOutsideOptions(prev, visibleSystemIds)
+                );
+                setAppliedFilters((prev: OrderFilters) =>
+                    pruneSystemFilterOutsideOptions(prev, visibleSystemIds)
+                );
 
                 // Pré-selecionar todos os contratos gerenciados se o usuário não definiu nenhum
                 if (contracts.length > 0) {
@@ -1056,7 +1100,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         };
         loadOptions();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shouldInitialLoad]);
+    }, [scopeReady, clientIds]);
 
     useEffect(() => {
         // 1. Refresh dashboard event
@@ -1072,6 +1116,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         const debouncedRefreshSecondary = () => {
             if (refreshTimeout) clearTimeout(refreshTimeout);
             refreshTimeout = setTimeout(async () => {
+                fetchDataRef.current(false, false);
                 try {
                     dataService.clearMetadataCache();
                     const usersData = await dataService.getUsers();
@@ -1086,13 +1131,11 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
         // 2. Realtime subscription for orders
         const subscription = dataService.subscribeToOrders(() => {
-            fetchDataRef.current(false, false);
             debouncedRefreshSecondary();
         });
 
         // 3. Realtime subscription for visits
         const visitSubscription = dataService.subscribeToVisits(() => {
-            fetchDataRef.current(false, false);
             debouncedRefreshSecondary();
         });
 
@@ -1144,7 +1187,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     // Recover unitSubTypes if unitTypeParentId exists on mount (first entry only; cached later)
     useEffect(() => {
-        if (!shouldInitialLoad) return;
+        if (!scopeReady) return;
         const recoverOptions = async () => {
             if (advancedOrdersFilters.unitTypeParentId) {
                 const ids = Array.isArray(advancedOrdersFilters.unitTypeParentId)
@@ -1160,7 +1203,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                     ? advancedOrdersFilters.systemParentId
                     : [advancedOrdersFilters.systemParentId];
                 if (ids.length > 0) {
-                    const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+                    const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
                     setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
                 }
             }
@@ -1176,7 +1219,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         };
         recoverOptions();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shouldInitialLoad]);
+    }, [scopeReady, clientIds]);
 
     const sentinelRef = React.useRef<HTMLDivElement>(null);
     const fetchDataRef = React.useRef(fetchData);
@@ -1202,7 +1245,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, systemParentId: systemId, systemId: [] }));
         if (systemId && (Array.isArray(systemId) ? systemId.length > 0 : true)) {
             const ids = Array.isArray(systemId) ? systemId : [systemId];
-            const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+            const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
             setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
         } else {
             setFilterOptions((prev: any) => ({ ...prev, subSystems: [] }));
@@ -1317,8 +1360,9 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                     ref={filterBarRef}
                                     advancedFilters={advancedOrdersFilters}
                                     setAdvancedFilters={setAdvancedOrdersFilters}
-                                    filterSelectOptions={filterOptions}
+                                    filterSelectOptions={scopedFilterOptions}
                                     handleSystemChange={handleSystemChange}
+                                    onClearSystem={() => handleSystemChange(scopedSystemOptions.map((system: any) => String(system.id)))}
                                     handleParentUnitTypeChange={handleParentUnitTypeChange}
                                     handleOrderTypeChange={handleOrderTypeChange}
                                     handleSectorChange={handleAssetTagChange}
@@ -1580,7 +1624,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         onTouchStart={unscheduledSSScroll.onTouchStart}
                                         onClickCapture={unscheduledSSScroll.onClickCapture}>
                                         {displayedUnscheduledSS.map((ss) => (
-                                            <div key={ss.id} className="min-w-[352px] max-w-[352px] shrink-0 h-auto">
+                                            <div key={ss.id} className="min-w-[352px] max-w-[352px] shrink-0 h-auto" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 420px' }}>
                                                 <ServiceRequestCardListItem
                                                     order={ss}
                                                     onClick={() => onSelectOrder?.(ss)}
@@ -1734,7 +1778,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         onClickCapture={openOSCarouselScroll.onClickCapture}
                                     >
                                         {displayedOpenOS.map((os) => (
-                                            <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                            <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 420px' }}>
                                                 <ServiceRequestCardListItem
                                                     order={os}
                                                     onClick={() => onSelectOrder?.(os)}
@@ -1827,7 +1871,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                             onClickCapture={completedOSCardsScroll.onClickCapture}
                                         >
                                             {displayedCompletedOS.map((os) => (
-                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 420px' }}>
                                                     <ServiceRequestCardListItem
                                                         order={os}
                                                         onClick={() => onSelectOrder?.(os)}
@@ -1919,7 +1963,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                             onClickCapture={canceledOSCardsScroll.onClickCapture}
                                         >
                                             {displayedCanceledOS.map((os) => (
-                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]">
+                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 420px' }}>
                                                     <ServiceRequestCardListItem
                                                         order={os}
                                                         onClick={() => onSelectOrder?.(os)}

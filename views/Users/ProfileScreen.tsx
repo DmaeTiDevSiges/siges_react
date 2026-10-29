@@ -9,6 +9,7 @@ import { dataService } from '../../services/dataService';
 import { toolsService } from '../../services/tools/toolsService';
 import { User, Profile, Permission, Vehicle, Company, Team, UserStatus as OrganizationStatus, UserTool, LeaderMonthlyScore, LeaderScoreBadge } from '../../types';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 import { FaceDetectionCamera } from '../../components/ui/FaceDetectionCamera';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../components/ui/UserAvatar';
 import { ButtonSave } from '../../components/ui/ButtonSave';
@@ -92,6 +93,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [isAdmin, setIsAdmin] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
     const [teamMembers, setTeamMembers] = useState<User[]>([]);
+    const [memberToRemove, setMemberToRemove] = useState<User | null>(null);
+    const [isRemovingMember, setIsRemovingMember] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState<string | undefined>(initialUser?.avatarUrl || user?.avatarUrl);
     const [showCamera, setShowCamera] = useState(false);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -634,16 +637,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
         }
     };
 
-    const handleRemoveMember = async (targetUser: User) => {
-        if (!user?.teamId || !targetUser.uuid) return;
-        if (!window.confirm(`Remover ${targetUser.nameShort || targetUser.nameFull} da equipe?`)) return;
+    const handleRemoveMember = async () => {
+        if (!user?.teamId || !memberToRemove?.uuid) return;
 
         try {
-            await dataService.removeUserFromTeam(targetUser.uuid);
+            setIsRemovingMember(true);
+            await dataService.removeUserFromTeam(memberToRemove.uuid);
 
-            // Refresh logic
             const updatedMembers = await dataService.getTeamMembers(user.teamId);
-            setTeamMembers(updatedMembers.filter(m => m.uuid !== user.uuid));
+            setTeamMembers(updatedMembers.filter(m =>
+                m.uuid !== user.uuid && m.uuid !== memberToRemove.uuid
+            ));
+            setMemberToRemove(null);
 
             setModal({
                 isOpen: true,
@@ -653,12 +658,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             });
         } catch (error) {
             console.error("Error removing member", error);
+            setMemberToRemove(null);
             setModal({
                 isOpen: true,
                 title: 'Erro',
                 message: 'Não foi possível remover o membro.',
                 type: 'error'
             });
+        } finally {
+            setIsRemovingMember(false);
         }
     };
 
@@ -1162,7 +1170,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                                         <div className="font-medium text-slate-900 dark:text-white">{member.nameShort || member.nameFull}</div>
                                                                     </div>
                                                                 </div>
-                                                                <button onClick={() => handleRemoveMember(member)} className="w-8 h-8 flex items-center justify-center rounded-full border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Remover da equipe">
+                                                                <button onClick={() => setMemberToRemove(member)} className="w-8 h-8 flex items-center justify-center rounded-full border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Remover da equipe">
                                                                     <span className="material-symbols-outlined text-[18px]">delete</span>
                                                                 </button>
                                                             </div>
@@ -1553,6 +1561,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 title={modal.title}
                 message={modal.message}
                 type={modal.type}
+            />
+
+            <ConfirmDeleteModal
+                isOpen={!!memberToRemove}
+                onClose={() => setMemberToRemove(null)}
+                onConfirm={handleRemoveMember}
+                title="Remover integrante da equipe"
+                description={`Deseja realmente remover ${memberToRemove?.nameShort || memberToRemove?.nameFull || 'este integrante'} da equipe?`}
+                confirmText="REMOVER"
+                isLoading={isRemovingMember}
             />
 
             {/* Confirm Logout with Active Visit Modal */}

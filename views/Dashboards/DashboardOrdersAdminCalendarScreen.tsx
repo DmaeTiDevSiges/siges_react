@@ -11,7 +11,10 @@ import { getInitials, formatCurrency } from '../../utils/formatters';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { FilterSelect } from '../../components/ui/FilterSelect';
 import { TreeFilterSelect } from '../../components/ui/TreeFilterSelect';
+import { getFilterSelectionValue } from '../../components/ui/FilterSelectionContent';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
+import { useClientScope } from '../../hooks/useClientScope';
+import { systemsScopeOption, pruneSystemFilterOutsideOptions } from '../../utils/clientScope';
 import { OrderFilters } from '../../types';
 
 interface DashboardOrdersAdminCalendarScreenProps {
@@ -516,7 +519,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
         setAdvancedFilters((prev: OrderFilters) => ({ ...prev, systemParentId: systemId, systemId: [] }));
         if (systemId && (Array.isArray(systemId) ? systemId.length > 0 : true)) {
             const ids = Array.isArray(systemId) ? systemId : [systemId];
-            const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+            const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
             setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
         } else {
             setFilterOptions((prev: any) => ({ ...prev, subSystems: [] }));
@@ -552,9 +555,10 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
 
     const openSelectionModal = (key: keyof OrderFilters, label: string, options: { value: string; label: string }[]) => {
         const value = advancedFilters[key];
-        const currentValue = Array.isArray(value)
+        const selectedValues = Array.isArray(value)
             ? (value as any[]).map(String)
             : (value !== undefined && value !== null ? [String(value)] : []);
+        const currentValue = getFilterSelectionValue(options, selectedValues);
         setSelectionModal({
             isOpen: true,
             filterKey: key,
@@ -718,8 +722,14 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
         setHasOsFilters(active);
     }, [appliedFilters]);
 
+    // Escopo de cliente do filtro SISTEMA (Fase 1D): undefined = sem corte
+    // (super admin); lista = clients_ids do departamento do usuário.
+    const { clientIds, scopeReady } = useClientScope();
+    const systemsScope = systemsScopeOption(clientIds);
+
     // Recover options on mount
     useEffect(() => {
+        if (!scopeReady) return;
         const recoverOptions = async () => {
             if (advancedFilters.unitTypeParentId) {
                 const ids = Array.isArray(advancedFilters.unitTypeParentId)
@@ -735,7 +745,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                     ? advancedFilters.systemParentId
                     : [advancedFilters.systemParentId];
                 if (ids.length > 0) {
-                    const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+                    const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
                     setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
                 }
             }
@@ -750,21 +760,22 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
             }
         };
         recoverOptions();
-    }, []);
+    }, [scopeReady]);
 
     // Load filter options
     useEffect(() => {
+        if (!scopeReady) return;
         const loadOptions = async () => {
             try {
                 const results = await Promise.allSettled([
-                    dataService.getSystemsParent(),
+                    dataService.getSystemsParent(systemsScope),
                     dataService.getUnitTypesParent(),
                     dataService.getOrdersObjects(),
                     dataService.getOrderTypes(),
                     dataService.getPlans(),
                     currentUser ? dataService.getManagedContracts(currentUser.id.toString()) : dataService.getContracts(),
                     dataService.getTeams(undefined, currentUser?.departmentId),
-                    dataService.getUnits('active'),
+                    dataService.getUnits('active', '', systemsScope),
                     dataService.getAssetTags('active'),
                     dataService.getAssetTagSubs(undefined, 'active')
                 ]);
@@ -793,6 +804,12 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                     positions: getVal(results[9], 'positions')
                 }));
 
+                // Filtro SISTEMA persistido que ficou fora do escopo do usuário:
+                // limpa a seleção para não filtrar por um sistema invisível.
+                const visibleSystemIds = getVal(results[0], 'systems').map((s: any) => s.id);
+                setAdvancedFilters((prev: OrderFilters) => pruneSystemFilterOutsideOptions(prev, visibleSystemIds));
+                setAppliedFilters((prev: OrderFilters) => pruneSystemFilterOutsideOptions(prev, visibleSystemIds));
+
                 if (contracts.length > 0) {
                     const defaultContractIds = contracts.map((c: any) => String(c.id));
                     setAdvancedFilters((prev: OrderFilters) => {
@@ -811,7 +828,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
             }
         };
         loadOptions();
-    }, [currentUser]);
+    }, [currentUser, scopeReady]);
 
     const assetTagSubOptions = useMemo(() => {
         const allPositions = filterOptions.positions || [];
@@ -1564,16 +1581,26 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
 
                     <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                         <button
+                            onClick={() => setSelectionModal((prev: any) => ({ ...prev, currentValue: [] }))}
+                            className="flex-1 py-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm cursor-pointer active:scale-95"
+                        >
+                            LIMPAR
+                        </button>
+                        <button
                             onClick={() => setSelectionModal((prev: any) => ({ ...prev, isOpen: false }))}
                             className="flex-1 py-3 items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm cursor-pointer"
                         >
                             Cancelar
                         </button>
                         <button
-                            onClick={() => handleModalConfirm(selectionModal.currentValue)}
+                            onClick={() => {
+                                const allOptionsSelected = selectionModal.options.length > 0
+                                    && selectionModal.options.every((option: any) => selectionModal.currentValue.includes(option.value));
+                                handleModalConfirm(allOptionsSelected ? [] : selectionModal.currentValue);
+                            }}
                             className="flex-1 py-3 bg-primary text-white rounded-xl font-bold font-['Inter'] shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 text-sm cursor-pointer"
                         >
-                            Confirmar ({selectionModal.currentValue.length})
+                            CONFIRMAR
                         </button>
                     </div>
                 </div>

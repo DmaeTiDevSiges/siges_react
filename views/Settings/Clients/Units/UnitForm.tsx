@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
+import { useUnitEditScope } from '../../../../hooks/useUnitEditScope';
 import { ImageUploadSheet } from '../../../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../../../components/ui/ImageEditorModal';
 
@@ -35,9 +36,12 @@ export const UnitForm: React.FC<UnitFormProps> = ({
     onSave,
     onCancel
 }) => {
-    const { canCreate, canEdit } = usePermissions();
+    const { canCreate } = usePermissions();
+    const { canEditUnit } = useUnitEditScope();
     const isEdit = !!initialUnit?.id;
-    const hasPermission = isEdit ? canEdit('units') : canCreate('units');
+    // Editar exige a rota units/edit + escopo de cliente (isAdminSuper ou
+    // clients do usuário em units.clients_ids); criar mantém canCreate('units').
+    const hasPermission = isEdit ? canEditUnit(initialUnit?.clientsIds) : canCreate('units');
 
     const [isSaving, setIsSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -115,7 +119,9 @@ export const UnitForm: React.FC<UnitFormProps> = ({
         unitTypeParentId: initialUnit?.unitTypeParentId || '',
         unitTypeId: initialUnit?.unitTypeId || '',
         statusId: initialUnit?.statusId || '1', // Default to '1' (Ativo)
-        clientId: initialUnit?.clientId || clientId
+        clientsIds: initialUnit?.clientsIds && initialUnit.clientsIds.length > 0
+            ? initialUnit.clientsIds
+            : (initialUnit?.clientId || clientId ? [initialUnit?.clientId || clientId] : []),
     });
 
     useEffect(() => {
@@ -408,8 +414,8 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                 {/* Client Selection - PRIMEIRO CAMPO */}
                 <Select
                     label="Cliente"
-                    value={form.clientId}
-                    onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+                    value={form.clientsIds[0] || ''}
+                    onChange={(e) => setForm({ ...form, clientsIds: e.target.value ? [e.target.value] : [] })}
                     required
                 >
                     <option value="">Selecione um cliente</option>

@@ -4,6 +4,8 @@ import { dataService } from '../../services/dataService';
 import { getDashboardRefreshRequestedAt } from '../../services/core/dashboardRefresh';
 import { toast } from 'sonner';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { useClientScope } from '../../hooks/useClientScope';
+import { systemsScopeOption } from '../../utils/clientScope';
 import { Select } from '../../components/ui/Select';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { IconButton } from '../../components/ui/IconButton';
@@ -29,6 +31,24 @@ let osDashboardSessionLoaded = false;
 // Última carga deste dashboard — comparado com o carimbo de invalidação
 // (ex: cancelamento feito na tela de detalhe) para forçar refetch no retorno.
 let osDashboardLastLoadedAt = 0;
+const PROVIDER_HIDDEN_FILTERS = [
+    'systemParentId', 'systemId',
+    'unitTypeParentId', 'unitTypeId',
+    'orderObjectId', 'causeReasonId', 'orderPlanId',
+    'orderTeamId', 'responsibleTeamId',
+];
+const clearProviderHiddenFilters = (filters: OrderFilters): OrderFilters => ({
+    ...filters,
+    systemParentId: [],
+    systemId: [],
+    unitTypeParentId: [],
+    unitTypeId: [],
+    orderObjectId: [],
+    causeReasonId: [],
+    orderPlanId: [],
+    orderTeamId: [],
+    responsibleTeamId: [],
+});
 
 interface OrdersRequestsPeriodDashboardAdminProps {
     currentUser: User | null;
@@ -79,6 +99,18 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
     const ssSectorScroll = useDraggableScroll();
 
     const { canCreate, canView } = usePermissions();
+
+    // Escopo de cliente do filtro SISTEMA (Fase 1D): undefined = sem corte
+    // (super admin); lista = clients_ids do departamento. scopeReady trava as
+    // cargas de opções até o escopo estar resolvido.
+    const { clientIds, scopeReady } = useClientScope();
+    const systemsScope = systemsScopeOption(clientIds);
+
+    useEffect(() => {
+        if (!isProviderMode) return;
+        setAdvancedOrdersFilters(clearProviderHiddenFilters);
+        setAppliedFilters(clearProviderHiddenFilters);
+    }, [isProviderMode]);
 
     const filterBarRef = useRef<FilterBarResponsiveHandle>(null);
     const visitsFilterBarRef = useRef<FilterBarResponsiveHandle>(null);
@@ -205,7 +237,8 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
     const [advancedOrdersFilters, setAdvancedOrdersFilters] = useState<OrderFilters>(() => {
         try {
             const saved = localStorage.getItem('advancedOrdersFilters');
-            return saved ? JSON.parse(saved) : {};
+            const filters = saved ? JSON.parse(saved) : {};
+            return isProviderMode ? clearProviderHiddenFilters(filters) : filters;
         } catch (e) { return {}; }
     });
 
@@ -213,7 +246,8 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
     const [appliedFilters, setAppliedFilters] = useState<OrderFilters>(() => {
         try {
             const saved = localStorage.getItem('appliedOrdersFilters');
-            return saved ? JSON.parse(saved) : {};
+            const filters = saved ? JSON.parse(saved) : {};
+            return isProviderMode ? clearProviderHiddenFilters(filters) : filters;
         } catch (e) { return {}; }
     });
 
@@ -850,18 +884,18 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
     }, [searchQuery, appliedFilters, selectedStatusId, hasAppliedFilters, recentRequests.length, providerCompanyId, dateRange, buildOrdersListFilters]);
 
     useEffect(() => {
-        if (!shouldInitialLoad) return;
+        if (!shouldInitialLoad || !scopeReady) return;
         const loadOptions = async () => {
             try {
                 const results = await Promise.allSettled([
-                    dataService.getSystemsParent(),
+                    dataService.getSystemsParent(systemsScope),
                     dataService.getUnitTypesParent(),
                     dataService.getOrdersObjects(),
                     dataService.getOrderTypes(),
                     dataService.getPlans(),
                     currentUser ? dataService.getManagedContracts(currentUser.id.toString()) : dataService.getContracts(),
                     dataService.getTeams(undefined, currentUser?.departmentId),
-                    dataService.getUnits('active'),
+                    dataService.getUnits('active', '', systemsScope),
                     dataService.getAssetTags('active'),
                     dataService.getOrderCauseReasons()
                 ]);
@@ -918,7 +952,7 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
         };
         loadOptions();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shouldInitialLoad]);
+    }, [shouldInitialLoad, scopeReady]);
 
     useEffect(() => {
         // 1. Refresh dashboard event
@@ -930,6 +964,7 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
         const debouncedRefreshSecondary = () => {
             if (refreshTimeout) clearTimeout(refreshTimeout);
             refreshTimeout = setTimeout(async () => {
+                fetchDataRef.current(false, false);
                 try {
                     dataService.clearMetadataCache();
                     const usersData = await dataService.getUsers();
@@ -942,13 +977,11 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
 
         // 2. Realtime subscription for orders
         const subscription = dataService.subscribeToOrders(() => {
-            fetchDataRef.current(false, false);
             debouncedRefreshSecondary();
         });
 
         // 3. Realtime subscription for visits
         const visitSubscription = dataService.subscribeToVisits(() => {
-            fetchDataRef.current(false, false);
             debouncedRefreshSecondary();
         });
 
@@ -997,7 +1030,7 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
 
     // Recover unitSubTypes if unitTypeParentId exists on mount (first entry only; cached later)
     useEffect(() => {
-        if (!shouldInitialLoad) return;
+        if (!shouldInitialLoad || !scopeReady) return;
         const recoverOptions = async () => {
             if (advancedOrdersFilters.unitTypeParentId) {
                 const ids = Array.isArray(advancedOrdersFilters.unitTypeParentId)
@@ -1013,7 +1046,7 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
                     ? advancedOrdersFilters.systemParentId
                     : [advancedOrdersFilters.systemParentId];
                 if (ids.length > 0) {
-                    const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+                    const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
                     setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
                 }
             }
@@ -1029,7 +1062,7 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
         };
         recoverOptions();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shouldInitialLoad]);
+    }, [shouldInitialLoad, scopeReady]);
 
     const sentinelRef = React.useRef<HTMLDivElement>(null);
     const fetchDataRef = React.useRef(fetchData);
@@ -1057,7 +1090,7 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
         setAdvancedOrdersFilters((prev: OrderFilters) => ({ ...prev, systemParentId: systemId, systemId: [] }));
         if (systemId && (Array.isArray(systemId) ? systemId.length > 0 : true)) {
             const ids = Array.isArray(systemId) ? systemId : [systemId];
-            const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
+            const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
             setFilterOptions((prev: any) => ({ ...prev, subSystems: results.flat() }));
         } else {
             setFilterOptions((prev: any) => ({ ...prev, subSystems: [] }));
@@ -1180,6 +1213,7 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
                                     unitSubTypes={unitSubTypes}
                                     assetTagSubOptions={assetTagSubs}
                                     orderSubTypes={orderSubTypes}
+                                    hiddenFilters={isProviderMode ? PROVIDER_HIDDEN_FILTERS : []}
                                     onActiveFiltersChange={(count) => { setOsFilterCount(count); onMobileFilterCountChange?.('OS', count); }}
                                     onApply={() => {
                                         const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
