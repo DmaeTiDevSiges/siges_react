@@ -1543,6 +1543,28 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                         />
                     </div>
 
+                    <label className="flex items-center gap-2 px-1 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            aria-label={`Selecionar ou desmarcar todas as opções de ${selectionModal.label.toLowerCase()}`}
+                            checked={selectionModal.options.length > 0
+                                && selectionModal.options.every((option: any) => selectionModal.currentValue.includes(option.value))}
+                            disabled={selectionModal.options.length === 0}
+                            onChange={() => {
+                                const allOptionsSelected = selectionModal.options.length > 0
+                                    && selectionModal.options.every((option: any) => selectionModal.currentValue.includes(option.value));
+                                setSelectionModal((prev: any) => ({
+                                    ...prev,
+                                    currentValue: allOptionsSelected
+                                        ? []
+                                        : prev.options.map((option: any) => option.value)
+                                }));
+                            }}
+                            className="h-4 w-4 accent-primary cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <span>Selecionar todas as opções</span>
+                    </label>
+
                     <div className="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
                         {selectionModal.options
                             .filter((opt: any) => opt.label.toLowerCase().includes(selectionSearch.toLowerCase()))
@@ -1580,12 +1602,6 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                     </div>
 
                     <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                        <button
-                            onClick={() => setSelectionModal((prev: any) => ({ ...prev, currentValue: [] }))}
-                            className="flex-1 py-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm cursor-pointer active:scale-95"
-                        >
-                            LIMPAR
-                        </button>
                         <button
                             onClick={() => setSelectionModal((prev: any) => ({ ...prev, isOpen: false }))}
                             className="flex-1 py-3 items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-all text-sm cursor-pointer"

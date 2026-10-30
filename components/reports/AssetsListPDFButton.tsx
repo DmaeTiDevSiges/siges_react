@@ -35,7 +35,10 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
         const toastId = toast.loading('Gerando PDF de Ativos...');
 
         try {
-            const assets = await dataService.getAssets('all', '', unitId, assetTagId || undefined);
+            const assetsRaw = await dataService.getAssets('all', '', unitId);
+            const assets = assetTagId
+                ? assetsRaw.filter(asset => String(asset.tagId || '') === String(assetTagId))
+                : assetsRaw;
 
             if (!assets || assets.length === 0) {
                 toast.error(assetTagName ? 'Nenhum ativo encontrado para este setor.' : 'Nenhum ativo encontrado para esta unidade.', { id: toastId });

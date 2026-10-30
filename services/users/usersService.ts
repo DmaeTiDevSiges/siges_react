@@ -247,6 +247,43 @@ export const usersService = {
         })) as Team[];
     },
 
+    /**
+     * Turno (shift_start/shift_end) do líder de cada equipe informada.
+     * Usado na base de cálculo de ociosidade das equipes (aba OCIOSIDADE):
+     * o getTeamLeader existente não retorna os campos de turno.
+     * Sem líder com turno cadastrado, o consumidor aplica o default 08:00–18:00.
+     */
+    async getTeamLeadersShifts(teamIds: string[]): Promise<Array<{ teamId: string; shiftStart: string; shiftEnd: string }>> {
+        const numericIds = teamIds.map(Number).filter(id => Number.isInteger(id) && id > 0);
+        if (numericIds.length === 0) return [];
+
+        const { data, error } = await supabase
+            .from('users')
+            .select('team_id, shift_start, shift_end')
+            .eq('is_team_leader', true)
+            .in('team_id', numericIds)
+            .order('id', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching team leaders shifts:', error);
+            return [];
+        }
+
+        const seen = new Set<string>();
+        const result: Array<{ teamId: string; shiftStart: string; shiftEnd: string }> = [];
+        for (const row of data || []) {
+            const teamId = row.team_id?.toString();
+            if (!teamId || seen.has(teamId)) continue;
+            seen.add(teamId);
+            result.push({
+                teamId,
+                shiftStart: row.shift_start || '',
+                shiftEnd: row.shift_end || ''
+            });
+        }
+        return result;
+    },
+
     async createTeam(team: Partial<Team>): Promise<Team> {
         let companyId = team.companyId;
 

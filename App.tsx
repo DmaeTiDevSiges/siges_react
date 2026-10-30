@@ -41,6 +41,7 @@ import {
   DashboardServicesAdminScreen,
   DashboardAdminContractsEvaluationsRequirements,
   LeaderRankingDashboard,
+  DashboardTeamShifts,
   ServicesRequestsDashboardAdmin,
   ServicesRequestsPeriodDashboardAdmin,
   ContractsList,
@@ -94,7 +95,7 @@ import { GamificationHistoryModal } from './components/ui/GamificationHistoryMod
 type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-structure' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'asset-loan-checklist-types' | 'asset-loan-checklist-type-form' | 'asset-loan-checklist-type-edit'
   | 'loans-checklists' | 'loans-checklist-form' | 'loans-checklist-edit'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period'   | 'vehicle-cost-types' | 'rental-contracts' | 'rental-apportionment' | 'rate-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period'   | 'vehicle-cost-types' | 'rental-contracts' | 'rental-apportionment' | 'rate-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard' | 'team-shifts';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/media/imgproxyService';
@@ -618,7 +619,8 @@ const AppContent: React.FC = () => {
       currentScreen === 'rental-contracts' ||
       currentScreen === 'rate-contracts' ||
       currentScreen === 'vehicles' ||
-      currentScreen === 'grant-dashboard';
+      currentScreen === 'grant-dashboard' ||
+      currentScreen === 'team-shifts';
 
     if (!isDashboardScreen) return undefined;
     return (
@@ -2253,6 +2255,27 @@ const AppContent: React.FC = () => {
             currentUser={currentUser!}
           />
         );
+      case 'team-shifts':
+        // Guard: aba Ociosidade é exclusiva de isAdminSuper (além da aba oculta
+        // no DashboardTabs, bloqueia navegação salva/direta).
+        if (!currentUser?.isAdminSuper) {
+          return (
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="max-w-md w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 text-center space-y-2">
+                <span className="material-symbols-outlined text-3xl text-slate-400">lock</span>
+                <h2 className="font-bold text-slate-900 dark:text-white">Acesso restrito</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  A aba Ociosidade está disponível apenas para administradores super.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <DashboardTeamShifts
+            currentUser={currentUser!}
+          />
+        );
       case 'companies':
         return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
       case 'company-details':
@@ -2826,6 +2849,7 @@ const AppContent: React.FC = () => {
       case 'visits-dashboard': return '';
       case 'dashboard-contracts-evaluations': return '';
       case 'leader-ranking': return '';
+      case 'team-shifts': return 'Ociosidade';
       case 'users-tracker': return 'VISITAS EM TEMPO REAL';
       case 'companies': return 'Empresas';
       case 'company-details': return 'Empresa';

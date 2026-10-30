@@ -1,5 +1,57 @@
 import { supabase } from './supabase';
-import { OrderFilters } from '../../types';
+import { OrderFilters, TeamShiftsMonthly, TeamIdleEvolutionPoint, ApprovedVisitRow, TeamShiftsRecord } from '../../types';
+import { usersService } from '../users/usersService';
+import { visitsService } from '../orders/visitsService';
+import { teamShiftsRecordsService } from './teamShiftsRecordsService';
+
+// ---------------------------------------------------------------------------
+// Ociosidade das equipes — helpers puros (aba OCIOSIDADE)
+// ---------------------------------------------------------------------------
+
+const IDLE_DEFAULT_SHIFT_START = '08:00';
+const IDLE_DEFAULT_SHIFT_END = '18:00';
+
+const parseClockToMinutes = (value?: string | null): number | null => {
+    if (!value) return null;
+    const [h, m] = value.split(':');
+    const hh = Number(h);
+    const mm = Number(m || 0);
+    if (!Number.isFinite(hh) || hh < 0 || hh > 24) return null;
+    if (!Number.isFinite(mm) || mm < 0 || mm > 59) return null;
+    return hh * 60 + mm;
+};
+
+/** Duração do turno em minutos; default 08:00–18:00 (600min) sem turno cadastrado. */
+const getTeamShiftMinutes = (shiftStart?: string, shiftEnd?: string): number => {
+    const start = parseClockToMinutes(shiftStart) ?? parseClockToMinutes(IDLE_DEFAULT_SHIFT_START)!;
+    const end = parseClockToMinutes(shiftEnd) ?? parseClockToMinutes(IDLE_DEFAULT_SHIFT_END)!;
+    if (end <= start) return 600;
+    return end - start;
+};
+
+/** Dias úteis (seg–sex) de um mês (month 1-based). */
+const countBusinessDays = (year: number, month: number): number => {
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    let count = 0;
+    for (let day = 1; day <= lastDay; day++) {
+        const dow = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+        if (dow >= 1 && dow <= 5) count++;
+    }
+    return count;
+};
+
+/**
+ * Interpreta timestamp naive do banco ('YYYY-MM-DD HH:MM:SS' ou ISO
+ * 'YYYY-MM-DDTHH:mm:ss'). Dois valores parseados no mesmo fuso produz
+ * diferença correta — é só o delta que nos interessa.
+ */
+const parseVisitTimestamp = (value: string): number => {
+    const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+    const ms = Date.parse(normalized);
+    return Number.isFinite(ms) ? ms : NaN;
+};
+
+const round1 = (value: number): number => Math.round(value * 10) / 10;
 
 export const dashboardService = {
     async getAuthorizedOrdersFromStatusLogs(
@@ -366,5 +418,178 @@ export const dashboardService = {
             return [];
         }
         return data ?? [];
+    },
+
+    /**
+     * Ociosidade e turnos das equipes por mês (aba OCIOSIDADE).
+     *
+     * Escopo: apenas equipes **avaliáveis** (`cfg_teams.is_evaluable = true`) do
+     * departamento do usuário logado (cfg_teams.department_id, já refletido em
+     * currentUser.departmentId via join da equipe do usuário).
+     *
+     * Ociosidade % = 1 − (minutos de visitas aprovadas ÷ minutos de turno
+     * disponíveis no mês), limitado a 0–100.
+     * - Visitas aprovadas: ov_processing_id = 5, atribuídas ao mês de ov_started_at.
+     * - Turno disponível: dias úteis (seg–sex) × duração do turno do líder
+     *   (default 08:00–18:00).
+     * - Lançamentos manuais (normal/extra) vêm junto, apenas como registro —
+     *   não alimentam o cálculo.
+     *
+     * Também retorna, por equipe:
+     * - suggestedExtraShifts: dias distintos com visita aprovada fora do turno
+     *   (fim de semana, virada de dia ou término após o fim do turno);
+     * - evolution + idlePercentPrevious/idleDelta: série de `months` meses
+     *   (padrão 6) terminando no mês alvo;
+     * - visits: drill-down das visitas aprovadas do mês.
+     */
+    async getTeamShiftsStats(
+        companyId: string | undefined,
+        departmentId: string | undefined,
+        year: number,
+        month: number,
+        months = 6
+    ): Promise<TeamShiftsMonthly[]> {
+        if (!departmentId) return [];
+
+        // Apenas equipes avaliáveis: cfg_teams.is_evaluable = true
+        // (getTeams já traz isEvaluable com default true; exclui só o false explícito)
+        const teams = (await usersService.getTeams(companyId, departmentId))
+            .filter(team => team.isEvaluable !== false);
+        if (teams.length === 0) return [];
+
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const targetKey = `${year}-${pad(month)}`;
+        const monthStr = `${targetKey}-01`;
+        const teamIds = teams.map(t => t.id);
+
+        const [records, approvedVisits, leaderShifts] = await Promise.all([
+            teamShiftsRecordsService.getTeamShiftsRecords(monthStr),
+            companyId
+                ? visitsService.getApprovedVisitsByCompanyMonth(companyId, year, month, months)
+                : Promise.resolve([]),
+            usersService.getTeamLeadersShifts(teamIds)
+        ]) as [TeamShiftsRecord[], ApprovedVisitRow[], Array<{ teamId: string; shiftStart: string; shiftEnd: string }>];
+
+        const recordByTeam = new Map(records.map(r => [r.teamId, r]));
+        const shiftByTeam = new Map(leaderShifts.map(s => [s.teamId, s]));
+
+        // Série da evolução: `months` meses terminando no mês alvo
+        const seriesKeys: Array<{ key: string; year: number; month: number }> = [];
+        for (let i = months - 1; i >= 0; i--) {
+            const d = new Date(Date.UTC(year, month - 1 - i, 1));
+            seriesKeys.push({
+                key: `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`,
+                year: d.getUTCFullYear(),
+                month: d.getUTCMonth() + 1
+            });
+        }
+
+        // Agrega minutos e lista de visitas por equipe × mês
+        const minutesByTeamMonth = new Map<string, Map<string, number>>();
+        const visitsByTeamMonth = new Map<string, Map<string, ApprovedVisitRow[]>>();
+        for (const visit of approvedVisits) {
+            if (!visit.ovStartedAt || !visit.ovEndedAt) continue;
+            const startMs = parseVisitTimestamp(visit.ovStartedAt);
+            const endMs = parseVisitTimestamp(visit.ovEndedAt);
+            if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) continue;
+
+            const minutes = Math.round((endMs - startMs) / 60000);
+            const key = visit.ovStartedAt.substring(0, 7); // 'YYYY-MM' — premissa: mês do início
+
+            const teamMonths = minutesByTeamMonth.get(visit.teamId) ?? new Map<string, number>();
+            teamMonths.set(key, (teamMonths.get(key) ?? 0) + minutes);
+            minutesByTeamMonth.set(visit.teamId, teamMonths);
+
+            const teamVisits = visitsByTeamMonth.get(visit.teamId) ?? new Map<string, ApprovedVisitRow[]>();
+            const list = teamVisits.get(key) ?? [];
+            list.push({ ...visit, minutes });
+            teamVisits.set(key, list);
+            visitsByTeamMonth.set(visit.teamId, teamVisits);
+        }
+
+        // Sugestão de turno extra (mês alvo): dia distinto com visita aprovada
+        // em fim de semana, com virada de dia ou terminando após o turno do líder.
+        const suggestionDaysByTeam = new Map<string, Set<string>>();
+        for (const visit of approvedVisits) {
+            if (!visit.ovStartedAt || !visit.ovEndedAt) continue;
+            if (visit.ovStartedAt.substring(0, 7) !== targetKey) continue;
+
+            const teamId = visit.teamId;
+            const day = visit.ovStartedAt.substring(0, 10);
+            const dayMs = Date.parse(`${day}T00:00:00Z`);
+            const dow = Number.isFinite(dayMs) ? new Date(dayMs).getUTCDay() : 1;
+            const isWeekend = dow === 0 || dow === 6;
+
+            const shift = shiftByTeam.get(teamId);
+            const shiftEndClock = (shift?.shiftEnd || IDLE_DEFAULT_SHIFT_END).substring(0, 5);
+            const endClock = visit.ovEndedAt.substring(11, 16);
+            const crossesMidnight = visit.ovEndedAt.substring(0, 10) !== day;
+            const endsAfterShift = !!endClock && !!shiftEndClock && endClock > shiftEndClock;
+
+            if (isWeekend || crossesMidnight || endsAfterShift) {
+                const days = suggestionDaysByTeam.get(teamId) ?? new Set<string>();
+                days.add(day);
+                suggestionDaysByTeam.set(teamId, days);
+            }
+        }
+
+        const businessDays = countBusinessDays(year, month);
+
+        const stats: TeamShiftsMonthly[] = teams.map(team => {
+            const shift = shiftByTeam.get(team.id);
+            const shiftMinutes = getTeamShiftMinutes(shift?.shiftStart, shift?.shiftEnd);
+            const shiftMinutesAvailable = businessDays * shiftMinutes;
+
+            const teamMonthMinutes = minutesByTeamMonth.get(team.id);
+            const approvedVisitMinutes = teamMonthMinutes?.get(targetKey) ?? 0;
+            const usedMinutes = Math.min(approvedVisitMinutes, shiftMinutesAvailable);
+            const idlePercent = shiftMinutesAvailable > 0
+                ? round1(Math.max(0, Math.min(100, (1 - usedMinutes / shiftMinutesAvailable) * 100)))
+                : 0;
+
+            const record = recordByTeam.get(team.id);
+
+            const evolution: TeamIdleEvolutionPoint[] = seriesKeys.map(k => {
+                const monthMinutes = teamMonthMinutes?.get(k.key) ?? 0;
+                const monthBusinessDays = countBusinessDays(k.year, k.month);
+                const monthAvailable = monthBusinessDays * shiftMinutes;
+                const monthUsed = Math.min(monthMinutes, monthAvailable);
+                return {
+                    year: k.year,
+                    month: k.month,
+                    idlePercent: monthAvailable > 0
+                        ? round1(Math.max(0, Math.min(100, (1 - monthUsed / monthAvailable) * 100)))
+                        : 0
+                };
+            });
+
+            const targetIdx = seriesKeys.findIndex(k => k.key === targetKey);
+            const previousIdle = targetIdx > 0 ? evolution[targetIdx - 1].idlePercent : null;
+            const idleDelta = previousIdle !== null ? round1(idlePercent - previousIdle) : null;
+
+            return {
+                teamId: team.id,
+                teamCode: team.code,
+                teamName: team.name,
+                recordId: record?.id,
+                normalShifts: record?.normalShifts ?? 0,
+                extraShifts: record?.extraShifts ?? 0,
+                note: record?.note ?? null,
+                updatedBy: record?.updatedBy,
+                updatedAt: record?.updatedAt,
+                businessDays,
+                approvedVisitMinutes,
+                shiftMinutesAvailable,
+                idlePercent,
+                suggestedExtraShifts: suggestionDaysByTeam.get(team.id)?.size ?? 0,
+                idlePercentPrevious: previousIdle,
+                idleDelta,
+                visits: visitsByTeamMonth.get(team.id)?.get(targetKey) ?? [],
+                evolution
+            } as TeamShiftsMonthly;
+        });
+
+        stats.sort((a, b) => b.idlePercent - a.idlePercent || a.teamName.localeCompare(b.teamName));
+        return stats;
     }
 };

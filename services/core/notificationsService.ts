@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { UserNotification } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
+import { getBrazilNaiveTimestamp } from '../../utils/dateUtils';
 
 export const notificationsService = {
     async getNotificationsCount(authUserId?: string): Promise<number> {
@@ -181,5 +182,49 @@ export const notificationsService = {
             .eq('is_read', false);
 
         if (error) throw error;
+    },
+
+    /**
+     * Lembrete mensal de lançamento de turnos (aba OCIOSIDADE) — 1× por mês.
+     * Envia notificação para todos os usuários is_admin_super quando ainda não
+     * existe a notificação do mês (guard por type + mês no título).
+     * Chamado pela tela quando faltam ≤ 3 dias para o fim do mês e não há
+     * lançamentos. Falhas são engolidas (nunca quebram a tela).
+     */
+    async ensureMonthlyShiftsReminder(monthKey: string, title: string, body: string): Promise<void> {
+        try {
+            const marker = `(${monthKey})`;
+            const { data: existing, error: existingError } = await supabase
+                .from('users_notifications')
+                .select('id')
+                .eq('type', 'Lembrete de Turnos')
+                .like('title', `%${marker}%`)
+                .limit(1);
+
+            if (existingError) return;
+            if (existing && existing.length > 0) return;
+
+            const { data: admins, error: adminsError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('is_admin_super', true);
+
+            if (adminsError || !admins || admins.length === 0) return;
+
+            const rows = admins.map(admin => ({
+                user_id_to: admin.id,
+                user_id_from: null,
+                title: `${title} ${marker}`,
+                body,
+                type: 'Lembrete de Turnos',
+                created_at: getBrazilNaiveTimestamp(),
+                is_read: false
+            }));
+
+            const { error: insertError } = await supabase.from('users_notifications').insert(rows);
+            if (insertError) console.error('Error inserting shifts reminder notifications:', insertError);
+        } catch (error) {
+            console.error('Error ensuring monthly shifts reminder:', error);
+        }
     }
 };

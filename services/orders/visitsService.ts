@@ -135,6 +135,55 @@ export const visitsService = {
         })) as OrderVisit[];
     },
 
+    /**
+     * Visitas APROVADAS (ov_processing_id = 5) iniciadas na janela de
+     * [month, month − months + 1] até `month`, por empresa.
+     * Usada no cálculo de ociosidade das equipes (aba OCIOSIDADE).
+     * A atribuição é por mês de ov_started_at (premissa do plano).
+     */
+    async getApprovedVisitsByCompanyMonth(
+        companyId: string,
+        year: number,
+        month: number,
+        months = 1
+    ): Promise<Array<{
+        teamId: string;
+        orderMask?: string;
+        unitDescription?: string;
+        ovStartedAt?: string;
+        ovEndedAt?: string;
+    }>> {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const startMonthDate = new Date(Date.UTC(year, month - 1 - (months - 1), 1));
+        const endMonthDate = new Date(Date.UTC(year, month, 0)); // último dia do mês `month`
+        const start = `${startMonthDate.getUTCFullYear()}-${pad(startMonthDate.getUTCMonth() + 1)}-01 00:00:00`;
+        const end = `${endMonthDate.getUTCFullYear()}-${pad(endMonthDate.getUTCMonth() + 1)}-${pad(endMonthDate.getUTCDate())} 23:59:59`;
+
+        const { data, error } = await supabase
+            .from('v_orders_visits')
+            .select('o_team_id, ov_started_at, ov_ended_at, o_mask, o_unit_description')
+            .eq('o_provider_company_id', companyId)
+            .eq('ov_processing_id', 5)
+            .gte('ov_started_at', start)
+            .lte('ov_started_at', end)
+            .order('ov_started_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching approved visits by company/month:', error);
+            return [];
+        }
+
+        return (data || [])
+            .filter((row: any) => row.o_team_id)
+            .map((row: any) => ({
+                teamId: row.o_team_id.toString(),
+                orderMask: row.o_mask,
+                unitDescription: row.o_unit_description,
+                ovStartedAt: row.ov_started_at,
+                ovEndedAt: row.ov_ended_at
+            }));
+    },
+
     async getVisitsByLeader(leaderId: string): Promise<OrderVisit[]> {
         const { data, error } = await supabase
             .from('v_orders_visits')

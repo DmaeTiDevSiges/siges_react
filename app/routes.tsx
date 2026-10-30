@@ -96,6 +96,7 @@ export const DashboardOrdersAdminCalendarScreen = lazyWithRetry(() => import('..
 export const DashboardServicesAdminScreen = lazyWithRetry(() => import('../views/Dashboards/DashboardServicesAdminScreen').then(m => ({ default: m.DashboardServicesAdminScreen })));
 export const DashboardAdminContractsEvaluationsRequirements = lazyWithRetry(() => import('../views/Dashboards/DashboardAdminContractsEvaluationsRequirements').then(m => ({ default: m.DashboardAdminContractsEvaluationsRequirements })));
 export const LeaderRankingDashboard = lazyWithRetry(() => import('../views/Dashboards/LeaderRankingDashboard').then(m => ({ default: m.LeaderRankingDashboard })));
+export const DashboardTeamShifts = lazyWithRetry(() => import('../views/Dashboards/DashboardTeamShiftsScreen').then(m => ({ default: m.DashboardTeamShiftsScreen })));
 export const ServicesRequestsDashboardAdmin = lazyWithRetry(() => import('../views/ServiceRequest/ServicesRequestsDashboardAdmin').then(m => ({ default: m.ServicesRequestsDashboardAdmin })));
 export const ServicesRequestsPeriodDashboardAdmin = lazyWithRetry(() => import('../views/ServiceRequest/ServicesRequestsPeriodDashboardAdmin').then(m => ({ default: m.ServicesRequestsPeriodDashboardAdmin })));
 export const SystemsList = lazyWithRetry(() => import('../views/Settings/Systems/SystemsList').then(m => ({ default: m.SystemsList })));

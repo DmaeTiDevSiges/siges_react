@@ -52,6 +52,7 @@ import { usersService } from './users/usersService';
 import { notificationsService } from './core/notificationsService';
 import { settingsService } from './core/settingsService';
 import { dashboardService } from './core/dashboardService';
+import { teamShiftsRecordsService } from './core/teamShiftsRecordsService';
 import { maintenancePlansService } from './core/maintenancePlansService';
 import { orderConfigService } from './core/orderConfigService';
 import { toolsService } from './tools/toolsService';
@@ -63,7 +64,7 @@ import { gamificationService } from './gamification/gamificationService';
 import { assetLoansService } from './assets/assetLoansService';
 import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
 import { loansChecklistService } from './assets/loansChecklistService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock } from '../types';
 
 
 
@@ -1622,6 +1623,11 @@ export const dataService = {
         return notificationsService.clearAllNotifications.apply(notificationsService, arguments as any);
     },
 
+    /** Lembrete mensal de lançamento de turnos (1×/mês, só admins super). */
+    async ensureMonthlyShiftsReminder(monthKey: string, title: string, body: string): Promise<void> {
+        return notificationsService.ensureMonthlyShiftsReminder.apply(notificationsService, arguments as any);
+    },
+
     subscribeToNotifications(userId: string, onUpdate: (payload: any) => void) {
         return supabase
             .channel(`public:users_notifications:user_id_to=${userId}`)
@@ -1960,6 +1966,45 @@ export const dataService = {
          return ordersService.getDashboardStats.apply(ordersService, arguments as any);
      },
 
+    // ---------------------------------------------------------------------
+    // OCIOSIDADE / TURNOS DAS EQUIPES (aba OCIOSIDADE)
+    // ---------------------------------------------------------------------
+
+    /** Ociosidade + turnos por equipe no mês (escopo: departamento do usuário). */
+    async getTeamShiftsStats(
+        companyId: string | undefined,
+        departmentId: string | undefined,
+        year: number,
+        month: number,
+        months?: number
+    ): Promise<TeamShiftsMonthly[]> {
+        return dashboardService.getTeamShiftsStats.apply(dashboardService, arguments as any);
+    },
+
+    /** Lançamentos manuais de turnos do mês de competência. */
+    async getTeamShiftsRecords(referenceMonth: string): Promise<TeamShiftsRecord[]> {
+        return teamShiftsRecordsService.getTeamShiftsRecords.apply(teamShiftsRecordsService, arguments as any);
+    },
+
+    /** Salva o lançamento do mês em lote (remove lançamentos zerados; erro se fechado). */
+    async saveTeamShiftsRecords(
+        referenceMonth: string,
+        departmentId: string,
+        records: TeamShiftsSaveEntry[],
+        userId: string
+    ): Promise<void> {
+        return teamShiftsRecordsService.saveTeamShiftsRecords.apply(teamShiftsRecordsService, arguments as any);
+    },
+
+    /** Fechamento de competência do mês (null = aberto). */
+    async getTeamShiftsMonthLock(referenceMonth: string, departmentId: string): Promise<TeamShiftsMonthLock | null> {
+        return teamShiftsRecordsService.getMonthLock.apply(teamShiftsRecordsService, arguments as any);
+    },
+
+    /** Fecha a competência do mês (idempotente). */
+    async lockTeamShiftsMonth(referenceMonth: string, departmentId: string, userId: string): Promise<void> {
+        return teamShiftsRecordsService.lockMonth.apply(teamShiftsRecordsService, arguments as any);
+    },
 
     async getUnscheduledSS(filters?: OrderFilters & { viewName?: string; startDate?: string; endDate?: string }): Promise<Order[]> {
         return ordersService.getUnscheduledSS.apply(ordersService, arguments as any);

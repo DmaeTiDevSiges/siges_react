@@ -48,6 +48,7 @@ export const FilterSelectionContent: React.FC<{
     }, [options, selectionSearch]);
 
     const selectedSet = useMemo(() => new Set(currentValue), [currentValue]);
+    const allOptionsSelected = options.length > 0 && options.every(option => selectedSet.has(option.value));
 
     const handleToggle = useCallback((value: string) => {
         setCurrentValue(prev =>
@@ -56,6 +57,10 @@ export const FilterSelectionContent: React.FC<{
                 : [...prev, value]
         );
     }, []);
+
+    const handleToggleAll = useCallback(() => {
+        setCurrentValue(allOptionsSelected ? [] : options.map(option => option.value));
+    }, [allOptionsSelected, options]);
 
     return (
         <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100">
@@ -70,6 +75,18 @@ export const FilterSelectionContent: React.FC<{
                     autoFocus
                 />
             </div>
+
+            <label className="flex items-center gap-2 px-1 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                <input
+                    type="checkbox"
+                    aria-label={`Selecionar ou desmarcar todas as opções de ${label.toLowerCase()}`}
+                    checked={allOptionsSelected}
+                    disabled={options.length === 0}
+                    onChange={handleToggleAll}
+                    className="h-4 w-4 accent-primary cursor-pointer disabled:cursor-not-allowed"
+                />
+                <span>Selecionar todas as opções</span>
+            </label>
 
             <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
                 {filteredOptions.length > 0 ? (
@@ -91,14 +108,7 @@ export const FilterSelectionContent: React.FC<{
 
             <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
-                    onClick={() => setCurrentValue([])}
-                    className="flex-1 py-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-sm transition-all active:scale-95"
-                >
-                    LIMPAR
-                </button>
-                <button
                     onClick={() => {
-                        const allOptionsSelected = options.length > 0 && options.every(option => selectedSet.has(option.value));
                         onConfirm(allOptionsSelected ? [] : currentValue);
                     }}
                     className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all active:scale-95"

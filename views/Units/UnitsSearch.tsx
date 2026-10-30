@@ -829,7 +829,6 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                     label={selectionModal.label}
                     options={selectionModal.options}
                     initialValue={selectionModal.currentValue}
-                    showSelectAll={selectionModal.filterKey === 'systemParentId' || selectionModal.filterKey === 'statusId'}
                     onConfirm={handleModalConfirm}
                 />
             </Modal>
@@ -939,9 +938,8 @@ const FilterSelectionContent: React.FC<{
     label: string;
     options: { value: string; label: string }[];
     initialValue: string[];
-    showSelectAll?: boolean;
     onConfirm: (value: string[]) => void;
-}> = ({ label, options, initialValue, showSelectAll = false, onConfirm }) => {
+}> = ({ label, options, initialValue, onConfirm }) => {
     const [selectionSearch, setSelectionSearch] = useState('');
     const [currentValue, setCurrentValue] = useState<string[]>(initialValue);
 
@@ -954,6 +952,10 @@ const FilterSelectionContent: React.FC<{
     const selectedSet = useMemo(() => new Set(currentValue), [currentValue]);
     const allOptionsSelected = options.length > 0 && options.every(option => selectedSet.has(option.value));
 
+    const handleToggleAll = useCallback(() => {
+        setCurrentValue(allOptionsSelected ? [] : options.map(option => option.value));
+    }, [allOptionsSelected, options]);
+
     const handleToggle = useCallback((value: string) => {
         setCurrentValue(prev =>
             prev.includes(value)
@@ -964,33 +966,29 @@ const FilterSelectionContent: React.FC<{
 
     return (
         <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100">
-            <div className="flex items-center gap-3">
-                {showSelectAll && (
-                    <label className="flex shrink-0 items-center justify-center cursor-pointer" title="Selecionar ou desmarcar todos">
-                        <input
-                            type="checkbox"
-                            aria-label={`Selecionar ou desmarcar todas as opções de ${label.toLowerCase()}`}
-                            checked={allOptionsSelected}
-                            disabled={options.length === 0}
-                            onChange={() => setCurrentValue(
-                                allOptionsSelected ? [] : options.map(option => option.value)
-                            )}
-                            className="h-5 w-5 accent-primary cursor-pointer disabled:cursor-not-allowed"
-                        />
-                    </label>
-                )}
-                <div className="relative flex-1">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                    <input
-                        type="text"
-                        placeholder={`Pesquisar ${label}...`}
-                        value={selectionSearch}
-                        onChange={(e) => setSelectionSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-                        autoFocus
-                    />
-                </div>
+            <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                <input
+                    type="text"
+                    placeholder={`Pesquisar ${label}...`}
+                    value={selectionSearch}
+                    onChange={(e) => setSelectionSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                    autoFocus
+                />
             </div>
+
+            <label className="flex items-center gap-2 px-1 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                <input
+                    type="checkbox"
+                    aria-label={`Selecionar ou desmarcar todas as opções de ${label.toLowerCase()}`}
+                    checked={allOptionsSelected}
+                    disabled={options.length === 0}
+                    onChange={handleToggleAll}
+                    className="h-4 w-4 accent-primary cursor-pointer disabled:cursor-not-allowed"
+                />
+                <span>Selecionar todas as opções</span>
+            </label>
 
             <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
                 {filteredOptions.length > 0 ? (

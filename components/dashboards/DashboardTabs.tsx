@@ -45,7 +45,8 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
     currentScreen === 'rental-contracts' ||
     currentScreen === 'rate-contracts' ||
     currentScreen === 'vehicles' ||
-    currentScreen === 'grant-dashboard';
+    currentScreen === 'grant-dashboard' ||
+    currentScreen === 'team-shifts';
 
   if (!isDashboardScreen) return null;
 
@@ -166,6 +167,17 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
           >
             Avaliações
             {currentScreen === 'dashboard-contracts-evaluations' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+            )}
+          </button>
+        )}
+        {isAdminSuper && (
+          <button
+            onClick={() => { setCurrentScreen('team-shifts'); setActiveTab('team-shifts' as any); }}
+            className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${currentScreen === 'team-shifts' ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}
+          >
+            Ociosidade
+            {currentScreen === 'team-shifts' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
             )}
           </button>

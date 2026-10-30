@@ -1936,6 +1936,87 @@ export interface TeamRankingEntry {
   worstLeader?: string;
 }
 
+// ===== OCIOSIDADE / TURNOS DAS EQUIPES =====
+
+/** Registro mensal de turnos lançado manualmente por equipe (teams_shifts_records). */
+export interface TeamShiftsRecord {
+  id?: string;
+  teamId: string;
+  /** Sempre o 1º dia do mês de competência: 'YYYY-MM-01'. */
+  referenceMonth: string;
+  normalShifts: number;
+  extraShifts: number;
+  note?: string | null;
+  createdBy?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+/** Entrada de um lançamento no save em lote. */
+export interface TeamShiftsSaveEntry {
+  teamId: string;
+  normalShifts: number;
+  extraShifts: number;
+  note?: string | null;
+}
+
+/** Fechamento de competência por departamento (teams_shifts_months). */
+export interface TeamShiftsMonthLock {
+  referenceMonth: string;
+  departmentId: string;
+  lockedBy?: string;
+  lockedAt?: string;
+}
+
+/** Ponto da série mensal de ociosidade (evolução). */
+export interface TeamIdleEvolutionPoint {
+  year: number;
+  month: number;
+  idlePercent: number;
+}
+
+/** Visita aprovada compõe o drill-down auditável do cálculo de ociosidade. */
+export interface ApprovedVisitRow {
+  teamId: string;
+  orderMask?: string;
+  unitDescription?: string;
+  ovStartedAt?: string;
+  ovEndedAt?: string;
+  minutes?: number;
+}
+
+/** Linha mensal por equipe retornada pelo getTeamShiftsStats. */
+export interface TeamShiftsMonthly {
+  teamId: string;
+  teamCode?: string;
+  teamName: string;
+  /** Presente quando já existe lançamento manual do mês para a equipe. */
+  recordId?: string;
+  normalShifts: number;
+  extraShifts: number;
+  note?: string | null;
+  updatedBy?: string;
+  updatedAt?: string;
+  /** Dias úteis (seg–sex) do mês de competência. */
+  businessDays: number;
+  /** Minutos de visita aprovadas no mês (soma das durações). */
+  approvedVisitMinutes: number;
+  /** Minutos de turno disponíveis (dias úteis × duração do turno do líder). */
+  shiftMinutesAvailable: number;
+  /** 100 × (1 − visitas aprovadas ÷ disponíveis), limitado a 0–100. */
+  idlePercent: number;
+  /** Dias distintos com visita aprovada fora do turno (sugestão de turno extra). */
+  suggestedExtraShifts: number;
+  /** Ociosidade do mês imediatamente anterior (quando disponível na série). */
+  idlePercentPrevious?: number | null;
+  /** idlePercent − idlePercentPrevious (p.p.); negativo = melhora. */
+  idleDelta?: number | null;
+  /** Visitas aprovadas do mês de competência (drill-down). */
+  visits?: ApprovedVisitRow[];
+  /** Série da ociosidade dos últimos meses (evolução). */
+  evolution?: TeamIdleEvolutionPoint[];
+}
+
 export interface OrderVisitScore {
   ovId: string;
   orderId?: string;

@@ -1,0 +1,72 @@
+import React, { useState } from 'react';
+import { pdf } from '@react-pdf/renderer';
+import { TeamShiftsDocument, TeamShiftsReportRow } from './TeamShiftsDocument';
+import { FaFilePdf } from 'react-icons/fa';
+import { toast } from 'sonner';
+import { FileUtils } from '../../utils/FileUtils';
+import { getLogoBase64 } from '../../utils/PdfImageUtils';
+import { Loading } from '../ui/Loading';
+
+interface TeamShiftsPDFButtonProps {
+    rows: TeamShiftsReportRow[];
+    periodLabel: string;
+    filename?: string;
+    className?: string;
+    totalCount?: number;
+}
+
+/**
+ * Botão que gera o PDF da apuração mensal de turnos/ociosidade das equipes.
+ */
+export const TeamShiftsPDFButton = ({
+    rows,
+    periodLabel,
+    filename = 'ociosidade-equipes',
+    className = '',
+    totalCount,
+}: TeamShiftsPDFButtonProps) => {
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const handleDownload = async () => {
+        if (!rows || rows.length === 0) {
+            toast.error('Nenhuma equipe disponível para exportar.');
+            return;
+        }
+
+        try {
+            setIsGenerating(true);
+            const toastId = toast.loading(`Gerando PDF com ${rows.length} equipe(s)...`);
+
+            const logoBase64 = await getLogoBase64();
+            const doc = <TeamShiftsDocument rows={rows} periodLabel={periodLabel} logoBase64={logoBase64} />;
+            const blob = await pdf(doc).toBlob();
+
+            const now = new Date();
+            const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+            await FileUtils.downloadFile(blob, `${filename}-${dateTag}.pdf`);
+
+            toast.success('PDF gerado com sucesso!', { id: toastId });
+        } catch (error) {
+            console.error('Erro ao gerar PDF de ociosidade:', error);
+            toast.error('Ocorreu um erro ao gerar o PDF.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    return (
+        <button
+            onClick={handleDownload}
+            disabled={isGenerating}
+            title="Exportar apuração de ociosidade em PDF"
+            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-[10px] uppercase tracking-wider ${className}`}
+        >
+            {isGenerating ? (
+                <Loading size="xs" />
+            ) : (
+                <FaFilePdf className="text-[14px]" />
+            )}
+            <span>PDF {totalCount ? `(${totalCount})` : ''}</span>
+        </button>
+    );
+};
