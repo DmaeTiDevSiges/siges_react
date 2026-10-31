@@ -96,12 +96,6 @@ const styles = StyleSheet.create({
     },
     badgeText: { color: '#ffffff', fontSize: 11, fontWeight: 'bold', fontFamily: 'Helvetica-Bold' },
     badgeSubText: { color: '#ffffff', fontSize: 6, marginTop: 1 },
-    statusBadge: (status: string) => ({
-        backgroundColor: status === 'overdue' ? C.red : status === 'closed' ? C.green : C.primary,
-        borderRadius: 6,
-        paddingVertical: 3,
-        paddingHorizontal: 8,
-    }),
     statusBadgeText: { color: '#ffffff', fontSize: 8, fontWeight: 'bold', fontFamily: 'Helvetica-Bold' },
     assetTitle: {
         fontSize: 11,
@@ -236,13 +230,6 @@ const styles = StyleSheet.create({
         fontFamily: 'Helvetica-Bold',
         marginBottom: 4,
     },
-    phaseStatus: (status: string) => ({
-        fontSize: 8,
-        fontWeight: 'bold',
-        fontFamily: 'Helvetica-Bold',
-        color: statusColorMap[status] || C.text,
-        marginBottom: 2,
-    }),
     phaseNotes: {
         fontSize: 7,
         color: C.textMuted,
@@ -336,6 +323,22 @@ const styles = StyleSheet.create({
         paddingTop: 6,
     },
     footerText: { fontSize: 7, color: C.footerText },
+});
+
+// Helpers de estilo dinâmico (fora do StyleSheet, que aceita apenas objetos estáticos)
+const statusBadgeStyle = (status: string) => ({
+    backgroundColor: status === 'overdue' ? C.red : status === 'closed' ? C.green : C.primary,
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+});
+
+const phaseStatusStyle = (status: string) => ({
+    fontSize: 8,
+    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
+    color: statusColorMap[status] || C.text,
+    marginBottom: 2,
 });
 
 export interface AssetLoanReportDocumentProps {
@@ -433,7 +436,7 @@ export const AssetLoanReportDocument = ({
                             <Text style={styles.badgeText}>{asset?.code || '—'}</Text>
                             <Text style={styles.badgeSubText}>REG {fmtDate(loan.createdAt)}</Text>
                         </View>
-                        <View style={styles.statusBadge(loan.computedStatus || loan.status)}>
+                        <View style={statusBadgeStyle(loan.computedStatus || loan.status)}>
                             <Text style={styles.statusBadgeText}>{statusLabel[loan.computedStatus || loan.status] || loan.status}</Text>
                         </View>
                     </View>
@@ -491,7 +494,7 @@ export const AssetLoanReportDocument = ({
                                     {/* BEFORE */}
                                     <View style={styles.phaseColumn}>
                                         <Text style={styles.phaseLabel}>Antes</Text>
-                                        <Text style={styles.phaseStatus(row.beforeStatus)}>{row.beforeStatus}</Text>
+                                        <Text style={phaseStatusStyle(row.beforeStatus)}>{row.beforeStatus}</Text>
                                         {row.beforeNotes ? (
                                             <Text style={styles.phaseNotes}>{row.beforeNotes}</Text>
                                         ) : null}
@@ -507,7 +510,7 @@ export const AssetLoanReportDocument = ({
                                     {/* AFTER */}
                                     <View style={styles.phaseColumn}>
                                         <Text style={styles.phaseLabel}>Depois</Text>
-                                        <Text style={styles.phaseStatus(row.afterStatus)}>{row.afterStatus}</Text>
+                                        <Text style={phaseStatusStyle(row.afterStatus)}>{row.afterStatus}</Text>
                                         {row.afterNotes ? (
                                             <Text style={styles.phaseNotes}>{row.afterNotes}</Text>
                                         ) : null}

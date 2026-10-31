@@ -258,6 +258,28 @@ export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigat
                             />
                         </>
                     )}
+                    {canView('audit_log') && (
+                        <>
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="manage_search"
+                                title="Auditoria"
+                                subtitle="Histórico de inclusões, alterações e exclusões"
+                                onClick={() => onNavigate?.('audit-log')}
+                            />
+                        </>
+                    )}
+                    {isSuperAdmin && (
+                        <>
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="manage_history"
+                                title="Tabelas auditadas"
+                                subtitle="Escolher quais tabelas geram registros de auditoria"
+                                onClick={() => onNavigate?.('audit-config')}
+                            />
+                        </>
+                    )}
                     {isSuperAdmin && (
                         <>
                             <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />

@@ -60,11 +60,12 @@ import { technicalManualsService } from './assets/technicalManualsService';
 import { appNoticesService } from './core/appNoticesService';
 import { appNoticesWorkersService } from './core/appNoticesWorkersService';
 import { appTipsService } from './core/appTipsService';
+import { auditService } from './core/auditService';
 import { gamificationService } from './gamification/gamificationService';
 import { assetLoansService } from './assets/assetLoansService';
 import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
 import { loansChecklistService } from './assets/loansChecklistService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock, AuditLogItem, AuditLogFilters, AuditTableConfig, AuditTableConfigChange } from '../types';
 
 
 
@@ -3346,6 +3347,25 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
     },
 
     // -------------------------------------------------------------------------
+    // AUDIT LOG (Auditoria de banco de dados)
+    // -------------------------------------------------------------------------
+    async listAuditLogs(filters?: AuditLogFilters): Promise<{ logs: AuditLogItem[]; total: number }> {
+        return auditService.listLogs.apply(auditService, arguments as any);
+    },
+
+    async getAuditLogById(id: number): Promise<AuditLogItem | null> {
+        return auditService.getLogById.apply(auditService, arguments as any);
+    },
+
+    async listAuditedTableConfig(): Promise<AuditTableConfig[]> {
+        return auditService.listTableConfig.apply(auditService, arguments as any);
+    },
+
+    async updateAuditedTableConfig(changes: AuditTableConfigChange[]): Promise<void> {
+        return auditService.updateTableConfig.apply(auditService, arguments as any);
+    },
+
+    // -------------------------------------------------------------------------
     // GAMIFICATION (Sistema de Gamificação de Líderes)
     // -------------------------------------------------------------------------
     async getVisitScores(filters?: { leaderId?: string; departmentId?: string; year?: number; month?: number }): Promise<OrderVisitScore[]> {
@@ -3478,7 +3498,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return assetLoansService.getActiveLoansCount.apply(assetLoansService, arguments as any);
     },
 
-    async saveAssetLoanSignature(loanId: string, type: 'delivery' | 'return', base64: string): Promise<void> {
+    async saveAssetLoanSignature(loanId: string, type: 'delivery' | 'return', base64: string, signerName: string): Promise<void> {
         return assetLoansService.saveLoanSignature.apply(assetLoansService, arguments as any);
     },
 

@@ -164,6 +164,8 @@ export const NotificationsList = lazyWithRetry(() => import('../views/Notificati
 export const AppNoticesList = lazyWithRetry(() => import('../views/AppNotices/AppNoticesList').then(m => ({ default: m.AppNoticesList })));
 export const ExtraWorkersList = lazyWithRetry(() => import('../views/AppNotices/ExtraWorkersList').then(m => ({ default: m.ExtraWorkersList })));
 export const AppTipsList = lazyWithRetry(() => import('../views/Settings/AppTips/AppTipsList').then(m => ({ default: m.AppTipsList })));
+export const AuditLogList = lazyWithRetry(() => import('../views/Settings/Audit/AuditLogList').then(m => ({ default: m.AuditLogList })));
+export const AuditTablesConfig = lazyWithRetry(() => import('../views/Settings/Audit/AuditTablesConfig').then(m => ({ default: m.AuditTablesConfig })));
 export const VehicleCostTypesList = lazyWithRetry(() => import('../views/Settings/VehicleCostTypes/VehicleCostTypesList').then(m => ({ default: m.VehicleCostTypesList })));
 export const ServiceRequestDetail = lazyWithRetry(() => import('../views/ServiceRequest/ServiceRequestDetail').then(m => ({ default: m.ServiceRequestDetail })));
 export const ServiceRequestPage = lazyWithRetry(() => import('../views/ServiceRequest/ServiceRequestScreen').then(m => ({ default: m.ServiceRequestPage })));

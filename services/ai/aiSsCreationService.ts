@@ -56,18 +56,23 @@ export interface SSSuggestion {
 
 interface SSSuggestionRaw {
   clientId?: string;
+  client_id?: string;
   client_name?: string;
   clientName?: string;
   unitId?: string;
+  unit_id?: string;
   unit_description?: string;
   unitDescription?: string;
   sectorId?: string;
+  sector_id?: string;
   sector_description?: string;
   sectorDescription?: string;
   orderTypeId?: string;
+  order_type_id?: string;
   order_type_description?: string;
   orderTypeDescription?: string;
   priorityId?: string;
+  priority_id?: string;
   priority_description?: string;
   priorityDescription?: string;
   requested_services?: string;

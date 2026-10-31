@@ -3449,7 +3449,12 @@ export const ordersService = {
             throw new Error('Erro ao filtrar OSs por plano de manutenção');
         }
 
-        return [...new Set((data || []).map(row => String(row.o_id)))];
+        const uniqueIds = new Set<string>();
+        for (const row of data || []) {
+            uniqueIds.add(String((row as { o_id?: unknown }).o_id));
+        }
+
+        return Array.from(uniqueIds);
     },
 
     async linkAlertsToOrder(orderId: string, alertIds: string[]): Promise<void> {

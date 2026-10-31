@@ -1405,6 +1405,39 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                         <span className="material-symbols-outlined text-[18px]">pending_actions</span>
                                     </button>
                                 </div>
+                                <div className="ml-auto flex items-center gap-2 md:hidden shrink-0">
+                                    <form onSubmit={handleQuickSearch} className="relative group flex items-center">
+                                        <input
+                                            type="text"
+                                            value={quickSearchValue}
+                                            onChange={(e) => setQuickSearchValue(e.target.value)}
+                                            placeholder="Buscar SS/OS"
+                                            className="block w-32 sm:w-40 h-[42px] pl-3.5 pr-10 text-sm rounded-[12px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm outline-none transition-all"
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={isSearchingQuickly || !quickSearchValue.trim()}
+                                            className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-primary transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                                            title="Pesquisar SS/OS"
+                                        >
+                                            <span className={`material-symbols-outlined text-[20px] ${isSearchingQuickly ? 'animate-spin' : ''}`}>
+                                                {isSearchingQuickly ? 'progress_activity' : 'search'}
+                                            </span>
+                                        </button>
+                                    </form>
+                                    <button
+                                        onClick={() => filterBarRef.current?.openMobileFilters()}
+                                        className="relative flex items-center justify-center h-[42px] w-[42px] bg-primary text-white hover:bg-blue-600 shadow-md rounded-full transition-all duration-200 active:scale-[0.97] active:brightness-95 font-bold flex-shrink-0 cursor-pointer select-none"
+                                        title="Filtros"
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">filter_list</span>
+                                        {osFilterCount > 0 && (
+                                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[9px] font-black rounded-full px-1 shadow-sm">
+                                                {osFilterCount}
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
                                 <FilterBarResponsive
                                     ref={filterBarRef}
                                     advancedFilters={advancedOrdersFilters}
@@ -2015,7 +2048,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             {/* Floating Action Button + Busca — fixos à direita inferior */}
             {activeTab === 'OS' && (
                 <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-50 flex items-center gap-3">
-                    <form onSubmit={handleQuickSearch} className="relative group flex items-center">
+                    <form onSubmit={handleQuickSearch} className="relative group hidden md:flex items-center">
                         <input
                             type="text"
                             value={quickSearchValue}
@@ -2034,18 +2067,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             </span>
                         </button>
                     </form>
-
-                    <button
-                        onClick={() => filterBarRef.current?.openMobileFilters()}
-                        className="relative md:hidden flex items-center justify-center h-12 w-12 bg-primary text-white hover:bg-blue-600 shadow-md rounded-full transition-all duration-200 active:scale-[0.97] active:brightness-95 font-bold flex-shrink-0 cursor-pointer select-none"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">filter_list</span>
-                        {osFilterCount > 0 && (
-                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[9px] font-black rounded-full px-1 shadow-sm">
-                                {osFilterCount}
-                            </span>
-                        )}
-                    </button>
 
                     {canCreate('services_requests_create') && !isProviderMode && (
                         <button

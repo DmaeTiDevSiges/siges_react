@@ -98,12 +98,12 @@ function buildVisitContext(
       isLeader: m.isLeader || false,
     })),
     vehicles: vehicles.map(v => ({
-      plate: v.licensePlate || '',
+      plate: v.plates || '',
       hasOdometer: !!(v.recorderStart || v.recorderEnd),
     })),
     services: services.map(s => ({
-      description: s.serviceDescription || s.description || '',
-      value: s.totalValue,
+      description: s.serviceDescription || '',
+      value: s.valueTotal,
     })),
     financial: {
       servicesValue: visit.servicesValue || 0,

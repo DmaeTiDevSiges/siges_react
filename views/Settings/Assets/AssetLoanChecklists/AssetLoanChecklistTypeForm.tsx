@@ -67,18 +67,28 @@ export const AssetLoanChecklistTypeForm: React.FC<AssetLoanChecklistTypeFormProp
         try {
             setIsSaving(true);
 
+            const description = formData.itemDescription.trim();
+            const sortOrder = parseInt(formData.sortOrder) || 0;
+
             if (item) {
-                await dataService.updateChecklistType(item.id, {
-                    itemDescription: formData.itemDescription.trim(),
-                    sortOrder: parseInt(formData.sortOrder) || 0,
+                // itemDescription/sortOrder pertencem ao checklist pai (cfg_loans_checklists),
+                // não à junção. Editamos o checklist pai via updateLoansChecklist.
+                if (!item.checklistId) {
+                    toast.error('Este vínculo não possui checklist associado');
+                    return;
+                }
+                await dataService.updateLoansChecklist(item.checklistId, {
+                    description,
+                    sortOrder,
                 });
                 toast.success('Item atualizado com sucesso');
             } else {
-                await dataService.createChecklistType({
-                    assetTypeId: formData.assetTypeId,
-                    itemDescription: formData.itemDescription.trim(),
-                    sortOrder: parseInt(formData.sortOrder) || 0,
+                // Cria o checklist pai e, em seguida, associa-o ao tipo de ativo.
+                const created = await dataService.createLoansChecklist({
+                    description,
+                    sortOrder,
                 });
+                await dataService.createChecklistTypeAssociation(formData.assetTypeId, created.id);
                 toast.success('Item criado com sucesso');
             }
 

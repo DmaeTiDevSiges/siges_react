@@ -1784,6 +1784,131 @@ export interface AppTipFilters {
   pageSize?: number;
 }
 
+// ============================================
+// Auditoria de banco (audits_logs)
+// ============================================
+
+export type AuditOperation = 'INSERT' | 'UPDATE' | 'DELETE';
+
+export interface AuditLogItem {
+  id: number;
+  createdAt: string;
+  tableName: string;
+  operation: AuditOperation;
+  recordId: string | null;
+  userId: number | null;
+  userName: string | null;
+  dataOld: Record<string, unknown> | null;
+  dataNew: Record<string, unknown> | null;
+}
+
+export interface AuditLogFilters {
+  tableName?: string;
+  operation?: AuditOperation;
+  userId?: number; // public.users.id
+  dateFrom?: string; // YYYY-MM-DD
+  dateTo?: string;   // YYYY-MM-DD
+  search?: string;   // record_id ou table_name
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AuditTableConfig {
+  table_name: string;
+  is_enabled: boolean;
+  table_exists: boolean;
+}
+
+export interface AuditTableConfigChange {
+  table_name: string;
+  enabled: boolean;
+}
+
+export const AUDIT_OPERATIONS: { key: AuditOperation; label: string; icon: string; color: string }[] = [
+  { key: 'INSERT', label: 'Inclusão', icon: 'add_circle', color: 'text-green-600 dark:text-green-400' },
+  { key: 'UPDATE', label: 'Alteração', icon: 'edit', color: 'text-blue-600 dark:text-blue-400' },
+  { key: 'DELETE', label: 'Exclusão', icon: 'delete', color: 'text-red-600 dark:text-red-400' },
+];
+
+// Labels amigáveis das tabelas auditadas — deve ser mantida em sincronia
+// com a lista `audited_tables` de 20261047_create_audit_triggers.sql.
+export const AUDITED_TABLES: { key: string; label: string }[] = [
+  { key: 'orders', label: 'Ordens de Serviço (OS)' },
+  { key: 'orders_followers', label: 'Acompanhantes de OS' },
+  { key: 'orders_visits', label: 'Visitas Técnicas' },
+  { key: 'orders_visits_assets', label: 'Ativos da Visita' },
+  { key: 'orders_visits_assets_activities', label: 'Atividades do Ativo da Visita' },
+  { key: 'orders_visits_assets_materials', label: 'Materiais do Ativo da Visita' },
+  { key: 'orders_visits_services', label: 'Serviços da Visita' },
+  { key: 'orders_visits_teams', label: 'Equipes da Visita' },
+  { key: 'orders_visits_vehicles', label: 'Veículos da Visita' },
+  { key: 'orders_visits_evaluations', label: 'Avaliações de Visita' },
+  { key: 'orders_visits_extras', label: 'Visitas Extras' },
+  { key: 'orders_visits_extras_teams', label: 'Equipes da Visita Extra' },
+  { key: 'orders_visits_extras_followers', label: 'Acompanhantes da Visita Extra' },
+  { key: 'orders_visits_maintenance_plans', label: 'Planos de Manutenção da Visita' },
+  { key: 'assets', label: 'Ativos' },
+  { key: 'assets_alerts', label: 'Alertas de Ativos' },
+  { key: 'assets_available', label: 'Disponibilidade de Ativos' },
+  { key: 'assets_followers', label: 'Seguidores de Ativos' },
+  { key: 'assets_loans', label: 'Empréstimos de Ativos' },
+  { key: 'assets_loans_checklists', label: 'Checklists de Empréstimo' },
+  { key: 'assets_loans_checklists_images', label: 'Imagens de Checklists' },
+  { key: 'assets_materials', label: 'Materiais/Componentes do Ativo' },
+  { key: 'assets_attributes_values', label: 'Valores de Atributos do Ativo' },
+  { key: 'materials', label: 'Materiais' },
+  { key: 'materials_purchases', label: 'Compras de Materiais' },
+  { key: 'warehouses', label: 'Almoxarifados' },
+  { key: 'warehouses_materials', label: 'Estoque (Almoxarifado x Material)' },
+  { key: 'carts_materials', label: 'Carrinhos de Materiais' },
+  { key: 'users', label: 'Usuários' },
+  { key: 'users_tools', label: 'Ferramentas do Usuário' },
+  { key: 'users_tools_movements', label: 'Movimentações de Ferramentas' },
+  { key: 'tools', label: 'Ferramentas' },
+  { key: 'units', label: 'Unidades/Locais' },
+  { key: 'clients', label: 'Clientes' },
+  { key: 'cfg_companies', label: 'Empresas' },
+  { key: 'cfg_departments', label: 'Departamentos' },
+  { key: 'cfg_teams', label: 'Equipes' },
+  { key: 'contracts', label: 'Contratos' },
+  { key: 'contracts_services', label: 'Serviços do Contrato' },
+  { key: 'contracts_managers', label: 'Gestores do Contrato' },
+  { key: 'vehicles', label: 'Veículos' },
+  { key: 'vehicles_monthly_expenses', label: 'Despesas Mensais de Veículos' },
+  { key: 'cfg_profiles', label: 'Perfis' },
+  { key: 'cfg_profiles_access', label: 'Acessos de Perfis' },
+  { key: 'cfg_profiles_permissions', label: 'Permissões de Perfis' },
+  { key: 'cfg_users_statuses', label: 'Status de Usuários' },
+  { key: 'cfg_routes', label: 'Rotas' },
+  { key: 'cfg_systems', label: 'Sistemas' },
+  { key: 'cfg_units_types', label: 'Tipos de Unidade' },
+  { key: 'cfg_units_statuses', label: 'Status de Unidades' },
+  { key: 'cfg_units_assets_tags', label: 'Setores (Asset Tags)' },
+  { key: 'cfg_orders_types', label: 'Tipos de OS' },
+  { key: 'cfg_orders_types_subs', label: 'Sub-tipos de OS' },
+  { key: 'cfg_orders_types_activities', label: 'Atividades por Tipo de OS' },
+  { key: 'cfg_orders_priorities', label: 'Prioridades de OS' },
+  { key: 'cfg_orders_statuses', label: 'Status de OS' },
+  { key: 'cfg_orders_plans', label: 'Planos de OS' },
+  { key: 'cfg_orders_objects', label: 'Objetos de OS' },
+  { key: 'cfg_orders_cancel_reasons', label: 'Motivos de Cancelamento' },
+  { key: 'cfg_orders_suspended_reasons', label: 'Motivos de Suspensão' },
+  { key: 'cfg_orders_causes_reasons', label: 'Motivos de Causa' },
+  { key: 'cfg_assets_types', label: 'Tipos de Ativo' },
+  { key: 'cfg_assets_statuses', label: 'Status de Ativos' },
+  { key: 'cfg_assets_priorities', label: 'Prioridades de Ativos' },
+  { key: 'cfg_assets_tags', label: 'Setores (Config)' },
+  { key: 'cfg_assets_tags_subs', label: 'Posições' },
+  { key: 'cfg_assets_attributes', label: 'Atributos de Ativos' },
+  { key: 'cfg_assets_attributes_groups', label: 'Grupos de Atributos' },
+  { key: 'cfg_materials_types', label: 'Tipos de Material' },
+  { key: 'cfg_materials_statuses', label: 'Status de Materiais' },
+  { key: 'cfg_services', label: 'Serviços (Config)' },
+  { key: 'cfg_activities', label: 'Atividades (Config)' },
+  { key: 'cfg_contracts_statuses', label: 'Status de Contratos' },
+  { key: 'cfg_evaluation_requirements', label: 'Requisitos de Avaliação' },
+];
+
 export const APP_TIP_SCREEN_TARGETS = [
   { key: '*', label: 'Todas as telas' },
   { key: 'dashboard', label: 'Painel Principal' },

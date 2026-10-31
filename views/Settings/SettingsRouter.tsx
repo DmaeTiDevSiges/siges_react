@@ -35,6 +35,8 @@ import {
   AssetLoanChecklistTypesList, AssetLoanChecklistTypeForm,
   LoansChecklistsList, LoansChecklistForm,
   AppTipsList,
+  AuditLogList,
+  AuditTablesConfig,
   VehicleCostTypesList,
   AIKnowledgeAdmin,
   AllUsersList,
@@ -72,6 +74,52 @@ const ProfilePermissionsGate: React.FC<ProfilePermissionsGateProps> = ({ childre
 
   React.useEffect(() => {
     if (loading || canView('profile_permissions')) return;
+    onForbidden();
+  }, [loading, canView, onForbidden]);
+
+  if (loading || forbidden) {
+    return (
+      <div className="flex h-full min-h-[60vh] items-center justify-center">
+        <Loading size="md" />
+      </div>
+    );
+  }
+  return <>{children}</>;
+};
+
+interface AuditTablesConfigGateProps {
+  currentUser: User | null;
+  children: React.ReactNode;
+  onForbidden: () => void;
+}
+const AuditTablesConfigGate: React.FC<AuditTablesConfigGateProps> = ({ currentUser, children, onForbidden }) => {
+  const isSuperAdmin = currentUser?.isAdminSuper === true;
+
+  React.useEffect(() => {
+    if (!isSuperAdmin) onForbidden();
+  }, [isSuperAdmin, onForbidden]);
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="flex h-full min-h-[60vh] items-center justify-center">
+        <Loading size="md" />
+      </div>
+    );
+  }
+  return <>{children}</>;
+};
+
+/** Gate de segurança para a tela de auditoria (rota audit_log) */
+interface AuditLogGateProps {
+  children: React.ReactNode;
+  onForbidden: () => void;
+}
+const AuditLogGate: React.FC<AuditLogGateProps> = ({ children, onForbidden }) => {
+  const { canView, loading } = usePermissions();
+  const forbidden = !loading && !canView('audit_log');
+
+  React.useEffect(() => {
+    if (loading || canView('audit_log')) return;
     onForbidden();
   }, [loading, canView, onForbidden]);
 
@@ -244,6 +292,8 @@ export const SETTINGS_SCREENS = new Set([
   'asset-loan-checklist-types', 'asset-loan-checklist-type-form', 'asset-loan-checklist-type-edit',
   'loans-checklists', 'loans-checklist-form', 'loans-checklist-edit',
   'app-tips',
+  'audit-log',
+  'audit-config',
   'vehicle-cost-types',
   'all-users', 'user-details',
   'profile-permissions',
@@ -595,6 +645,20 @@ export const SettingsRouter: React.FC<SettingsRouterProps> = ({ currentScreen, o
     // ── Dicas do App ──────────────────────────────────────────────────────────
     case 'app-tips':
       return <AppTipsList onBack={handleBack} />;
+
+    case 'audit-log':
+      return (
+        <AuditLogGate onForbidden={() => nav('settings')}>
+          <AuditLogList onBack={handleBack} />
+        </AuditLogGate>
+      );
+
+    case 'audit-config':
+      return (
+        <AuditTablesConfigGate currentUser={currentUser} onForbidden={() => nav('settings')}>
+          <AuditTablesConfig />
+        </AuditTablesConfigGate>
+      );
 
     // ── Tipos de custo veicular (rateio de aluguel) ──────────────────────────
     case 'vehicle-cost-types':

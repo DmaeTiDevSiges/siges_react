@@ -59,7 +59,6 @@ const DraggableTeamItem: React.FC<DraggableTeamItemProps> = ({
         listeners,
         setNodeRef: setDragRef,
         transform,
-        transition,
         isDragging
     } = useDraggable({ id: team.id, data: { type: 'team', team } });
 
@@ -74,7 +73,7 @@ const DraggableTeamItem: React.FC<DraggableTeamItemProps> = ({
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition,
+        transition: 'transform 200ms ease',
         zIndex: isDragging ? 50 : 1,
         position: 'relative' as const,
         opacity: isDragging ? 0.4 : 1,

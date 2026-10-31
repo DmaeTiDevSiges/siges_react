@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dataService } from '../../services/dataService';
 import { Loading } from '../../components/ui/Loading';
-import { TeamShiftsMonthly, TeamShiftsMonthLock, TeamShiftsSaveEntry, User } from '../../types';
+import { Team, TeamShiftsMonthly, TeamShiftsMonthLock, TeamShiftsSaveEntry, User } from '../../types';
 import { getBrazilDateInputValue, formatDateInBrazil } from '../../utils/formatters';
 import { toast } from 'sonner';
 import { TeamShiftsPDFButton } from '../../components/reports/TeamShiftsPDFButton';
@@ -33,6 +33,7 @@ const MONTH_NAMES = [
 
 type DraftEntry = { normalShifts: string; extraShifts: string; note: string };
 type DraftMap = Record<string, DraftEntry>;
+type TeamShiftsTreeRow = { stats: TeamShiftsMonthly; level: number };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const refToYM = (ref: string) => {
@@ -103,6 +104,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
 
     const [monthRef, setMonthRef] = useState<string>(() => `${getBrazilDateInputValue().substring(0, 7)}-01`);
     const [stats, setStats] = useState<TeamShiftsMonthly[]>([]);
+    const [departmentTeams, setDepartmentTeams] = useState<Team[]>([]);
     const [lock, setLock] = useState<TeamShiftsMonthLock | null>(null);
     const [drafts, setDrafts] = useState<DraftMap>({});
     const [loading, setLoading] = useState(true);
@@ -151,11 +153,13 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
         try {
             setLoading(true);
             const { year, month } = refToYM(monthRef);
-            const [statsData, lockData] = await Promise.all([
+            const [statsData, lockData, teamsData] = await Promise.all([
                 dataService.getTeamShiftsStats(companyId, departmentId, year, month, 6),
-                dataService.getTeamShiftsMonthLock(monthRef, departmentId)
+                dataService.getTeamShiftsMonthLock(monthRef, departmentId),
+                dataService.getTeams(companyId, departmentId)
             ]);
             setStats(statsData);
+            setDepartmentTeams(teamsData);
             setLock(lockData);
             const initial: DraftMap = {};
             statsData.forEach(s => {
@@ -227,9 +231,57 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
         return { normalShifts, extraShifts, missing, avgIdle, normalHoursTotal, extraHoursTotal };
     }, [stats, drafts, normalHours, extraHours]);
 
+    const orderedStats = useMemo<TeamShiftsTreeRow[]>(() => {
+        const statsById = new Map(stats.map(row => [row.teamId, row]));
+        const teamsById = new Map(departmentTeams.map(team => [team.id, team]));
+        const children = new Map<string | null, Team[]>();
+
+        for (const team of departmentTeams) {
+            if (!statsById.has(team.id)) continue;
+
+            let parentId = team.parentId || null;
+            const visited = new Set<string>([team.id]);
+            while (parentId && !statsById.has(parentId)) {
+                if (visited.has(parentId)) {
+                    parentId = null;
+                    break;
+                }
+                visited.add(parentId);
+                parentId = teamsById.get(parentId)?.parentId || null;
+            }
+
+            const siblings = children.get(parentId) ?? [];
+            siblings.push(team);
+            children.set(parentId, siblings);
+        }
+
+        const sortTeams = (teams: Team[]) =>
+            teams.sort((a, b) =>
+                (a.sortOrder ?? Number.POSITIVE_INFINITY) - (b.sortOrder ?? Number.POSITIVE_INFINITY) ||
+                a.name.localeCompare(b.name)
+            );
+        const result: TeamShiftsTreeRow[] = [];
+        const visited = new Set<string>();
+        const appendChildren = (parentId: string | null, level: number) => {
+            for (const team of sortTeams(children.get(parentId) ?? [])) {
+                if (visited.has(team.id)) continue;
+                visited.add(team.id);
+                const teamStats = statsById.get(team.id);
+                if (teamStats) result.push({ stats: teamStats, level });
+                appendChildren(team.id, level + 1);
+            }
+        };
+
+        appendChildren(null, 0);
+        for (const row of stats) {
+            if (!visited.has(row.teamId)) result.push({ stats: row, level: 0 });
+        }
+        return result;
+    }, [stats, departmentTeams]);
+
     const reportRows: TeamShiftsReportRow[] = useMemo(
         () =>
-            stats.map(s => {
+            orderedStats.map(({ stats: s }) => {
                 const d = drafts[s.teamId] ?? emptyDraft;
                 return {
                     teamCode: s.teamCode,
@@ -243,7 +295,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                     note: d.note || undefined
                 };
             }),
-        [stats, drafts]
+        [orderedStats, drafts]
     );
 
     const setDraftField = (teamId: string, field: keyof DraftEntry, rawValue: string) => {
@@ -549,17 +601,29 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                     </div>
 
                     <div className="space-y-2">
-                        {stats.map(s => {
+                        {orderedStats.map(({ stats: s, level }) => {
                             const draft = drafts[s.teamId] ?? emptyDraft;
                             const expanded = expandedTeamId === s.teamId;
                             const visitCount = s.visits?.length || 0;
                             const showSuggestion = s.suggestedExtraShifts > 0 && (Number(draft.extraShifts) || 0) < s.suggestedExtraShifts;
 
                             return (
-                                <div key={s.teamId} className={`p-4 ${ROW_ITEM}`}>
+                                <div
+                                    key={s.teamId}
+                                    className={`p-4 ${ROW_ITEM}`}
+                                    style={{ marginLeft: `${level * 24}px` }}
+                                >
                                     {/* Cabeçalho do card */}
                                     <div className="flex items-start justify-between gap-3 flex-wrap">
                                         <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                            {level > 0 && (
+                                                <span
+                                                    className="material-symbols-outlined text-slate-400 text-[16px] shrink-0"
+                                                    aria-label={`Subequipe, nível ${level}`}
+                                                >
+                                                    subdirectory_arrow_right
+                                                </span>
+                                            )}
                                             {s.teamCode && (
                                                 <span className="text-[10px] font-mono bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md shrink-0">
                                                     {s.teamCode}
