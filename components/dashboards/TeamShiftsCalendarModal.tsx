@@ -11,7 +11,8 @@ interface TeamShiftsCalendarModalProps {
     normalShiftHours: string;
     extraShiftHours: string;
     isMonthLocked: boolean;
-    canManageCalendar: boolean;
+    canSaveCalendar: boolean;
+    canCloseMonth: boolean;
     onClose: () => void;
     onRequestCloseMonth: () => void;
     onHoursChange: (field: 'normal' | 'extra', value: string) => void;
@@ -34,7 +35,8 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
     normalShiftHours,
     extraShiftHours,
     isMonthLocked,
-    canManageCalendar,
+    canSaveCalendar,
+    canCloseMonth,
     onClose,
     onRequestCloseMonth,
     onHoursChange,
@@ -54,6 +56,8 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
     const [errorMessage, setErrorMessage] = useState('');
     const weeks = useMemo(() => getTeamShiftsCalendarWeeks(monthRef), [monthRef]);
     const [year, month] = monthRef.split('-').map(Number);
+    const previousMonthDate = new Date(Date.UTC(year, month - 2, 1));
+    const maxCopyMonth = `${previousMonthDate.getUTCFullYear()}-${pad(previousMonthDate.getUTCMonth() + 1)}`;
     const dates = weeks[weekIndex] ?? [];
     const markedCells = useMemo(
         () => new Set(draftEntries.map(entry => `${entry.teamId}:${entry.date}:${entry.shiftType}`)),
@@ -74,6 +78,8 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
     }, [draftEntries]);
 
     const toggleCell = (teamId: string, date: string, shiftType: TeamShiftsCalendarEntry['shiftType']) => {
+        if (!canSaveCalendar || isMonthLocked || saving || copying) return;
+
         setDraftEntries(previous => {
             const isMarked = previous.some(entry =>
                 entry.teamId === teamId && entry.date === date && entry.shiftType === shiftType
@@ -85,8 +91,13 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
         });
     };
 
+    const handleHoursChange = (field: 'normal' | 'extra', value: string) => {
+        if (!canSaveCalendar || isMonthLocked || saving || copying) return;
+        onHoursChange(field, value);
+    };
+
     const handleSave = async () => {
-        if (!canManageCalendar || isMonthLocked) return;
+        if (!canSaveCalendar || isMonthLocked) return;
         setSaving(true);
         setErrorMessage('');
         try {
@@ -99,9 +110,11 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
     };
 
     const handleCopyCompetence = async () => {
+        if (!canSaveCalendar || isMonthLocked) return;
+
         const sourceReferenceMonth = `${sourceMonth}-01`;
-        if (!sourceMonth || sourceReferenceMonth === monthRef) {
-            setErrorMessage('Selecione uma competência diferente da atual.');
+        if (!sourceMonth || sourceMonth > monthRef.slice(0, 7)) {
+            setErrorMessage('Selecione uma competência anterior à atual.');
             return;
         }
 
@@ -162,11 +175,11 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
                         </p>
                     </div>
                     <div className="ml-auto flex items-center justify-end gap-2">
-                        {canManageCalendar && !isMonthLocked && (
+                        {canCloseMonth && !isMonthLocked && (
                             <button
                                 type="button"
                                 onClick={onRequestCloseMonth}
-                                disabled={!canManageCalendar || isMonthLocked || saving || copying}
+                                disabled={!canCloseMonth || isMonthLocked || saving || copying}
                                 className="flex items-center gap-2 rounded-xl border border-amber-500/30 px-3 py-2 text-sm font-bold text-amber-600 hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
                                 title="Fechar a competência do mês"
                             >
@@ -217,27 +230,30 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
                         >
                             <span className="material-symbols-outlined text-lg">chevron_right</span>
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setErrorMessage('');
-                                setCopyPanelOpen(open => !open);
-                            }}
-                            disabled={isMonthLocked || saving || copying}
-                            aria-label="Copiar calendário de outra competência"
-                            aria-expanded={copyPanelOpen}
-                            title="Copiar calendário de outra competência"
-                            className="rounded-lg border border-slate-200 p-2 text-slate-600 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
-                        >
-                            <span className="material-symbols-outlined text-lg">content_copy</span>
-                        </button>
-                        {copyPanelOpen && (
+                        {canSaveCalendar && !isMonthLocked && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setErrorMessage('');
+                                    setCopyPanelOpen(open => !open);
+                                }}
+                                disabled={saving || copying}
+                                aria-label="Copiar calendário de outra competência"
+                                aria-expanded={copyPanelOpen}
+                                title="Copiar calendário de outra competência"
+                                className="rounded-lg border border-slate-200 p-2 text-slate-600 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
+                            >
+                                <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                        )}
+                        {canSaveCalendar && !isMonthLocked && copyPanelOpen && (
                             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
                                 <label className="sr-only" htmlFor="team-shifts-copy-month">Competência de origem</label>
                                 <input
                                     id="team-shifts-copy-month"
                                     type="month"
                                     value={sourceMonth}
+                                    max={maxCopyMonth}
                                     onChange={event => setSourceMonth(event.target.value)}
                                     disabled={copying || saving}
                                     aria-label="Competência de origem"
@@ -267,8 +283,8 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
                                 type="text"
                                 inputMode="decimal"
                                 value={normalShiftHours}
-                                onChange={event => onHoursChange('normal', event.target.value)}
-                                disabled={saving || copying}
+                                onChange={event => handleHoursChange('normal', event.target.value)}
+                                disabled={!canSaveCalendar || isMonthLocked || saving || copying}
                                 aria-label="Quantidade de horas por turno normal"
                                 className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center text-sm font-bold text-slate-900 focus:border-primary focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                             />
@@ -280,8 +296,8 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
                                 type="text"
                                 inputMode="decimal"
                                 value={extraShiftHours}
-                                onChange={event => onHoursChange('extra', event.target.value)}
-                                disabled={saving || copying}
+                                onChange={event => handleHoursChange('extra', event.target.value)}
+                                disabled={!canSaveCalendar || isMonthLocked || saving || copying}
                                 aria-label="Quantidade de horas por turno extra"
                                 className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center text-sm font-bold text-slate-900 focus:border-primary focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                             />
@@ -341,7 +357,7 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
                                                                     key={shiftType}
                                                                     type="button"
                                                                     onClick={() => toggleCell(team.teamId, key, shiftType)}
-                                                                    disabled={saving || copying}
+                                                                    disabled={!canSaveCalendar || isMonthLocked || saving || copying}
                                                                     aria-pressed={isMarked}
                                                                     aria-label={`${team.teamName}, ${WEEKDAYS[index]} ${key}: ${shiftType} ${isMarked ? 'marcado' : 'desmarcado'}`}
                                                                     className={`h-8 w-9 rounded-md border text-[10px] font-black transition-colors disabled:opacity-50 ${
@@ -383,7 +399,7 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
                         <span className="flex items-center gap-1"><b className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">TN</b> Turno normal</span>
                         <span className="flex items-center gap-1"><b className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">TE</b> Turno extra</span>
                     </div>
-                    {canManageCalendar && !isMonthLocked && (
+                    {canSaveCalendar && !isMonthLocked && (
                         <button
                             type="button"
                             onClick={handleSave}

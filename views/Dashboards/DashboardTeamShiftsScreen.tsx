@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { dataService } from '../../services/dataService';
 import { Loading } from '../../components/ui/Loading';
+import { Select } from '../../components/ui/Select';
 import { TeamShiftsCalendarEntry, TeamShiftsMonthly, TeamShiftsMonthLock, User } from '../../types';
 import { getBrazilDateInputValue, formatDateInBrazil } from '../../utils/formatters';
 import { toast } from 'sonner';
@@ -56,6 +57,7 @@ const shiftRef = (ref: string, delta: number) => {
 };
 const fmtNum = (value: number) => value.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 const fmtHours = (minutes: number) => fmtNum(minutes / 60);
+const fmtVisitHours = (minutes: number) => (minutes / 60).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 const draftHasContent = (d?: DraftEntry) =>
     !!d && ((Number(d.normalShifts) || 0) > 0 || (Number(d.extraShifts) || 0) > 0 || !!d.note.trim());
 const emptyDraft: DraftEntry = { normalShifts: '0', extraShifts: '0', note: '' };
@@ -63,8 +65,6 @@ const emptyDraft: DraftEntry = { normalShifts: '0', extraShifts: '0', note: '' }
 /* Classes canônicas do app (LeaderRankingDashboard / design system) */
 const CARD = 'bg-white dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm';
 const ROW_ITEM = 'rounded-xl border bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800';
-const FIELD_SELECT =
-    'px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-colors';
 const BTN_SECONDARY =
     'flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 const INPUT =
@@ -99,8 +99,11 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ icon, label, value, color, su
 };
 
 export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps> = ({ currentUser }) => {
-    const { canCreate } = usePermissions();
-    const canManageTeamShifts = canCreate('dashboard_teams_shifts');
+    const { canCreate, canView } = usePermissions();
+    const canOpenTeamShiftsCalendar = canView('dashboard_teams_shifts_calendar');
+    const canConfirmTeamShiftsCalendar = canCreate('dashboard_teams_shifts_calendar');
+    const canCloseTeamShiftsMonth = canCreate('dashboard_teams_shifts_calendar_close');
+    const canReopenTeamShiftsMonth = canCreate('dashboard_teams_shifts_calendar_reopen');
     // Escopo: departamento do usuário logado (fonte: cfg_teams.department_id via equipe)
     const departmentId = currentUser?.departmentId;
     const companyId = currentUser?.companyId;
@@ -183,8 +186,6 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
     useEffect(() => {
         load();
     }, [load]);
-
-    const editable = canManageTeamShifts && !lock;
 
     const currentStats = useMemo(() => {
         const { year, month } = refToYM(monthRef);
@@ -294,7 +295,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
     );
 
     const handleOpenCalendar = async () => {
-        if (!editable || calendarLoading || !departmentId) return;
+        if (!canOpenTeamShiftsCalendar || calendarLoading || !departmentId || lock) return;
         try {
             setCalendarLoading(true);
             const entries = await dataService.getTeamShiftsCalendar(monthRef, departmentId);
@@ -309,7 +310,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
     };
 
     const handleSaveCalendar = async (entries: TeamShiftsCalendarEntry[]) => {
-        if (!departmentId || !editable) return;
+        if (!departmentId || !canConfirmTeamShiftsCalendar || lock) return;
         await dataService.saveTeamShiftsCalendar(monthRef, departmentId, entries);
 
         const countsByTeam = new Map<string, { normalShifts: number; extraShifts: number }>();
@@ -350,7 +351,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
     };
 
     const handleLockMonth = async () => {
-        if (!departmentId || !currentUser || !canManageTeamShifts) return;
+        if (!departmentId || !currentUser || !canCloseTeamShiftsMonth) return;
         try {
             setLocking(true);
             await dataService.lockTeamShiftsMonth(monthRef, departmentId, currentUser.id);
@@ -367,7 +368,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
     };
 
     const handleUnlockMonth = async () => {
-        if (!departmentId || !currentUser || !canManageTeamShifts || !lock) return;
+        if (!departmentId || !currentUser || !canReopenTeamShiftsMonth || !lock) return;
         try {
             setLocking(true);
             await dataService.unlockTeamShiftsMonth(monthRef, departmentId);
@@ -456,10 +457,12 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     {lock ? (
-                        canManageTeamShifts && (
+                        canReopenTeamShiftsMonth && (
                             <button
                                 type="button"
-                                onClick={() => setLockAction('reopen')}
+                                onClick={() => {
+                                    if (canReopenTeamShiftsMonth) setLockAction('reopen');
+                                }}
                                 disabled={locking}
                                 className={`${BTN_SECONDARY} !text-amber-600 dark:!text-amber-400 !border-amber-500/30 hover:!bg-amber-500/10`}
                                 title="Reabrir a competência do mês"
@@ -472,7 +475,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                         <button
                             type="button"
                             onClick={handleOpenCalendar}
-                            disabled={!editable || calendarLoading}
+                            disabled={!canOpenTeamShiftsCalendar || calendarLoading}
                             className={BTN_SECONDARY}
                             title="Contar turnos normais e extras por equipe em cada dia do mês"
                         >
@@ -537,24 +540,26 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                             Equipes
                         </h2>
                         <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                                 Ordenar
-                                <select
-                                    value={sortMode}
-                                    onChange={event => {
-                                        const value = event.target.value;
-                                        if (value === 'name' || value === 'idle-desc' || value === 'idle-asc') {
-                                            setSortMode(value);
-                                        }
-                                    }}
-                                    className={FIELD_SELECT}
-                                    aria-label="Ordenar equipes"
-                                >
-                                    <option value="name">Equipe A–Z</option>
-                                    <option value="idle-desc">Maior ociosidade</option>
-                                    <option value="idle-asc">Menor ociosidade</option>
-                                </select>
-                            </label>
+                                <div className="w-40">
+                                    <Select
+                                        value={sortMode}
+                                        onChange={event => {
+                                            const value = event.target.value;
+                                            if (value === 'name' || value === 'idle-desc' || value === 'idle-asc') {
+                                                setSortMode(value);
+                                            }
+                                        }}
+                                        className="!h-9 !px-3 !rounded-lg !shadow-none text-sm font-bold"
+                                        aria-label="Ordenar equipes"
+                                    >
+                                        <option value="name">Equipe A–Z</option>
+                                        <option value="idle-desc">Maior ociosidade</option>
+                                        <option value="idle-asc">Menor ociosidade</option>
+                                    </Select>
+                                </div>
+                            </div>
                             <span className="text-xs text-slate-400 font-mono">{stats.length} equipes</span>
                         </div>
                     </div>
@@ -682,7 +687,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                                                                 : '—'}
                                                         </span>
                                                         <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0">
-                                                            {v.minutes ?? 0} min
+                                                            {fmtVisitHours(v.minutes ?? 0)} h
                                                         </span>
                                                     </div>
                                                 ))
@@ -697,7 +702,8 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
             )}
 
             {/* Confirmação de fechamento */}
-            {canManageTeamShifts && lockAction !== null && (
+            {((lockAction === 'close' && canCloseTeamShiftsMonth) ||
+                (lockAction === 'reopen' && canReopenTeamShiftsMonth)) && (
                 createPortal(
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className={`${CARD} rounded-2xl p-6 max-w-md w-full space-y-4`}>
@@ -722,16 +728,20 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                             >
                                 Cancelar
                             </button>
-                            <button
-                                onClick={lockAction === 'close' ? handleLockMonth : handleUnlockMonth}
-                                disabled={locking}
-                                className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {locking && <Loading size="xs" />}
-                                {locking
-                                    ? lockAction === 'close' ? 'Fechando...' : 'Reabrindo...'
-                                    : lockAction === 'close' ? 'Confirmar fechamento' : 'Confirmar reabertura'}
-                            </button>
+                            {(lockAction === 'close'
+                                ? canCloseTeamShiftsMonth
+                                : canReopenTeamShiftsMonth) && (
+                                <button
+                                    onClick={lockAction === 'close' ? handleLockMonth : handleUnlockMonth}
+                                    disabled={locking}
+                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {locking && <Loading size="xs" />}
+                                    {locking
+                                        ? lockAction === 'close' ? 'Fechando...' : 'Reabrindo...'
+                                        : lockAction === 'close' ? 'Confirmar fechamento' : 'Confirmar reabertura'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>,
@@ -746,9 +756,12 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                     normalShiftHours={normalShiftHours}
                     extraShiftHours={extraShiftHours}
                     isMonthLocked={!!lock}
-                    canManageCalendar={canManageTeamShifts}
+                    canSaveCalendar={canConfirmTeamShiftsCalendar}
+                    canCloseMonth={canCloseTeamShiftsMonth}
                     onClose={() => setCalendarOpen(false)}
-                    onRequestCloseMonth={() => setLockAction('close')}
+                    onRequestCloseMonth={() => {
+                        if (canCloseTeamShiftsMonth && !lock) setLockAction('close');
+                    }}
                     onHoursChange={setHoursField}
                     onCopyCompetence={handleLoadCalendarCompetence}
                     onSave={handleSaveCalendar}
