@@ -65,7 +65,7 @@ import { gamificationService } from './gamification/gamificationService';
 import { assetLoansService } from './assets/assetLoansService';
 import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
 import { loansChecklistService } from './assets/loansChecklistService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock, AuditLogItem, AuditLogFilters, AuditTableConfig, AuditTableConfigChange } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock, TeamShiftsCalendarEntry, AuditLogItem, AuditLogFilters, AuditTableConfig, AuditTableConfigChange } from '../types';
 
 
 
@@ -1987,6 +1987,20 @@ export const dataService = {
         return teamShiftsRecordsService.getTeamShiftsRecords.apply(teamShiftsRecordsService, arguments as any);
     },
 
+    /** Marca turnos normais e extras por equipe e dia útil da competência. */
+    async getTeamShiftsCalendar(referenceMonth: string, departmentId: string): Promise<TeamShiftsCalendarEntry[]> {
+        return teamShiftsRecordsService.getTeamShiftsCalendar.apply(teamShiftsRecordsService, arguments as any);
+    },
+
+    /** Salva o calendário diário e sincroniza os totais mensais atomicamente. */
+    async saveTeamShiftsCalendar(
+        referenceMonth: string,
+        departmentId: string,
+        entries: TeamShiftsCalendarEntry[]
+    ): Promise<void> {
+        return teamShiftsRecordsService.saveTeamShiftsCalendar.apply(teamShiftsRecordsService, arguments as any);
+    },
+
     /** Salva o lançamento do mês em lote (remove lançamentos zerados; erro se fechado). */
     async saveTeamShiftsRecords(
         referenceMonth: string,
@@ -2005,6 +2019,11 @@ export const dataService = {
     /** Fecha a competência do mês (idempotente). */
     async lockTeamShiftsMonth(referenceMonth: string, departmentId: string, userId: string): Promise<void> {
         return teamShiftsRecordsService.lockMonth.apply(teamShiftsRecordsService, arguments as any);
+    },
+
+    /** Reabre a competência removendo o registro de fechamento. */
+    async unlockTeamShiftsMonth(referenceMonth: string, departmentId: string): Promise<void> {
+        return teamShiftsRecordsService.unlockMonth.apply(teamShiftsRecordsService, arguments as any);
     },
 
     async getUnscheduledSS(filters?: OrderFilters & { viewName?: string; startDate?: string; endDate?: string }): Promise<Order[]> {

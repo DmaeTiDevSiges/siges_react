@@ -138,6 +138,34 @@ const SsScreenGate: React.FC<SsScreenGateProps> = ({ children, onForbidden }) =>
   return <>{children}</>;
 };
 
+const TeamShiftsScreenGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { canView, loading } = usePermissions();
+
+  if (loading) {
+    return (
+      <div className="flex h-full min-h-[60vh] items-center justify-center">
+        <Loading size="md" />
+      </div>
+    );
+  }
+
+  if (!canView('dashboard_teams_shifts')) {
+    return (
+      <div className="flex h-full min-h-[60vh] items-center justify-center p-6">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-800">
+          <span className="material-symbols-outlined text-3xl text-slate-400">lock</span>
+          <h2 className="mt-2 font-bold text-slate-900 dark:text-white">Acesso restrito</h2>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            Seu perfil não tem permissão para visualizar a aba Disponibilidade.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
 const AppContent: React.FC = () => {
   console.log(`Siges versão ${__BUILD_ID__}`);
   const [minTimePassed, setMinTimePassed] = useState(false);
@@ -244,7 +272,7 @@ const AppContent: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers'>(() => {
+  const [activeTab, setActiveTab] = useState<'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'team-shifts'>(() => {
     const saved = localStorage.getItem('app_active_tab');
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
@@ -300,6 +328,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('app-notices');
     } else if (normalizedTab === 'extra-workers') {
       setCurrentScreen('extra-workers');
+    } else if (normalizedTab === 'team-shifts') {
+      setCurrentScreen('team-shifts');
     } else if (normalizedTab === 'fuel-expense') {
       setCurrentScreen('fuel-expense');
     }
@@ -2260,25 +2290,10 @@ const AppContent: React.FC = () => {
           />
         );
       case 'team-shifts':
-        // Guard: aba Ociosidade é exclusiva de isAdminSuper (além da aba oculta
-        // no DashboardTabs, bloqueia navegação salva/direta).
-        if (!currentUser?.isAdminSuper) {
-          return (
-            <div className="flex-1 flex items-center justify-center p-6">
-              <div className="max-w-md w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 text-center space-y-2">
-                <span className="material-symbols-outlined text-3xl text-slate-400">lock</span>
-                <h2 className="font-bold text-slate-900 dark:text-white">Acesso restrito</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  A aba Ociosidade está disponível apenas para administradores super.
-                </p>
-              </div>
-            </div>
-          );
-        }
         return (
-          <DashboardTeamShifts
-            currentUser={currentUser!}
-          />
+          <TeamShiftsScreenGate>
+            <DashboardTeamShifts currentUser={currentUser!} />
+          </TeamShiftsScreenGate>
         );
       case 'companies':
         return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
@@ -3187,6 +3202,7 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) !== 'dashboard-units-assets-tags' &&
                 (currentScreen as string) !== 'dashboard-orders-admin-calendar' &&
                 (currentScreen as string) !== 'dashboard-contracts-evaluations' &&
+                (currentScreen as string) !== 'team-shifts' &&
                 (currentScreen as string) !== 'leader-ranking' &&
                 (currentScreen as string) !== 'services-history' &&
                 (currentScreen as string) !== 'companies' &&

@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { dataService } from '../../services/dataService';
 import { Loading } from '../../components/ui/Loading';
-import { Team, TeamShiftsMonthly, TeamShiftsMonthLock, TeamShiftsSaveEntry, User } from '../../types';
+import { TeamShiftsCalendarEntry, TeamShiftsMonthly, TeamShiftsMonthLock, User } from '../../types';
 import { getBrazilDateInputValue, formatDateInBrazil } from '../../utils/formatters';
 import { toast } from 'sonner';
 import { TeamShiftsPDFButton } from '../../components/reports/TeamShiftsPDFButton';
 import { TeamShiftsExcelButton } from '../../components/reports/TeamShiftsExcelButton';
 import { TeamShiftsReportRow } from '../../components/reports/TeamShiftsDocument';
+import { calculateIdlePercent } from '../../utils/teamShifts';
+import { TeamShiftsCalendarModal } from '../../components/dashboards/TeamShiftsCalendarModal';
+import { usePermissions } from '../../contexts/PermissionsContext';
 
 /**
  * ABA OCIOSIDADE (Gestão) — visível apenas para isAdminSuper.
@@ -33,7 +37,7 @@ const MONTH_NAMES = [
 
 type DraftEntry = { normalShifts: string; extraShifts: string; note: string };
 type DraftMap = Record<string, DraftEntry>;
-type TeamShiftsTreeRow = { stats: TeamShiftsMonthly; level: number };
+type TeamShiftsSortMode = 'name' | 'idle-desc' | 'idle-asc';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const refToYM = (ref: string) => {
@@ -63,8 +67,6 @@ const FIELD_SELECT =
     'px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-colors';
 const BTN_SECONDARY =
     'flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
-const BTN_PRIMARY =
-    'flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 const INPUT =
     'w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
@@ -97,32 +99,33 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ icon, label, value, color, su
 };
 
 export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps> = ({ currentUser }) => {
+    const { canCreate } = usePermissions();
+    const canManageTeamShifts = canCreate('dashboard_teams_shifts');
     // Escopo: departamento do usuário logado (fonte: cfg_teams.department_id via equipe)
     const departmentId = currentUser?.departmentId;
     const companyId = currentUser?.companyId;
-    const isSuper = currentUser?.isAdminSuper === true;
 
     const [monthRef, setMonthRef] = useState<string>(() => `${getBrazilDateInputValue().substring(0, 7)}-01`);
     const [stats, setStats] = useState<TeamShiftsMonthly[]>([]);
-    const [departmentTeams, setDepartmentTeams] = useState<Team[]>([]);
     const [lock, setLock] = useState<TeamShiftsMonthLock | null>(null);
     const [drafts, setDrafts] = useState<DraftMap>({});
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [locking, setLocking] = useState(false);
-    const [dirty, setDirty] = useState(false);
     const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
-    const [confirmLockOpen, setConfirmLockOpen] = useState(false);
+    const [lockAction, setLockAction] = useState<'close' | 'reopen' | null>(null);
+    const [calendarOpen, setCalendarOpen] = useState(false);
+    const [calendarLoading, setCalendarLoading] = useState(false);
+    const [calendarEntries, setCalendarEntries] = useState<TeamShiftsCalendarEntry[]>([]);
+    const [sortMode, setSortMode] = useState<TeamShiftsSortMode>('name');
     const reminderSentFor = useRef<string | null>(null);
 
-    // Horas padrão do turno normal/extra — apenas REFERÊNCIA exibida na tela
-    // (total estimado de horas lançadas). Não alimenta o % de ociosidade, que
-    // continua baseado nas visitas aprovadas. Persistidas no navegador.
+    // Horas padrão usadas junto às quantidades lançadas para calcular a
+    // disponibilidade mensal. Persistidas no navegador.
     const [normalShiftHours, setNormalShiftHours] = useState<string>(
-        () => localStorage.getItem('team_shifts_hours_normal') || '10'
+        () => localStorage.getItem('team_shifts_hours_normal') || '11'
     );
     const [extraShiftHours, setExtraShiftHours] = useState<string>(
-        () => localStorage.getItem('team_shifts_hours_extra') || '4'
+        () => localStorage.getItem('team_shifts_hours_extra') || '11'
     );
 
     const parseHours = (value: string) => {
@@ -153,13 +156,11 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
         try {
             setLoading(true);
             const { year, month } = refToYM(monthRef);
-            const [statsData, lockData, teamsData] = await Promise.all([
+            const [statsData, lockData] = await Promise.all([
                 dataService.getTeamShiftsStats(companyId, departmentId, year, month, 6),
-                dataService.getTeamShiftsMonthLock(monthRef, departmentId),
-                dataService.getTeams(companyId, departmentId)
+                dataService.getTeamShiftsMonthLock(monthRef, departmentId)
             ]);
             setStats(statsData);
-            setDepartmentTeams(teamsData);
             setLock(lockData);
             const initial: DraftMap = {};
             statsData.forEach(s => {
@@ -170,7 +171,6 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                 };
             });
             setDrafts(initial);
-            setDirty(false);
             setExpandedTeamId(null);
         } catch (error) {
             console.error('Erro ao carregar ociosidade:', error);
@@ -184,7 +184,38 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
         load();
     }, [load]);
 
-    const editable = isSuper && !lock;
+    const editable = canManageTeamShifts && !lock;
+
+    const currentStats = useMemo(() => {
+        const { year, month } = refToYM(monthRef);
+
+        return stats.map(s => {
+            const draft = drafts[s.teamId] ?? emptyDraft;
+            const normalShifts = Number(draft.normalShifts) || 0;
+            const extraShifts = Number(draft.extraShifts) || 0;
+            const shiftMinutesAvailable = (normalShifts * normalHours + extraShifts * extraHours) * 60;
+            const idlePercent = calculateIdlePercent(s.approvedVisitMinutes, shiftMinutesAvailable);
+            const evolution = s.evolution?.map(point =>
+                point.year === year && point.month === month
+                    ? { ...point, idlePercent }
+                    : point
+            );
+            const targetIndex = evolution?.findIndex(point => point.year === year && point.month === month) ?? -1;
+            const previousIdle = targetIndex > 0 && evolution
+                ? evolution[targetIndex - 1].idlePercent
+                : s.idlePercentPrevious;
+
+            return {
+                ...s,
+                shiftMinutesAvailable,
+                idlePercent,
+                evolution,
+                idleDelta: previousIdle !== null && previousIdle !== undefined
+                    ? Math.round((idlePercent - previousIdle) * 10) / 10
+                    : null
+            };
+        });
+    }, [stats, drafts, normalHours, extraHours, monthRef]);
 
     // Lembrete de lançamento (≤3 dias do fim do mês, mês aberto, sem registros)
     const reminderVisible = useMemo(() => {
@@ -223,65 +254,29 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
             if (!s.recordId && !draftHasContent(d)) missing++;
         });
         const avgIdle =
-            stats.length > 0
-                ? Math.round((stats.reduce((acc, s) => acc + s.idlePercent, 0) / stats.length) * 10) / 10
+            currentStats.length > 0
+                ? Math.round((currentStats.reduce((acc, s) => acc + s.idlePercent, 0) / currentStats.length) * 10) / 10
                 : 0;
         const normalHoursTotal = Math.round(normalShifts * normalHours);
         const extraHoursTotal = Math.round(extraShifts * extraHours);
         return { normalShifts, extraShifts, missing, avgIdle, normalHoursTotal, extraHoursTotal };
-    }, [stats, drafts, normalHours, extraHours]);
+    }, [stats, currentStats, drafts, normalHours, extraHours]);
 
-    const orderedStats = useMemo<TeamShiftsTreeRow[]>(() => {
-        const statsById = new Map(stats.map(row => [row.teamId, row]));
-        const teamsById = new Map(departmentTeams.map(team => [team.id, team]));
-        const children = new Map<string | null, Team[]>();
-
-        for (const team of departmentTeams) {
-            if (!statsById.has(team.id)) continue;
-
-            let parentId = team.parentId || null;
-            const visited = new Set<string>([team.id]);
-            while (parentId && !statsById.has(parentId)) {
-                if (visited.has(parentId)) {
-                    parentId = null;
-                    break;
-                }
-                visited.add(parentId);
-                parentId = teamsById.get(parentId)?.parentId || null;
-            }
-
-            const siblings = children.get(parentId) ?? [];
-            siblings.push(team);
-            children.set(parentId, siblings);
+    const orderedStats = useMemo(() => [...currentStats].sort((a, b) => {
+        if (sortMode === 'idle-desc') {
+            return b.idlePercent - a.idlePercent ||
+                a.teamName.localeCompare(b.teamName, 'pt-BR', { sensitivity: 'base' });
         }
-
-        const sortTeams = (teams: Team[]) =>
-            teams.sort((a, b) =>
-                (a.sortOrder ?? Number.POSITIVE_INFINITY) - (b.sortOrder ?? Number.POSITIVE_INFINITY) ||
-                a.name.localeCompare(b.name)
-            );
-        const result: TeamShiftsTreeRow[] = [];
-        const visited = new Set<string>();
-        const appendChildren = (parentId: string | null, level: number) => {
-            for (const team of sortTeams(children.get(parentId) ?? [])) {
-                if (visited.has(team.id)) continue;
-                visited.add(team.id);
-                const teamStats = statsById.get(team.id);
-                if (teamStats) result.push({ stats: teamStats, level });
-                appendChildren(team.id, level + 1);
-            }
-        };
-
-        appendChildren(null, 0);
-        for (const row of stats) {
-            if (!visited.has(row.teamId)) result.push({ stats: row, level: 0 });
+        if (sortMode === 'idle-asc') {
+            return a.idlePercent - b.idlePercent ||
+                a.teamName.localeCompare(b.teamName, 'pt-BR', { sensitivity: 'base' });
         }
-        return result;
-    }, [stats, departmentTeams]);
+        return a.teamName.localeCompare(b.teamName, 'pt-BR', { sensitivity: 'base' });
+    }), [currentStats, sortMode]);
 
     const reportRows: TeamShiftsReportRow[] = useMemo(
         () =>
-            orderedStats.map(({ stats: s }) => {
+            orderedStats.map(s => {
                 const d = drafts[s.teamId] ?? emptyDraft;
                 return {
                     teamCode: s.teamCode,
@@ -298,73 +293,70 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
         [orderedStats, drafts]
     );
 
-    const setDraftField = (teamId: string, field: keyof DraftEntry, rawValue: string) => {
-        if (!editable) return;
-        const value = field === 'note' ? rawValue : rawValue.replace(/\D/g, '');
-        setDrafts(prev => ({
-            ...prev,
-            [teamId]: { ...(prev[teamId] ?? emptyDraft), [field]: value }
-        }));
-        setDirty(true);
-    };
-
-    const handleSave = async () => {
-        if (!departmentId || !currentUser || !editable) return;
+    const handleOpenCalendar = async () => {
+        if (!editable || calendarLoading || !departmentId) return;
         try {
-            setSaving(true);
-            const records: TeamShiftsSaveEntry[] = stats.map(s => {
-                const d = drafts[s.teamId] ?? emptyDraft;
-                return {
-                    teamId: s.teamId,
-                    normalShifts: Number(d.normalShifts) || 0,
-                    extraShifts: Number(d.extraShifts) || 0,
-                    note: d.note?.trim() || null
-                };
-            });
-            await dataService.saveTeamShiftsRecords(monthRef, departmentId, records, currentUser.id);
-            toast.success('Lançamento de turnos salvo com sucesso!');
-            await load();
+            setCalendarLoading(true);
+            const entries = await dataService.getTeamShiftsCalendar(monthRef, departmentId);
+            setCalendarEntries(entries);
+            setCalendarOpen(true);
         } catch (error) {
-            console.error('Erro ao salvar turnos:', error);
-            toast.error(error instanceof Error ? error.message : 'Erro ao salvar o lançamento');
+            console.error('Erro ao carregar calendário de turnos:', error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao carregar o calendário de turnos');
         } finally {
-            setSaving(false);
+            setCalendarLoading(false);
         }
     };
 
-    const handleCopyPrevious = async () => {
-        if (!editable) return;
-        try {
-            const prevRef = shiftRef(monthRef, -1);
-            const prevRecords = await dataService.getTeamShiftsRecords(prevRef);
-            if (prevRecords.length === 0) {
-                toast.error(`Nenhum lançamento registrado em ${monthLabelOf(prevRef)}.`);
-                return;
-            }
-            const prevByTeam = new Map(prevRecords.map(r => [r.teamId, r]));
-            const next: DraftMap = {};
-            stats.forEach(s => {
-                const prev = prevByTeam.get(s.teamId);
-                next[s.teamId] = prev
-                    ? { normalShifts: String(prev.normalShifts), extraShifts: String(prev.extraShifts), note: prev.note || '' }
-                    : { ...emptyDraft };
-            });
-            setDrafts(next);
-            setDirty(true);
-            toast.success(`Lançamento de ${monthLabelOf(prevRef)} pré-preenchido — revise e salve.`);
-        } catch (error) {
-            console.error('Erro ao copiar mês anterior:', error);
-            toast.error('Erro ao copiar o lançamento do mês anterior');
-        }
+    const handleSaveCalendar = async (entries: TeamShiftsCalendarEntry[]) => {
+        if (!departmentId || !editable) return;
+        await dataService.saveTeamShiftsCalendar(monthRef, departmentId, entries);
+
+        const countsByTeam = new Map<string, { normalShifts: number; extraShifts: number }>();
+        entries.forEach(entry => {
+            const counts = countsByTeam.get(entry.teamId) ?? { normalShifts: 0, extraShifts: 0 };
+            if (entry.shiftType === 'TN') counts.normalShifts++;
+            else counts.extraShifts++;
+            countsByTeam.set(entry.teamId, counts);
+        });
+
+        setCalendarEntries(entries);
+        setStats(previous => previous.map(team => {
+            const counts = countsByTeam.get(team.teamId) ?? { normalShifts: 0, extraShifts: 0 };
+            const hasRecord = counts.normalShifts > 0 || counts.extraShifts > 0 || !!team.note;
+            return {
+                ...team,
+                ...counts,
+                recordId: hasRecord ? team.recordId || `calendar-${team.teamId}` : undefined
+            };
+        }));
+        setDrafts(previous => Object.fromEntries(
+            Object.entries(previous).map(([teamId, draft]) => {
+                const counts = countsByTeam.get(teamId) ?? { normalShifts: 0, extraShifts: 0 };
+                return [teamId, {
+                    ...draft,
+                    normalShifts: String(counts.normalShifts),
+                    extraShifts: String(counts.extraShifts)
+                }];
+            })
+        ));
+        setCalendarOpen(false);
+        toast.success('Contagem diária salva e totais mensais atualizados.');
+    };
+
+    const handleLoadCalendarCompetence = async (referenceMonth: string) => {
+        if (!departmentId) throw new Error('Departamento não encontrado.');
+        return dataService.getTeamShiftsCalendar(referenceMonth, departmentId);
     };
 
     const handleLockMonth = async () => {
-        if (!departmentId || !currentUser) return;
+        if (!departmentId || !currentUser || !canManageTeamShifts) return;
         try {
             setLocking(true);
             await dataService.lockTeamShiftsMonth(monthRef, departmentId, currentUser.id);
             toast.success(`Competência de ${monthLabelOf(monthRef)} fechada.`);
-            setConfirmLockOpen(false);
+            setLockAction(null);
+            setCalendarOpen(false);
             await load();
         } catch (error) {
             console.error('Erro ao fechar o mês:', error);
@@ -374,23 +366,25 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
         }
     };
 
+    const handleUnlockMonth = async () => {
+        if (!departmentId || !currentUser || !canManageTeamShifts || !lock) return;
+        try {
+            setLocking(true);
+            await dataService.unlockTeamShiftsMonth(monthRef, departmentId);
+            toast.success(`Competência de ${monthLabelOf(monthRef)} reaberta.`);
+            setLockAction(null);
+            await load();
+        } catch (error) {
+            console.error('Erro ao reabrir o mês:', error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao reabrir o mês');
+        } finally {
+            setLocking(false);
+        }
+    };
+
     // ------------------------------------------------------------------
     // Guards de acesso
     // ------------------------------------------------------------------
-    if (!isSuper) {
-        return (
-            <div className="flex-1 flex items-center justify-center p-6">
-                <div className={`${CARD} max-w-md w-full p-8 text-center space-y-2`}>
-                    <span className="material-symbols-outlined text-3xl text-slate-400">lock</span>
-                    <h2 className="font-bold text-slate-900 dark:text-white">Acesso restrito</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        A aba Ociosidade está disponível apenas para administradores super.
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
     if (!departmentId) {
         return (
             <div className="flex-1 flex items-center justify-center p-6">
@@ -425,62 +419,9 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
 
     return (
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 dark:text-white">Ociosidade das Equipes</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Lançamento mensal de turnos e apuração de ociosidade por visitas aprovadas
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                    {lock ? (
-                        <span className={`${FIELD_SELECT} flex items-center gap-2 text-slate-500 dark:text-slate-400`}>
-                            <span className="material-symbols-outlined text-lg">lock</span>
-                            Mês fechado em {lock.lockedAt ? formatDateInBrazil(lock.lockedAt, 'date', 'pt-BR') : '—'}
-                        </span>
-                    ) : (
-                        <>
-                            <button
-                                onClick={handleCopyPrevious}
-                                disabled={!editable}
-                                className={BTN_SECONDARY}
-                                title="Pré-preencher com o lançamento do mês anterior"
-                            >
-                                <span className="material-symbols-outlined text-lg">content_copy</span>
-                                Copiar mês anterior
-                            </button>
-                            <button
-                                onClick={() => setConfirmLockOpen(true)}
-                                disabled={!editable}
-                                className={`${BTN_SECONDARY} !text-amber-600 dark:!text-amber-400 !border-amber-500/30 hover:!bg-amber-500/10`}
-                                title="Fechar a competência do mês"
-                            >
-                                <span className="material-symbols-outlined text-lg">lock</span>
-                                Fechar mês
-                            </button>
-                        </>
-                    )}
-                    <TeamShiftsPDFButton rows={reportRows} periodLabel={monthLabelOf(monthRef)} />
-                    <TeamShiftsExcelButton rows={reportRows} />
-                    <button
-                        onClick={handleSave}
-                        disabled={!editable || !dirty || saving}
-                        className={BTN_PRIMARY}
-                    >
-                        <span className={`material-symbols-outlined text-lg ${saving ? 'animate-spin' : ''}`}>
-                            {saving ? 'sync' : 'save'}
-                        </span>
-                        {saving ? 'Salvando...' : 'Salvar'}
-                    </button>
-                </div>
-            </div>
-
-            {/* Filtros: competência */}
-            <div className="flex flex-wrap items-center gap-4">
+            {/* Competência e ações */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Competência:</span>
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2">
                         <button
                             onClick={() => setMonthRef(shiftRef(monthRef, -1))}
@@ -513,38 +454,36 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                         </button>
                     </div>
                 </div>
-
-                {/* Horas padrão do turno (informativo) */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Horas padrão do turno:</span>
-                    <label className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Normal</span>
-                        <input
-                            type="text"
-                            inputMode="decimal"
-                            value={normalShiftHours}
-                            onChange={e => setHoursField('normal', e.target.value)}
-                            title="Horas do turno normal — referência exibida na tela"
-                            className={`${FIELD_SELECT} w-16 text-center cursor-pointer`}
-                        />
-                    </label>
-                    <label className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Extra</span>
-                        <input
-                            type="text"
-                            inputMode="decimal"
-                            value={extraShiftHours}
-                            onChange={e => setHoursField('extra', e.target.value)}
-                            title="Horas do turno extra — referência exibida na tela"
-                            className={`${FIELD_SELECT} w-16 text-center cursor-pointer`}
-                        />
-                    </label>
-                    <span
-                        className="text-[10px] text-slate-400"
-                        title="Só para estimativa de horas lançadas — o % de ociosidade usa as visitas aprovadas"
-                    >
-                        (h por turno · não altera o % de ociosidade)
-                    </span>
+                    {lock ? (
+                        canManageTeamShifts && (
+                            <button
+                                type="button"
+                                onClick={() => setLockAction('reopen')}
+                                disabled={locking}
+                                className={`${BTN_SECONDARY} !text-amber-600 dark:!text-amber-400 !border-amber-500/30 hover:!bg-amber-500/10`}
+                                title="Reabrir a competência do mês"
+                            >
+                                <span className="material-symbols-outlined text-lg">lock_open</span>
+                                Reabrir mês
+                            </button>
+                        )
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={handleOpenCalendar}
+                            disabled={!editable || calendarLoading}
+                            className={BTN_SECONDARY}
+                            title="Contar turnos normais e extras por equipe em cada dia do mês"
+                        >
+                            <span className={`material-symbols-outlined text-lg ${calendarLoading ? 'animate-spin' : ''}`}>
+                                {calendarLoading ? 'sync' : 'calendar_month'}
+                            </span>
+                            {calendarLoading ? 'Carregando...' : 'DISPONIBILIDADE'}
+                        </button>
+                    )}
+                    <TeamShiftsPDFButton rows={reportRows} periodLabel={monthLabelOf(monthRef)} />
+                    <TeamShiftsExcelButton rows={reportRows} />
                 </div>
             </div>
 
@@ -562,14 +501,14 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
             {/* Resumo */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <SummaryCard
-                    icon="autorenew"
+                    icon="calendar_month"
                     label="Turnos Normais"
                     value={summary.normalShifts}
                     color="text-blue-500"
                     subtext={summary.normalHoursTotal > 0 ? `≈ ${fmtNum(summary.normalHoursTotal)}h` : undefined}
                 />
                 <SummaryCard
-                    icon="bolt"
+                    icon="calendar_add_on"
                     label="Turnos Extras"
                     value={summary.extraShifts}
                     color="text-purple-500"
@@ -595,55 +534,73 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary">groups</span>
-                            Lançamento de Turnos
+                            Equipes
                         </h2>
-                        <span className="text-xs text-slate-400 font-mono">{stats.length} equipes</span>
+                        <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                Ordenar
+                                <select
+                                    value={sortMode}
+                                    onChange={event => {
+                                        const value = event.target.value;
+                                        if (value === 'name' || value === 'idle-desc' || value === 'idle-asc') {
+                                            setSortMode(value);
+                                        }
+                                    }}
+                                    className={FIELD_SELECT}
+                                    aria-label="Ordenar equipes"
+                                >
+                                    <option value="name">Equipe A–Z</option>
+                                    <option value="idle-desc">Maior ociosidade</option>
+                                    <option value="idle-asc">Menor ociosidade</option>
+                                </select>
+                            </label>
+                            <span className="text-xs text-slate-400 font-mono">{stats.length} equipes</span>
+                        </div>
                     </div>
 
                     <div className="space-y-2">
-                        {orderedStats.map(({ stats: s, level }) => {
+                        {orderedStats.map(s => {
                             const draft = drafts[s.teamId] ?? emptyDraft;
                             const expanded = expandedTeamId === s.teamId;
                             const visitCount = s.visits?.length || 0;
-                            const showSuggestion = s.suggestedExtraShifts > 0 && (Number(draft.extraShifts) || 0) < s.suggestedExtraShifts;
+                            const normalShifts = Number(draft.normalShifts) || 0;
+                            const extraShifts = Number(draft.extraShifts) || 0;
 
                             return (
                                 <div
                                     key={s.teamId}
                                     className={`p-4 ${ROW_ITEM}`}
-                                    style={{ marginLeft: `${level * 24}px` }}
                                 >
                                     {/* Cabeçalho do card */}
-                                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                                            {level > 0 && (
-                                                <span
-                                                    className="material-symbols-outlined text-slate-400 text-[16px] shrink-0"
-                                                    aria-label={`Subequipe, nível ${level}`}
-                                                >
-                                                    subdirectory_arrow_right
-                                                </span>
-                                            )}
-                                            {s.teamCode && (
-                                                <span className="text-[10px] font-mono bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md shrink-0">
-                                                    {s.teamCode}
-                                                </span>
-                                            )}
+                                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                                        <div className="flex min-w-0 flex-col items-start gap-2">
                                             <h3 className="font-bold text-slate-900 dark:text-white truncate">{s.teamName}</h3>
-                                            {s.idleDelta !== null && s.idleDelta !== undefined && (
-                                                <span
-                                                    className={`text-[10px] font-bold shrink-0 ${
-                                                        s.idleDelta > 0
-                                                            ? 'text-red-500'
-                                                            : s.idleDelta < 0
-                                                                ? 'text-green-500'
-                                                                : 'text-slate-400'
-                                                    }`}
-                                                    title="Variação da ociosidade em relação ao mês anterior"
-                                                >
-                                                    {s.idleDelta > 0 ? '▲' : s.idleDelta < 0 ? '▼' : '•'} {fmtNum(Math.abs(s.idleDelta))}pp
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="rounded-lg bg-blue-500/10 px-2 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                                    TN {normalShifts} · {fmtNum(normalShifts * normalHours)}h
                                                 </span>
-                                            )}
+                                                <span className="rounded-lg bg-purple-500/10 px-2 py-1 text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                                                    TE {extraShifts} · {fmtNum(extraShifts * extraHours)}h
+                                                </span>
+                                                <span className="rounded-lg bg-slate-500/10 px-2 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                                                    Visitas {fmtHours(s.approvedVisitMinutes)}h
+                                                </span>
+                                                {s.idleDelta !== null && s.idleDelta !== undefined && (
+                                                    <span
+                                                        className={`text-[10px] font-bold shrink-0 ${
+                                                            s.idleDelta > 0
+                                                                ? 'text-red-500'
+                                                                : s.idleDelta < 0
+                                                                    ? 'text-green-500'
+                                                                    : 'text-slate-400'
+                                                        }`}
+                                                        title="Variação da ociosidade em relação ao mês anterior"
+                                                    >
+                                                        {s.idleDelta > 0 ? '▲' : s.idleDelta < 0 ? '▼' : '•'} {fmtNum(Math.abs(s.idleDelta))}pp
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="flex items-center gap-3">
@@ -674,97 +631,11 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                                         </div>
                                     </div>
 
-                                    {/* Inputs de lançamento */}
-                                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                                        <label className="sm:col-span-3 flex flex-col gap-1">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                Turnos normais
-                                            </span>
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                value={draft.normalShifts}
-                                                onChange={e => setDraftField(s.teamId, 'normalShifts', e.target.value)}
-                                                disabled={!editable}
-                                                className={`${INPUT} text-center`}
-                                            />
-                                        </label>
-
-                                        <label className="sm:col-span-3 flex flex-col gap-1">
-                                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                Turnos extras
-                                                {showSuggestion && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setDraftField(s.teamId, 'extraShifts', String(s.suggestedExtraShifts))
-                                                        }
-                                                        disabled={!editable}
-                                                        title="Preencher com base nas visitas aprovadas fora do turno (sugestão)"
-                                                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold normal-case tracking-normal transition-colors cursor-pointer hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[12px]">lightbulb</span>
-                                                        Sugerido: {s.suggestedExtraShifts}
-                                                    </button>
-                                                )}
-                                            </span>
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                value={draft.extraShifts}
-                                                onChange={e => setDraftField(s.teamId, 'extraShifts', e.target.value)}
-                                                disabled={!editable}
-                                                className={`${INPUT} text-center`}
-                                            />
-                                        </label>
-
-                                        <label className="sm:col-span-6 flex flex-col gap-1">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                Observação
-                                            </span>
-                                            <input
-                                                type="text"
-                                                value={draft.note}
-                                                onChange={e => setDraftField(s.teamId, 'note', e.target.value)}
-                                                disabled={!editable}
-                                                placeholder={editable ? 'Opcional (justificativa, turno extra, etc.)' : ''}
-                                                className={`${INPUT} font-medium`}
-                                            />
-                                        </label>
-                                    </div>
-
-                                    {/* Total estimado de horas (informativo — padrão do topo da página) */}
-                                    {(Number(draft.normalShifts) > 0 || Number(draft.extraShifts) > 0) &&
-                                        (normalHours > 0 || extraHours > 0) && (
-                                            <div className="mt-2 text-[11px] text-slate-400">
-                                                ≈{' '}
-                                                <b className="text-slate-600 dark:text-slate-300">
-                                                    {fmtNum((Number(draft.normalShifts) || 0) * normalHours)}h
-                                                </b>{' '}
-                                                em turnos normais +{' '}
-                                                <b className="text-slate-600 dark:text-slate-300">
-                                                    {fmtNum((Number(draft.extraShifts) || 0) * extraHours)}h
-                                                </b>{' '}
-                                                em turnos extras (
-                                                {fmtNum(
-                                                    (Number(draft.normalShifts) || 0) * normalHours +
-                                                        (Number(draft.extraShifts) || 0) * extraHours
-                                                )}
-                                                h no total)
-                                            </div>
-                                        )}
-
                                     {/* Linha auditável + drill-down */}
                                     <div className="mt-3 flex items-center justify-between gap-2 flex-wrap text-xs text-slate-500 dark:text-slate-400">
-                                        <span>
-                                            <b className="text-slate-700 dark:text-slate-300">{fmtHours(s.approvedVisitMinutes)}h</b> em
-                                            visitas aprovadas de{' '}
-                                            <b className="text-slate-700 dark:text-slate-300">{fmtHours(s.shiftMinutesAvailable)}h</b>{' '}
-                                            disponíveis · {s.businessDays} dias úteis
-                                        </span>
                                         <button
                                             onClick={() => setExpandedTeamId(expanded ? null : s.teamId)}
-                                            className="flex items-center gap-1 text-primary font-bold hover:underline cursor-pointer transition-colors"
+                                            className="ml-auto flex items-center gap-1 text-primary font-bold hover:underline cursor-pointer transition-colors"
                                         >
                                             <span className="material-symbols-outlined text-[14px]">
                                                 {expanded ? 'expand_less' : 'expand_more'}
@@ -826,35 +697,62 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
             )}
 
             {/* Confirmação de fechamento */}
-            {confirmLockOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            {canManageTeamShifts && lockAction !== null && (
+                createPortal(
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className={`${CARD} rounded-2xl p-6 max-w-md w-full space-y-4`}>
                         <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-amber-500">lock</span>
-                            <h3 className="font-bold text-slate-900 dark:text-white">Fechar mês de {monthLabelOf(monthRef)}</h3>
+                            <span className="material-symbols-outlined text-amber-500">
+                                {lockAction === 'close' ? 'lock' : 'lock_open'}
+                            </span>
+                            <h3 className="font-bold text-slate-900 dark:text-white">
+                                {lockAction === 'close' ? 'Fechar' : 'Reabrir'} mês de {monthLabelOf(monthRef)}
+                            </h3>
                         </div>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Confirmar o fechamento da competência? Depois disso, o lançamento de turnos deste mês não poderá
-                            mais ser editado.
+                            {lockAction === 'close'
+                                ? 'Confirmar o fechamento da competência? Depois disso, o lançamento de turnos deste mês não poderá mais ser editado.'
+                                : 'Confirmar a reabertura da competência? Os turnos deste mês poderão ser editados novamente.'}
                         </p>
                         <div className="flex justify-end gap-2">
                             <button
-                                onClick={() => setConfirmLockOpen(false)}
+                                onClick={() => setLockAction(null)}
+                                disabled={locking}
                                 className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                             >
                                 Cancelar
                             </button>
                             <button
-                                onClick={handleLockMonth}
+                                onClick={lockAction === 'close' ? handleLockMonth : handleUnlockMonth}
                                 disabled={locking}
                                 className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {locking && <Loading size="xs" />}
-                                {locking ? 'Fechando...' : 'Confirmar fechamento'}
+                                {locking
+                                    ? lockAction === 'close' ? 'Fechando...' : 'Reabrindo...'
+                                    : lockAction === 'close' ? 'Confirmar fechamento' : 'Confirmar reabertura'}
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
+                )
+            )}
+            {calendarOpen && (
+                <TeamShiftsCalendarModal
+                    monthRef={monthRef}
+                    teams={currentStats}
+                    entries={calendarEntries}
+                    normalShiftHours={normalShiftHours}
+                    extraShiftHours={extraShiftHours}
+                    isMonthLocked={!!lock}
+                    canManageCalendar={canManageTeamShifts}
+                    onClose={() => setCalendarOpen(false)}
+                    onRequestCloseMonth={() => setLockAction('close')}
+                    onHoursChange={setHoursField}
+                    onCopyCompetence={handleLoadCalendarCompetence}
+                    onSave={handleSaveCalendar}
+                />
             )}
         </div>
     );

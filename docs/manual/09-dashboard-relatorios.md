@@ -90,6 +90,13 @@ O SIGES oferece **múltiplos dashboards** especializados, acessíveis via abas n
 - **Período:** Mês atual / Mês anterior / Personalizado
 - **Exportação:** PDF/CSV para reuniões de gestão
 
+### 3.7 Ociosidade das Equipes (`DashboardTeamShiftsScreen`)
+- **Contagem semanal:** no botão **Contagem semanal**, marque TN (turno normal) e/ou TE (turno extra) em cada dia de cada equipe avaliável.
+- **Navegação:** avance ou retroceda pelas semanas da competência selecionada; sábados e domingos também podem ser contabilizados.
+- **Totais:** o modal soma TN/TE por equipe e sincroniza os totais mensais usados no cálculo de disponibilidade e nos relatórios.
+- **Acesso e fechamento:** disponível para superadministradores; competências fechadas não aceitam alterações.
+- **Banco:** requer aplicar manualmente as migrations `20261051_create_team_shifts_calendar.sql` e `20261052_allow_weekend_team_shifts.sql` no SQL Editor do Supabase, depois da migration `20261045_create_teams_shifts_records.sql`.
+
 ---
 
 ## 4. Exportação de Dados (Guia Técnico)

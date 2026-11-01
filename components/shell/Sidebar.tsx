@@ -5,7 +5,7 @@ interface SidebarProps {
     onNavigate: (screen: string) => void;
     isAdminSuper?: boolean;
     isAdmin?: boolean;
-    activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'rental-apportionment' | 'rental-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard';
+    activeTab: 'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'dashboard-units-power-electric' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'rental-apportionment' | 'rental-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard' | 'team-shifts';
     isCollapsed?: boolean;
     onToggleCollapse?: () => void;
     currentUser?: any;
@@ -72,11 +72,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   canView('dashboard_orders_visits') || 
                   canView('dashboard_units_assets_tags') || 
                   canView('dashboard_units_power_electric') ||
-                  canView('dashboard_contracts_evaluations')) && (
+                  canView('dashboard_contracts_evaluations') ||
+                  canView('dashboard_teams_shifts')) && (
                     <SidebarItem
                         icon="assignment_add"
                         label="Gestão"
-                    isActive={activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking' || activeTab === 'grant-dashboard'}
+                    isActive={activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking' || activeTab === 'grant-dashboard' || activeTab === 'team-shifts'}
                         isCollapsed={isCollapsed}
                         onClick={() => { 
                             // Navegar para a primeira aba permitida
@@ -86,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             else if (canView('dashboard_units_assets_tags')) onNavigate('dashboard-units-assets-tags');
                             else if (canView('dashboard_units_power_electric')) onNavigate('dashboard-units-power-electric');
                             else if (canView('dashboard_contracts_evaluations')) onNavigate('dashboard-contracts-evaluations');
+                            else if (canView('dashboard_teams_shifts')) onNavigate('team-shifts');
                             else onNavigate('grant-dashboard');
                         }}
                     />

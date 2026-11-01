@@ -2085,6 +2085,13 @@ export interface TeamShiftsSaveEntry {
   note?: string | null;
 }
 
+/** Marcação individual de turno em um dia do calendário mensal. */
+export interface TeamShiftsCalendarEntry {
+  teamId: string;
+  date: string;
+  shiftType: 'TN' | 'TE';
+}
+
 /** Fechamento de competência por departamento (teams_shifts_months). */
 export interface TeamShiftsMonthLock {
   referenceMonth: string;

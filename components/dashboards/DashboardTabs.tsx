@@ -28,6 +28,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   const hasEvaluations = canView('dashboard_contracts_evaluations');
   const hasVehicle = canView('dashboard_vehicles');
   const hasGrant = canView('orders_timeline');
+  const hasTeamShifts = canView('dashboard_teams_shifts');
 
   const isDashboardScreen =
     currentScreen === 'ss-dashboard' ||
@@ -171,7 +172,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
             )}
           </button>
         )}
-        {isAdminSuper && (
+        {hasTeamShifts && (
           <button
             onClick={() => { setCurrentScreen('team-shifts'); setActiveTab('team-shifts' as any); }}
             className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${currentScreen === 'team-shifts' ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}

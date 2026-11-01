@@ -1,5 +1,10 @@
 import { supabase } from './supabase';
-import { TeamShiftsRecord, TeamShiftsMonthLock, TeamShiftsSaveEntry } from '../../types';
+import {
+    TeamShiftsRecord,
+    TeamShiftsMonthLock,
+    TeamShiftsSaveEntry,
+    TeamShiftsCalendarEntry
+} from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 /**
@@ -43,6 +48,42 @@ export const teamShiftsRecordsService = {
             updatedBy: row.updated_by?.toString(),
             updatedAt: row.updated_at
         })) as TeamShiftsRecord[];
+    },
+
+    async getTeamShiftsCalendar(
+        referenceMonth: string,
+        departmentId: string
+    ): Promise<TeamShiftsCalendarEntry[]> {
+        const { data, error } = await supabase.rpc('get_team_shifts_calendar', {
+            p_reference_month: referenceMonth,
+            p_department_id: Number(departmentId)
+        });
+
+        if (error) throw new Error(`Erro ao carregar o calendário de turnos: ${error.message}`);
+
+        return (data || []).map((row: { team_id: number; shift_date: string; shift_type: 'TN' | 'TE' }) => ({
+            teamId: String(row.team_id),
+            date: row.shift_date,
+            shiftType: row.shift_type
+        }));
+    },
+
+    async saveTeamShiftsCalendar(
+        referenceMonth: string,
+        departmentId: string,
+        entries: TeamShiftsCalendarEntry[]
+    ): Promise<void> {
+        const { error } = await supabase.rpc('save_team_shifts_calendar', {
+            p_reference_month: referenceMonth,
+            p_department_id: Number(departmentId),
+            p_entries: entries.map(entry => ({
+                team_id: Number(entry.teamId),
+                shift_date: entry.date,
+                shift_type: entry.shiftType
+            }))
+        });
+
+        if (error) throw new Error(`Erro ao salvar o calendário de turnos: ${error.message}`);
     },
 
     /**
@@ -162,5 +203,16 @@ export const teamShiftsRecordsService = {
             });
 
         if (error) throw new Error(`Erro ao fechar o mês: ${error.message}`);
+    },
+
+    /** Reabre a competência removendo o registro de fechamento. */
+    async unlockMonth(referenceMonth: string, departmentId: string): Promise<void> {
+        const { error } = await supabase
+            .from(LOCKS_TABLE)
+            .delete()
+            .eq('reference_month', referenceMonth)
+            .eq('department_id', Number(departmentId));
+
+        if (error) throw new Error(`Erro ao reabrir o mês: ${error.message}`);
     }
 };

@@ -111,14 +111,12 @@ export interface TeamShiftsReportRow {
 
 // Column widths — must sum to 100%
 const COL = {
-    equipe: '20%',
-    normais: '10%',
-    extras: '9%',
-    dias: '9%',
-    visitas: '14%',
-    disponivel: '14%',
-    ociosidade: '10%',
-    obs: '14%',
+    equipe: '28%',
+    normais: '11%',
+    extras: '11%',
+    visitas: '16%',
+    disponivel: '17%',
+    ociosidade: '17%',
 };
 
 const fmt = (val: any, fallback = '—') => {
@@ -182,11 +180,9 @@ export const TeamShiftsDocument = ({
                         <Text style={[styles.th, { width: COL.equipe }]}>EQUIPE</Text>
                         <Text style={[styles.th, { width: COL.normais, textAlign: 'right' }]}>TURNOS NORM.</Text>
                         <Text style={[styles.th, { width: COL.extras, textAlign: 'right' }]}>TURNOS EXTRAS</Text>
-                        <Text style={[styles.th, { width: COL.dias, textAlign: 'right' }]}>DIAS ÚTEIS</Text>
                         <Text style={[styles.th, { width: COL.visitas, textAlign: 'right' }]}>VISITAS APROV. (H)</Text>
                         <Text style={[styles.th, { width: COL.disponivel, textAlign: 'right' }]}>DISPONÍVEL (H)</Text>
                         <Text style={[styles.th, { width: COL.ociosidade, textAlign: 'right' }]}>OCIOSIDADE</Text>
-                        <Text style={[styles.th, { width: COL.obs }]}>OBSERVAÇÃO</Text>
                     </View>
 
                     {rows.map((r, idx) => (
@@ -196,17 +192,15 @@ export const TeamShiftsDocument = ({
                             wrap={false}
                         >
                             <Text style={[styles.td, { width: COL.equipe, fontWeight: 'bold' }]}>
-                                {fmt(r.teamCode)} — {fmt(r.teamName)}
+                                {fmt(r.teamName)}
                             </Text>
                             <Text style={[styles.tdRight, { width: COL.normais }]}>{r.normalShifts}</Text>
                             <Text style={[styles.tdRight, { width: COL.extras }]}>{r.extraShifts}</Text>
-                            <Text style={[styles.tdRight, { width: COL.dias }]}>{r.businessDays}</Text>
                             <Text style={[styles.tdRight, { width: COL.visitas }]}>{fmt(r.approvedVisitHours)}</Text>
                             <Text style={[styles.tdRight, { width: COL.disponivel }]}>{fmt(r.availableHours)}</Text>
                             <Text style={[styles.tdRight, { width: COL.ociosidade, fontWeight: 'bold' }]}>
                                 {String(r.idlePercent).replace('.', ',')}%
                             </Text>
-                            <Text style={[styles.td, { width: COL.obs }]}>{fmt(r.note, '')}</Text>
                         </View>
                     ))}
 
@@ -215,11 +209,9 @@ export const TeamShiftsDocument = ({
                         <Text style={[styles.tdTotalLabel, { width: COL.equipe }]}>TOTAIS / MÉDIA</Text>
                         <Text style={[styles.tdTotal, { width: COL.normais }]}>{totals.normais}</Text>
                         <Text style={[styles.tdTotal, { width: COL.extras }]}>{totals.extras}</Text>
-                        <Text style={[styles.tdTotal, { width: COL.dias }]}>—</Text>
                         <Text style={[styles.tdTotal, { width: COL.visitas }]}>{fmtH(totals.visitas)}</Text>
                         <Text style={[styles.tdTotal, { width: COL.disponivel }]}>{fmtH(totals.disponivel)}</Text>
                         <Text style={[styles.tdTotal, { width: COL.ociosidade }]}>{String(avgIdle).replace('.', ',')}%</Text>
-                        <Text style={[styles.tdTotal, { width: COL.obs }]}> </Text>
                     </View>
                 </View>
 
