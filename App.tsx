@@ -1589,7 +1589,7 @@ const AppContent: React.FC = () => {
         setCurrentScreen('department-details');
       } catch (error) {
         console.error("Error deleting team", error);
-        toast.error("Erro ao excluir equipe");
+        toast.error(error instanceof Error ? error.message : "Erro ao excluir equipe");
       }
     }
   };
@@ -1600,7 +1600,7 @@ const AppContent: React.FC = () => {
       window.location.reload();
     } catch (error) {
       console.error("Error deleting team", error);
-      toast.error("Erro ao excluir equipe");
+      toast.error(error instanceof Error ? error.message : "Erro ao excluir equipe");
     }
   };
 

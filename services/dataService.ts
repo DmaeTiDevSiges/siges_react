@@ -519,7 +519,7 @@ export const dataService = {
         return usersService.createTeam.apply(usersService, arguments as any);
     },
 
-    async updateTeam(id: string, team: Partial<Team>): Promise<Team> {
+    async updateTeam(id: string, team: Omit<Partial<Team>, 'parentId'> & { parentId?: string | null }): Promise<Team> {
         return usersService.updateTeam.apply(usersService, arguments as any);
     },
 

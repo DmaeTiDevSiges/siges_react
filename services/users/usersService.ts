@@ -337,7 +337,7 @@ export const usersService = {
         } as Team;
     },
 
-    async updateTeam(id: string, team: Partial<Team>): Promise<Team> {
+    async updateTeam(id: string, team: Omit<Partial<Team>, 'parentId'> & { parentId?: string | null }): Promise<Team> {
         const dbData: Record<string, any> = {};
         if (team.name !== undefined) dbData.description = team.name;
         if (team.code !== undefined) dbData.code = team.code;
@@ -358,11 +358,26 @@ export const usersService = {
 
         return {
             ...team,
+            ...(team.parentId === null ? { parentId: undefined } : {}),
             id: data.id.toString()
         } as Team;
     },
 
     async deleteTeam(id: string): Promise<void> {
+        const { count, error: membersError } = await supabase
+            .from('users')
+            .select('id', { count: 'exact', head: true })
+            .eq('team_id', id);
+
+        if (membersError) {
+            console.error('Error checking team members before deletion:', membersError);
+            throw membersError;
+        }
+
+        if (count && count > 0) {
+            throw new Error('Não é possível excluir uma equipe que possui usuários associados.');
+        }
+
         const { error } = await supabase
             .from('cfg_teams')
             .delete()

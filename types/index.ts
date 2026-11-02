@@ -2109,6 +2109,7 @@ export interface TeamIdleEvolutionPoint {
 
 /** Visita aprovada compõe o drill-down auditável do cálculo de ociosidade. */
 export interface ApprovedVisitRow {
+  id: string;
   teamId: string;
   orderMask?: string;
   unitDescription?: string;

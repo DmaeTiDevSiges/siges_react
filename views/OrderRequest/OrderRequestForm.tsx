@@ -66,6 +66,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
         priorityId: initialData?.priorityId ? String(initialData.priorityId) : '',
         requestedServices: initialData?.requestedServices || '',
     });
+    const planWasEdited = useRef(false);
 
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -118,7 +119,9 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                         orderTypeId: currentInitialData.typeId ? String(currentInitialData.typeId) : prev.orderTypeId,
                         orderTypeSubId: currentInitialData.typeSubId ? String(currentInitialData.typeSubId) : prev.orderTypeSubId,
                         orderObjectId: currentInitialData.objectId ? String(currentInitialData.objectId) : prev.orderObjectId,
-                        orderPlanId: currentInitialData.planId ? String(currentInitialData.planId) : prev.orderPlanId,
+                        orderPlanId: planWasEdited.current
+                            ? prev.orderPlanId
+                            : currentInitialData.planId ? String(currentInitialData.planId) : '',
                         contractId: currentInitialData.contractId ? String(currentInitialData.contractId) : prev.contractId,
                         teamId: currentInitialData.teamId ? String(currentInitialData.teamId) : prev.teamId,
                         priorityId: currentInitialData.priorityId ? String(currentInitialData.priorityId) : prev.priorityId,
@@ -385,7 +388,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                 objectId: formData.orderObjectId || undefined,
                 priorityId: formData.priorityId || undefined,
                 contractId: formData.contractId || undefined,
-                planId: formData.orderPlanId || undefined,
+                planId: formData.orderPlanId,
                 teamId: formData.teamId || undefined,
                 assetTagId: selectedAsset?.asset_tag_id?.toString() || initialData?.assetTagId,
                 assetTagSubId: selectedAsset?.asset_tag_sub_id?.toString() || initialData?.assetTagSubId,
@@ -720,7 +723,10 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                     label="Plano"
                                     clearable
                                     value={formData.orderPlanId}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, orderPlanId: e.target.value }))}
+                                    onChange={(e) => {
+                                        planWasEdited.current = true;
+                                        setFormData(prev => ({ ...prev, orderPlanId: e.target.value }));
+                                    }}
                                     options={orderPlans.map(p => ({ value: p.id, label: p.description }))}
                                     placeholder="Nenhum plano selecionado"
                                 />

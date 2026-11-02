@@ -392,6 +392,107 @@ const DragOverlayCard: React.FC<{ team: Team }> = ({ team }) => (
     </div>
 );
 
+const DepartmentDragOverlay: React.FC<{ department: Department }> = ({ department }) => (
+    <div className="flex items-center gap-3 p-3 bg-white dark:bg-card-dark rounded-xl border border-primary shadow-lg opacity-90">
+        <span className="material-symbols-outlined text-primary text-[18px]">drag_indicator</span>
+        <span className="font-medium text-sm text-slate-900 dark:text-white">{department.name}</span>
+    </div>
+);
+
+const DepartmentDropTarget: React.FC<{
+    department: Department;
+    activeDepartmentId: string | null;
+    children: React.ReactNode;
+}> = ({ department, activeDepartmentId, children }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef: setDragRef,
+        transform,
+        isDragging
+    } = useDraggable({
+        id: `department-${department.id}`,
+        data: { type: 'department', department }
+    });
+    const { setNodeRef: setDropRef, isOver } = useDroppable({
+        id: `department-drop-${department.id}`,
+        data: { type: 'department', department }
+    });
+
+    return (
+        <div
+            ref={(element) => {
+                setDragRef(element);
+                setDropRef(element);
+            }}
+            style={{
+                transform: CSS.Transform.toString(transform),
+                transition: 'transform 200ms ease',
+                opacity: isDragging ? 0.4 : 1,
+                position: 'relative'
+            }}
+            className={`flex items-center p-3 sm:p-4 ${
+                isOver && activeDepartmentId !== department.id
+                    ? 'bg-primary/10 ring-2 ring-inset ring-primary rounded-2xl'
+                    : ''
+            }`}
+        >
+            <button
+                type="button"
+                {...attributes}
+                {...listeners}
+                onClick={(event) => event.stopPropagation()}
+                className="mr-2 shrink-0 cursor-grab touch-none text-slate-400 hover:text-primary active:cursor-grabbing"
+                title="Arraste para reorganizar a hierarquia dos departamentos"
+                aria-label={`Arrastar departamento ${department.name}`}
+            >
+                <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
+            </button>
+            {children}
+        </div>
+    );
+};
+
+const DepartmentRootDropZone: React.FC = () => {
+    const { setNodeRef, isOver } = useDroppable({
+        id: 'departments-root',
+        data: { type: 'department-root' }
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`mx-3 sm:mx-4 mb-2 rounded-xl border border-dashed px-3 py-2 text-center text-xs transition-colors ${
+                isOver
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-slate-300 text-slate-500 dark:border-slate-600 dark:text-slate-400'
+            }`}
+        >
+            Solte aqui para tornar departamento principal
+        </div>
+    );
+};
+
+const TeamRootDropZone: React.FC<{ departmentId: string }> = ({ departmentId }) => {
+    const { setNodeRef, isOver } = useDroppable({
+        id: `teams-root-${departmentId}`,
+        data: { type: 'team-root', departmentId }
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`rounded-xl border border-dashed px-3 py-2 text-center text-xs transition-colors ${
+                isOver
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-slate-300 text-slate-500 dark:border-slate-600 dark:text-slate-400'
+            }`}
+        >
+            Solte aqui para tornar equipe principal
+        </div>
+    );
+};
+
 export const DepartmentsList: React.FC<DepartmentsListProps> = ({
     companyId,
     onSelect,
@@ -407,6 +508,7 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
     const [loading, setLoading] = useState(true);
     const [visibleCount, setVisibleCount] = useState(10);
     const [activeTeam, setActiveTeam] = useState<Team | null>(null);
+    const [activeDepartment, setActiveDepartment] = useState<Department | null>(null);
     const PAGE_SIZE = 10;
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
         const saved = localStorage.getItem(`dept_expanded_nodes_${companyId || 'global'}`);
@@ -548,51 +650,159 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
 
         // Handle team drag (existing logic)
         const draggedId = active.id.toString();
-        const targetId = over.id.toString().replace('drop-', '');
-        if (draggedId === targetId) return;
-
         const draggedTeam = allTeams.find(t => t.id === draggedId);
-        const targetTeam = allTeams.find(t => t.id === targetId);
-        if (!draggedTeam || !targetTeam) return;
+        if (!draggedTeam || draggedTeam.departmentId !== departmentId) return;
 
-        const isDescendant = (parentId: string, childId: string): boolean => {
-            const children = allTeams.filter(t => t.parentId === parentId);
-            for (const child of children) {
-                if (child.id === childId) return true;
-                if (isDescendant(child.id, childId)) return true;
+        if (overData?.type === 'team-root') {
+            if (overData.departmentId !== departmentId || !draggedTeam.parentId) return;
+
+            const rootSiblings = allTeams.filter(team =>
+                team.id !== draggedId &&
+                team.departmentId === departmentId &&
+                !team.parentId
+            );
+            const newSortOrder = rootSiblings.reduce(
+                (maxOrder, team) => Math.max(maxOrder, team.sortOrder ?? -1),
+                -1
+            ) + 1;
+
+            setAllTeams(prev => prev.map(team =>
+                team.id === draggedId
+                    ? { ...team, parentId: undefined, sortOrder: newSortOrder }
+                    : team
+            ));
+
+            try {
+                await dataService.updateTeam(draggedId, {
+                    parentId: null,
+                    sortOrder: newSortOrder
+                });
+                toast.success(`"${draggedTeam.name}" agora é uma equipe principal`);
+            } catch (error) {
+                console.error('Error making team a root team:', error);
+                toast.error('Erro ao tornar a equipe principal');
+                try {
+                    setAllTeams(await dataService.getTeams());
+                } catch (refreshError) {
+                    console.error('Error refreshing teams after failed update:', refreshError);
+                    toast.error('Não foi possível atualizar a lista de equipes');
+                }
             }
-            return false;
-        };
-        if (isDescendant(draggedId, targetId)) return;
-
-        const sameParent = draggedTeam.parentId === targetTeam.parentId;
-        let newParentId: string | undefined = draggedTeam.parentId;
-
-        if (!sameParent) {
-            newParentId = targetId;
+            return;
         }
 
-        const siblings = allTeams.filter(t => t.id !== draggedId && t.parentId === newParentId && t.departmentId === departmentId);
-        const targetIndex = siblings.findIndex(t => t.id === targetId);
-        const newSortOrder = targetIndex >= 0 ? targetIndex : siblings.length;
+        if (overData?.type !== 'team') return;
+        const targetId = overData.team.id;
+        if (draggedId === targetId) return;
+
+        const targetTeam = allTeams.find(t => t.id === targetId);
+        if (!targetTeam || targetTeam.departmentId !== departmentId) return;
+        if (draggedTeam.parentId === targetId) return;
+
+        let ancestorId: string | undefined = targetTeam.parentId;
+        const visitedAncestors = new Set<string>();
+        while (ancestorId && !visitedAncestors.has(ancestorId)) {
+            if (ancestorId === draggedId) return;
+            visitedAncestors.add(ancestorId);
+            ancestorId = allTeams.find(team => team.id === ancestorId)?.parentId;
+        }
+
+        const newParentId = targetId;
+        const siblings = allTeams.filter(t =>
+            t.id !== draggedId &&
+            t.parentId === newParentId &&
+            t.departmentId === departmentId
+        );
+        const newSortOrder = siblings.reduce(
+            (maxOrder, team) => Math.max(maxOrder, team.sortOrder ?? -1),
+            -1
+        ) + 1;
 
         setAllTeams(prev => prev.map(t =>
             t.id === draggedId
                 ? { ...t, parentId: newParentId, sortOrder: newSortOrder }
                 : t
         ));
+        setExpandedTeamNodes(prev => {
+            if (prev.has(targetId)) return prev;
+            const expanded = new Set(prev);
+            expanded.add(targetId);
+            localStorage.setItem(`team_nodes_expanded_${companyId || 'global'}`, JSON.stringify(Array.from(expanded)));
+            return expanded;
+        });
 
         try {
             await dataService.updateTeam(draggedId, {
                 parentId: newParentId,
                 sortOrder: newSortOrder
             });
+            toast.success(`"${draggedTeam.name}" agora é filha de "${targetTeam.name}"`);
         } catch (error) {
             console.error('Error updating team:', error);
-            const data = await dataService.getTeams();
-            setAllTeams(data);
+            toast.error('Erro ao alterar a hierarquia da equipe');
+            try {
+                setAllTeams(await dataService.getTeams());
+            } catch (refreshError) {
+                console.error('Error refreshing teams after failed update:', refreshError);
+                toast.error('Não foi possível atualizar a lista de equipes');
+            }
         }
-    }, [allTeams]);
+    }, [allTeams, companyId]);
+
+    const handleDepartmentDragStart = useCallback((event: DragStartEvent) => {
+        const department = departments.find(item => item.id === event.active.data.current?.department?.id);
+        setActiveDepartment(department || null);
+    }, [departments]);
+
+    const handleDepartmentDragEnd = useCallback(async (event: DragEndEvent) => {
+        const { active, over } = event;
+        const dragged = departments.find(item => item.id === active.data.current?.department?.id);
+        setActiveDepartment(null);
+        if (!dragged || !over) return;
+
+        const targetData = over.data.current;
+        if (targetData?.type !== 'department-root' && targetData?.type !== 'department') return;
+
+        const newParent = targetData.type === 'department'
+            ? departments.find(item => item.id === targetData.department?.id)
+            : undefined;
+        if (targetData.type === 'department' && !newParent) return;
+
+        const newParentId = newParent?.id;
+        if (newParentId === dragged.id || newParentId === dragged.parentId) return;
+
+        if (newParentId && (!newParent || newParent.companyId !== dragged.companyId)) return;
+
+        let ancestorId = newParentId;
+        const visitedAncestors = new Set<string>();
+        while (ancestorId && !visitedAncestors.has(ancestorId)) {
+            if (ancestorId === dragged.id) {
+                toast.error('Não é possível mover um departamento para dentro de um dos seus descendentes');
+                return;
+            }
+            visitedAncestors.add(ancestorId);
+            ancestorId = departments.find(item => item.id === ancestorId)?.parentId;
+        }
+
+        try {
+            await dataService.updateDepartment(dragged.id, {
+                ...dragged,
+                parentId: newParentId
+            });
+            setDepartments(prev => prev.map(item =>
+                item.id === dragged.id ? { ...item, parentId: newParentId } : item
+            ));
+            if (newParentId) {
+                updateExpandedNodes(new Set([...expandedNodes, newParentId]));
+            }
+            toast.success(newParent
+                ? `"${dragged.name}" agora é filho de "${newParent.name}"`
+                : `"${dragged.name}" agora é um departamento principal`);
+        } catch (error) {
+            console.error('Error updating department hierarchy:', error);
+            toast.error('Erro ao alterar a hierarquia do departamento');
+        }
+    }, [departments, expandedNodes]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -720,9 +930,13 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                     style={{ marginLeft: `${indent}px` }}
                 >
                     {/* Department Header */}
+                    <DepartmentDropTarget
+                        department={node}
+                        activeDepartmentId={activeDepartment?.id || null}
+                    >
                     <div
                         onClick={() => onSelect?.(node)}
-                        className={`flex items-center p-3 sm:p-4 ${onSelect ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer rounded-2xl' : ''}`}
+                        className={`flex flex-1 items-center ${onSelect ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer rounded-2xl' : ''}`}
                     >
                         {hasChildren && (
                             <button
@@ -779,6 +993,7 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                             </div>
                         )}
                     </div>
+                    </DepartmentDropTarget>
 
                     {/* Teams Section (Expandable) */}
                     {isTeamsExpanded && (
@@ -813,6 +1028,9 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                                                 onToggleUsersExpand={handleToggleUsersExpand}
                                             />
                                         ))}
+                                        {activeTeam?.departmentId === node.id && (
+                                            <TeamRootDropZone departmentId={node.id} />
+                                        )}
 
                                         <DragOverlay dropAnimation={null}>
                                             {activeTeam ? <DragOverlayCard team={activeTeam} /> : null}
@@ -900,22 +1118,34 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col gap-2 sm:gap-3 px-3 sm:px-4 pb-32 overflow-y-auto no-scrollbar">
-                {departmentTree.length === 0 ? (
-                    <div className="text-center py-10 text-slate-500">
-                        Nenhum departamento encontrado.
-                    </div>
-                ) : (
-                    departmentTree.slice(0, visibleCount).map(node => renderDepartmentNode(node))
-                )}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDepartmentDragStart}
+                onDragEnd={handleDepartmentDragEnd}
+                onDragCancel={() => setActiveDepartment(null)}
+            >
+                {activeDepartment && <DepartmentRootDropZone />}
+                <div className="flex-1 flex flex-col gap-2 sm:gap-3 px-3 sm:px-4 pb-32 overflow-y-auto no-scrollbar">
+                    {departmentTree.length === 0 ? (
+                        <div className="text-center py-10 text-slate-500">
+                            Nenhum departamento encontrado.
+                        </div>
+                    ) : (
+                        departmentTree.slice(0, visibleCount).map(node => renderDepartmentNode(node))
+                    )}
 
-                <LoadMore
-                    current={Math.min(visibleCount, departmentTree.length)}
-                    total={departmentTree.length}
-                    onLoadMore={() => setVisibleCount(prev => prev + PAGE_SIZE)}
-                    pageSize={PAGE_SIZE}
-                />
-            </div>
+                    <LoadMore
+                        current={Math.min(visibleCount, departmentTree.length)}
+                        total={departmentTree.length}
+                        onLoadMore={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+                        pageSize={PAGE_SIZE}
+                    />
+                </div>
+                <DragOverlay dropAnimation={null}>
+                    {activeDepartment ? <DepartmentDragOverlay department={activeDepartment} /> : null}
+                </DragOverlay>
+            </DndContext>
 
             <Modal
                 isOpen={deleteTeamModal.isOpen}

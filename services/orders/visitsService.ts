@@ -147,6 +147,7 @@ export const visitsService = {
         month: number,
         months = 1
     ): Promise<Array<{
+        id: string;
         teamId: string;
         orderMask?: string;
         unitDescription?: string;
@@ -161,7 +162,7 @@ export const visitsService = {
 
         const { data, error } = await supabase
             .from('v_orders_visits')
-            .select('o_team_id, ov_started_at, ov_ended_at, o_mask, o_unit_description')
+            .select('id, o_team_id, ov_started_at, ov_ended_at, o_mask, o_unit_description')
             .eq('o_provider_company_id', companyId)
             .eq('ov_processing_id', 5)
             .gte('ov_started_at', start)
@@ -176,6 +177,7 @@ export const visitsService = {
         return (data || [])
             .filter((row: any) => row.o_team_id)
             .map((row: any) => ({
+                id: String(row.id),
                 teamId: row.o_team_id.toString(),
                 orderMask: row.o_mask,
                 unitDescription: row.o_unit_description,

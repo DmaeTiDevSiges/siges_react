@@ -121,6 +121,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
     const [calendarEntries, setCalendarEntries] = useState<TeamShiftsCalendarEntry[]>([]);
     const [sortMode, setSortMode] = useState<TeamShiftsSortMode>('name');
     const reminderSentFor = useRef<string | null>(null);
+    const approvedVisitIds = useRef<Set<string>>(new Set());
 
     // Horas padrão usadas junto às quantidades lançadas para calcular a
     // disponibilidade mensal. Persistidas no navegador.
@@ -149,15 +150,16 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
         }
     };
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (preserveDrafts = false) => {
         if (!departmentId) {
             setStats([]);
             setLock(null);
+            approvedVisitIds.current.clear();
             setLoading(false);
             return;
         }
         try {
-            setLoading(true);
+            if (!preserveDrafts) setLoading(true);
             const { year, month } = refToYM(monthRef);
             const [statsData, lockData] = await Promise.all([
                 dataService.getTeamShiftsStats(companyId, departmentId, year, month, 6),
@@ -165,6 +167,9 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
             ]);
             setStats(statsData);
             setLock(lockData);
+            approvedVisitIds.current = new Set(
+                statsData.flatMap(team => team.visits ?? []).map(visit => visit.id)
+            );
             const initial: DraftMap = {};
             statsData.forEach(s => {
                 initial[s.teamId] = {
@@ -173,19 +178,36 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
                     note: s.note || ''
                 };
             });
-            setDrafts(initial);
-            setExpandedTeamId(null);
+            setDrafts(previous => preserveDrafts ? { ...initial, ...previous } : initial);
+            if (!preserveDrafts) setExpandedTeamId(null);
         } catch (error) {
             console.error('Erro ao carregar ociosidade:', error);
             toast.error('Erro ao carregar a ociosidade das equipes');
         } finally {
-            setLoading(false);
+            if (!preserveDrafts) setLoading(false);
         }
     }, [companyId, departmentId, monthRef]);
 
     useEffect(() => {
         load();
     }, [load]);
+
+    useEffect(() => {
+        if (!companyId || !departmentId) return;
+
+        const subscription = dataService.subscribeToVisits(payload => {
+            const visitId = payload.new?.id ?? payload.old?.id;
+            const wasApproved = visitId != null && approvedVisitIds.current.has(String(visitId));
+            const isApproved = Number(payload.new?.ov_processing_id) === 5;
+            if (wasApproved || isApproved) {
+                void load(true);
+            }
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [companyId, departmentId, load]);
 
     const currentStats = useMemo(() => {
         const { year, month } = refToYM(monthRef);
