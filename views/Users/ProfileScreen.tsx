@@ -135,6 +135,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [searchVehicleResults, setSearchVehicleResults] = useState<Vehicle[]>([]);
     const [searchingVehicle, setSearchingVehicle] = useState(false);
     const [currentVehicle, setCurrentVehicle] = useState<Vehicle | null>(null);
+    const [vehicleChanged, setVehicleChanged] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
@@ -294,20 +295,24 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     // Fetch initial vehicle details if user has one (assuming dataService can fetch it or it's in user object if we extend user)
     // The user object currently has vehicle_id. We might need to fetch the vehicle details.
     useEffect(() => {
+        let isCurrentLoad = true;
         const fetchVehicle = async () => {
             if (user?.vehicleId) {
                 try {
                     const vehicle = await dataService.getVehicle(user.vehicleId);
-                    setCurrentVehicle(vehicle);
+                    if (isCurrentLoad && !vehicleChanged) setCurrentVehicle(vehicle);
                 } catch (error) {
                     console.error("Error fetching vehicle", error);
                 }
             } else {
-                setCurrentVehicle(null);
+                if (isCurrentLoad && !vehicleChanged) setCurrentVehicle(null);
             }
         };
         fetchVehicle();
-    }, [user?.vehicleId]);
+        return () => {
+            isCurrentLoad = false;
+        };
+    }, [user?.vehicleId, vehicleChanged]);
 
     const formatPhone = (val: string) => {
         let clean = val.replace(/\D/g, '');
@@ -354,9 +359,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
         }
     };
 
-    const handleSave = async () => {
-        if (!user?.uuid) return;
+    const handleSave = async (): Promise<boolean> => {
+        if (!user?.uuid) return false;
         setSaving(true);
+        const shouldUpdateVehicle = vehicleChanged;
         try {
             const mobileClean = mobile.replace(/\D/g, '');
             if (mobileClean.length > 0 && mobileClean.length < 10) {
@@ -367,7 +373,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                     type: 'warning'
                 });
                 setSaving(false);
-                return;
+                return false;
             }
 
             setUploadProgress(0);
@@ -388,6 +394,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             }, (progress) => {
                 setUploadProgress(progress);
             });
+
+            if (shouldUpdateVehicle) {
+                await dataService.updateUserVehicle(user.uuid, currentVehicle?.id || null);
+                user.vehicleId = currentVehicle?.id;
+                setVehicleChanged(false);
+            }
 
             if (onUserUpdate) {
                 const selectedProfile = profiles.find(p => p.id.toString() === profileId);
@@ -412,7 +424,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                     shiftStart: shiftStart,
                     shiftEnd: shiftEnd,
                     statusId: statusId ? parseInt(statusId) : undefined,
-                    statusName: selectedStatus?.description || user.statusName
+                    statusName: selectedStatus?.description || user.statusName,
+                    ...(shouldUpdateVehicle ? { vehicleId: currentVehicle?.id } : {})
                 } as User);
             }
 
@@ -423,6 +436,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 type: 'success'
             });
             setTimeout(() => onBack(), 1500);
+            return true;
         } catch (error) {
             console.error("Error updating profile", error);
             setModal({
@@ -431,6 +445,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 message: 'Erro ao atualizar perfil.',
                 type: 'error'
             });
+            return false;
         } finally {
             setSaving(false);
         }
@@ -516,62 +531,43 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
 
     // UseEffect for debouncing vehicle search
     useEffect(() => {
+        let isCurrentSearch = true;
+        const query = searchVehicleQuery.trim();
+        setSearchVehicleResults([]);
+
+        if (!companyId) {
+            setSearchingVehicle(false);
+            return () => {
+                isCurrentSearch = false;
+            };
+        }
+
+        setSearchingVehicle(true);
         const delayDebounceFn = setTimeout(async () => {
-            if (searchVehicleQuery.length >= 2 && user?.companyId) {
-                setSearchingVehicle(true);
-                try {
-                    const results = await dataService.searchVehicles(searchVehicleQuery, user.companyId);
-                    setSearchVehicleResults(results);
-                } catch (e) { console.error(e) }
-                setSearchingVehicle(false);
-            } else {
-                setSearchVehicleResults([]);
+            try {
+                const results = await dataService.searchVehicles(query, companyId, 1000);
+                if (isCurrentSearch) setSearchVehicleResults(results);
+            } catch (error) {
+                if (isCurrentSearch) console.error(error);
+            } finally {
+                if (isCurrentSearch) setSearchingVehicle(false);
             }
         }, 500);
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchVehicleQuery, user?.companyId]);
 
-    const handleSelectVehicle = async (vehicle: Vehicle) => {
-        if (!user?.uuid) return;
-        try {
-            await dataService.updateUserVehicle(user.uuid, vehicle.id);
-            setCurrentVehicle(vehicle);
-            setModal({
-                isOpen: true,
-                title: 'Sucesso',
-                message: 'Veículo atualizado com sucesso!',
-                type: 'success'
-            });
-        } catch (error) {
-            setModal({
-                isOpen: true,
-                title: 'Erro',
-                message: 'Falha ao atualizar veículo.',
-                type: 'error'
-            });
-        }
+        return () => {
+            isCurrentSearch = false;
+            clearTimeout(delayDebounceFn);
+        };
+    }, [searchVehicleQuery, companyId]);
+
+    const handleSelectVehicle = (vehicle: Vehicle) => {
+        setCurrentVehicle(vehicle);
+        setVehicleChanged(true);
     };
 
-    const handleRemoveVehicle = async () => {
-        if (!user?.uuid) return;
-        try {
-            await dataService.updateUserVehicle(user.uuid, null);
-            setCurrentVehicle(null);
-            if (user) user.vehicleId = undefined; // Update local user state
-            setModal({
-                isOpen: true,
-                title: 'Sucesso',
-                message: 'Veículo removido com sucesso!',
-                type: 'success'
-            });
-        } catch (error) {
-            setModal({
-                isOpen: true,
-                title: 'Erro',
-                message: 'Falha ao remover veículo.',
-                type: 'error'
-            });
-        }
+    const handleRemoveVehicle = () => {
+        setCurrentVehicle(null);
+        setVehicleChanged(true);
     };
 
     useEffect(() => {
@@ -1545,10 +1541,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 <div className="mt-8 mb-8 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                     <ButtonSave
                         onSave={async () => {
-                            await handleSave();
+                            if (await handleSave()) setIsEditing(false);
+                        }}
+                        onCancel={() => {
+                            setVehicleChanged(false);
                             setIsEditing(false);
                         }}
-                        onCancel={() => setIsEditing(false)}
                         isSaving={saving}
                         saveLabel="Salvar Perfil"
                     />

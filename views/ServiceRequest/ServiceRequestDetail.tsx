@@ -14,6 +14,7 @@ import { Loading } from '../../components/ui/Loading';
 import { TabsBar } from '../../components/ui/TabsBar';
 import { CloneServiceRequestModal } from '../../components/serviceRequests/modals/CloneServiceRequestModal';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { BatchVisitReportPDFButton } from '../../components/reports/BatchVisitReportPDFButton';
 
 
 interface ServiceRequestDetailProps {
@@ -250,6 +251,11 @@ export const ServiceRequestDetail: React.FC<ServiceRequestDetailProps> = ({
                                         <div className="flex items-center justify-between px-1">
                                             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Histórico de Visitas ({visits.length})</h3>
                                             <div className="flex items-center gap-2">
+                                                <BatchVisitReportPDFButton
+                                                    visits={visits}
+                                                    variant="action"
+                                                    filename={`relatorios-ss-${order.orderMask || order.id}`}
+                                                />
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total:</span>
                                                 <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
                                                     {formatCurrency(visits.reduce((sum, v) => sum + (v.totalValue || 0), 0))}
