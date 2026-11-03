@@ -31,6 +31,7 @@ import { CompanyAvatar } from '../../components/ui/CompanyAvatar';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Loading } from '../../components/ui/Loading';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { CircularGauge } from '../../components/ui/CircularGauge';
 
 
@@ -142,6 +143,9 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         (localStorage.getItem('siges_dashboard_sort_mode') as 'disponibilidade' | 'alfabetica') || 'disponibilidade'
     );
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+    const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState(false);
+    const [activeSearchSuggestion, setActiveSearchSuggestion] = useState(-1);
     const [selectedAssetForModal, setSelectedAssetForModal] = useState<any | null>(null);
     const [modalData, setModalData] = useState<any | null>(null);
     const [modalLoading, setModalLoading] = useState(false);
@@ -175,6 +179,11 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [completingOrderId, setCompletingOrderId] = useState<string | number | null>(null);
     const [ratingOrderId, setRatingOrderId] = useState<string | number | null>(null);
     const [selectedRating, setSelectedRating] = useState<number>(0);
+
+    useEffect(() => {
+        const timeout = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
+        return () => clearTimeout(timeout);
+    }, [searchQuery]);
 
     // Persist view mode
     useEffect(() => {
@@ -594,13 +603,15 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             toast.success('Solicitação de Serviço criada com sucesso!');
             closeSSForm();
 
-            // Refresh active orders
-            if (selectedAssetForModal?.id) {
-                const orders = await dataService.getActiveOrdersByAssetTagId(selectedAssetForModal.id);
-                setActiveOrdersForModal(orders || []);
-                setCurrentOrderIndex(0);
-            }
-            if (selectedSystemId) loadDashboardData(selectedSystemId, true);
+            await Promise.all([
+                selectedAssetForModal?.id
+                    ? dataService.getActiveOrdersByAssetTagId(selectedAssetForModal.id).then(orders => {
+                        setActiveOrdersForModal(orders || []);
+                        setCurrentOrderIndex(0);
+                    })
+                    : Promise.resolve(),
+                selectedSystemId ? loadDashboardData(selectedSystemId, true) : Promise.resolve()
+            ]);
         } catch (err) {
             console.error('Erro ao criar SS:', err);
             toast.error('Erro ao criar solicitação. Tente novamente.');
@@ -614,16 +625,14 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         try {
             const success = await dataService.completeServiceOrder(orderId, currentUser.id);
             if (success) {
-                // Refresh modal data
                 if (selectedAssetForModal?.id) {
-                    const orders = await dataService.getActiveOrdersByAssetTagId(selectedAssetForModal.id);
-                    setActiveOrdersForModal(orders);
-                    setCurrentOrderIndex(0);
-
-                    // Refresh main dashboard to update op_counter / order flag
-                    if (selectedSystemId) {
-                        loadDashboardData(selectedSystemId, true);
-                    }
+                    await Promise.all([
+                        dataService.getActiveOrdersByAssetTagId(selectedAssetForModal.id).then(orders => {
+                            setActiveOrdersForModal(orders || []);
+                            setCurrentOrderIndex(0);
+                        }),
+                        selectedSystemId ? loadDashboardData(selectedSystemId, true) : Promise.resolve()
+                    ]);
                 }
                 setRatingOrderId(null);
                 setSelectedRating(0);
@@ -802,9 +811,9 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
         // Filter by search
         let filtered = finalRows;
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            filtered = finalRows.filter(r => r.description.toLowerCase().includes(q));
+        if (debouncedSearchQuery.trim()) {
+            const q = debouncedSearchQuery.trim().toLocaleLowerCase('pt-BR');
+            filtered = finalRows.filter(r => r.description.toLocaleLowerCase('pt-BR').includes(q));
         }
 
         // Sort
@@ -813,7 +822,46 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         } else {
             return filtered.sort((a, b) => a.description.localeCompare(b.description));
         }
-    }, [allData, selectedSectorName, sortMode, searchQuery]);
+    }, [allData, selectedSectorName, sortMode, debouncedSearchQuery]);
+
+    const unitSearchSuggestions = useMemo(
+        () => unitsRows.slice(0, 6),
+        [unitsRows]
+    );
+
+    const selectSearchSuggestion = (description: string) => {
+        setSearchQuery(description);
+        setIsSearchSuggestionsOpen(false);
+        setActiveSearchSuggestion(-1);
+    };
+
+    const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Escape') {
+            setIsSearchSuggestionsOpen(false);
+            setActiveSearchSuggestion(-1);
+            return;
+        }
+
+        if (event.key === 'ArrowDown' && unitSearchSuggestions.length > 0) {
+            event.preventDefault();
+            setIsSearchSuggestionsOpen(true);
+            setActiveSearchSuggestion(index => index < 0 ? 0 : (index + 1) % unitSearchSuggestions.length);
+            return;
+        }
+
+        if (event.key === 'ArrowUp' && unitSearchSuggestions.length > 0) {
+            event.preventDefault();
+            setIsSearchSuggestionsOpen(true);
+            setActiveSearchSuggestion(index => index <= 0 ? unitSearchSuggestions.length - 1 : index - 1);
+            return;
+        }
+
+        if (event.key === 'Enter' && isSearchSuggestionsOpen && activeSearchSuggestion >= 0) {
+            event.preventDefault();
+            const selectedSuggestion = unitSearchSuggestions[activeSearchSuggestion];
+            if (selectedSuggestion) selectSearchSuggestion(selectedSuggestion.description);
+        }
+    };
 
     const systemSummary = useMemo(() => {
         if (allData.length === 0) return null;
@@ -929,14 +977,64 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                         </div>
 
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-                            <div className="w-full sm:w-[240px]">
+                            <div className="relative w-full sm:w-[240px]">
                                 <SearchInput
                                     placeholder="Buscar unidade..."
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onClear={() => setSearchQuery('')}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setActiveSearchSuggestion(-1);
+                                        setIsSearchSuggestionsOpen(true);
+                                    }}
+                                    onFocus={() => setIsSearchSuggestionsOpen(true)}
+                                    onBlur={() => setIsSearchSuggestionsOpen(false)}
+                                    onKeyDown={handleSearchKeyDown}
+                                    onClear={() => {
+                                        setSearchQuery('');
+                                        setIsSearchSuggestionsOpen(false);
+                                        setActiveSearchSuggestion(-1);
+                                    }}
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-controls="unit-search-suggestions"
+                                    aria-expanded={isSearchSuggestionsOpen && searchQuery === debouncedSearchQuery && unitSearchSuggestions.length > 0}
+                                    aria-activedescendant={activeSearchSuggestion >= 0 ? `unit-search-suggestion-${activeSearchSuggestion}` : undefined}
                                     className="shadow-sm border-none bg-slate-100 dark:bg-slate-800 h-11! w-full"
                                 />
+                                {isSearchSuggestionsOpen &&
+                                    searchQuery.trim() &&
+                                    searchQuery === debouncedSearchQuery &&
+                                    unitSearchSuggestions.length > 0 && (
+                                        <ul
+                                            id="unit-search-suggestions"
+                                            role="listbox"
+                                            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-800"
+                                        >
+                                            {unitSearchSuggestions.map((unit, index) => (
+                                                <li
+                                                    key={unit.id}
+                                                    id={`unit-search-suggestion-${index}`}
+                                                    role="option"
+                                                    aria-selected={activeSearchSuggestion === index}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onMouseDown={event => event.preventDefault()}
+                                                        onMouseEnter={() => setActiveSearchSuggestion(index)}
+                                                        onClick={() => selectSearchSuggestion(unit.description)}
+                                                        className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm ${
+                                                            activeSearchSuggestion === index
+                                                                ? 'bg-primary/10 text-primary'
+                                                                : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700'
+                                                        }`}
+                                                    >
+                                                        <span className="truncate font-semibold">{unit.description}</span>
+                                                        <span className="shrink-0 text-xs text-slate-400">{unit.percentage}%</span>
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
                             </div>
 
 
@@ -1026,7 +1124,22 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                             className="flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-1.5 px-1.5 cursor-grab active:cursor-grabbing"
                         >
                             {/* Sector Cards only */}
-                            {sectorsStats.map((sector) => (
+                            {loading ? (
+                                <div className="flex gap-2 sm:gap-3 overflow-hidden py-1.5 px-1.5" role="status" aria-label="Carregando setores">
+                                    {[0, 1, 2, 3].map(sector => (
+                                        <div
+                                            key={sector}
+                                            className="flex h-[60px] min-w-[150px] shrink-0 items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-3 dark:border-white/5 dark:bg-slate-800/40 sm:h-[70px] sm:min-w-[176px] sm:px-4"
+                                        >
+                                            <div className="flex-1 space-y-2">
+                                                <Skeleton variant="text" width="82%" />
+                                                <Skeleton variant="text" width="58%" />
+                                            </div>
+                                            <Skeleton variant="circular" width={36} height={36} />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : sectorsStats.map((sector) => (
                                 <Card
                                     key={sector.name}
                                     onClick={() => setSelectedSectorName(sector.name)}
@@ -1118,8 +1231,27 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
                     <main className="pb-6 sm:pb-10">
                         {loading ? (
-                            <div className="flex flex-col items-center justify-center h-80 gap-3">
-                                <Loading size="md" text="Sincronizando Ativos..." />
+                            <div className="flex flex-col gap-2 sm:gap-3" role="status" aria-label="Carregando unidades">
+                                {Array.from({ length: 6 }).map((_, index) => (
+                                    <div key={index} className="flex flex-col md:flex-row gap-2 md:gap-3">
+                                        <div className="flex min-h-[76px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 md:w-[256px] md:shrink-0">
+                                            <Skeleton variant="circular" width={36} height={36} />
+                                            <div className="flex-1 space-y-2">
+                                                <Skeleton variant="text" width="78%" />
+                                                <Skeleton variant="text" width="52%" />
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-1 gap-2 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900">
+                                            {[0, 1, 2, 3, 4].map(asset => (
+                                                <div key={asset} className="flex h-[58px] min-w-[100px] flex-col items-center justify-between rounded-xl bg-slate-50 p-2 dark:bg-slate-800/40 sm:min-w-[120px]">
+                                                    <Skeleton variant="text" width="75%" />
+                                                    <Skeleton variant="circular" width={20} height={20} />
+                                                    <Skeleton variant="text" width="40%" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         ) : (
                             <div className="flex flex-col gap-1 sm:gap-2">

@@ -9,7 +9,7 @@ import { supabase } from '../../services/core/supabase';
 import { OrderVisitCardListItem } from '../../components/ordersVisits/OrderVisitCardListItem';
 import { getProcessingStatus } from '../../components/ordersVisits/OrderVisitProcessingButton';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
-import { Loading } from '../../components/ui/Loading';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { TabsBar } from '../../components/ui/TabsBar';
 import { syncPhoneNumber } from '../../services/core/phoneService';
 import { AIContextualBar } from '../../components/ai/AIContextualBar';
@@ -20,6 +20,42 @@ import type { VehicleMonthlyExpense } from '../../services/orders/vehicleRentalS
 import { usePermissions } from '../../contexts/PermissionsContext';
 
 type DashboardTab = 'services' | 'visits' | 'fuel';
+
+const DashboardCardsSkeleton: React.FC<{ count: number }> = ({ count }) => (
+    <div className="py-3" aria-hidden="true">
+        <div className="overflow-hidden">
+            <div className={`flex md:grid ${count === 3 ? 'md:grid-cols-4' : 'md:grid-cols-5'} gap-3 px-4 pb-2`}>
+                {Array.from({ length: count }).map((_, index) => (
+                    <div
+                        key={index}
+                        className="bg-white dark:bg-card-dark rounded-[16px] p-4 border-2 border-slate-200 dark:border-slate-700 shrink-0 w-[160px] md:w-full"
+                    >
+                        <Skeleton variant="text" width="70%" />
+                        <div className="flex items-center justify-between mt-3">
+                            <Skeleton variant="rectangular" width={48} height={48} />
+                            <Skeleton variant="text" width={28} height={32} />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </div>
+);
+
+const DashboardListSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => (
+    <div className="flex flex-col gap-3" aria-hidden="true">
+        {Array.from({ length: count }).map((_, index) => (
+            <div
+                key={index}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-4"
+            >
+                <Skeleton variant="text" width="45%" />
+                <Skeleton variant="text" width="75%" className="mt-2" />
+                <Skeleton variant="text" width="30%" className="mt-2" />
+            </div>
+        ))}
+    </div>
+);
 
 interface DashboardScreenProps {
     currentUser: User | null;
@@ -309,29 +345,39 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
             <div className="flex-1 overflow-hidden relative flex flex-col">
                 {activeTab === 'services' ? (
                     <div className="flex flex-col h-full">
-                        <UserServicesPanel
-                            autorizadosCount={stats.autorizados}
-                            agendadasCount={stats.agendadas}
-                            suspensosCount={stats.suspensos}
-                            selectedService={selectedService}
-                            onServiceSelect={handleServiceSelect}
-                        />
+                        {isLoading ? (
+                            <DashboardCardsSkeleton count={3} />
+                        ) : (
+                            <UserServicesPanel
+                                autorizadosCount={stats.autorizados}
+                                agendadasCount={stats.agendadas}
+                                suspensosCount={stats.suspensos}
+                                selectedService={selectedService}
+                                onServiceSelect={handleServiceSelect}
+                            />
+                        )}
 
                         {/* Orders List */}
                         <div className="flex-1 px-4 pt-4 overflow-y-auto no-scrollbar">
-                            <div className="flex items-center justify-between mb-4 px-1">
-                                <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
-                                    {selectedService === 'autorizados' ? 'OS Autorizados' :
-                                        selectedService === 'agendadas' ? 'OS Agendados' : 'OS Suspensos'}
-                                </h2>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                    {filteredOrders.length} {filteredOrders.length === 1 ? 'Registro' : 'Registros'}
-                                </span>
-                            </div>
+                            {isLoading ? (
+                                <div className="mb-4 px-1" aria-hidden="true">
+                                    <Skeleton variant="text" width="45%" />
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                    <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
+                                        {selectedService === 'autorizados' ? 'OS Autorizados' :
+                                            selectedService === 'agendadas' ? 'OS Agendados' : 'OS Suspensos'}
+                                    </h2>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        {filteredOrders.length} {filteredOrders.length === 1 ? 'Registro' : 'Registros'}
+                                    </span>
+                                </div>
+                            )}
 
                             {isLoading ? (
-                                <div className="flex flex-col items-center justify-center py-12">
-                                    <Loading overlay={false} text="Sincronizando..." />
+                                <div role="status" aria-label="Carregando serviços">
+                                    <DashboardListSkeleton />
                                 </div>
                             ) : filteredOrders.length > 0 ? (
                                 <div className="flex flex-col gap-3">
@@ -358,7 +404,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                     </div>
                 ) : activeTab === 'visits' ? (
                     <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
-                        {isInProgress && (
+                        {isLoading ? (
+                            <DashboardCardsSkeleton count={5} />
+                        ) : isInProgress && (
                             <div className="px-4 pt-4 pb-2">
                                 <div className="bg-red-500 rounded-[16px] p-4 shadow-lg shadow-red-500/20 text-white relative overflow-hidden group cursor-pointer" onClick={() => onResumeVisit?.(currentUser?.ovIdInProgress?.toString() || '')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
@@ -378,32 +426,40 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                             </div>
                         )}
 
-                        <UserVisitsPanel
-                            rascunhoCount={visitsStats.rascunho}
-                            reportadasCount={visitsStats.reportadas}
-                            revisadasCount={visitsStats.revisadas}
-                            reprovadasCount={visitsStats.reprovadas}
-                            chatPendentesCount={visitsStats.chatPendentes}
-                            selectedStatus={selectedVisitStatus}
-                            onStatusSelect={handleVisitStatusSelect}
-                        />
+                        {!isLoading && (
+                            <UserVisitsPanel
+                                rascunhoCount={visitsStats.rascunho}
+                                reportadasCount={visitsStats.reportadas}
+                                revisadasCount={visitsStats.revisadas}
+                                reprovadasCount={visitsStats.reprovadas}
+                                chatPendentesCount={visitsStats.chatPendentes}
+                                selectedStatus={selectedVisitStatus}
+                                onStatusSelect={handleVisitStatusSelect}
+                            />
+                        )}
 
                         <div className="flex-1 px-4 pt-4 overflow-y-auto no-scrollbar">
-                            <div className="flex items-center justify-between mb-4 px-1">
-                                <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
-                                    {selectedVisitStatus === 'chats' ? 'Chats Pendentes' :
-                                        getProcessingStatus(
-                                            selectedVisitStatus === 'rascunho' ? 1 :
-                                            selectedVisitStatus === 'reportadas' ? 2 :
-                                            selectedVisitStatus === 'revisadas' ? 3 :
-                                            selectedVisitStatus === 'reprovadas' ? 4 : 1
-                                        ).label} ({filteredVisits.length})
-                                </h2>
-                            </div>
+                            {isLoading ? (
+                                <div className="mb-4 px-1" aria-hidden="true">
+                                    <Skeleton variant="text" width="45%" />
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                    <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
+                                        {selectedVisitStatus === 'chats' ? 'Chats Pendentes' :
+                                            getProcessingStatus(
+                                                selectedVisitStatus === 'rascunho' ? 1 :
+                                                selectedVisitStatus === 'reportadas' ? 2 :
+                                                selectedVisitStatus === 'revisadas' ? 3 :
+                                                selectedVisitStatus === 'reprovadas' ? 4 : 1
+                                            ).label} ({filteredVisits.length})
+                                    </h2>
+                                </div>
+                            )}
 
                             {isLoading ? (
-                                <div className="flex flex-col items-center justify-center py-12 gap-3">
-                                    <Loading overlay={false} text="Sincronizando..." />
+                                <div role="status" aria-label="Carregando visitas">
+                                    <DashboardListSkeleton />
                                 </div>
                             ) : filteredVisits.length > 0 ? (
                                 <div className="flex flex-col gap-3 pb-4">
@@ -451,8 +507,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                             </div>
 
                             {fuelLoading ? (
-                                <div className="flex flex-col items-center justify-center py-12">
-                                    <Loading overlay={false} text="Sincronizando..." />
+                                <div role="status" aria-label="Carregando abastecimentos">
+                                    <DashboardListSkeleton />
                                 </div>
                             ) : fuelExpenses.length > 0 ? (
                                 <div className="flex flex-col gap-3 pb-4">

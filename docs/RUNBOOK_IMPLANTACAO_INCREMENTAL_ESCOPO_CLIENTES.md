@@ -1,7 +1,7 @@
 # Runbook — Implantação incremental do escopo por cliente
 
-> **Status:** EM PLANEJAMENTO — **Gate 2 concluído** (2026-10-27); **Fase 1C em execução** (dados e observação)  
-> **Data:** 2026-10-26 (atualizado 2026-10-27)  
+> **Status:** **Gate 3 aprovado por decisão do responsável** (2026-11-02); prazo de observação dispensado. Fase 1C concluída.
+> **Data:** 2026-10-26 (atualizado 2026-11-02)
 > **Plano:** `docs/PLANO_ESCOPOS_POR_CLIENTE_VIA_DEPARTAMENTOS.md`  
 > **Rollback:** `docs/PLANO_ESCOPOS_POR_CLIENTE_VIA_DEPARTAMENTOS_ROLLBACK.md`  
 > **Objetivo:** implantar `units.clients_ids` e o escopo por cliente em partes, sem downtime e sem interferir na versão antiga web.
@@ -424,10 +424,12 @@ LEFT JOIN public.units u ON u.id = o.unit_id;
 
 ### 6.4 Gate 3
 
-- [ ] Pendências acima resolvidas ou explicitamente aceitas.
-- [ ] 0 divergências.
-- [ ] 1–2 semanas de convivência sem incidentes.
-- [ ] Rollback da 1A/1B ainda viável.
+- [x] Pendências acima resolvidas ou explicitamente aceitas (confirmado pelo responsável em 2026-11-02).
+- [x] 0 divergências nas consultas de validação (confirmado pelo responsável em 2026-11-02).
+- [x] Critério de 1–2 semanas de convivência dispensado por decisão do responsável em 2026-11-02; o período não é registrado como cumprido.
+- [x] Rollback da 1A/1B ainda viável (rollback da 1A testado em ambiente controlado; rollback da 1B é reversão do deploy, mantendo os objetos aditivos).
+
+> **Gate 3 APROVADO** (2026-11-02) por decisão do responsável. A aprovação registra a dispensa do período de observação; não altera a exigência do Gate 4 antes da Fase 1D.
 
 ---
 
@@ -444,13 +446,22 @@ LEFT JOIN public.units u ON u.id = o.unit_id;
 
 ### 7.2 Migration `20261026_client_scope.sql`
 
+> Os arquivos `dev/supabase/migrations/20261026_client_scope.sql` e
+> `dev/supabase/migrations/20261026_client_scope_DOWN.sql` foram preparados
+> localmente em 2026-11-02. **Não foram aplicados nem validados em staging**.
+> A migration exige que todas as tabelas-alvo já tenham RLS habilitado e falha
+> se detectar alguma sem RLS. Não executar em produção antes de validar o
+> schema vivo, concluir o suporte de cliente ativo no app e ensaiar o rollback.
+
 Conteúdo conforme o plano principal, Fase 1D:
 
 - [ ] Substituir `fn_sync_units_clients_ids` pelo modo **array-wins** (permite multi-cliente; remove o guard da Fase 1A/1B).
 - [ ] `cfg_departments.clients_ids` + `CHECK` + GIN + trigger de validação.
 - [ ] Funções `fc_scope_*`.
 - [ ] Índices em `client_id` (`orders`, `units`, `assets`, `contracts`, `assets_alerts`).
-- [ ] Substituição das policies `"Universal Access"` por policies `client_scope_*`.
+- [ ] Adicionar policies `client_scope_*` RESTRICTIVE (as policies permissivas
+  existentes, inclusive `"Universal Access"`, permanecem e são limitadas pelas
+  novas policies; revisar o snapshot antes da aplicação).
 - [ ] Policies em tabelas diretas + filhas, com os predicados do plano principal (`units` via `clients_ids &&`, `assets` via `unit_id`, `orders` via `client_id`).
 - [ ] `v_assets_loans` já está `security_invoker=true`; não reverter.
 
@@ -464,9 +475,22 @@ Conteúdo conforme o plano principal, Fase 1D:
 6. Monitorar erros 42501/permission denied.
 7. Expandir para todos os usuários.
 
+> **Bloqueio atual:** `ActiveClientProvider`, `ClientSelector`,
+> `ActiveClientGuard` e os filtros de `activeClientId` ainda não foram
+> integrados ao app. A aprovação do Gate 3 e a confirmação do Gate 4 não
+> substituem esses itens técnicos; mantenha a migration sem aplicar até
+> implementá-los e validá-los em staging.
+
 ### 7.4 Rollback da Fase 1D
 
-Seguir `PLANO_..._ROLLBACK.md` §2:
+O arquivo `dev/supabase/migrations/20261026_client_scope_DOWN.sql` remove as
+policies `client_scope_*`, os helpers e índices próprios desta migration, e
+restaura o trigger de sincronização single-client da Fase 1A. Ele preserva os
+objetos de compatibilidade da 1A e o escopo de departamentos, que já existiam
+antes da migration. Validar o script em staging e comparar com o snapshot antes
+de usá-lo.
+
+Seguir também `PLANO_..._ROLLBACK.md` §2:
 
 - [ ] Remover policies `client_scope_*`.
 - [ ] Restaurar policies do snapshot.

@@ -437,54 +437,80 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     }, [asset?.assetId]);
 
     useEffect(() => {
-        if (isMoved) {
-            const loadLists = async () => {
-                try {
-                    const [clients, statuses, priorities] = await Promise.all([
-                        dataService.getClients(),
-                        dataService.getAssetStatuses(),
-                        dataService.getAssetPriorities()
-                    ]);
+        if (!isMoved) return;
 
-                    setClientsList(clients.map(c => ({ value: c.id, label: c.name })));
-                    setStatusesList(statuses.map(s => ({ value: s.id, label: s.description })));
-                    setPrioritiesList(priorities.map(p => ({ value: p.id, label: p.description })));
+        let isActive = true;
+        const loadLists = async () => {
+            try {
+                const [clients, statuses, priorities] = await Promise.all([
+                    dataService.getClients(),
+                    dataService.getAssetStatuses(),
+                    dataService.getAssetPriorities()
+                ]);
 
-                    if (afterClientId) {
-                        const units = await dataService.getUnitsByClient(afterClientId);
-                        setUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })).sort((a: any, b: any) => a.label.localeCompare(b.label)));
-                    }
+                if (!isActive) return;
+                setClientsList(clients.map(c => ({ value: c.id, label: c.name })));
+                setStatusesList(statuses.map(s => ({ value: s.id, label: s.description })));
+                setPrioritiesList(priorities.map(p => ({ value: p.id, label: p.description })));
+            } catch (error) {
+                console.error('Error loading movement lists:', error);
+                if (isActive) toast.error('Erro ao carregar opções de movimentação');
+            }
+        };
+        loadLists();
 
-                    if (afterUnitId) {
-                        const unitTags = await dataService.getAssetTagsByUnit(afterUnitId);
-                        setUnitAssetTagsList(unitTags);
-                    }
-                } catch (error) {
-                    console.error('Error loading movement lists:', error);
-                }
-            };
-            loadLists();
-        }
-    }, [isMoved, afterClientId, afterUnitId]);
+        return () => { isActive = false; };
+    }, [isMoved]);
 
     useEffect(() => {
-        if (isMoved && afterClientId) {
-            dataService.getUnitsByClient(afterClientId).then(units => {
-                setUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })).sort((a: any, b: any) => a.label.localeCompare(b.label)));
-            });
-        } else {
+        let isActive = true;
+        if (!isMoved || !afterClientId) {
             setUnitsList([]);
+            return () => { isActive = false; };
         }
+
+        setUnitsList([]);
+        dataService.getUnitsByClient(afterClientId)
+            .then(units => {
+                if (!isActive) return;
+                setUnitsList(
+                    units
+                        .map(unit => ({ value: unit.id, label: unit.descriptionFull || unit.description }))
+                        .sort((a, b) => a.label.localeCompare(b.label))
+                );
+            })
+            .catch(error => {
+                console.error('Error loading units for selected client:', error);
+                if (isActive) {
+                    setUnitsList([]);
+                    toast.error('Erro ao carregar unidades do cliente selecionado');
+                }
+            });
+
+        return () => { isActive = false; };
     }, [afterClientId, isMoved]);
 
     useEffect(() => {
-        if (isMoved && afterUnitId) {
-            dataService.getAssetTagsByUnit(afterUnitId).then(tags => {
-                setUnitAssetTagsList(tags);
-            });
-        } else {
+        let isActive = true;
+        if (!isMoved || !afterUnitId) {
             setUnitAssetTagsList([]);
+            return () => { isActive = false; };
         }
+
+        setUnitAssetTagsList([]);
+        dataService.getAssetTagsByUnit(afterUnitId)
+            .then(tags => {
+                if (isActive) setUnitAssetTagsList(tags);
+            })
+            .catch(error => {
+                console.error('Error loading sectors for selected unit:', error);
+                if (isActive) {
+                    setUnitAssetTagsList([]);
+                    toast.error('Erro ao carregar setores da unidade selecionada');
+                }
+            });
+
+        return () => { isActive = false; };
     }, [afterUnitId, isMoved]);
 
     const handleUpdateField = async (updates: any) => {

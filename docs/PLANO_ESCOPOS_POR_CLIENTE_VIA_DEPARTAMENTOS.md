@@ -1,6 +1,6 @@
 # Plano — Escopo de dados por cliente via `cfg_departments.clients_ids`
 
-> **Status:** EM PLANEJAMENTO — **Gate 2 concluído** (Fase 1B validada); Fase 1C em execução (dados e observação)  
+> **Status:** Gate 3 aprovado por decisão do responsável (2026-11-02; observação dispensada); Fase 1D em preparação local, ainda sem validação em staging
 > **Data de criação:** 2026-10-23  
 > **Última atualização:** 2026-10-27  
 > **Responsável:** Implementação SIGES  
@@ -150,28 +150,26 @@ Regras da fase de transição:
 
 #### Fase 1C — Dados e observação (pré-escopo)
 > Objetivo: resolver pendências de dados e observar a convivência antes de ligar a barreira real.  
-> **Status:** EM EXECUÇÃO (2026-10-27).
+> **Status:** CONCLUÍDA por decisão do responsável (2026-11-02); prazo de observação dispensado. Os resultados de validação foram confirmados pelo responsável.
 
 > **Efeito esperado:** as 73 unidades com `clients_ids = '{}'` (e os ativos vinculados a elas) não aparecem em `getUnitsByClient` no app novo. A web antiga continua exibindo. Resolver na Fase 1C antes de ampliar o canário.
 
 #### Fase 1C — Dados e observação (pré-escopo)
 > Objetivo: resolver pendências de dados e observar a convivência antes de ligar a barreira real.
 
-- [ ] Rodar consistência `client_id` x `clients_ids` (deve ser 0)
-- [ ] Resolver as 73 unidades com `client_id` nulo (mapear cliente ou decidir admin-only)
-- [ ] Tratar `client_id` inválidos (`0`, cliente inexistente)
-- [ ] Contar/decidir assets com `unit_id` nulo
-- [ ] Tratar orders com `client_id` nulo/0/divergente de `units.client_id`
-- [ ] Decidir semântica de `clients_ids = '{}'` (negar; admin-only)
-- [ ] Observar 1–2 semanas; monitorar logs e erros
-- [ ] **Não ligar RLS** nesta fase
+- [x] Consistência e pendências de dados confirmadas como resolvidas/limpas pelo responsável (2026-11-02).
+- [x] Semântica de `clients_ids = '{}'` definida como negar acesso para usuário restrito; administração segue regras próprias.
+- [x] Critério de observação de 1–2 semanas dispensado pelo responsável em 2026-11-02; não registrado como período cumprido.
+- [x] RLS permaneceu sem policies efetivas de escopo durante a Fase 1C.
 
 #### Fase 1D — Escopo real (somente após aposentar a web antiga)
 > Objetivo: aplicar a barreira real de RLS/policies e o seletor de cliente.
+> **Status:** migration e rollback preparados localmente em 2026-11-02; não aplicados nem validados em staging. A implementação do cliente ativo no app e os testes com tokens restritos continuam pendentes.
 
 - [ ] **Gate 4** aprovado (web antiga sem tráfego ou compatibilidade validada)
 - [ ] Snapshot de policies/views/índices (rollback §0)
-- [ ] Criar migration `dev/supabase/migrations/20261026_client_scope.sql`
+- [x] Preparar rascunho local `dev/supabase/migrations/20261026_client_scope.sql` (não aplicado; validar em staging).
+- [x] Preparar rascunho local de rollback `dev/supabase/migrations/20261026_client_scope_DOWN.sql` (não ensaiado).
 - [ ] Substituir `fn_sync_units_clients_ids` pelo modo array-wins (remove o guard multi-cliente da 1A/1B)
 - [ ] Adicionar `cfg_departments.clients_ids` (bigint[] NULL)
 - [ ] Criar `CHECK` para bloquear `NULL` dentro do array
@@ -179,7 +177,7 @@ Regras da fase de transição:
 - [ ] Criar trigger `trg_validate_department_clients_ids` + função `fn_validate_department_clients_ids`
 - [ ] Criar funções `fc_scope_has_resolution`, `fc_scope_client_ids`, `fc_scope_is_unrestricted`, `fc_scope_department_id`
 - [ ] Criar índices em `client_id` (`orders`, `units`, `assets`, `contracts`, `assets_alerts`)
-- [ ] Substituir políticas `"Universal Access"` por políticas por comando
+- [ ] Adicionar policies `client_scope_*` RESTRICTIVE; manter policies permissivas existentes e validar a composição com o snapshot.
 - [ ] Aplicar políticas em tabelas diretas + filhas
 - [ ] `v_assets_loans`: item já atendido (`security_invoker = true`); não reverter
 - [ ] Validar casos: sem equipe, equipe sem departamento, NULL/{}, com lista, admin

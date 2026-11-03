@@ -29,6 +29,7 @@ import { RequestsExcelExportButton } from '../../components/reports/RequestsExce
 import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components/ui/FilterBarResponsive';
 import { ChevronButton } from '../../components/ui/ChevronButton';
 import { Loading } from '../../components/ui/Loading';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
 import { TreeFilterModal } from '../../components/ui/TreeFilterModal';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
@@ -59,6 +60,42 @@ const clearProviderHiddenFilters = (filters: OrderFilters): OrderFilters => ({
 // Referência estável para "nenhuma equipe selecionada" — evita criar um array
 // novo a cada render e disparar resets/renders desnecessários no TreeFilterModal.
 const NO_TEAM_SELECTION: string[] = [];
+
+const OrdersDashboardSkeleton: React.FC = () => (
+    <div className="space-y-5 px-4 py-4" aria-hidden="true">
+        {[0, 1, 2].map(section => (
+            <section
+                key={section}
+                className="rounded-2xl border border-slate-200/50 bg-slate-50/70 p-4 dark:border-slate-700/30 dark:bg-slate-800/30"
+            >
+                <Skeleton variant="text" width="38%" height={24} className="mb-3" />
+                <div className="flex gap-3 overflow-hidden pb-3">
+                    {[0, 1, 2].map(card => (
+                        <Skeleton
+                            key={card}
+                            variant="rectangular"
+                            width={132}
+                            height={44}
+                            className="shrink-0"
+                        />
+                    ))}
+                </div>
+                <div className="flex gap-4 overflow-hidden">
+                    {[0, 1].map(card => (
+                        <div
+                            key={card}
+                            className="w-full min-w-[280px] rounded-2xl border border-slate-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+                        >
+                            <Skeleton variant="text" width="44%" />
+                            <Skeleton variant="text" width="76%" className="mt-3" />
+                            <Skeleton variant="text" width="58%" className="mt-2" />
+                        </div>
+                    ))}
+                </div>
+            </section>
+        ))}
+    </div>
+);
 
 interface OrdersRequestsDashboardAdminProps {
     currentUser: User | null;
@@ -1205,7 +1242,6 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             osDashboardLastLoadedAt = Date.now();
             setIsFiltering(true);
             fetchDataRef.current(false, false);
-            setIsLoading(false);
         }
 
         return () => {
@@ -1617,7 +1653,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     </div>
 
                     {/* ── Filtering overlay ── */}
-                    {isFiltering && (
+                    {isFiltering && recentRequests.length > 0 && (
                         <div className="absolute inset-0 z-40 pointer-events-none flex flex-col">
                             {/* Top progress bar */}
                             <div className="h-[3px] w-full shrink-0 overflow-hidden bg-primary/10">
@@ -1651,6 +1687,12 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     )}
 
                     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-6">
+                        {isLoading && recentRequests.length === 0 ? (
+                            <div role="status" aria-label="Carregando ordens de serviço">
+                                <OrdersDashboardSkeleton />
+                            </div>
+                        ) : (
+                            <>
                         {!isProviderMode && (
                         <div className="mx-4 mb-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/30 border border-slate-200/50 dark:border-slate-700/30 p-4">
                             <section className="pt-1 pb-0">
@@ -2039,6 +2081,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                             </section>
                         </div>
 
+                            </>
+                        )}
 
                     </div>
 

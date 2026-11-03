@@ -648,11 +648,16 @@ export const companiesService = {
     },
 
     async getUnitsByClient(clientId: string): Promise<Unit[]> {
+        const numericClientId = Number(clientId);
+        if (!Number.isSafeInteger(numericClientId) || numericClientId <= 0) {
+            throw new Error(`Invalid client ID: ${clientId}`);
+        }
+
         const { data: units, error: unitsError } = await supabase
             .from('units')
             .select('id, clients_ids, client_id, description, code, installation_code_power_supply, address_full, latitude, longitude, unit_type_parent_id, unit_type_id, system_parent_id, system_id, status_id, img_file_path, img_file_name, description_full')
-            .contains('clients_ids', [Number(clientId)])
-            .eq('is_deleted', 'false');
+            .or(`clients_ids.cs.{${numericClientId}},client_id.eq.${numericClientId}`)
+            .eq('is_deleted', false);
 
         if (unitsError) {
             console.error('Error fetching units:', unitsError);
