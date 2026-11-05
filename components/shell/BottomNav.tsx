@@ -33,6 +33,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
   const showNotices = isAdminSuper || (canView('app_notices') && canSearch('app_notices'));
 
   const showExtraWorkers = isAdminSuper || canView('notices_workers_extra');
+  const showAssetsAvailableIntegrations = isAdminSuper || canView('dashboard_assets_available_integrations');
 
   return (
     <div className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 px-2 flex flex-row items-center overflow-x-auto rounded-t-[12px]" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}>
@@ -162,6 +163,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
             groups
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest">MO Extra</span>
+        </button>
+      )}
+
+      {showAssetsAvailableIntegrations && (
+        <button
+          onClick={() => setActiveTab('dashboard-assets-available-integrations')}
+          className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'dashboard-assets-available-integrations' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+        >
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === 'dashboard-assets-available-integrations' ? '"FILL" 1' : '' }}>
+            integrations
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest">Disponibilidade de Ativos</span>
         </button>
       )}
 

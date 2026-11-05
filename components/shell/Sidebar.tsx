@@ -73,11 +73,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   canView('dashboard_units_assets_tags') || 
                   canView('dashboard_units_power_electric') ||
                   canView('dashboard_contracts_evaluations') ||
-                  canView('dashboard_teams_shifts')) && (
+                  canView('dashboard_teams_shifts') ||
+                  canView('dashboard_assets_available_integrations')) && (
                     <SidebarItem
                         icon="assignment_add"
                         label="Gestão"
-                    isActive={activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking' || activeTab === 'grant-dashboard' || activeTab === 'team-shifts'}
+                    isActive={activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking' || activeTab === 'grant-dashboard' || activeTab === 'team-shifts' || activeTab === 'dashboard-assets-available-integrations'}
                         isCollapsed={isCollapsed}
                         onClick={() => { 
                             // Navegar para a primeira aba permitida
@@ -88,6 +89,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             else if (canView('dashboard_units_power_electric')) onNavigate('dashboard-units-power-electric');
                             else if (canView('dashboard_contracts_evaluations')) onNavigate('dashboard-contracts-evaluations');
                             else if (canView('dashboard_teams_shifts')) onNavigate('team-shifts');
+                            else if (canView('dashboard_assets_available_integrations')) onNavigate('dashboard-assets-available-integrations');
+                            else onNavigate('grant-dashboard');
+                        }}
+                        isCollapsed={isCollapsed}
+                        onClick={() => { 
+                            // Navegar para a primeira aba permitida
+                            if (canView('dashboard_services')) onNavigate('ss');
+                            else if (canView('dashboard_orders')) onNavigate('orders');
+                            else if (canView('dashboard_orders_visits')) onNavigate('visits');
+                            else if (canView('dashboard_units_assets_tags')) onNavigate('dashboard-units-assets-tags');
+                            else if (canView('dashboard_units_power_electric')) onNavigate('dashboard-units-power-electric');
+                            else if (canView('dashboard_contracts_evaluations')) onNavigate('dashboard-contracts-evaluations');
+                            else if (canView('dashboard_teams_shifts')) onNavigate('team-shifts');
+                            else if (canView('dashboard_assets_available_integrations')) onNavigate('dashboard-assets-available-integrations');
                             else onNavigate('grant-dashboard');
                         }}
                     />

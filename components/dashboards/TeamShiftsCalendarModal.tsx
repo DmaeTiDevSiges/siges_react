@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TeamShiftsCalendarEntry, TeamShiftsMonthly } from '../../types';
 import { getTeamShiftsCalendarWeeks, mapTeamShiftsCalendarEntriesToMonth } from '../../utils/teamShiftsCalendar';
+import { calculateIdlePercent, getApprovedVisitMinutesByDate } from '../../utils/teamShifts';
 import { TeamShiftsCalendarPDFButton } from '../reports/TeamShiftsCalendarPDFButton';
 
 interface TeamShiftsCalendarModalProps {
@@ -63,6 +64,18 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
         () => new Set(draftEntries.map(entry => `${entry.teamId}:${entry.date}:${entry.shiftType}`)),
         [draftEntries]
     );
+    const approvedVisitMinutesByTeamDate = useMemo(
+        () => new Map(teams.map(team => [team.teamId, getApprovedVisitMinutesByDate(team.visits ?? [])])),
+        [teams]
+    );
+    const parsedNormalShiftHours = Number.parseFloat(normalShiftHours.replace(',', '.'));
+    const normalShiftMinutes = Number.isFinite(parsedNormalShiftHours) && parsedNormalShiftHours > 0
+        ? parsedNormalShiftHours * 60
+        : 0;
+    const parsedExtraShiftHours = Number.parseFloat(extraShiftHours.replace(',', '.'));
+    const extraShiftMinutes = Number.isFinite(parsedExtraShiftHours) && parsedExtraShiftHours > 0
+        ? parsedExtraShiftHours * 60
+        : 0;
     const sortedTeams = useMemo(
         () => [...teams].sort((a, b) => a.teamName.localeCompare(b.teamName, 'pt-BR', { sensitivity: 'base' })),
         [teams]
@@ -346,9 +359,24 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
                                                 return <td key={WEEKDAYS[index]} className="border-b border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/20" />;
                                             }
                                             const key = date;
+                                            const normalShiftMarked = markedCells.has(`${team.teamId}:${key}:TN`);
+                                            const extraShiftMarked = markedCells.has(`${team.teamId}:${key}:TE`);
+                                            const availableMinutes =
+                                                (normalShiftMarked ? normalShiftMinutes : 0) +
+                                                (extraShiftMarked ? extraShiftMinutes : 0);
+                                            const idlePercent = calculateIdlePercent(
+                                                approvedVisitMinutesByTeamDate.get(team.teamId)?.get(key) ?? 0,
+                                                availableMinutes
+                                            );
+                                            const idleColor = idlePercent < 30
+                                                ? 'bg-green-500'
+                                                : idlePercent <= 60
+                                                    ? 'bg-amber-500'
+                                                    : 'bg-red-500';
                                             return (
                                                 <td key={key} className="border-b border-slate-100 px-2 py-1.5 text-center dark:border-slate-800">
-                                                    <div className="flex justify-center gap-1">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <div className="flex justify-center gap-1">
                                                         {(['TN', 'TE'] as const).map(shiftType => {
                                                             const isMarked = markedCells.has(`${team.teamId}:${key}:${shiftType}`);
                                                             const normal = shiftType === 'TN';
@@ -372,6 +400,23 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
                                                                 </button>
                                                             );
                                                         })}
+                                                        </div>
+                                                        {(normalShiftMarked || extraShiftMarked) && availableMinutes > 0 && (
+                                                            <div
+                                                                role="progressbar"
+                                                                aria-label={`${team.teamName}, ${key}: ${idlePercent}% de ociosidade diária`}
+                                                                aria-valuemin={0}
+                                                                aria-valuemax={100}
+                                                                aria-valuenow={idlePercent}
+                                                                title={`${idlePercent}% de ociosidade diária`}
+                                                                className="h-[3px] w-[76px] overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
+                                                            >
+                                                                <div
+                                                                    className={`h-full ${idleColor}`}
+                                                                    style={{ width: `${idlePercent}%` }}
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </td>
                                             );

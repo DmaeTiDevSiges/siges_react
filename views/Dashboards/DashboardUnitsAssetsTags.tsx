@@ -203,7 +203,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [noticeWorkersAll, setNoticeWorkersAll] = useState<any[]>([]);
 
     const loadAllNoticeWorkers = useCallback(async () => {
-        if (!activeNotices || activeNotices.length === 0) {
+        if (!activeNotices || activeNotices.length === 0 || !selectedSystemId) {
             setNoticeWorkersAll([]);
             return;
         }
@@ -217,6 +217,10 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     if (!noticeId) return;
 
                     const noticeSystemParentIds = resolveNoticeSystemParentIds(notice.systemParentIds);
+                    if (!noticeAppliesToUnitSystemParent(noticeSystemParentIds, selectedSystemId)) {
+                        return;
+                    }
+
                     const periods = await dataService.getNoticeWorkerPeriods(noticeId);
                     const windowEnd = notice.viewEndDate || notice.endDate;
                     const activePeriods = pickActivePeriodsAt(periods, new Date(), windowEnd);
@@ -232,10 +236,6 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
                     const workers = workersLists.flat();
                     workers.forEach((w: any) => {
-                        // MO Extra só vale para unidades dos sistemas pai do aviso.
-                        if (!noticeAppliesToUnitSystemParent(noticeSystemParentIds, w.unitSystemParentId)) {
-                            return;
-                        }
                         allWorkers.push({
                             ...w,
                             noticeId,
@@ -253,7 +253,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             console.error('Erro ao carregar MO Extra de todos os avisos:', err);
             setNoticeWorkersAll([]);
         }
-    }, [activeNotices]);
+    }, [activeNotices, selectedSystemId]);
 
     useEffect(() => {
         void loadAllNoticeWorkers();

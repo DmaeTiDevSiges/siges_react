@@ -42,6 +42,7 @@ import {
   DashboardAdminContractsEvaluationsRequirements,
   LeaderRankingDashboard,
   DashboardTeamShifts,
+  DashboardAssetsAvailableIntegrations,
   ServicesRequestsDashboardAdmin,
   ServicesRequestsPeriodDashboardAdmin,
   ContractsList,
@@ -272,7 +273,9 @@ const AppContent: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'team-shifts'>(() => {
+  const [activeTab, setActiveTab] = useState<'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'team-shifts' | 'dashboard-assets-available-integrations'>(() => {
+    const saved = localStorage.getItem('app_active_tab');
+    if (saved === 'dashboard-assets-available-integrations') return 'dashboard-assets-available-integrations';
     const saved = localStorage.getItem('app_active_tab');
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
@@ -286,6 +289,7 @@ const AppContent: React.FC = () => {
     if (tab === 'units-search' || tab === 'units_search') normalizedTab = 'units';
     if (tab === 'assets-search') normalizedTab = 'assets';
     if (tab === 'dashboard-orders-admin') normalizedTab = 'orders';
+    if (tab === 'dashboard-assets-available-integrations') normalizedTab = 'dashboard-assets-available-integrations';
 
     // Track last main tab for returning from Profile/Settings
     if (normalizedTab !== 'profile' && normalizedTab !== 'settings') {
@@ -330,6 +334,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('extra-workers');
     } else if (normalizedTab === 'team-shifts') {
       setCurrentScreen('team-shifts');
+    } else if (normalizedTab === 'dashboard-assets-available-integrations') {
+      setCurrentScreen('dashboard-assets-available-integrations');
     } else if (normalizedTab === 'fuel-expense') {
       setCurrentScreen('fuel-expense');
     }
@@ -360,8 +366,10 @@ const AppContent: React.FC = () => {
     if (savedTab === 'dashboard-units-assets-tags') return 'dashboard-units-assets-tags';
     if (savedTab === 'dashboard-units-power-electric') return 'dashboard-units-power-electric';
     if (savedTab === 'dashboard-contracts-evaluations') return 'dashboard-contracts-evaluations';
+    if (savedTab === 'dashboard-assets-available-integrations') return 'dashboard-assets-available-integrations';
     if (savedTab === 'app-notices') return 'app-notices';
     if (savedTab === 'extra-workers') return 'extra-workers';
+    if (savedTab === 'dashboard-assets-available-integrations') return 'dashboard-assets-available-integrations';
     return 'dashboard';
   });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -564,6 +572,7 @@ const AppContent: React.FC = () => {
     if (path === 'assets' || path === 'assets-search' || path === 'asset-details') tab = 'assets';
     if (path === 'units' || path === 'units-search' || path === 'unit-details') tab = 'units';
     if (path === 'dashboard') tab = 'dashboard';
+    if (path === 'dashboard-assets-available-integrations') tab = 'dashboard-assets-available-integrations';
     if (path === 'orders' || path === 'orders-dashboard' || path === 'orders-dashboard-period') {
       tab = 'orders';
       setOrdersDashboardTab('OS');
@@ -581,6 +590,10 @@ const AppContent: React.FC = () => {
     if (path.startsWith('maintenance-plan')) tab = 'maintenance-plans';
 
     setActiveTab(tab);
+
+    if (path === 'dashboard-assets-available-integrations') {
+      setCurrentScreen('dashboard-assets-available-integrations');
+    }
 
     if (path === 'assets' || path === 'assets-search') {
       setCurrentScreen('assets-search');
@@ -620,6 +633,7 @@ const AppContent: React.FC = () => {
       'dashboard-units-assets-tags': 'dashboard-units-assets-tags',
       'dashboard-units-power-electric': 'dashboard-units-power-electric',
       'dashboard-contracts-evaluations': 'dashboard-contracts-evaluations',
+      'dashboard-assets-available-integrations': 'dashboard-assets-available-integrations',
       'dashboard': 'dashboard',
     };
     const screen = screens[tab] || 'dashboard';
@@ -641,7 +655,29 @@ const AppContent: React.FC = () => {
       currentScreen === 'visits-dashboard' ||
       currentScreen === 'dashboard-units-power-electric' ||
       currentScreen === 'dashboard-units-assets-tags' ||
+      currentScreen ===    'dashboard-contracts-evaluations' ||
+      currentScreen === 'dashboard-assets-available-integrations' ||
+      currentScreen === 'dashboard-orders-admin-calendar' ||
+      currentScreen === 'materials-dashboard' ||
+      currentScreen === 'services-history' ||
+      currentScreen === 'rental-apportionment' ||
+      currentScreen === 'rental-contracts' ||
+      currentScreen === 'rate-contracts' ||
+      currentScreen === 'vehicles' ||
+      currentScreen === 'grant-dashboard' ||
+      currentScreen === 'dashboard-assets-available-integrations' ||
+      currentScreen === 'team-shifts';
+    const hasAssetsAvailableIntegrations = canView('dashboard_assets_available_integrations');
+
+    const isDashboardScreen = currentScreen === 'ss-dashboard' ||
+      currentScreen === 'ss-dashboard-period' ||
+      currentScreen === 'orders-dashboard' ||
+      currentScreen === 'orders-dashboard-period' ||
+      currentScreen === 'visits-dashboard' ||
+      currentScreen === 'dashboard-units-power-electric' ||
+      currentScreen === 'dashboard-units-assets-tags' ||
       currentScreen === 'dashboard-contracts-evaluations' ||
+      currentScreen === 'dashboard-assets-available-integrations' ||
       currentScreen === 'dashboard-orders-admin-calendar' ||
       currentScreen === 'materials-dashboard' ||
       currentScreen === 'services-history' ||
