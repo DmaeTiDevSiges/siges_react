@@ -33,15 +33,23 @@
     <meta property="og:image" content="/og-image.png">
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300..700,0..1&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased overflow-x-hidden">
     <script>
-        window.onerror = function(msg, url, line, col, error) {
+        // Mostra o erro na tela SOMENTE se o app nem chegou a renderizar (falha de
+        // boot). Com o app aberto, substituir o #root por texto de erro derrubava a
+        // tela inteira por qualquer erro não tratado (ex.: ResizeObserver, request
+        // sem catch). Esses erros agora vão para logs_app_client_events
+        // (services/core/clientDiagnosticsService.ts).
+        function sigesBootFailed() {
             var el = document.getElementById('root');
+            return el && el.childElementCount === 0 ? el : null;
+        }
+        window.onerror = function(msg, url, line, col, error) {
+            var el = sigesBootFailed();
             if (el) {
                 el.innerHTML = '<pre style="color:red;padding:20px;white-space:pre-wrap;font-size:14px;">' +
                     'ERROR: ' + msg + '\n' + url + ':' + line + ':' + col +
@@ -50,7 +58,7 @@
             return false;
         };
         window.onunhandledrejection = function(e) {
-            var el = document.getElementById('root');
+            var el = sigesBootFailed();
             if (el) {
                 el.innerHTML = '<pre style="color:red;padding:20px;white-space:pre-wrap;font-size:14px;">' +
                     'UNHANDLED PROMISE REJECTION: ' + (e.reason && e.reason.stack ? e.reason.stack : e.reason) +

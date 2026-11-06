@@ -528,7 +528,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
             {canCreate('app_notices') && (
                 <button
                     onClick={() => setIsFormOpen(true)}
-                    className="fixed bottom-24 right-6 z-40 flex items-center justify-center h-14 w-14 bg-primary text-white rounded-full shadow-lg hover:bg-primary-dark transition-all hover:scale-105 active:scale-95"
+                    className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1.5rem)] right-6 z-40 flex items-center justify-center h-14 w-14 bg-primary text-white rounded-full shadow-lg hover:bg-primary-dark transition-all hover:scale-105 active:scale-95"
                     title="Novo Aviso"
                 >
                     <span className="material-symbols-outlined text-28">add</span>
@@ -545,7 +545,7 @@ export const AppNoticesList: React.FC<AppNoticesListProps> = ({ onBack }) => {
 
             {/* Delete Confirmation Modal */}
             {deletingId !== null && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center pad-safe-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeletingId(null)} />
                     <div className="relative bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-xl">
                         <div className="text-center">

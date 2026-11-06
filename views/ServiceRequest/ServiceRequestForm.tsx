@@ -6,6 +6,7 @@ import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { CAMERA_PHOTO_LIMITS } from '../../utils/cameraOptions';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
@@ -200,6 +201,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
 
         try {
             const image = await Camera.getPhoto({
+                ...CAMERA_PHOTO_LIMITS,
                 quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,

@@ -2,7 +2,9 @@ package com.ag.siges;
 
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.location.Location;
 import android.os.Build;
@@ -23,6 +25,9 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.location.DetectedActivity;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -56,6 +61,19 @@ public class LocationForegroundService extends Service {
     public static final String EXTRA_USER_ID      = "userId";
     public static final String EXTRA_SUPABASE_URL = "supabaseUrl";
     public static final String EXTRA_SUPABASE_KEY = "supabaseKey";
+    public static final String EXTRA_TRACKER_TOKEN = "trackerToken";
+    /** Reinício pelo sistema/boot: restaura a config salva em SharedPreferences. */
+    public static final String ACTION_RESTORE = "com.ag.siges.RESTORE_TRACKING";
+
+    // Config persistida (sobrevive ao Android encerrar o processo e ao reboot).
+    static final String PREFS = "siges_tracker";
+    static final String PREF_ENABLED  = "enabled";
+    static final String PREF_USER_ID  = "userId";
+    static final String PREF_URL      = "supabaseUrl";
+    static final String PREF_KEY      = "supabaseKey";
+    static final String PREF_TOKEN    = "trackerToken";
+    static final String PREF_INTERVAL = "intervalSeconds";
+    static final String PREF_DISTANCE = "distanceMeters";
     public static final String EXTRA_INTERVAL_SEC = "intervalSeconds";
     public static final String EXTRA_DISTANCE_M   = "distanceMeters";
     public static final String EXTRA_ACTIVITY_TYPE = "activityType";
@@ -74,7 +92,9 @@ public class LocationForegroundService extends Service {
     private String userId;
     private String supabaseUrl;
     private String supabaseKey;
+    private String trackerToken;
     private float distanceMeters = 50f;
+    private boolean running = false;
 
     // ── Activity Recognition state ──
     // Confidence threshold to act on detected activity
@@ -110,36 +130,92 @@ public class LocationForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent == null || ACTION_STOP.equals(intent.getAction())) {
+        String action = intent != null ? intent.getAction() : ACTION_RESTORE;
+
+        if (ACTION_STOP.equals(action)) {
             Log.i(TAG, "STOP action received");
-            stopSelf();
+            disableAndStop();
             return START_NOT_STICKY;
         }
 
-        // Handle activity recognition results forwarded by the receiver
-        if (ACTION_ACTIVITY_DETECTED.equals(intent.getAction())) {
+        // Resultado do Activity Recognition. Se o processo tinha morrido, o
+        // receiver pode acordar o serviço por aqui: restaura antes de usar.
+        if (ACTION_ACTIVITY_DETECTED.equals(action)) {
+            if (!running && !restoreAndStart()) return START_NOT_STICKY;
             int activityType = intent.getIntExtra(EXTRA_ACTIVITY_TYPE, DetectedActivity.UNKNOWN);
             int confidence   = intent.getIntExtra(EXTRA_CONFIDENCE, 0);
             onActivityDetected(activityType, confidence);
             return START_STICKY;
         }
 
-        // Normal START action
-        userId        = intent.getStringExtra(EXTRA_USER_ID);
-        supabaseUrl   = intent.getStringExtra(EXTRA_SUPABASE_URL);
-        supabaseKey   = intent.getStringExtra(EXTRA_SUPABASE_KEY);
-        distanceMeters = intent.getFloatExtra(EXTRA_DISTANCE_M, 50f);
+        // intent == null → o Android recriou o serviço (START_STICKY) após
+        // encerrar o processo. ACTION_RESTORE → boot / atualização do app.
+        if (ACTION_RESTORE.equals(action)) {
+            return restoreAndStart() ? START_STICKY : START_NOT_STICKY;
+        }
 
-        long intervalSec = intent.getIntExtra(EXTRA_INTERVAL_SEC, 60);
+        // START vindo do JS: grava a config e inicia.
+        SharedPreferences.Editor editor = prefs().edit()
+                .putBoolean(PREF_ENABLED, true)
+                .putString(PREF_USER_ID, intent.getStringExtra(EXTRA_USER_ID))
+                .putString(PREF_URL, intent.getStringExtra(EXTRA_SUPABASE_URL))
+                .putString(PREF_KEY, intent.getStringExtra(EXTRA_SUPABASE_KEY))
+                .putString(PREF_TOKEN, intent.getStringExtra(EXTRA_TRACKER_TOKEN))
+                .putInt(PREF_INTERVAL, intent.getIntExtra(EXTRA_INTERVAL_SEC, 60))
+                .putFloat(PREF_DISTANCE, intent.getFloatExtra(EXTRA_DISTANCE_M, 50f));
+        editor.apply();
+
+        return restoreAndStart() ? START_STICKY : START_NOT_STICKY;
+    }
+
+    private SharedPreferences prefs() {
+        return getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    /** Carrega a config salva e (re)inicia o rastreamento. false = nada a restaurar. */
+    private boolean restoreAndStart() {
+        SharedPreferences p = prefs();
+        if (!p.getBoolean(PREF_ENABLED, false)) {
+            Log.i(TAG, "Restore skipped — tracking disabled");
+            // startForegroundService exige startForeground antes de parar.
+            startForegroundWithNotification();
+            stopSelf();
+            return false;
+        }
+
+        userId       = p.getString(PREF_USER_ID, null);
+        supabaseUrl  = p.getString(PREF_URL, null);
+        supabaseKey  = p.getString(PREF_KEY, null);
+        trackerToken = p.getString(PREF_TOKEN, null);
+        distanceMeters = p.getFloat(PREF_DISTANCE, 50f);
+        long intervalSec = p.getInt(PREF_INTERVAL, 60);
         heartbeatStillMs = Math.max(intervalSec * 1000L, MIN_SEND_INTERVAL_MS);
+
+        startForegroundWithNotification();
+
+        if (userId == null || supabaseUrl == null || supabaseKey == null || trackerToken == null) {
+            Log.w(TAG, "Restore failed — incomplete config");
+            disableAndStop();
+            return false;
+        }
 
         Log.i(TAG, "START — userId=" + userId + " dist=" + distanceMeters + "m heartbeat=" + (heartbeatStillMs / 1000) + "s");
 
-        startForegroundWithNotification();
-        startActivityRecognition();
-        startLocationUpdates();
+        if (!running) {
+            startActivityRecognition();
+            startLocationUpdates();
+            running = true;
+        }
+        return true;
+    }
 
-        return START_STICKY;
+    /** Desliga de vez (não volta sozinho) e apaga o token salvo. */
+    private void disableAndStop() {
+        prefs().edit()
+                .putBoolean(PREF_ENABLED, false)
+                .remove(PREF_TOKEN)
+                .apply();
+        stopSelf();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -156,7 +232,10 @@ public class LocationForegroundService extends Service {
 
         android.app.Notification notification = new NotificationCompat.Builder(this, "siges_location_channel")
                 .setContentTitle("SIGES")
-                .setContentText("Você tem visitas em andamento")
+                .setContentText("Localização compartilhada enquanto você estiver disponível ou em visita")
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(
+                        "Localização compartilhada com a sua empresa enquanto você estiver disponível ou em visita. "
+                        + "Fica indisponível no app para pausar."))
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -427,31 +506,34 @@ public class LocationForegroundService extends Service {
     // HTTP — Supabase REST API
     // ─────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Envia a posição para public.fn_tracker_report_location (SECURITY DEFINER).
+     * A chave anon só autentica o gateway; quem autoriza é o token do aparelho,
+     * e a função só altera a localização do dono do token. Horário é definido
+     * no banco (America/Sao_Paulo).
+     */
     private void sendToSupabase(double lat, double lng, float accuracy) {
-        if (userId == null || supabaseUrl == null || supabaseKey == null) {
+        if (supabaseUrl == null || supabaseKey == null || trackerToken == null) {
             Log.w(TAG, "Missing config, skipping HTTP call");
             return;
         }
 
-        String endpoint = supabaseUrl.replaceAll("/$", "") + "/rest/v1/users?id=eq." + userId;
-        String now      = java.time.Instant.now().toString();
-
+        String endpoint = supabaseUrl.replaceAll("/$", "") + "/rest/v1/rpc/fn_tracker_report_location";
         String body = "{"
-                + "\"latitude\":"          + lat          + ","
-                + "\"longitude\":"         + lng          + ","
-                + "\"tracker_accuracy\":"  + accuracy     + ","
-                + "\"tracker_heartbeat_at\":\"" + now      + "\","
-                + "\"tracked_at\":\""      + now          + "\""
+                + "\"p_token\":\""   + trackerToken + "\","
+                + "\"p_latitude\":"  + lat + ","
+                + "\"p_longitude\":" + lng + ","
+                + "\"p_accuracy\":"  + accuracy
                 + "}";
 
+        HttpURLConnection conn = null;
         try {
             URL url = new URL(endpoint);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("PATCH");
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("apikey", supabaseKey);
             conn.setRequestProperty("Authorization", "Bearer " + supabaseKey);
-            conn.setRequestProperty("Prefer", "return=minimal");
             conn.setConnectTimeout(10_000);
             conn.setReadTimeout(10_000);
             conn.setDoOutput(true);
@@ -461,15 +543,34 @@ public class LocationForegroundService extends Service {
             }
 
             int responseCode = conn.getResponseCode();
-            if (responseCode >= 200 && responseCode < 300) {
-                Log.i(TAG, "Sent — HTTP " + responseCode + " activity=" + activityName(currentActivityType));
-            } else {
+            if (responseCode < 200 || responseCode >= 300) {
                 Log.w(TAG, "Supabase HTTP " + responseCode);
+                return;
             }
-            conn.disconnect();
+
+            String result = readBody(conn.getInputStream()).replace("\"", "").trim();
+            Log.i(TAG, "Sent — " + result + " activity=" + activityName(currentActivityType));
+
+            // 'paused': usuário indisponível e sem visita (regra no banco).
+            // 'invalid': token revogado/inexistente. Em ambos, desliga o serviço;
+            // o app religa ao abrir quando o usuário voltar a ficar disponível.
+            if ("paused".equals(result) || "invalid".equals(result)) {
+                heartbeatHandler.post(this::disableAndStop);
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error sending to Supabase", e);
+        } finally {
+            if (conn != null) conn.disconnect();
         }
+    }
+
+    private static String readBody(InputStream in) throws java.io.IOException {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null && sb.length() < 200) sb.append(line);
+        }
+        return sb.toString();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -479,6 +580,8 @@ public class LocationForegroundService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        running = false;
+        stopHeartbeat();
         stopActivityRecognition();
         if (fusedClient != null && locationCallback != null) {
             fusedClient.removeLocationUpdates(locationCallback);

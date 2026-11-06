@@ -793,11 +793,11 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     return (
         <div className="flex flex-col h-full bg-background-light dark:bg-background-dark text-slate-900 dark:text-white">
             {activeTab === 'chat' || activeTab === 'assistant' ? (
-                <div className="flex-1 min-h-0 overflow-hidden flex flex-col pb-[calc(5rem+env(safe-area-inset-bottom))]">
+                <div className="flex-1 min-h-0 overflow-hidden flex flex-col pb-[var(--bottom-nav-h,calc(5rem+env(safe-area-inset-bottom,0px)))]">
                     {renderTabContent()}
                 </div>
             ) : (
-                <KeyboardAwareScrollView className="flex-1 p-4 pb-[calc(8rem+env(safe-area-inset-bottom))] md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
+                <KeyboardAwareScrollView className="flex-1 p-4 pb-[calc(var(--bottom-nav-h,calc(5rem+env(safe-area-inset-bottom,0px)))+3rem)] md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
                     {renderTabContent()}
                 </KeyboardAwareScrollView>
             )}

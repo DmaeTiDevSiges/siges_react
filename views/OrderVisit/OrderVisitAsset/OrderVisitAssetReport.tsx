@@ -8,6 +8,7 @@ import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/orde
 import { OrderVisitAssetCardListItem } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardListItem';
 import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { CAMERA_PHOTO_LIMITS } from '../../../utils/cameraOptions';
 import { Capacitor } from '@capacitor/core';
 import { OptimizedImage } from '../../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../../components/ui/PhotoViewer';
@@ -883,6 +884,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
         try {
             const image = await Camera.getPhoto({
+                ...CAMERA_PHOTO_LIMITS,
                 quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,
@@ -1805,9 +1807,9 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
             {/* Asset Swap Page (Overlay) */}
             {showSwapPage && (
-                <div className="fixed inset-0 z-150 bg-slate-100 dark:bg-slate-950 animate-in slide-in-from-right duration-300 overflow-y-auto">
+                <div className="fixed inset-0 z-150 bg-slate-100 dark:bg-slate-950 animate-in slide-in-from-right duration-300 overflow-y-auto sheet-safe-bottom">
                     {/* Page Header */}
-                    <div className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-100 dark:border-slate-800 p-4">
+                    <div className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-100 dark:border-slate-800 p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
                         <div className="max-w-md flex items-center gap-4">
                             <button
                                 onClick={() => setShowSwapPage(false)}
@@ -1980,7 +1982,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
             {/* Upload Progress Overlay */}
             {uploadingCount > 0 && (
-                <div className="fixed inset-0 z-200 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
+                <div className="fixed inset-0 pad-safe-4 z-200 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl max-w-sm mx-4 animate-in zoom-in duration-300">
                         <div className="flex flex-col items-center gap-6">
                             <div className="relative">
@@ -2011,7 +2013,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
             {/* Rejection Modal */}
             {showRejectionModal && createPortal(
-                <div className="fixed inset-0 z-200 flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowRejectionModal(false)}>
+                <div className="fixed inset-0 z-200 flex items-center justify-center pad-safe-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowRejectionModal(false)}>
                     <div
                         className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300"
                         onClick={(e) => e.stopPropagation()}

@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx';
+import type { WorkBook } from 'xlsx';
+import { loadXlsx, type XlsxModule } from '../../utils/loadXlsx';
 
 export interface FuelExpenseImportRow {
     line: number;
@@ -63,7 +64,7 @@ const parseNumber = (value: unknown): number | null => {
     return Number.isFinite(number) ? number : null;
 };
 
-const parseDate = (value: unknown): string | null => {
+const parseDate = (value: unknown, XLSX: XlsxModule): string | null => {
     let year: number;
     let month: number;
     let day: number;
@@ -103,10 +104,11 @@ const plateKey = (value: unknown): string =>
 
 export const fuelExpenseImportService = {
     async parseFile(file: File): Promise<FuelExpenseParseResult> {
+        const XLSX = await loadXlsx();
         let table: unknown[][];
         try {
             const buffer = await file.arrayBuffer();
-            let workbook: XLSX.WorkBook;
+            let workbook: WorkBook;
             if (/\.(csv|txt)$/i.test(file.name)) {
                 const bytes = new Uint8Array(buffer);
                 const utf8 = new TextDecoder('utf-8').decode(bytes);
@@ -159,7 +161,7 @@ export const fuelExpenseImportService = {
             if (isBlankRow(cells)) return;
             const values = headerIndexes.map(column => cells[column]);
             const [dateValue, plateValue, odometerValue, quantityValue, totalValueValue] = values;
-            const date = parseDate(dateValue);
+            const date = parseDate(dateValue, XLSX);
             const plate = String(plateValue ?? '').trim().toUpperCase();
             const odometer = parseNumber(odometerValue);
             const fuelQuantity = parseNumber(quantityValue);

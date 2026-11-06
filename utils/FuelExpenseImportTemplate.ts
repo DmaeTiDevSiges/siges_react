@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx';
+import type { WorkBook } from 'xlsx';
+import { loadXlsx, type XlsxModule } from './loadXlsx';
 import { FileUtils } from './FileUtils';
 
 const FILE_NAME = 'modelo_importacao_abastecimentos';
@@ -11,7 +12,7 @@ const columns = [
     { header: 'Valor Total (R$)', example: '250,00', rule: 'Número maior que zero; aceita formato pt-BR.' }
 ];
 
-const buildWorkbook = (): XLSX.WorkBook => {
+const buildWorkbook = (XLSX: XlsxModule): WorkBook => {
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.aoa_to_sheet([
         columns.map(column => column.header),
@@ -33,7 +34,8 @@ const buildWorkbook = (): XLSX.WorkBook => {
 
 export const FuelExpenseImportTemplate = {
     async downloadXlsx(): Promise<void> {
-        const buffer = XLSX.write(buildWorkbook(), { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
+        const XLSX = await loadXlsx();
+        const buffer = XLSX.write(buildWorkbook(XLSX), { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
         const blob = new Blob(
             [buffer],
             { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
@@ -42,6 +44,7 @@ export const FuelExpenseImportTemplate = {
     },
 
     async downloadCsv(): Promise<void> {
+        const XLSX = await loadXlsx();
         const worksheet = XLSX.utils.aoa_to_sheet([
             columns.map(column => column.header),
             columns.map(column => column.example)

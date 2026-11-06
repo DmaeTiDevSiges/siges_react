@@ -166,7 +166,7 @@ export const TeamShiftsCalendarModal: React.FC<TeamShiftsCalendarModalProps> = (
 
     return createPortal((
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 pad-safe-4"
             role="presentation"
             onMouseDown={event => {
                 if (event.target === event.currentTarget && !saving && !copying) onClose();

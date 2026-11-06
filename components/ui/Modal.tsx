@@ -214,8 +214,8 @@ export const Modal: React.FC<ModalProps> = ({
 
     return createPortal(
         <div
-            className="fixed inset-0 flex items-center justify-center p-4 sm:p-6"
-            style={{ zIndex: 9999, paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+            className="fixed inset-0 flex items-center justify-center pad-safe-4"
+            style={{ zIndex: 9999 }}
             role="dialog"
             aria-modal="true"
             aria-label={typeof title === 'string' ? title : undefined}
@@ -231,7 +231,7 @@ export const Modal: React.FC<ModalProps> = ({
             <div
                 ref={modalRef}
                 className={`relative flex flex-col w-full ${maxWidthClasses[maxWidth]} 
-                    ${fullScreenMobile ? 'h-auto max-h-[92vh]' : 'max-h-[90vh]'} 
+                    ${fullScreenMobile ? 'h-auto max-h-modal-safe-92' : 'max-h-modal-safe'} 
                     shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300
                     ${draggable ? 'select-none' : ''} ${className || 'bg-white dark:bg-card-dark rounded-2xl'}`}
                 style={draggableStyle}

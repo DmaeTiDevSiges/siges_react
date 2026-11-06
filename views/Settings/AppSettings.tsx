@@ -280,6 +280,17 @@ export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigat
                             />
                         </>
                     )}
+                    {canView('dashboard_assets_available_integrations') && (
+                        <>
+                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
+                            <SettingItem
+                                icon="api"
+                                title="APIs externas"
+                                subtitle="Parametrizar integrações com APIs de terceiros"
+                                onClick={() => onNavigate?.('settings-apis')}
+                            />
+                        </>
+                    )}
                     {isSuperAdmin && (
                         <>
                             <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />

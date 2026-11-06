@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useTransition, useRef } from 'react';
+import { SearchModeToggle } from '../../components/dashboards/SearchModeToggle';
 import { User, OrderFilters, Order, Company } from '../../types';
 import { dataService } from '../../services/dataService';
 import { getDashboardRefreshRequestedAt } from '../../services/core/dashboardRefresh';
@@ -986,7 +987,7 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
         });
 
         // 4. Realtime subscription for users (to update status borders)
-        const userSubscription = dataService.subscribeToUsers(async () => {
+        const userSubscription = dataService.subscribeToUsersThrottled(async () => {
             try {
                 dataService.clearMetadataCache();
                 const usersData = await dataService.getUsers();
@@ -1182,25 +1183,8 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
                         <div className="flex flex-col p-4">
                             {/* Filters Row */}
                             <div className="flex items-center gap-2 pb-2">
-                                {/* Modo de pesquisa: Período (ativo) x Online */}
-                                <div className="flex items-stretch h-[42px] bg-white dark:bg-slate-800 border !border-primary rounded-xl shadow-sm overflow-hidden shrink-0">
-                                    <button
-                                        type="button"
-                                        onClick={() => onNavigate?.('orders-dashboard-period')}
-                                        title="Pesquisar por período"
-                                        className="flex items-center justify-center px-3 transition-colors bg-primary/10 text-primary"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">calendar_month</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => onNavigate?.(onlineScreenKey)}
-                                        title="Exibir serviços em aberto com os filtros rápidos"
-                                        className="flex items-center justify-center px-3 transition-colors border-l border-primary/30 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">pending_actions</span>
-                                    </button>
-                                </div>
+                                {/* Modo de pesquisa: botão único que alterna entre em aberto e período */}
+                                <SearchModeToggle mode="period" onToggle={() => onNavigate?.(onlineScreenKey)} />
                                 <div className="ml-auto flex items-center gap-2 md:hidden shrink-0">
                                     <form onSubmit={handleQuickSearch} className="relative group flex items-center">
                                         <input
@@ -1411,7 +1395,7 @@ export const OrdersRequestsPeriodDashboardAdmin: React.FC<OrdersRequestsPeriodDa
 
             {/* Floating Action Button + Busca — fixos à direita inferior */}
             {activeTab === 'OS' && (
-                <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-50 flex items-center gap-3">
+                <div className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 z-50 flex items-center gap-3">
                     <form onSubmit={handleQuickSearch} className="relative group hidden md:flex items-center">
                         <input
                             type="text"

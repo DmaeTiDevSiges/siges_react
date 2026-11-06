@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx';
+import type { WorkBook } from 'xlsx';
+import { loadXlsx, type XlsxModule } from './loadXlsx';
 import { FileUtils } from './FileUtils';
 
 export type MaterialsImportField =
@@ -88,7 +89,7 @@ const buildInstructionsRows = (): (string | number)[][] => [
     ['', 'Colunas não reconhecidas ou ausentes impedem a importação.', '', '']
 ];
 
-const buildWorkbook = (): XLSX.WorkBook => {
+const buildWorkbook = (XLSX: XlsxModule): WorkBook => {
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.aoa_to_sheet(buildHeaderAndExampleRows());
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Modelo');
@@ -105,7 +106,8 @@ export const MaterialsImportTemplate = {
      * Baixa o modelo em CSV (cabeçalhos em português, separador ",", UTF-8 com BOM).
      */
     async downloadCsv(): Promise<void> {
-        const workbook = buildWorkbook();
+        const XLSX = await loadXlsx();
+        const workbook = buildWorkbook(XLSX);
         const csv = XLSX.write(workbook, { bookType: 'csv', type: 'string' }) as string;
         const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
         await FileUtils.downloadFile(blob, `${FILE_NAME}.csv`);
@@ -116,7 +118,8 @@ export const MaterialsImportTemplate = {
      * por qualquer office: LibreOffice/Calc, Microsoft Excel, OnlyOffice, WPS etc.
      */
     async downloadXlsx(): Promise<void> {
-        const workbook = buildWorkbook();
+        const XLSX = await loadXlsx();
+        const workbook = buildWorkbook(XLSX);
 
         const instructions = XLSX.utils.aoa_to_sheet(buildInstructionsRows());
         XLSX.utils.book_append_sheet(workbook, instructions, 'Instruções');

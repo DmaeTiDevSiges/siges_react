@@ -10,6 +10,12 @@ import { toast } from 'sonner';
 import { Loading } from '../ui/Loading';
 
 
+/** Mensagem do banco (ex.: regra do trigger de assinaturas) ou texto padrão. */
+const errorMessage = (error: unknown, fallback: string): string => {
+    const message = (error as { message?: string })?.message;
+    return message && /assinatura/i.test(message) ? message : fallback;
+};
+
 interface SignatureSectionProps {
     visit: OrderVisit;
     onRefresh: () => void;
@@ -54,6 +60,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
         if (
             autoApplyAttempted.current ||
             !isEditable ||
+            visit.ovProcessingId === 5 || // aprovada: assinaturas congeladas
             visit.ovSignatureLeaderPath ||
             !currentUser?.signatureImagePath ||
             !currentUser?.signatureImageName ||
@@ -99,6 +106,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
 
     const handleSaveSignature = async (base64: string) => {
         if (!signingType || !isEditable) return;
+        if (signingType === 'leader' && !canManageLeader) return;
         
         try {
             setIsSaving(true);
@@ -108,7 +116,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
             onRefresh();
         } catch (error) {
             console.error('Erro ao salvar assinatura:', error);
-            toast.error('Falha ao salvar assinatura digital.');
+            toast.error(errorMessage(error, 'Falha ao salvar assinatura digital.'));
         } finally {
             setIsSaving(false);
         }
@@ -116,6 +124,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
 
     const handleDeleteSignature = async () => {
         if (!deletingType || !isEditable) return;
+        if (deletingType === 'leader' && !canManageLeader) return;
 
         try {
             await dataService.deleteOrderVisitSignature(visit.id, deletingType);
@@ -124,7 +133,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
             onRefresh();
         } catch (error) {
             console.error('Erro ao excluir assinatura:', error);
-            toast.error('Falha ao excluir assinatura.');
+            toast.error(errorMessage(error, 'Falha ao excluir assinatura.'));
         }
     };
 
@@ -136,7 +145,12 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
         ? dataService.getSignatureUrl(visit.ovSignatureRequesterPath!, visit.ovSignatureRequesterName!) 
         : null;
 
+    // Visita não arquivada e não aprovada (mesma regra do trigger no banco).
     const canDelete = isEditable && visit.ovProcessingId !== 5;
+    // Assinatura do LÍDER ("Assinar agora" e lixeira): só o líder da visita,
+    // e só enquanto a visita não estiver aprovada nem arquivada (canDelete).
+    const isVisitLeader = !!currentUser?.id && currentUser.id === visit.ovTeamLeadId;
+    const canManageLeader = canDelete && isVisitLeader;
 
     return (
         <section className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700">
@@ -156,7 +170,7 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                                     <span className="material-symbols-outlined text-[14px]">verified</span>
                                     <span className="text-[8px] font-black uppercase tracking-widest">Assinado</span>
                                 </div>
-                                {canDelete && (
+                                {canManageLeader && (
                                     <button 
                                         onClick={() => setDeletingType('leader')}
                                         className="w-6 h-6 flex items-center justify-center bg-rose-500/10 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all shadow-sm"
@@ -187,7 +201,14 @@ export const SignatureSection: React.FC<SignatureSectionProps> = ({ visit, onRef
                         )}
                     </div>
 
-                    {canDelete && !leaderSignatureUrl && (
+                    {canDelete && !leaderSignatureUrl && !canManageLeader && (
+                        <div className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            <span className="material-symbols-outlined text-[14px]">info</span>
+                            Somente o líder da equipe pode assinar
+                        </div>
+                    )}
+
+                    {canManageLeader && !leaderSignatureUrl && (
                         <button 
                             onClick={() => setSigningType('leader')}
                             className="w-full py-3 text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary-dark rounded-xl transition-all shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-[0.98]"

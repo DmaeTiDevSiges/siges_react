@@ -9,6 +9,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { CAMERA_PHOTO_LIMITS } from '../../../../utils/cameraOptions';
 import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
 import { useUnitEditScope } from '../../../../hooks/useUnitEditScope';
@@ -82,6 +83,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
     const handleTakePhoto = async (source: CameraSource) => {
         try {
             const image = await Camera.getPhoto({
+                ...CAMERA_PHOTO_LIMITS,
                 quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,

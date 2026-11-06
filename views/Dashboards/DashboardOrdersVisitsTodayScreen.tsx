@@ -413,7 +413,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
         };
 
         // Subscriptions: mudança real → invalida cache + rebusca leaders
-        const userSub = dataService.subscribeToUsers(() => {
+        const userSub = dataService.subscribeToUsersThrottled(() => {
             refreshLeadersOnChange();
         });
 
@@ -718,7 +718,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 </div>
 
                 {/* Footer List Display (Drawer implementation) */}
-                <div className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 left-6 right-6 z-40">
+                <div className="absolute bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 left-6 right-6 z-40">
                     <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/40 dark:border-white/5 rounded-[24px] shadow-2xl p-4 max-h-[300px] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4 px-2">
                              <div className="flex items-center gap-2">

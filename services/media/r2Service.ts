@@ -3,8 +3,8 @@
  * Serviço para upload e gerenciamento de arquivos no Cloudflare R2
  */
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { Upload } from '@aws-sdk/lib-storage';
+import type { S3Client } from '@aws-sdk/client-s3';
+import { supabase } from '../core/supabase';
 import { compressAndGenerateVariants, CompressionOptions } from './imageCompressionService';
 import { addVariantToPath } from './imageUtils';
 
@@ -12,7 +12,99 @@ import { addVariantToPath } from './imageUtils';
 let cachedClient: S3Client | null = null;
 let cachedEndpoint: string | null = null;
 
-const getR2Client = (): S3Client => {
+// ── Modo Worker (recomendado) ────────────────────────────────────────────────
+// Com VITE_R2_WORKER_URL definida, todo acesso ao bucket passa pelo Worker
+// workers/r2-files (Cloudflare), que usa binding direto ao R2 e valida o login
+// do Supabase. Nenhuma chave S3 fica no app.
+//
+// Sem a variável, cai no modo legado (SDK S3 + VITE_R2_ACCESS_KEY_ID /
+// VITE_R2_SECRET_ACCESS_KEY), que EXPÕE a chave no JavaScript público. Manter
+// apenas até o Worker estar publicado; depois remover essas variáveis do .env.
+const WORKER_URL = (import.meta.env.VITE_R2_WORKER_URL || '').replace(/\/+$/, '');
+const useWorker = () => WORKER_URL.length > 0;
+
+const encodeKey = (key: string) =>
+    key.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
+
+const getAccessToken = async (): Promise<string> => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error('Sessão expirada. Entre novamente para enviar arquivos.');
+    return token;
+};
+
+const workerError = async (response: Response, action: string): Promise<Error> => {
+    let detail = `HTTP ${response.status}`;
+    try {
+        const body = await response.json();
+        if (body?.error) detail = body.error;
+    } catch { }
+    return new Error(`Falha ao ${action}: ${detail}`);
+};
+
+/** Upload via Worker com progresso (fetch não informa progresso de upload). */
+const workerUpload = async (
+    path: string,
+    body: File | Blob | Uint8Array,
+    contentType: string,
+    contentEncoding: string | undefined,
+    onProgress?: (progress: number) => void
+): Promise<void> => {
+    const token = await getAccessToken();
+    await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', `${WORKER_URL}/objects/${encodeKey(path)}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('Content-Type', contentType || 'application/octet-stream');
+        if (contentEncoding) xhr.setRequestHeader('X-File-Encoding', contentEncoding);
+        xhr.upload.onprogress = (event) => {
+            if (onProgress && event.lengthComputable && event.total > 0) {
+                onProgress(Math.round((event.loaded * 100) / event.total));
+            }
+        };
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) return resolve();
+            let detail = `HTTP ${xhr.status}`;
+            try { detail = JSON.parse(xhr.responseText)?.error || detail; } catch { }
+            reject(new Error(detail));
+        };
+        xhr.onerror = () => reject(new Error('Falha de rede no upload'));
+        xhr.ontimeout = () => reject(new Error('Tempo esgotado no upload'));
+        xhr.timeout = 5 * 60_000;
+        xhr.send(body instanceof Uint8Array ? new Blob([body]) : body);
+    });
+};
+
+const workerRequest = async (method: 'GET' | 'DELETE' | 'POST', route: string, body?: unknown): Promise<Response> => {
+    const token = await getAccessToken();
+    return fetch(`${WORKER_URL}${route}`, {
+        method,
+        headers: {
+            Authorization: `Bearer ${token}`,
+            ...(body ? { 'Content-Type': 'application/json' } : {}),
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+};
+
+// ── Modo legado (SDK S3) ─────────────────────────────────────────────────────
+// O AWS SDK (centenas de KB) só é baixado no primeiro upload/download, não na
+// abertura do app — este serviço é importado por vários serviços carregados no boot.
+type S3Sdk = typeof import('@aws-sdk/client-s3');
+type StorageSdk = typeof import('@aws-sdk/lib-storage');
+let sdkPromise: Promise<[S3Sdk, StorageSdk]> | null = null;
+const loadSdk = () => {
+    if (!sdkPromise) {
+        sdkPromise = Promise.all([import('@aws-sdk/client-s3'), import('@aws-sdk/lib-storage')])
+            .catch((error) => {
+                sdkPromise = null; // permite nova tentativa (ex.: falha de rede no chunk)
+                throw error;
+            });
+    }
+    return sdkPromise;
+};
+
+const getR2Client = async (): Promise<S3Client> => {
     const accountId = import.meta.env.VITE_R2_ACCOUNT_ID;
     const accessKeyId = import.meta.env.VITE_R2_ACCESS_KEY_ID;
     const secretAccessKey = import.meta.env.VITE_R2_SECRET_ACCESS_KEY;
@@ -26,6 +118,7 @@ const getR2Client = (): S3Client => {
         return cachedClient;
     }
 
+    const [{ S3Client }] = await loadSdk();
     cachedClient = new S3Client({
         region: 'auto',
         endpoint,
@@ -82,9 +175,15 @@ export const uploadFile = async (file: File | Blob, path: string, onProgress?: (
     }
 
     try {
-        const client = getR2Client();
-
         const { body, contentEncoding } = await maybeCompress(file);
+
+        if (useWorker()) {
+            await workerUpload(path, body, file.type, contentEncoding, onProgress);
+            return { path, publicUrl: getPublicUrl(path) };
+        }
+
+        const client = await getR2Client();
+        const [, { Upload }] = await loadSdk();
 
         const upload = new Upload({
             client,
@@ -137,7 +236,14 @@ export const deleteFile = async (path: string): Promise<void> => {
     }
 
     try {
-        const client = getR2Client();
+        if (useWorker()) {
+            const response = await workerRequest('DELETE', `/objects/${encodeKey(path)}`);
+            if (!response.ok && response.status !== 404) throw await workerError(response, 'deletar');
+            return;
+        }
+
+        const client = await getR2Client();
+        const [{ DeleteObjectCommand }] = await loadSdk();
 
         const command = new DeleteObjectCommand({
             Bucket: bucketName,
@@ -164,7 +270,20 @@ export const downloadFile = async (path: string): Promise<Blob> => {
     }
 
     try {
-        const client = getR2Client();
+        if (useWorker()) {
+            const response = await workerRequest('GET', `/objects/${encodeKey(path)}`);
+            if (!response.ok) throw await workerError(response, 'baixar');
+            let bytes = new Uint8Array(await response.arrayBuffer());
+            const isGzip = response.headers.get('X-File-Encoding') === 'gzip' || (bytes[0] === 0x1f && bytes[1] === 0x8b);
+            if (isGzip) {
+                const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+                bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+            }
+            return new Blob([bytes], { type: response.headers.get('Content-Type') || 'application/octet-stream' });
+        }
+
+        const client = await getR2Client();
+        const [{ GetObjectCommand }] = await loadSdk();
         const command = new GetObjectCommand({ Bucket: bucketName, Key: path });
         const response = await client.send(command);
 
@@ -213,6 +332,9 @@ export const getPublicUrl = (path: string): string => {
  * @returns true se todas as configurações necessárias estão presentes
  */
 export const isR2Configured = (): boolean => {
+    if (useWorker()) {
+        return !!(import.meta.env.VITE_R2_BUCKET_NAME && import.meta.env.VITE_R2_PUBLIC_URL);
+    }
     return !!(
         import.meta.env.VITE_R2_ACCOUNT_ID &&
         import.meta.env.VITE_R2_ACCESS_KEY_ID &&
@@ -233,7 +355,8 @@ export const deleteFiles = async (paths: string[]): Promise<void> => {
     if (!bucketName) throw new Error('Nome do bucket R2 não configurado.');
 
     try {
-        const client = getR2Client();
+        // Valida as credenciais antes de disparar as remoções em paralelo.
+        if (!useWorker()) await getR2Client();
 
         // O SDK v3 do S3 não tem um DeleteObjectsCommand simples que aceite array de strings diretamente da mesma forma que o v2,
         // mas podemos iterar ou usar DeleteObjectsCommand (plural).
@@ -344,7 +467,14 @@ export const copyFile = async (srcKey: string, destKey: string): Promise<void> =
     }
 
     try {
-        const client = getR2Client();
+        if (useWorker()) {
+            const response = await workerRequest('POST', '/copy', { src: srcKey, dest: destKey });
+            if (!response.ok) throw await workerError(response, 'copiar');
+            return;
+        }
+
+        const client = await getR2Client();
+        const [{ CopyObjectCommand }] = await loadSdk();
 
         const command = new CopyObjectCommand({
             Bucket: bucketName,

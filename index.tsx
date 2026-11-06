@@ -1,11 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import 'leaflet/dist/leaflet.css';
 import './index.css';
 import './global.css';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 import { AuthProvider } from './contexts/AuthContext';
+import { initClientDiagnostics } from './services/core/clientDiagnosticsService';
+
+// Diagnóstico de recargas/fechamentos inesperados — antes de tudo.
+initClientDiagnostics();
 
 // Call the element loader after the platform has been bootstrapped
 defineCustomElements(window);

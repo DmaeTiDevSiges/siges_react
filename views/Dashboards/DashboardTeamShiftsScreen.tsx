@@ -727,7 +727,7 @@ export const DashboardTeamShiftsScreen: React.FC<DashboardTeamShiftsScreenProps>
             {((lockAction === 'close' && canCloseTeamShiftsMonth) ||
                 (lockAction === 'reopen' && canReopenTeamShiftsMonth)) && (
                 createPortal(
-                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm pad-safe-4">
                     <div className={`${CARD} rounded-2xl p-6 max-w-md w-full space-y-4`}>
                         <div className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-amber-500">

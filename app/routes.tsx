@@ -5,6 +5,7 @@
  * (lazyWithRetry). O mapa screen → elemento continua no App.tsx.
  */
 import React from 'react';
+import { markReload } from '../services/core/clientDiagnosticsService';
 
 export function isChunkLoadError(err: unknown): boolean {
   const msg =
@@ -19,7 +20,7 @@ export function isChunkLoadError(err: unknown): boolean {
   );
 }
 
-function forceCleanReloadOnce(): boolean {
+function forceCleanReloadOnce(err?: unknown): boolean {
   // A new deploy deletes old hashed chunks (e.g. OrdersRequestsDashboardAdmin-<old>.js).
   // A client holding a stale index.html/SW cache retries the SAME dead URL forever,
   // so retrying import() is useless — reload once (guarded) to fetch the new index.html.
@@ -30,6 +31,7 @@ function forceCleanReloadOnce(): boolean {
   } catch {
     // sessionStorage unavailable (private mode) — still reload, ErrorBoundary guards loops.
   }
+  markReload('chunk_error', err instanceof Error ? err.message : err);
   try {
     const url = new URL(window.location.href);
     url.searchParams.set('t', Date.now().toString());
@@ -55,7 +57,7 @@ function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any
             if (isChunkLoadError(err)) {
               // Stale hashed chunk (new deploy) or Cloudflare challenge HTML served
               // as JS: retrying the URL won't help — do one clean reload.
-              if (forceCleanReloadOnce()) return;
+              if (forceCleanReloadOnce(err)) return;
               reject(err);
               return;
             }

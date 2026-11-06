@@ -262,13 +262,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             loadUserToEdit();
         }
 
-        const subscription = dataService.subscribeToUsers(() => {
-            // Recarrega os dados se necessário
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
+        // (Removida uma assinatura realtime de users que não fazia nada e recebia
+        // as atualizações de posição de todos os usuários.)
     }, [initialUser]);
 
     // Landscape detection (same as SignatureSection)
@@ -1626,7 +1621,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
 
             {/* Status Change Modal */}
             {showStatusModal && (
-                <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-100 flex items-center justify-center pad-safe-4">
                     <div
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
                         onClick={() => setShowStatusModal(false)}

@@ -19,7 +19,7 @@ export const ConfirmDisapproveVisitModal: React.FC<ConfirmDisapproveVisitModalPr
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => onClose()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pad-safe-4 animate-in fade-in duration-200" onClick={() => onClose()}>
             <div onClick={e => e.stopPropagation()}>
                 <Card className="w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl rounded-[24px]! overflow-hidden border border-rose-100/50 dark:border-rose-900/20">
                     <div className="relative p-6 pt-10">

@@ -1,8 +1,21 @@
 # Plano — Integração de disponibilidade de ativos via APIs e n8n
 
-> **Status:** Fase 1 implantada (banco + RPC de ingestão). A migration
-> `20261104_create_assets_available_integrations.sql` ainda precisa ser aplicada
-> manualmente no Supabase; Fases 2–4 seguem pendentes.  
+> **Status (05/11/2026):**
+> - **Fase 1 — código pronto:** `20261104_create_assets_available_integrations.sql`
+>   (tabelas, RLS, `fn_ingest_asset_availability`). Aplicar manualmente no Supabase
+>   e rodar `validate_assets_available_integrations.sql`.
+> - **Fase 2 — código pronto, não publicado:** `SigesGuaibaFlowAvailability.workflow.ts`
+>   em modo observação (`dryRun = true`). Push ao n8n pendente (API key do n8nac
+>   retornando 401) e credenciais “GuaibaFlow API” / “SIGES Postgres” a criar no n8n.
+> - **Fase 3 — pendente:** depende da revisão funcional das execuções em observação.
+> - **Fase 4 — tela pronta:** `20261105_add_assets_available_integrations_route_and_permissions.sql`
+>   (rota única `dashboard_assets_available_integrations` + RLS via
+>   `fc_has_route_permission`), `services/assets/assetsAvailableIntegrationsService.ts`
+>   e `views/Dashboards/DashboardAssetsAvailableIntegrations.tsx` (aba “Disponibilidade
+>   de Ativos” em Dashboards). Permissões: view = listar/logs; create = nova integração;
+>   edit = editar/ativar e mapear; delete = excluir sem histórico.
+>   Ainda não cobertos: escopo por empresa no RLS, teste de conectividade no servidor
+>   e alertas.  
 > **Escopo:** receber disponibilidade de múltiplas APIs externas, relacioná-las aos
 > registros do SIGES e preservar o fluxo atual de histórico e cascata.
 

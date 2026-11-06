@@ -105,6 +105,17 @@ export const LocationBlockedScreen: React.FC<LocationBlockedScreenProps> = ({ on
                         Abrir Configurações do App
                     </button>
 
+                    {isAndroid && (
+                        <button
+                            onClick={handleOpenBattery}
+                            disabled={busy}
+                            className="w-full flex items-center justify-center py-3.5 px-6 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-200 rounded-xl font-semibold transition-all active:scale-95"
+                        >
+                            <MdBatteryChargingFull className="mr-2 text-xl" />
+                            Desativar economia de bateria
+                        </button>
+                    )}
+
                     {isAndroid && guide.isAggressive && (
                         <button
                             onClick={() => setShowGuide(v => !v)}

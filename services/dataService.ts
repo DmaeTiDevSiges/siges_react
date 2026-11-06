@@ -38,6 +38,14 @@ import type {
     SaveVehicleRateContractInput
 } from './orders/vehicleRateService';
 import { assetTagsService } from './assets/assetTagsService';
+import { assetsAvailableIntegrationsService } from './assets/assetsAvailableIntegrationsService';
+import type {
+    AssetsAvailableIntegration,
+    AssetsAvailableIntegrationInput,
+    AssetsAvailableIntegrationMapping,
+    AssetsAvailableIntegrationLog,
+    UnitAssetTagOption
+} from './assets/assetsAvailableIntegrationsService';
 import { assetAvailabilityNotificationService } from './assets/assetAvailabilityNotificationService';
 import type { AvailabilityNotificationResult } from './assets/assetAvailabilityNotificationService';
 import { companiesService } from './companies/companiesService';
@@ -49,6 +57,7 @@ import { assetConfigService } from './assets/assetConfigService';
 import { assetAttributesService } from './assets/assetAttributesService';
 import { assetAttributeGroupsService } from './assets/assetAttributeGroupsService';
 import { usersService } from './users/usersService';
+import { trackerService } from './users/trackerService';
 import { notificationsService } from './core/notificationsService';
 import { settingsService } from './core/settingsService';
 import { dashboardService } from './core/dashboardService';
@@ -151,6 +160,15 @@ export const dataService = {
     // Atualização de Heartbeat do usuário
     async updateLastOnline(userId: string): Promise<void> {
         return usersService.updateLastOnline.apply(usersService, arguments as any);
+    },
+
+    // Tokens de rastreamento por aparelho (trackerService)
+    async issueTrackerToken(): Promise<string> {
+        return trackerService.issueTrackerToken.apply(trackerService, arguments as any);
+    },
+
+    async revokeTrackerToken(): Promise<void> {
+        return trackerService.revokeTrackerToken.apply(trackerService, arguments as any);
     },
 
     // Atualização de localização do usuário (tracker)
@@ -1840,8 +1858,10 @@ export const dataService = {
         return ordersService.getOrdersVisitsAssetsWithProvider.apply(ordersService, arguments as any);
     },
 
-     subscribeToOrders: (callback: (payload: any) => void) => {
+     /** Mudanças em public.orders. Passe `{ orderId }` para ouvir uma OS só (filtro no servidor). */
+     subscribeToOrders: (callback: (payload: any) => void, options: { orderId?: string } = {}) => {
          const channelId = `orders-changes-${Math.random().toString(36).substring(2)}`;
+         const orderId = options.orderId && /^\d+$/.test(options.orderId) ? options.orderId : null;
          let retryTimeout: ReturnType<typeof setTimeout> | null = null;
          let disposed = false;
          let retryCount = 0;
@@ -1851,7 +1871,12 @@ export const dataService = {
              if (disposed) return null;
              return supabase
                  .channel(channelId)
-                 .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+                 .on('postgres_changes', {
+                     event: '*',
+                     schema: 'public',
+                     table: 'orders',
+                     ...(orderId ? { filter: `id=eq.${orderId}` } : {}),
+                 }, (payload) => {
                      retryCount = 0;
                      callback(payload);
                  })
@@ -2133,18 +2158,61 @@ export const dataService = {
         return settingsService.createUnitType.apply(settingsService, arguments as any);
     },
 
-    subscribeToUsers(callback: (payload: any) => void) {
+    /**
+     * Mudanças em public.users. ATENÇÃO: o rastreamento atualiza a posição de
+     * cada usuário a cada 30–60 s, então sem filtro isto dispara o tempo todo.
+     * - Para ouvir um usuário só, passe `{ userId }` (filtro no servidor).
+     * - Para telas que apenas recarregam dados, use subscribeToUsersThrottled.
+     */
+    subscribeToUsers(callback: (payload: any) => void, options: { userId?: string } = {}) {
         const channelName = `users-changes-${Math.random().toString(36).substring(7)}`;
+        const userId = options.userId && /^\d+$/.test(options.userId) ? options.userId : null;
         return supabase
             .channel(channelName)
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'users' },
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'users',
+                    ...(userId ? { filter: `id=eq.${userId}` } : {}),
+                },
                 (payload) => {
                     callback(payload);
                 }
             )
             .subscribe();
+    },
+
+    /**
+     * Igual a subscribeToUsers, mas chama o callback no máximo uma vez a cada
+     * `minIntervalMs` (agrupa a rajada de atualizações de posição numa única
+     * recarga). Para telas que refazem consultas a cada mudança.
+     */
+    subscribeToUsersThrottled(callback: () => void, minIntervalMs: number = 30_000) {
+        let lastRunAt = 0;
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const run = () => {
+            timer = null;
+            lastRunAt = Date.now();
+            callback();
+        };
+        const channelName = `users-changes-throttled-${Math.random().toString(36).substring(7)}`;
+        const channel = supabase
+            .channel(channelName)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+                if (timer) return;
+                const wait = Math.max(0, minIntervalMs - (Date.now() - lastRunAt));
+                timer = setTimeout(run, wait);
+            })
+            .subscribe();
+        return {
+            unsubscribe: () => {
+                if (timer) clearTimeout(timer);
+                timer = null;
+                supabase.removeChannel(channel);
+            },
+        };
     },
 
     async getOrdersByTeam(teamId: string): Promise<Order[]> {
@@ -3591,5 +3659,46 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async addChecklistsToAssetType(assetTypeId: string, checklistIds: string[]): Promise<void> {
         return assetsTypesChecklistService.addChecklistsToAssetType.apply(assetsTypesChecklistService, arguments as any);
+    },
+
+    // ── Integrações de disponibilidade de ativos (assetsAvailableIntegrationsService) ──
+    async getAssetsAvailableIntegrations(): Promise<AssetsAvailableIntegration[]> {
+        return assetsAvailableIntegrationsService.getAssetsAvailableIntegrations.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async createAssetsAvailableIntegration(input: AssetsAvailableIntegrationInput): Promise<AssetsAvailableIntegration> {
+        return assetsAvailableIntegrationsService.createAssetsAvailableIntegration.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async updateAssetsAvailableIntegration(id: number, input: AssetsAvailableIntegrationInput): Promise<AssetsAvailableIntegration> {
+        return assetsAvailableIntegrationsService.updateAssetsAvailableIntegration.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async deleteAssetsAvailableIntegration(id: number): Promise<void> {
+        return assetsAvailableIntegrationsService.deleteAssetsAvailableIntegration.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async getAssetsAvailableIntegrationMappings(integrationId: number): Promise<AssetsAvailableIntegrationMapping[]> {
+        return assetsAvailableIntegrationsService.getAssetsAvailableIntegrationMappings.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async createAssetsAvailableIntegrationMapping(input: { integrationId: number; externalId: string; unitAssetTagId: number; isActive: boolean }): Promise<void> {
+        return assetsAvailableIntegrationsService.createAssetsAvailableIntegrationMapping.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async updateAssetsAvailableIntegrationMapping(id: number, changes: { isActive: boolean }): Promise<void> {
+        return assetsAvailableIntegrationsService.updateAssetsAvailableIntegrationMapping.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async deleteAssetsAvailableIntegrationMapping(id: number): Promise<void> {
+        return assetsAvailableIntegrationsService.deleteAssetsAvailableIntegrationMapping.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async getAssetsAvailableIntegrationLogs(integrationId: number, limit?: number): Promise<AssetsAvailableIntegrationLog[]> {
+        return assetsAvailableIntegrationsService.getAssetsAvailableIntegrationLogs.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async searchUnitAssetTagsForMapping(term: string): Promise<UnitAssetTagOption[]> {
+        return assetsAvailableIntegrationsService.searchUnitAssetTagsForMapping.apply(assetsAvailableIntegrationsService, arguments as any);
     },
 };

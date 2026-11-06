@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { loadXlsx } from './loadXlsx';
 import { FileUtils } from './FileUtils';
 
 /**
@@ -15,6 +15,7 @@ export const ExcelExportUtils = {
      */
     exportToExcel: async (data: any[], filename: string = 'export', sheetName: string = 'Dados') => {
         try {
+            const XLSX = await loadXlsx();
             // Cria um workbook
             const workbook = XLSX.utils.book_new();
 

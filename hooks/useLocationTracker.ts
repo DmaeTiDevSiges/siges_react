@@ -1,24 +1,52 @@
 import { useEffect, useRef, useState } from 'react';
-import { registerPlugin, Capacitor } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
+import { toast } from 'sonner';
 import { permissionService } from '../services/core/permissionService';
+import { LocationService } from '../services/core/locationServicePlugin';
 import { dataService } from '../services/dataService';
 import { haversineDistance } from '../utils/geo';
+import { logClientEvent } from '../services/core/clientDiagnosticsService';
+
+/** Lembrete de otimização de bateria: no máximo 1x por dia. */
+const BATTERY_REMINDER_KEY = 'siges_tracker_battery_reminder_at';
+const BATTERY_REMINDER_MS = 1000 * 60 * 60 * 24;
 
 /**
- * Plugin nativo Capacitor que controla o LocationForegroundService.java
- * Funciona mesmo com app minimizado ou fechado (verdadeiro Foreground Service Android).
+ * Se o Android ainda otimiza a bateria do SIGES, o rastreamento é encerrado em
+ * segundo plano (principalmente Samsung/Xiaomi/Motorola). Avisa com atalho.
  */
-const LocationService = registerPlugin<{
-    start(opts: {
-        userId: string;
-        supabaseUrl: string;
-        supabaseKey: string;
-        intervalSeconds: number;
-        distanceMeters: number;
-        hasOpenVisit: boolean;
-    }): Promise<void>;
-    stop(): Promise<void>;
-}>('LocationService');
+const remindBatteryOptimization = async () => {
+    try {
+        const status = await LocationService.getStatus();
+        if (status.ignoringBatteryOptimizations && status.backgroundLocation) return;
+        const last = Number(localStorage.getItem(BATTERY_REMINDER_KEY) || 0);
+        if (Date.now() - last < BATTERY_REMINDER_MS) return;
+        localStorage.setItem(BATTERY_REMINDER_KEY, String(Date.now()));
+
+        // Sem "Permitir o tempo todo" o rastreamento não volta sozinho após o
+        // Android encerrar o serviço ou o celular reiniciar.
+        if (!status.backgroundLocation) {
+            toast.warning('Permita a localização "O tempo todo" para o rastreamento não ser interrompido.', {
+                duration: 15000,
+                action: {
+                    label: 'Permitir',
+                    onClick: () => { void permissionService.requestBackgroundLocationPermission(); },
+                },
+            });
+            return;
+        }
+
+        toast.warning('A economia de bateria pode interromper o rastreamento em segundo plano.', {
+            duration: 15000,
+            action: {
+                label: 'Ajustar',
+                onClick: () => { void permissionService.openBatteryOptimizationSettings(); },
+            },
+        });
+    } catch {
+        // plugin antigo (APK sem getStatus) — ignora
+    }
+};
 
 
 /** Minimum interval between Supabase writes for the liveness heartbeat, in seconds. */
@@ -96,11 +124,12 @@ export function useLocationTracker(
             if (watcherIdRef.current === 'native') {
                 try {
                     await LocationService.stop();
-
                 } catch (err) {
                     console.warn('[LocationTracker] Failed to stop native service:', err);
                 }
                 watcherIdRef.current = null;
+                // Token deixa de valer: nada mais grava posição por este aparelho.
+                void dataService.revokeTrackerToken().catch(() => undefined);
             }
             if (webWatchIdRef.current !== null) {
                 navigator.geolocation.clearWatch(webWatchIdRef.current);
@@ -169,23 +198,54 @@ export function useLocationTracker(
             }, intervalSeconds * 1000);
         };
 
+        /**
+         * Falha que NÃO depende do usuário (servidor sem a função de token,
+         * plugin nativo antigo, sistema recusou o serviço...): não bloqueia o app.
+         * Registra a causa e rastreia pelo GPS da WebView enquanto o app estiver
+         * aberto (mesmo caminho da versão web). Bloqueio fica só para permissão
+         * negada / GPS desligado, que o usuário consegue resolver.
+         */
+        const fallbackToWebWatcher = (stage: 'token' | 'native_start', err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[LocationTracker] ${stage} failed, falling back to WebView GPS:`, err);
+            logClientEvent('error', `Rastreamento: falha em ${stage} — ${message}`, {
+                stack: err instanceof Error ? err.stack : undefined,
+                extra: { stage, fallback: 'web_watcher' },
+            });
+            if (cancelled) return;
+            setBlockReason(null);
+            if (webWatchIdRef.current === null) startWebWatcher();
+        };
+
         const startNativeWatcher = async () => {
+            // Token por aparelho (fn_tracker_issue_token): o serviço nativo grava
+            // a posição só via fn_tracker_report_location, nunca direto em users.
+            let trackerToken: string;
+            try {
+                trackerToken = await dataService.issueTrackerToken();
+            } catch (err) {
+                // Ex.: migration 20261106_create_users_tracker_tokens.sql não aplicada.
+                fallbackToWebWatcher('token', err);
+                return;
+            }
+            if (cancelled) return;
+
             try {
                 await LocationService.start({
                     userId: userId!,
                     supabaseUrl: SUPABASE_URL,
                     supabaseKey: SUPABASE_KEY,
+                    trackerToken,
                     intervalSeconds: intervalSeconds,
                     distanceMeters: DISTANCE_FILTER_M,
-                    hasOpenVisit: hasOpenVisit,
                 });
                 // 'native' é usado como sentinela para saber que o serviço está ativo
                 watcherIdRef.current = 'native';
+                void remindBatteryOptimization();
                 // O heartbeat no lado JS é desabilitado no modo nativo —
                 // o Java envia heartbeat via HTTP diretamente quando o tempo esgota.
             } catch (err: any) {
-                console.error('[LocationTracker] Failed to start native service:', err);
-                setBlockReason('watcher_failed');
+                fallbackToWebWatcher('native_start', err);
             }
         };
 

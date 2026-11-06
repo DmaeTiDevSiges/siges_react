@@ -29,7 +29,6 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   const hasVehicle = canView('dashboard_vehicles');
   const hasGrant = canView('orders_timeline');
   const hasTeamShifts = canView('dashboard_teams_shifts');
-  const hasAssetsAvailableIntegrations = canView('dashboard_assets_available_integrations');
 
   const isDashboardScreen =
     currentScreen === 'ss-dashboard' ||
@@ -48,8 +47,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
     currentScreen === 'rate-contracts' ||
     currentScreen === 'vehicles' ||
     currentScreen === 'grant-dashboard' ||
-    currentScreen === 'team-shifts' ||
-    currentScreen === 'dashboard-assets-available-integrations';
+    currentScreen === 'team-shifts';
 
   if (!isDashboardScreen) return null;
 
@@ -170,17 +168,6 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
           >
             Avaliações
             {currentScreen === 'dashboard-contracts-evaluations' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-            )}
-          </button>
-        )}
-        {hasTeamShifts && (
-          <button
-            onClick={() => { setCurrentScreen('dashboard-assets-available-integrations'); setActiveTab('dashboard-assets-available-integrations' as any); }}
-            className={`pb-4 px-2 text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap flex-shrink-0 ${currentScreen === 'dashboard-assets-available-integrations' ? 'text-primary' : 'text-slate-400 hover:text-slate-300'}`}
-          >
-            Disponibilidade de Ativos
-            {currentScreen === 'dashboard-assets-available-integrations' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
             )}
           </button>

@@ -57,7 +57,7 @@ export const ManusImageSelectionModal: React.FC<ManusImageSelectionModalProps> =
     };
 
     return (
-        <div className="fixed inset-0 z-300 flex items-center justify-center p-4 md:p-6" onClick={onCancel}>
+        <div className="fixed inset-0 z-300 flex items-center justify-center pad-safe-4" onClick={onCancel}>
             <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" />
             
             <div 

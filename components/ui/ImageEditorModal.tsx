@@ -178,7 +178,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
         allObjects.forEach(obj => {
             ctx.strokeStyle = obj.color;
             ctx.fillStyle = obj.color;
-            ctx.lineWidth = obj.lineWidth / scale; // Keep relative line width
+            ctx.lineWidth = obj.lineWidth; // em pixels da imagem (igual à exportação)
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
@@ -192,7 +192,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
             } else if (obj.type === 'arrow' && obj.points && obj.points.length === 2) {
                 const p1 = obj.points[0];
                 const p2 = obj.points[1];
-                drawArrow(ctx, p1.x, p1.y, p2.x, p2.y, obj.lineWidth / scale);
+                drawArrow(ctx, p1.x, p1.y, p2.x, p2.y, obj.lineWidth);
             } else if (obj.type === 'circle' && obj.points && obj.points.length === 2) {
                 const p1 = obj.points[0];
                 const p2 = obj.points[1];
@@ -214,7 +214,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
     }, [render]);
 
     const drawArrow = (ctx: CanvasRenderingContext2D, fromx: number, fromy: number, tox: number, toy: number, lineWidth: number) => {
-        const headlen = Math.max(lineWidth * 8, 20); // Cabeça da seta mais proeminente
+        const headlen = lineWidth * 8; // Cabeça da seta proporcional à espessura
         const dx = tox - fromx;
         const dy = toy - fromy;
         const angle = Math.atan2(dy, dx);
@@ -293,7 +293,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
                     type: mode as any,
                     points: [imgPoint],
                     color,
-                    lineWidth: 4
+                    // Espessura em pixels da IMAGEM: 4px na tela no zoom atual.
+                    // Assim a exportação (resolução original) fica igual ao que se vê.
+                    lineWidth: 4 / scale
                 });
             }
         }

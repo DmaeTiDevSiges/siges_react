@@ -141,6 +141,55 @@
         padding-right: env(safe-area-inset-right);
     }
 
+    /*
+     * Área segura para camadas que abrem por cima do shell (modais, menus que
+     * sobem de baixo, telas cheias). Com targetSdk 35+ (Android 15+) o app é
+     * desenhado atrás da barra de status e da barra de navegação; o Capacitor
+     * informa o tamanho real pelo env(). Onde não há barra, env() = 0 e o
+     * espaçamento fica igual ao de antes.
+     */
+
+    /* Overlay centralizado: mantém o respiro de N e soma a área segura. */
+    .pad-safe-4 {
+        padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
+            max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+    }
+    .pad-safe-6 {
+        padding: max(1.5rem, env(safe-area-inset-top, 0px)) max(1.5rem, env(safe-area-inset-right, 0px))
+            max(1.5rem, env(safe-area-inset-bottom, 0px)) max(1.5rem, env(safe-area-inset-left, 0px));
+    }
+    .pad-safe-8 {
+        padding: max(2rem, env(safe-area-inset-top, 0px)) max(2rem, env(safe-area-inset-right, 0px))
+            max(2rem, env(safe-area-inset-bottom, 0px)) max(2rem, env(safe-area-inset-left, 0px));
+    }
+
+    /* Tela cheia: conteúdo fora das barras do sistema (fundo continua sob elas). */
+    .screen-safe {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-right: env(safe-area-inset-right, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        padding-left: env(safe-area-inset-left, 0px);
+    }
+
+    /* Painel que sobe de baixo (sheet/menu): fundo vai até a borda, conteúdo acima da barra. */
+    .sheet-safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Barra fixa no rodapé (ações da tela): soma a barra de navegação. */
+    .bar-safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        padding-left: env(safe-area-inset-left, 0px);
+        padding-right: env(safe-area-inset-right, 0px);
+    }
+
+    /* Altura máxima de modal descontando as barras do sistema. */
+    .max-h-modal-safe {
+        max-height: min(90vh, calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+    }
+    .max-h-modal-safe-92 {
+        max-height: min(92vh, calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+    }
 }
 
 /* Scrollbar utilities (use as Tailwind-like classes) */
@@ -299,6 +348,28 @@
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+/* Troca do ícone no botão de modo de pesquisa (SearchModeToggle). */
+@keyframes modeIconSwap {
+    from {
+        opacity: 0;
+        transform: rotate(-90deg) scale(0.6);
+    }
+    to {
+        opacity: 1;
+        transform: rotate(0deg) scale(1);
+    }
+}
+
+.animate-mode-swap {
+    animation: modeIconSwap 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-mode-swap {
+        animation: none;
     }
 }
 

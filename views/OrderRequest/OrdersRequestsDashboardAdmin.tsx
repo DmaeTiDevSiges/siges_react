@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useTransition, useRef } from 'react';
+import { SearchModeToggle } from '../../components/dashboards/SearchModeToggle';
 import { User, OrderFilters, Order, Company } from '../../types';
 import { dataService } from '../../services/dataService';
 import { getDashboardRefreshRequestedAt } from '../../services/core/dashboardRefresh';
@@ -279,6 +280,24 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         } catch { return {}; }
     });
     const [teamsModalCompanyId, setTeamsModalCompanyId] = useState<string | null>(null);
+    // Card de líderes recolhível: libera área útil em telas baixas. Lembra a escolha;
+    // na 1ª vez começa recolhido quando a tela tem menos de 740px de altura.
+    const [leadersCollapsed, setLeadersCollapsed] = useState<boolean>(() => {
+        try {
+            const saved = localStorage.getItem('os_leaders_collapsed');
+            if (saved !== null) return saved === 'true';
+        } catch { }
+        return typeof window !== 'undefined' && window.innerHeight < 740;
+    });
+    const toggleLeadersCollapsed = () => {
+        setLeadersCollapsed(prev => {
+            const next = !prev;
+            try { localStorage.setItem('os_leaders_collapsed', String(next)); } catch { }
+            return next;
+        });
+    };
+    const selectedLeaderTeamsTotal = Object.values(leaderTeamSelections)
+        .reduce((total, teams) => total + (Array.isArray(teams) ? teams.length : 0), 0);
     // Efeito de ping no avatar da empresa ao clicar (limpo por timeout)
     const [avatarPingCompanyId, setAvatarPingCompanyId] = useState<string | null>(null);
     const avatarPingTimeoutRef = useRef<number | null>(null);
@@ -1226,7 +1245,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
         });
 
         // 4. Realtime subscription for users (to update status borders)
-        const userSubscription = dataService.subscribeToUsers(async () => {
+        const userSubscription = dataService.subscribeToUsersThrottled(async () => {
             try {
                 dataService.clearMetadataCache();
                 const usersData = await dataService.getUsers();
@@ -1421,26 +1440,29 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     <div className="z-30 bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
                         <div className="flex flex-col p-4">
                             {/* Filters Row */}
-                            <div className="flex items-center gap-2 pb-2">
-                                {/* Modo de pesquisa: Online (padrão) x Período */}
-                                <div className="flex items-stretch h-[42px] bg-white dark:bg-slate-800 border !border-primary rounded-xl shadow-sm overflow-hidden shrink-0">
+                            <div className={`flex items-center gap-2 transition-[padding] duration-300 ${leadersByCompany.length > 0 && !leadersCollapsed ? 'pb-2' : 'pb-0'}`}>
+                                {/* Modo de pesquisa: botão único que alterna entre em aberto e período */}
+                                <SearchModeToggle mode="online" onToggle={() => onNavigate?.('orders-dashboard-period')} />
+                                {leadersByCompany.length > 0 && (
                                     <button
                                         type="button"
-                                        onClick={() => onNavigate?.('orders-dashboard-period')}
-                                        title="Pesquisar por período"
-                                        className="flex items-center justify-center px-3 transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                        onClick={toggleLeadersCollapsed}
+                                        aria-expanded={!leadersCollapsed}
+                                        aria-controls="os-leaders-strip"
+                                        title={leadersCollapsed ? 'Mostrar líderes' : 'Recolher líderes'}
+                                        className={`relative flex items-center justify-center gap-0.5 h-[42px] px-2.5 rounded-xl border shadow-sm shrink-0 transition-colors cursor-pointer ${leadersCollapsed
+                                            ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-primary'
+                                            : 'bg-primary/10 border-primary/40 text-primary'}`}
                                     >
-                                        <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                                        <span className="material-symbols-outlined text-[18px]">groups</span>
+                                        <span className={`material-symbols-outlined text-[18px] transition-transform duration-300 ${leadersCollapsed ? '' : 'rotate-180'}`}>expand_more</span>
+                                        {leadersCollapsed && selectedLeaderTeamsTotal > 0 && (
+                                            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center shadow-md border border-white dark:border-slate-800 pointer-events-none">
+                                                {selectedLeaderTeamsTotal}
+                                            </span>
+                                        )}
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => onNavigate?.(onlineScreenKey)}
-                                        title="Exibir serviços em aberto com os filtros rápidos"
-                                        className="flex items-center justify-center px-3 transition-colors border-l border-primary/30 bg-primary/10 text-primary"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">pending_actions</span>
-                                    </button>
-                                </div>
+                                )}
                                 <div className="ml-auto flex items-center gap-2 md:hidden shrink-0">
                                     <form onSubmit={handleQuickSearch} className="relative group flex items-center">
                                         <input
@@ -1524,7 +1546,14 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 </button>
                             </div>
 
-                            {/* Cards de Empresas / Líderes */}
+                            {/* Cards de Empresas / Líderes — recolhível (libera a área para o conteúdo) */}
+                            <div
+                                id="os-leaders-strip"
+                                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${leadersCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`}
+                                aria-hidden={leadersCollapsed}
+                                inert={leadersCollapsed ? true : undefined}
+                            >
+                            <div className="min-h-0 overflow-hidden">
                             <div
                                 className="flex gap-3 overflow-x-auto no-scrollbar px-1 -mx-1 cursor-grab active:cursor-grabbing touch-auto"
                                 ref={leadersScroll.ref}
@@ -1628,6 +1657,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     </div>
                                     );
                                 })}
+                            </div>
+                            </div>
                             </div>
 
                             {teamsModalCompanyId && (
@@ -2091,7 +2122,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
             {/* Floating Action Button + Busca — fixos à direita inferior */}
             {activeTab === 'OS' && (
-                <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-50 flex items-center gap-3">
+                <div className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 z-50 flex items-center gap-3">
                     <form onSubmit={handleQuickSearch} className="relative group hidden md:flex items-center">
                         <input
                             type="text"

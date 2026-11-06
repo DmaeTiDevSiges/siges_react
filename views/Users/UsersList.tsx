@@ -68,7 +68,7 @@ export const UsersList: React.FC<UsersListProps> = ({ companyId, onAddUser, onSe
         fetchUsers();
 
         // Subscribe to real-time updates for THIS company's users
-        const subscription = dataService.subscribeToUsers((payload) => {
+        const subscription = dataService.subscribeToUsersThrottled(() => {
             // We could be more surgical, but re-fetching ensures we get all derived data
             fetchUsers();
         });

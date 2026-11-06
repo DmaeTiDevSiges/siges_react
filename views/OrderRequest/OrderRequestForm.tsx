@@ -6,6 +6,7 @@ import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { CAMERA_PHOTO_LIMITS } from '../../utils/cameraOptions';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
@@ -320,6 +321,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
 
         try {
             const image = await Camera.getPhoto({
+                ...CAMERA_PHOTO_LIMITS,
                 quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,
@@ -920,7 +922,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
 
             {isPhotoActionOpen && (
                 <div className="fixed inset-0 z-150 bg-black/60 flex items-end justify-center animate-in fade-in" onClick={() => setIsPhotoActionOpen(false)}>
-                    <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-[24px] p-6 animate-in slide-in-from-bottom" onClick={e => e.stopPropagation()}>
+                    <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-[24px] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] animate-in slide-in-from-bottom" onClick={e => e.stopPropagation()}>
                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 px-2">Anexar evidência</h3>
                         <div className="space-y-1">
                             <button className="w-full text-left py-4 px-4 text-lg font-semibold text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-white/5 rounded-2xl flex items-center gap-4 transition-colors"

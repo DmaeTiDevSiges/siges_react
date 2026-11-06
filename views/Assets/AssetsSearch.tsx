@@ -15,8 +15,7 @@ import { Modal } from '../../components/ui/Modal';
 import { getFilterSelectionValue } from '../../components/ui/FilterSelectionContent';
 import { AssetsSearchPDFButton } from '../../components/reports/AssetsSearchPDFButton';
 import { AssetsSearchExcelButton } from '../../components/reports/AssetsSearchExcelButton';
-import { useClientScope } from '../../hooks/useClientScope';
-import { pruneSystemFilterOutsideOptions, systemsScopeOption } from '../../utils/clientScope';
+import { pruneSystemFilterOutsideOptions } from '../../utils/clientScope';
 
 interface AssetsSearchProps {
     currentUser?: User;
@@ -27,8 +26,6 @@ interface AssetsSearchProps {
 export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelectAsset, onAdd }) => {
     const { canCreate, canSearch, permissions, loading: permissionsLoading } = usePermissions();
     const hasSearchPermission = canSearch('assets');
-    const { clientIds, scopeReady } = useClientScope();
-    const systemsScope = useMemo(() => systemsScopeOption(clientIds), [clientIds]);
 
     const [search, setSearch] = useState(() => localStorage.getItem('assets_search') || '');
     const [activeSearch, setActiveSearch] = useState(search);
@@ -94,7 +91,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
         try {
             // Try to find exact match immediately
-            const exactAssets = await dataService.getAssets('all', result, undefined, undefined, clientIds);
+            const exactAssets = await dataService.getAssets('all', result);
             const exactMatch = exactAssets.find(a =>
                 a.code?.toLowerCase() === result.toLowerCase() ||
                 a.id === result
@@ -215,15 +212,15 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
     const initializedDefaults = useRef(false);
 
     useEffect(() => {
-        if (!hasSearchPermission || !scopeReady) return;
+        if (!hasSearchPermission) return;
         
         const fetchFilters = async () => {
             try {
                 const [systems, unitTypes, unitSubTypes, units, tags, tagSubs, assetTypes, statuses] = await Promise.all([
-                    dataService.getSystemsParent(systemsScope),
+                    dataService.getSystemsParent(),
                     dataService.getUnitTypesParent(),
                     dataService.getUnitTypes(),
-                    dataService.getUnits('active', '', clientIds),
+                    dataService.getUnits('active'),
                     dataService.getAssetsTags(),
                     dataService.getAssetTagSubs(undefined, 'active'),
                     dataService.getAssetTypes('all'),
@@ -263,10 +260,10 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         };
 
         fetchFilters();
-    }, [hasSearchPermission, scopeReady, clientIds]);
+    }, [hasSearchPermission]);
 
     useEffect(() => {
-        if (!hasSearchPermission || !scopeReady) return;
+        if (!hasSearchPermission) return;
 
         const selectedParentIds = Array.isArray(advancedFilters.systemParentId)
             ? advancedFilters.systemParentId.map(String)
@@ -283,7 +280,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         }
 
         let active = true;
-        Promise.all(selectedParentIds.map(id => dataService.getSystems(id, systemsScope)))
+        Promise.all(selectedParentIds.map(id => dataService.getSystems(id)))
             .then(results => {
                 if (!active) return;
                 const subSystems = results.flat();
@@ -302,11 +299,11 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                 });
             })
             .catch(error => {
-                console.error('Error loading scoped sub-systems for asset search:', error);
+                console.error('Error loading sub-systems for asset search:', error);
             });
 
         return () => { active = false; };
-    }, [hasSearchPermission, scopeReady, systemsScope, advancedFilters.systemParentId]);
+    }, [hasSearchPermission, advancedFilters.systemParentId]);
 
     // Persist filters to localStorage
     useEffect(() => {
@@ -388,11 +385,6 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
     useEffect(() => {
         if (!hasSearchPermission) return;
-        if (!scopeReady) {
-            setAssets([]);
-            setLoading(false);
-            return;
-        }
         // Só executa a busca se o usuário clicou em "Buscar"
         if (!hasSearched) return;
 
@@ -413,8 +405,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                 setError(null);
                 const data = await dataService.getFilteredAssets({
                     search: activeSearch,
-                    ...activeFilters,
-                    scopeClientsIds: clientIds
+                    ...activeFilters
                 });
                 setAssets(data);
             } catch (err: any) {
@@ -426,7 +417,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
         };
 
         fetchData();
-    }, [activeSearch, activeFilters, hasSearched, hasSearchPermission, scopeReady, clientIds]);
+    }, [activeSearch, activeFilters, hasSearched, hasSearchPermission]);
 
     // Use server-side filtered assets directly
     const filteredAssets = assets;
@@ -600,7 +591,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
             {onAdd && canCreate('assets') && (
                 <button
                     onClick={onAdd}
-                    className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-all z-20"
+                    className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-all z-20"
                 >
                     <span className="material-symbols-outlined text-3xl font-bold">add</span>
                 </button>

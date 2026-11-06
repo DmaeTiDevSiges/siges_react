@@ -788,7 +788,7 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
 
             {/* Modal de Atividades */}
             {activityModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-md pad-safe-4 animate-in fade-in duration-300">
                     <div className="bg-white dark:bg-[#0f172a] w-full max-w-lg rounded-[32px] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-200 dark:border-slate-800">
                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
                             <div>
@@ -914,7 +914,7 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
             )}
 
             {sectionModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-md pad-safe-4 animate-in fade-in duration-300">
                     <form 
                         onSubmit={confirmAddSection}
                         className="bg-white dark:bg-[#0f172a] w-full max-w-lg rounded-[32px] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-200 dark:border-slate-800"

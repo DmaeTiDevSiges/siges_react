@@ -112,7 +112,6 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "patch-package": "^8.0.0",
     "@capacitor/cli": "^8.0.1",
     "@tailwindcss/container-queries": "^0.1.1",
     "@tailwindcss/forms": "^0.5.11",
@@ -127,6 +126,8 @@
     "electron": "^42.3.2",
     "electron-builder": "^26.8.1",
     "jest": "^30.2.0",
+    "n8nac": "^2.7.0",
+    "patch-package": "^8.0.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "ts-jest": "^29.4.6",

@@ -6,6 +6,7 @@ declare const __BUILD_ID__: string;
 import { Capacitor } from '@capacitor/core';
 import { Modal } from '../ui/Modal';
 import { dataService } from '../../services/dataService';
+import { markReload } from '../../services/core/clientDiagnosticsService';
 import {
     getUpdateModalState,
     recordUpdateAttempt,
@@ -31,15 +32,23 @@ const UpdateNotifier: React.FC = () => {
 
     const forceRefresh = async () => {
         resetUpdateAttempts();
+        markReload('update', __BUILD_ID__);
 
         // 1. Limpar completamente o localStorage (preserva o tema — é preferência
         //    do dispositivo, não dado de sessão/cache)
         try {
             const savedTheme = localStorage.getItem('app_theme');
+            // Chaves de diagnóstico (motivo da recarga/sessão) também sobrevivem.
+            const savedDiagnostics = Object.keys(localStorage)
+                .filter(key => key.startsWith('siges-diag-'))
+                .map(key => [key, localStorage.getItem(key)] as const);
             localStorage.clear();
             if (savedTheme) {
                 localStorage.setItem('app_theme', savedTheme);
             }
+            savedDiagnostics.forEach(([key, value]) => {
+                if (value != null) localStorage.setItem(key, value);
+            });
         } catch (e) {
             console.error('Failed to clear localStorage:', e);
         }
@@ -232,7 +241,7 @@ const UpdateNotifier: React.FC = () => {
             />
 
             {showBanner && (
-                <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-50 max-w-sm w-full bg-slate-900/95 text-white rounded-lg shadow-lg border border-white/10 p-4">
+                <div className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 z-50 max-w-sm w-full bg-slate-900/95 text-white rounded-lg shadow-lg border border-white/10 p-4">
                     <div className="flex items-start gap-3">
                         <div className="flex-1">
                             <div className="font-black">Nova versão disponível{versionSuffix}!</div>
@@ -250,7 +259,7 @@ const UpdateNotifier: React.FC = () => {
             {!showBanner && reminderCount > 0 && (
                 <button
                     onClick={showBannerFromReminder}
-                    className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-60 w-12 h-12 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center font-bold"
+                    className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 z-60 w-12 h-12 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center font-bold"
                     title={`Você tem ${reminderCount} lembretes de atualização`}
                 >
                     {reminderCount}

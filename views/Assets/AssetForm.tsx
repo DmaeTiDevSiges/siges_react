@@ -14,6 +14,7 @@ import { DynamicField } from '../../components/ui/DynamicField';
 import { CurrencyInput } from '../../components/ui/CurrencyInput';
 import { ImageUploadSheet } from '../../components/ui/ImageUploadSheet';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { CAMERA_PHOTO_LIMITS } from '../../utils/cameraOptions';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 
@@ -330,6 +331,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
     const takePhoto = async (source: CameraSource) => {
         try {
             const image = await Camera.getPhoto({
+                ...CAMERA_PHOTO_LIMITS,
                 quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,

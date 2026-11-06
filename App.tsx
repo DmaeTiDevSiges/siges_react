@@ -16,6 +16,7 @@ import { DashboardTabs } from './components/dashboards/DashboardTabs';
 import { SettingsRouter, SETTINGS_SCREENS } from './views/Settings/SettingsRouter';
 import { LoginScreen } from './views/Users/LoginScreen';
 import { Toaster, toast } from 'sonner';
+import { consumeReloadNotice, markReload, setDiagnosticsScreen } from './services/core/clientDiagnosticsService';
 import { Company, Client, Department, Team, User, Priority, OrderType, OrderSubType, OrderPlan, OrderObject, Contract, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, Asset, UserNotification, Order, OrderVisit, OrderVisitAssetView } from './types';
 import {
   CompaniesList,
@@ -42,7 +43,6 @@ import {
   DashboardAdminContractsEvaluationsRequirements,
   LeaderRankingDashboard,
   DashboardTeamShifts,
-  DashboardAssetsAvailableIntegrations,
   ServicesRequestsDashboardAdmin,
   ServicesRequestsPeriodDashboardAdmin,
   ContractsList,
@@ -96,7 +96,7 @@ import { GamificationHistoryModal } from './components/ui/GamificationHistoryMod
 type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-structure' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'asset-loan-checklist-types' | 'asset-loan-checklist-type-form' | 'asset-loan-checklist-type-edit'
   | 'loans-checklists' | 'loans-checklist-form' | 'loans-checklist-edit'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'audit-log' | 'audit-config' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period'   | 'vehicle-cost-types' | 'rental-contracts' | 'rental-apportionment' | 'rate-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard' | 'team-shifts';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'audit-log' | 'audit-config' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period'   | 'vehicle-cost-types' | 'rental-contracts' | 'rental-apportionment' | 'rate-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard' | 'team-shifts' | 'settings-apis';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/media/imgproxyService';
@@ -273,10 +273,10 @@ const AppContent: React.FC = () => {
 
 
 
-  const [activeTab, setActiveTab] = useState<'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'team-shifts' | 'dashboard-assets-available-integrations'>(() => {
+  const [activeTab, setActiveTab] = useState<'ss' | 'dashboard' | 'orders' | 'units' | 'assets' | 'tools' | 'contracts' | 'companies' | 'profile' | 'settings' | 'dashboard-orders-admin' | 'visits' | 'maintenance-plans' | 'profile-permissions' | 'dashboard-units-assets-tags' | 'materials' | 'manuals' | 'app-notices' | 'extra-workers' | 'team-shifts'>(() => {
     const saved = localStorage.getItem('app_active_tab');
-    if (saved === 'dashboard-assets-available-integrations') return 'dashboard-assets-available-integrations';
-    const saved = localStorage.getItem('app_active_tab');
+    // Aba removida de Gestão (a tela foi para Ajustes > APIs externas).
+    if (saved === 'dashboard-assets-available-integrations') return 'dashboard';
     if (saved === 'units-search') return 'units';
     if (saved === 'assets-search') return 'assets';
     if (saved === 'materials-search') return 'materials';
@@ -289,7 +289,6 @@ const AppContent: React.FC = () => {
     if (tab === 'units-search' || tab === 'units_search') normalizedTab = 'units';
     if (tab === 'assets-search') normalizedTab = 'assets';
     if (tab === 'dashboard-orders-admin') normalizedTab = 'orders';
-    if (tab === 'dashboard-assets-available-integrations') normalizedTab = 'dashboard-assets-available-integrations';
 
     // Track last main tab for returning from Profile/Settings
     if (normalizedTab !== 'profile' && normalizedTab !== 'settings') {
@@ -334,8 +333,6 @@ const AppContent: React.FC = () => {
       setCurrentScreen('extra-workers');
     } else if (normalizedTab === 'team-shifts') {
       setCurrentScreen('team-shifts');
-    } else if (normalizedTab === 'dashboard-assets-available-integrations') {
-      setCurrentScreen('dashboard-assets-available-integrations');
     } else if (normalizedTab === 'fuel-expense') {
       setCurrentScreen('fuel-expense');
     }
@@ -366,12 +363,16 @@ const AppContent: React.FC = () => {
     if (savedTab === 'dashboard-units-assets-tags') return 'dashboard-units-assets-tags';
     if (savedTab === 'dashboard-units-power-electric') return 'dashboard-units-power-electric';
     if (savedTab === 'dashboard-contracts-evaluations') return 'dashboard-contracts-evaluations';
-    if (savedTab === 'dashboard-assets-available-integrations') return 'dashboard-assets-available-integrations';
     if (savedTab === 'app-notices') return 'app-notices';
     if (savedTab === 'extra-workers') return 'extra-workers';
-    if (savedTab === 'dashboard-assets-available-integrations') return 'dashboard-assets-available-integrations';
     return 'dashboard';
   });
+
+  // Diagnóstico: tela atual (usada nos logs de erro/recarga).
+  useEffect(() => {
+    setDiagnosticsScreen(currentScreen);
+  }, [currentScreen]);
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const numericCompanyId = Number(currentUser?.companyId);
   const providerCompanyId = currentUser?.companyId && Number.isFinite(numericCompanyId) && numericCompanyId !== 1
@@ -383,6 +384,15 @@ const AppContent: React.FC = () => {
   } | null>(null);
   const [showDashboardGamificationHistory, setShowDashboardGamificationHistory] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Aviso do motivo da última recarga automática (após o splash, com o Toaster montado).
+  useEffect(() => {
+    if (authLoading) return;
+    const notice = consumeReloadNotice();
+    if (!notice) return;
+    const timer = setTimeout(() => toast.info(`O app foi recarregado automaticamente: ${notice}.`), 1200);
+    return () => clearTimeout(timer);
+  }, [authLoading]);
 
   useEffect(() => {
     if (currentScreen !== 'dashboard') {
@@ -572,7 +582,6 @@ const AppContent: React.FC = () => {
     if (path === 'assets' || path === 'assets-search' || path === 'asset-details') tab = 'assets';
     if (path === 'units' || path === 'units-search' || path === 'unit-details') tab = 'units';
     if (path === 'dashboard') tab = 'dashboard';
-    if (path === 'dashboard-assets-available-integrations') tab = 'dashboard-assets-available-integrations';
     if (path === 'orders' || path === 'orders-dashboard' || path === 'orders-dashboard-period') {
       tab = 'orders';
       setOrdersDashboardTab('OS');
@@ -590,10 +599,6 @@ const AppContent: React.FC = () => {
     if (path.startsWith('maintenance-plan')) tab = 'maintenance-plans';
 
     setActiveTab(tab);
-
-    if (path === 'dashboard-assets-available-integrations') {
-      setCurrentScreen('dashboard-assets-available-integrations');
-    }
 
     if (path === 'assets' || path === 'assets-search') {
       setCurrentScreen('assets-search');
@@ -633,7 +638,6 @@ const AppContent: React.FC = () => {
       'dashboard-units-assets-tags': 'dashboard-units-assets-tags',
       'dashboard-units-power-electric': 'dashboard-units-power-electric',
       'dashboard-contracts-evaluations': 'dashboard-contracts-evaluations',
-      'dashboard-assets-available-integrations': 'dashboard-assets-available-integrations',
       'dashboard': 'dashboard',
     };
     const screen = screens[tab] || 'dashboard';
@@ -656,28 +660,6 @@ const AppContent: React.FC = () => {
       currentScreen === 'dashboard-units-power-electric' ||
       currentScreen === 'dashboard-units-assets-tags' ||
       currentScreen ===    'dashboard-contracts-evaluations' ||
-      currentScreen === 'dashboard-assets-available-integrations' ||
-      currentScreen === 'dashboard-orders-admin-calendar' ||
-      currentScreen === 'materials-dashboard' ||
-      currentScreen === 'services-history' ||
-      currentScreen === 'rental-apportionment' ||
-      currentScreen === 'rental-contracts' ||
-      currentScreen === 'rate-contracts' ||
-      currentScreen === 'vehicles' ||
-      currentScreen === 'grant-dashboard' ||
-      currentScreen === 'dashboard-assets-available-integrations' ||
-      currentScreen === 'team-shifts';
-    const hasAssetsAvailableIntegrations = canView('dashboard_assets_available_integrations');
-
-    const isDashboardScreen = currentScreen === 'ss-dashboard' ||
-      currentScreen === 'ss-dashboard-period' ||
-      currentScreen === 'orders-dashboard' ||
-      currentScreen === 'orders-dashboard-period' ||
-      currentScreen === 'visits-dashboard' ||
-      currentScreen === 'dashboard-units-power-electric' ||
-      currentScreen === 'dashboard-units-assets-tags' ||
-      currentScreen === 'dashboard-contracts-evaluations' ||
-      currentScreen === 'dashboard-assets-available-integrations' ||
       currentScreen === 'dashboard-orders-admin-calendar' ||
       currentScreen === 'materials-dashboard' ||
       currentScreen === 'services-history' ||
@@ -687,7 +669,6 @@ const AppContent: React.FC = () => {
       currentScreen === 'vehicles' ||
       currentScreen === 'grant-dashboard' ||
       currentScreen === 'team-shifts';
-
     if (!isDashboardScreen) return undefined;
     return (
       <DashboardTabs
@@ -810,28 +791,12 @@ const AppContent: React.FC = () => {
       }
     });
 
-    // Subscribe to user changes for real-time updates
-    const subscription = dataService.subscribeToUsers((payload: any) => {
-      // Only refresh if the affected user is the current user
-      if (payload.new && currentUserRef.current?.id === payload.new.id.toString()) {
-        loadUser();
-      }
-    });
-
-    // Subscribe to order changes to update detail view
-    const orderSubscription = dataService.subscribeToOrders((payload) => {
-      if (payload.new && selectedOrderRef.current?.id === payload.new.id.toString()) {
-        dataService.getOrderById(payload.new.id.toString()).then(updated => {
-          if (updated) setSelectedOrder(updated);
-        });
-      }
-    });
+    // Assinaturas realtime de users/orders ficam em efeitos próprios (filtradas
+    // pelo usuário logado e pela OS aberta) — ver abaixo de useLocationTracker.
 
     return () => {
       if (signedOutTimer) clearTimeout(signedOutTimer);
       authSubscription.unsubscribe();
-      subscription.unsubscribe();
-      orderSubscription.unsubscribe();
     }
   }, []);
 
@@ -943,7 +908,11 @@ const AppContent: React.FC = () => {
       }
     });
 
-    const pollInterval = setInterval(loadNotifications, 60000);
+    // Fallback do realtime (que já entrega as notificações): a cada 5 min e só
+    // com o app visível. Antes: consulta a cada 60 s, mesmo em segundo plano.
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') loadNotifications();
+    }, 5 * 60_000);
 
     return () => {
       subscription.unsubscribe();
@@ -1028,6 +997,46 @@ const AppContent: React.FC = () => {
     hasOpenVisit,
     currentUser?.isAvailable ?? true
   );
+
+  // Realtime da PRÓPRIA linha em users (filtro no servidor). Antes o app ouvia
+  // a tabela inteira e recebia a posição de todos os usuários a cada minuto.
+  // A própria linha também muda a cada envio de posição: só recarrega quando
+  // muda um campo que importa (mesmos campos comparados em loadUser).
+  useEffect(() => {
+    const userId = currentUser?.id;
+    if (!userId) return;
+    const subscription = dataService.subscribeToUsers((payload: any) => {
+      const row = payload?.new;
+      const current = currentUserRef.current;
+      if (!row || !current) return;
+      const changed = (a: unknown, b: unknown) => String(a ?? '') !== String(b ?? '');
+      if (
+        changed(row.company_id, current.companyId) ||
+        changed(row.team_id, current.teamId) ||
+        changed(row.is_available, current.isAvailable) ||
+        changed(row.is_ov_in_progress, current.isOvInProgress) ||
+        changed(row.ov_id_in_progress, current.ovIdInProgress) ||
+        changed(row.status_id, current.statusId) ||
+        changed(row.profile_id, current.profileId)
+      ) {
+        loadUserRef.current?.();
+      }
+    }, { userId });
+    return () => subscription.unsubscribe();
+  }, [currentUser?.id]);
+
+  // Realtime só da OS aberta no detalhe (antes: todas as OS de todas as empresas).
+  useEffect(() => {
+    const orderId = selectedOrder?.id;
+    if (!orderId) return;
+    const subscription = dataService.subscribeToOrders((payload) => {
+      if (!payload?.new) return;
+      dataService.getOrderById(orderId).then(updated => {
+        if (updated && selectedOrderRef.current?.id === orderId) setSelectedOrder(updated);
+      });
+    }, { orderId });
+    return () => subscription.unsubscribe();
+  }, [selectedOrder?.id]);
 
   // Background shift monitor - alerts user to change availability status based on shift hours
   const { showShiftAlert, dismissAlert } = useShiftMonitor(currentUser, currentScreen === 'profile');
@@ -1313,7 +1322,7 @@ const AppContent: React.FC = () => {
       setCurrentScreen('settings');
     } else if (currentScreen === 'audit-log') {
       setCurrentScreen('settings');
-    } else if (currentScreen === 'audit-config') {
+    } else if (currentScreen === 'audit-config' || currentScreen === 'settings-apis') {
       setCurrentScreen('settings');
     } else if (currentScreen === 'vehicle-cost-types') {
       setCurrentScreen('settings');
@@ -3029,6 +3038,7 @@ const AppContent: React.FC = () => {
       case 'extra-workers': return 'MO Extra';
       case 'audit-log': return 'Auditoria';
       case 'audit-config': return 'Tabelas auditadas';
+      case 'settings-apis': return 'APIs externas';
       case 'tools': return 'Ferramentas';
       case 'vehicle-cost-types': return 'Tipos de Custo Veicular';
       case 'rental-contracts': return 'Gestão Transportes';
@@ -3098,7 +3108,7 @@ const AppContent: React.FC = () => {
   if (isFullscreenMap) {
     return (
       <PermissionsProvider currentUser={currentUser}>
-        <div className="fixed inset-0 bg-background-light dark:bg-background-dark overflow-hidden">
+        <div className="fixed inset-0 bg-background-light dark:bg-background-dark overflow-hidden screen-safe">
           <DashboardUnitsAssetsTags
             currentUser={currentUser!}
             onSelectVisit={handleVisitSelect}
@@ -3110,7 +3120,7 @@ const AppContent: React.FC = () => {
           richColors
           closeButton
           style={Capacitor.isNativePlatform()
-            ? { bottom: 'calc(1.5rem + env(safe-area-inset-bottom))', position: 'fixed' }
+            ? { bottom: 'calc(max(var(--bottom-nav-h, 0px), env(safe-area-inset-bottom, 0px)) + 0.75rem)', position: 'fixed' }
             : { top: '24px', position: 'fixed' }
           }
         />
@@ -3406,7 +3416,7 @@ const AppContent: React.FC = () => {
             richColors
             closeButton
             style={Capacitor.isNativePlatform()
-              ? { bottom: 'calc(1.5rem + env(safe-area-inset-bottom))', position: 'fixed' }
+              ? { bottom: 'calc(max(var(--bottom-nav-h, 0px), env(safe-area-inset-bottom, 0px)) + 0.75rem)', position: 'fixed' }
               : { top: '96px', position: 'fixed' }
             }
           />
@@ -3446,9 +3456,10 @@ const AppContent: React.FC = () => {
               sessionStorage.removeItem('impersonated_user_uuid');
               sessionStorage.removeItem('admin_access_token');
               sessionStorage.removeItem('admin_refresh_token');
+              markReload('impersonation_end');
               window.location.reload();
             }}
-            className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-[99999] w-12 h-12 rounded-full bg-amber-500 text-black shadow-lg flex items-center justify-center hover:bg-amber-600 transition-colors active:scale-95"
+            className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 z-[99999] w-12 h-12 rounded-full bg-amber-500 text-black shadow-lg flex items-center justify-center hover:bg-amber-600 transition-colors active:scale-95"
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             title="Voltar ao Admin"
           >

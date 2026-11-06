@@ -6,6 +6,7 @@ import { MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity
 import { Select } from '../../ui/Select';
 import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { CAMERA_PHOTO_LIMITS } from '../../../utils/cameraOptions';
 import { OptimizedImage } from '../../ui/OptimizedImage';
 import { PhotoViewer } from '../../ui/PhotoViewer';
 import { Input } from '../../ui/Input';
@@ -463,6 +464,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
         setUploadingItem(activityId);
         try {
             const image = await Camera.getPhoto({
+                ...CAMERA_PHOTO_LIMITS,
                 quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Base64,

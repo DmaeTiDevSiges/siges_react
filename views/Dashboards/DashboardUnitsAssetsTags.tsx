@@ -885,7 +885,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     return (
         <div className="flex flex-col flex-1 h-full w-full overflow-y-auto no-scrollbar bg-background-light dark:bg-background-dark">
             {isFullscreenMapMode ? (
-                <div className="fixed inset-0 bg-background-light dark:bg-background-dark z-8000">
+                <div className="fixed inset-0 bg-background-light dark:bg-background-dark z-8000 screen-safe">
                     <UnitsAvailabilityMap
                         units={unitsRows.filter((u: any) => u.assets.some((a: any) => a.isActive))}
                         unitTagDescription={selectedSectorName}
@@ -898,7 +898,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     />
 
                     {selectedUnitIdFromMap && (
-                        <div className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 left-6 right-6 z-8001 animate-in slide-in-from-bottom-4 fade-in duration-300">
+                        <div className="absolute bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 left-6 right-6 z-8001 animate-in slide-in-from-bottom-4 fade-in duration-300">
                             {(() => {
                                 const unit = unitsRows.find(u => Number(u.id) === selectedUnitIdFromMap);
                                 if (!unit) return null;
@@ -1412,7 +1412,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         </button>
 
                                         {selectedUnitIdFromMap && (
-                                            <div className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-4 left-4 right-4 z-3000 animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto">
+                                            <div className="absolute bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-4 left-4 right-4 z-3000 animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto">
                                                 {(() => {
                                                     const unit = unitsRows.find(u => Number(u.id) === selectedUnitIdFromMap);
                                                     if (!unit) return null;

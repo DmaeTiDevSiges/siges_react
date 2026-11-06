@@ -303,7 +303,7 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
 
             {/* History Modal */}
             {historyModal.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm pad-safe-4">
                     <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
                         <div className="relative p-5 border-b border-slate-100 dark:border-slate-800">
                             <div className="pr-10">

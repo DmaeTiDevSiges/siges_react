@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { logClientEvent, markReload } from '../../services/core/clientDiagnosticsService';
 
 interface Props {
     children: ReactNode;
@@ -22,6 +23,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('[ErrorBoundary]', error, errorInfo);
+        logClientEvent('boundary', `${error.name}: ${error.message}`, {
+            stack: `${error.stack || ''}\n--- componentStack ---${errorInfo.componentStack || ''}`,
+        });
     }
 
     handleRetry = () => {
@@ -32,6 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
         // Chunk-load failures (stale hashed JS after a deploy, or a cached
         // Cloudflare challenge page) need a clean reload: drop SW + caches
         // first, otherwise the same dead chunk is served again.
+        markReload('error_boundary', this.state.error?.message);
         void (async () => {
             try {
                 if ('serviceWorker' in navigator) {
@@ -74,7 +79,7 @@ export class ErrorBoundary extends Component<Props, State> {
             }
 
             return (
-                <div className="fixed inset-0 z-[99999] bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center p-8 text-center">
+                <div className="fixed inset-0 z-[99999] bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center pad-safe-8 text-center">
                     <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6">
                         <span className="material-symbols-outlined text-red-500 text-4xl">error</span>
                     </div>

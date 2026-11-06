@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx';
+import type { WorkBook } from 'xlsx';
+import { loadXlsx, type XlsxModule } from '../../utils/loadXlsx';
 import { supabase } from '../core/supabase';
 import { usersService } from '../users/usersService';
 import { warehouseService } from './warehouseService';
@@ -125,12 +126,13 @@ export const materialsImportService = {
      * Cabeçalhos fora do modelo (inclusive em inglês) são rejeitados.
      */
     async parseMaterialsCsv(file: File): Promise<MaterialsParseResult> {
+        const XLSX: XlsxModule = await loadXlsx();
         const errors: MaterialsImportError[] = [];
         let table: unknown[][] = [];
 
         try {
             const buffer = await file.arrayBuffer();
-            let workbook: XLSX.WorkBook;
+            let workbook: WorkBook;
 
             if (/\.(csv|txt)$/i.test(file.name)) {
                 // CSV: decodifica os bytes de forma explícita para não depender do

@@ -206,7 +206,7 @@ export const UnitAssetTagAvailableDetails: React.FC<UnitAssetTagAvailableDetails
                 {canCreate('assets_available') && (
                     <button 
                         onClick={onNewEntry}
-                        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 w-16 h-16 bg-primary text-white rounded-2xl shadow-2xl shadow-primary/40 flex items-center justify-center active:scale-90 transition-all z-20 hover:scale-105"
+                        className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 w-16 h-16 bg-primary text-white rounded-2xl shadow-2xl shadow-primary/40 flex items-center justify-center active:scale-90 transition-all z-20 hover:scale-105"
                     >
                         <span className="material-symbols-outlined text-3xl">add</span>
                     </button>

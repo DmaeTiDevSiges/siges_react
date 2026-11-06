@@ -70,7 +70,7 @@ export const CalculatorModal: React.FC<CalculatorModalProps> = ({
 
     return createPortal(
         <div
-            className="fixed inset-0 flex items-center justify-center p-4"
+            className="fixed inset-0 flex items-center justify-center pad-safe-4"
             style={{ zIndex: 9999 }}
             onClick={handleBackdropClick}
             onKeyDown={handleKeyDown}

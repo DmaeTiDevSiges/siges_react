@@ -59,12 +59,34 @@ public class ActivityRecognitionBroadcastReceiver extends BroadcastReceiver {
         }
         Log.d(TAG, sb.toString());
 
+        // Rastreamento desligado (pausado/logout): não acorda o serviço.
+        boolean enabled = context
+                .getSharedPreferences(LocationForegroundService.PREFS, Context.MODE_PRIVATE)
+                .getBoolean(LocationForegroundService.PREF_ENABLED, false);
+        if (!enabled) return;
+
         // Forward to LocationForegroundService
         Intent serviceIntent = new Intent(context, LocationForegroundService.class);
         serviceIntent.setAction(ACTION_ACTIVITY_DETECTED);
         serviceIntent.putExtra(EXTRA_ACTIVITY_TYPE, activityType);
         serviceIntent.putExtra(EXTRA_CONFIDENCE, confidence);
-        context.startService(serviceIntent);
+        try {
+            // Serviço vivo (em primeiro plano): startService é permitido.
+            context.startService(serviceIntent);
+        } catch (IllegalStateException notAllowed) {
+            // Serviço morto + app em segundo plano: no Android 8+ startService
+            // lança exceção e DERRUBAVA o processo. Religa como foreground service
+            // (o serviço chama startForeground ao restaurar a config salva).
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent);
+                }
+            } catch (Exception e) {
+                // Ex.: ForegroundServiceStartNotAllowedException (Android 12+) sem
+                // permissão "Permitir o tempo todo". Não pode derrubar o app.
+                Log.w(TAG, "Could not restart LocationForegroundService from background", e);
+            }
+        }
     }
 
     private String activityName(int type) {

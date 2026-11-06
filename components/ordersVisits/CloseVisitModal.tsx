@@ -132,7 +132,7 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pad-safe-4 animate-in fade-in duration-200">
             <Card className="w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl rounded-[16px]! p-6 border border-slate-100 dark:border-slate-800">
                 <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2 text-center">
                     Encerrar Visita

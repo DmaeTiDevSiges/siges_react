@@ -123,6 +123,17 @@ export default defineConfig(({ mode, command }) => {
               if (id.includes('react-icons')) {
                 return 'icons-vendor';
               }
+              // SDKs pesados usados só em fluxos específicos (upload / IA):
+              // chunks próprios, baixados sob demanda (import() em r2Service).
+              if (id.includes('@aws-sdk') || id.includes('@smithy') || id.includes('@aws-crypto')) {
+                return 'aws-vendor';
+              }
+              if (id.includes('@google/genai') || id.includes('@google/generative-ai')) {
+                return 'ai-vendor';
+              }
+              // Demais libs ficam em "vendor". NÃO retornar undefined aqui: libs
+              // compartilhadas sem chunk definido são absorvidas pelos chunks
+              // nomeados acima (pdf/aws/maps) e os tornam carregados na abertura.
               return 'vendor';
             }
           }

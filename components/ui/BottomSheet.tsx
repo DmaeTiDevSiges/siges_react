@@ -80,12 +80,12 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
 
             {/* Sheet Container */}
             <div
-                className={`relative w-full max-w-2xl bg-slate-100 dark:bg-slate-950 rounded-t-[32px] shadow-2xl overflow-hidden transition-transform duration-300 ease-out transform flex flex-col ${
+                className={`relative w-full max-w-2xl bg-slate-100 dark:bg-slate-950 rounded-t-[32px] shadow-2xl overflow-hidden transition-transform duration-300 ease-out transform flex flex-col sheet-safe-bottom ${
                     isOpen ? 'translate-y-0' : 'translate-y-full'
                 }`}
                 style={{
                     height,
-                    maxHeight: '92vh',
+                    maxHeight: 'min(92vh, calc(100dvh - env(safe-area-inset-top, 0px) - 0.5rem))',
                     transform: translateY > 0 ? `translateY(${translateY}px)` : undefined,
                     transition: isDragging.current ? 'none' : undefined
                 }}

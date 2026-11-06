@@ -433,7 +433,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                     <div className="fixed inset-0 z-100 flex items-end justify-center" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}>
                         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-300" />
                         <div
-                            className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
+                            className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Close Icon Button - Top Right */}
@@ -489,7 +489,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
 
                     {/* Start Visit Confirmation Modal */}
                     {showConfirmVisit && createPortal(
-                        <div className="fixed inset-0 z-200 flex items-center justify-center p-6" onClick={() => setShowConfirmVisit(false)}>
+                        <div className="fixed inset-0 z-200 flex items-center justify-center pad-safe-6" onClick={() => setShowConfirmVisit(false)}>
                             <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" />
                             <div
                                 className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300"

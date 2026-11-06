@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { useBottomNavHeight } from '../shell/useBottomNavHeight';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
 export type VisitTab = 'home' | 'transport' | 'assets' | 'services' | 'costs' | 'chat' | 'assistant' | 'evaluation';
@@ -39,6 +40,10 @@ export const OrderVisitBottomNav: React.FC<OrderVisitBottomNavProps> = ({
         { id: 'assistant', label: 'Assistente', icon: 'support_agent', adminOnly: true },
     ];
 
+    // Altura real (com a área segura) → --bottom-nav-h, usada pelo conteúdo da visita.
+    const navRef = useRef<HTMLDivElement>(null);
+    useBottomNavHeight(navRef);
+
     const tabs = allTabs.filter(tab => {
         if (tab.adminOnly && !isAdminSuper) return false;
         return !tab.permission || canView(tab.permission as any);
@@ -46,9 +51,12 @@ export const OrderVisitBottomNav: React.FC<OrderVisitBottomNavProps> = ({
 
     return (
         <div
-            className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 px-1 flex flex-row items-stretch overflow-x-auto rounded-t-[24px] shadow-2xl z-30 no-scrollbar"
+            ref={navRef}
+            className="shrink-0 w-full bg-surface-light dark:bg-card-dark border-t border-slate-200 dark:border-slate-800 pt-2 flex flex-row items-stretch overflow-x-auto rounded-t-[24px] shadow-2xl z-30 no-scrollbar"
             style={{
-                paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))'
+                paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))',
+                paddingLeft: 'calc(0.25rem + env(safe-area-inset-left, 0px))',
+                paddingRight: 'calc(0.25rem + env(safe-area-inset-right, 0px))',
             }}
         >
             {tabs.map((tab) => {

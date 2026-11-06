@@ -44,6 +44,7 @@ import {
   ProfilePermissionsScreen,
   RouteManagementScreen, RouteFormScreen,
   MaintenancePlansScreen,
+  DashboardAssetsAvailableIntegrations,
 } from '../../app/routes';
 import { dataService } from '../../services/dataService';
 import type {
@@ -292,6 +293,7 @@ export const SETTINGS_SCREENS = new Set([
   'asset-loan-checklist-types', 'asset-loan-checklist-type-form', 'asset-loan-checklist-type-edit',
   'loans-checklists', 'loans-checklist-form', 'loans-checklist-edit',
   'app-tips',
+  'settings-apis',
   'audit-log',
   'audit-config',
   'vehicle-cost-types',
@@ -645,6 +647,10 @@ export const SettingsRouter: React.FC<SettingsRouterProps> = ({ currentScreen, o
     // ── Dicas do App ──────────────────────────────────────────────────────────
     case 'app-tips':
       return <AppTipsList onBack={handleBack} />;
+
+    // ── APIs (Ajustes > APIs) ────────────────────────────────────────────────
+    case 'settings-apis':
+      return <DashboardAssetsAvailableIntegrations embedded />;
 
     case 'audit-log':
       return (

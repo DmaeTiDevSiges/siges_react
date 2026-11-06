@@ -1,0 +1,19 @@
+# siges-files — acesso ao bucket R2 sem chave S3 no app.
+# Publicar:  cd workers/r2-files && npx wrangler secret put SUPABASE_ANON_KEY && npx wrangler deploy
+name = "siges-files"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# Binding direto ao bucket (nenhuma chave de acesso é necessária).
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "siges"
+
+[vars]
+# Supabase auto-hospedado — o Worker valida o login em /auth/v1/user.
+SUPABASE_URL = "https://vps.supabase.siges-app.com.br"
+# Site, app Android (Capacitor: https://localhost) e desenvolvimento local.
+ALLOWED_ORIGINS = "https://siges.app,https://www.siges.app,https://localhost,http://localhost:3000,http://localhost:5173"
+MAX_UPLOAD_MB = "25"
+
+# SUPABASE_ANON_KEY é definida como secret (npx wrangler secret put SUPABASE_ANON_KEY).

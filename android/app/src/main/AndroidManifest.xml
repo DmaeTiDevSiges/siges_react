@@ -51,6 +51,19 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- Retoma o rastreamento após reiniciar o celular / atualizar o APK.
+             exported=true é seguro: BOOT_COMPLETED e MY_PACKAGE_REPLACED são
+             broadcasts protegidos (só o sistema envia). -->
+        <receiver
+            android:name=".TrackerBootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Service para detectar fechamento do app -->
         <service
             android:name=".TaskRemovedService"

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { CAMERA_PHOTO_LIMITS } from '../../utils/cameraOptions';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
@@ -108,6 +109,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
         if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
         try {
             const image = await Camera.getPhoto({
+                ...CAMERA_PHOTO_LIMITS,
                 quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,

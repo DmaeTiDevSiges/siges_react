@@ -30,6 +30,7 @@
   },
   "exclude": [
     "workflows",
+    "workers",
     "dist",
     "ios",
     "dev"

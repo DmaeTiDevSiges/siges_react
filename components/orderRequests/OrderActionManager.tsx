@@ -84,7 +84,7 @@ export const OrderActionManager: React.FC<OrderActionManagerProps> = ({
                     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-300" />
 
                     <div
-                        className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
+                        className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Close Icon Button - Top Right */}

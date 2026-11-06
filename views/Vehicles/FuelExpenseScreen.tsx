@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { CAMERA_PHOTO_LIMITS } from '../../utils/cameraOptions';
 import { Vehicle, VehicleCostType, User } from '../../types';
 import { dataService } from '../../services/dataService';
 import { usePermissions } from '../../contexts/PermissionsContext';
@@ -264,6 +265,7 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
         if (!slot) return;
         try {
             const image = await Camera.getPhoto({
+                ...CAMERA_PHOTO_LIMITS,
                 quality: 80,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,

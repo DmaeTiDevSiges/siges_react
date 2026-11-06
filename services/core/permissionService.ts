@@ -2,6 +2,9 @@
 import { Geolocation } from '@capacitor/geolocation';
 import { Camera } from '@capacitor/camera';
 import { Capacitor, PermissionState } from '@capacitor/core';
+import { LocationService } from './locationServicePlugin';
+
+const isAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 
 export type LocationPermissionLevel = 'denied' | 'foreground' | 'background';
 
@@ -100,15 +103,46 @@ export const permissionService = {
         if (!Capacitor.isNativePlatform()) return true;
 
         try {
-            // Note: @capacitor-community/background-geolocation doesn't expose a dedicated
-            // requestBackground permission in the same way, but on Android 10+ asking for
-            // 'location' again with background declared in manifest often triggers the
-            // background prompt if foreground is already granted.
-            // Alternatively, we just return true and let addWatcher request it.
+            if (isAndroid()) {
+                const before = await LocationService.getStatus();
+                if (before.backgroundLocation) return true;
+
+                // "O tempo todo" exige a localização "durante o uso" concedida antes.
+                if (!before.fineLocation) {
+                    const fg = await Geolocation.requestPermissions({ permissions: ['location'] });
+                    if (fg.location !== 'granted') return false;
+                }
+
+                try {
+                    // Android 11+: abre DIRETO a tela "Permissões de localização" do app.
+                    // Android 10: diálogo do sistema.
+                    const result = await LocationService.requestBackgroundLocation();
+                    if (result.granted) return true;
+                    // O sistema não mostrou nada (ex.: "não perguntar novamente"):
+                    // último recurso, configurações do app.
+                    if (!result.shown) await LocationService.openAppSettings();
+                    return false;
+                } catch {
+                    // APK antigo, sem o método nativo: comportamento anterior.
+                    await LocationService.openAppSettings();
+                    return false;
+                }
+            }
+
             const status = await Geolocation.requestPermissions({ permissions: ['location'] });
             return status.location === 'granted';
         } catch (error) {
             console.error('Error requesting background location permission:', error);
+            return false;
+        }
+    },
+
+    /** true quando o app tem "Permitir o tempo todo" (sempre true fora do Android). */
+    async hasBackgroundLocationPermission(): Promise<boolean> {
+        if (!isAndroid()) return true;
+        try {
+            return (await LocationService.getStatus()).backgroundLocation;
+        } catch {
             return false;
         }
     },
@@ -118,19 +152,28 @@ export const permissionService = {
      * Used by the "GPS Bloqueado" screen.
      */
     async openAppSettings(): Promise<void> {
-        // Implementation typically relies on NativeSettings plugin, 
-        // fallback to just warning if not installed.
-        console.warn('openAppSettings requires NativeSettings plugin');
+        if (!isAndroid()) return;
+        try {
+            await LocationService.openAppSettings();
+        } catch (error) {
+            console.error('Error opening app settings:', error);
+        }
     },
 
     /**
-     * Open the "Ignore battery optimizations" settings page.
-     * The user must manually toggle the app on; we cannot grant this programmatically
-     * without risking a Play Store rejection for using
-     * `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` silently.
+     * Pede ao Android para não otimizar a bateria do SIGES (diálogo do sistema;
+     * se o aparelho não suportar, abre a lista de otimização de bateria).
+     * O APK é distribuído fora da Play Store, então o uso de
+     * REQUEST_IGNORE_BATTERY_OPTIMIZATIONS não sofre a restrição de política da loja.
+     * Fabricantes como Xiaomi/Samsung têm ajustes extras — ver utils/manufacturerGuide.
      */
     async openBatteryOptimizationSettings(): Promise<void> {
-        console.warn('openBatteryOptimizationSettings requires NativeSettings plugin');
+        if (!isAndroid()) return;
+        try {
+            await LocationService.requestIgnoreBatteryOptimizations();
+        } catch (error) {
+            console.error('Error opening battery optimization settings:', error);
+        }
     },
 
     /**

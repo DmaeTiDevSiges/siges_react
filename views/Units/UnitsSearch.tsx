@@ -4,9 +4,7 @@ import { dataService } from '../../services/dataService';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { UnitCardListItem } from '../../components/units/UnitCardListItem';
 import { usePermissions } from '../../contexts/PermissionsContext';
-import { useClientScope } from '../../hooks/useClientScope';
-import { unitScopeQueryIds } from '../../utils/unitEditScope';
-import { normalizeSystemParentFilterIds, resolveSystemParentFilterIds, systemsScopeOption } from '../../utils/clientScope';
+import { normalizeSystemParentFilterIds, resolveSystemParentFilterIds } from '../../utils/clientScope';
 import { Loading } from '../../components/ui/Loading';
 import { UnitsListPDFButton } from '../../components/reports/UnitsListPDFButton';
 import { FilterSelect } from '../../components/ui/FilterSelect';
@@ -43,13 +41,6 @@ interface UnitsSearchProps {
 export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectUnit, onAdd }) => {
     const { canSearch, canCreate } = usePermissions();
     const hasSearchPermission = canSearch('units');
-    // Escopo de cliente: units.clients_ids ∩ cfg_departments.clients_ids do usuário
-    const { clientIds, isAdminSuper, scopeReady, inScope } = useClientScope();
-    const systemsScope = useMemo(() => systemsScopeOption(clientIds), [clientIds]);
-    const scopeClientsIds = useMemo(
-        () => unitScopeQueryIds(isAdminSuper, clientIds),
-        [isAdminSuper, clientIds]
-    );
     // ... hook logic ...
     const [search, setSearch] = useState(() => localStorage.getItem('units_search') || '');
     const [appliedSearch, setAppliedSearch] = useState(search);
@@ -138,15 +129,13 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
     const [showSystemRequiredModal, setShowSystemRequiredModal] = useState(false);
     const [showStatusRequiredModal, setShowStatusRequiredModal] = useState(false);
 
-    // Load parent options after the user's client scope is resolved.
+    // Load parent options for all available systems.
     useEffect(() => {
-        if (!scopeReady) return;
-
         let active = true;
         const loadInitialFilterOptions = async () => {
             try {
                 const [systemsParent, unitTypesParent, unitStatuses] = await Promise.all([
-                    dataService.getSystemsParent(systemsScope),
+                    dataService.getSystemsParent(),
                     dataService.getUnitTypesParent(),
                     dataService.getUnitsStatuses()
                 ]);
@@ -178,7 +167,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         };
         loadInitialFilterOptions();
         return () => { active = false; };
-    }, [scopeReady, systemsScope, hasStoredSelectedFilters]);
+    }, [hasStoredSelectedFilters]);
 
     // Persist filters to sessionStorage so they survive navigation
     useEffect(() => {
@@ -227,7 +216,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
 
         if (ids.length > 0) {
             try {
-                const results = await Promise.all(ids.map(id => dataService.getSystems(id, systemsScope)));
+                const results = await Promise.all(ids.map(id => dataService.getSystems(id)));
                 setFilterOptions(prev => ({ ...prev, subSystems: results.flat() }));
             } catch (err) {
                 console.error('Error loading subSystems:', err);
@@ -235,7 +224,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
         } else {
             setFilterOptions(prev => ({ ...prev, subSystems: [] }));
         }
-    }, [systemsScope, normalizeSystemSelection]);
+    }, [normalizeSystemSelection]);
 
     const handleUnitTypeParentChange = useCallback(async (unitTypeParentId: string | string[]) => {
         setSelectedFilters(prev => ({ ...prev, unitTypeParentId, unitTypeId: [] }));
@@ -382,13 +371,6 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                 return;
             }
 
-            // Escopo de cliente ainda resolvendo → não consulta "às cegas"
-            // (o efeito roda de novo quando scopeReady virar true).
-            if (!scopeReady) {
-                setLoading(true);
-                return;
-            }
-
             setLoading(true);
             try {
                 // Ensure clients are loaded for name mapping
@@ -415,7 +397,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                         statusParam = 'all';
                     }
 
-                    const dbUnits = await dataService.getUnitsWithCoordinates(statusParam, scopeClientsIds);
+                    const dbUnits = await dataService.getUnitsWithCoordinates(statusParam);
                     const distances = new Map<string, number>();
 
                     dbUnits.forEach((u: any) => {
@@ -437,18 +419,16 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                     const searchNorm = appliedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
                     // 1. Search Units directly (Server-Side)
-                    const textSearchResults = await dataService.searchUnits(appliedSearch, 50, undefined, scopeClientsIds);
+                    const textSearchResults = await dataService.searchUnits(appliedSearch, 50);
 
                     // 2. Search Units by Client Name (Server-Side via getUnitsByClient for matching clients)
-                    // Escopo de cliente: só clientes em cfg_departments.clients_ids do usuário
                     const matchingClients = currentClients.filter(c =>
-                        inScope([c.id]) &&
                         c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(searchNorm)
                     );
 
                     const limitClients = matchingClients.slice(0, 5);
                     const clientUnitsPromises = limitClients.map(client =>
-                        dataService.searchUnitsByClient(client.id, scopeClientsIds)
+                        dataService.searchUnitsByClient(client.id)
                     );
 
                     const clientUnitsArrays = await Promise.all(clientUnitsPromises);
@@ -476,7 +456,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                         statusParam = 'all';
                     }
 
-                    const dbUnits = await dataService.getUnitsForSearch(statusParam, '', scopeClientsIds);
+                    const dbUnits = await dataService.getUnitsForSearch(statusParam);
                     dbUnits.forEach(u => allUnitsMap.set(u.id, mapRawUnit(u)));
                 }
 
@@ -493,7 +473,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
             }
         };
         fetchData();
-    }, [appliedSearch, appliedFiltersKey, hasActiveAppliedFilters, nearbyEnabled, userLocation, searchTrigger, scopeReady, scopeClientsIds]);
+    }, [appliedSearch, appliedFiltersKey, hasActiveAppliedFilters, nearbyEnabled, userLocation, searchTrigger]);
 
     // Apply filters client-side and sort alphabetically by description
     const filteredUnits = useMemo(() => {
@@ -811,7 +791,7 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                 {onAdd && canCreate('units') && (
                     <button
                         onClick={onAdd}
-                        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-all z-20"
+                        className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-all z-20"
                     >
                         <span className="material-symbols-outlined text-3xl font-bold">add</span>
                     </button>

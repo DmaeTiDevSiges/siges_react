@@ -63,7 +63,7 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
             loadData();
 
             // Realtime subscription for user changes (availability, visits, etc.)
-            const userSub = dataService.subscribeToUsers(() => {
+            const userSub = dataService.subscribeToUsersThrottled(() => {
                 dataService.clearMetadataCache();
                 loadData(false);
             });
