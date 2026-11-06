@@ -182,13 +182,11 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                 const uniqVehicles = Array.from(
                     new Set(data.map(r => String(r.vehicleId)))
                 );
-                const entries = await Promise.all(uniqVehicles.map(async vid => {
-                    const first = await dataService.getRateContractInfo(vid, referenceMonth);
-                    const info = first ?? await dataService.getRateContractInfo(vid, monthEnd);
-                    return info ? [vid, info.valueUnit] as const : null;
-                }));
-                const rates: Record<string, number> = {};
-                entries.forEach(e => { if (e) rates[e[0]] = e[1]; });
+                // Uma consulta só para todos os veículos (antes: 1–2 RPCs por veículo
+                // em paralelo, que estouravam o gateway com 502).
+                const rates = await dataService.getRateContractRatesForMonth(
+                    uniqVehicles, referenceMonth.slice(0, 10), monthEnd
+                );
                 setContractRates(rates);
             } catch (rateErr) {
                 console.error('Error loading rate contracts', rateErr);
@@ -199,10 +197,15 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                 const uniqVehicles = Array.from(
                     new Set(data.map(r => String(r.vehicleId)))
                 );
-                const entries = await Promise.all(uniqVehicles.map(async vehicleId => {
-                    const info = await dataService.getRentalContractInfo(vehicleId, referenceMonth);
-                    return info ? [vehicleId, info.monthlyValue] as const : null;
-                }));
+                // No máximo 4 consultas simultâneas (rajada por veículo gerava 502).
+                const entries: (readonly [string, number] | null)[] = [];
+                for (let i = 0; i < uniqVehicles.length; i += 4) {
+                    const chunk = await Promise.all(uniqVehicles.slice(i, i + 4).map(async vehicleId => {
+                        const info = await dataService.getRentalContractInfo(vehicleId, referenceMonth);
+                        return info ? [vehicleId, info.monthlyValue] as const : null;
+                    }));
+                    entries.push(...chunk);
+                }
                 const monthlyValues: Record<string, number> = {};
                 entries.forEach(entry => {
                     if (entry) monthlyValues[entry[0]] = entry[1];

@@ -2491,6 +2491,10 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return vehicleRateService.getContractInfo.apply(vehicleRateService, arguments as any);
     },
 
+    async getRateContractRatesForMonth(vehicleIds: string[], monthStart: string, monthEnd: string): Promise<Record<string, number>> {
+        return vehicleRateService.getContractRatesForMonth.apply(vehicleRateService, arguments as any);
+    },
+
     // -------------------------------------------------------------------------
     // ORDER VISIT ASSETS (orders_visits_assets)
     // -------------------------------------------------------------------------

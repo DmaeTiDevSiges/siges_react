@@ -1992,6 +1992,8 @@ export interface LeaderMonthlyScore {
   rankingPosition?: number;
   createdAt?: string;
   updatedAt?: string;
+  /** Mês sem avaliações: pontuação assumida como 100%. */
+  withoutEvaluations?: boolean;
 }
 
 export interface LeaderScoreHistory {
@@ -2059,6 +2061,8 @@ export interface TeamRankingEntry {
   positionChange?: number;
   bestLeader?: string;
   worstLeader?: string;
+  /** Sem avaliações no mês: pontuação assumida como 100%. */
+  withoutEvaluations?: boolean;
 }
 
 // ===== OCIOSIDADE / TURNOS DAS EQUIPES =====

@@ -197,7 +197,7 @@ export const LeaderRankingDashboard: React.FC<LeaderRankingDashboardProps> = ({ 
     }
 
     return (
-        <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="h-full flex-1 overflow-y-auto no-scrollbar p-4 pb-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>

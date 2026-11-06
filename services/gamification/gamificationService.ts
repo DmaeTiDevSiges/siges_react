@@ -195,7 +195,7 @@ export const gamificationService = {
             return [];
         }
 
-        return (data || []).map((row: any) => ({
+        const history: LeaderMonthlyScore[] = (data || []).map((row: any) => ({
             id: row.id?.toString(),
             leaderId: row.leader_id?.toString(),
             leaderName: row.leader_name,
@@ -214,6 +214,80 @@ export const gamificationService = {
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         }));
+
+        return this.fillLeaderHistoryGaps(leaderId, history, months);
+    },
+
+    /**
+     * Mês sem avaliação = 100% de conformidade. Completa os meses que faltam entre o
+     * primeiro mês registrado do líder e o mês anterior (último mês fechado).
+     * A posição de cada mês é a da EQUIPE do líder entre todas as equipes avaliáveis
+     * do mesmo departamento naquele mês (mesmo cálculo do badge do painel).
+     */
+    async fillLeaderHistoryGaps(
+        leaderId: string,
+        history: LeaderMonthlyScore[],
+        months: number
+    ): Promise<LeaderMonthlyScore[]> {
+        if (history.length === 0) return history;
+
+        const key = (y: number, m: number) => y * 12 + (m - 1);
+        const now = new Date();
+        const lastClosed = key(now.getFullYear(), now.getMonth() + 1) - 1;
+        const oldest = Math.min(...history.map(h => key(h.scoreYear, h.scoreMonth)));
+        const start = Math.max(oldest, lastClosed - months + 1);
+        const existing = new Set(history.map(h => key(h.scoreYear, h.scoreMonth)));
+
+        const ref = history[0];
+        const filled: LeaderMonthlyScore[] = [];
+        for (let k = lastClosed; k >= start; k--) {
+            if (existing.has(k)) continue;
+            const year = Math.floor(k / 12);
+            const month = (k % 12) + 1;
+            filled.push({
+                id: `sem-avaliacao-${year}-${month}`,
+                leaderId: leaderId.toString(),
+                leaderName: ref.leaderName,
+                departmentId: ref.departmentId,
+                departmentName: ref.departmentName,
+                scoreYear: year,
+                scoreMonth: month,
+                totalVisits: 0,
+                totalEvaluations: 0,
+                failedEvaluations: 0,
+                totalPenaltyScore: 0,
+                avgComplianceScore: 100,
+                bestComplianceScore: 100,
+                worstComplianceScore: 100,
+                withoutEvaluations: true,
+            });
+        }
+
+        const result = [...history, ...filled]
+            .sort((a, b) => key(b.scoreYear, b.scoreMonth) - key(a.scoreYear, a.scoreMonth))
+            .slice(0, months);
+
+        // Posição da equipe no departamento, mês a mês.
+        try {
+            const { data: leaderRow } = await supabase
+                .from('v_users')
+                .select('team_id')
+                .eq('id', leaderId)
+                .maybeSingle();
+            const teamId = leaderRow?.team_id?.toString();
+            if (teamId) {
+                await Promise.all(result.map(async (entry) => {
+                    if (!entry.departmentId) return;
+                    const ranking = await this.getTeamRanking(entry.departmentId, entry.scoreYear, entry.scoreMonth);
+                    const team = ranking.find(t => t.teamId === teamId);
+                    entry.rankingPosition = team?.position;
+                }));
+            }
+        } catch (err) {
+            console.error('Error computing team positions for leader history:', err);
+        }
+
+        return result;
     },
 
     // -------------------------------------------------------------------------
@@ -586,7 +660,8 @@ export const gamificationService = {
             .eq('score_year', year)
             .eq('score_month', month);
 
-        if (!scores || scores.length === 0) return [];
+        // Mês sem avaliação não zera o ranking: as equipes sem pontuação entram com 100%.
+        const monthScores = scores || [];
 
         // Agrupa por equipe
         const teamMap = new Map<string, {
@@ -606,7 +681,7 @@ export const gamificationService = {
             const team = teamMap.get(teamId)!;
             team.leaders.push(leader);
 
-            const leaderScore = scores.find((s: any) => s.leader_id?.toString() === leader.id.toString());
+            const leaderScore = monthScores.find((s: any) => s.leader_id?.toString() === leader.id.toString());
             if (leaderScore) {
                 team.scores.push(leaderScore);
             }
@@ -615,7 +690,25 @@ export const gamificationService = {
         // Calcula métricas por equipe
         const teamRanking: TeamRankingEntry[] = [];
         teamMap.forEach((team) => {
-            if (team.scores.length === 0) return;
+            // Equipe sem nenhuma avaliação no mês → considerada 100% de conformidade.
+            if (team.scores.length === 0) {
+                teamRanking.push({
+                    position: 0,
+                    teamId: team.teamId,
+                    teamName: team.teamName,
+                    departmentId,
+                    leaderCount: team.leaders.length,
+                    totalVisits: 0,
+                    totalEvaluations: 0,
+                    failedEvaluations: 0,
+                    avgComplianceScore: 100,
+                    bestComplianceScore: 100,
+                    worstComplianceScore: 100,
+                    trend: 'stable',
+                    withoutEvaluations: true,
+                });
+                return;
+            }
 
             const complianceScores = team.scores.map((s: any) => parseFloat(s.avg_compliance_score) || 0);
             const avgCompliance = complianceScores.reduce((a: number, b: number) => a + b, 0) / complianceScores.length;

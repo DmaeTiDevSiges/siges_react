@@ -8,6 +8,7 @@ import { FilterSelect } from '../../components/ui/FilterSelect';
 import { FilterSelectionContent } from '../../components/ui/FilterSelectionContent';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { toast } from 'sonner';
+import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 
 interface DashboardAdminContractsEvaluationsRequirementsProps {
     currentUser: any;
@@ -81,6 +82,8 @@ const MONTH_NAMES = [
 ];
 
 export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardAdminContractsEvaluationsRequirementsProps> = ({ currentUser }) => {
+    // Faixa horizontal de contratos: arrastar com o mouse (o toque já rola nativamente).
+    const contractsScroll = useDraggableScroll();
     const [loading, setLoading] = useState(true);
     const [contracts, setContracts] = useState<ContractWithStats[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -568,7 +571,7 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
     }
 
     return (
-        <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="h-full flex-1 overflow-y-auto no-scrollbar p-4 pb-8 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
             {/* Filter Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 px-1">
                 {/* Left: Client Filter */}
@@ -690,7 +693,12 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
 
                     {/* Search */}
                     {/* Horizontal Scrolling Contracts */}
-                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">
+                    <div
+                        ref={contractsScroll.ref}
+                        onMouseDown={contractsScroll.onMouseDown}
+                        onClickCapture={contractsScroll.onClickCapture}
+                        className="flex gap-3 overflow-x-auto overscroll-x-contain no-scrollbar pb-2 -mx-1 px-1 cursor-grab active:cursor-grabbing"
+                    >
                         {filteredContracts.length > 0 ? (
                             filteredContracts.map(contract => {
                                 const companyLogo = contract.logoUrl || (contract as any).providerCompanyLogoUrl || clients.find(c => c.id === contract.clientId)?.logoUrl;

@@ -118,6 +118,59 @@ export const vehicleRateService = {
         }
     },
 
+    /**
+     * R$/km de VÁRIOS veículos numa competência, em UMA consulta (evita a rajada de
+     * RPCs por veículo, que gerava 502 no gateway). Mesma regra de
+     * fc_vehicle_rate_contract: contrato ativo, não excluído, vigente na data; havendo
+     * mais de um, vence o de start_date mais recente (desempate: id maior).
+     * Vale o contrato vigente no 1º dia do mês; sem ele, o vigente no último dia.
+     */
+    async getContractRatesForMonth(
+        vehicleIds: string[],
+        monthStart: string,
+        monthEnd: string
+    ): Promise<Record<string, number>> {
+        const ids = Array.from(new Set(vehicleIds))
+            .map(id => parseInt(id, 10))
+            .filter(Number.isFinite);
+        if (ids.length === 0) return {};
+
+        const { data, error } = await supabase
+            .from('cfg_vehicle_rate_contracts')
+            .select('id, vehicle_id, value_unit, start_date, end_date')
+            .in('vehicle_id', ids)
+            .eq('active', true)
+            .eq('is_deleted', false)
+            .lte('start_date', monthEnd)
+            .or(`end_date.is.null,end_date.gte.${monthStart}`);
+        if (error) {
+            console.error('Error fetching rate contracts for month:', error);
+            throw new Error(error.message || 'Erro ao carregar os contratos de R$/km.');
+        }
+
+        const validOn = (c: any, day: string) =>
+            c.start_date <= day && (c.end_date == null || c.end_date >= day);
+        const newest = (a: any, b: any) =>
+            a.start_date !== b.start_date
+                ? (a.start_date > b.start_date ? a : b)
+                : (Number(a.id) > Number(b.id) ? a : b);
+
+        const pick: Record<string, { first?: any; last?: any }> = {};
+        (data || []).forEach((c: any) => {
+            const vid = String(c.vehicle_id);
+            const slot = (pick[vid] ||= {});
+            if (validOn(c, monthStart)) slot.first = slot.first ? newest(slot.first, c) : c;
+            if (validOn(c, monthEnd)) slot.last = slot.last ? newest(slot.last, c) : c;
+        });
+
+        const rates: Record<string, number> = {};
+        Object.entries(pick).forEach(([vid, slot]) => {
+            const chosen = slot.first ?? slot.last;
+            if (chosen) rates[vid] = num(chosen.value_unit);
+        });
+        return rates;
+    },
+
     // Contrato de R$/km vigente em uma DATA (RPC — sinaliza conflito de vigência)
     async getContractInfo(vehicleId: string, onDate: string): Promise<VehicleRateContractInfo | null> {
         const { data, error } = await supabase.rpc('fc_vehicle_rate_contract', {
