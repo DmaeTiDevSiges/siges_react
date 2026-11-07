@@ -11,6 +11,8 @@ interface AssetAlertModalProps {
     assetId: string;
     ovaId?: string;
     initialAlert?: AssetAlert;
+    /** Descrição pré-preenchida ao criar um alerta novo. */
+    initialDescription?: string;
     onSaved: () => void;
 }
 
@@ -20,6 +22,7 @@ export const AssetAlertModal: React.FC<AssetAlertModalProps> = ({
     assetId,
     ovaId,
     initialAlert,
+    initialDescription,
     onSaved
 }) => {
     const alertFormRef = useRef<AssetAlertFormHandle>(null);
@@ -69,10 +72,13 @@ export const AssetAlertModal: React.FC<AssetAlertModalProps> = ({
             maxWidth="sm"
         >
             <AssetAlertForm
+                // Remonta a cada abertura para aplicar a descrição sugerida.
+                key={`${isOpen ? 'open' : 'closed'}-${initialAlert?.id || ''}-${initialDescription || ''}`}
                 ref={alertFormRef}
                 assetId={assetId}
                 ovaId={ovaId}
                 initialAlert={initialAlert}
+                initialDescription={initialAlert ? undefined : initialDescription}
                 onSave={handleSave}
                 onCancel={onClose}
             />

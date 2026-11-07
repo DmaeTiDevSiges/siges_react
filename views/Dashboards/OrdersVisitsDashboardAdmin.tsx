@@ -26,6 +26,13 @@ import { FaFilePdf } from 'react-icons/fa';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { useClientScope } from '../../hooks/useClientScope';
 import { systemsScopeOption } from '../../utils/clientScope';
+import {
+    computeVisitsSummary,
+    EMPTY_VISITS_SUMMARY,
+    matchesProcessingSelection,
+    toProcessingSelection,
+    VisitsDashboardSummary,
+} from '../../utils/visitsDashboardSummary';
 
 interface OrdersVisitsDashboardAdminProps {
     currentUser: User;
@@ -151,6 +158,8 @@ interface StatCardProps {
     onClick?: () => void;
     styleColor?: string;
     visits?: OrderVisitExtended[];
+    /** Busca as visitas do card só no clique do PDF (lista paginada no servidor). */
+    loadVisits?: () => Promise<OrderVisitExtended[]>;
 }
 
 const AnimatedCount: React.FC<{ value: number; active?: boolean; color?: string }> = ({ value, active, color }) => {
@@ -178,7 +187,73 @@ const AnimatedCount: React.FC<{ value: number; active?: boolean; color?: string 
     );
 };
 
-const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, color, active, onClick, styleColor, visits }) => {
+// Linha de v_orders_visits → OrderVisitExtended (lista, exportações).
+const mapVisitRow = (row: any): OrderVisitExtended => ({
+        id: row.id.toString(),
+        oId: row.o_id?.toString(),
+        ovMask: row.ov_mask,
+        ovStatusId: row.ov_status_id,
+        ovProcessingId: row.ov_processing_id,
+        ovCreatedAt: row.ov_created_at || row.o_requested_at,
+        ovCreatedUserId: row.ov_created_user_id?.toString(),
+        ovTeamLeadId: row.ov_team_leader_id?.toString(),
+        ovStartedAt: row.ov_started_at,
+        ovEndedAt: row.ov_ended_at,
+        unitDescription: row.o_unit_description,
+        systemDescription: row.o_system_description,
+        clientName: row.client_name || row.o_client_name,
+        teamLeaderName: row.ov_team_leader_name_short,
+        statusDescription: row.ov_status_description,
+        processingDescription: row.ov_processing_description,
+        ovOStatusId: row.ov_o_status_id,
+        ovOStatusDescription: row.ov_o_status_description,
+        ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
+        unitId: row.o_unit_id?.toString(),
+        orderMask: row.o_mask,
+        teamCode: row.o_team_code,
+        requestedServices: row.o_requested_services,
+        progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
+        ovDurationHours: row.ov_duration_hours ? parseFloat(row.ov_duration_hours) : 0,
+
+        servicesValue: row.ov_services_value ? parseFloat(row.ov_services_value) : 0,
+        materialsValue: row.ov_materials_value ? parseFloat(row.ov_materials_value) : 0,
+        vehiclesValue: row.ov_vehicles_value ? parseFloat(row.ov_vehicles_value) : 0,
+        totalValue: row.ov_total_value ? parseFloat(row.ov_total_value) : 0,
+
+        systemId: row.o_system_id?.toString(),
+        systemParentId: row.o_system_parent_id?.toString(),
+        unitTypeId: row.o_unit_type_id?.toString(),
+        unitTypeParentId: row.o_unit_type_parent_id?.toString(),
+        orderObjectId: row.o_object_id?.toString(),
+        orderTypeId: row.o_type_id?.toString(),
+        orderTypeSubId: row.o_type_sub_id?.toString(),
+        contractId: row.o_contract_id?.toString(),
+        planId: row.o_plan_id?.toString(),
+        teamId: row.o_team_id?.toString(),
+        companyId: row.o_provider_company_id?.toString(),
+        parentId: row.o_parent_id ? Number(row.o_parent_id) : null,
+        o_plan_description: row.o_plan_description || row.plan_description,
+        planDescription: row.o_plan_description || row.plan_description,
+        priorityId: row.o_priority_id?.toString(),
+        priorityCode: row.o_priority_code,
+        priorityColor: row.o_priority_color,
+        ovAssetsAmount: row.ov_assets_amount,
+        ovAssetsReportedAmount: row.ov_assets_reported_amount,
+        ovAssetsDraftAmount: row.ov_assets_draft_amount,
+        ovAssetsRevisedAmount: row.ov_assets_revised_amount,
+        ovAssetsDisapprovedAmount: row.ov_assets_disapproved_amount,
+        ovAssetsApprovedNoFiledAmount: row.ov_assets_approved_no_filed_amount,
+        ovAssetsApprovedFiledAmount: row.ov_assets_approved_filed_amount,
+        typeCode: row.o_type_code || row.type_code,
+        typeSubCode: row.o_type_sub_code || row.type_sub_code,
+        sectorDescription: row.o_asset_tag_description || row.asset_tag_description || row.o_system_description,
+        assetTagDescription: row.o_asset_tag_description || row.asset_tag_description,
+        ovCostsStatus: row.ov_costs_status,
+        assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description,
+        contractDescription: row.o_contract_description || row.contract_description,
+    });
+
+const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, color, active, onClick, styleColor, visits, loadVisits }) => {
     const getIconBgStyle = () => {
         if (styleColor) return { backgroundColor: `${styleColor} 1A` };
         return undefined;
@@ -212,9 +287,11 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, col
                             {formatCurrency(totalValue)}
                         </span>
                     )}
-                    {visits && visits.length > 0 && (
+                    {(loadVisits ? count > 0 : !!visits && visits.length > 0) && (
                         <BatchVisitReportPDFButton 
                             visits={visits} 
+                            loadVisits={loadVisits}
+                            count={loadVisits ? count : undefined}
                             filename={`relatorios-${label.toLowerCase().replace(/\s+/g, '-')}`}
                         />
                     )}
@@ -641,7 +718,11 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         }
         localStorage.setItem('appliedOrdersFilters', JSON.stringify(appliedFilters));
     }, [appliedFilters, onAppliedFiltersChange]);
+    // Página(s) carregadas da lista (paginação no servidor) e resumo do RPC.
     const [visits, setVisits] = useState<OrderVisitExtended[]>([]);
+    const [summary, setSummary] = useState<VisitsDashboardSummary>(EMPTY_VISITS_SUMMARY);
+    // Fallback (RPC ainda não aplicado): todas as visitas da seleção, ordenadas.
+    const fallbackRowsRef = useRef<OrderVisitExtended[] | null>(null);
 
     const todayStr = useMemo(() => {
         const d = new Date();
@@ -834,7 +915,6 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
     });
     const [isFetchingAppropriation, setIsFetchingAppropriation] = useState(false);
 
-    const [visibleCount, setVisibleCount] = useState(50);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => {
         const saved = localStorage.getItem('visits_dashboard_sort_order');
         return (saved === 'asc' || saved === 'desc') ? saved : 'asc';
@@ -962,7 +1042,57 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
 
     const [isFetchingAll, setIsFetchingAll] = useState(false);
 
-    const loadData = React.useCallback(async (forceLoading = false) => {
+    // ── Paginação no servidor ────────────────────────────────────────────
+    // Lista: página de 50 já filtrada por etapa e ordenada no banco.
+    // Contadores, totais, gráficos e ids de apropriação: RPC
+    // fn_orders_visits_dashboard_summary. Sem o RPC (migration 20261114 não
+    // aplicada), cai no modo antigo: baixa tudo e calcula no navegador com as
+    // MESMAS regras (utils/visitsDashboardSummary).
+    const LIST_PAGE_SIZE = 50;
+    const EXPORT_PAGE_SIZE = 500;
+    const visitsRef = useRef<OrderVisitExtended[]>([]);
+    useEffect(() => { visitsRef.current = visits; }, [visits]);
+
+    /** Seleção de etapas atual no formato do RPC/consulta. */
+    const getSelection = React.useCallback((stages: any[]) => {
+        const allIds = ['all', ...stages.map((st: any) => String(st.id)), 'costs-rejected', 'costs-pending'];
+        return toProcessingSelection(activeOrderVisitProcessingIdSelected, allIds);
+    }, [activeOrderVisitProcessingIdSelected]);
+
+    const listParams = React.useCallback(() => ({
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+        ...appliedFilters,
+        searchQuery: debouncedSearchQuery,
+    }), [dateRange, appliedFilters, debouncedSearchQuery]);
+
+    /** Modo fallback: todas as visitas do período (sem filtro de etapa). */
+    const fetchAllVisitsUnfiltered = React.useCallback(async (): Promise<OrderVisitExtended[]> => {
+        const all: OrderVisitExtended[] = [];
+        const first = await dataService.getOrdersVisitsView({ ...listParams(), page: 0, pageSize: EXPORT_PAGE_SIZE });
+        all.push(...(first.data || []).map(mapVisitRow));
+        const pages = Math.ceil((first.count ?? 0) / EXPORT_PAGE_SIZE);
+        for (let page = 1; page < pages; page++) {
+            const r = await dataService.getOrdersVisitsView({ ...listParams(), page, pageSize: EXPORT_PAGE_SIZE, withCount: false });
+            all.push(...(r.data || []).map(mapVisitRow));
+        }
+        return all;
+    }, [listParams]);
+
+    const sortVisits = React.useCallback((rows: OrderVisitExtended[]) => [...rows].sort((a, b) => {
+        const dateA = a.ovStartedAt ? new Date(a.ovStartedAt).getTime() : (a.ovCreatedAt ? new Date(a.ovCreatedAt).getTime() : 0);
+        const dateB = b.ovStartedAt ? new Date(b.ovStartedAt).getTime() : (b.ovCreatedAt ? new Date(b.ovCreatedAt).getTime() : 0);
+        if (dateA !== dateB) return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+        return sortOrder === 'asc'
+            ? String(a.id).localeCompare(String(b.id), undefined, { numeric: true })
+            : String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
+    }), [sortOrder]);
+
+    /**
+     * Carrega resumo + 1ª página. Em recarga silenciosa (Realtime/polling)
+     * mantém a quantidade de linhas já carregadas.
+     */
+    const loadData = React.useCallback(async (forceLoading = false, resetList = false) => {
         const currentFetchId = ++fetchIdRef.current;
         try {
             if (forceLoading || !initialLoadDone.current) {
@@ -973,124 +1103,57 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
             if (currentFetchId !== fetchIdRef.current) return;
             setProcessingStages(stages);
 
-            const PAGE_SIZE = 100;
+            const selection = getSelection(stages);
+            const keepCount = forceLoading || resetList ? LIST_PAGE_SIZE : Math.max(LIST_PAGE_SIZE, visitsRef.current.length);
 
-            // Helper: map raw row → OrderVisitExtended
-            const mapRow = (row: any): OrderVisitExtended => ({
-                id: row.id.toString(),
-                oId: row.o_id?.toString(),
-                ovMask: row.ov_mask,
-                ovStatusId: row.ov_status_id,
-                ovProcessingId: row.ov_processing_id,
-                ovCreatedAt: row.ov_created_at || row.o_requested_at,
-                ovCreatedUserId: row.ov_created_user_id?.toString(),
-                ovTeamLeadId: row.ov_team_leader_id?.toString(),
-                ovStartedAt: row.ov_started_at,
-                ovEndedAt: row.ov_ended_at,
-                unitDescription: row.o_unit_description,
-                systemDescription: row.o_system_description,
-                clientName: row.client_name || row.o_client_name,
-                teamLeaderName: row.ov_team_leader_name_short,
-                statusDescription: row.ov_status_description,
-                processingDescription: row.ov_processing_description,
-                ovOStatusId: row.ov_o_status_id,
-                ovOStatusDescription: row.ov_o_status_description,
-                ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
-                unitId: row.o_unit_id?.toString(),
-                orderMask: row.o_mask,
-                teamCode: row.o_team_code,
-                requestedServices: row.o_requested_services,
-                progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
-                ovDurationHours: row.ov_duration_hours ? parseFloat(row.ov_duration_hours) : 0,
-
-                servicesValue: row.ov_services_value ? parseFloat(row.ov_services_value) : 0,
-                materialsValue: row.ov_materials_value ? parseFloat(row.ov_materials_value) : 0,
-                vehiclesValue: row.ov_vehicles_value ? parseFloat(row.ov_vehicles_value) : 0,
-                totalValue: row.ov_total_value ? parseFloat(row.ov_total_value) : 0,
-
-                systemId: row.o_system_id?.toString(),
-                systemParentId: row.o_system_parent_id?.toString(),
-                unitTypeId: row.o_unit_type_id?.toString(),
-                unitTypeParentId: row.o_unit_type_parent_id?.toString(),
-                orderObjectId: row.o_object_id?.toString(),
-                orderTypeId: row.o_type_id?.toString(),
-                orderTypeSubId: row.o_type_sub_id?.toString(),
-                contractId: row.o_contract_id?.toString(),
-                planId: row.o_plan_id?.toString(),
-                teamId: row.o_team_id?.toString(),
-                companyId: row.o_provider_company_id?.toString(),
-                parentId: row.o_parent_id ? Number(row.o_parent_id) : null,
-                o_plan_description: row.o_plan_description || row.plan_description,
-                planDescription: row.o_plan_description || row.plan_description,
-                priorityId: row.o_priority_id?.toString(),
-                priorityCode: row.o_priority_code,
-                priorityColor: row.o_priority_color,
-                ovAssetsAmount: row.ov_assets_amount,
-                ovAssetsReportedAmount: row.ov_assets_reported_amount,
-                ovAssetsDraftAmount: row.ov_assets_draft_amount,
-                ovAssetsRevisedAmount: row.ov_assets_revised_amount,
-                ovAssetsDisapprovedAmount: row.ov_assets_disapproved_amount,
-                ovAssetsApprovedNoFiledAmount: row.ov_assets_approved_no_filed_amount,
-                ovAssetsApprovedFiledAmount: row.ov_assets_approved_filed_amount,
-                typeCode: row.o_type_code || row.type_code,
-                typeSubCode: row.o_type_sub_code || row.type_sub_code,
-                sectorDescription: row.o_asset_tag_description || row.asset_tag_description || row.o_system_description,
-                assetTagDescription: row.o_asset_tag_description || row.asset_tag_description,
-                ovCostsStatus: row.ov_costs_status,
-                assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description,
-                contractDescription: row.o_contract_description || row.contract_description,
-            });
-
-            // ── Page 0: show content immediately ──────────────────────────
-            const firstResult = await dataService.getOrdersVisitsView({
-                startDate: dateRange.start,
-                endDate: dateRange.end,
-                page: 0,
-                pageSize: PAGE_SIZE,
-                ...appliedFilters,
-                searchQuery: debouncedSearchQuery
-            });
-
+            const [summaryResult, pageResult] = await Promise.all([
+                dataService.getOrdersVisitsDashboardSummary({
+                    filters: appliedFilters as Record<string, unknown>,
+                    startDate: dateRange.start,
+                    endDate: dateRange.end,
+                    searchQuery: debouncedSearchQuery,
+                    processingSelection: selection,
+                }),
+                dataService.getOrdersVisitsView({
+                    ...listParams(),
+                    page: 0,
+                    pageSize: keepCount,
+                    withCount: false,
+                    processingSelection: selection,
+                    sortAscending: sortOrder === 'asc',
+                }),
+            ]);
             if (currentFetchId !== fetchIdRef.current) return;
 
-            const firstBatch = (firstResult.data || []).map(mapRow);
-            setVisits(firstBatch);
-            setLoading(false);
-            initialLoadDone.current = true;
-            loadTeamsForVisits(firstBatch.slice(0, 50));
-
-            // ── Pages 1+: fetch remaining in background ───────────────────
-            const totalCount = firstResult.count ?? 0;
-            const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-
-            if (totalPages > 1) {
+            if (summaryResult) {
+                fallbackRowsRef.current = null;
+                setSummary(summaryResult);
+                setVisits((pageResult.data || []).map(mapVisitRow));
+            } else {
+                // Fallback: RPC ausente → mesmo cálculo no navegador.
                 setIsFetchingAll(true);
                 try {
-                    for (let page = 1; page < totalPages; page++) {
-                        const result = await dataService.getOrdersVisitsView({
-                            startDate: dateRange.start,
-                            endDate: dateRange.end,
-                            page,
-                            pageSize: PAGE_SIZE,
-                            ...appliedFilters,
-                            searchQuery: debouncedSearchQuery
-                        });
-                        
-                        if (currentFetchId !== fetchIdRef.current) return;
-                        
-                        const batch = (result.data || []).map(mapRow);
-                        setVisits(prev => {
-                            const existingIds = new Set(prev.map(v => v.id));
-                            const newItems = batch.filter(v => !existingIds.has(v.id));
-                            return [...prev, ...newItems];
-                        });
-                    }
+                    const all = await fetchAllVisitsUnfiltered();
+                    if (currentFetchId !== fetchIdRef.current) return;
+                    setSummary(computeVisitsSummary(all.map(v => ({
+                        id: v.id,
+                        ovProcessingId: v.ovProcessingId,
+                        ovCostsStatus: v.ovCostsStatus,
+                        totalValue: v.totalValue,
+                        planLabel: v.o_plan_description,
+                        unitLabel: v.unitDescription,
+                        ovStartedAt: v.ovStartedAt,
+                    })), selection));
+                    const selected = sortVisits(all.filter(v => matchesProcessingSelection(v, selection)));
+                    fallbackRowsRef.current = selected;
+                    setVisits(selected.slice(0, keepCount));
                 } finally {
-                    if (currentFetchId === fetchIdRef.current) {
-                        setIsFetchingAll(false);
-                    }
+                    if (currentFetchId === fetchIdRef.current) setIsFetchingAll(false);
                 }
             }
+
+            setLoading(false);
+            initialLoadDone.current = true;
         } catch (error) {
             console.error('Error loading visits:', error);
             if (currentFetchId === fetchIdRef.current) {
@@ -1098,7 +1161,59 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                 initialLoadDone.current = true;
             }
         }
-    }, [currentUser.id, dateRange, appliedFilters, debouncedSearchQuery]);
+    }, [appliedFilters, dateRange, debouncedSearchQuery, getSelection, listParams, sortOrder, fetchAllVisitsUnfiltered, sortVisits]);
+
+    /** Próxima página (rolagem infinita). */
+    const loadMoreVisits = React.useCallback(async () => {
+        const offset = visitsRef.current.length;
+        if (fallbackRowsRef.current) {
+            setVisits(fallbackRowsRef.current.slice(0, offset + LIST_PAGE_SIZE));
+            return;
+        }
+        const fetchId = fetchIdRef.current;
+        const result = await dataService.getOrdersVisitsView({
+            ...listParams(),
+            offset,
+            pageSize: LIST_PAGE_SIZE,
+            withCount: false,
+            processingSelection: getSelection(processingStages),
+            sortAscending: sortOrder === 'asc',
+        });
+        if (fetchId !== fetchIdRef.current) return; // filtros mudaram no meio
+        const batch = (result.data || []).map(mapVisitRow);
+        setVisits(prev => {
+            const ids = new Set(prev.map(v => v.id));
+            return [...prev, ...batch.filter(v => !ids.has(v.id))];
+        });
+    }, [listParams, getSelection, processingStages, sortOrder]);
+
+    /**
+     * Todas as visitas de uma seleção (exportações e PDFs em lote) — buscadas
+     * só no clique, em páginas de 500.
+     */
+    const loadAllVisitsFor = React.useCallback(async (selected: string[]): Promise<OrderVisitExtended[]> => {
+        const allIds = ['all', ...processingStages.map((st: any) => String(st.id)), 'costs-rejected', 'costs-pending'];
+        const selection = toProcessingSelection(selected, allIds);
+        if (fallbackRowsRef.current) {
+            const all = await fetchAllVisitsUnfiltered();
+            return sortVisits(all.filter(v => matchesProcessingSelection(v, selection)));
+        }
+        const rows: OrderVisitExtended[] = [];
+        for (let page = 0; ; page++) {
+            const r = await dataService.getOrdersVisitsView({
+                ...listParams(),
+                page,
+                pageSize: EXPORT_PAGE_SIZE,
+                withCount: false,
+                processingSelection: selection,
+                sortAscending: sortOrder === 'asc',
+            });
+            const batch = (r.data || []).map(mapVisitRow);
+            rows.push(...batch);
+            if (batch.length < EXPORT_PAGE_SIZE) break;
+        }
+        return rows;
+    }, [processingStages, listParams, sortOrder, fetchAllVisitsUnfiltered, sortVisits]);
 
     const loadDataRef = useRef(loadData);
     const loadFilterOptionsRef = useRef(loadFilterOptions);
@@ -1118,14 +1233,33 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         const handleRefresh = () => loadDataRef.current(true);
         window.addEventListener('refresh_dashboard', handleRefresh);
 
-        // Debounce para eventos Realtime: subscribeToOrders e subscribeToVisits
-        // disparam simultaneamente na mesma mudança → agrupa em um único fetch.
+        // Recarga por Realtime (OS/visitas), agrupada e econômica:
+        //  • debounce de 2,5 s: rajadas de eventos (OS + visita na mesma
+        //    mudança, vários membros) viram 1 recarga;
+        //  • com a aba/app em segundo plano não consulta — marca pendente e
+        //    recarrega uma vez ao voltar a ficar visível;
+        //  • polling só como reserva (Realtime desconectado), a cada 60 s e
+        //    apenas com a página visível.
+        let refreshPending = false;
+        const runRefresh = () => {
+            refreshPending = false;
+            loadDataRef.current(false);
+        };
         const scheduledRealtimeRefresh = () => {
             if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
             realtimeDebounceRef.current = setTimeout(() => {
-                loadDataRef.current(false);
-            }, 500); // Agrupa eventos dentro de 500ms
+                realtimeDebounceRef.current = null;
+                if (document.visibilityState === 'hidden') {
+                    refreshPending = true;
+                    return;
+                }
+                runRefresh();
+            }, 2500);
         };
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible' && refreshPending) runRefresh();
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
 
         const orderSub = dataService.subscribeToOrders(() => {
             scheduledRealtimeRefresh();
@@ -1134,13 +1268,14 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
             scheduledRealtimeRefresh();
         });
 
-        const POLL_INTERVAL = 30000;
+        const POLL_INTERVAL = 60000;
         const pollTimer = setInterval(() => {
-            loadDataRef.current(false);
+            if (document.visibilityState === 'visible') loadDataRef.current(false);
         }, POLL_INTERVAL);
 
         return () => {
             window.removeEventListener('refresh_dashboard', handleRefresh);
+            document.removeEventListener('visibilitychange', handleVisibility);
             if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
             clearInterval(pollTimer);
             orderSub.unsubscribe();
@@ -1156,12 +1291,13 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scopeReady]);
 
-    // Trigger loadData when parameters change, without tearing down/recreating subscriptions
+    // Recarrega (lista desde o início + resumo) quando período, filtros, busca,
+    // etapas selecionadas ou ordenação mudam — loadData muda junto com eles.
     useEffect(() => {
         if (initialLoadDone.current) {
-            loadData(false);
+            loadData(false, true);
         }
-    }, [dateRange, appliedFilters, debouncedSearchQuery, loadData]);
+    }, [loadData]);
 
     const visitTeamsRef = useRef<Record<string, OrderVisitTeam[]>>({})
 
@@ -1256,133 +1392,24 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         setIsDateModalOpen(false);
     };
 
-    const baseFilteredVisits = useMemo(() => {
-        return visits.filter(visit => {
-            if (searchQuery) {
-                const query = searchQuery.toLowerCase();
-                const matches = (
-                    visit.ovMask?.toLowerCase().includes(query) ||
-                    visit.unitDescription?.toLowerCase().includes(query) ||
-                    visit.clientName?.toLowerCase().includes(query) ||
-                    visit.orderMask?.toLowerCase().includes(query) ||
-                    visit.teamLeaderName?.toLowerCase().includes(query)
-                );
-                if (!matches) return false;
-            }
-
-            if (dateRange.start || dateRange.end) {
-                const visitDateStr = visit.ovStartedAt || visit.ovCreatedAt;
-                if (!visitDateStr) return true;
-
-                const visitDate = new Date(visitDateStr);
-
-                if (dateRange.start) {
-                    const [y, m, d] = dateRange.start.split('-').map(Number);
-                    const startDate = new Date(y, m - 1, d, 0, 0, 0, 0);
-                    if (visitDate < startDate) return false;
-                }
-
-                if (dateRange.end) {
-                    const [y, m, d] = dateRange.end.split('-').map(Number);
-                    const endDate = new Date(y, m - 1, d, 23, 59, 59, 999);
-                    if (visitDate > endDate) return false;
-                }
-            }
-
-            const checkFilter = (filterKey: keyof OrderFilters, visitKey: keyof OrderVisitExtended) => {
-                const filterValue = (appliedFilters as any)[filterKey];
-                if (!filterValue || (Array.isArray(filterValue) && filterValue.length === 0)) return true;
-
-                const visitValue = (visit as any)[visitKey]?.toString();
-                if (!visitValue) return false;
-
-                if (Array.isArray(filterValue)) {
-                    return filterValue.map(String).includes(visitValue);
-                }
-                return String(filterValue) === visitValue;
-            };
-
-            if (!checkFilter('systemParentId', 'systemParentId')) return false;
-            if (!checkFilter('systemId', 'systemId')) return false;
-            if (!checkFilter('unitTypeParentId', 'unitTypeParentId')) return false;
-            if (!checkFilter('unitTypeId', 'unitTypeId')) return false;
-            if (!checkFilter('unitId', 'unitId')) return false;
-            if (!checkFilter('orderObjectId', 'orderObjectId')) return false;
-            if (!checkFilter('orderTypeId', 'orderTypeId')) return false;
-            if (!checkFilter('orderTypeSubId', 'orderTypeSubId')) return false;
-            if (!checkFilter('contractId', 'contractId')) return false;
-            if (!checkFilter('orderPlanId', 'planId')) return false;
-            if (!checkFilter('orderTeamId', 'teamId')) return false;
-            if (!checkFilter('responsibleTeamId', 'teamId')) return false;
-
-            return true;
-        });
-    }, [visits, searchQuery, appliedFilters, dateRange]);
-
+    // Resumo vindo do banco (RPC) — antes calculado sobre a lista completa.
     const stats = useMemo(() => {
         const newStats: Record<number, { count: number; total: number }> = {};
         processingStages.forEach(stage => {
-            const filtered = baseFilteredVisits.filter(v => v.ovProcessingId === stage.id);
-            // Contagem: todas as visitas do stage
-            const count = filtered.length;
-            // Soma de valores: apenas stage 5 (Aprovada) com costsStatus = 'approved'
-            const total = stage.id === 5 
-                ? filtered.filter(v => v.ovCostsStatus === 'approved').reduce((acc, v) => acc + (v.totalValue || 0), 0)
-                : filtered.reduce((acc, v) => acc + (v.totalValue || 0), 0);
-            newStats[stage.id] = {
-                count,
-                total
-            };
+            newStats[stage.id] = summary.stages[String(stage.id)] || { count: 0, total: 0 };
         });
         return newStats;
-    }, [baseFilteredVisits, processingStages]);
+    }, [summary, processingStages]);
 
-    const filteredVisits = useMemo(() => {
-        return baseFilteredVisits
-            .filter(visit => {
-                if (activeOrderVisitProcessingIdSelected.length === 0) return false;
-                const allSelected = activeOrderVisitProcessingIdSelected.includes('all') || activeOrderVisitProcessingIdSelected.length === allStageIds.length;
-                if (allSelected) return true;
-                const isCostsPendingSelected = activeOrderVisitProcessingIdSelected.includes('costs-pending');
-                const isCostsRejectedSelected = activeOrderVisitProcessingIdSelected.includes('costs-rejected');
-                const isAprovadaSelected = activeOrderVisitProcessingIdSelected.includes('5');
-                if (isCostsPendingSelected && visit.ovProcessingId === 5 && (!visit.ovCostsStatus || visit.ovCostsStatus === 'pending' || visit.ovCostsStatus === 'waiting')) {
-                    return true;
-                }
-                if (isCostsRejectedSelected && visit.ovProcessingId === 5 && visit.ovCostsStatus === 'rejected') {
-                    return true;
-                }
-                if (activeOrderVisitProcessingIdSelected.includes(String(visit.ovProcessingId))) {
-                    if (visit.ovProcessingId === 5 && (isCostsPendingSelected || isCostsRejectedSelected) && !isAprovadaSelected) {
-                        return !(visit.ovCostsStatus === 'pending' || visit.ovCostsStatus === 'waiting' || !visit.ovCostsStatus || visit.ovCostsStatus === 'rejected');
-                    }
-                    return true;
-                }
-                return false;
-            })
-            .sort((a, b) => {
-                const dateA = a.ovStartedAt ? new Date(a.ovStartedAt).getTime() : (a.ovCreatedAt ? new Date(a.ovCreatedAt).getTime() : 0);
-                const dateB = b.ovStartedAt ? new Date(b.ovStartedAt).getTime() : (b.ovCreatedAt ? new Date(b.ovCreatedAt).getTime() : 0);
-                if (dateA !== dateB) {
-                    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-                }
-                return sortOrder === 'asc' 
-                    ? String(a.id).localeCompare(String(b.id), undefined, { numeric: true })
-                    : String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
-            });
-    }, [baseFilteredVisits, activeOrderVisitProcessingIdSelected, sortOrder, allStageIds]);
+    /** Total de visitas das etapas selecionadas (a lista carrega por páginas). */
+    const selectedTotalCount = summary.selection.count;
 
-    const appropriationVisitsKey = useMemo(() => JSON.stringify(
-        filteredVisits.map(visit => [
-            visit.id,
-            visit.ovProcessingId,
-            visit.ovCostsStatus,
-            visit.servicesValue,
-            visit.materialsValue,
-            visit.vehiclesValue,
-            visit.totalValue,
-        ])
-    ), [filteredVisits]);
+    // Apropriações: refaz as consultas só quando o conjunto/valores mudam.
+    const appropriationVisitsKey = useMemo(() => JSON.stringify([
+        summary.appropriationIds,
+        summary.all,
+        summary.stages,
+    ]), [summary]);
 
     const financialTotals = useMemo(() => {
         return {
@@ -1395,47 +1422,14 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
     const totalSumValue = financialTotals.services + financialTotals.materials + financialTotals.vehicles;
 
     const insightData = useMemo(() => {
-        if (!filteredVisits.length) return { composition: [], trend: [], units: [], allUnits: [], movements: [], totalComposition: 0 };
-        
-        const planMap = new Map();
-        filteredVisits.forEach(v => {
-            const plan = v.o_plan_description || 'Sem Plano';
-            planMap.set(plan, (planMap.get(plan) || 0) + (v.totalValue || 0));
-        });
-
         const colors = ['#3b82f6', '#10b981', '#6366f1', '#f59e0b', '#64748b', '#f43f5e', '#ec4899', '#8b5cf6'];
-        const composition = Array.from(planMap.entries())
-            .map(([label, value], i) => ({
-                label,
-                value,
-                color: colors[i % colors.length]
-            }))
-            .sort((a, b) => b.value - a.value);
-
+        const composition = summary.composition.map((c, i) => ({ ...c, color: colors[i % colors.length] }));
         const totalComposition = composition.reduce((acc, c) => acc + c.value, 0);
-
-        const dailyMap = new Map();
-        filteredVisits.forEach(v => {
-            if (!v.ovStartedAt) return;
-            const day = v.ovStartedAt.split('T')[0];
-            dailyMap.set(day, (dailyMap.get(day) || 0) + 1);
-        });
-        const trend = Array.from(dailyMap.entries())
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .slice(-10)
-            .map(([day, count]) => ({
-                label: day.split('-').slice(1).reverse().join('/'),
-                value: count
-            }));
-
-        const unitMap = new Map();
-        filteredVisits.forEach(v => {
-            const unit = v.unitDescription || 'Sem Unidade';
-            unitMap.set(unit, (unitMap.get(unit) || 0) + (v.totalValue || 0));
-        });
-        const allUnits = Array.from(unitMap.entries())
-            .map(([label, value]) => ({ label, value }))
-            .sort((a, b) => b.value - a.value);
+        const trend = summary.trend.map(t => ({
+            label: t.day.split('-').slice(1).reverse().join('/'),
+            value: t.count,
+        }));
+        const allUnits = summary.units;
 
         const movementMap = new Map();
         appropriationData.movedAssets.forEach(a => {
@@ -1451,11 +1445,10 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
             .sort((a, b) => b.value - a.value);
 
         return { composition, trend, units: allUnits.slice(0, 3), allUnits, movements, totalComposition };
-    }, [filteredVisits, appropriationData.movedAssets]);
+    }, [summary, appropriationData.movedAssets]);
 
-    const displayedVisits = useMemo(() => {
-        return filteredVisits.slice(0, visibleCount);
-    }, [filteredVisits, visibleCount]);
+    // Linhas já carregadas (páginas do servidor).
+    const displayedVisits = visits;
 
     useEffect(() => {
         if (displayedVisits.length > 0) {
@@ -1463,8 +1456,10 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         }
     }, [displayedVisits, loadTeamsForVisits]);
 
-    const pdfVisitsData = useMemo(() => {
-        return filteredVisits.map(v => ({
+    /** Lista das etapas selecionadas para PDF/Excel — buscada só no clique. */
+    const loadPdfVisitsData = React.useCallback(async () => {
+        const rows = await loadAllVisitsFor(activeOrderVisitProcessingIdSelected);
+        return rows.map(v => ({
             ovMask: v.ovMask,
             ovStartedAt: v.ovStartedAt,
             ovEndedAt: v.ovEndedAt,
@@ -1481,38 +1476,34 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
             servicesValue: v.servicesValue,
             totalValue: v.totalValue,
         }));
-    }, [filteredVisits]);
+    }, [loadAllVisitsFor, activeOrderVisitProcessingIdSelected]);
 
     const fetchDebounceRef = useRef<any>(null);
 
     useEffect(() => {
-        if (!loading && filteredVisits.length > 0) {
+        // Espera todas as páginas de visitas (isFetchingAll): antes, as 4
+        // consultas de apropriação se repetiam a cada página carregada.
+        if (isFetchingAll) return;
+        if (!loading && summary.appropriationIds.length > 0) {
             if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
             fetchDebounceRef.current = setTimeout(() => {
                 fetchAppropriationData();
             }, 600);
-        } else if (filteredVisits.length === 0) {
+        } else if (summary.appropriationIds.length === 0) {
             if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
             setAppropriationData({ services: [], materials: [], vehicles: [], movedAssets: [] });
         }
         return () => {
             if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
         };
-    }, [appropriationVisitsKey, loading, activeOrderVisitProcessingIdSelected]);
+    }, [appropriationVisitsKey, loading, isFetchingAll, activeOrderVisitProcessingIdSelected]);
 
     const fetchAppropriationData = async () => {
         try {
             setIsFetchingAppropriation(true);
-            const isAprovadaSelected = activeOrderVisitProcessingIdSelected.includes('5');
-            const isCostsPendingSelected = activeOrderVisitProcessingIdSelected.includes('costs-pending');
-            const isCostsRejectedSelected = activeOrderVisitProcessingIdSelected.includes('costs-rejected');
-            const ovIds = isAprovadaSelected
-                ? filteredVisits.filter(v => v.ovCostsStatus === 'approved').map(v => v.id)
-                : isCostsPendingSelected
-                    ? filteredVisits.filter(v => !v.ovCostsStatus || v.ovCostsStatus === 'pending' || v.ovCostsStatus === 'waiting').map(v => v.id)
-                    : isCostsRejectedSelected
-                        ? filteredVisits.filter(v => v.ovCostsStatus === 'rejected').map(v => v.id)
-                        : filteredVisits.map(v => v.id);
+            // Mesma regra de antes (aprovados / pendentes / rejeitados / todas),
+            // agora calculada no banco (summary.appropriationIds).
+            const ovIds = summary.appropriationIds;
             if (!ovIds.length) return;
 
             const [servicesRaw, materialsRaw, vehiclesRaw, movedAssetsRaw] = await Promise.all([
@@ -1563,26 +1554,23 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         }
     };
 
-    useEffect(() => {
-        setVisibleCount(50);
-    }, [activeOrderVisitProcessingIdSelected, searchQuery, advancedFilters, dateRange]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (
                     entries[0].isIntersecting &&
-                    visibleCount < filteredVisits.length &&
+                    visits.length < selectedTotalCount &&
                     !isLoadingMoreRef.current
                 ) {
                     isLoadingMoreRef.current = true;
                     setIsLoadingMore(true);
-                    // Small delay so React can render before next batch
-                    setTimeout(() => {
-                        setVisibleCount(prev => prev + 30);
-                        setIsLoadingMore(false);
-                        isLoadingMoreRef.current = false;
-                    }, 150);
+                    loadMoreVisits()
+                        .catch(err => console.error('Error loading more visits:', err))
+                        .finally(() => {
+                            setIsLoadingMore(false);
+                            isLoadingMoreRef.current = false;
+                        });
                 }
             },
             { threshold: 0, rootMargin: '300px' }
@@ -1591,7 +1579,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         const currentRef = loadMoreRef.current;
         if (currentRef) observer.observe(currentRef);
         return () => { if (currentRef) observer.unobserve(currentRef); };
-    }, [filteredVisits.length, visibleCount]);
+    }, [visits.length, selectedTotalCount, loadMoreVisits]);
 
     if (loading) {
         return <VisitsDashboardSkeleton />;
@@ -1695,57 +1683,50 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                         <StatCard
                             icon="apps"
                             label="Todos"
-                            count={baseFilteredVisits.length}
-                            totalValue={baseFilteredVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0)}
+                            count={summary.all.count}
+                            totalValue={summary.all.total}
                             color="text-slate-400"
                             active={activeOrderVisitProcessingIdSelected.includes('all') || activeOrderVisitProcessingIdSelected.length === allStageIds.length}
                             onClick={() => toggleProcessingSelection('all')}
-                            visits={baseFilteredVisits}
+                            loadVisits={() => loadAllVisitsFor(['all'])}
                         />
                         {processingStages.map(stage => {
                             const isHex = stage.icon_color && stage.icon_color.startsWith('#');
-                            const stageVisits = baseFilteredVisits.filter(v => v.ovProcessingId === stage.id);
                             return (
                                 <React.Fragment key={stage.id}>
                                     {stage.id === 5 && (
                                         <>
                                             {/* Card especial: Custos Rejeitados (antes de Custos Pendentes e Aprovada) */}
                                             {(() => {
-                                                const costsRejectedVisits = baseFilteredVisits.filter(
-                                                    v => v.ovProcessingId === 5 && v.ovCostsStatus === 'rejected'
-                                                );
-                                                const costsRejectedTotal = costsRejectedVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0);
+
                                                 return (
                                                     <StatCard
                                                         key="costs-rejected"
                                                         icon="receipt_long"
                                                         label="Custos Rejeitados"
-                                                        count={costsRejectedVisits.length}
-                                                        totalValue={costsRejectedTotal}
+                                                        count={summary.costsRejected.count}
+                                                        totalValue={summary.costsRejected.total}
                                                         color="text-rose-500"
                                                         active={activeOrderVisitProcessingIdSelected.includes('costs-rejected')}
                                                         onClick={() => toggleProcessingSelection('costs-rejected')}
-                                                        visits={costsRejectedVisits}
+                                                        loadVisits={() => loadAllVisitsFor(['costs-rejected'])}
                                                     />
                                                 );
                                             })()}
                                             {/* Card especial: Custos Pendentes (antes de Aprovada) */}
                                             {(() => {
-                                                const costsPendingVisits = baseFilteredVisits.filter(
-                                                    v => v.ovProcessingId === 5 && (!v.ovCostsStatus || v.ovCostsStatus === 'pending' || v.ovCostsStatus === 'waiting')
-                                                );
-                                                const costsPendingTotal = costsPendingVisits.reduce((acc, v) => acc + (v.totalValue || 0), 0);
+
                                                 return (
                                                     <StatCard
                                                         key="costs-pending"
                                                         icon="receipt_long"
                                                         label="Custos Pendentes"
-                                                        count={costsPendingVisits.length}
-                                                        totalValue={costsPendingTotal}
+                                                        count={summary.costsPending.count}
+                                                        totalValue={summary.costsPending.total}
                                                         color="text-slate-500"
                                                         active={activeOrderVisitProcessingIdSelected.includes('costs-pending')}
                                                         onClick={() => toggleProcessingSelection('costs-pending')}
-                                                        visits={costsPendingVisits}
+                                                        loadVisits={() => loadAllVisitsFor(['costs-pending'])}
                                                     />
                                                 );
                                             })()}
@@ -1760,7 +1741,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                                         styleColor={isHex ? stage.icon_color : undefined}
                                         active={activeOrderVisitProcessingIdSelected.includes(String(stage.id))}
                                         onClick={() => toggleProcessingSelection(String(stage.id))}
-                                        visits={stageVisits}
+                                        loadVisits={() => loadAllVisitsFor([String(stage.id)])}
                                     />
                                 </React.Fragment>
                             );
@@ -1878,7 +1859,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                                     Visitas
                                 </h2>
                                 <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-8">
-                                    {filteredVisits.length} registros encontrados
+                                    {selectedTotalCount} registros encontrados
                                     {isFetchingAll && (
                                         <span className="ml-2 text-primary animate-pulse">· sincronizando...</span>
                                     )}
@@ -1918,15 +1899,15 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
 
                                 <VisitsListPDFButton
                                     className="shrink-0"
-                                    visits={pdfVisitsData}
-                                    totalCount={filteredVisits.length}
+                                    loadVisits={loadPdfVisitsData}
+                                    totalCount={selectedTotalCount}
                                     filename="relatorio-visitas"
                                 />
 
                                 <VisitsListExcelButton
                                     className="shrink-0"
-                                    visits={pdfVisitsData}
-                                    totalCount={filteredVisits.length}
+                                    loadVisits={loadPdfVisitsData}
+                                    totalCount={selectedTotalCount}
                                     filename="relatorio-visitas"
                                 />
 
@@ -1987,7 +1968,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                     </div>
 
                     {/* Infinite scroll sentinel */}
-                    {filteredVisits.length > visibleCount && (
+                    {visits.length < selectedTotalCount && (
                         <div ref={loadMoreRef} className="py-8 flex flex-col items-center justify-center gap-3">
                             {isLoadingMore ? (
                                 <>
@@ -1997,7 +1978,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                                         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                        {filteredVisits.length - visibleCount} visitas restantes
+                                        {selectedTotalCount - visits.length} visitas restantes
                                     </span>
                                 </>
                             ) : (
@@ -2006,7 +1987,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                         </div>
                     )}
 
-                    {filteredVisits.length === 0 && (
+                    {selectedTotalCount === 0 && (
                         <div className="text-center py-16 text-slate-500 bg-white dark:bg-slate-800/40 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-sm">
                             <span className="material-symbols-outlined text-5xl mb-3 opacity-50">inbox</span>
                             <p className="text-lg font-medium text-slate-900 dark:text-white">Nenhuma visita encontrada</p>

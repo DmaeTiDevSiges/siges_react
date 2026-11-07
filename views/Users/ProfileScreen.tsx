@@ -17,6 +17,7 @@ import { Card } from '../../components/ui/Card';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { SignaturePad } from '../../components/ui/SignaturePad';
 import { Loading } from '../../components/ui/Loading';
+import { AccountDeletionSection } from '../../components/users/AccountDeletionSection';
 import { verifyHumanFaceInImage } from '../../services/ai/faceDetectionService';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
@@ -1530,6 +1531,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                     </div>
                 </div>
             </div>
+
+            {/* Exclusão de conta: só no próprio perfil (exigência da Play Store) */}
+            {isOwner && !isEditing && <AccountDeletionSection />}
 
             {/* Form Footer */}
             {isEditing && (

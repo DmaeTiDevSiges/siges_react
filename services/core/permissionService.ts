@@ -3,6 +3,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { Camera } from '@capacitor/camera';
 import { Capacitor, PermissionState } from '@capacitor/core';
 import { LocationService } from './locationServicePlugin';
+import { ensureLocationDisclosure } from './locationDisclosure';
 
 const isAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 
@@ -53,6 +54,10 @@ export const permissionService = {
             // --- Step 1: foreground location ---------------------------------
             let status = await Geolocation.checkPermissions();
             if (!FOREGROUND_GRANTED(status.location)) {
+                // Play Store: aviso em destaque ANTES do pedido do sistema.
+                if (!(await ensureLocationDisclosure())) {
+                    return { level: 'denied', hasBackground: false, locationServicesDisabled: false };
+                }
                 status = await Geolocation.requestPermissions({ permissions: ['location'] });
             }
 
@@ -106,6 +111,9 @@ export const permissionService = {
             if (isAndroid()) {
                 const before = await LocationService.getStatus();
                 if (before.backgroundLocation) return true;
+
+                // Play Store: aviso em destaque ANTES do pedido do sistema.
+                if (!(await ensureLocationDisclosure())) return false;
 
                 // "O tempo todo" exige a localização "durante o uso" concedida antes.
                 if (!before.fineLocation) {
@@ -161,10 +169,9 @@ export const permissionService = {
     },
 
     /**
-     * Pede ao Android para não otimizar a bateria do SIGES (diálogo do sistema;
-     * se o aparelho não suportar, abre a lista de otimização de bateria).
-     * O APK é distribuído fora da Play Store, então o uso de
-     * REQUEST_IGNORE_BATTERY_OPTIMIZATIONS não sofre a restrição de política da loja.
+     * Abre a lista de otimização de bateria do Android, onde o usuário escolhe
+     * "Não otimizar" para o SIGES (sem o pedido direto
+     * REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, restrito pela Play Store).
      * Fabricantes como Xiaomi/Samsung têm ajustes extras — ver utils/manufacturerGuide.
      */
     async openBatteryOptimizationSettings(): Promise<void> {
@@ -201,8 +208,16 @@ export const permissionService = {
      * Request all main permissions
      */
     async requestAllPermissions(): Promise<{ location: boolean; camera: boolean }> {
-        const locationResult = await this.requestLocationPermission();
-        const location = locationResult.level !== 'denied';
+        // A localização NÃO é pedida na abertura do app: o rastreador
+        // (useLocationTracker) pede depois do login, após o aviso em destaque.
+        let location = true;
+        if (Capacitor.isNativePlatform()) {
+            try {
+                location = FOREGROUND_GRANTED((await Geolocation.checkPermissions()).location);
+            } catch {
+                location = false;
+            }
+        }
         const camera = await this.requestCameraPermission();
 
         return { location, camera };

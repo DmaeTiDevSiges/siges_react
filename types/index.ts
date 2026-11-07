@@ -2176,12 +2176,21 @@ export interface OrderVisitScore {
 
 // ===== ASSET LOANS =====
 
+/** loan = Empréstimo (vistorias antes/depois); receipt = Recebimento; cedencia = Cedência (vistoria única). */
+export type AssetLoanRecordType = 'loan' | 'receipt' | 'cedencia';
+
+/** Fase do checklist: before/after (empréstimo) ou single (recebimento/cedência). */
+export type AssetLoanChecklistPhase = 'before' | 'after' | 'single';
+
 export interface AssetLoan {
   id: string;
   assetId: string;
+  recordType: AssetLoanRecordType;
+  /** Empréstimo: solicitante. Recebimento: entregue por. Cedência: cedido para. */
   borrowerName: string;
   lenderUserId: string;
-  expectedReturnDate: string;
+  /** Obrigatória só para empréstimo. */
+  expectedReturnDate?: string;
   actualReturnDate?: string;
   status: 'analysis' | 'pending' | 'closed' | 'overdue';
   notes?: string;
@@ -2249,7 +2258,7 @@ export interface AssetLoanChecklist {
   id: string;
   loanId: string;
   checklistTypeId?: string;
-  phase: 'before' | 'after';
+  phase: AssetLoanChecklistPhase;
   status: 'pending' | 'ok' | 'damaged' | 'missing' | 'not_applicable';
   customItemDescription?: string;
   notes?: string;
@@ -2278,9 +2287,11 @@ export interface AssetLoanChecklistImage {
 // Input types for creating/updating
 export interface CreateAssetLoanInput {
   assetId: string;
+  recordType: AssetLoanRecordType;
   borrowerName: string;
   lenderUserId: string;
-  expectedReturnDate: string;
+  /** Obrigatória só para empréstimo. */
+  expectedReturnDate?: string;
   notes?: string;
 }
 

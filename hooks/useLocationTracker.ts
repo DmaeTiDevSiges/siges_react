@@ -36,7 +36,7 @@ const remindBatteryOptimization = async () => {
             return;
         }
 
-        toast.warning('A economia de bateria pode interromper o rastreamento em segundo plano.', {
+        toast.warning('A economia de bateria pode interromper o rastreamento. Em Ajustar, escolha o SIGES e marque "Não otimizar".', {
             duration: 15000,
             action: {
                 label: 'Ajustar',

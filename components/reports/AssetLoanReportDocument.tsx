@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { AssetLoan, Asset } from '../../types';
 import { ChecklistItemState } from '../assetLoans/AssetLoanChecklistForm';
+import { getRecordTypeConfig, isSingleInspection } from '../assetLoans/assetLoanRecordTypes';
 
 const C = {
     primary: '#003B71',
@@ -411,17 +412,20 @@ export const AssetLoanReportDocument = ({
         });
     }
 
-    const divergentCount = mergedItems.filter(m => m.divergent).length;
+    // Recebimento / Cedência: vistoria única (sem comparação e sem devolução).
+    const single = isSingleInspection(loan.recordType);
+    const typeConfig = getRecordTypeConfig(loan.recordType);
+    const divergentCount = single ? 0 : mergedItems.filter(m => m.divergent).length;
 
     return (
-        <Document title={`Relatório de Empréstimo - ${asset?.code || loan.id}`}>
+        <Document title={`${single ? `Vistoria de ${typeConfig.label}` : 'Relatório de Empréstimo'} - ${asset?.code || loan.id}`}>
             <Page size="A4" orientation="portrait" style={styles.page}>
 
                 {/* HEADER */}
                 <View style={styles.headerContainer} fixed>
                     <View style={styles.header}>
                         <View>
-                            <Text style={styles.title}>Relatório de Empréstimo de Ativo</Text>
+                            <Text style={styles.title}>{typeConfig.reportTitle}</Text>
                             <Text style={styles.subtitle}>Siges - Sistema de Gestão</Text>
                         </View>
                         {logoBase64 ? <Image src={logoBase64} style={styles.logo} /> : null}
@@ -458,8 +462,55 @@ export const AssetLoanReportDocument = ({
                     </View>
                 </View>
 
-                {/* CHECKLIST ITEMS */}
-                {mergedItems.length > 0 && (
+                {/* CHECKLIST — VISTORIA ÚNICA */}
+                {single && beforeItems.length > 0 && (
+                    <View>
+                        <Text style={styles.sectionTitle}>Checklist da Vistoria</Text>
+                        <View style={[styles.infoRow, { marginBottom: 10 }]}>
+                            <View style={styles.infoCol}>
+                                <Text style={styles.infoLabel}>{typeConfig.personLabel}</Text>
+                                <Text style={styles.infoValue}>{loan.borrowerName}</Text>
+                            </View>
+                            <View style={styles.infoCol}>
+                                <Text style={styles.infoLabel}>Registrado em</Text>
+                                <Text style={styles.infoValue}>{fmtDate(loan.createdAt)}</Text>
+                            </View>
+                            <View style={styles.infoCol}>
+                                <Text style={styles.infoLabel}>Concluído em</Text>
+                                <Text style={styles.infoValue}>{loan.status === 'closed' ? fmtDate(loan.updatedAt) : '—'}</Text>
+                            </View>
+                        </View>
+                        {beforeItems.map((it, idx) => {
+                            const st = statusLabelMap[it.status] || it.status;
+                            const imgs = (it.images || []).map(img => img.imageUrl || '').filter(Boolean);
+                            return (
+                                <View key={idx} style={styles.checklistItem}>
+                                    <View style={styles.checklistItemHeader}>
+                                        <Text style={styles.checklistItemName}>
+                                            {it.itemDescription || it.customItemDescription || `Item ${idx + 1}`}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.checklistItemBody}>
+                                        <View style={styles.phaseColumn}>
+                                            <Text style={phaseStatusStyle(st)}>{st}</Text>
+                                            {it.notes ? <Text style={styles.phaseNotes}>{it.notes}</Text> : null}
+                                            {imgs.length > 0 && (
+                                                <View style={styles.phaseImages}>
+                                                    {imgs.map((img, imgIdx) => (
+                                                        <Image key={imgIdx} src={img} style={styles.phaseImage} />
+                                                    ))}
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+
+                {/* CHECKLIST ITEMS — EMPRÉSTIMO (comparativo) */}
+                {!single && mergedItems.length > 0 && (
                     <View>
                         <Text style={styles.sectionTitle}>Checklist Comparativo</Text>
                         <View style={[styles.infoRow, { marginBottom: 10 }]}>
@@ -539,6 +590,17 @@ export const AssetLoanReportDocument = ({
                 )}
 
                 {/* VISTORIADORES */}
+                {single ? (
+                <View style={styles.inspectorRow}>
+                    <View style={[styles.inspectorCard, styles.inspectorCardDelivery]}>
+                        <Text style={styles.inspectorLabel}>Vistoriador</Text>
+                        <Text style={styles.inspectorName}>{loan.inspectorDeliveryName || loan.signatureDeliverySignerName || 'Não informado'}</Text>
+                        {loan.signatureDeliveryAt && (
+                            <Text style={styles.inspectorDate}>Assinado em {fmtDateTime(loan.signatureDeliveryAt)}</Text>
+                        )}
+                    </View>
+                </View>
+                ) : (
                 <View style={styles.inspectorRow}>
                     <View style={[styles.inspectorCard, styles.inspectorCardDelivery]}>
                         <Text style={styles.inspectorLabel}>Vistoriador da Entrega</Text>
@@ -555,6 +617,7 @@ export const AssetLoanReportDocument = ({
                         )}
                     </View>
                 </View>
+                )}
 
                 {/* NOTES */}
                 {loan.notes && (
@@ -572,12 +635,13 @@ export const AssetLoanReportDocument = ({
                         ) : (
                             <View style={[styles.signatureImage, styles.signatureLine]} />
                         )}
-                        <Text style={styles.signatureLabel}>Assinatura Entrega</Text>
+                        <Text style={styles.signatureLabel}>{single ? 'Assinatura do Vistoriador' : 'Assinatura Entrega'}</Text>
                         {loan.signatureDeliverySignerName && (
                             <Text style={styles.signatureName}>{loan.signatureDeliverySignerName}</Text>
                         )}
                         <Text style={styles.signatureDate}>{fmtDateTime(loan.signatureDeliveryAt)}</Text>
                     </View>
+                    {!single && (
                     <View style={styles.signatureBlock}>
                         {signatureReturnBase64 ? (
                             <Image src={signatureReturnBase64} style={styles.signatureImage} />
@@ -590,6 +654,7 @@ export const AssetLoanReportDocument = ({
                         )}
                         <Text style={styles.signatureDate}>{fmtDateTime(loan.signatureReturnAt)}</Text>
                     </View>
+                    )}
                 </View>
 
                 {/* FOOTER */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AssetLoanChecklist, AssetLoanChecklistImage } from '../../types';
+import { AssetLoanChecklistImage, AssetLoanChecklistPhase } from '../../types';
 import { dataService } from '../../services/dataService';
 import { AssetLoanChecklistImageViewer } from './AssetLoanChecklistImageViewer';
 import { AssetLoanCustomChecklistItem } from './AssetLoanCustomChecklistItem';
@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 
 interface AssetLoanChecklistFormProps {
     loanId: string;
-    phase: 'before' | 'after';
+    phase: AssetLoanChecklistPhase;
     assetTypeId: string;
     readonly?: boolean;
     hideSaveButton?: boolean;
@@ -160,6 +160,7 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
             }
 
             const imageUploads: Promise<unknown>[] = [];
+            let failedUploads = 0;
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
                 if (item.pendingImageFiles.length > 0 && item.checklistDbId) {
@@ -168,6 +169,7 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
                             dataService
                                 .uploadAssetLoanChecklistImageFromPending(item.checklistDbId, file, userId || '1', loanId)
                                 .catch((imgError) => {
+                                    failedUploads++;
                                     console.error('Error uploading checklist image:', imgError);
                                 })
                         );
@@ -177,11 +179,17 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
             if (imageUploads.length > 0) {
                 await Promise.allSettled(imageUploads);
             }
-            
+
+            // Evidência que não subiu não pode passar como salva.
+            if (failedUploads > 0) {
+                toast.error(`${failedUploads} foto(s) não foram enviadas. Verifique a conexão e salve novamente.`);
+                return;
+            }
+
             toast.success('Checklist salvo com sucesso!');
             onSave?.();
-        } catch (error) {
-            toast.error('Erro ao salvar checklist');
+        } catch (error: any) {
+            toast.error(error?.message || 'Erro ao salvar checklist');
         } finally {
             setIsSaving(false);
         }
@@ -275,6 +283,7 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
                             onPendingImageAdd={(file) => handlePendingImageAdd(index, file)}
                             pendingImagesCount={item.pendingImageFiles.length}
                             canDeleteImages={canDeleteImages}
+                            userId={userId}
                         />
                     </div>
                 ))}

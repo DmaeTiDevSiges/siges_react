@@ -8,6 +8,7 @@ import { Button } from './components/ui/Button';
 import { SplashScreen } from './components/shell/SplashScreen';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import UpdateNotifier from './components/shell/UpdateNotifier';
+import { LocationDisclosureModal } from './components/permissions/LocationDisclosureModal';
 import { dataService } from './services/dataService';
 import { usePermissions } from './contexts/PermissionsContext';
 import { permissionService } from './services/core/permissionService';
@@ -718,7 +719,8 @@ const AppContent: React.FC = () => {
 
     const loadUser = async () => {
       try {
-        const user = await withTimeout(dataService.getCurrentUser(), 8000);
+        // force: loadUser é chamado no login e quando a própria linha muda (realtime)
+        const user = await withTimeout(dataService.getCurrentUser({ force: true }), 8000);
 
         // If timeout returned null, don't reset user — keep current state
         if (!user && currentUserRef.current) {
@@ -2630,51 +2632,32 @@ const AppContent: React.FC = () => {
             onStartVisit={(startedAt?: string) => {
               return new Promise<void>(async (resolve, reject) => {
                 if (selectedOrder && currentUser) {
-                  if (!navigator.geolocation) {
-                    toast.error('Geolocalização não suportada pelo seu navegador');
-                    reject(new Error('Geolocation not supported'));
-                    return;
-                  }
+                  try {
+                    toast.loading('Iniciando visita...');
+                    await dataService.startOrderVisit(selectedOrder, currentUser, startedAt);
+                    toast.dismiss();
+                    toast.success('Visita iniciada com sucesso!');
 
-                  navigator.geolocation.getCurrentPosition(
-                    async (position) => {
-                      try {
-                        toast.loading('Iniciando visita...');
-                        await dataService.startOrderVisit(selectedOrder, currentUser, startedAt);
-                        toast.dismiss();
-                        toast.success('Visita iniciada com sucesso!');
-
-                        // Refresh user data to update isAvailable and inProgress status
-                        const updatedUser = await dataService.getCurrentUser();
-                        if (updatedUser) {
-                          setCurrentUser(updatedUser);
-                          if (updatedUser.ovIdInProgress) {
-                            setLastVisitSource('order-detail');
-                            setCurrentScreen('order-visit-execute');
-                          } else {
-                            setCurrentScreen('dashboard');
-                          }
-                        } else {
-                          setCurrentScreen('dashboard');
-                        }
-                        resolve();
-                      } catch (e) {
-                        toast.dismiss();
-                        toast.error(e instanceof Error ? e.message : 'Erro ao iniciar visita');
-                        console.error(e);
-                        reject(e);
-                      }
-                    },
-                    (error) => {
-                      if (error.code === error.TIMEOUT) {
-                        toast.error('Tempo esgotado ao obter a localização. Tente novamente.');
+                    // Refresh user data to update isAvailable and inProgress status
+                    const updatedUser = await dataService.getCurrentUser({ force: true });
+                    if (updatedUser) {
+                      setCurrentUser(updatedUser);
+                      if (updatedUser.ovIdInProgress) {
+                        setLastVisitSource('order-detail');
+                        setCurrentScreen('order-visit-execute');
                       } else {
-                        toast.error('Para iniciar a visita, você deve habilitar o acesso à localização.');
+                        setCurrentScreen('dashboard');
                       }
-                      reject(error);
-                    },
-                    { timeout: 5000, maximumAge: 0, enableHighAccuracy: false }
-                  );
+                    } else {
+                      setCurrentScreen('dashboard');
+                    }
+                    resolve();
+                  } catch (e) {
+                    toast.dismiss();
+                    toast.error(e instanceof Error ? e.message : 'Erro ao iniciar visita');
+                    console.error(e);
+                    reject(e);
+                  }
                 } else {
                   reject(new Error('Missing order or user'));
                 }
@@ -2685,7 +2668,7 @@ const AppContent: React.FC = () => {
               setVisitRefreshKey(k => k + 1);
               setLastVisitSource('order-detail');
               setCurrentScreen('order-visit-execute');
-              dataService.getCurrentUser().then(u => { if (u) setCurrentUser(u); });
+              dataService.getCurrentUser({ force: true }).then(u => { if (u) setCurrentUser(u); });
             }}
             onSelectParentOrder={handleOrderSelect}
             onSelectVisit={handleVisitSelect}
@@ -3372,6 +3355,9 @@ const AppContent: React.FC = () => {
               onRetry={() => setRetryLocation(prev => prev + 1)}
             />
           )}
+
+          {/* Aviso em destaque antes do pedido de localização (Play Store) */}
+          <LocationDisclosureModal />
 
           <Modal
             isOpen={showShiftAlert.show}

@@ -5,6 +5,7 @@ import { getPublicImageUrl } from '../media/imageUtils';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { getBrazilDateInputValue } from '../../utils/formatters';
 import { usersService } from '../users/usersService';
+import { applyTrackerPositions } from '../users/userTrackerService';
 
 export const companiesService = {
     async getCompanies(): Promise<Company[]> {
@@ -884,6 +885,8 @@ export const companiesService = {
             console.error('Error fetching leaders by company:', error);
             return [];
         }
+
+        await applyTrackerPositions(data || []);
 
         return (data || []).map((item: any) => ({
             id: item.id.toString(),

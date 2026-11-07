@@ -5,8 +5,33 @@ import { getPublicImageUrl } from '../media/imageUtils';
 import { r2Service } from '../media/r2Service';
 import { compressPng } from '../media/imageCompressionService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
+import { applyTrackerPositions, reportSessionLocation } from './userTrackerService';
 
 let currentUserPromise: Promise<User | null> | null = null;
+
+/**
+ * Cache curto do usuário logado. Antes cada getCurrentUser() ia ao servidor
+ * (auth.getUser + users com joins): ~144 mil chamadas no pg_stat_statements.
+ * Invalidado no login/logout (onAuthStateChange), nas gravações do próprio
+ * usuário (wrapper no fim do arquivo) e ignorado com { force: true }.
+ */
+const CURRENT_USER_TTL_MS = 30_000;
+let currentUserCache: { user: User; at: number } | null = null;
+/** Incrementa a cada invalidação: resposta de busca iniciada antes não é cacheada. */
+let currentUserGeneration = 0;
+
+export const invalidateCurrentUserCache = () => {
+    currentUserCache = null;
+    currentUserPromise = null;
+    currentUserGeneration++;
+};
+
+// (opcional: nos testes o cliente supabase é um mock sem auth)
+supabase.auth?.onAuthStateChange?.((event) => {
+    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        invalidateCurrentUserCache();
+    }
+});
 
 export const usersService = {
     async getUsers(): Promise<User[]> {
@@ -423,6 +448,9 @@ export const usersService = {
             console.error('Error fetching users by company:', error);
             throw error;
         }
+
+        // Posição atual vem de users_tracker (fora do Realtime de users).
+        await applyTrackerPositions(data || []);
 
         return data.map((item: any) => ({
             id: item.id.toString(),
@@ -901,10 +929,16 @@ export const usersService = {
         }
     },
 
-    async getCurrentUser(): Promise<User | null> {
-        if (currentUserPromise) return currentUserPromise;
+    async getCurrentUser(options?: { force?: boolean }): Promise<User | null> {
+        if (!options?.force) {
+            if (currentUserCache && Date.now() - currentUserCache.at < CURRENT_USER_TTL_MS) {
+                return currentUserCache.user;
+            }
+            if (currentUserPromise) return currentUserPromise;
+        }
 
-        currentUserPromise = (async () => {
+        const generation = currentUserGeneration;
+        const request = (async () => {
             try {
                 const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
@@ -955,6 +989,8 @@ export const usersService = {
                     }
                     return null;
                 }
+
+                await applyTrackerPositions([data]);
 
                 let company: any = null;
                 const teamCompanyId = data.cfg_teams?.company_id;
@@ -1054,14 +1090,24 @@ export const usersService = {
                     permissions: permissions
                 } as User;
             } catch (error) {
-                currentUserPromise = null;
                 throw error;
             }
-        })().finally(() => {
-            currentUserPromise = null;
-        });
+        })();
 
-        return currentUserPromise;
+        currentUserPromise = request;
+        request
+            .then(user => {
+                if (generation !== currentUserGeneration) return;
+                currentUserCache = user ? { user, at: Date.now() } : null;
+            })
+            .catch(() => {
+                if (generation === currentUserGeneration) currentUserCache = null;
+            })
+            .finally(() => {
+                if (currentUserPromise === request) currentUserPromise = null;
+            });
+
+        return request;
     },
 
     async updateProfile(userUuid: string, user: Partial<User>, onProgress?: (progress: number) => void): Promise<void> {
@@ -1421,23 +1467,9 @@ export const usersService = {
         accuracy: number | null = null
     ): Promise<void> {
         try {
-            const now = getBrazilTimestamp();
-            const updatePayload: Record<string, any> = {
-                latitude,
-                longitude,
-                tracker_heartbeat_at: now,
-                tracked_at: now,
-            };
-            if (accuracy !== null) {
-                updatePayload.tracker_accuracy = accuracy;
-            }
-            const { error } = await supabase
-                .from('users')
-                .update(updatePayload)
-                .eq('id', userId);
-            if (error) {
-                console.error('[usersService] Error updating user location:', error);
-            }
+            // users_tracker via RPC (não dispara o Realtime de users);
+            // sem a migration 20261111, grava em users como antes.
+            await reportSessionLocation(userId, latitude, longitude, accuracy);
         } catch (error) {
             console.error('[usersService] Exception updating user location:', error);
         }
@@ -1470,14 +1502,6 @@ export const usersService = {
                     if (updateError) {
                         console.error('Error syncing UUID:', updateError);
                     }
-                }
-
-                // Sync phone number from device
-                try {
-                    const { syncPhoneNumber } = await import('../core/phoneService');
-                    await syncPhoneNumber(data.user.id, existingUser?.mobile);
-                } catch (phoneErr) {
-                    console.error('Phone sync failed:', phoneErr);
                 }
             } catch (syncError) {
                 console.error('Failed to sync user UUID:', syncError);
@@ -1539,7 +1563,7 @@ export const usersService = {
             throw new Error('Erro ao restaurar sessão do admin');
         }
 
-        currentUserPromise = null;
+        invalidateCurrentUserCache();
     },
 
     subscribeToAuthChanges(callback: (event: string, session: any) => void) {
@@ -1734,3 +1758,24 @@ export const usersService = {
         return data?.tracker_interval_seconds ?? null;
     }
 };
+
+// Gravações que mudam o usuário logado (ou podem mudar): invalida o cache de
+// getCurrentUser antes e depois. updateLastOnline/updateUserLocation ficam de
+// fora (frequentes e não alteram os campos usados pelo app).
+for (const method of [
+    'addUserToTeam', 'removeUserFromTeam', 'createUser', 'deleteUserSignature',
+    'setTeamLeader', 'signIn', 'signOut', 'updatePhoneNumber', 'updateProfile',
+    'updateUserAvailability', 'updateUserSignature', 'updateUserStatus',
+    'updateUserTeam', 'updateUserVehicle',
+] as const) {
+    const original = (usersService as any)[method];
+    if (typeof original !== 'function') continue;
+    (usersService as any)[method] = async function (this: unknown, ...args: unknown[]) {
+        invalidateCurrentUserCache();
+        try {
+            return await original.apply(this, args);
+        } finally {
+            invalidateCurrentUserCache();
+        }
+    };
+}

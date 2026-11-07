@@ -15,6 +15,27 @@ const ordersMetadataCache = {
     CACHE_DURATION: 5 * 60 * 1000
 };
 
+/**
+ * cfg_companies (id, descrição, logo) com cache de 5 min. Antes cada
+ * getOpenOS/getCompletedOS/... buscava a tabela inteira a cada chamada —
+ * na Gestão > OS's eram 7+ consultas iguais por atualização da tela.
+ */
+const getCompaniesBasicCached = async (): Promise<any[]> => {
+    const now = Date.now();
+    if (companiesBasicCache.data && now - companiesBasicCache.at < ordersMetadataCache.CACHE_DURATION) {
+        return companiesBasicCache.data;
+    }
+    const { data, error } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+    if (error) {
+        console.error('Error fetching companies:', error);
+        return companiesBasicCache.data || [];
+    }
+    companiesBasicCache.data = data || [];
+    companiesBasicCache.at = now;
+    return companiesBasicCache.data;
+};
+const companiesBasicCache = { data: null as any[] | null, at: 0 };
+
 export const ordersService = {
     /**
      * Get Active Orders (SS/OS) by unit asset tag ID
@@ -843,7 +864,7 @@ export const ordersService = {
         try {
             const pid = typeof parentId === 'string' && !isNaN(Number(parentId)) ? Number(parentId) : parentId;
 
-            const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+            const companies = await getCompaniesBasicCached();
             const companyMap = new Map<any, any>((companies || []).map((c: any) => [c.id, c]));
 
             const { data, error } = await supabase
@@ -1203,17 +1224,20 @@ export const ordersService = {
         }
     },
 
-    async getOrdersFilters(filters?: OrderFilters & { page?: number; pageSize?: number; viewName?: string }): Promise<{ data: Order[]; hasMore: boolean; total: number }> {
+    async getOrdersFilters(filters?: OrderFilters & { page?: number; pageSize?: number; viewName?: string; skipCount?: boolean }): Promise<{ data: Order[]; hasMore: boolean; total: number }> {
         const page = filters?.page ?? 0;
         const pageSize = filters?.pageSize ?? 20;
         const from = page * pageSize;
         const to = from + pageSize - 1;
+        // skipCount: sem count exact (caro em v_orders); pede 1 linha a mais só
+        // para saber se há próxima página. Nesse modo `total` é parcial.
+        const skipCount = !!filters?.skipCount;
 
         const viewName = filters?.viewName || 'v_orders';
 
         let query = supabase
             .from(viewName)
-            .select('*', { count: 'exact' });
+            .select('*', skipCount ? undefined : { count: 'exact' });
 
         if (!filters?.useGeneralView) {
             query = query.not('status_id', 'in', '(7,8)');
@@ -1321,9 +1345,9 @@ export const ordersService = {
             }
         }
 
-        query = query.order('requested_at', { ascending: filters?.sortAscending ?? false }).range(from, to);
+        query = query.order('requested_at', { ascending: filters?.sortAscending ?? false }).range(from, skipCount ? to + 1 : to);
 
-        const { data, error, count } = await query;
+        const { data: rawData, error, count } = await query;
 
         if (error) {
             if (error.code === 'PGRST103') {
@@ -1333,8 +1357,17 @@ export const ordersService = {
             throw error;
         }
 
-        const total = count || 0;
-        const hasMore = to < total - 1;
+        let data = rawData;
+        let total: number;
+        let hasMore: boolean;
+        if (skipCount) {
+            hasMore = (rawData?.length || 0) > pageSize;
+            data = hasMore ? (rawData || []).slice(0, pageSize) : rawData;
+            total = from + (data?.length || 0) + (hasMore ? 1 : 0);
+        } else {
+            total = count || 0;
+            hasMore = to < total - 1;
+        }
 
         const now = Date.now();
         let companiesWithUrls: any[] = [];
@@ -2016,7 +2049,7 @@ export const ordersService = {
         const { data, error } = await query.order('requested_at', { ascending: false });
         if (error) { console.error('Error fetching open SS:', error); return []; }
 
-        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companies = await getCompaniesBasicCached();
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         return (data || []).map((item: any) => {
@@ -2158,7 +2191,7 @@ export const ordersService = {
         const { data, error } = await query.order('requested_at', { ascending: false });
         if (error) { console.error('Error fetching open OS:', error); return []; }
 
-        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companies = await getCompaniesBasicCached();
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         return (data || []).map((item: any) => {
@@ -2258,7 +2291,7 @@ export const ordersService = {
     },
 
     async getOrdersByTeam(teamId: string): Promise<Order[]> {
-        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companies = await getCompaniesBasicCached();
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         const { data, error } = await supabase
@@ -2338,7 +2371,7 @@ export const ordersService = {
     },
 
     async getOrdersByLeader(leaderId: string): Promise<Order[]> {
-        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companies = await getCompaniesBasicCached();
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         const { data, error } = await supabase
@@ -2410,6 +2443,84 @@ export const ordersService = {
                 imgFilesNames: row.img_files_names
             } as Order;
         });
+    },
+
+    /**
+     * Contagens de OS concluídas por período (hoje, ontem, esta semana, semana
+     * passada, este mês, mês passado) numa única chamada — RPC
+     * fn_orders_completed_counts (migration 20261109), períodos em São Paulo.
+     * Retorna null se o RPC ainda não existir no banco (o chamador usa o
+     * caminho antigo, uma consulta por período).
+     */
+    async getCompletedOSCounts(filters: {
+        search?: string;
+        systemParentId?: string | string[];
+        systemId?: string | string[];
+        unitTypeParentId?: string | string[];
+        unitTypeId?: string | string[];
+        unitId?: string | string[];
+        assetTagId?: string | string[];
+        assetTagSubId?: string | string[];
+        orderObjectId?: string | string[];
+        orderTypeId?: string | string[];
+        orderTypeSubId?: string | string[];
+        contractId?: string | string[];
+        orderPlanId?: string | string[];
+        orderTeamId?: string | string[];
+        responsibleTeamId?: string | string[];
+        priorityId?: string | string[];
+        providerCompanyId?: string | string[];
+        causeReasonId?: string | string[];
+    } = {}): Promise<Record<'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth', number> | null> {
+        const columnByFilter: Record<string, string> = {
+            systemParentId: 'system_parent_id',
+            systemId: 'system_id',
+            unitTypeParentId: 'unit_type_parent_id',
+            unitTypeId: 'unit_type_id',
+            unitId: 'unit_id',
+            assetTagId: 'asset_tag_id',
+            assetTagSubId: 'asset_tag_sub_id',
+            orderObjectId: 'object_id',
+            orderTypeId: 'type_id',
+            orderTypeSubId: 'type_sub_id',
+            contractId: 'contract_id',
+            orderPlanId: 'plan_id',
+            orderTeamId: 'requester_team_id',
+            responsibleTeamId: 'team_id',
+            priorityId: 'priority_id',
+            providerCompanyId: 'provider_company_id',
+            causeReasonId: 'cause_reason_id',
+        };
+
+        // Mesma normalização de getCompletedOS: ignora vazios/"null"/"undefined".
+        const payload: Record<string, unknown> = {};
+        for (const [key, column] of Object.entries(columnByFilter)) {
+            const raw = (filters as Record<string, unknown>)[key];
+            const values = (Array.isArray(raw) ? raw : [raw])
+                .filter(v => v !== null && v !== undefined && v !== '' &&
+                    String(v).toLowerCase() !== 'null' && String(v).toLowerCase() !== 'undefined')
+                .map(v => String(v));
+            if (values.length > 0) payload[column] = values;
+        }
+        if (filters.search?.trim()) payload.search = filters.search.trim();
+
+        const { data, error } = await supabase.rpc('fn_orders_completed_counts', { p_filters: payload });
+        if (error) {
+            // PGRST202 / 42883: função ainda não criada → caminho antigo
+            if (error.code === 'PGRST202' || error.code === '42883') return null;
+            console.error('Error fetching completed OS counts:', error);
+            return null;
+        }
+
+        const counts = (data || {}) as Record<string, number>;
+        return {
+            today: Number(counts.today) || 0,
+            yesterday: Number(counts.yesterday) || 0,
+            thisWeek: Number(counts.thisWeek) || 0,
+            lastWeek: Number(counts.lastWeek) || 0,
+            thisMonth: Number(counts.thisMonth) || 0,
+            lastMonth: Number(counts.lastMonth) || 0,
+        };
     },
 
     async getCompletedOS(filters?: {
@@ -2512,7 +2623,7 @@ export const ordersService = {
 
         const total = count || 0;
 
-        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companies = await getCompaniesBasicCached();
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         const orders = (data || []).map((item: any) => {
@@ -2697,7 +2808,7 @@ export const ordersService = {
 
         const total = count || 0;
 
-        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companies = await getCompaniesBasicCached();
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         const orders = (data || []).map((item: any) => {
@@ -2890,7 +3001,7 @@ export const ordersService = {
 
         const total = count || 0;
 
-        const { data: companies } = await supabase.from('cfg_companies').select('id, description, img_file_path, img_file_name');
+        const companies = await getCompaniesBasicCached();
         const companyMap = new Map<string, any>((companies || []).map((c: any) => [c.id?.toString(), c]));
 
         const orders = (data || []).map((item: any) => {

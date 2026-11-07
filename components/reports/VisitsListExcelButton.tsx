@@ -8,7 +8,9 @@ import { ExcelExportUtils } from '../../utils/ExcelExportUtils';
 import { Loading } from '../ui/Loading';
 
 interface VisitsListExcelButtonProps {
-    visits: VisitListRow[];
+    visits?: VisitListRow[];
+    /** Busca as visitas no clique (lista paginada no servidor). */
+    loadVisits?: () => Promise<VisitListRow[]>;
     filename?: string;
     className?: string;
     totalCount?: number;
@@ -40,6 +42,7 @@ const fmtNumber = (val: any) => {
  */
 export const VisitsListExcelButton = ({
     visits,
+    loadVisits,
     filename = 'relatorio-visitas',
     className = '',
     totalCount,
@@ -47,16 +50,29 @@ export const VisitsListExcelButton = ({
     const [isExporting, setIsExporting] = useState(false);
 
     const handleExport = async () => {
-        if (!visits || visits.length === 0) {
+        // Lista vem por parâmetro ou é buscada na hora (paginação no servidor).
+        let list = visits || [];
+        if (loadVisits) {
+            const loadingToast = toast.loading('Carregando visitas...');
+            try {
+                list = await loadVisits();
+            } catch (err) {
+                console.error('Erro ao carregar visitas para exportar:', err);
+                toast.error('Erro ao carregar as visitas.', { id: loadingToast });
+                return;
+            }
+            toast.dismiss(loadingToast);
+        }
+        if (!list || list.length === 0) {
             toast.error('Nenhuma visita disponível para exportar.');
             return;
         }
 
         try {
             setIsExporting(true);
-            const toastId = toast.loading(`Gerando Excel com ${visits.length} visitas...`);
+            const toastId = toast.loading(`Gerando Excel com ${list.length} visitas...`);
 
-            const rows = visits.map(v => ({
+            const rows = list.map(v => ({
                 ovMask: fmtText(v.ovMask),
                 ovStartedAt: fmtDateTime(v.ovStartedAt),
                 ovEndedAt: fmtDateTime(v.ovEndedAt),
@@ -92,7 +108,7 @@ export const VisitsListExcelButton = ({
                 totalValue: 'TOTAL',
             };
 
-            const totals = visits.reduce(
+            const totals = list.reduce(
                 (acc, v) => ({
                     materiais: acc.materiais + (v.materialsValue || 0),
                     transportes: acc.transportes + (v.vehiclesValue || 0),

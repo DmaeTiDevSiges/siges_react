@@ -2,6 +2,7 @@ import React from 'react';
 import { AssetLoan } from '../../types';
 import { AssetLoanStatusBadge } from './AssetLoanStatusBadge';
 import { formatDate } from '../../utils/formatters';
+import { getRecordTypeConfig } from './assetLoanRecordTypes';
 
 interface AssetLoanCardProps {
     loan: AssetLoan;
@@ -12,7 +13,8 @@ interface AssetLoanCardProps {
 export const AssetLoanCard: React.FC<AssetLoanCardProps> = ({ loan, onViewDetails, onStatusChange }) => {
     const isOverdue = loan.computedStatus === 'overdue';
     const isActive = loan.status === 'pending';
-    const isPending = loan.status === 'analysis';
+    const typeConfig = getRecordTypeConfig(loan.recordType);
+    const isLoan = loan.recordType === 'loan';
 
     return (
         <div
@@ -27,20 +29,24 @@ export const AssetLoanCard: React.FC<AssetLoanCardProps> = ({ loan, onViewDetail
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-4 text-xs mb-2">
-                        <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary mb-1.5">
+                        <span className="material-symbols-outlined text-sm">{typeConfig.icon}</span>
+                        {typeConfig.label}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs mb-2">
+                        <div className="flex items-center gap-1.5 min-w-0" title={typeConfig.personLabel}>
                             <span className="material-symbols-outlined text-slate-400 text-sm">person</span>
-                            <span className="font-bold text-slate-900 dark:text-white">
-                                {loan.borrowerName || 'Mutuário não informado'}
+                            <span className="font-bold text-slate-900 dark:text-white truncate">
+                                {loan.borrowerName || 'Não informado'}
                             </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5" title={isLoan ? 'Devolução prevista' : 'Registrado em'}>
                             <span className="material-symbols-outlined text-slate-400 text-sm">calendar_today</span>
                             <span className={`font-bold ${isOverdue ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
-                                {formatDate(loan.expectedReturnDate)}
+                                {formatDate(isLoan ? loan.expectedReturnDate : loan.createdAt)}
                             </span>
                         </div>
-                        {loan.actualReturnDate && (
+                        {isLoan && loan.actualReturnDate && (
                             <div className="flex items-center gap-1.5">
                                 <span className="material-symbols-outlined text-green-500 text-sm">check_circle</span>
                                 <span className="font-bold text-green-600 dark:text-green-400">

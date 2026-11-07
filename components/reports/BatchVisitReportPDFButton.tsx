@@ -12,7 +12,11 @@ import { Loading } from '../ui/Loading';
 
 
 interface BatchVisitReportPDFButtonProps {
-    visits: any[];
+    visits?: any[];
+    /** Busca as visitas no clique (lista paginada no servidor). */
+    loadVisits?: () => Promise<any[]>;
+    /** Quantidade exibida no botão quando as visitas são buscadas no clique. */
+    count?: number;
     filename?: string;
     className?: string;
     label?: string;
@@ -24,6 +28,8 @@ interface BatchVisitReportPDFButtonProps {
  */
 export const BatchVisitReportPDFButton = ({
     visits,
+    loadVisits,
+    count,
     filename = 'relatorio-lote-visitas',
     className = '',
     label,
@@ -34,20 +40,33 @@ export const BatchVisitReportPDFButton = ({
     const handleExport = async (e: React.MouseEvent) => {
         e.stopPropagation(); // Evitar disparar o clique do card/filtro
         if (loading) return;
-        if (!visits || visits.length === 0) {
+        // Lista vem por parâmetro ou é buscada na hora (paginação no servidor).
+        let list = visits || [];
+        if (loadVisits) {
+            const loadingToast = toast.loading('Carregando visitas...');
+            try {
+                list = await loadVisits();
+            } catch (err) {
+                console.error('Erro ao carregar visitas para exportar:', err);
+                toast.error('Erro ao carregar as visitas.', { id: loadingToast });
+                return;
+            }
+            toast.dismiss(loadingToast);
+        }
+        if (!list || list.length === 0) {
             toast.error('Nenhuma visita disponível para exportar.');
             return;
         }
 
         setLoading(true);
-        const toastId = toast.loading(`Gerando relatórios para ${visits.length} visitas... Isso pode levar um tempo.`);
+        const toastId = toast.loading(`Gerando relatórios para ${list.length} visitas... Isso pode levar um tempo.`);
 
         try {
             const logoBase64 = await getLogoBase64();
             const reportsData: VisitReportData[] = [];
 
             // Ordenar as visitas em ordem crescente do início da visita (ovStartedAt), com fallback para a data de criação (ovCreatedAt) e ID
-            const sortedVisits = [...visits].sort((a, b) => {
+            const sortedVisits = [...list].sort((a, b) => {
                 const timeA = a.ovStartedAt ? new Date(a.ovStartedAt).getTime() : (a.ovCreatedAt ? new Date(a.ovCreatedAt).getTime() : 0);
                 const timeB = b.ovStartedAt ? new Date(b.ovStartedAt).getTime() : (b.ovCreatedAt ? new Date(b.ovCreatedAt).getTime() : 0);
                 if (timeA !== timeB) {
@@ -279,7 +298,7 @@ export const BatchVisitReportPDFButton = ({
                     <>
                         <FaFilePdf size={14} className="text-red-500" />
                         <span className="text-[11px] font-black text-slate-200 uppercase tracking-tight">
-                            PDF{visits.length > 0 ? ` (${visits.length})` : ''}
+                            PDF{(count ?? visits?.length ?? 0) > 0 ? ` (${count ?? visits?.length})` : ''}
                         </span>
                     </>
                 )}

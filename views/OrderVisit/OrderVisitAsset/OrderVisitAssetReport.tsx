@@ -21,6 +21,7 @@ import { usePermissions } from '../../../contexts/PermissionsContext';
 import { AssetAlertModal } from '../../Assets/AssetAlertModal';
 import { Select } from '../../../components/ui/Select';
 import { Modal } from '../../../components/ui/Modal';
+import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
 import { getProcessingStatus } from '../../../components/ordersVisits/OrderVisitProcessingButton';
 import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
 import { ImageUploadSheet } from '../../../components/ui/ImageUploadSheet';
@@ -251,12 +252,15 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [reportAssetAlerts, setReportAssetAlerts] = useState<AssetAlert[]>([]);
     const [completedAlertIds, setCompletedAlertIds] = useState<string[]>([]);
     const [isAddingAlert, setIsAddingAlert] = useState(false);
+    const [alertInitialDescription, setAlertInitialDescription] = useState('');
 
     // Cover photo state
     const [showCoverConfirmModal, setShowCoverConfirmModal] = useState(false);
     const [selectedCoverUrl, setSelectedCoverUrl] = useState<string | null>(null);
     const [isUpdatingCover, setIsUpdatingCover] = useState(false);
     const [removingActivityId, setRemovingActivityId] = useState<string | null>(null);
+    const [removingMaterialId, setRemovingMaterialId] = useState<string | null>(null);
+    const [materialToDelete, setMaterialToDelete] = useState<OrderVisitAssetMaterial | null>(null);
 
     // Recorder state
     const [hasRecorder, setHasRecorder] = useState(initialAsset?.hasRecorder ?? true);
@@ -1091,6 +1095,31 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         }
     };
 
+    const handleRemoveMaterial = async (materialRowId: string) => {
+        setRemovingMaterialId(materialRowId);
+        try {
+            let userId = currentUserId;
+            if (!userId) {
+                const u = await dataService.getCurrentUser();
+                if (u) {
+                    userId = u.id;
+                    setCurrentUserId(u.id);
+                }
+            }
+            if (!userId) return;
+
+            await dataService.removeMaterialFromAsset(materialRowId, userId);
+            setUsedMaterials(prev => prev.filter(m => m.id !== materialRowId));
+            setMaterialToDelete(null);
+            toast.success('Material removido');
+        } catch (error) {
+            console.error('Error removing material:', error);
+            toast.error('Erro ao remover material');
+        } finally {
+            setRemovingMaterialId(null);
+        }
+    };
+
     const handleRemoveActivity = async (activityId: string) => {
         setRemovingActivityId(activityId);
         try {
@@ -1212,6 +1241,10 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     initialPlanId={asset.maintenancePlanId}
                     onUpdateProgress={(val) => setMaintenanceProgress(val)}
                     disabled={isReadOnly || isVisitFiled}
+                    onAddAlert={canCreate('assets_alerts') ? (description) => {
+                        setAlertInitialDescription(description);
+                        setIsAddingAlert(true);
+                    } : undefined}
                 />
 
                 {/* Atividades realizadas */}
@@ -1291,10 +1324,12 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     {usedMaterials.length > 0 ? (
                         <>
                             <div className="space-y-2">
-                                {usedMaterials.map((item) => (
+                                {usedMaterials.map((item) => {
+                                    const isRemoving = removingMaterialId === item.id;
+                                    return (
                                     <div
                                         key={item.id}
-                                        className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50"
+                                        className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 transition-all ${isRemoving ? 'opacity-50 pointer-events-none scale-[0.98]' : ''}`}
                                     >
                                         <div className="flex flex-col items-start gap-1">
                                             <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
@@ -1307,16 +1342,38 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                                 {item.amount} {item.materialUnit}
                                             </span>
                                         </div>
-                                        <div className="text-right flex flex-col items-end">
-                                            {canView('orders_visits_costs') && (
-                                                <span className="text-[10px] font-black text-slate-900 dark:text-white">
-                                                    {item.valueTotal?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                </span>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <div className="text-right flex flex-col items-end">
+                                                {canView('orders_visits_costs') && (
+                                                    <span className="text-[10px] font-black text-slate-900 dark:text-white">
+                                                        {item.valueTotal?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {/* Mesma regra das atividades: some com a visita aprovada */}
+                                            {canRemoveActivities && (
+                                                <>
+                                                    <div className="self-stretch w-px bg-slate-200 dark:bg-slate-700" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setMaterialToDelete(item)}
+                                                        disabled={isRemoving}
+                                                        className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1 rounded-md flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
+                                                        title="Remover material"
+                                                        aria-label="Remover material"
+                                                    >
+                                                        {isRemoving ? (
+                                                            <span className="material-symbols-outlined text-sm animate-spin text-red-500">progress_activity</span>
+                                                        ) : (
+                                                            <span className="material-symbols-outlined text-sm">delete</span>
+                                                        )}
+                                                    </button>
+                                                </>
                                             )}
                                         </div>
                                     </div>
-
-                                ))}
+                                    );
+                                })}
                             </div>
                             {canView('orders_visits_costs') && (
                                 <div className="mt-4 flex items-center justify-end gap-2">
@@ -1566,11 +1623,27 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     )}
                 </div>
 
+                <ConfirmDeleteModal
+                    isOpen={!!materialToDelete}
+                    onClose={() => { if (!removingMaterialId) setMaterialToDelete(null); }}
+                    onConfirm={() => { if (materialToDelete) handleRemoveMaterial(materialToDelete.id); }}
+                    title="Remover Material"
+                    description={
+                        materialToDelete ? (
+                            <>
+                                Confirma a remoção do material <strong className="text-slate-700 dark:text-slate-200">{materialToDelete.materialDescription}</strong>?
+                            </>
+                        ) : undefined
+                    }
+                    isLoading={!!removingMaterialId}
+                />
+
                 <AssetAlertModal
                     isOpen={isAddingAlert}
-                    onClose={() => setIsAddingAlert(false)}
+                    onClose={() => { setIsAddingAlert(false); setAlertInitialDescription(''); }}
                     assetId={asset?.assetId || ''}
                     ovaId={asset?.id}
+                    initialDescription={alertInitialDescription}
                     onSaved={refreshAlerts}
                 />
 
@@ -1583,7 +1656,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                             action={
                                 canCreate('assets_alerts') && !!localEditMode && (
                                     <button
-                                        onClick={() => setIsAddingAlert(true)}
+                                        onClick={() => { setAlertInitialDescription(''); setIsAddingAlert(true); }}
                                         className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all cursor-pointer"
                                     >
                                         <span className="material-symbols-outlined text-lg">add_alert</span>

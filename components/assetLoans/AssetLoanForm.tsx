@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Asset } from '../../types';
+import { Asset, AssetLoanRecordType } from '../../types';
 import { dataService } from '../../services/dataService';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { AssetLoanChecklistForm } from './AssetLoanChecklistForm';
 import { Loading } from '../ui/Loading';
 import { toast } from 'sonner';
+import { RECORD_TYPES, getRecordTypeConfig } from './assetLoanRecordTypes';
 
 interface AssetLoanFormProps {
     assetId: string;
@@ -16,7 +17,6 @@ interface AssetLoanFormProps {
 
 export const AssetLoanForm: React.FC<AssetLoanFormProps> = ({
     assetId,
-    assetName,
     onSave,
     onCancel,
 }) => {
@@ -25,12 +25,18 @@ export const AssetLoanForm: React.FC<AssetLoanFormProps> = ({
     const [isSaving, setIsSaving] = useState(false);
     const [currentStep, setCurrentStep] = useState<'form' | 'checklist'>('form');
     const [createdLoanId, setCreatedLoanId] = useState<string | null>(null);
+    const [recordType, setRecordType] = useState<AssetLoanRecordType>('loan');
+    const [userId, setUserId] = useState<string | undefined>(undefined);
 
     const [formData, setFormData] = useState({
         borrowerName: '',
         expectedReturnDate: '',
         notes: '',
     });
+
+    const typeConfig = getRecordTypeConfig(recordType);
+    const isLoan = recordType === 'loan';
+    const canSubmit = !!formData.borrowerName.trim() && (!isLoan || !!formData.expectedReturnDate);
 
     useEffect(() => {
         loadData();
@@ -52,8 +58,8 @@ export const AssetLoanForm: React.FC<AssetLoanFormProps> = ({
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
-    const handleCreateLoan = async () => {
-        if (!formData.borrowerName || !formData.expectedReturnDate) {
+    const handleCreate = async () => {
+        if (!canSubmit) {
             toast.error('Preencha todos os campos obrigatórios');
             return;
         }
@@ -65,27 +71,29 @@ export const AssetLoanForm: React.FC<AssetLoanFormProps> = ({
                 toast.error('Usuário não identificado');
                 return;
             }
-            const newLoan = await dataService.createAssetLoan(
-                {
-                    assetId,
-                    borrowerName: formData.borrowerName,
-                    lenderUserId: currentUser.id,
-                    expectedReturnDate: formData.expectedReturnDate,
-                    notes: formData.notes,
-                },
-                currentUser.id
-            );
+            const newLoan = await dataService.createAssetLoan({
+                assetId,
+                recordType,
+                borrowerName: formData.borrowerName.trim(),
+                lenderUserId: currentUser.id,
+                expectedReturnDate: isLoan ? formData.expectedReturnDate : undefined,
+                notes: formData.notes,
+            });
+            setUserId(currentUser.id);
             setCreatedLoanId(newLoan.id);
             setCurrentStep('checklist');
-        } catch (error) {
-            toast.error('Erro ao criar empréstimo');
+        } catch (error: any) {
+            // Mensagens do banco (ex.: tipo de ativo sem checklist, registro em aberto).
+            toast.error(error?.message || `Erro ao criar ${typeConfig.label.toLowerCase()}`);
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleChecklistSave = () => {
-        toast.success('Empréstimo criado com sucesso!');
+        toast.success(isLoan
+            ? 'Empréstimo criado com sucesso!'
+            : `${typeConfig.label} criado. Assine e conclua a vistoria nos detalhes do registro.`);
         onSave();
     };
 
@@ -101,25 +109,60 @@ export const AssetLoanForm: React.FC<AssetLoanFormProps> = ({
         <div className="space-y-6">
             {currentStep === 'form' ? (
                 <>
-                    <Input
-                        label="Nome do Solicitante *"
-                        value={formData.borrowerName}
-                        onChange={(e) => handleInputChange('borrowerName', e.target.value)}
-                        placeholder="Digite o nome do solicitante"
-                    />
+                    {/* Tipo do registro */}
+                    <div>
+                        <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                            Tipo de registro *
+                        </span>
+                        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de registro">
+                            {RECORD_TYPES.map((type) => {
+                                const cfg = getRecordTypeConfig(type);
+                                const active = type === recordType;
+                                return (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={active}
+                                        onClick={() => setRecordType(type)}
+                                        className={`flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border text-xs font-bold transition-colors ${active
+                                            ? 'bg-primary/10 border-primary text-primary ring-2 ring-primary/30'
+                                            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'}`}
+                                    >
+                                        <span className="material-symbols-outlined text-xl">{cfg.icon}</span>
+                                        {cfg.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                            {isLoan
+                                ? 'Vistoria na entrega e na devolução do ativo.'
+                                : 'Vistoria única. Não registra devolução nem altera a localização do ativo.'}
+                        </p>
+                    </div>
 
                     <Input
-                        label="Data Prevista de Devolução *"
-                        type="date"
-                        value={formData.expectedReturnDate}
-                        onChange={(e) => handleInputChange('expectedReturnDate', e.target.value)}
+                        label={`${typeConfig.personLabel} *`}
+                        value={formData.borrowerName}
+                        onChange={(e) => handleInputChange('borrowerName', e.target.value)}
+                        placeholder={typeConfig.personPlaceholder}
                     />
+
+                    {isLoan && (
+                        <Input
+                            label="Data Prevista de Devolução *"
+                            type="date"
+                            value={formData.expectedReturnDate}
+                            onChange={(e) => handleInputChange('expectedReturnDate', e.target.value)}
+                        />
+                    )}
 
                     <Textarea
                         label="Observações"
                         value={formData.notes}
                         onChange={(e) => handleInputChange('notes', e.target.value)}
-                        placeholder="Observações sobre o empréstimo (opcional)"
+                        placeholder="Observações (opcional)"
                         rows={3}
                     />
 
@@ -131,8 +174,8 @@ export const AssetLoanForm: React.FC<AssetLoanFormProps> = ({
                             Cancelar
                         </button>
                         <button
-                            onClick={handleCreateLoan}
-                            disabled={isSaving || !formData.borrowerName || !formData.expectedReturnDate}
+                            onClick={handleCreate}
+                            disabled={isSaving || !canSubmit}
                             className="flex-1 py-3 text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {isSaving ? (
@@ -153,18 +196,21 @@ export const AssetLoanForm: React.FC<AssetLoanFormProps> = ({
                             <span className="material-symbols-outlined text-green-600">check_circle</span>
                             <div>
                                 <p className="text-sm font-bold text-green-800 dark:text-green-200">
-                                    Empréstimo criado com sucesso!
+                                    {typeConfig.label} criado com sucesso!
                                 </p>
                                 <p className="text-xs text-green-600 dark:text-green-400">
-                                    Agora preencha o checklist antes de Confirmar a entrega
+                                    {isLoan
+                                        ? 'Agora preencha o checklist antes de confirmar a entrega'
+                                        : 'Agora preencha o checklist da vistoria (foto obrigatória em item danificado)'}
                                 </p>
                             </div>
                         </div>
 
                         <AssetLoanChecklistForm
                             loanId={createdLoanId}
-                            phase="before"
+                            phase={isLoan ? 'before' : 'single'}
                             assetTypeId={asset.typeId || ''}
+                            userId={userId}
                             onSave={handleChecklistSave}
                         />
                     </div>

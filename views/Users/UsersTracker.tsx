@@ -237,22 +237,12 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
     useEffect(() => {
         loadInitialData();
 
-        const userSub = dataService.subscribeToUsers((payload: any) => {
-            // Optimistic update: apply the new location fields immediately to the
-            // local users state so markers move without waiting for a full reload.
-            if ((payload.eventType === 'UPDATE' || payload.new) && payload.new?.id) {
-                const incoming = payload.new;
-                setUsers(prev => prev.map(u => {
-                    if (String(u.id) !== String(incoming.id)) return u;
-                    return {
-                        ...u,
-                        latitude: incoming.latitude ?? u.latitude,
-                        longitude: incoming.longitude ?? u.longitude,
-                        trackerHeartbeatAt: incoming.tracker_heartbeat_at ?? u.trackerHeartbeatAt,
-                    };
-                }));
-            }
-            // Full reload to keep all other fields in sync (visits, teams, etc.)
+        // A posição NÃO chega mais por aqui: desde a migration 20261111 ela fica
+        // em users_tracker (fora do Realtime) e as colunas de users estão
+        // congeladas — aplicar payload.new.latitude moveria o marcador para a
+        // posição antiga. Eventos de users (status, disponibilidade, visita)
+        // só disparam a recarga; a posição é atualizada pelo polling de 30 s.
+        const userSub = dataService.subscribeToUsers(() => {
             loadInitialData();
         });
 

@@ -57,6 +57,7 @@ import { assetConfigService } from './assets/assetConfigService';
 import { assetAttributesService } from './assets/assetAttributesService';
 import { assetAttributeGroupsService } from './assets/assetAttributeGroupsService';
 import { usersService } from './users/usersService';
+import { accountDeletionService, AccountDeletionRequest } from './users/accountDeletionService';
 import { trackerService } from './users/trackerService';
 import { notificationsService } from './core/notificationsService';
 import { settingsService } from './core/settingsService';
@@ -74,7 +75,7 @@ import { gamificationService } from './gamification/gamificationService';
 import { assetLoansService } from './assets/assetLoansService';
 import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
 import { loansChecklistService } from './assets/loansChecklistService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock, TeamShiftsCalendarEntry, AuditLogItem, AuditLogFilters, AuditTableConfig, AuditTableConfigChange } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, AssetLoanChecklistPhase, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock, TeamShiftsCalendarEntry, AuditLogItem, AuditLogFilters, AuditTableConfig, AuditTableConfigChange } from '../types';
 
 
 
@@ -451,8 +452,16 @@ export const dataService = {
         responsibleTeamId?: string | string[];
         searchQuery?: string;
         includeEndedInRange?: boolean;
+        withCount?: boolean;
+        processingSelection?: { isAll: boolean; selection: string[] };
+        sortAscending?: boolean;
+        offset?: number;
     }) {
         return dashboardService.getOrdersVisitsView.apply(dashboardService, arguments as any);
+    },
+
+    async getOrdersVisitsDashboardSummary(params: Parameters<typeof dashboardService.getOrdersVisitsDashboardSummary>[0]) {
+        return dashboardService.getOrdersVisitsDashboardSummary.apply(dashboardService, arguments as any);
     },
 
     async getAuthorizedOrdersFromStatusLogs(
@@ -764,7 +773,8 @@ export const dataService = {
         return usersService.createUser.apply(usersService, arguments as any);
     },
 
-    async getCurrentUser(): Promise<User | null> {
+    /** Usuário logado com cache de 30 s; { force: true } busca do servidor. */
+    async getCurrentUser(options?: { force?: boolean }): Promise<User | null> {
         return usersService.getCurrentUser.apply(usersService, arguments as any);
     },
 
@@ -774,6 +784,18 @@ export const dataService = {
 
     async updatePhoneNumber(userUuid: string, mobile: string, phone?: string): Promise<void> {
         return usersService.updatePhoneNumber.apply(usersService, arguments as any);
+    },
+
+    async getMyPendingAccountDeletion(): Promise<AccountDeletionRequest | null> {
+        return accountDeletionService.getMyPendingAccountDeletion.apply(accountDeletionService, arguments as any);
+    },
+
+    async requestAccountDeletion(reason?: string): Promise<AccountDeletionRequest> {
+        return accountDeletionService.requestAccountDeletion.apply(accountDeletionService, arguments as any);
+    },
+
+    async cancelAccountDeletion(): Promise<void> {
+        return accountDeletionService.cancelAccountDeletion.apply(accountDeletionService, arguments as any);
     },
 
     async updateUserStatus(userId: string, statusId: number): Promise<string> {
@@ -1846,7 +1868,7 @@ export const dataService = {
         return ordersService.getOrderByMask.apply(ordersService, arguments as any);
     },
 
-    async getOrdersFilters(filters?: OrderFilters & { page?: number; pageSize?: number; viewName?: string }): Promise<{ data: Order[]; hasMore: boolean; total: number }> {
+    async getOrdersFilters(filters?: OrderFilters & { page?: number; pageSize?: number; viewName?: string; skipCount?: boolean }): Promise<{ data: Order[]; hasMore: boolean; total: number }> {
         return ordersService.getOrdersFilters.apply(ordersService, arguments as any);
     },
 
@@ -2089,6 +2111,10 @@ export const dataService = {
         viewName?: string;
     }): Promise<{ data: Order[]; total: number }> {
         return ordersService.getCompletedOS.apply(ordersService, arguments as any);
+    },
+
+    async getCompletedOSCounts(filters?: Parameters<typeof ordersService.getCompletedOSCounts>[0]): Promise<Record<'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth', number> | null> {
+        return ordersService.getCompletedOSCounts.apply(ordersService, arguments as any);
     },
 
     async getCompletedSS(filters?: {
@@ -2665,7 +2691,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return materialsImportService.parseMaterialsCsv.apply(materialsImportService, arguments as any);
     },
 
-    async getExistingMaterialCodes(codes: string[], companyId?: string): Promise<Set<string>> {
+    async getExistingMaterialCodes(codes: string[], companyId?: string, providerCompanyId?: string): Promise<Set<string>> {
         return materialsImportService.getExistingCodes.apply(materialsImportService, arguments as any);
     },
 
@@ -3521,8 +3547,12 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return assetLoansService.getLoanById.apply(assetLoansService, arguments as any);
     },
 
-    async createAssetLoan(input: CreateAssetLoanInput, userId: string): Promise<AssetLoan> {
+    async createAssetLoan(input: CreateAssetLoanInput, userId?: string): Promise<AssetLoan> {
         return assetLoansService.createLoan.apply(assetLoansService, arguments as any);
+    },
+
+    async concludeAssetInspection(id: string): Promise<void> {
+        return assetLoansService.concludeInspection.apply(assetLoansService, arguments as any);
     },
 
     async updateAssetLoan(id: string, input: UpdateAssetLoanInput): Promise<AssetLoan> {
@@ -3541,7 +3571,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return assetLoansService.deleteLoan.apply(assetLoansService, arguments as any);
     },
 
-    async getAssetLoanChecklists(loanId: string, phase: 'before' | 'after'): Promise<AssetLoanChecklist[]> {
+    async getAssetLoanChecklists(loanId: string, phase: AssetLoanChecklistPhase): Promise<AssetLoanChecklist[]> {
         return assetLoansService.getChecklists.apply(assetLoansService, arguments as any);
     },
 
@@ -3553,11 +3583,11 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return assetLoansService.updateChecklistItem.apply(assetLoansService, arguments as any);
     },
 
-    async isAssetLoanChecklistComplete(loanId: string, phase: 'before'): Promise<boolean> {
+    async isAssetLoanChecklistComplete(loanId: string, phase: AssetLoanChecklistPhase): Promise<boolean> {
         return assetLoansService.isChecklistComplete.apply(assetLoansService, arguments as any);
     },
 
-    async getAssetLoanChecklistItemsCount(loanId: string, phase: 'before'): Promise<{ total: number; filled: number }> {
+    async getAssetLoanChecklistItemsCount(loanId: string, phase: AssetLoanChecklistPhase): Promise<{ total: number; filled: number }> {
         return assetLoansService.getChecklistItemsCount.apply(assetLoansService, arguments as any);
     },
 

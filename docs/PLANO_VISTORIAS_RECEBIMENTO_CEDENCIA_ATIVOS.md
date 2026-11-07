@@ -1,7 +1,21 @@
 # Plano de implantação — Empréstimos, Recebimentos e Cedências de ativos
 
-**Status:** Proposta de implantação  
+**Status:** Implementado (código + migration `20261107_add_assets_loans_record_type.sql`); aguardando aplicação da migration e testes de homologação  
 **Escopo:** Estender o fluxo atual de `assets_loans` para registrar empréstimos e vistorias unitárias de recebimento ou cedência, sem criar um segundo sistema de checklists e imagens.
+
+## 0. Decisões tomadas (Fase 1 — 06/11/2026)
+
+| Tema | Decisão |
+|------|---------|
+| Itens do checklist | Os três tipos usam `cfg_assets_types_loans_checklists` (associação tipo de ativo ↔ item; descrição/ordem em `cfg_loans_checklists`). |
+| Discriminador | `assets_loans.record_type`: `loan`, `receipt`, `cedencia`; registros antigos = `loan`. |
+| Identificação | `borrower_name` com rótulo por tipo: Empréstimo = **Solicitante**; Recebimento = **Entregue por**; Cedência = **Cedido para** (padrão provisório, sem coluna nova). |
+| Estados | Recebimento/Cedência: `analysis` → `closed` (sem `pending`/`overdue`). Empréstimo inalterado. |
+| Conclusão | Todos os itens preenchidos; foto em todo item danificado; assinatura do **usuário logado** (vistoriador). Validado no banco (`fn_assets_loans_conclude_inspection`). |
+| Registro em aberto | Botão "Novo" oculto e criação recusada no banco enquanto houver qualquer registro não encerrado no ativo. |
+| Permissões | Mesma rota `assets_loans` para os três tipos (gravação exige `create`; leitura para autenticados). |
+| Edição/cancelamento | Não permitidos após concluído (triggers de guarda no registro, itens e imagens). |
+| Criação | Atômica no banco (`fn_assets_loans_create`): registro + itens; falha inteira se o tipo do ativo não tiver itens configurados. |
 
 ## 1. Objetivo
 

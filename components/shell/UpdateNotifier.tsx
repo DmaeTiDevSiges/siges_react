@@ -15,6 +15,18 @@ import {
 } from '../../utils/updateAppVersionReminder';
 
 const CHECK_INTERVAL = 1000 * 60 * 5; // 5 minutes
+
+/**
+ * Canal de distribuição do app nativo, definido no build (android/app/build.gradle):
+ *  - 'play': AAB publicado na Play Store → atualização sempre pela loja
+ *    (a política da Google proíbe baixar/instalar APK por fora).
+ *  - 'apk' : APK distribuído direto → baixa o apk_url do app_config.
+ */
+const ANDROID_UPDATE_CHANNEL: 'play' | 'apk' =
+    import.meta.env.VITE_ANDROID_UPDATE_CHANNEL === 'apk' ? 'apk' : 'play';
+const PLAY_STORE_PACKAGE = 'com.ag.siges';
+const PLAY_STORE_WEB_URL = `https://play.google.com/store/apps/details?id=${PLAY_STORE_PACKAGE}`;
+const isPlayStoreBuild = () => Capacitor.isNativePlatform() && ANDROID_UPDATE_CHANNEL === 'play';
 const BANNER_AUTO_HIDE_MS = 1000 * 60 * 5; // 5 minutes auto-hide
 
 interface AppConfig {
@@ -196,6 +208,12 @@ const UpdateNotifier: React.FC = () => {
     };
 
     const handleUpdate = () => {
+        if (isPlayStoreBuild()) {
+            // O Android abre este link no app da Play Store (ou no navegador, se não houver).
+            window.open(PLAY_STORE_WEB_URL, '_system');
+            return;
+        }
+
         if (Capacitor.isNativePlatform()) {
             if (config?.apk_url) {
                 window.open(config.apk_url, '_system');
@@ -229,9 +247,9 @@ const UpdateNotifier: React.FC = () => {
                 onClose={isMandatory ? () => {} : handleLater} // Block closing if mandatory
                 title={`Nova versão disponível${versionSuffix}!`}
                 message={isMandatory 
-                    ? `Uma atualização importante e obrigatória${versionSuffix} está disponível. Para continuar usando o aplicativo, é necessário ${Capacitor.isNativePlatform() ? 'baixar e instalar a nova versão' : 'atualizar a página'} agora.`
+                    ? `Uma atualização importante e obrigatória${versionSuffix} está disponível. Para continuar usando o aplicativo, é necessário ${isPlayStoreBuild() ? 'atualizá-lo na Play Store' : Capacitor.isNativePlatform() ? 'baixar e instalar a nova versão' : 'atualizar a página'} agora.`
                     : `Uma atualização${versionSuffix} foi detectada. Deseja atualizar agora para ter acesso às melhorias mais recentes?`}
-                confirmLabel={Capacitor.isNativePlatform() ? "Baixar e instalar" : "Atualizar agora"}
+                confirmLabel={isPlayStoreBuild() ? "Abrir Play Store" : Capacitor.isNativePlatform() ? "Baixar e instalar" : "Atualizar agora"}
                 cancelLabel={isMandatory ? undefined : "Depois"}
                 onConfirm={handleUpdate}
                 type="info"

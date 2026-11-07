@@ -5,6 +5,7 @@ import { r2Service } from '../media/r2Service';
 import { 
     AssetLoan, 
     AssetLoanChecklist, 
+    AssetLoanChecklistPhase,
     AssetLoanChecklistImage,
     CreateAssetLoanInput,
     UpdateAssetLoanInput,
@@ -22,6 +23,7 @@ const getSaoPauloDate = () => {
 const mapLoan = (item: any): AssetLoan => ({
     id: item.id.toString(),
     assetId: item.asset_id.toString(),
+    recordType: item.record_type || 'loan',
     borrowerName: item.borrower_name,
     lenderUserId: item.lender_user_id.toString(),
     expectedReturnDate: item.expected_return_date,
@@ -119,84 +121,39 @@ export const assetLoansService = {
         return mapLoan(data);
     },
 
-    async createLoan(input: CreateAssetLoanInput, userId: string): Promise<AssetLoan> {
-        const { data, error } = await supabase
-            .from('assets_loans')
-            .insert([{
-                asset_id: parseInt(input.assetId),
-                borrower_name: input.borrowerName,
-                lender_user_id: parseInt(input.lenderUserId),
-                expected_return_date: input.expectedReturnDate,
-                notes: input.notes,
-                status: 'analysis',
-                created_user_id: parseInt(userId),
-            }])
-            .select()
-            .single();
+    /**
+     * Cria Empréstimo / Recebimento / Cedência e os itens do checklist do tipo do ativo
+     * (cfg_assets_types_loans_checklists) numa única transação no banco
+     * (fn_assets_loans_create). Falha inteira se algo der errado — não sobra registro
+     * sem checklist. O usuário responsável é o da sessão (auth.uid()).
+     */
+    async createLoan(input: CreateAssetLoanInput, _userId?: string): Promise<AssetLoan> {
+        const { data, error } = await supabase.rpc('fn_assets_loans_create', {
+            p_asset_id: parseInt(input.assetId),
+            p_record_type: input.recordType,
+            p_borrower_name: input.borrowerName,
+            p_expected_return_date: input.recordType === 'loan' ? (input.expectedReturnDate || null) : null,
+            p_notes: input.notes || null,
+        });
 
         if (error) {
-            throw error;
+            throw new Error(error.message || 'Erro ao criar o registro.');
         }
 
-        const loanId = data.id;
+        return this.getLoanById(String(data));
+    },
 
-        const { data: assetData } = await supabase
-            .from('v_assets')
-            .select('type_id')
-            .eq('id', input.assetId)
-            .single();
-
-        if (assetData?.type_id) {
-            
-            const { data: checklistAssoc, error: assocError } = await supabase
-                .from('cfg_assets_types_loans_checklists')
-                .select('checklist_id, cfg_loans_checklists:checklist_id(sort_order)')
-                .eq('asset_type_id', assetData.type_id);
-
-            if (assocError) {
-            }
-            
-
-            if (checklistAssoc && checklistAssoc.length > 0) {
-                const sortedAssoc = [...checklistAssoc].sort((a: any, b: any) => {
-                    const orderA = a.cfg_loans_checklists?.sort_order ?? 0;
-                    const orderB = b.cfg_loans_checklists?.sort_order ?? 0;
-                    return orderA - orderB;
-                });
-
-                const now = getLocalTimestamp();
-                const checklistsToCreate: any[] = [];
-
-                for (const assoc of sortedAssoc) {
-                    checklistsToCreate.push({
-                        loan_id: loanId,
-                        loan_checklist_id: assoc.checklist_id,
-                        phase: 'before',
-                        status: 'pending',
-                        filled_by_user_id: parseInt(userId),
-                        filled_at: now,
-                    });
-                    checklistsToCreate.push({
-                        loan_id: loanId,
-                        loan_checklist_id: assoc.checklist_id,
-                        phase: 'after',
-                        status: 'pending',
-                        filled_by_user_id: parseInt(userId),
-                        filled_at: now,
-                    });
-                }
-
-                
-                const { error: insertError } = await supabase
-                    .from('assets_loans_checklists')
-                    .insert(checklistsToCreate);
-                    
-                if (insertError) {
-                }
-            }
+    /**
+     * Conclui Recebimento/Cedência (fn_assets_loans_conclude_inspection): o banco
+     * valida itens preenchidos, foto em item danificado e assinatura do vistoriador.
+     */
+    async concludeInspection(id: string): Promise<void> {
+        const { error } = await supabase.rpc('fn_assets_loans_conclude_inspection', {
+            p_loan_id: parseInt(id),
+        });
+        if (error) {
+            throw new Error(error.message || 'Erro ao concluir a vistoria.');
         }
-
-        return this.getLoanById(loanId.toString());
     },
 
     async updateLoan(id: string, input: UpdateAssetLoanInput): Promise<AssetLoan> {
@@ -306,7 +263,7 @@ export const assetLoansService = {
 
     // ===== CHECKLISTS =====
 
-    async getChecklists(loanId: string, phase: 'before' | 'after'): Promise<AssetLoanChecklist[]> {
+    async getChecklists(loanId: string, phase: AssetLoanChecklistPhase): Promise<AssetLoanChecklist[]> {
         const { data, error } = await supabase
             .from('assets_loans_checklists')
             .select('*, cfg_loans_checklists:loan_checklist_id(sort_order)')
@@ -397,7 +354,7 @@ export const assetLoansService = {
         }
     },
 
-    async isChecklistComplete(loanId: string, phase: 'before'): Promise<boolean> {
+    async isChecklistComplete(loanId: string, phase: AssetLoanChecklistPhase): Promise<boolean> {
         const { data, error } = await supabase
             .from('assets_loans_checklists')
             .select('id')
@@ -419,7 +376,7 @@ export const assetLoansService = {
         return (data?.length || 0) > 0 && (data?.length || 0) === (count || 0);
     },
 
-    async getChecklistItemsCount(loanId: string, phase: 'before'): Promise<{ total: number; filled: number }> {
+    async getChecklistItemsCount(loanId: string, phase: AssetLoanChecklistPhase): Promise<{ total: number; filled: number }> {
         const { count: total } = await supabase
             .from('assets_loans_checklists')
             .select('id', { count: 'exact', head: true })
@@ -509,6 +466,7 @@ export const assetLoansService = {
         const { data, error } = await supabase
             .from('v_assets_loans')
             .select('*')
+            .eq('record_type', 'loan')
             .eq('status', 'pending')
             .lt('expected_return_date', today)
             .order('expected_return_date');
@@ -524,6 +482,7 @@ export const assetLoansService = {
         const { count } = await supabase
             .from('assets_loans')
             .select('id', { count: 'exact', head: true })
+            .eq('record_type', 'loan')
             .eq('status', 'pending')
             .eq('is_deleted', false);
 

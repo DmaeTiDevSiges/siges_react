@@ -3,6 +3,7 @@ import { OrderFilters, TeamShiftsMonthly, TeamIdleEvolutionPoint, ApprovedVisitR
 import { usersService } from '../users/usersService';
 import { visitsService } from '../orders/visitsService';
 import { teamShiftsRecordsService } from './teamShiftsRecordsService';
+import { normalizeVisitsSummary, VisitsDashboardSummary } from '../../utils/visitsDashboardSummary';
 
 // ---------------------------------------------------------------------------
 // Ociosidade das equipes — helpers puros (aba OCIOSIDADE)
@@ -276,17 +277,40 @@ export const dashboardService = {
         providerCompanyId?: string | string[];
         searchQuery?: string;
         includeEndedInRange?: boolean;
+        /** false: não calcula o total (count exact em v_orders_visits é caro). Padrão true. */
+        withCount?: boolean;
+        /**
+         * Filtro de etapas da Gestão > Visitas, aplicado no servidor (paginação real).
+         * isAll = sem filtro; selection = ids de etapa e/ou 'costs-pending' / 'costs-rejected'.
+         * Mesmas regras de utils/visitsDashboardSummary.matchesProcessingSelection.
+         */
+        processingSelection?: { isAll: boolean; selection: string[] };
+        /** Ordem por início (sem início: data da OS) e id. Padrão: decrescente. */
+        sortAscending?: boolean;
+        /** Posição inicial explícita (sobrepõe page * pageSize). */
+        offset?: number;
     }) {
         const pageSize = filters?.pageSize ?? 100;
         const page = filters?.page ?? 0;
-        const from = page * pageSize;
+        const from = filters?.offset ?? page * pageSize;
         const to = from + pageSize - 1;
 
         let query = supabase
             .from('v_orders_visits')
-            .select('*', { count: 'exact' })
-            .order('ov_started_at', { ascending: false })
-            .range(from, to);
+            .select('*', filters?.withCount === false ? undefined : { count: 'exact' });
+        if (filters?.sortAscending === undefined) {
+            // Ordem de sempre (outras telas, ex.: visitas de hoje).
+            query = query.order('ov_started_at', { ascending: false });
+        } else {
+            // Gestão > Visitas: início (sem início: data da OS) e id — estável
+            // para paginar sem repetir/pular linhas.
+            const ascending = filters.sortAscending;
+            query = query
+                .order('ov_started_at', { ascending, nullsFirst: false })
+                .order('o_requested_at', { ascending })
+                .order('id', { ascending });
+        }
+        query = query.range(from, to);
 
         const d = new Date();
         const pad = (n: number) => String(n).padStart(2, '0');
@@ -328,7 +352,8 @@ export const dashboardService = {
         applyFilter('o_system_parent_id', filters?.systemParentId);
         applyFilter('o_system_id', filters?.systemId);
         applyFilter('o_unit_type_parent_id', filters?.unitTypeParentId);
-        applyFilter('o_unit_type_id', filters?.unitTypeId);
+        // v_orders_visits não tem o_unit_type_id: o filtro fazia a consulta falhar
+        // (lista vazia). Ignorado aqui e no RPC fn_orders_visits_dashboard_summary.
         applyFilter('o_unit_id', filters?.unitId);
         applyFilter('o_object_id', filters?.orderObjectId);
         applyFilter('o_type_id', filters?.orderTypeId);
@@ -343,7 +368,23 @@ export const dashboardService = {
 
         if (filters?.searchQuery) {
             const search = `%${filters.searchQuery}%`;
-            query = query.or(`ov_mask.ilike.${search},o_unit_description.ilike.${search},client_name.ilike.${search},o_mask.ilike.${search}`);
+            query = query.or(`ov_mask.ilike.${search},o_unit_description.ilike.${search},client_name.ilike.${search},o_mask.ilike.${search},ov_team_leader_name_short.ilike.${search}`);
+        }
+
+        const processing = filters?.processingSelection;
+        if (processing && !processing.isAll) {
+            const stageIds = processing.selection.filter(v => /^\d+$/.test(v));
+            const parts: string[] = [];
+            if (stageIds.length) parts.push(`ov_processing_id.in.(${stageIds.join(',')})`);
+            if (processing.selection.includes('costs-pending')) {
+                parts.push('and(ov_processing_id.eq.5,or(ov_costs_status.is.null,ov_costs_status.in.(pending,waiting)))');
+            }
+            if (processing.selection.includes('costs-rejected')) {
+                parts.push('and(ov_processing_id.eq.5,ov_costs_status.eq.rejected)');
+            }
+            // Nenhuma etapa marcada: nenhuma visita.
+            if (parts.length === 0) return { data: [], count: 0 };
+            query = query.or(parts.join(','));
         }
 
         const { data, error, count } = await query;
@@ -354,6 +395,35 @@ export const dashboardService = {
         }
 
         return { data: data ?? [], count: count ?? 0 };
+    },
+
+    /**
+     * Gestão > Visitas: contadores, totais, gráficos e ids de apropriação (RPC
+     * fn_orders_visits_dashboard_summary, migration 20261114). Mesmos filtros de
+     * getOrdersVisitsView. Retorna null se o RPC ainda não existir no banco.
+     */
+    async getOrdersVisitsDashboardSummary(params: {
+        filters: Record<string, unknown>;
+        startDate: string;
+        endDate: string;
+        searchQuery?: string;
+        processingSelection: { isAll: boolean; selection: string[] };
+    }): Promise<VisitsDashboardSummary | null> {
+        const { data, error } = await supabase.rpc('fn_orders_visits_dashboard_summary', {
+            p_filters: params.filters ?? {},
+            p_start: params.startDate,
+            p_end: params.endDate,
+            p_search: params.searchQuery || null,
+            p_selection: params.processingSelection.selection,
+            p_is_all: params.processingSelection.isAll,
+        });
+        if (error) {
+            if (error.code !== 'PGRST202' && error.code !== '42883') {
+                console.error('Error fetching visits dashboard summary:', error);
+            }
+            return null;
+        }
+        return normalizeVisitsSummary(data);
     },
 
     async getOrdersForCalendar(filters?: {

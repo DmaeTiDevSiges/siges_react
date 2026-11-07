@@ -72,7 +72,7 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
             clearTimeout(searchTimeoutRef.current);
         }
 
-        if (term.length < 2) {
+        if (term.length < 2 || !providerCompanyId) {
             setAvailableMaterials([]);
             setSearching(false);
             return;
@@ -81,8 +81,9 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
         setSearching(true);
         searchTimeoutRef.current = setTimeout(async () => {
             try {
-                // Fetch first 20 results that match the search term
-                const results = await dataService.getAvailableMaterials(term, 0, 20, providerCompanyId || undefined);
+                // Catálogo da empresa prestadora da OS (v_materials.provider_company_id =
+                // v_orders.provider_company_id), não a do usuário logado.
+                const results = await dataService.getAvailableMaterials(term, 0, 20, providerCompanyId);
                 setAvailableMaterials(results);
             } catch (error) {
                 console.error('Error searching materials:', error);
@@ -209,7 +210,7 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
     }
 
     return (
-        <div className="max-w-md mx-auto p-4 animate-in fade-in slide-in-from-right-4 duration-300 space-y-4">
+        <div className="max-w-md mx-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] animate-in fade-in slide-in-from-right-4 duration-300 space-y-4">
             {/* Header / Add Button */}
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
@@ -285,7 +286,16 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
                         </div>
                     )}
 
-                    {!searching && searchTerm.length >= 2 && filteredSearchResults.length === 0 && (
+                    {!searching && searchTerm.length >= 2 && !providerCompanyId && (
+                        <div className="p-6 text-center border-2 border-dashed border-amber-200 dark:border-amber-800/50 rounded-2xl">
+                            <span className="material-symbols-outlined text-3xl text-amber-400 mb-2">domain_disabled</span>
+                            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest leading-relaxed">
+                                A OS não tem empresa prestadora definida. <br/> Defina-a para buscar os materiais.
+                            </p>
+                        </div>
+                    )}
+
+                    {!searching && searchTerm.length >= 2 && !!providerCompanyId && filteredSearchResults.length === 0 && (
                         <div className="p-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                             <span className="material-symbols-outlined text-3xl text-slate-300 mb-2">search_off</span>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
@@ -300,7 +310,9 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
                         </div>
                     )}
 
-                    <div className="mt-2 max-h-60 overflow-y-auto space-y-2 no-scrollbar">
+                    {/* Sem altura fixa: os resultados ocupam a tela e rolam com a página
+                        (o <main> do Layout já reserva a barra inferior + área segura). */}
+                    <div className="mt-2 space-y-2">
                         {filteredSearchResults.map(m => (
                             <div key={m.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:border-indigo-500/30 transition-all">
                                 <div>
@@ -311,7 +323,7 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
                                         {m.description}
                                     </p>
                                     <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">
-                                        Medida: <span className="text-indigo-500">{m.unit}</span>
+                                        Unid: <span className="text-indigo-500">{m.unit}</span>
                                     </p>
                                 </div>
                                 <ButtonNew

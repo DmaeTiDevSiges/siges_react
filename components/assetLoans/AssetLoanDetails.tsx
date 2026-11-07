@@ -10,6 +10,8 @@ import { formatDate, formatDateTime } from '../../utils/formatters';
 import { AssetLoanReportPDFButton } from '../reports/AssetLoanReportPDFButton';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { toast } from 'sonner';
+import { AssetInspectionDetails } from './AssetInspectionDetails';
+import { isSingleInspection } from './assetLoanRecordTypes';
 
 interface AssetLoanDetailsProps {
     loan: AssetLoan;
@@ -17,7 +19,16 @@ interface AssetLoanDetailsProps {
     onStatusChange: () => void;
 }
 
-export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = ({
+/**
+ * Detalhes do registro: Empréstimo (vistorias antes/depois, abaixo) ou
+ * Recebimento/Cedência (vistoria única, AssetInspectionDetails).
+ */
+export const AssetLoanDetails: React.FC<AssetLoanDetailsProps> = (props) =>
+    isSingleInspection(props.loan.recordType)
+        ? <AssetInspectionDetails loan={props.loan} onStatusChange={props.onStatusChange} />
+        : <LoanDetails {...props} />;
+
+const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
     loan: initialLoan,
     onClose,
     onStatusChange,

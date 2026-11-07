@@ -119,6 +119,11 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
     const isProviderMode = !!providerCompanyId;
+    // Esta tela também é montada para a aba VISITAS (que renderiza
+    // OrdersVisitsDashboardAdmin com consultas próprias). Nesse caso nenhuma
+    // consulta/assinatura da aba OS's deve rodar. activeTab é fixo por montagem
+    // (cada aba é uma tela diferente em App.tsx).
+    const isOsTab = activeTab === 'OS';
     // Frozen for this mount: true on first entry of the app session and when a
     // mutation happened while this dashboard was unmounted (see dashboardRefresh).
     const [shouldInitialLoad] = React.useState(() => {
@@ -481,37 +486,39 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     // --- Completed OS: Temporal Helper & Load ---
     const getCompletedTemporalDateRange = useCallback((filter: CompletedTemporalFilter): { start: string; end: string } => {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const endOfDay = (d: Date) => { const e = new Date(d); e.setHours(23, 59, 59, 999); return e.toISOString(); };
+        // Datas AAAA-MM-DD no fuso de São Paulo: getCompletedOS acrescenta
+        // T00:00:00 / T23:59:59 e status_at é hora local sem fuso. (Antes ia um
+        // ISO em UTC e o Postgres descartava o "Z": períodos deslocados em 3 h.)
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+        const base = new Date(`${todayStr}T12:00:00Z`);
+        const shift = (days: number) => {
+            const d = new Date(base);
+            d.setUTCDate(d.getUTCDate() + days);
+            return d.toISOString().slice(0, 10);
+        };
+        const daysSinceMonday = (base.getUTCDay() + 6) % 7;
+        const [year, month] = todayStr.split('-').map(Number);
+        const ymd = (y: number, m: number, d: number) => {
+            const dt = new Date(Date.UTC(y, m - 1, d, 12));
+            return dt.toISOString().slice(0, 10);
+        };
 
         switch (filter) {
             case 'today':
-                return { start: today.toISOString(), end: endOfDay(today) };
-            case 'yesterday': {
-                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-                return { start: yesterday.toISOString(), end: endOfDay(yesterday) };
-            }
-            case 'thisWeek': {
-                const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-                return { start: monday.toISOString(), end: endOfDay(today) };
-            }
-            case 'lastWeek': {
-                const lastMonday = new Date(today); lastMonday.setDate(today.getDate() - ((today.getDay() + 6) % 7) - 7);
-                const lastSunday = new Date(lastMonday); lastSunday.setDate(lastMonday.getDate() + 6);
-                return { start: lastMonday.toISOString(), end: endOfDay(lastSunday) };
-            }
-            case 'thisMonth': {
-                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-                return { start: firstDay.toISOString(), end: endOfDay(today) };
-            }
-            case 'lastMonth': {
-                const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-                return { start: firstDayLastMonth.toISOString(), end: endOfDay(lastDayLastMonth) };
-            }
+                return { start: todayStr, end: todayStr };
+            case 'yesterday':
+                return { start: shift(-1), end: shift(-1) };
+            case 'thisWeek':
+                return { start: shift(-daysSinceMonday), end: todayStr };
+            case 'lastWeek':
+                return { start: shift(-daysSinceMonday - 7), end: shift(-daysSinceMonday - 1) };
+            case 'thisMonth':
+                return { start: ymd(year, month, 1), end: todayStr };
+            case 'lastMonth':
+                // dia 0 do mês atual = último dia do mês anterior
+                return { start: ymd(year, month - 1, 1), end: ymd(year, month, 0) };
             default:
-                return { start: today.toISOString(), end: endOfDay(today) };
+                return { start: todayStr, end: todayStr };
         }
     }, []);
 
@@ -555,6 +562,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     const completedOSMountHandled = React.useRef(false);
     useEffect(() => {
+        if (!isOsTab) return;
         if (completedOSMountHandled.current) {
             loadCompletedOS();
             return;
@@ -567,6 +575,31 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     const completedOSCountsMountHandled = React.useRef(false);
     const loadCompletedOSCounts = useCallback(async () => {
         try {
+            // 1 chamada (RPC fn_orders_completed_counts) em vez de 6 consultas com count.
+            const rpcCounts = await dataService.getCompletedOSCounts({
+                systemParentId: appliedFilters.systemParentId,
+                systemId: appliedFilters.systemId,
+                unitTypeParentId: appliedFilters.unitTypeParentId,
+                unitTypeId: appliedFilters.unitTypeId,
+                unitId: appliedFilters.unitId,
+                orderObjectId: appliedFilters.orderObjectId,
+                orderTypeId: appliedFilters.orderTypeId,
+                orderTypeSubId: appliedFilters.orderTypeSubId,
+                contractId: appliedFilters.contractId,
+                orderPlanId: appliedFilters.orderPlanId,
+                orderTeamId: appliedFilters.orderTeamId,
+                responsibleTeamId: appliedFilters.responsibleTeamId,
+                assetTagId: appliedFilters.assetTagId,
+                assetTagSubId: appliedFilters.assetTagSubId,
+                causeReasonId: appliedFilters.causeReasonId,
+                ...(providerCompanyId ? { providerCompanyId } : {}),
+            });
+            if (rpcCounts) {
+                setCompletedOSCounts(rpcCounts);
+                return;
+            }
+
+            // Fallback (migration 20261109 ainda não aplicada): uma consulta por período.
             const periods: CompletedTemporalFilter[] = ['today', 'yesterday', 'thisWeek', 'lastWeek', 'thisMonth', 'lastMonth'];
             const countResults = await Promise.all(
                 periods.map(async (p) => {
@@ -604,6 +637,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     }, [getCompletedTemporalDateRange, appliedFilters, providerCompanyId]);
 
     useEffect(() => {
+        if (!isOsTab) return;
         if (completedOSCountsMountHandled.current) {
             loadCompletedOSCounts();
             return;
@@ -1008,7 +1042,9 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                     search: searchQuery,
                     ...ordersListFilters,
                     page: pageToFetch,
-                    pageSize: 50
+                    pageSize: 50,
+                    // total não é exibido aqui: evita o count exact em v_orders
+                    skipCount: true
                 });
             } else {
                 // When filtering/loading initial, we execute ALL requests in parallel for maximum speed
@@ -1017,7 +1053,8 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                         search: searchQuery,
                         ...ordersListFilters,
                         page: 0,
-                        pageSize: 50
+                        pageSize: 50,
+                        skipCount: true
                     }),
                     dataService.getDashboardStats(
                         { search: searchQuery, ...appliedFilters },
@@ -1108,7 +1145,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     }, [searchQuery, appliedFilters, selectedStatusId, selectedPeriod, osAssetTagId, hasAppliedFilters, recentRequests.length, providerCompanyId]);
 
     useEffect(() => {
-        if (!shouldInitialLoad || !scopeReady) return;
+        if (!isOsTab || !shouldInitialLoad || !scopeReady) return;
         const loadOptions = async () => {
             try {
                 const results = await Promise.allSettled([
@@ -1178,6 +1215,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     }, [shouldInitialLoad, scopeReady]);
 
     useEffect(() => {
+        if (!isOsTab) return;
         let active = true;
         const selectedContractIds = Array.isArray(advancedOrdersFilters.contractId)
             ? advancedOrdersFilters.contractId.map(String)
@@ -1212,27 +1250,42 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
     }, [advancedOrdersFilters.contractId, filterOptions.contracts, scopeReady]);
 
     useEffect(() => {
+        // Aba VISITAS: sem consultas nem Realtime da aba OS's (ver isOsTab).
+        if (!isOsTab) return;
+
         // 1. Refresh dashboard event
         const handleRefresh = () => fetchDataRef.current(false, false);
         window.addEventListener('refresh_dashboard', handleRefresh);
 
-        // Debounced refresh: users + completed sections when orders/visits fire rapidly
+        // Atualização por realtime (OS/visitas), agrupada e econômica:
+        //  • debounce de 2,5 s: rajadas de eventos viram 1 recarga;
+        //  • com a aba/app em segundo plano não consulta — marca pendente e
+        //    recarrega uma vez ao voltar a ficar visível;
+        //  • usuários NÃO são recarregados aqui (a assinatura de users abaixo
+        //    já cuida das bordas de status).
         let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+        let refreshPending = false;
+        const runRefresh = () => {
+            refreshPending = false;
+            fetchDataRef.current(false, false);
+            loadCompletedOSRef.current?.();
+            loadCompletedOSCountsRef.current?.();
+        };
         const debouncedRefreshSecondary = () => {
             if (refreshTimeout) clearTimeout(refreshTimeout);
-            refreshTimeout = setTimeout(async () => {
-                fetchDataRef.current(false, false);
-                try {
-                    dataService.clearMetadataCache();
-                    const usersData = await dataService.getUsers();
-                    setUsers(usersData);
-                } catch (err) {
-                    console.error("Failed to refresh users (debounced)", err);
+            refreshTimeout = setTimeout(() => {
+                refreshTimeout = null;
+                if (document.visibilityState === 'hidden') {
+                    refreshPending = true;
+                    return;
                 }
-                loadCompletedOSRef.current?.();
-                loadCompletedOSCountsRef.current?.();
-            }, 1000);
+                runRefresh();
+            }, 2500);
         };
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible' && refreshPending) runRefresh();
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
 
         // 2. Realtime subscription for orders
         const subscription = dataService.subscribeToOrders(() => {
@@ -1265,6 +1318,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
         return () => {
             window.removeEventListener('refresh_dashboard', handleRefresh);
+            document.removeEventListener('visibilitychange', handleVisibility);
             if (refreshTimeout) clearTimeout(refreshTimeout);
             if (subscription) subscription.unsubscribe();
             if (visitSubscription) visitSubscription.unsubscribe();
@@ -1291,7 +1345,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
 
     // Recover unitSubTypes if unitTypeParentId exists on mount (first entry only; cached later)
     useEffect(() => {
-        if (!shouldInitialLoad || !scopeReady) return;
+        if (!isOsTab || !shouldInitialLoad || !scopeReady) return;
         const recoverOptions = async () => {
             if (advancedOrdersFilters.unitTypeParentId) {
                 const ids = Array.isArray(advancedOrdersFilters.unitTypeParentId)

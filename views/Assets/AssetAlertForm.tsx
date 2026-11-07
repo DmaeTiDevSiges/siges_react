@@ -10,6 +10,8 @@ interface AssetAlertFormProps {
     assetId: string;
     ovaId?: string;
     initialAlert?: AssetAlert;
+    /** Descrição sugerida para um alerta novo (ex.: item do checklist + observação). */
+    initialDescription?: string;
     onSave: (alert: Partial<AssetAlert>) => Promise<void>;
     onCancel: () => void;
 }
@@ -22,6 +24,7 @@ export const AssetAlertForm = forwardRef<AssetAlertFormHandle, AssetAlertFormPro
     assetId,
     ovaId,
     initialAlert,
+    initialDescription,
     onSave,
     onCancel
 }, ref) => {
@@ -33,7 +36,7 @@ export const AssetAlertForm = forwardRef<AssetAlertFormHandle, AssetAlertFormPro
         ovaId,
         oTypeId: '',
         priorityId: '',
-        description: '',
+        description: initialDescription || '',
         isDone: false,
         ...initialAlert
     });

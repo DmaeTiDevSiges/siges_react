@@ -11,7 +11,9 @@ import { Loading } from '../ui/Loading';
 
 
 interface VisitsListPDFButtonProps {
-    visits: VisitListRow[];
+    visits?: VisitListRow[];
+    /** Busca as visitas no clique (lista paginada no servidor). */
+    loadVisits?: () => Promise<VisitListRow[]>;
     filename?: string;
     className?: string;
     totalCount?: number;
@@ -22,6 +24,7 @@ interface VisitsListPDFButtonProps {
  */
 export const VisitsListPDFButton = ({
     visits,
+    loadVisits,
     filename = 'relatorio-visitas',
     className = '',
     totalCount,
@@ -29,17 +32,30 @@ export const VisitsListPDFButton = ({
     const [isGenerating, setIsGenerating] = useState(false);
 
     const handleDownload = async () => {
-        if (!visits || visits.length === 0) {
+        // Lista vem por parâmetro ou é buscada na hora (paginação no servidor).
+        let list = visits || [];
+        if (loadVisits) {
+            const loadingToast = toast.loading('Carregando visitas...');
+            try {
+                list = await loadVisits();
+            } catch (err) {
+                console.error('Erro ao carregar visitas para exportar:', err);
+                toast.error('Erro ao carregar as visitas.', { id: loadingToast });
+                return;
+            }
+            toast.dismiss(loadingToast);
+        }
+        if (!list || list.length === 0) {
             toast.error('Nenhuma visita disponível para exportar.');
             return;
         }
 
         try {
             setIsGenerating(true);
-            const toastId = toast.loading(`Gerando PDF com ${visits.length} visitas...`);
+            const toastId = toast.loading(`Gerando PDF com ${list.length} visitas...`);
 
             const logoBase64 = await getLogoBase64();
-            const doc = <VisitsListDocument visits={visits} logoBase64={logoBase64} />;
+            const doc = <VisitsListDocument visits={list} logoBase64={logoBase64} />;
             const blob = await pdf(doc).toBlob();
 
             const now = new Date();

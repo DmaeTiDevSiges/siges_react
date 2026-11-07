@@ -20,6 +20,8 @@ interface AssetLoanChecklistImageViewerProps {
     onPendingImageAdd?: (file: File) => void;
     pendingImagesCount?: number;
     canDeleteImages?: boolean;
+    /** Usuário logado (uploaded_by_user_id). */
+    userId?: string;
 }
 
 const MAX_IMAGES_PER_ITEM = 3;
@@ -34,6 +36,7 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
     onPendingImageAdd,
     pendingImagesCount = 0,
     canDeleteImages = true,
+    userId,
 }) => {
     const [isUploadSheetOpen, setIsUploadSheetOpen] = useState(false);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -104,7 +107,7 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
                         { maxDimension: 1200, quality: 0.8 }
                     );
                     const newImage = await dataService.uploadAssetLoanChecklistImage(
-                        checklistId, uploadResult.publicUrl, 'photo', '1'
+                        checklistId, uploadResult.publicUrl, 'photo', userId || '1'
                     );
                     return newImage;
                 } catch (error) {
@@ -114,6 +117,10 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
             });
 
             const results = await Promise.all(uploads);
+            const failed = results.filter(r => r === null).length;
+            if (failed > 0) {
+                toast.error(`${failed} ${failed === 1 ? 'foto não foi enviada' : 'fotos não foram enviadas'}. Tente novamente.`);
+            }
 
             for (const result of results) {
                 if (result === 'pending') {
@@ -163,7 +170,7 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
 
                 await dataService.deleteAssetLoanChecklistImage(editingImageId);
                 const newImage = await dataService.uploadAssetLoanChecklistImage(
-                    checklistId, uploadResult.publicUrl, 'photo', '1'
+                    checklistId, uploadResult.publicUrl, 'photo', userId || '1'
                 );
                 onImagesChange(images.map(img => img.id === editingImageId ? newImage : img));
                 toast.success('Imagem atualizada com sucesso!');
@@ -178,7 +185,7 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
                 );
 
                 const newImage = await dataService.uploadAssetLoanChecklistImage(
-                    checklistId, uploadResult.publicUrl, 'photo', '1'
+                    checklistId, uploadResult.publicUrl, 'photo', userId || '1'
                 );
                 onImagesChange([...images, newImage]);
                 toast.success('Imagem enviada com sucesso!');

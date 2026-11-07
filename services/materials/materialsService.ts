@@ -3,6 +3,29 @@ import { Material, AssetMaterial } from '../../types';
 import { usersService } from '../users/usersService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
+/**
+ * Quebra a busca de materiais em termos (por espaço). Cada termo vira uma lista
+ * de variantes aceitas: quando junta número e letra ("50mm"), aceita também a
+ * forma separada ("50 mm") — o cadastro usa as duas grafias.
+ * Curingas do LIKE digitados pelo usuário são removidos.
+ */
+export const splitMaterialSearchTerms = (search: string): string[][] =>
+    (search || '')
+        .replace(/[%_\\*]/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(term => {
+            const spaced = term
+                .replace(/(\d)([a-zA-Z\u00C0-\u017F])/g, '$1 $2')
+                .replace(/([a-zA-Z\u00C0-\u017F])(\d)/g, '$1 $2');
+            return spaced !== term ? [term, spaced] : [term];
+        });
+
+/** Valor entre aspas para filtros or() do PostgREST (vírgula/parêntese no termo). */
+const quotePostgrestValue = (value: string): string =>
+    `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+
 export const materialsService = {
     async getMaterials(filter: number | 'all' = 'all', search: string = '', companyId?: string, page: number = 1, pageSize: number = 50): Promise<{ materials: Material[]; total: number }> {
         const currentUser = await usersService.getCurrentUser();
@@ -380,11 +403,16 @@ export const materialsService = {
         if (error) throw error;
     },
     async getAvailableMaterials(search: string = '', page: number = 0, pageSize: number = 20, providerCompanyId?: string): Promise<Material[]> {
-        const currentUser = await usersService.getCurrentUser();
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
-        const providerId = currentUser?.companyId ? parseInt(currentUser.companyId) : null;
+        // Empresa prestadora do catálogo: a informada pelo chamador (ex.: relatório
+        // do ativo usa v_orders.provider_company_id da OS); senão, a do usuário logado.
+        let providerId = providerCompanyId ? parseInt(providerCompanyId) : null;
+        if (!providerId) {
+            const currentUser = await usersService.getCurrentUser();
+            providerId = currentUser?.companyId ? parseInt(currentUser.companyId) : null;
+        }
 
         let query = supabase
             .from('v_materials')
@@ -397,8 +425,17 @@ export const materialsService = {
             query = query.eq('provider_company_id', providerId);
         }
 
-        if (search) {
-            query = query.or(`description.ilike.%${search}%,code.ilike.%${search}%`);
+        // Cada termo precisa aparecer (em qualquer ordem) no código + descrição
+        // (v_materials.searchable). "pvc 50mm" encontra "Tubo PVC PBA DN 50MM"
+        // e "Tubo de PVC Soldavel DN: 50 mm".
+        for (const variants of splitMaterialSearchTerms(search)) {
+            if (variants.length === 1) {
+                query = query.ilike('searchable', `%${variants[0]}%`);
+            } else {
+                query = query.or(
+                    variants.map(v => `searchable.ilike.${quotePostgrestValue(`%${v}%`)}`).join(',')
+                );
+            }
         }
 
         const { data, error } = await query;

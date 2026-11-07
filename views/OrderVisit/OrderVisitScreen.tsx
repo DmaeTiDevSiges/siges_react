@@ -409,14 +409,17 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
             setIsReportModalOpen(false);
         };
 
-        toast.promise(reportPromise(), {
+        // Uma única execução: antes reportPromise() era chamada 2x (no
+        // toast.promise e no await), reportando e recarregando a visita em dobro.
+        const running = reportPromise();
+        toast.promise(running, {
             loading: 'Atualizando registro da visita...',
             success: 'Visita reportada com sucesso!',
             error: (err) => err instanceof Error ? err.message : 'Erro ao reportar visita'
         });
 
         try {
-            await reportPromise();
+            await running;
         } catch (error) {
             console.error('Error reporting visit:', error);
         } finally {

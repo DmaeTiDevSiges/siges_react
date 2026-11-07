@@ -13,6 +13,7 @@ import { Input } from '../../ui/Input';
 import { ImageUploadSheet } from '../../ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../ui/ImageEditorModal';
 import { Loading } from '../../ui/Loading';
+import { AlertModal } from '../../ui/AlertModal';
 
 
 interface MaintenanceChecklistViewProps {
@@ -24,6 +25,8 @@ interface MaintenanceChecklistViewProps {
     initialPlanId?: string;
     onUpdateProgress?: (progress: number) => void;
     disabled?: boolean;
+    /** Abre "Novo Alerta" com a descrição pré-preenchida (título do item + observação). */
+    onAddAlert?: (description: string) => void;
 }
 
 // ── Componente de Item do Checklist ──
@@ -46,7 +49,15 @@ interface ActivityItemProps {
     companyId?: string;
     assetId?: string;
     ovAssetId: string;
+    onAddAlert?: (title: string, comment?: string | null) => void;
 }
+
+const buildAlertDescription = (title: string, comment?: string | null) => {
+    const t = (title || '').trim();
+    const c = (comment || '').trim();
+    if (!c) return t;
+    return t ? `${t} - ${c}` : c;
+};
 
 const ActivityItem = React.memo(({
     activity,
@@ -64,7 +75,8 @@ const ActivityItem = React.memo(({
     uploadingItem,
     companyId,
     assetId,
-    ovAssetId
+    ovAssetId,
+    onAddAlert
 }: ActivityItemProps) => {
     const [isViewingHistory, setIsViewingHistory] = useState(false);
     const status = response?.status;
@@ -136,11 +148,6 @@ const ActivityItem = React.memo(({
                                     <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-normal italic">{activity.description}</div>
                                 )}
                             </div>
-                            {!isDisabled && response && response.status !== null && response.status !== undefined && (
-                                <button onClick={() => handleResetItem(activity.activityId)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all shrink-0" title="Limpar atividade">
-                                    <span className="material-symbols-outlined text-lg">delete_outline</span>
-                                </button>
-                            )}
                         </div>
 
                         {/* Thumbs */}
@@ -152,6 +159,28 @@ const ActivityItem = React.memo(({
                                 <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 mx-1" />
                                 <button disabled={isDisabled} onClick={() => handleAnswerItem(activity.activityId, 'NA')} className={`w-12 h-12 shrink-0 flex items-center justify-center rounded-lg transition-all duration-150 active:ring-4 active:ring-slate-500/30 active:brightness-125 ${status === 'NA' ? 'bg-slate-500 dark:bg-slate-400 text-white shadow-[0_0_15px_rgba(100,116,139,0.4)] ring-2 ring-slate-500/20' : 'text-slate-400 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-300'}`} title="Não se aplica"><span className="material-symbols-outlined text-xl">remove</span></button>
                             </div>
+                            {!isDisabled && response && response.status !== null && response.status !== undefined && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleResetItem(activity.activityId)}
+                                    className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all shrink-0"
+                                    title="Limpar marcações"
+                                    aria-label="Limpar marcações"
+                                >
+                                    <span className="material-symbols-outlined text-xl">restart_alt</span>
+                                </button>
+                            )}
+                            {!isDisabled && onAddAlert && status === 'NOK' && (
+                                <button
+                                    type="button"
+                                    onClick={() => onAddAlert(activity.activityDescription, response?.comments)}
+                                    className="ml-auto w-10 h-10 flex items-center justify-center text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-full transition-all shrink-0"
+                                    title="Novo alerta a partir deste item"
+                                    aria-label="Novo alerta a partir deste item"
+                                >
+                                    <span className="material-symbols-outlined text-xl">add_alert</span>
+                                </button>
+                            )}
                         </div>
 
                         {/* Comentário */}
@@ -229,7 +258,8 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
     userId,
     initialPlanId,
     onUpdateProgress,
-    disabled = false
+    disabled = false,
+    onAddAlert
 }) => {
     const [plans, setPlans] = useState<MaintenancePlan[]>([]);
     const [sections, setSections] = useState<MaintenancePlanSection[]>([]);
@@ -246,6 +276,17 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
     const [uploadSheetOpenId, setUploadSheetOpenId] = useState<string | null>(null);
     const [editingPhoto, setEditingPhoto] = useState<{ activityId: string, fileName: string, src: string } | null>(null);
     const [viewingHistory, setViewingHistory] = useState<Set<string>>(new Set());
+    const [showAlertCommentWarning, setShowAlertCommentWarning] = useState(false);
+
+    // Alerta a partir do item: exige a observação preenchida (vai para a descrição).
+    const handleRequestAlert = useCallback((title: string, comment?: string | null) => {
+        if (!onAddAlert) return;
+        if (!(comment || '').trim()) {
+            setShowAlertCommentWarning(true);
+            return;
+        }
+        onAddAlert(buildAlertDescription(title, comment));
+    }, [onAddAlert]);
 
     const toggleHistoryView = useCallback((activityId: string) => {
         setViewingHistory(prev => {
@@ -765,6 +806,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                                                 companyId={companyId}
                                                 assetId={assetId}
                                                 ovAssetId={ovAssetId}
+                                                onAddAlert={onAddAlert ? handleRequestAlert : undefined}
                                             />
                                         ))}
                                     </div>
@@ -800,6 +842,22 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
                 }}
                 onTakeCamera={() => {
                     if (uploadSheetOpenId) handleTakePhoto(uploadSheetOpenId, CameraSource.Camera);
+                }}
+            />
+
+            <AlertModal
+                isOpen={showAlertCommentWarning}
+                onClose={() => setShowAlertCommentWarning(false)}
+                icon="warning"
+                iconClassName="text-amber-500"
+                iconBgClassName="bg-amber-50 dark:bg-amber-900/20"
+                iconRingClassName="ring-amber-50/50 dark:ring-amber-900/10"
+                title="Observação obrigatória"
+                description="Preencha o campo Observação do item antes de criar o alerta. Ela será usada na descrição do alerta."
+                primaryAction={{
+                    label: 'Entendi',
+                    onClick: () => setShowAlertCommentWarning(false),
+                    variant: 'primary'
                 }}
             />
 

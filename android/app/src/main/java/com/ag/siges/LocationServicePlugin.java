@@ -123,10 +123,11 @@ public class LocationServicePlugin extends Plugin {
     }
 
     /**
-     * Abre o diálogo do sistema "Permitir que o app rode em segundo plano?".
-     * Se o fabricante não suportar o diálogo, abre a lista de otimização de bateria.
+     * Abre a tela do sistema com a lista de otimização de bateria, onde o usuário
+     * desliga a otimização do SIGES. Não usa ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+     * (pedido direto), que a política da Play Store restringe; se a lista não existir
+     * no aparelho, abre os detalhes do app.
      */
-    @SuppressLint("BatteryLife")
     @PluginMethod
     public void requestIgnoreBatteryOptimizations(PluginCall call) {
         Context ctx = getContext();
@@ -137,13 +138,13 @@ public class LocationServicePlugin extends Plugin {
             return;
         }
         try {
-            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-            intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+            Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             ctx.startActivity(intent);
         } catch (Exception e) {
             try {
-                Intent fallback = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                fallback.setData(Uri.parse("package:" + ctx.getPackageName()));
                 fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 ctx.startActivity(fallback);
             } catch (Exception e2) {

@@ -23,6 +23,36 @@ const getProcessingConfigurations = async () => {
     return data as { id: number, icon: string, icon_color: string, bg_color: string }[];
 };
 
+/**
+ * Consulta com `.in(coluna, ids)` em lotes, para não estourar o limite de
+ * tamanho da URL do gateway (HTTP 414 a partir de ~1.500–2.000 ids), e pagina
+ * cada lote para não ser cortado pelo limite de linhas do PostgREST (1.000).
+ * `build` deve devolver uma consulta NOVA a cada chamada, já com o .in(...).
+ */
+const IN_BATCH_SIZE = 200;
+const ROWS_PAGE_SIZE = 1000;
+async function selectInBatches<T = any>(
+    ids: (string | number)[],
+    build: (batch: (string | number)[]) => any,
+    label: string
+): Promise<T[]> {
+    const unique = [...new Set(ids)];
+    const rows: T[] = [];
+    for (let i = 0; i < unique.length; i += IN_BATCH_SIZE) {
+        const batch = unique.slice(i, i + IN_BATCH_SIZE);
+        for (let from = 0; ; from += ROWS_PAGE_SIZE) {
+            const { data, error } = await build(batch).range(from, from + ROWS_PAGE_SIZE - 1);
+            if (error) {
+                console.error(`Error fetching ${label}:`, error);
+                throw error;
+            }
+            rows.push(...((data || []) as T[]));
+            if (!data || data.length < ROWS_PAGE_SIZE) break;
+        }
+    }
+    return rows;
+}
+
 export const visitsService = {
 
     // -------------------------------------------------------------------------
@@ -705,20 +735,27 @@ export const visitsService = {
         if (numericIds.length === 0) return {};
 
         // 1. Fetch team links for all visits
-        const { data: teamLinks, error: teamError } = await supabase
-            .from('orders_visits_teams')
-            .select('*')
-            .in('ov_id', numericIds)
-            .order('order_id', { ascending: true });
-
-        if (teamError || !teamLinks || teamLinks.length === 0) return {};
+        let teamLinks: any[];
+        try {
+            teamLinks = await selectInBatches(numericIds, batch =>
+                supabase.from('orders_visits_teams').select('*').in('ov_id', batch).order('order_id', { ascending: true }),
+                'visit team links');
+        } catch {
+            return {};
+        }
+        if (teamLinks.length === 0) return {};
 
         // 2. Fetch all unique users involved
         const userIds = Array.from(new Set(teamLinks.map((t: any) => t.user_id)));
-        const { data: users, error: usersError } = await supabase
-            .from('users')
-            .select('id, name_short, img_file_path, img_file_name, is_available')
-            .in('id', userIds);
+        let users: any[] | null = null;
+        let usersError: unknown = null;
+        try {
+            users = await selectInBatches(userIds as (string | number)[], batch =>
+                supabase.from('users').select('id, name_short, img_file_path, img_file_name, is_available').in('id', batch),
+                'visit team users');
+        } catch (err) {
+            usersError = err;
+        }
 
         if (usersError || !users) {
             console.error('Error fetching users for teams bulk:', usersError);
@@ -2675,6 +2712,28 @@ export const visitsService = {
         user: User,
         endedAt?: string
     ): Promise<void> {
+        // Caminho rápido: tudo numa chamada e numa transação (RPC
+        // flow_order_visit_close_v3, migration 20261115). Antes eram 10–15
+        // chamadas em sequência (3–7 s no celular) e uma falha no meio deixava
+        // visita/OS/SS/equipe inconsistentes. Sem o RPC no banco, segue o
+        // caminho antigo abaixo (mesma lógica).
+        const { error: rpcError } = await supabase.rpc('flow_order_visit_close_v3', {
+            p_visit_id: Number(visitId),
+            p_order_id: Number(orderId),
+            p_status_id: statusId,
+            p_status_description: statusDescription,
+            p_suspended_reason_id: suspendedReasonId ? Number(suspendedReasonId) : null,
+            p_cause_reason_id: causeReasonId,
+            p_progress: progress,
+            p_ended_at: endedAt ? toBrazilNaiveDateTime(endedAt) : null,
+        });
+        if (!rpcError) return;
+        if (rpcError.code !== 'PGRST202' && rpcError.code !== '42883') {
+            // Erro de validação/permissão: mesma mensagem do caminho antigo.
+            throw new Error(rpcError.message || 'Erro ao encerrar visita');
+        }
+
+        // ── Caminho antigo (RPC ainda não aplicado) ─────────────────────────
         // 1. Validate Vehicles
         const { data: vehicles, error: vehError } = await supabase
             .from('orders_visits_vehicles')
@@ -2866,53 +2925,42 @@ export const visitsService = {
 
     async getOrdersVisitsServicesMerged(ovIds: string[]): Promise<any[]> {
         if (!ovIds.length) return [];
-        const { data, error } = await supabase
-            .from('v_orders_visits_services')
-            .select('*')
-            .in('ov_id', ovIds);
-        if (error) {
-            console.error('Error fetching bulk services:', error);
+        try {
+            return await selectInBatches(ovIds, batch =>
+                supabase.from('v_orders_visits_services').select('*').in('ov_id', batch), 'bulk services');
+        } catch {
             return [];
         }
-        return data || [];
     },
 
     async getOrdersVisitsMaterialsMerged(ovIds: string[]): Promise<any[]> {
         if (!ovIds.length) return [];
-        const { data, error } = await supabase
-            .from('v_orders_visits_assets_materials')
-            .select('*')
-            .in('ov_id', ovIds);
-        if (error) {
-            console.error('Error fetching bulk materials:', error);
+        try {
+            return await selectInBatches(ovIds, batch =>
+                supabase.from('v_orders_visits_assets_materials').select('*').in('ov_id', batch), 'bulk materials');
+        } catch {
             return [];
         }
-        return data || [];
     },
 
     async getOrdersVisitsVehiclesMerged(ovIds: string[]): Promise<any[]> {
         if (!ovIds.length) return [];
-        const { data, error } = await supabase
-            .from('v_orders_visits_vehicles')
-            .select('*')
-            .in('ov_id', ovIds);
-        if (error) {
-            console.error('Error fetching bulk vehicles:', error);
+        try {
+            return await selectInBatches(ovIds, batch =>
+                supabase.from('v_orders_visits_vehicles').select('*').in('ov_id', batch), 'bulk vehicles');
+        } catch {
             return [];
         }
-        return data || [];
     },
 
     async getOrdersVisitsAssetsMovedMerged(ovIds: string[]): Promise<any[]> {
         if (!ovIds.length) return [];
-        const { data, error } = await supabase
-            .from('v_orders_visits_assets')
-            .select('*')
-            .in('ov_id', ovIds)
-            .eq('is_moved', true);
-
-        if (error) {
-            console.error('Error fetching moved assets:', error);
+        let data: any[];
+        try {
+            data = await selectInBatches(ovIds, batch =>
+                supabase.from('v_orders_visits_assets').select('*').in('ov_id', batch).eq('is_moved', true),
+                'moved assets');
+        } catch {
             return [];
         }
 

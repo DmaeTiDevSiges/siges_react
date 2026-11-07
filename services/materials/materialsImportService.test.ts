@@ -258,6 +258,28 @@ describe('materialsImportService.getExistingCodes', () => {
         expect(chain.eq).toHaveBeenNthCalledWith(2, 'company_id', 2);
     });
 
+    it('restringe ao catálogo da empresa fornecedora (provider_company_id)', async () => {
+        const chain = buildChain([]);
+        fromMock.mockReturnValue({ select: jest.fn(() => chain) });
+
+        await materialsImportService.getExistingCodes(['166'], '1', '20');
+
+        expect(chain.eq).toHaveBeenCalledWith('company_id', 1);
+        expect(chain.eq).toHaveBeenCalledWith('provider_company_id', 20);
+    });
+
+    it('consulta em lotes para não estourar o tamanho da URL', async () => {
+        const chain = buildChain([{ code: 'C1' }]);
+        fromMock.mockReturnValue({ select: jest.fn(() => chain) });
+        const codes = Array.from({ length: 450 }, (_, i) => `C${i}`);
+
+        const result = await materialsImportService.getExistingCodes(codes, '1', '20');
+
+        expect(chain.in).toHaveBeenCalledTimes(3);
+        expect(chain.in.mock.calls.every(([, batch]: [string, string[]]) => batch.length <= 200)).toBe(true);
+        expect([...result]).toEqual(['C1']);
+    });
+
     it('sem empresa informada, checa globalmente', async () => {
         const chain = buildChain([]);
         fromMock.mockReturnValue({ select: jest.fn(() => chain) });
@@ -335,7 +357,7 @@ describe('materialsImportService.validateMaterialsRows', () => {
         const result = materialsImportService.validateMaterialsRows([validRow()], ctx(['MAT-001']));
 
         expect(result.valid).toHaveLength(0);
-        expect(result.errors.some(e => e.message.includes('já existe nesta empresa'))).toBe(true);
+        expect(result.errors.some(e => e.message.includes('já cadastrado para a sua empresa'))).toBe(true);
     });
 
     it('rejeita código repetido no arquivo', () => {

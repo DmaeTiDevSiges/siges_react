@@ -105,8 +105,9 @@ export const MaterialImportModal: React.FC<MaterialImportModalProps> = ({
 
             const codes = [...new Set(parsed.rows.map(row => row.code).filter(Boolean))];
             const [existingCodes, warehouseMap] = await Promise.all([
-                // duplicidade (company_id, code): company_id fixo da importação
-                dataService.getExistingMaterialCodes(codes, String(MATERIALS_IMPORT_COMPANY_ID)),
+                // duplicidade (company_id, provider_company_id, code): company_id fixo da
+                // importação + catálogo da empresa fornecedora do usuário logado
+                dataService.getExistingMaterialCodes(codes, String(MATERIALS_IMPORT_COMPANY_ID), currentUser?.companyId),
                 // almoxarifados do USUÁRIO LOGADO (warehouses.company_id do usuário):
                 // códigos iguais podem existir em empresas diferentes
                 dataService.getMaterialImportWarehouseMap(currentUser?.companyId)
@@ -126,10 +127,10 @@ export const MaterialImportModal: React.FC<MaterialImportModalProps> = ({
             setErrors([
                 {
                     line: 1,
+                    // Erros do Supabase podem vir como objeto { message } (não Error)
                     message:
-                        error instanceof Error && error.message
-                            ? error.message
-                            : 'Erro ao processar o arquivo. Tente novamente.'
+                        (error as { message?: string } | null)?.message ||
+                        'Erro ao processar o arquivo. Tente novamente.'
                 }
             ]);
             setStep('validation');

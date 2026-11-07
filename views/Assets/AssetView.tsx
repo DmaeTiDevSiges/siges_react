@@ -831,7 +831,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                             <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                                        Empréstimos deste Ativo
+                                        Empréstimos e Vistorias deste Ativo
                                     </h3>
                                     {canCreate('assets_loans') && !assetLoans.some(loan => loan.status !== 'closed') && (
                                     <button
@@ -839,7 +839,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                         className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors"
                                     >
                                         <span className="material-symbols-outlined text-lg">add</span>
-                                        Novo Empréstimo
+                                        Novo Registro
                                     </button>
                                     )}
                                 </div>
@@ -853,8 +853,8 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                         <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4">
                                             <span className="material-symbols-outlined text-slate-400 text-3xl">handshake</span>
                                         </div>
-                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-200">Nenhum empréstimo registrado</p>
-                                        <p className="text-[11px] text-slate-500 mt-1">Clique em "Novo Empréstimo" para começar</p>
+                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-200">Nenhum empréstimo, recebimento ou cedência registrado</p>
+                                        <p className="text-[11px] text-slate-500 mt-1">Clique em "Novo Registro" para começar</p>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 gap-3">
@@ -876,7 +876,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                     <Modal
                                         isOpen={showLoanForm}
                                         onClose={() => setShowLoanForm(false)}
-                                        title="Novo Empréstimo"
+                                        title="Novo Registro"
                                         maxWidth="lg"
                                     >
                                         <AssetLoanForm
@@ -896,7 +896,7 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                     <Modal
                                         isOpen={!!selectedLoan}
                                         onClose={() => setSelectedLoan(null)}
-                                        title="Detalhes do Empréstimo"
+                                        title={selectedLoan.recordType === 'receipt' ? 'Detalhes do Recebimento' : selectedLoan.recordType === 'cedencia' ? 'Detalhes da Cedência' : 'Detalhes do Empréstimo'}
                                         maxWidth="lg"
                                     >
                                         <AssetLoanDetails
@@ -914,8 +914,8 @@ export const AssetDetails: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                 <Modal
                                     isOpen={showLoanImpedimentModal}
                                     onClose={() => setShowLoanImpedimentModal(false)}
-                                    title="Novo Empréstimo"
-                                    message="Existe(m) empréstimo(s) ativo(s) neste ativo. Todos os empréstimos devem estar encerrados antes de criar um novo empréstimo."
+                                    title="Novo Registro"
+                                    message="Este ativo tem um empréstimo, recebimento ou cedência não encerrado. Conclua-o antes de criar um novo registro."
                                     type="warning"
                                     maxWidth="sm"
                                     confirmLabel="Entendido"

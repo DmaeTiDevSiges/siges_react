@@ -24,10 +24,11 @@ export const PROCESSING_STATUSES = {
         id: 3,
         label: 'Revisada',
         icon: 'done_all',
-        color: 'text-green-500',
-        bgColor: 'bg-green-500/10',
-        borderColor: 'border-green-500/50',
-        shadowColor: 'shadow-[0_0_10px_rgba(34,197,94,0.2)]'
+        // Texto/ícone preto sobre fundo laranja (destaque de "aguardando aprovação")
+        color: 'text-black',
+        bgColor: 'bg-orange-400',
+        borderColor: 'border-orange-500',
+        shadowColor: 'shadow-[0_0_10px_rgba(251,146,60,0.35)]'
     },
     REPROVADAS: {
         id: 4,

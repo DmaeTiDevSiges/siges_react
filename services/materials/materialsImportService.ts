@@ -58,6 +58,8 @@ export const MATERIALS_IMPORT_COMPANY_ID = 1;
 
 /** Tamanho do lote de INSERT — cada lote reporta o progresso da importação. */
 const IMPORT_BATCH_SIZE = 25;
+/** Códigos por consulta de duplicidade (mantém a URL do GET curta). */
+const EXISTING_CODES_BATCH_SIZE = 200;
 
 /** Normaliza um cabeçalho para comparação: trim, minúsculas, sem acento, espaços colapsados. */
 const normalizeHeader = (value: unknown): string =>
@@ -242,28 +244,45 @@ export const materialsImportService = {
 
     /**
      * Busca os códigos informados que já existem em materials (não deletados).
-     * A duplicidade é avaliada pelo par (company_id, code) — na importação o
-     * company_id é sempre MATERIALS_IMPORT_COMPANY_ID.
+     * Na importação o company_id gravado é sempre MATERIALS_IMPORT_COMPANY_ID e
+     * cada empresa fornecedora tem o próprio catálogo (provider_company_id); por
+     * isso a duplicidade é (company_id, provider_company_id, code) — o mesmo
+     * código pode existir em outra fornecedora.
      */
-    async getExistingCodes(codes: string[], companyId?: string): Promise<Set<string>> {
+    async getExistingCodes(codes: string[], companyId?: string, providerCompanyId?: string): Promise<Set<string>> {
         const unique = [...new Set(codes.filter(Boolean))];
         if (unique.length === 0) return new Set();
 
-        let query = supabase
-            .from('materials')
-            .select('code')
-            .in('code', unique)
-            .eq('is_deleted', false);
+        // O filtro .in() vai na URL do GET: milhares de códigos numa só consulta
+        // estouram o limite de tamanho da URL do gateway (planilha com ~3.700
+        // linhas → ~25 mil caracteres) e a importação falhava. Consulta em lotes.
+        const existing = new Set<string>();
+        for (let i = 0; i < unique.length; i += EXISTING_CODES_BATCH_SIZE) {
+            const batch = unique.slice(i, i + EXISTING_CODES_BATCH_SIZE);
 
-        if (companyId) {
-            query = query.eq('company_id', parseInt(companyId));
+            let query = supabase
+                .from('materials')
+                .select('code')
+                .in('code', batch)
+                .eq('is_deleted', false);
+
+            if (companyId) {
+                query = query.eq('company_id', parseInt(companyId));
+            }
+            if (providerCompanyId) {
+                query = query.eq('provider_company_id', parseInt(providerCompanyId));
+            }
+
+            const { data, error } = await query;
+
+            if (error) {
+                throw new Error(`Erro ao verificar códigos já cadastrados: ${error.message || 'falha na consulta'}`);
+            }
+
+            (data || []).forEach((item: { code: string }) => existing.add(item.code));
         }
 
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        return new Set((data || []).map((item: { code: string }) => item.code));
+        return existing;
     },
 
     /**
@@ -303,7 +322,7 @@ export const materialsImportService = {
                 rowErrors.push({ line: row.line, field: 'code', message: 'Código obrigatório.' });
             } else {
                 if (ctx.existingCodes.has(row.code)) {
-                    rowErrors.push({ line: row.line, field: 'code', message: `Código "${row.code}" já existe nesta empresa.` });
+                    rowErrors.push({ line: row.line, field: 'code', message: `Código "${row.code}" já cadastrado para a sua empresa.` });
                 }
                 if (seenCodes.has(row.code)) {
                     rowErrors.push({ line: row.line, field: 'code', message: `Código "${row.code}" repetido no arquivo.` });
@@ -402,10 +421,11 @@ export const materialsImportService = {
             }
         }
 
-        // 2) Duplicidade (company_id, code) já gravada → indeferida
+        // 2) Duplicidade (company_id, provider_company_id, code) já gravada → indeferida
         const existing = await materialsImportService.getExistingCodes(
             firstOccurrences.map(row => row.code),
-            String(MATERIALS_IMPORT_COMPANY_ID)
+            String(MATERIALS_IMPORT_COMPANY_ID),
+            currentUser?.companyId
         );
         const pending = firstOccurrences.filter(row => {
             if (existing.has(row.code)) {

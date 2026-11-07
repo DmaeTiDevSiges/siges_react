@@ -9,6 +9,7 @@ import { dataService } from '../../services/dataService';
 import { imgproxyService } from '../../services/media/imgproxyService';
 import { FileUtils } from '../../utils/FileUtils';
 import { toast } from 'sonner';
+import { getRecordTypeConfig, isSingleInspection } from '../assetLoans/assetLoanRecordTypes';
 import { Loading } from '../ui/Loading';
 
 const imgToBase64 = (url: string): Promise<string | null> =>
@@ -52,7 +53,8 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
         if (isGenerating) return;
 
         setIsGenerating(true);
-        const toastId = toast.loading('Gerando PDF do empréstimo...', { position: 'top-center' });
+        const typeLabel = getRecordTypeConfig(loan.recordType).label;
+        const toastId = toast.loading(`Gerando PDF (${typeLabel.toLowerCase()})...`, { position: 'top-center' });
 
         try {
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -76,7 +78,7 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
                     }
                 }
             }
-            if (loan.signatureReturnPath && loan.signatureReturnName) {
+            if (!isSingleInspection(loan.recordType) && loan.signatureReturnPath && loan.signatureReturnName) {
                 const rawUrl = dataService.getSignatureUrl(loan.signatureReturnPath, loan.signatureReturnName);
                 if (rawUrl) {
                     const url = imgproxyService.generateUrl(rawUrl, { width: 400, height: 200, resize: 'fit', format: 'png' });
@@ -114,7 +116,8 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             const assetCode = asset?.code || 'export';
             const borrower = loan.borrowerName?.replace(/\s+/g, '_') || '';
-            const fileName = `Emprestimo_${assetCode}_${borrower}_${timestamp}.pdf`;
+            const prefix = { loan: 'Emprestimo', receipt: 'Recebimento', cedencia: 'Cedencia' }[loan.recordType] || 'Emprestimo';
+            const fileName = `${prefix}_${assetCode}_${borrower}_${timestamp}.pdf`;
 
             const blob = await pdf(
                 <AssetLoanReportDocument
@@ -142,7 +145,7 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
         <button
             onClick={handleGeneratePDF}
             disabled={isGenerating}
-            title="Baixar Relatório de Empréstimo"
+            title={`Baixar relatório (${getRecordTypeConfig(loan.recordType).label})`}
             className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${isGenerating ? 'animate-pulse' : ''} ${className}`}
         >
             {isGenerating ? (

@@ -501,7 +501,7 @@ export const OrderRequestView: React.FC<OrderRequestViewProps> = ({
                                     </div>
                                     <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Iniciar Visita?</h3>
                                     <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">
-                                        Você está prestes a iniciar a visita para esta Ordem de Serviço. Sua localização será registrada.
+                                        Você está prestes a iniciar a visita para esta Ordem de Serviço.
                                     </p>
                                 </div>
 

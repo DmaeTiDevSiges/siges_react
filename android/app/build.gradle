@@ -10,6 +10,12 @@ task npmBuildAndSync(type: Exec) {
         !project.hasProperty('skipNpmBuild') && System.getenv('SKIP_NPM_BUILD') != '1'
     }
 
+    // Canal de atualização embutido no JS: AAB (bundle*) = Play Store; APK = download direto.
+    // Pode ser forçado com VITE_ANDROID_UPDATE_CHANNEL=play|apk.
+    def isBundleBuild = gradle.startParameter.taskNames.any { it.toLowerCase().contains('bundle') }
+    environment 'VITE_ANDROID_UPDATE_CHANNEL',
+        System.getenv('VITE_ANDROID_UPDATE_CHANNEL') ?: (isBundleBuild ? 'play' : 'apk')
+
     def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
     if (isWindows) {
         commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-Command', 'npm run build:android'
@@ -47,6 +53,24 @@ def getVersionCode = { ->
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── Assinatura: lida de android/keystore.properties (fora do Git) ou de variáveis
+// de ambiente. Nunca coloque senha ou keystore neste arquivo.
+//   storeFile=/caminho/absoluto/siges-release.jks   (ou relativo a android/app)
+//   storePassword=...
+//   keyAlias=...
+//   keyPassword=...
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file('keystore.properties')
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def signingValue = { String key, String envName ->
+    keystoreProps.getProperty(key) ?: System.getenv(envName)
+}
+def releaseStoreFile = signingValue('storeFile', 'SIGES_KEYSTORE_FILE')
+def hasReleaseSigning = releaseStoreFile && file(releaseStoreFile).exists()
+// ─────────────────────────────────────────────────────────────────────────────
+
 android {
     namespace = "com.ag.siges"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -69,10 +93,12 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('siges-release.jks')
-            storePassword 'Sige@1961'
-            keyAlias 'siges-keystore'
-            keyPassword 'Sige@1961'
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword signingValue('storePassword', 'SIGES_KEYSTORE_PASSWORD')
+                keyAlias signingValue('keyAlias', 'SIGES_KEY_ALIAS')
+                keyPassword signingValue('keyPassword', 'SIGES_KEY_PASSWORD')
+            }
         }
     }
     buildTypes {
@@ -80,13 +106,16 @@ android {
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            // Sem keystore configurado, o debug usa a chave de debug padrão do Android.
+            if (hasReleaseSigning) signingConfig signingConfigs.release
         }
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
@@ -113,6 +142,17 @@ dependencies {
     implementation project(':capacitor-cordova-android-plugins')
 }
 
+
+// Falha cedo (em vez de gerar um release sem assinatura) quando falta o keystore.
+gradle.taskGraph.whenReady { graph ->
+    def wantsRelease = graph.allTasks.any { it.project == project && it.name.toLowerCase().contains('release') }
+    if (wantsRelease && !hasReleaseSigning) {
+        throw new GradleException(
+            'Keystore de release não configurado. Crie android/keystore.properties ' +
+            '(ver android/keystore.properties.example) ou defina SIGES_KEYSTORE_FILE, ' +
+            'SIGES_KEYSTORE_PASSWORD, SIGES_KEY_ALIAS e SIGES_KEY_PASSWORD.')
+    }
+}
 
 apply from: 'capacitor.build.gradle'
 
