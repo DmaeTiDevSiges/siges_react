@@ -32,6 +32,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Calendar;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -74,6 +76,17 @@ public class LocationForegroundService extends Service {
     static final String PREF_TOKEN    = "trackerToken";
     static final String PREF_INTERVAL = "intervalSeconds";
     static final String PREF_DISTANCE = "distanceMeters";
+    static final String PREF_CONFIG   = "trackerConfig";
+    /** JSON de cfg_app.tracker_config (intervalos por atividade). Opcional. */
+    public static final String EXTRA_TRACKER_CONFIG = "trackerConfig";
+    // Expediente do usuário (users.shift_start/shift_end, "HH:mm[:ss]") e se há visita aberta
+    // (visita aberta ignora o expediente: rastreia a qualquer hora).
+    static final String PREF_SHIFT_START  = "shiftStart";
+    static final String PREF_SHIFT_END    = "shiftEnd";
+    static final String PREF_IGNORE_SHIFT = "ignoreShift";
+    public static final String EXTRA_SHIFT_START  = "shiftStart";
+    public static final String EXTRA_SHIFT_END    = "shiftEnd";
+    public static final String EXTRA_IGNORE_SHIFT = "ignoreShift";
     public static final String EXTRA_INTERVAL_SEC = "intervalSeconds";
     public static final String EXTRA_DISTANCE_M   = "distanceMeters";
     public static final String EXTRA_ACTIVITY_TYPE = "activityType";
@@ -104,10 +117,18 @@ public class LocationForegroundService extends Service {
     private int currentActivityType = DetectedActivity.UNKNOWN;
     private int currentConfidence   = 0;
 
-    // Send throttling
-    private static final long MIN_SEND_INTERVAL_MS    = 30_000;  // 30s minimum between HTTP sends
-    private static final long HEARTBEAT_STILL_MS      = 180_000; // 3 min heartbeat when still
-    private static final long HEARTBEAT_MOVING_MS     = 60_000;  // 1 min heartbeat when moving
+    // Intervalos de leitura/envio por atividade (cfg_app.tracker_config; padrões em TrackerConfig).
+    private TrackerConfig config = TrackerConfig.defaults();
+
+    // ── Expediente ──
+    private static final long SHIFT_CHECK_MS = 60_000;
+    private static final TimeZone TZ_BR = TimeZone.getTimeZone("America/Sao_Paulo");
+    private int shiftStartMin = -1;   // minutos do dia; -1 = sem expediente definido
+    private int shiftEndMin   = -1;
+    private boolean ignoreShift = false;
+    /** true = fora do expediente e sem visita: GPS, atividade e envios desligados. */
+    private boolean paused = false;
+    private Runnable shiftCheckRunnable;
 
     private Location lastSentLocation = null;
     private long     lastSentTimeMs   = 0;
@@ -116,7 +137,7 @@ public class LocationForegroundService extends Service {
     // ── Heartbeat timer (keeps tracker_heartbeat_at fresh when GPS is off) ──
     private Handler  heartbeatHandler;
     private Runnable heartbeatRunnable;
-    private long     heartbeatStillMs = HEARTBEAT_STILL_MS;
+    private long     heartbeatStillMs = TrackerConfig.defaults().still.sendMaxIntervalMs;
 
     @Override
     public void onCreate() {
@@ -162,7 +183,12 @@ public class LocationForegroundService extends Service {
                 .putString(PREF_KEY, intent.getStringExtra(EXTRA_SUPABASE_KEY))
                 .putString(PREF_TOKEN, intent.getStringExtra(EXTRA_TRACKER_TOKEN))
                 .putInt(PREF_INTERVAL, intent.getIntExtra(EXTRA_INTERVAL_SEC, 60))
-                .putFloat(PREF_DISTANCE, intent.getFloatExtra(EXTRA_DISTANCE_M, 50f));
+                .putFloat(PREF_DISTANCE, intent.getFloatExtra(EXTRA_DISTANCE_M, 50f))
+                // null (JS antigo) remove a chave → padrões do APK.
+                .putString(PREF_CONFIG, intent.getStringExtra(EXTRA_TRACKER_CONFIG))
+                .putString(PREF_SHIFT_START, intent.getStringExtra(EXTRA_SHIFT_START))
+                .putString(PREF_SHIFT_END, intent.getStringExtra(EXTRA_SHIFT_END))
+                .putBoolean(PREF_IGNORE_SHIFT, intent.getBooleanExtra(EXTRA_IGNORE_SHIFT, false));
         editor.apply();
 
         return restoreAndStart() ? START_STICKY : START_NOT_STICKY;
@@ -189,7 +215,13 @@ public class LocationForegroundService extends Service {
         trackerToken = p.getString(PREF_TOKEN, null);
         distanceMeters = p.getFloat(PREF_DISTANCE, 50f);
         long intervalSec = p.getInt(PREF_INTERVAL, 60);
-        heartbeatStillMs = Math.max(intervalSec * 1000L, MIN_SEND_INTERVAL_MS);
+        config = TrackerConfig.parse(p.getString(PREF_CONFIG, null));
+        shiftStartMin = parseClock(p.getString(PREF_SHIFT_START, null));
+        shiftEndMin   = parseClock(p.getString(PREF_SHIFT_END, null));
+        ignoreShift   = p.getBoolean(PREF_IGNORE_SHIFT, false);
+        // Heartbeat parado: o maior entre a config global e o intervalo do usuário
+        // (antes usava só o do usuário — em geral 60 s — e o celular parado enviava a cada minuto).
+        heartbeatStillMs = Math.max(config.still.sendMaxIntervalMs, Math.max(intervalSec * 1000L, config.minSendIntervalMs));
 
         startForegroundWithNotification();
 
@@ -199,13 +231,19 @@ public class LocationForegroundService extends Service {
             return false;
         }
 
-        Log.i(TAG, "START — userId=" + userId + " dist=" + distanceMeters + "m heartbeat=" + (heartbeatStillMs / 1000) + "s");
+        Log.i(TAG, "START — userId=" + userId + " heartbeatStill=" + (heartbeatStillMs / 1000) + "s shift="
+                + shiftStartMin + "-" + shiftEndMin + "min ignoreShift=" + ignoreShift + " config: " + config);
 
         if (!running) {
             startActivityRecognition();
             startLocationUpdates();
             running = true;
+        } else {
+            // Já rodando (novo START do JS): reaplica intervalos da config atualizada.
+            adaptGpsForActivity(currentActivityType);
         }
+        evaluateShift();
+        scheduleShiftCheck();
         return true;
     }
 
@@ -232,10 +270,14 @@ public class LocationForegroundService extends Service {
 
         android.app.Notification notification = new NotificationCompat.Builder(this, "siges_location_channel")
                 .setContentTitle("SIGES")
-                .setContentText("Localização compartilhada enquanto você estiver disponível ou em visita")
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(
-                        "Localização compartilhada com a sua empresa enquanto você estiver disponível ou em visita. "
-                        + "Fica indisponível no app para pausar."))
+                .setContentText(paused
+                        ? "Localização pausada fora do expediente"
+                        : "Localização compartilhada enquanto você estiver disponível ou em visita")
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(paused
+                        ? "Localização pausada fora do seu expediente. Volta sozinha no início do turno "
+                          + "ou se você abrir uma visita."
+                        : "Localização compartilhada com a sua empresa enquanto você estiver disponível ou em visita. "
+                          + "Fica indisponível no app para pausar."))
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -308,51 +350,42 @@ public class LocationForegroundService extends Service {
 
     /**
      * Switch GPS priority and interval based on detected activity.
-     * This is the core battery optimization:
-     *   - STILL: LOW_POWER (antenas + Wi-Fi, 5min) + heartbeat backup
-     *   - ON_FOOT: balanced GPS, 10s interval
-     *   - IN_VEHICLE: high accuracy GPS, 5s interval
+     * This is the core battery optimization (intervalos em cfg_app.tracker_config):
+     *   - STILL: LOW_POWER (antenas + Wi-Fi; padrão 5 min) + heartbeat backup
+     *   - ON_FOOT e demais: balanced GPS (padrão 30 s)
+     *   - IN_VEHICLE: balanced GPS (padrão 15 s, lote de 60 s; alta precisão opcional)
      */
     private void adaptGpsForActivity(int activityType) {
+        if (paused) return; // fora do expediente: nada de GPS
+        TrackerConfig.Mode m;
         switch (activityType) {
             case DetectedActivity.STILL:
             case DetectedActivity.UNKNOWN:
-                // Low-power: antenas + Wi-Fi a cada 5min (precisão ~100-500m, bateria mínima)
-                // Heartbeat timer é backup caso a localização por antenas falhe
+                // Parado: antenas + Wi-Fi (precisão ~100-500 m, bateria mínima) + heartbeat de reserva.
                 stopHeartbeat();
-                requestLocationWithPriority(Priority.PRIORITY_LOW_POWER, 300_000, 120_000);
+                m = config.still;
+                requestLocationWithPriority(Priority.PRIORITY_LOW_POWER, m.gpsIntervalMs, m.gpsMinIntervalMs, m.batchMs);
                 startHeartbeat();
-                Log.i(TAG, "GPS LOW_POWER — antenas/Wi-Fi (5min) + heartbeat backup");
-                break;
-
-            case DetectedActivity.ON_FOOT:
-            case DetectedActivity.WALKING:
-            case DetectedActivity.RUNNING:
-                // Balanced power GPS
-                stopHeartbeat();
-                requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 10_000, 5_000);
-                Log.i(TAG, "GPS BALANCED — ON_FOOT (10s)");
+                Log.i(TAG, "GPS LOW_POWER — STILL " + m);
                 break;
 
             case DetectedActivity.IN_VEHICLE:
             case DetectedActivity.ON_BICYCLE:
-                // High accuracy GPS
+                // Veículo: balanceado por padrão (alta precisão só se high_accuracy=true), com lote.
                 stopHeartbeat();
-                requestLocationWithPriority(Priority.PRIORITY_HIGH_ACCURACY, 5_000, 2_000);
-                Log.i(TAG, "GPS HIGH_ACCURACY — IN_VEHICLE (5s)");
-                break;
-
-            case DetectedActivity.TILTING:
-                // Transitional — balanced with slightly longer interval
-                stopHeartbeat();
-                requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 15_000, 8_000);
-                Log.i(TAG, "GPS BALANCED — TILTING (15s)");
+                m = config.vehicle;
+                requestLocationWithPriority(
+                        m.highAccuracy ? Priority.PRIORITY_HIGH_ACCURACY : Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                        m.gpsIntervalMs, m.gpsMinIntervalMs, m.batchMs);
+                Log.i(TAG, "GPS VEHICLE " + m);
                 break;
 
             default:
-                // Unknown — balanced fallback
+                // A pé, correndo, inclinando (transição) e demais: modo "a pé".
                 stopHeartbeat();
-                requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 15_000, 8_000);
+                m = config.foot;
+                requestLocationWithPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY, m.gpsIntervalMs, m.gpsMinIntervalMs, m.batchMs);
+                Log.i(TAG, "GPS BALANCED — " + activityName(activityType) + " " + m);
                 break;
         }
     }
@@ -377,13 +410,16 @@ public class LocationForegroundService extends Service {
         Log.i(TAG, "Location updates started (activity=" + activityName(currentActivityType) + ")");
     }
 
-    private void requestLocationWithPriority(int priority, long intervalMs, long minIntervalMs) {
+    private void requestLocationWithPriority(int priority, long intervalMs, long minIntervalMs, long batchMs) {
         if (fusedClient == null || locationCallback == null) return;
 
-        LocationRequest request = new LocationRequest.Builder(priority, intervalMs)
+        LocationRequest.Builder builder = new LocationRequest.Builder(priority, intervalMs)
                 .setMinUpdateIntervalMillis(minIntervalMs)
-                .setMinUpdateDistanceMeters(0)
-                .build();
+                .setMinUpdateDistanceMeters(0);
+        // Lote: o provedor junta posições e entrega de uma vez (menos despertares).
+        // Só tem efeito quando maior que o intervalo; usamos a última posição do lote.
+        if (batchMs > intervalMs) builder.setMaxUpdateDelayMillis(batchMs);
+        LocationRequest request = builder.build();
 
         try {
             fusedClient.removeLocationUpdates(locationCallback);
@@ -440,6 +476,7 @@ public class LocationForegroundService extends Service {
     }
 
     private void onNewLocation(Location location) {
+        if (paused) return;
         lastGpsLocation = location;
 
         if (!shouldSend(location)) return;
@@ -457,44 +494,38 @@ public class LocationForegroundService extends Service {
     }
 
     /**
-     * Adaptive send logic:
-     * - MOVING: send every 30s OR when moved >distanceMeters
-     * - STATIONARY: heartbeat every 3 min (keep-alive for admin tracker)
+     * Decide se envia a posição ao servidor (valores de cfg_app.tracker_config):
+     * - nunca antes de min_send_interval_s desde o último envio;
+     * - envia ao andar send_distance_m do modo atual;
+     * - ou quando passar send_max_interval_s do modo atual (heartbeat).
      */
     private boolean shouldSend(Location newLocation) {
         if (lastSentLocation == null || lastSentTimeMs == 0) return true;
 
         long elapsedMs = System.currentTimeMillis() - lastSentTimeMs;
+        if (elapsedMs < config.minSendIntervalMs) return false;
 
-        // Heartbeat interval based on activity
-        long heartbeatMs = isStill() ? HEARTBEAT_STILL_MS : HEARTBEAT_MOVING_MS;
-
-        // Minimum send interval (hard floor)
-        if (elapsedMs < MIN_SEND_INTERVAL_MS) {
-            return false;
-        }
-
+        TrackerConfig.Mode m = currentMode();
         float distanceMoved = lastSentLocation.distanceTo(newLocation);
-
-        // Distance filter based on activity
-        float distanceFilter;
-        if (isStill()) {
-            distanceFilter = distanceMeters * 6; // 300m — only on significant movement
-        } else {
-            distanceFilter = distanceMeters;     // 50m
-        }
-
-        if (distanceMoved >= distanceFilter) {
-            Log.d(TAG, "Send by DISTANCE (" + Math.round(distanceMoved) + "m), filter=" + Math.round(distanceFilter) + "m");
+        if (distanceMoved >= m.sendDistanceM) {
+            Log.d(TAG, "Send by DISTANCE (" + Math.round(distanceMoved) + "m), filter=" + Math.round(m.sendDistanceM) + "m");
             return true;
         }
 
-        if (elapsedMs >= heartbeatMs) {
+        if (elapsedMs >= m.sendMaxIntervalMs) {
             Log.d(TAG, "Send by HEARTBEAT (" + (elapsedMs / 1000) + "s), activity=" + activityName(currentActivityType));
             return true;
         }
 
         return false;
+    }
+
+    private TrackerConfig.Mode currentMode() {
+        if (isStill()) return config.still;
+        if (currentActivityType == DetectedActivity.IN_VEHICLE || currentActivityType == DetectedActivity.ON_BICYCLE) {
+            return config.vehicle;
+        }
+        return config.foot;
     }
 
     private boolean isStill() {
@@ -577,10 +608,82 @@ public class LocationForegroundService extends Service {
     // Lifecycle
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Expediente — pausa fora do turno (sem visita aberta), retoma sozinho
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private static int parseClock(String value) {
+        return TrackerConfig.parseClock(value);
+    }
+
+    /** Dia ISO (1 = segunda ... 7 = domingo) a partir de Calendar.DAY_OF_WEEK. */
+    private static int isoDay(Calendar c) {
+        return ((c.get(Calendar.DAY_OF_WEEK) + 5) % 7) + 1;
+    }
+
+    /**
+     * Deve rastrear agora? Visita aberta ou regra desligada → sempre.
+     * Janela fixa da config (window_start/window_end) tem prioridade sobre o turno do usuário;
+     * sem nenhuma das duas → sempre.
+     */
+    private boolean shouldTrackNow() {
+        if (ignoreShift || !config.shiftOnly) return true;
+        boolean useWindow = config.windowStartMin >= 0 && config.windowEndMin >= 0;
+        int startMin = useWindow ? config.windowStartMin : shiftStartMin;
+        int endMin   = useWindow ? config.windowEndMin   : shiftEndMin;
+        if (startMin < 0 || endMin < 0) return true;
+
+        Calendar c = Calendar.getInstance(TZ_BR);
+        int now = c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE);
+        int today = isoDay(c);
+        int yesterday = today == 1 ? 7 : today - 1;
+        int start = startMin - config.shiftMarginMin;
+        int end   = endMin + config.shiftMarginMin;
+
+        if (startMin <= endMin) {
+            // Turno no mesmo dia (ex.: 08:00–18:00).
+            return config.shiftDays[today] && now >= start && now <= end;
+        }
+        // Turno que vira a noite (ex.: 22:00–06:00): parte de hoje ou continuação do turno de ontem.
+        return (config.shiftDays[today] && now >= start) || (config.shiftDays[yesterday] && now <= end);
+    }
+
+    /** Aplica pausa/retomada conforme o expediente. */
+    private void evaluateShift() {
+        boolean track = shouldTrackNow();
+        if (!track && !paused) {
+            paused = true;
+            stopHeartbeat();
+            removeLocationUpdates();
+            stopActivityRecognition();
+            startForegroundWithNotification(); // atualiza o texto: "pausada"
+            Log.i(TAG, "PAUSED — fora do expediente (sem visita aberta)");
+        } else if (track && paused) {
+            paused = false;
+            startActivityRecognition();
+            adaptGpsForActivity(currentActivityType);
+            startForegroundWithNotification();
+            Log.i(TAG, "RESUMED — dentro do expediente ou visita aberta");
+        }
+    }
+
+    private void scheduleShiftCheck() {
+        if (shiftCheckRunnable != null) heartbeatHandler.removeCallbacks(shiftCheckRunnable);
+        shiftCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                evaluateShift();
+                heartbeatHandler.postDelayed(this, SHIFT_CHECK_MS);
+            }
+        };
+        heartbeatHandler.postDelayed(shiftCheckRunnable, SHIFT_CHECK_MS);
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
         running = false;
+        if (shiftCheckRunnable != null) heartbeatHandler.removeCallbacks(shiftCheckRunnable);
         stopHeartbeat();
         stopActivityRecognition();
         if (fusedClient != null && locationCallback != null) {

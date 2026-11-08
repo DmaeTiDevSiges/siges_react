@@ -23,6 +23,16 @@ export interface LocationServicePlugin {
         trackerToken: string;
         intervalSeconds: number;
         distanceMeters: number;
+        /**
+         * JSON de cfg_app.tracker_config (intervalos por atividade). Opcional:
+         * ausente → padrões do APK. APKs antigos ignoram o campo.
+         */
+        trackerConfig?: string;
+        /** users.shift_start / shift_end ("HH:mm[:ss]"). APKs antigos ignoram. */
+        shiftStart?: string;
+        shiftEnd?: string;
+        /** true = visita aberta: rastreia mesmo fora do expediente. */
+        ignoreShift?: boolean;
     }): Promise<void>;
     stop(): Promise<void>;
     getStatus(): Promise<LocationServiceStatus>;

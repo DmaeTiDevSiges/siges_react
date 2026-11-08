@@ -60,7 +60,7 @@ const DISTANCE_FILTER_M = 50;
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-type BlockReason = null | 'permission_denied' | 'location_services_disabled' | 'watcher_failed';
+type BlockReason = null | 'permission_denied' | 'location_services_disabled' | 'watcher_failed' | 'background_required';
 
 /**
  * Hook that tracks user location in background (works even when app is minimized/screen locked).
@@ -81,13 +81,21 @@ type BlockReason = null | 'permission_denied' | 'location_services_disabled' | '
  *   "Tentar Novamente" button on LocationBlockedScreen).
  * @param hasOpenVisit - Whether the user has an active visit (keeps tracking even if unavailable).
  * @param isAvailable - Whether the user is available. When false and no open visit, tracking is paused.
+ * @param shiftStart - users.shift_start ("HH:mm[:ss]"). No Android, fora do expediente e sem visita
+ *   aberta o serviço nativo pausa sozinho (cfg_app.tracker_config.shift_only), mesmo com o app fechado.
+ * @param shiftEnd - users.shift_end ("HH:mm[:ss]").
+ * @param isTeamLeader - users.is_team_leader. Política (nov/2026): SÓ líderes de equipe são
+ *   rastreados; para os demais o serviço nativo é desligado e nada é coletado.
  */
 export function useLocationTracker(
     userId: string | undefined,
     trackerIntervalSeconds: number | null | undefined,
     retryCount: number = 0,
     hasOpenVisit: boolean = false,
-    isAvailable: boolean = true
+    isAvailable: boolean = true,
+    shiftStart?: string | null,
+    shiftEnd?: string | null,
+    isTeamLeader?: boolean
 ) {
     const watcherIdRef = useRef<string | null>(null);
     const webWatchIdRef = useRef<number | null>(null);
@@ -104,6 +112,18 @@ export function useLocationTracker(
 
         if (!userId) {
             console.warn('[LocationTracker] Not started: userId missing');
+            return;
+        }
+
+        // Só líderes de equipe são rastreados. Desliga ATIVAMENTE o serviço nativo:
+        // ele pode estar rodando de antes (restaurado no boot ou de quando era líder).
+        if (!isTeamLeader) {
+            setBlockReason(null);
+            if (Capacitor.isNativePlatform()) {
+                void LocationService.stop()
+                    .then(() => dataService.revokeTrackerToken())
+                    .catch(() => undefined);
+            }
             return;
         }
 
@@ -230,6 +250,17 @@ export function useLocationTracker(
             }
             if (cancelled) return;
 
+            // Intervalos por atividade (cfg_app.tracker_config). Falha ou coluna
+            // ausente → o APK usa os padrões dele (ver TrackerConfig.java).
+            let trackerConfig: string | undefined;
+            try {
+                const appConfig: any = await dataService.getAppConfig();
+                if (appConfig?.tracker_config) trackerConfig = JSON.stringify(appConfig.tracker_config);
+            } catch {
+                trackerConfig = undefined;
+            }
+            if (cancelled) return;
+
             try {
                 await LocationService.start({
                     userId: userId!,
@@ -238,6 +269,12 @@ export function useLocationTracker(
                     trackerToken,
                     intervalSeconds: intervalSeconds,
                     distanceMeters: DISTANCE_FILTER_M,
+                    trackerConfig,
+                    shiftStart: shiftStart || undefined,
+                    shiftEnd: shiftEnd || undefined,
+                    // Visita aberta: rastreia mesmo fora do expediente. Ao abrir/fechar a
+                    // visita o efeito reinicia e o serviço recebe o valor novo.
+                    ignoreShift: hasOpenVisit,
                 });
                 // 'native' é usado como sentinela para saber que o serviço está ativo
                 watcherIdRef.current = 'native';
@@ -282,9 +319,34 @@ export function useLocationTracker(
             startHeartbeat();
         };
 
+        /**
+         * Líder no Android precisa de "Permitir o tempo todo": sem ela o app fica
+         * bloqueado (LocationBlockedScreen) até a permissão ser concedida. Roda também
+         * com o rastreamento já ativo — a pessoa pode retirar a permissão nas configurações.
+         * Retorna true se está tudo certo.
+         */
+        const checkBackgroundPermission = async (): Promise<boolean> => {
+            if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return true;
+            try {
+                const status = await LocationService.getStatus();
+                if (cancelled) return true;
+                if (!status.backgroundLocation) {
+                    setBlockReason('background_required');
+                    return false;
+                }
+                setBlockReason(prev => (prev === 'background_required' ? null : prev));
+                return true;
+            } catch {
+                return true; // APK antigo sem getStatus: não bloqueia
+            }
+        };
+
         const start = async () => {
             if (cancelled) return;
-            if (watcherIdRef.current || webWatchIdRef.current !== null) return;
+            if (watcherIdRef.current || webWatchIdRef.current !== null) {
+                await checkBackgroundPermission();
+                return;
+            }
 
             const result = await permissionService.requestLocationPermission();
             if (cancelled) return;
@@ -301,6 +363,10 @@ export function useLocationTracker(
             }
 
             setBlockReason(null);
+            // Sem "o tempo todo" o app fica bloqueado, mas o rastreamento já começa
+            // (com o app aberto a permissão "durante o uso" basta).
+            await checkBackgroundPermission();
+            if (cancelled) return;
 
             if (Capacitor.isNativePlatform()) {
                 await startNativeWatcher();
@@ -342,7 +408,7 @@ export function useLocationTracker(
             }
             stopAll();
         };
-    }, [userId, trackerIntervalSeconds, retryCount, hasOpenVisit, isAvailable]);
+    }, [userId, trackerIntervalSeconds, retryCount, hasOpenVisit, isAvailable, shiftStart, shiftEnd, isTeamLeader]);
 
     return {
         isLocationBlocked,

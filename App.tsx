@@ -1040,7 +1040,11 @@ const AppContent: React.FC = () => {
     currentUser?.trackerIntervalSeconds,
     retryLocation,
     hasOpenVisit,
-    currentUser?.isAvailable ?? true
+    currentUser?.isAvailable ?? true,
+    currentUser?.shiftStart,
+    currentUser?.shiftEnd,
+    // Só líderes de equipe são rastreados (os demais: serviço desligado).
+    !!currentUser?.isTeamLeader
   );
 
   // Realtime da PRÓPRIA linha em users (filtro no servidor). Antes o app ouvia
@@ -1059,6 +1063,7 @@ const AppContent: React.FC = () => {
         changed(row.company_id, current.companyId) ||
         changed(row.team_id, current.teamId) ||
         changed(row.is_available, current.isAvailable) ||
+        changed(row.is_team_leader, current.isTeamLeader) ||
         changed(row.is_ov_in_progress, current.isOvInProgress) ||
         changed(row.ov_id_in_progress, current.ovIdInProgress) ||
         changed(row.status_id, current.statusId) ||

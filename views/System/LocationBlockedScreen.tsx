@@ -11,7 +11,7 @@ interface LocationBlockedScreenProps {
      * Optional: a more specific reason for being blocked, coming from useLocationTracker.
      * If absent, the screen falls back to its general message.
      */
-    blockReason?: 'permission_denied' | 'location_services_disabled' | 'watcher_failed' | null;
+    blockReason?: 'permission_denied' | 'location_services_disabled' | 'watcher_failed' | 'background_required' | null;
 }
 
 export const LocationBlockedScreen: React.FC<LocationBlockedScreenProps> = ({ onRetry, blockReason }) => {
@@ -54,12 +54,18 @@ export const LocationBlockedScreen: React.FC<LocationBlockedScreenProps> = ({ on
         if (blockReason === 'location_services_disabled') return 'GPS desligado';
         if (blockReason === 'permission_denied') return 'Permissão de localização negada';
         if (blockReason === 'watcher_failed') return 'Rastreamento inativo';
+        if (blockReason === 'background_required') return 'Localização "O tempo todo" obrigatória';
         return 'GPS Obrigatório';
     })();
 
     const description = (() => {
         if (blockReason === 'location_services_disabled') {
             return 'O serviço de localização do aparelho está desligado. Ative o GPS nas configurações rápidas do Android e toque em "Tentar Novamente".';
+        }
+        if (blockReason === 'background_required') {
+            return 'Como líder de equipe, você precisa permitir a localização "O tempo todo" para usar o Siges. '
+                + 'Toque no botão abaixo, escolha "Permitir o tempo todo" e volte ao app. '
+                + 'A localização só é coletada das 7h às 19h ou enquanto houver visita aberta.';
         }
         if (blockReason === 'permission_denied') {
             return 'Para utilizar o Siges, é necessário permitir o acesso à localização "O tempo todo" nas configurações do app.';

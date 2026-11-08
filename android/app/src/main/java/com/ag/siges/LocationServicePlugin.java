@@ -55,6 +55,12 @@ public class LocationServicePlugin extends Plugin {
         String trackerToken  = call.getString("trackerToken");
         int    intervalSec   = call.getInt("intervalSeconds", 60);
         float  distanceM     = call.getFloat("distanceMeters", 50f);
+        // JSON de cfg_app.tracker_config (opcional; ausente = padrões do APK).
+        String trackerConfig = call.getString("trackerConfig");
+        // Expediente do usuário e visita aberta (visita aberta rastreia fora do expediente).
+        String  shiftStart   = call.getString("shiftStart");
+        String  shiftEnd     = call.getString("shiftEnd");
+        boolean ignoreShift  = Boolean.TRUE.equals(call.getBoolean("ignoreShift", false));
 
         if (userId == null || supabaseUrl == null || supabaseKey == null || trackerToken == null) {
             call.reject("userId, supabaseUrl, supabaseKey and trackerToken are required");
@@ -70,6 +76,10 @@ public class LocationServicePlugin extends Plugin {
         intent.putExtra(LocationForegroundService.EXTRA_TRACKER_TOKEN, trackerToken);
         intent.putExtra(LocationForegroundService.EXTRA_INTERVAL_SEC,  intervalSec);
         intent.putExtra(LocationForegroundService.EXTRA_DISTANCE_M,    distanceM);
+        intent.putExtra(LocationForegroundService.EXTRA_TRACKER_CONFIG, trackerConfig);
+        intent.putExtra(LocationForegroundService.EXTRA_SHIFT_START,   shiftStart);
+        intent.putExtra(LocationForegroundService.EXTRA_SHIFT_END,     shiftEnd);
+        intent.putExtra(LocationForegroundService.EXTRA_IGNORE_SHIFT,  ignoreShift);
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
