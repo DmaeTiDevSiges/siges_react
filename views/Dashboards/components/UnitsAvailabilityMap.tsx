@@ -31,12 +31,15 @@ interface UnitsAvailabilityMapProps {
     className?: string;
     unitTagDescription?: string;
     unitTagPercentage?: number;
+    /** Unidades com setor recém-atualizado: o marcador pulsa (classe CSS, sem recriar o mapa). */
+    highlightedUnitIds?: ReadonlySet<string>;
 }
 
-export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ units, onUnitClick, className = '', unitTagDescription, unitTagPercentage = 0 }) => {
+export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ units, onUnitClick, className = '', unitTagDescription, unitTagPercentage = 0, highlightedUnitIds }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const leafletMap = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
+    const markersByUnitRef = useRef<Map<string, L.Marker>>(new Map());
     // Keep callback ref to avoid restarting the map on every render
     const onUnitClickRef = useRef(onUnitClick);
     useEffect(() => { onUnitClickRef.current = onUnitClick; }, [onUnitClick]);
@@ -73,6 +76,7 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
         const cleanup = () => {
             markersRef.current.forEach(m => m.remove());
             markersRef.current = [];
+            markersByUnitRef.current.clear();
         };
 
         cleanup();
@@ -174,6 +178,7 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
                 });
 
             markersRef.current.push(marker);
+            markersByUnitRef.current.set(String(unit.id), marker);
         });
 
         if (validCoords > 0) {
@@ -182,6 +187,21 @@ export const UnitsAvailabilityMap: React.FC<UnitsAvailabilityMapProps> = ({ unit
 
         return cleanup;
     }, [units]); // onUnitClick excluded intentionally — handled via ref to prevent map re-init
+
+    // Pulso no marcador da unidade recém-atualizada. Aplicado direto no elemento:
+    // recriar os marcadores reajustaria o zoom (fitBounds) a cada destaque.
+    useEffect(() => {
+        markersByUnitRef.current.forEach((marker, unitId) => {
+            const el = marker.getElement();
+            if (!el) return;
+            const on = !!highlightedUnitIds?.has(unitId);
+            el.classList.remove('unit-marker-updated');
+            if (on) {
+                void el.offsetWidth; // reinicia a animação se já estava destacada
+                el.classList.add('unit-marker-updated');
+            }
+        });
+    }, [highlightedUnitIds, units]);
 
     // Force invalidateSize on mount and window resize
     useEffect(() => {

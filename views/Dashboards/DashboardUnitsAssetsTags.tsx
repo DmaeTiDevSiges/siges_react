@@ -26,6 +26,7 @@ import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { formatRelativeTime, formatDateTime } from '../../utils/formatters';
 import { AvailabilityHistory } from '../../components/ui/AvailabilityHistory';
 import { useDragToScroll } from '../../hooks/useDragToScroll';
+import { useRecentlyChanged } from '../../hooks/useRecentlyChanged';
 import { AvailabilityExportModal } from './components/AvailabilityExportModal';
 import { UnitsAvailabilityMap } from './components/UnitsAvailabilityMap';
 import { RiFileExcel2Fill } from 'react-icons/ri';
@@ -58,7 +59,16 @@ const formatDashboardRelativeTime = (dateValue: string | Date) => {
 };
 
 // Scrollable row of asset cards with drag-to-scroll support
-const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => void; }> = ({ assets, onAssetClick }) => {
+// Card recém-atualizado (realtime): só os campos que aparecem no card contam.
+const assetRowId = (row: any) => row.id;
+const assetRowSignature = (row: any) => [
+    row.last_asset_available_id, row.last_is_available, row.last_reported_at,
+    row.last_asset_available_rate, row.last_flow_rate, row.last_power, row.last_pressure,
+    row.is_active, row.last_o_id,
+].join('|');
+const UPDATED_HIGHLIGHT_MS = 1000;
+
+const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => void; highlightedIds?: ReadonlySet<string>; }> = ({ assets, onAssetClick, highlightedIds }) => {
     const { ref, dragHandlers } = useDragToScroll<HTMLDivElement>();
     return (
         <div
@@ -73,7 +83,9 @@ const AssetScrollRow: React.FC<{ assets: any[]; onAssetClick: (asset: any) => vo
                     className={`shrink-0 min-w-[100px] sm:min-w-[120px] w-fit p-2 sm:p-2.5 rounded-[14px]! sm:rounded-[16px]! flex flex-col items-center justify-between text-center relative transition-all min-h-[80px] sm:min-h-[88px] h-auto border-slate-200 dark:border-slate-800 ${asset.isActive
                             ? 'hover:shadow-lg active:scale-[0.98] cursor-pointer group'
                             : 'opacity-40 grayscale cursor-default'
-                        }`}
+                        } ${highlightedIds?.has(String(asset.id))
+                            ? (asset.isAvailable ? 'animate-card-updated-available' : 'animate-card-updated-unavailable')
+                            : ''}`}
                 >
                     <div className="w-full px-0.5 sm:px-1">
                         <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap block transition-colors ${asset.isActive
@@ -156,6 +168,8 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             : rawData,
         [rawData, selectedUnitTypeIds]
     );
+    // Setores alterados pelo realtime: destaque de 1 s (troca de sistema não destaca).
+    const recentlyChangedIds = useRecentlyChanged(rawData, assetRowId, assetRowSignature, selectedSystemId, UPDATED_HIGHLIGHT_MS);
     const [sectorsData, setSectorsData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedSectorName, setSelectedSectorName] = useState<string>(() => localStorage.getItem('siges_dashboard_sector_name') || '');
@@ -877,6 +891,16 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         }
     }, [allData, selectedSectorName, sortMode, debouncedSearchQuery]);
 
+    // Unidade pisca junto quando algum setor dela mudou (lista e marcador no mapa).
+    const highlightedUnitIds = useMemo(() => {
+        const ids = new Set<string>();
+        if (recentlyChangedIds.size === 0) return ids;
+        for (const unit of unitsRows as any[]) {
+            if (unit.assets?.some((a: any) => recentlyChangedIds.has(String(a.id)))) ids.add(String(unit.id));
+        }
+        return ids;
+    }, [unitsRows, recentlyChangedIds]);
+
     const unitSearchSuggestions = useMemo(
         () => unitsRows.slice(0, 6),
         [unitsRows]
@@ -975,6 +999,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             {isFullscreenMapMode ? (
                 <div className="fixed inset-0 bg-background-light dark:bg-background-dark z-8000 screen-safe">
                     <UnitsAvailabilityMap
+highlightedUnitIds={highlightedUnitIds}
                         units={unitsRows.filter((u: any) => u.assets.some((a: any) => a.isActive))}
                         unitTagDescription={selectedSectorName}
                         unitTagPercentage={sectorPercentage}
@@ -1028,6 +1053,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                         <AssetScrollRow
                                             assets={unit.assets}
                                             onAssetClick={setSelectedAssetForModal}
+highlightedIds={recentlyChangedIds}
                                         />
                                     </Card>
                                 );
@@ -1053,7 +1079,6 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                 label="SISTEMA"
                                 value={selectedSystemLabel}
                                 onClick={() => setFilterModal('system')}
-                                onClear={() => {}}
                                 required
                             />
                             <FilterSelect
@@ -1360,7 +1385,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                             }
                                                         }}
                                                         className={`shrink-0 w-full md:w-[340px] p-2.5 sm:p-3 rounded-[16px]! sm:rounded-[20px]! min-h-[76px] sm:min-h-[88px] h-auto flex flex-col justify-center relative group overflow-hidden border-slate-200 dark:border-slate-800 transition-all ${isExpanded ? 'ring-2 ring-primary border-transparent' : 'cursor-pointer md:cursor-default active:scale-[0.99] md:active:scale-100'
-                                                            }`}
+                                                            } ${highlightedUnitIds.has(String(unit.id)) ? 'animate-card-updated-unit' : ''}`}
                                                     >
                                                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'} group-hover:w-1.5 transition-all`}></div>
 
@@ -1469,6 +1494,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                         <AssetScrollRow
                                                             assets={unit.assets}
                                                             onAssetClick={setSelectedAssetForModal}
+highlightedIds={recentlyChangedIds}
                                                         />
                                                     </div>
                                                 </div>
@@ -1478,6 +1504,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                 ) : (
                                     <div className="relative w-full h-[600px] lg:h-[calc(100vh-380px)] min-h-[500px]">
                                         <UnitsAvailabilityMap
+highlightedUnitIds={highlightedUnitIds}
                                             units={unitsRows.filter((u: any) => u.assets.some((a: any) => a.isActive))}
                                             unitTagDescription={selectedSectorName}
                                             unitTagPercentage={sectorPercentage}
@@ -1543,6 +1570,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                             <AssetScrollRow
                                                                 assets={unit.assets}
                                                                 onAssetClick={setSelectedAssetForModal}
+highlightedIds={recentlyChangedIds}
                                                             />
                                                         </Card>
                                                     );

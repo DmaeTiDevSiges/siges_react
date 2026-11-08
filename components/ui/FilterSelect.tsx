@@ -4,7 +4,8 @@ export const FilterSelect: React.FC<{
     label: string;
     value: string | string[];
     onClick: () => void;
-    onClear: () => void;
+    /** Sem onClear o "X" não aparece (ex.: filtro obrigatório de valor único). */
+    onClear?: () => void;
     disabled?: boolean;
     required?: boolean;
     hidden?: boolean;
@@ -50,9 +51,9 @@ export const FilterSelect: React.FC<{
                         </div>
                     </div>
 
-                    {count > 0 && !isAllSelected && (
+                    {count > 0 && !isAllSelected && onClear && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); onClear(); }}
+                            onClick={(e) => { e.stopPropagation(); onClear?.(); }}
                             className="px-4 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors border-l border-slate-100 dark:border-slate-700/50"
                         >
                             <span className="material-symbols-outlined text-[18px]">close</span>
@@ -95,9 +96,9 @@ export const FilterSelect: React.FC<{
                     </div>
                 </div>
 
-                {count > 0 && !isAllSelected && (
+                {count > 0 && !isAllSelected && onClear && (
                     <button
-                        onClick={(e) => { e.stopPropagation(); onClear(); }}
+                        onClick={(e) => { e.stopPropagation(); onClear?.(); }}
                         className="px-3 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors border-l border-slate-100 dark:border-slate-700/50"
                     >
                         <span className="material-symbols-outlined text-[18px]">close</span>
