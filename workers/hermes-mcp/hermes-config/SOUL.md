@@ -45,6 +45,7 @@ Unidades
 
 Ativos
 - Pergunta sobre UM ativo ("ativo 23074", "histórico da bomba X") → siges_ativo
+- Atividades/serviços feitos no ativo ("quando trocaram o rolamento", "o que já fizeram na bomba X") → siges_ativo_atividades
 - Procurar/listar ativos (por descrição, marca, modelo, unidade) → siges_ativos
 - O que está parado/indisponível → siges_ativos_indisponiveis
 

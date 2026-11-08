@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { MAX_ROWS, formatBr, getSiges } from './siges.js';
-import { likeTerm, limitArg, safe } from './toolkit.js';
+import { MAX_ROWS, dayEnd, dayStart, formatBr, getSiges } from './siges.js';
+import { isoDate, likeTerm, limitArg, safe } from './toolkit.js';
 
 /**
  * Ferramentas de ATIVOS (somente leitura).
@@ -51,6 +51,33 @@ function searchAssets(db: any, busca: string, unidade: string | undefined, limit
 
 const unidadeArg = z.string().min(2).optional().describe('Filtra pelo nome da unidade onde o ativo está');
 
+/**
+ * Localiza UM ativo: código exato primeiro; senão, busca textual que precisa achar
+ * um único resultado. Se achar vários, devolve `notFound` com as opções para o usuário escolher.
+ */
+async function resolveAsset(db: any, busca: string, unidade?: string): Promise<{ asset?: any; notFound?: unknown }> {
+    const code = likeTerm(busca);
+    if (code && !/\s/.test(code)) {
+        const { data, error } = await db.from('v_assets').select('*').ilike('code', code).limit(2);
+        if (error) throw error;
+        if (data?.length === 1) return { asset: data[0] };
+    }
+    const { data, error } = await searchAssets(db, busca, unidade, 6, '*');
+    if (error) throw error;
+    if (!data?.length) return { notFound: { encontrado: false, busca } };
+    if (data.length > 1) {
+        return {
+            notFound: {
+                encontrado: false,
+                ambiguo: true,
+                mensagem: 'Mais de um ativo corresponde à busca. Pergunte ao usuário qual deles (pelo código).',
+                opcoes: data.map(assetSummary),
+            },
+        };
+    }
+    return { asset: data[0] };
+}
+
 export function registerAssetTools(server: McpServer): void {
     // -----------------------------------------------------------------------
     server.registerTool(
@@ -92,29 +119,9 @@ export function registerAssetTools(server: McpServer): void {
         },
         safe(async ({ busca, unidade, historico = 10 }) => {
             const { db } = await getSiges();
-            const code = likeTerm(busca);
-
-            // Código exato primeiro; senão, só segue se a busca achar um único ativo.
-            let asset: any = null;
-            if (code && !/\s/.test(code)) {
-                const { data, error } = await db.from('v_assets').select('*').ilike('code', code).limit(2);
-                if (error) throw error;
-                if (data?.length === 1) asset = data[0];
-            }
-            if (!asset) {
-                const { data, error } = await searchAssets(db, busca, unidade, 6, '*');
-                if (error) throw error;
-                if (!data?.length) return { encontrado: false, busca };
-                if (data.length > 1) {
-                    return {
-                        encontrado: false,
-                        ambiguo: true,
-                        mensagem: 'Mais de um ativo corresponde à busca. Pergunte ao usuário qual deles (pelo código).',
-                        opcoes: data.map(assetSummary),
-                    };
-                }
-                asset = data[0];
-            }
+            const resolved = await resolveAsset(db, busca, unidade);
+            if (!resolved.asset) return resolved.notFound;
+            const asset = resolved.asset;
 
             const [alerts, history, availability] = await Promise.all([
                 db.from('assets_alerts')
@@ -208,6 +215,110 @@ export function registerAssetTools(server: McpServer): void {
                         valor: h.total_value ?? h.ova_total_value,
                     })),
                 },
+            };
+        }),
+    );
+
+    // -----------------------------------------------------------------------
+    server.registerTool(
+        'siges_ativo_atividades',
+        {
+            title: 'Atividades realizadas em um ativo',
+            description: 'USE ESTA para "quais atividades/serviços foram feitos no ativo X", "quando foi a última troca de rolamento da bomba Y", "quantas vezes limparam o motor Z". Lista as atividades registradas em visitas APROVADAS do ativo (mesma regra da tela do ativo), com resumo por atividade (quantas vezes, última data) e a lista cronológica. Filtros opcionais: período e texto da atividade.',
+            inputSchema: {
+                busca: z.string().min(2).describe('Código do ativo (preferível) ou descrição'),
+                unidade: unidadeArg,
+                atividade: z.string().min(2).optional().describe('Filtra pelo texto da atividade, ex.: "rolamento", "limpeza"'),
+                data_inicio: isoDate.optional().describe('AAAA-MM-DD (data da visita)'),
+                data_fim: isoDate.optional().describe('AAAA-MM-DD (data da visita)'),
+                limite: limitArg,
+            },
+        },
+        safe(async ({ busca, unidade, atividade, data_inicio, data_fim, limite = 30 }) => {
+            const { db } = await getSiges();
+            const resolved = await resolveAsset(db, busca, unidade);
+            if (!resolved.asset) return resolved.notFound;
+            const asset = resolved.asset;
+
+            // 1. Passagens do ativo pelas visitas ('*': o banco vivo diverge das migrations).
+            let ovaQuery = db.from('v_orders_visits_assets').select('*').eq('asset_id', asset.id).limit(1000);
+            if (data_inicio) ovaQuery = ovaQuery.gte('ov_started_at', dayStart(data_inicio));
+            if (data_fim) ovaQuery = ovaQuery.lte('ov_started_at', dayEnd(data_fim));
+            const { data: ovaRows, error: ovaErr } = await ovaQuery;
+            if (ovaErr) throw ovaErr;
+
+            // 2. Só visitas aprovadas (orders_visits.ov_processing_id = 5, como em assetsService.getApprovedAssetActivities).
+            const ovIds = [...new Set((ovaRows ?? []).map((r: any) => r.ov_id).filter(Boolean))];
+            let approved = new Set<string>();
+            if (ovIds.length) {
+                const { data: visits, error: vErr } = await db.from('orders_visits').select('id').in('id', ovIds).eq('ov_processing_id', APPROVED_PROCESSING_ID);
+                if (vErr) throw vErr;
+                approved = new Set((visits ?? []).map((v: any) => String(v.id)));
+            }
+            const rows = (ovaRows ?? []).filter((r: any) => approved.has(String(r.ov_id)));
+            const base = { codigo: asset.code, ativo: asset.description, unidade_atual: asset.unit_description };
+            if (!rows.length) return { ...base, total_registros: 0, mensagem: 'Nenhuma atividade em visitas aprovadas para este ativo no período.' };
+
+            // 3. Atividades registradas nessas passagens.
+            const rowById = new Map(rows.map((r: any) => [String(r.id), r]));
+            const ids = [...rowById.keys()];
+            const acts: any[] = [];
+            for (let i = 0; i < ids.length; i += 200) {
+                const { data, error } = await db.from('v_orders_visits_assets_activities').select('*').in('ova_id', ids.slice(i, i + 200));
+                if (error) throw error;
+                acts.push(...(data ?? []));
+            }
+
+            // 4. Número da OS (v_orders pelo o_id).
+            const orderIds = [...new Set(rows.map((r: any) => r.o_id).filter(Boolean))];
+            const orders = new Map<string, any>();
+            if (orderIds.length) {
+                const { data, error } = await db.from('v_orders').select('id, order_mask, type_description').in('id', orderIds);
+                if (error) throw error;
+                for (const o of data ?? []) orders.set(String(o.id), o);
+            }
+
+            const terms = (atividade ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+            const entries = acts
+                .map((a: any) => {
+                    const r: any = rowById.get(String(a.ova_id));
+                    const when = r?.ov_started_at || r?.ov_ended_at || null;
+                    return {
+                        when,
+                        data: formatBr(when),
+                        atividade: a.description || 'Atividade não identificada',
+                        quantidade: a.amount,
+                        ordem: r?.order_mask ?? orders.get(String(r?.o_id))?.order_mask,
+                        tipo: orders.get(String(r?.o_id))?.type_description,
+                        visita: r?.ov_mask,
+                        unidade: r?.before_unit_description,
+                        posicao: [r?.before_tag_description, r?.before_tag_sub_description].filter(Boolean).join(' / '),
+                    };
+                })
+                .filter(e => terms.every(t => e.atividade.toLowerCase().includes(t)))
+                .sort((x, y) => String(y.when ?? '').localeCompare(String(x.when ?? '')));
+
+            // Resumo por atividade: quantas vezes e quando foi a última.
+            const summary = new Map<string, { vezes: number; quantidade_total: number; ultima: string | null }>();
+            for (const e of entries) {
+                const s = summary.get(e.atividade) ?? { vezes: 0, quantidade_total: 0, ultima: null };
+                s.vezes += 1;
+                s.quantidade_total += Number(e.quantidade) || 0;
+                if (!s.ultima) s.ultima = e.data; // entries já estão do mais recente para o mais antigo
+                summary.set(e.atividade, s);
+            }
+
+            return {
+                ...base,
+                periodo: data_inicio || data_fim ? { inicio: data_inicio ?? 'início', fim: data_fim ?? 'hoje' } : 'todo o histórico',
+                filtro_atividade: atividade,
+                total_registros: entries.length,
+                visitas_aprovadas: approved.size,
+                resumo_por_atividade: [...summary.entries()]
+                    .sort((a, b) => b[1].vezes - a[1].vezes)
+                    .map(([nome, s]) => ({ atividade: nome, vezes: s.vezes, quantidade_total: s.quantidade_total || undefined, ultima_vez: s.ultima })),
+                aviso: entries.length > limite ? `Há ${entries.length} registros; listados os ${limite} mais recentes (o resumo considera todos).` : undefined,
+                registros_recentes: entries.slice(0, limite).map(({ when: _w, ...e }) => e),
             };
         }),
     );
