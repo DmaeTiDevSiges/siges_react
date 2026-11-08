@@ -1,3 +1,5 @@
+// PRIMEIRO import: silencia o console antes de qualquer outro módulo carregar.
+import './utils/consoleControl';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

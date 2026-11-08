@@ -161,9 +161,10 @@ class DataQualityServiceImpl {
     try {
       const start = Date.now();
       
-      // Faz requisição ao endpoint de health check
+      // Faz requisição ao endpoint de health check.
+      // GET (resposta ~240 bytes): o /cdn-cgi/trace responde 404 a HEAD.
       const response = await fetch(this.testEndpoint, {
-        method: 'HEAD',
+        method: 'GET',
         mode: 'no-cors',
         cache: 'no-cache',
         signal: AbortSignal.timeout(5000) // Timeout de 5 segundos

@@ -31,6 +31,39 @@ const imgToBase64 = (url: string): Promise<string | null> =>
         img.src = url;
     });
 
+/**
+ * Foto do checklist → quadrado (contain) já no canvas: a foto inteira, centralizada,
+ * com fundo claro no espaço que sobra. O PDF desenha cada foto num quadro fixo e a
+ * @react-pdf/renderer não respeita objectFit aqui — sem isto fotos em pé ou
+ * quadradas saíam esticadas. JPEG 400 px também deixa o PDF bem menor.
+ */
+const PHOTO_BOX_PX = 400;
+const photoToSquareBase64 = (url: string): Promise<string | null> =>
+    new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                const w = img.naturalWidth, h = img.naturalHeight;
+                if (!w || !h) { resolve(null); return; }
+                const canvas = document.createElement('canvas');
+                canvas.width = PHOTO_BOX_PX;
+                canvas.height = PHOTO_BOX_PX;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { resolve(null); return; }
+                ctx.fillStyle = '#f8fafc';
+                ctx.fillRect(0, 0, PHOTO_BOX_PX, PHOTO_BOX_PX);
+                const scale = Math.min(PHOTO_BOX_PX / w, PHOTO_BOX_PX / h);
+                const dw = w * scale, dh = h * scale;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, (PHOTO_BOX_PX - dw) / 2, (PHOTO_BOX_PX - dh) / 2, dw, dh);
+                resolve(canvas.toDataURL('image/jpeg', 0.85));
+            } catch { resolve(null); }
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+    });
+
 interface AssetLoanReportPDFButtonProps {
     loan: AssetLoan;
     asset: Asset | null;
@@ -98,7 +131,7 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
                 return Promise.all(items.map(async (item) => {
                     if (!item.images || item.images.length === 0) return item;
                     const base64Images = await Promise.all(
-                        item.images.map(img => imgToBase64(img.imageUrl))
+                        item.images.map(img => photoToSquareBase64(img.imageUrl))
                     );
                     return {
                         ...item,

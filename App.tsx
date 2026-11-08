@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { NetworkProvider } from './contexts/NetworkContext';
+import { logAppVersion } from './utils/consoleControl';
 import { useNetworkStatus, useNetworkAndQuality, useQualityNotifications } from './hooks/useNetworkStatus';
 import { useNetworkAndQuality as useCombinedNetwork } from './hooks/useNetworkAndQuality';
 import { Layout } from './components/shell/Layout';
@@ -168,8 +169,11 @@ const TeamShiftsScreenGate: React.FC<{ children: React.ReactNode }> = ({ childre
   return <>{children}</>;
 };
 
+// Uma vez por carregamento do app (no corpo do componente repetia a cada render).
+// Única mensagem que passa pelo console silenciado (utils/consoleControl.ts).
+logAppVersion(__BUILD_ID__);
+
 const AppContent: React.FC = () => {
-  console.log(`Siges versão ${__BUILD_ID__}`);
   const [minTimePassed, setMinTimePassed] = useState(false);
   const [selectedCompanyForTracker, setSelectedCompanyForTracker] = useState<Company | null>(() => {
     const params = new URLSearchParams(window.location.search);

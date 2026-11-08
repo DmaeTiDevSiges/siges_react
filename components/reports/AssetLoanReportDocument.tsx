@@ -244,9 +244,13 @@ const styles = StyleSheet.create({
         gap: 4,
         marginTop: 4,
     },
+    // Quadro fixo + contain: a foto cabe inteira, sem esticar nem cortar
+    // (fotos em pé do celular e imagens quadradas eram deformadas em 60×45).
     phaseImage: {
-        width: 60,
-        height: 45,
+        width: 80,
+        height: 80,
+        objectFit: 'contain',
+        backgroundColor: C.bg,
         borderRadius: 3,
         borderWidth: 1,
         borderColor: C.border,
