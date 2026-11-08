@@ -367,8 +367,61 @@
     animation: modeIconSwap 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* ── Chegada de notificação (hooks/useNotificationArrival.ts) — 3 s ──────────
+   Avatar do remetente translúcido no lugar do logo; sem foto, o badge pulsa. */
+@keyframes notif-avatar-in-out {
+    0%   { opacity: 0;    transform: scale(0.6); }
+    15%  { opacity: 0.85; transform: scale(1.08); }
+    25%  { opacity: 0.85; transform: scale(1); }
+    50%  { opacity: 0.85; transform: scale(1.04); }
+    80%  { opacity: 0.85; transform: scale(1); }
+    100% { opacity: 0;    transform: scale(0.9); }
+}
+
+@keyframes notif-logo-out-in {
+    0%   { opacity: 0.9; }
+    12%  { opacity: 0; }
+    82%  { opacity: 0; }
+    100% { opacity: 0.9; }
+}
+
+@keyframes notif-badge-pulse {
+    0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+    12%  { transform: scale(1.35); }
+    24%  { transform: scale(1); }
+    36%  { transform: scale(1.25); }
+    48%  { transform: scale(1);    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+@keyframes notif-fade-in-out {
+    0%, 100% { opacity: 0; }
+    15%, 80% { opacity: 0.85; }
+}
+
+.animate-notif-avatar {
+    animation: notif-avatar-in-out 3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-notif-logo-out {
+    animation: notif-logo-out-in 3s ease-in-out both;
+}
+
+.animate-notif-badge {
+    animation: notif-badge-pulse 3s ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .animate-mode-swap {
+        animation: none;
+    }
+
+    /* Só troca por fade, sem escala nem pulso */
+    .animate-notif-avatar {
+        animation: notif-fade-in-out 3s linear both;
+    }
+
+    .animate-notif-badge {
         animation: none;
     }
 }

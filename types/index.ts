@@ -861,6 +861,8 @@ export interface UserNotification {
   // UI helpers
   relatedUserName?: string;
   relatedUserAvatarUrl?: string;
+  /** Remetente tem foto própria (sem ela, relatedUserAvatarUrl é a imagem genérica). */
+  relatedUserHasPhoto?: boolean;
   relatedUserIsAvailable?: boolean;
   relatedUserOvIdInProgress?: number;
 }

@@ -10,6 +10,7 @@ import { CompanyAvatar } from '../ui/CompanyAvatar';
 import { UserAvatar } from '../ui/UserAvatar';
 import { DataQualityIndicator } from '../ui/DataQualityIndicator';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useNotificationArrival } from '../../hooks/useNotificationArrival';
 
 interface HeaderProps {
     title: string;
@@ -47,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
     titleRightElement
 }) => {
     const { isConnected } = useNetworkStatus();
+    const arrival = useNotificationArrival();
 
     // Determinar status atual baseado em isAvailable e isOvInProgress
     const getCurrentStatus = (): UserStatus => {
@@ -131,12 +133,27 @@ export const Header: React.FC<HeaderProps> = ({
                                 onClick={onNotificationsClick}
                                 className="relative flex items-center justify-center w-[44px] h-[44px] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                             >
+                                {/* Chegada de notificação: avatar do remetente no lugar do logo por 3 s */}
                                 <img
+                                    key={arrival?.avatarUrl ? `logo-${arrival.key}` : 'logo'}
                                     src="/siges_logo.png"
                                     alt="Siges"
-                                    className="w-full h-full object-contain opacity-90 hover:opacity-100 transition-opacity"
+                                    className={`w-full h-full object-contain opacity-90 hover:opacity-100 transition-opacity ${arrival?.avatarUrl ? 'animate-notif-logo-out' : ''}`}
                                 />
-                                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-background-dark px-1">
+                                {arrival?.avatarUrl && (
+                                    <img
+                                        key={`avatar-${arrival.key}`}
+                                        src={arrival.avatarUrl}
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="absolute inset-0 w-full h-full rounded-full object-cover ring-2 ring-primary pointer-events-none animate-notif-avatar"
+                                    />
+                                )}
+                                <span className="sr-only" aria-live="polite">{arrival ? 'Nova notificação' : ''}</span>
+                                <span
+                                    key={arrival && !arrival.avatarUrl ? `badge-${arrival.key}` : 'badge'}
+                                    className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-background-dark px-1 ${arrival && !arrival.avatarUrl ? 'animate-notif-badge' : ''}`}
+                                >
                                     {currentUser.notificationsAmount}
                                 </span>
                             </button>

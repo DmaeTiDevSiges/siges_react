@@ -739,21 +739,14 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             {/* Header: Chat Participants Manager */}
             <div className="px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-indigo-500 font-bold">forum</span>
-                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                        Chat
-                    </h3>
-                    {/* Status Badge — only when closed */}
-                    {chatStatus === 'closed' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            Encerrada
-                        </span>
-                    )}
+                    {/* Sem título nem selo "Encerrada": a aba já diz que é o chat e o
+                        botão Reabrir já indica que ele está encerrado. */}
+                    <span className="material-symbols-outlined text-indigo-500 font-bold" aria-label="Chat">forum</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* Close / Reopen Button */}
-                    {chatStatus === 'open' && currentUser && (
+                    {/* Encerrar: só para quem iniciou o chat (o serviço também recusa os demais) */}
+                    {chatStatus === 'open' && currentUser && chatCreatedUserId != null
+                        && String(chatCreatedUserId) === String(currentUser.id) && (
                         <button
                             onClick={handleCloseChat}
                             disabled={isUpdatingStatus}

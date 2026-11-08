@@ -108,6 +108,7 @@ export const notificationsService = {
                 userToWhatsapp: item.user_to_whatsapp,
                 relatedUserName: item.related_user?.name_full,
                 relatedUserAvatarUrl: avatarUrl,
+                relatedUserHasPhoto: !!item.related_user?.img_file_name,
                 relatedUserIsAvailable: item.related_user?.is_available,
                 relatedUserOvIdInProgress: item.related_user?.ov_id_in_progress
             };

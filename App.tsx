@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { NetworkProvider } from './contexts/NetworkContext';
 import { logAppVersion } from './utils/consoleControl';
+import { announceNotificationArrival } from './hooks/useNotificationArrival';
 import { useNetworkStatus, useNetworkAndQuality, useQualityNotifications } from './hooks/useNetworkStatus';
 import { useNetworkAndQuality as useCombinedNetwork } from './hooks/useNetworkAndQuality';
 import { Layout } from './components/shell/Layout';
@@ -872,7 +873,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    const loadNotifications = async () => {
+    const loadNotifications = async (): Promise<UserNotification[]> => {
       try {
         const [count, data] = await Promise.all([
           dataService.getNotificationsCount(currentUser.uuid),
@@ -883,8 +884,10 @@ const AppContent: React.FC = () => {
         if (currentUser) {
           setCurrentUser(prev => prev ? { ...prev, notificationsAmount: count } : null);
         }
+        return data;
       } catch (error) {
         console.error('Error loading initial notifications:', error);
+        return [];
       }
     };
 
@@ -905,7 +908,25 @@ const AppContent: React.FC = () => {
           console.error('Error deleting active visit_chat notification:', error);
         });
       } else {
-        loadNotifications();
+        const listPromise = loadNotifications();
+
+        // Efeito de chegada no botão de notificações (Header): só notificação NOVA,
+        // com o app visível e enviada por outra pessoa. Avatar do remetente quando
+        // ele tem foto; senão (ou notificação do sistema) o badge pulsa.
+        const senderId = newNotif?.user_id_from != null ? String(newNotif.user_id_from) : null;
+        const isNew = payload?.eventType === 'INSERT' && newNotif?.id != null;
+        const isFromMe = senderId !== null && senderId === currentUserRef.current?.id?.toString();
+        if (isNew && !isFromMe && document.visibilityState === 'visible') {
+          const notificationId = String(newNotif.id);
+          listPromise.then(list => {
+            const loaded = list.find(n => n.id === notificationId);
+            announceNotificationArrival({
+              id: notificationId,
+              senderId,
+              avatarUrl: senderId && loaded?.relatedUserHasPhoto ? loaded.relatedUserAvatarUrl ?? null : null,
+            });
+          });
+        }
       }
 
       // Se receber uma notificação de OS Autorizada, dispara um evento para atualizar o painel
@@ -971,18 +992,26 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleChatEntered = async (visitId: string) => {
-    // Remove from local state immediately (optimistic)
-    setNotifications(prev => {
-      const newList = prev.filter(n => !(n.type === 'visit_chat' && n.ovId === visitId));
-      if (currentUser && newList.length !== prev.length) {
-        setCurrentUser({ ...currentUser, notificationsAmount: newList.length });
-      }
-      return newList;
-    });
-    // Delete from DB in background (fire-and-forget)
+  // Ao entrar no chat da visita: apaga TODAS as notificações de chat dessa visita
+  // (não só as 10 carregadas na lista) e recarrega lista + contador do banco.
+  const handleChatEntered = async (visitId: string | number) => {
+    const ovId = String(visitId);
+    // Remove da lista local na hora (ids comparados como texto: o id da visita
+    // pode chegar como número quando o chat é aberto pela notificação).
+    setNotifications(prev => prev.filter(n => !(n.type === 'visit_chat' && String(n.ovId) === ovId)));
     try {
-      await dataService.deleteVisitChatNotifications(visitId);
+      await dataService.deleteVisitChatNotifications(ovId);
+      // O realtime não entrega DELETE com filtro (sem REPLICA IDENTITY FULL):
+      // recarrega aqui para o badge refletir o que restou no banco.
+      const uuid = currentUserRef.current?.uuid;
+      if (uuid) {
+        const [count, data] = await Promise.all([
+          dataService.getNotificationsCount(uuid),
+          dataService.getNotifications(0, 10, uuid),
+        ]);
+        setNotifications(data);
+        setCurrentUser(prev => prev ? { ...prev, notificationsAmount: count } : null);
+      }
     } catch (error) {
       console.error('Error deleting visit_chat notifications on chat enter:', error);
     }
