@@ -77,7 +77,9 @@ import { gamificationService } from './gamification/gamificationService';
 import { assetLoansService } from './assets/assetLoansService';
 import { assetsTypesChecklistService } from './assets/assetsTypesChecklistService';
 import { loansChecklistService } from './assets/loansChecklistService';
-import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, AssetLoanChecklistPhase, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock, TeamShiftsCalendarEntry, AuditLogItem, AuditLogFilters, AuditTableConfig, AuditTableConfigChange } from '../types';
+import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, AssetLoanChecklistPhase, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock, TeamShiftsCalendarEntry, AuditLogItem, AuditLogFilters, AuditTableConfig, AuditTableConfigChange, OrderVisitAssetLockResult, OrderVisitAssetUnlockResult, OrderVisitAssetsLocks } from '../types';
+import { installOfflineLayer } from './offline/offlineLayer';
+import { getLocalOfflineFileUrl } from './offline/offlineFileUrls';
 
 
 
@@ -197,6 +199,9 @@ export const dataService = {
     // Helper to get public URL with dynamic transformation (imgproxy or Supabase ImgProxy)
     getPublicImageUrl(path: string | undefined | null, name: string | undefined, options?: { width?: number; height?: number; resize?: 'cover' | 'contain' | 'fill'; quality?: number; format?: 'origin' | 'webp' | 'jpeg' | 'png'; cacheBust?: number }): string | undefined {
         if (!name) return undefined;
+        // Modo offline (F3): foto/assinatura feita sem internet e ainda no aparelho.
+        const offlineLocalUrl = getLocalOfflineFileUrl(name);
+        if (offlineLocalUrl) return offlineLocalUrl;
         // Treat null/undefined path as empty string (root)
         const safePath = path || '';
         if (safePath.startsWith('http') || safePath.startsWith('data:')) return safePath;
@@ -298,7 +303,7 @@ export const dataService = {
         return this.getPublicImageUrl(path, name, { format: 'origin' });
     },
 
-    async saveOrderVisitSignature(ovId: string, type: 'leader' | 'requester', base64: string, onProgress?: (progress: number) => void): Promise<void> {
+    async saveOrderVisitSignature(ovId: string, type: 'leader' | 'requester', base64: string, onProgress?: ((progress: number) => void) | null, options?: { fileName?: string; signedAt?: string }): Promise<void> {
         // r2Service is now static
 
         const folderPath = `signatures/visits/${ovId}`;
@@ -311,20 +316,21 @@ export const dataService = {
             const blob = await res.blob();
             const mimeType = blob.type || 'image/png';
             const ext = mimeType.includes('jpeg') ? 'jpg' : mimeType.includes('webp') ? 'webp' : 'png';
-            const fileName = `${type}_${Date.now()}.${ext}`;
+            // Modo offline (F3): nome e hora vêm do aparelho (hora real da assinatura).
+            const fileName = options?.fileName || `${type}_${Date.now()}.${ext}`;
             const fullPath = `${folderPath}/${fileName}`;
             const uploadFile = new File([blob], `signature_${type}.${ext}`, { type: mimeType });
-            await r2Service.uploadFile(uploadFile as any, fullPath, onProgress);
+            await r2Service.uploadFile(uploadFile as any, fullPath, onProgress || undefined);
 
             const updateData: any = {};
             if (type === 'leader') {
                 updateData.ov_signature_leader_path = folderPath;
                 updateData.ov_signature_leader_name = fileName;
-                updateData.ov_signature_leader_at = getBrazilTime();
+                updateData.ov_signature_leader_at = options?.signedAt || getBrazilTime();
             } else {
                 updateData.ov_signature_requester_path = folderPath;
                 updateData.ov_signature_requester_name = fileName;
-                updateData.ov_signature_requester_at = getBrazilTime();
+                updateData.ov_signature_requester_at = options?.signedAt || getBrazilTime();
             }
 
             const { error } = await supabase
@@ -1587,6 +1593,14 @@ export const dataService = {
     // FILE UPLOAD HELPERS
     // -------------------------------------------------------------------------
 
+    async recordProfileFaceCheck(userId: string, verified: boolean, reason: string): Promise<void> {
+        return usersService.recordProfileFaceCheck.apply(usersService, arguments as any);
+    },
+
+    async notifyProfilePhotoRejected(targets: { userId: string; message: string }[], fromUserId: string): Promise<number> {
+        return notificationsService.notifyProfilePhotoRejected.apply(notificationsService, arguments as any);
+    },
+
     async uploadUserAvatar(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
         return usersService.uploadUserAvatar.apply(usersService, arguments as any);
     },
@@ -2534,6 +2548,19 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.getMovedAssetsByUnitAssetTagId.apply(visitsService, arguments as any);
     },
 
+    // Modo offline: trava do relatório do ativo (visitsService)
+    async lockOrderVisitAsset(ovaId: string): Promise<OrderVisitAssetLockResult> {
+        return visitsService.lockOrderVisitAsset.apply(visitsService, arguments as any);
+    },
+
+    async unlockOrderVisitAsset(ovaId: string, force?: boolean): Promise<OrderVisitAssetUnlockResult> {
+        return visitsService.unlockOrderVisitAsset.apply(visitsService, arguments as any);
+    },
+
+    async getOrderVisitAssetsLocks(visitId: string): Promise<OrderVisitAssetsLocks> {
+        return visitsService.getOrderVisitAssetsLocks.apply(visitsService, arguments as any);
+    },
+
     async getOrderVisitAssetById(id: string): Promise<OrderVisitAssetView | null> {
         return visitsService.getOrderVisitAssetById.apply(visitsService, arguments as any);
     },
@@ -2557,7 +2584,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.updateOrderVisitAsset.apply(visitsService, arguments as any);
     },
 
-    async reportedOrderVisitAsset(id: string, userId: string): Promise<void> {
+    async reportedOrderVisitAsset(id: string, userId: string, options?: { reportedAt?: string }): Promise<void> {
         return visitsService.reportedOrderVisitAsset.apply(visitsService, arguments as any);
     },
 
@@ -2569,7 +2596,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.updateOrderVisitAssetProcessingStatus.apply(visitsService, arguments as any);
     },
 
-    async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after', onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
+    async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after', onProgress?: ((progress: number) => void) | null, options?: { fileName?: string }): Promise<{ path: string, filename: string }> {
         return visitsService.uploadOrderVisitAssetPhoto.apply(visitsService, arguments as any);
     },
 
@@ -2632,7 +2659,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.getOrderVisitServices.apply(visitsService, arguments as any);
     },
 
-    async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1): Promise<void> {
+    async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1, options?: { clientUuid?: string }): Promise<void> {
         return visitsService.addServiceToOrderVisit.apply(visitsService, arguments as any);
     },
 
@@ -2750,7 +2777,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return materialsService.getOrderVisitAssetMaterials.apply(materialsService, arguments as any);
     },
 
-    async addMaterialToAsset(ovAssetId: string, materialId: string, amount: number, valueUnit: number, userId: string): Promise<void> {
+    async addMaterialToAsset(ovAssetId: string, materialId: string, amount: number, valueUnit: number, userId: string, options?: { clientUuid?: string }): Promise<void> {
         return materialsService.addMaterialToAsset.apply(materialsService, arguments as any);
     },
 
@@ -2863,7 +2890,8 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         causeReasonId: number,
         progress: number,
         user: User,
-        endedAt?: string
+        endedAt?: string,
+        options?: { clientOpId?: string; clientEndedAt?: string }
     ): Promise<void> {
         return visitsService.closeOrderVisit.apply(visitsService, arguments as any);
     },
@@ -2920,7 +2948,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
      * @returns Promise<void>
      * @throws Error se a visita não estiver em rascunho ou se houver ativos não reportados
      */
-    async reportOrderVisit(visitId: string, userId: string): Promise<void> {
+    async reportOrderVisit(visitId: string, userId: string, options?: { reportedAt?: string; idempotent?: boolean }): Promise<void> {
         return visitsService.reportOrderVisit.apply(visitsService, arguments as any);
     },
 
@@ -3051,7 +3079,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return maintenancePlansService.deleteMaintenanceChecklistItem.apply(maintenancePlansService, arguments as any);
     },
 
-    async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
+    async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string, onProgress?: ((progress: number) => void) | null, options?: { fileName?: string }): Promise<{ path: string; filename: string }> {
         return maintenancePlansService.uploadChecklistImage.apply(maintenancePlansService, arguments as any);
     },
 
@@ -3742,3 +3770,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return assetsAvailableIntegrationsService.runAssetsAvailableIntegration.apply(assetsAvailableIntegrationsService, arguments as any);
     },
 };
+
+// Modo offline (F1): cache de leitura e bloqueio de gravações offline nos
+// métodos da visita. Sem a flag VITE_FEATURE_OFFLINE_MODE, não muda nada.
+installOfflineLayer(dataService as any);

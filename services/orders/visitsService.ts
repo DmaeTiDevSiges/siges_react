@@ -1,9 +1,10 @@
 import { supabase } from '../core/supabase';
+import { insertWithClientUuid } from '../core/clientUuidInsert';
 import { r2Service } from '../media/r2Service';
 import { getBrazilNaiveTimestamp, getBrazilTimestamp } from '../../utils/dateUtils';
 import { getPublicImageUrl } from '../media/imageUtils';
 import { formatRelativeTime, getBrazilDateInputValue, toBrazilNaiveDateTime } from '../../utils/formatters';
-import type { Order, User, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, OrderVisitAssetMaterial, ServiceHistoryItem, Activity, Material, OrderVisitChatMessage, OrderVisitChatParticipant, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity } from '../../types';
+import type { Order, User, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, OrderVisitAssetMaterial, ServiceHistoryItem, Activity, Material, OrderVisitChatMessage, OrderVisitChatParticipant, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, OrderVisitAssetLockResult, OrderVisitAssetUnlockResult, OrderVisitAssetsLocks } from '../../types';
 import { ordersService } from './ordersService';
 import { vehicleRentalService } from './vehicleRentalService';
 
@@ -1761,13 +1762,71 @@ export const visitsService = {
         }
     },
 
-    async reportedOrderVisitAsset(id: string, userId: string): Promise<void> {
+    // ── Modo offline: trava do relatório do ativo (migration 20261117) ──────
+    // Sem a migration aplicada (RPC/coluna inexistente) devolve supported=false
+    // e o app segue sem trava, como hoje.
+
+    async lockOrderVisitAsset(ovaId: string): Promise<OrderVisitAssetLockResult> {
+        const { data, error } = await supabase.rpc('ov_asset_lock', { p_ova_id: Number(ovaId) });
+        if (error) {
+            if (error.code === 'PGRST202' || error.code === '42883') return { supported: false, locked: true };
+            throw new Error(error.message || 'Erro ao travar o ativo');
+        }
+        return {
+            supported: true,
+            locked: data?.locked === true,
+            lockedUserId: data?.locked_user_id != null ? String(data.locked_user_id) : undefined,
+            lockedUserName: data?.locked_user_name || undefined,
+            lockedAt: data?.locked_at || undefined,
+            lockToken: data?.lock_token || undefined,
+        };
+    },
+
+    async unlockOrderVisitAsset(ovaId: string, force: boolean = false): Promise<OrderVisitAssetUnlockResult> {
+        const { data, error } = await supabase.rpc('ov_asset_unlock', { p_ova_id: Number(ovaId), p_force: force });
+        if (error) {
+            if (error.code === 'PGRST202' || error.code === '42883') return { supported: false, unlocked: true };
+            throw new Error(error.message || 'Erro ao liberar o ativo');
+        }
+        return { supported: true, unlocked: data?.unlocked === true, forced: data?.forced === true };
+    },
+
+    async getOrderVisitAssetsLocks(visitId: string): Promise<OrderVisitAssetsLocks> {
+        const { data, error } = await supabase
+            .from('orders_visits_assets')
+            .select('id, locked_user_id, locked_at')
+            .eq('ov_id', Number(visitId))
+            .not('locked_user_id', 'is', null);
+        if (error) {
+            if (error.code === '42703' || error.code === 'PGRST204') return { supported: false, locks: {} };
+            throw new Error(error.message || 'Erro ao consultar travas');
+        }
+        const rows = (data || []) as { id: number; locked_user_id: number; locked_at: string | null }[];
+        const userIds = Array.from(new Set(rows.map(r => r.locked_user_id)));
+        const names: Record<string, string> = {};
+        if (userIds.length) {
+            const { data: users } = await supabase.from('users').select('id, name_short, name_full').in('id', userIds);
+            for (const u of users || []) names[String(u.id)] = u.name_short || u.name_full;
+        }
+        const locks: OrderVisitAssetsLocks['locks'] = {};
+        for (const r of rows) {
+            locks[String(r.id)] = {
+                userId: String(r.locked_user_id),
+                userName: names[String(r.locked_user_id)],
+                lockedAt: r.locked_at || undefined,
+            };
+        }
+        return { supported: true, locks };
+    },
+
+    async reportedOrderVisitAsset(id: string, userId: string, options?: { reportedAt?: string }): Promise<void> {
         const { error } = await supabase
             .from('orders_visits_assets')
             .update({
                 processing_id: 2,
                 reported_user_id: userId,
-                reported_at: new Date().toISOString(),
+                // Modo offline (F4): hora em que o técnico relatou, não a do envio.
+                reported_at: options?.reportedAt || new Date().toISOString(),
                 disapproved_user_id: null,
                 disapproved_at: null,
                 disapproved_notes: null
@@ -1889,10 +1948,12 @@ export const visitsService = {
     // PHOTOS
     // -------------------------------------------------------------------------
 
-    async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after', onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
+    async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after', onProgress?: ((progress: number) => void) | null, options?: { fileName?: string }): Promise<{ path: string, filename: string }> {
         // Add random suffix to prevent duplicate names when uploading multiple files simultaneously
         const randomSuffix = Math.random().toString(36).substring(2, 8);
-        const fileName = `${type}_${Date.now()}_${randomSuffix}.webp`;
+        // Modo offline (F3): o nome vem definido do aparelho — reenviar a mesma
+        // foto sobrescreve o mesmo arquivo no R2 e não duplica na lista.
+        const fileName = options?.fileName || `${type}_${Date.now()}_${randomSuffix}.webp`;
 
         // 1. Fetch current record to get metadata and current lists
         // Note: Fetching from table directly to avoid view lag
@@ -1940,14 +2001,16 @@ export const visitsService = {
         // 2. Upload original + variantes to Cloudflare R2
         let uploadedFilename = fileName;
         try {
-            const uploadResult = await r2Service.uploadImageWithVariants(file, fullPath, onProgress);
+            const uploadResult = await r2Service.uploadImageWithVariants(file, fullPath, onProgress || undefined);
             uploadedFilename = uploadResult.filename;
         } catch (uploadError) {
             console.error('Error uploading to R2:', uploadError);
             throw uploadError;
         }
 
-        const finalList = uploadedFilename === fileName ? newList : [...currentList, uploadedFilename];
+        const finalList = currentList.includes(uploadedFilename)
+            ? currentList
+            : uploadedFilename === fileName ? newList : [...currentList, uploadedFilename];
 
         const { error: dbError } = await supabase
             .from('orders_visits_assets')
@@ -2396,7 +2459,7 @@ export const visitsService = {
         }));
     },
 
-    async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1): Promise<void> {
+    async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1, options?: { clientUuid?: string }): Promise<void> {
         // Fetch contract service details: value_unit, discount and the actual cfg_services.id (service_id)
         const { data: cs } = await supabase
             .from('contracts_services')
@@ -2409,9 +2472,7 @@ export const visitsService = {
         // service_id must reference cfg_services.id so the view v_orders_visits_services resolves correctly
         const serviceId = cs?.service_id ? parseInt(cs.service_id) : parseInt(contractServiceId);
 
-        const { error } = await supabase
-            .from('orders_visits_services')
-            .insert({
+        await insertWithClientUuid('orders_visits_services', {
                 ov_id: parseInt(visitId),
                 service_id: serviceId,
                 amount: amount,
@@ -2420,12 +2481,7 @@ export const visitsService = {
                 value_total: amount * valueUnit * (discount || 1),
                 created_user_id: parseInt(userId),
                 created_at: new Date().toISOString()
-            });
-
-        if (error) {
-            console.error('Error adding service to visit:', error);
-            throw error;
-        }
+            }, options?.clientUuid);
     },
 
     async removeServiceFromOrderVisit(ovServiceId: string): Promise<void> {
@@ -2710,8 +2766,33 @@ export const visitsService = {
         causeReasonId: number,
         progress: number,
         user: User,
-        endedAt?: string
+        endedAt?: string,
+        options?: { clientOpId?: string; clientEndedAt?: string }
     ): Promise<void> {
+        // Modo offline (F4): encerramento vindo da fila → v4 (hora do aparelho,
+        // idempotente, conflito SG409). Sem a v4 no banco, segue a v3 abaixo
+        // (a hora gravada vira a do envio).
+        if (options?.clientOpId) {
+            const { error: v4Error } = await supabase.rpc('flow_order_visit_close_v4', {
+                p_visit_id: Number(visitId),
+                p_order_id: Number(orderId),
+                p_status_id: statusId,
+                p_status_description: statusDescription,
+                p_suspended_reason_id: suspendedReasonId ? Number(suspendedReasonId) : null,
+                p_cause_reason_id: causeReasonId,
+                p_progress: progress,
+                p_ended_at: endedAt ? toBrazilNaiveDateTime(endedAt) : null,
+                p_client_ended_at: options.clientEndedAt || null,
+                p_client_op_id: options.clientOpId,
+            });
+            if (!v4Error) return;
+            if (v4Error.code !== 'PGRST202' && v4Error.code !== '42883') {
+                const err: any = new Error(v4Error.message || 'Erro ao encerrar visita');
+                err.code = v4Error.code;
+                throw err;
+            }
+        }
+
         // Caminho rápido: tudo numa chamada e numa transação (RPC
         // flow_order_visit_close_v3, migration 20261115). Antes eram 10–15
         // chamadas em sequência (3–7 s no celular) e uma falha no meio deixava
@@ -3035,17 +3116,26 @@ export const visitsService = {
     // REPORT / REVISE / APPROVE
     // -------------------------------------------------------------------------
 
-    async reportOrderVisit(visitId: string, userId: string): Promise<void> {
+    async reportOrderVisit(visitId: string, userId: string, options?: { reportedAt?: string; idempotent?: boolean }): Promise<void> {
         // 1. Verificar se a visita existe e está em rascunho (processing_id = 1) ou rejeitada (4)
         const { data: visit, error: visitError } = await supabase
             .from('orders_visits')
-            .select('ov_processing_id')
+            .select('ov_processing_id, ov_reported_user_id')
             .eq('id', visitId)
             .single();
 
         if (visitError || !visit) {
             throw new Error('Visita não encontrada');
         }
+
+        // Modo offline (F4): reenvio da fila depois de já ter relatado → nada a fazer.
+
+        if (options?.idempotent && visit.ov_processing_id === 2 && String(visit.ov_reported_user_id) === String(userId)) {
+
+            return;
+
+        }
+
 
         if (visit.ov_processing_id !== 1 && visit.ov_processing_id !== 4) {
             throw new Error('Apenas visitas em rascunho ou rejeitadas podem ser reportadas');
@@ -3079,7 +3169,7 @@ export const visitsService = {
         }
 
         // 3. Atualizar a visita
-        const timestamp = getBrazilTimestamp();
+        const timestamp = options?.reportedAt || getBrazilTimestamp();
         const { error: updateError } = await supabase
             .from('orders_visits')
             .update({

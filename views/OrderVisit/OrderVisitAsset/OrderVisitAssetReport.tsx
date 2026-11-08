@@ -28,6 +28,8 @@ import { ImageUploadSheet } from '../../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../../components/ui/ImageEditorModal';
 import { Loading } from '../../../components/ui/Loading';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAssetLock } from '../../../hooks/useAssetLock';
+import { useOfflineSync } from '../../../hooks/useOfflineSync';
 
 
 const Switch: React.FC<{ checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => {
@@ -313,7 +315,19 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
     const canRemoveActivities = !readOnly && asset ? Number(asset.processingId) !== 5 : false;
 
-    const isReadOnly = readOnly || (asset ? (
+    // Modo offline: trava do relatório para o técnico que abriu (useAssetLock).
+    const { lock: assetLock, forceRelease: forceReleaseLock, releaseMine: releaseMyLock } = useAssetLock({
+        ovaId: asset?.id ? String(asset.id) : undefined,
+        ovId: asset?.ovId ? String(asset.ovId) : undefined,
+        currentUserId,
+        editable: !readOnly && !!asset && [1, 4].includes(asset.processingId || 1),
+    });
+    const isLockedByOther = assetLock.status === 'other';
+    const isNotReservedOffline = assetLock.status === 'not-reserved';
+    const offlineSync = useOfflineSync();
+    const hasUnsentChanges = !!asset?.id && offlineSync.unsentOvaIds.includes(String(asset.id));
+
+    const isReadOnly = readOnly || isLockedByOther || isNotReservedOffline || (asset ? (
         ![1, 4].includes(asset.processingId || 1) && !localEditMode
     ) : true);
 
@@ -1175,6 +1189,50 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         <p className="text-xs font-bold text-red-800 dark:text-red-300 leading-relaxed">
                             {asset.disapprovedNotes}
                         </p>
+                    </div>
+                )}
+
+                {/* Modo offline: ativo reservado para outro técnico */}
+                {isLockedByOther && (
+                    <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-500/20 p-4 rounded-2xl flex items-start gap-3">
+                        <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">lock</span>
+                        <div className="flex-1 text-xs">
+                            <p className="font-black text-amber-800 dark:text-amber-300">
+                                Em uso por {assetLock.userName || 'outro técnico'}
+                            </p>
+                            <p className="text-amber-700 dark:text-amber-400/80 mt-0.5">
+                                Só consulta enquanto o relatório não for enviado.
+                            </p>
+                        </div>
+                        {(isContractManager || authUser?.isAdmin || authUser?.isAdminSuper) && (
+                            <button
+                                onClick={forceReleaseLock}
+                                className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-[11px] font-black uppercase"
+                            >
+                                Liberar
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {/* Modo offline: ativo não reservado no preparo */}
+                {isNotReservedOffline && (
+                    <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 p-4 rounded-2xl flex items-start gap-3">
+                        <span className="material-symbols-outlined text-slate-500">cloud_off</span>
+                        <div className="flex-1 text-xs">
+                            <p className="font-black text-slate-700 dark:text-slate-200">Sem internet · só consulta</p>
+                            <p className="text-slate-500 dark:text-slate-400 mt-0.5">
+                                Este ativo não foi reservado para você em "Preparar para campo".
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modo offline: alterações deste ativo ainda no aparelho */}
+                {hasUnsentChanges && (
+                    <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-500/20 px-4 py-2.5 rounded-2xl flex items-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                        <span className="material-symbols-outlined text-base">cloud_upload</span>
+                        Alterações deste ativo aguardando envio
                     </div>
                 )}
 
@@ -2239,6 +2297,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                         if (finalCondition) await handleUpdateComments('after', finalCondition);
                         await completeSelectedAlerts();
                         await dataService.reportedOrderVisitAsset(assetId, currentUserId);
+                        await releaseMyLock();
                         toast.success('Relatório reportado com sucesso!');
                         onBack();
                     } catch (error) {

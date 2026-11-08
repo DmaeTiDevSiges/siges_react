@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { checklistFileName, checklistFolderPath } from './checklistPaths';
 import { MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, OrderVisitAssetActivity } from '../../types';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 import { r2Service } from '../media/r2Service';
@@ -555,23 +556,14 @@ export const maintenancePlansService = {
         }
     },
 
-    async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
-        const uniqueSuffix = Math.random().toString(36).substring(7);
-
-        const cleanOvAssetId = String(ovAssetId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
-        const cleanActivityId = String(activityId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
-        const cleanCompanyId = String(companyId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
-        const cleanAssetId = String(assetId || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
-
-        const fileName = `checklist_${cleanOvAssetId}_${cleanActivityId}_${Date.now()}_${uniqueSuffix}.webp`;
-
-        const folderPath = (cleanCompanyId && cleanAssetId && cleanCompanyId !== 'undefined' && cleanAssetId !== 'undefined')
-            ? `companies/${cleanCompanyId}/assets/${cleanAssetId}`
-            : `checklist/${cleanOvAssetId}/${cleanActivityId}`;
+    async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string, onProgress?: ((progress: number) => void) | null, options?: { fileName?: string }): Promise<{ path: string; filename: string }> {
+        // Modo offline (F3): o nome pode vir definido do aparelho (reenvio idempotente).
+        const fileName = options?.fileName || checklistFileName(ovAssetId, activityId);
+        const folderPath = checklistFolderPath(ovAssetId, activityId, companyId, assetId);
 
         const fullPath = `${folderPath}/${fileName}`.replace(/\s+/g, '_');
 
-        const result = await r2Service.uploadImageWithVariants(file, fullPath, onProgress);
+        const result = await r2Service.uploadImageWithVariants(file, fullPath, onProgress || undefined);
         return { path: folderPath, filename: result.filename };
     },
 

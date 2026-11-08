@@ -1,0 +1,3 @@
+name: siges-identity
+version: 0.1.0
+description: Assina o remetente do WhatsApp nas chamadas às ferramentas do SIGES (MCP siges-tools), para o servidor consultar com o RLS do usuário certo.

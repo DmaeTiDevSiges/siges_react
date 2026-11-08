@@ -12,6 +12,7 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import UpdateNotifier from './components/shell/UpdateNotifier';
 import { LocationDisclosureModal } from './components/permissions/LocationDisclosureModal';
 import { dataService } from './services/dataService';
+import { getCachedCurrentUser } from './services/offline/offlineAuth';
 import { usePermissions } from './contexts/PermissionsContext';
 import { permissionService } from './services/core/permissionService';
 import { Sidebar } from './components/shell/Sidebar';
@@ -725,7 +726,13 @@ const AppContent: React.FC = () => {
     const loadUser = async () => {
       try {
         // force: loadUser é chamado no login e quando a própria linha muda (realtime)
-        const user = await withTimeout(dataService.getCurrentUser({ force: true }), 8000);
+        let user = await withTimeout(dataService.getCurrentUser({ force: true }), 8000);
+
+        // Modo offline: carga estourou o tempo na abertura (sinal sem internet)
+        // → usa o perfil guardado da sessão salva em vez de cair no login.
+        if (!user && !currentUserRef.current) {
+          user = await getCachedCurrentUser<User>();
+        }
 
         // If timeout returned null, don't reset user — keep current state
         if (!user && currentUserRef.current) {
@@ -962,6 +969,9 @@ const AppContent: React.FC = () => {
       setSelectedVisit({ id: notification.ovId } as any);
       setVisitActiveTab('chat');
       setCurrentScreen('order-visit-execute');
+    } else if (notification.type === 'profile_photo_rejected') {
+      // Aviso da revisão de fotos (Ajustes → Usuários): abre o perfil para trocar a foto
+      handleMainTabChange('profile');
     } else if (
       (notification.type === 'Compra Aprovada' || notification.type === 'Compra Cancelada' || notification.type === 'Compra Concluída') &&
       notification.materialId

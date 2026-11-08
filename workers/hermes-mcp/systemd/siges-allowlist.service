@@ -1,0 +1,14 @@
+[Unit]
+Description=SIGES -> Hermes: sincroniza lista de permitidos do WhatsApp
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/siges-mcp
+# PATH precisa enxergar o node e o comando hermes (confira com: which node hermes)
+Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/0/bus
+ExecStart=/usr/bin/env node /opt/siges-mcp/dist/sync-allowlist.js

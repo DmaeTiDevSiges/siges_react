@@ -861,8 +861,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                             if (!verification.hasFace) {
                                                 setModal({
                                                     isOpen: true,
-                                                    title: 'Rosto Não Identificado',
-                                                    message: 'Nenhum rosto humano foi detectado na imagem enviada. Para atualizar sua foto de perfil, por favor utilize uma foto nítida do seu rosto.',
+                                                    title: verification.reason === 'detector_unavailable'
+                                                        ? 'Verificação Indisponível'
+                                                        : 'Foto Não Aceita',
+                                                    message: verification.message,
                                                     type: 'error'
                                                 });
                                                 setSaving(false);
@@ -873,7 +875,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                             
                                             setUploadProgress(0);
                                             await dataService.updateProfile(user.uuid, {
-                                                avatarUrl: imgData
+                                                avatarUrl: imgData,
+                                                avatarFaceVerified: true
                                             }, (progress) => {
                                                 setUploadProgress(progress);
                                             });

@@ -22,6 +22,25 @@ export default defineConfig(({ mode, command }) => {
     console.warn('Could not read app_version.txt, using default version');
   }
 
+  // Detector de rosto (foto de perfil): o WASM do MediaPipe é servido pelo próprio
+  // app, sem CDN — funciona offline no APK. Copiado de node_modules a cada dev/build
+  // (9 MB; fora do git). Só a variante SIMD: WebViews/navegadores atuais suportam.
+  // O modelo (public/mediapipe/blaze_face_short_range.tflite) fica versionado.
+  try {
+    const srcDir = path.resolve(__dirname, 'node_modules/@mediapipe/tasks-vision/wasm');
+    const dstDir = path.resolve(__dirname, 'public/mediapipe/wasm');
+    fs.mkdirSync(dstDir, { recursive: true });
+    for (const file of ['vision_wasm_internal.js', 'vision_wasm_internal.wasm']) {
+      const src = path.join(srcDir, file);
+      const dst = path.join(dstDir, file);
+      if (fs.existsSync(src) && (!fs.existsSync(dst) || fs.statSync(dst).size !== fs.statSync(src).size)) {
+        fs.copyFileSync(src, dst);
+      }
+    }
+  } catch (e) {
+    console.warn('Could not copy MediaPipe wasm to public/mediapipe/wasm', e);
+  }
+
   // Only use Electron plugins for explicit Electron builds.
   const plugins: PluginOption[] = [
     react(),

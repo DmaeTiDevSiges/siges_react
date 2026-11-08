@@ -1,4 +1,5 @@
 import { supabase } from '../core/supabase';
+import { resolveCurrentUserOffline, clearOfflineData } from '../offline/offlineAuth';
 import { apiN8nService } from '../core/apiN8nService';
 import { User, UserStatus, Permission, Team, Department, Vehicle, VehicleCompanyInfo } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
@@ -80,6 +81,12 @@ export const usersService = {
             mobileMask: item.mobile_mask,
             phone: item.phone,
             avatarUrl: getPublicImageUrl(item.img_file_path, item.img_file_name || 'noImageUser.png', { width: 70, height: 70, resize: 'cover' }),
+            hasPhoto: !!item.img_file_name && item.img_file_name !== 'noImageUser.png',
+            avatarCheckUrl: item.img_file_name && item.img_file_name !== 'noImageUser.png'
+                ? getPublicImageUrl(item.img_file_path, item.img_file_name, { width: 480, height: 480, resize: 'contain' })
+                : undefined,
+            imgFaceVerified: item.img_face_verified ?? null,
+            imgFaceReason: item.img_face_reason ?? null,
 
             companyId: item.cfg_teams?.company_id?.toString(),
             departmentId: item.cfg_teams?.department_id?.toString(),
@@ -938,7 +945,8 @@ export const usersService = {
         }
 
         const generation = currentUserGeneration;
-        const request = (async () => {
+        // Modo offline: sem rede, devolve o perfil guardado da sessão salva.
+        const request = resolveCurrentUserOffline<User>(async () => {
             try {
                 const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
@@ -1092,7 +1100,7 @@ export const usersService = {
             } catch (error) {
                 throw error;
             }
-        })();
+        });
 
         currentUserPromise = request;
         request
@@ -1191,7 +1199,13 @@ export const usersService = {
                     .from('users')
                     .update({
                         img_file_path: path,
-                        img_file_name: filename
+                        img_file_name: filename,
+                        // Marcação da etapa 3: sem ela o gatilho zera para "não verificada".
+                        ...(user.avatarFaceVerified === true ? {
+                            img_face_verified: true,
+                            img_face_verified_at: new Date().toISOString(),
+                            img_face_reason: 'ok',
+                        } : {}),
                     })
                     .eq('id', userId);
 
@@ -1363,6 +1377,19 @@ export const usersService = {
             console.error('Error updating team leader status:', error);
             throw error;
         }
+    },
+
+    /** Resultado da revisão da foto de perfil (Ajustes → Usuários → Revisar fotos). */
+    async recordProfileFaceCheck(userId: string, verified: boolean, reason: string): Promise<void> {
+        const { error } = await supabase
+            .from('users')
+            .update({
+                img_face_verified: verified,
+                img_face_verified_at: new Date().toISOString(),
+                img_face_reason: reason,
+            })
+            .eq('id', parseInt(userId, 10));
+        if (error) throw error;
     },
 
     async uploadUserAvatar(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
@@ -1601,6 +1628,8 @@ export const usersService = {
         } catch (e) {
             console.error('Unexpected error during sign out:', e);
         } finally {
+            // Modo offline: perfil, cache e pacotes de campo não ficam no aparelho.
+            await clearOfflineData();
             const savedCompanyId = localStorage.getItem('last_company_id');
             // O tema é preferência do dispositivo, não da sessão — preserva na limpeza
             const savedTheme = localStorage.getItem('app_theme');

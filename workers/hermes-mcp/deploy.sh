@@ -8,6 +8,6 @@ DEST="/opt/siges-mcp"
 cd "$(dirname "$0")"
 
 echo ">> Enviando para $TARGET:$DEST ..."
-tar czf - src package.json package-lock.json tsconfig.json env.example README.md \
+tar czf - src hermes-plugin hermes-config systemd package.json package-lock.json tsconfig.json env.example README.md \
   | ssh "$TARGET" "mkdir -p $DEST && tar xzf - -C $DEST && ls $DEST"
 echo ">> OK. Agora, na VPS: cd $DEST && npm ci && npm run build"

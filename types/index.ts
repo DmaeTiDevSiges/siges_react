@@ -266,6 +266,15 @@ export interface User {
   companyName?: string;
   profileName?: string;
   avatarUrl?: string; // Derived
+  /** Foto própria (não a imagem genérica). */
+  hasPhoto?: boolean;
+  /** Foto em tamanho suficiente para o detector de rosto (revisão de fotos). */
+  avatarCheckUrl?: string;
+  /** users.img_face_verified: null = não verificada, false = recusada. */
+  imgFaceVerified?: boolean | null;
+  imgFaceReason?: string | null;
+  /** Entrada do updateProfile: a nova foto passou na verificação de rosto. */
+  avatarFaceVerified?: boolean;
   companyLogoUrl?: string; // Derived
   notificationsAmount?: number;
   vehicleId?: string;
@@ -2353,3 +2362,32 @@ export type ActiveTab =
   | 'extra-workers'
   | 'grant-dashboard'
   | 'team-shifts';
+
+// ── Modo offline: trava do relatório do ativo (migration 20261117) ──────────
+/** `supported = false` → migration ainda não aplicada; o app segue sem trava. */
+export interface OrderVisitAssetLockResult {
+  supported: boolean;
+  locked: boolean;
+  lockedUserId?: string;
+  lockedUserName?: string;
+  lockedAt?: string;
+  lockToken?: string;
+}
+
+export interface OrderVisitAssetUnlockResult {
+  supported: boolean;
+  unlocked: boolean;
+  forced?: boolean;
+}
+
+export interface OrderVisitAssetLockInfo {
+  userId: string;
+  userName?: string;
+  lockedAt?: string;
+}
+
+export interface OrderVisitAssetsLocks {
+  supported: boolean;
+  /** chave = id de orders_visits_assets */
+  locks: Record<string, OrderVisitAssetLockInfo>;
+}

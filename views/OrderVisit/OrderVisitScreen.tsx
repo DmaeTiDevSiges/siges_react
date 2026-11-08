@@ -45,6 +45,7 @@ import { AIVisitAssistantTab } from '../../components/ai/AIVisitAssistantTab';
 import { AIContextualBar } from '../../components/ai/AIContextualBar';
 import { AlertModal } from '../../components/ui/AlertModal';
 import { VisitEvaluationInline } from '../Visits/VisitEvaluationInline';
+import { FieldPackageCard } from '../../components/offline/FieldPackageCard';
 
 export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     visitId,
@@ -636,6 +637,8 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                                 label="PDF"
                             />
                         </Card>
+
+                        <FieldPackageCard visit={visit} team={team} currentUserId={currentUser?.id} />
 
                         <OrderVisitCardDetail
                             visit={visit}

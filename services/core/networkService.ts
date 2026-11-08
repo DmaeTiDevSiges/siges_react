@@ -173,6 +173,13 @@ class NetworkServiceImpl {
   }
 
   /**
+   * Whether initialize() already ran (before that, currentStatus is a default)
+   */
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  /**
    * Check if device is connected
    */
   isConnected(): boolean {

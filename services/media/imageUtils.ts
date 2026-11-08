@@ -4,6 +4,7 @@
  * Usado por dataService.ts, usersService.ts, ordersService.ts, toolsService.ts, etc.
  */
 import { supabase } from '../core/supabase';
+import { getLocalOfflineFileUrl } from '../offline/offlineFileUrls';
 
 export interface PublicImageUrlOptions {
     width?: number;
@@ -64,6 +65,9 @@ export function getPublicImageUrl(
     options?: PublicImageUrlOptions
 ): string | undefined {
     if (!name) return undefined;
+    // Modo offline (F3): foto/assinatura feita sem internet e ainda não enviada.
+    const localUrl = getLocalOfflineFileUrl(name);
+    if (localUrl) return localUrl;
     const safePath = path || '';
     if (safePath.startsWith('http') || safePath.startsWith('data:')) return safePath;
 

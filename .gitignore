@@ -53,3 +53,6 @@ release/
 *.AppImage
 *.snap
 
+
+# WASM do MediaPipe (copiado de node_modules pelo vite.config.ts)
+public/mediapipe/wasm/

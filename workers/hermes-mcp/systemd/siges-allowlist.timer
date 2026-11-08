@@ -1,0 +1,10 @@
+[Unit]
+Description=SIGES -> Hermes: sincroniza lista de permitidos a cada 10 minutos
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

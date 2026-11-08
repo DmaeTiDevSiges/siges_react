@@ -11,6 +11,7 @@ import { UserAvatar } from '../ui/UserAvatar';
 import { DataQualityIndicator } from '../ui/DataQualityIndicator';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useNotificationArrival } from '../../hooks/useNotificationArrival';
+import { ConnectionStrip } from '../offline/ConnectionStrip';
 
 interface HeaderProps {
     title: string;
@@ -47,7 +48,9 @@ export const Header: React.FC<HeaderProps> = ({
     hideBorder,
     titleRightElement
 }) => {
-    const { isConnected } = useNetworkStatus();
+    const { isConnected: rawConnected, isLoading: networkLoading } = useNetworkStatus();
+    // Antes do networkService inicializar o estado é "desconectado": não pinta de vermelho na abertura.
+    const isConnected = rawConnected || networkLoading;
     const arrival = useNotificationArrival();
 
     // Determinar status atual baseado em isAvailable e isOvInProgress
@@ -75,7 +78,8 @@ export const Header: React.FC<HeaderProps> = ({
 
 
     return (
-        <header className={`flex items-center px-4 py-2.5 justify-between bg-surface-light dark:bg-card-dark sticky top-0 z-20 ${hideBorder ? '' : 'border-b border-slate-200 dark:border-slate-800'}`}>
+        <header className={`flex flex-col bg-surface-light dark:bg-card-dark sticky top-0 z-20 ${!isConnected ? 'border-b-2 border-red-500' : hideBorder ? '' : 'border-b border-slate-200 dark:border-slate-800'}`}>
+          <div className="flex items-center px-4 py-2.5 justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
                 {showBackButton && (
                     <IconButton
@@ -179,6 +183,10 @@ export const Header: React.FC<HeaderProps> = ({
                     />
                 )}
             </div>
+          </div>
+
+            {/* Modo offline: faixa de conexão / fila (some quando online e fila vazia) */}
+            <ConnectionStrip isConnected={isConnected} />
         </header>
     );
 };

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MAX_ROWS } from './siges.js';
+import { AccessDenied } from './identity.js';
 
 /** Utilitários compartilhados pelas ferramentas MCP. */
 
@@ -34,6 +35,9 @@ export const scopeLabel = (onlyMine: boolean) =>
     onlyMine ? 'somente as do usuário vinculado (líder ou equipe)' : 'todas que o usuário pode ver no SIGES';
 
 function fail(err: unknown) {
+    if (err instanceof AccessDenied) {
+        return { isError: true, content: [{ type: 'text' as const, text: `Acesso negado ao SIGES: ${err.message} Não tente novamente; explique ao usuário que ele precisa falar com o administrador do SIGES.` }] };
+    }
     const message = err instanceof Error ? err.message : typeof err === 'object' ? JSON.stringify(err) : String(err);
     return { isError: true, content: [{ type: 'text' as const, text: `Erro ao consultar o SIGES: ${message}` }] };
 }

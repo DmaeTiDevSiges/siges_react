@@ -9,6 +9,7 @@ import { LoadMore } from '../../../components/ui/LoadMore';
 import { IconButton } from '../../../components/ui/IconButton';
 import { Modal } from '../../../components/ui/Modal';
 import { UserAvatar, UserStatus as AvatarStatus } from '../../../components/ui/UserAvatar';
+import { ProfilePhotoReviewModal } from '../../../components/users/ProfilePhotoReviewModal';
 
 interface AllUsersListProps {
     onAddUser?: () => void;
@@ -66,6 +67,7 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
 
     const isSuperAdmin = currentUser?.isAdminSuper === true;
     const isAdmin = currentUser?.isAdmin === true;
+    const [isPhotoReviewOpen, setIsPhotoReviewOpen] = useState(false);
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -113,6 +115,8 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
         if (activeFilter === 'Ativos') return u.statusName === 'Ativo';
         if (activeFilter === 'Em Análise') return u.statusName === 'Analise'; // Database description is 'Analise'
         if (activeFilter === 'Inativos') return u.statusName === 'Inativo';
+        // Sem foto, foto recusada ou ainda não verificada (users.img_face_verified)
+        if (activeFilter === 'Foto pendente') return !u.hasPhoto || u.imgFaceVerified !== true;
 
         return true;
     });
@@ -182,7 +186,7 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
 
     if (loading) return <div className="p-8 text-center text-slate-500">Carregando usuários...</div>;
 
-    const filters = ['Todos', 'Ativos', 'Em Análise', 'Inativos'];
+    const filters = ['Todos', 'Ativos', 'Em Análise', 'Inativos', ...((isAdmin || isSuperAdmin) ? ['Foto pendente'] : [])];
 
     return (
         <div className="flex flex-col">
@@ -218,6 +222,14 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
                             <option key={p} value={p}>{p}</option>
                         ))}
                     </select>
+                    {(isAdmin || isSuperAdmin) && (
+                        <IconButton
+                            icon="face"
+                            size="lg"
+                            onClick={() => setIsPhotoReviewOpen(true)}
+                            title="Revisar fotos de perfil"
+                        />
+                    )}
                     {onAddUser && (
                         <IconButton
                             icon="person_add"
@@ -333,6 +345,18 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                                         {user.email}
                                     </p>
+                                    {(isAdmin || isSuperAdmin) && (!user.hasPhoto || user.imgFaceVerified !== true) && (
+                                        <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                            !user.hasPhoto
+                                                ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                                                : user.imgFaceVerified === false
+                                                    ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+                                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                                        }`}>
+                                            <span className="material-symbols-outlined text-[12px]">face</span>
+                                            {!user.hasPhoto ? 'Sem foto' : user.imgFaceVerified === false ? 'Foto recusada' : 'Foto não verificada'}
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Chevron Right + Impersonate Button */}
@@ -362,6 +386,16 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
                         );
                     })
                 )}
+
+                <ProfilePhotoReviewModal
+                    isOpen={isPhotoReviewOpen}
+                    onClose={() => setIsPhotoReviewOpen(false)}
+                    users={companyUsers}
+                    currentUserId={currentUser?.id}
+                    onChecked={(userId, verified, reason) => setUsers(prev => prev.map(u =>
+                        u.id === userId ? { ...u, imgFaceVerified: verified, imgFaceReason: reason } : u
+                    ))}
+                />
 
                 <LoadMore
                     current={Math.min(visibleCount, filteredUsers.length)}

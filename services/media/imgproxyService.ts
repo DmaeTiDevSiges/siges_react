@@ -10,6 +10,7 @@
  */
 
 import CryptoJS from 'crypto-js';
+import { isLocalImageUrl } from '../offline/offlineFileUrls';
 
 export interface TransformOptions {
     width?: number;
@@ -156,7 +157,7 @@ export const generateUrl = (sourceUrl: string, options: TransformOptions = {}): 
     if (!imgproxyUrl) return sourceUrl;
 
     // URLs locais (blob/data) não podem ser acessadas pelo imgproxy (servidor externo)
-    if (sourceUrl.startsWith('blob:') || sourceUrl.startsWith('data:')) return sourceUrl;
+    if (isLocalImageUrl(sourceUrl)) return sourceUrl;
 
     const finalSourceUrl    = toS3Url(sourceUrl);
     const encodedUrl        = encodeSourceUrl(finalSourceUrl);

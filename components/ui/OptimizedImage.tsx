@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { isLocalImageUrl } from '../../services/offline/offlineFileUrls';
 import { getVariantUrl, buildVariantSrcSet, ImageVariant } from '../../services/media/imageUtils';
 
 export type ImagePreset = 'thumbnail' | 'medium' | 'large' | 'original';
@@ -40,7 +41,7 @@ const OptimizedImageBase: React.FC<OptimizedImageProps> = ({
     const [hasError, setHasError] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
-    const isLocalUrl = src?.startsWith('blob:') || src?.startsWith('data:');
+    const isLocalUrl = isLocalImageUrl(src);
     const variant = PRESET_TO_VARIANT[preset] ?? 'medium';
 
     // Fallback (hasError) e URLs locais usam o original sem variantes

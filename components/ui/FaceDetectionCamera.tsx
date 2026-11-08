@@ -1,48 +1,32 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import type { FaceDetector } from '@mediapipe/tasks-vision';
 import { IconButton } from './IconButton';
+import { getFaceDetector, detectFacesInVideo } from '../../services/ai/faceDetector';
+import { evaluateProfileFace, type ProfileFaceVerdict } from '../../services/ai/profileFaceRules';
 
 interface FaceDetectionCameraProps {
     onCapture: (image: string) => void;
     onCancel: () => void;
 }
 
-// Helper to inject script tag (bypasses ESM dynamic import CORS restrictions in WebViews)
-const loadedScripts = new Set<string>();
-
-const loadExternalScript = (src: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        if (loadedScripts.has(src)) {
-            resolve(true);
-            return;
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.crossOrigin = 'anonymous';
-        script.onload = () => {
-            loadedScripts.add(src);
-            resolve(true);
-        };
-        script.onerror = (err) => {
-            console.warn(`[FaceDetectionCamera] Failed to load script ${src}:`, err);
-            resolve(false);
-        };
-        document.head.appendChild(script);
-    });
-};
-
+/**
+ * Câmera da foto de perfil com detecção ao vivo. Usa o detector LOCAL e as mesmas
+ * regras da verificação final (um rosto, tamanho razoável, detecção confiável).
+ * Sem detector não há captura (decisão de 08/11/2026: recusar a foto).
+ */
 export const FaceDetectionCamera: React.FC<FaceDetectionCameraProps> = ({ onCapture, onCancel }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [faceDetector, setFaceDetector] = useState<any>(null);
-    const [detectorMode, setDetectorMode] = useState<'native' | 'mediapipe' | null>(null);
+    const [faceDetector, setFaceDetector] = useState<FaceDetector | null>(null);
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [detectionMessage, setDetectionMessage] = useState('Iniciando câmera...');
-    const [faceCount, setFaceCount] = useState(0);
+    const [verdict, setVerdict] = useState<ProfileFaceVerdict | null>(null);
+    const lastTimestampRef = useRef(0);
 
     const startCamera = async () => {
         try {
-            setDetectionMessage("Solicitando acesso à webcam...");
+            setDetectionMessage("Solicitando acesso à câmera...");
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: 'user',
@@ -58,143 +42,60 @@ export const FaceDetectionCamera: React.FC<FaceDetectionCameraProps> = ({ onCapt
             console.error("Error accessing camera:", err);
             setHasPermission(false);
             setStatus('error');
-            setDetectionMessage("Acesso à webcam negado.");
+            setDetectionMessage("Acesso à câmera negado.");
         }
     };
 
-    // Initialize Face Detector:
-    // 1. Try Native Browser Shape Detection API (Android Chrome built-in C++ detector)
-    // 2. Try MediaPipe Tasks Vision (via UMD script tag to avoid WebView ESM CORS blocks)
-    // 3. Fallback to manual capture if offline/unsupported
+    const loadDetector = useCallback(async () => {
+        setStatus('loading');
+        setDetectionMessage('Carregando o detector de rosto...');
+        try {
+            const detector = await getFaceDetector('VIDEO');
+            setFaceDetector(detector);
+            setStatus('ready');
+            setDetectionMessage('Posicione seu rosto na guia.');
+        } catch (err) {
+            console.warn("[FaceDetectionCamera] Detector indisponível:", err);
+            setStatus('error');
+            setDetectionMessage('Detector de rosto indisponível.');
+        }
+    }, []);
+
     useEffect(() => {
-        let active = true;
-
-        const initDetector = async () => {
-            // Tier 1: Try Native Chromium FaceDetector API (Built into Android Chrome/WebView)
-            if (typeof (window as any).FaceDetector !== 'undefined') {
-                try {
-                    const nativeDetector = new (window as any).FaceDetector({ fastMode: true, maxFaces: 5 });
-                    if (active) {
-                        setDetectorMode('native');
-                        setFaceDetector(nativeDetector);
-                        setStatus('ready');
-                        setDetectionMessage("Detector nativo ativo. Posicione seu rosto.");
-                        return;
-                    }
-                } catch (e) {
-                    console.warn("[FaceDetectionCamera] Native FaceDetector error, falling back to MediaPipe:", e);
-                }
-            }
-
-            // Tier 2: Try MediaPipe via UMD bundle script injection
-            try {
-                // Try to load vision bundle via script tag (avoids dynamic import ESM CORS block in WebViews)
-                const loaded = await loadExternalScript('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.js');
-                const vision = (window as any).tasksVision || (window as any).vision;
-
-                if (loaded && vision) {
-                    const { FaceDetector, FilesetResolver } = vision;
-                    const filesetResolver = await FilesetResolver.forVisionTasks(
-                        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-                    );
-
-                    let detector: any = null;
-
-                    // Try GPU first, fallback to CPU
-                    try {
-                        detector = await FaceDetector.createFromOptions(filesetResolver, {
-                            baseOptions: {
-                                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`,
-                                delegate: "GPU"
-                            },
-                            runningMode: "VIDEO"
-                        });
-                    } catch (gpuError) {
-                        console.warn("[FaceDetectionCamera] GPU delegate failed, trying CPU:", gpuError);
-                        detector = await FaceDetector.createFromOptions(filesetResolver, {
-                            baseOptions: {
-                                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`,
-                                delegate: "CPU"
-                            },
-                            runningMode: "VIDEO"
-                        });
-                    }
-
-                    if (active && detector) {
-                        setDetectorMode('mediapipe');
-                        setFaceDetector(detector);
-                        setStatus('ready');
-                        return;
-                    }
-                }
-            } catch (err) {
-                console.warn("[FaceDetectionCamera] MediaPipe script load failed:", err);
-            }
-
-            // Tier 3: Fallback if detector cannot be loaded (offline / blocked network)
-            if (active) {
-                setStatus('error');
-                setDetectionMessage("Detector indisponível. Captura manual liberada.");
-            }
-        };
-
-        initDetector();
+        loadDetector();
         startCamera();
 
         return () => {
-            active = false;
             if (videoRef.current?.srcObject) {
                 const stream = videoRef.current.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Set ready status when permission and detector are available
-    useEffect(() => {
-        if (faceDetector && hasPermission && status !== 'ready') {
-            setStatus('ready');
+    const detectFaces = useCallback(() => {
+        const video = videoRef.current;
+        if (status !== 'ready' || !faceDetector || !video || video.readyState !== 4) return;
+        try {
+            // detectForVideo exige timestamps estritamente crescentes
+            const ts = Math.max(performance.now(), lastTimestampRef.current + 1);
+            lastTimestampRef.current = ts;
+            const faces = detectFacesInVideo(faceDetector, video, ts);
+            const v = evaluateProfileFace(faces, video.videoWidth, video.videoHeight);
+            setVerdict(v);
+            setDetectionMessage(v.ok ? 'Rosto detectado! Pronto para capturar.' : v.message);
+        } catch (e) {
+            console.warn("[FaceDetectionCamera] Face detection frame error:", e);
         }
-    }, [faceDetector, hasPermission, status]);
-
-    const detectFaces = useCallback(async () => {
-        if (status === 'ready' && faceDetector && videoRef.current?.readyState === 4) {
-            try {
-                const video = videoRef.current;
-                let count = 0;
-
-                if (detectorMode === 'native') {
-                    const faces = await faceDetector.detect(video);
-                    count = faces ? faces.length : 0;
-                } else if (detectorMode === 'mediapipe') {
-                    const startTimeMs = Date.now();
-                    const detections = await faceDetector.detectForVideo(video, startTimeMs);
-                    count = detections.detections.length;
-                }
-
-                setFaceCount(count);
-
-                if (count === 0) {
-                    setDetectionMessage("Nenhum rosto detectado");
-                } else if (count === 1) {
-                    setDetectionMessage("Rosto detectado! Pronto para capturar.");
-                } else {
-                    setDetectionMessage(`${count} rostos detectados. Use apenas um rosto.`);
-                }
-            } catch (e) {
-                console.warn("[FaceDetectionCamera] Face detection frame error:", e);
-            }
-        }
-    }, [status, faceDetector, detectorMode]);
+    }, [status, faceDetector]);
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            detectFaces();
-        }, 500);
+        const interval = setInterval(detectFaces, 400);
         return () => clearInterval(interval);
     }, [detectFaces]);
 
-    const isCanCapture = faceCount === 1 || status === 'error';
+    const isCanCapture = status === 'ready' && !!verdict?.ok;
 
     const handleCapture = () => {
         if (isCanCapture && videoRef.current && canvasRef.current) {
@@ -244,6 +145,18 @@ export const FaceDetectionCamera: React.FC<FaceDetectionCameraProps> = ({ onCapt
                     </div>
                 )}
 
+                {/* Detector indisponível: tentar de novo (sem captura manual) */}
+                {hasPermission && status === 'error' && (
+                    <div className="absolute inset-x-0 bottom-32 flex justify-center">
+                        <button
+                            onClick={loadDetector}
+                            className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-colors"
+                        >
+                            Tentar novamente
+                        </button>
+                    </div>
+                )}
+
                 {/* Top Actions & Feedback */}
                 <div className="absolute top-0 inset-x-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start pointer-events-none">
                     <div className="pointer-events-auto">
@@ -257,14 +170,14 @@ export const FaceDetectionCamera: React.FC<FaceDetectionCameraProps> = ({ onCapt
                     </div>
                     {hasPermission && (
                         <div className={`px-4 py-2 rounded-full backdrop-blur-md text-white text-sm font-bold shadow-lg flex items-center gap-2 transition-all ${
-                            status === 'error'
+                            status !== 'ready'
                                 ? 'bg-amber-500/80'
-                                : faceCount === 1
+                                : isCanCapture
                                 ? 'bg-green-500/80 scale-105'
                                 : 'bg-red-500/80'
                         }`}>
                             <span className="material-symbols-outlined text-[18px]">
-                                {status === 'error' ? 'info' : faceCount === 1 ? 'check_circle' : 'warning'}
+                                {status !== 'ready' ? 'info' : isCanCapture ? 'check_circle' : 'warning'}
                             </span>
                             {detectionMessage}
                         </div>
@@ -303,8 +216,8 @@ export const FaceDetectionCamera: React.FC<FaceDetectionCameraProps> = ({ onCapt
                 {hasPermission === false
                     ? "A permissão de câmera é necessária para o reconhecimento facial."
                     : status === 'error'
-                    ? "Detector de rosto desativado no momento. Você pode tirar a foto normalmente."
-                    : "Posicione seu rosto na guia. A captura será desbloqueada quando um único rosto for detectado."
+                    ? "Não foi possível carregar o detector de rosto. Sem ele a foto não pode ser enviada."
+                    : "Posicione só o seu rosto na guia, perto da câmera. A captura é liberada quando o rosto for reconhecido."
                 }
             </p>
         </div>

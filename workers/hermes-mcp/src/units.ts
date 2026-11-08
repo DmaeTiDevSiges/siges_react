@@ -61,7 +61,7 @@ export function registerUnitTools(server: McpServer): void {
         'siges_unidades',
         {
             title: 'Buscar unidades',
-            description: 'Procura unidades (locais atendidos) pelo código ou por palavras do nome/endereço. Devolve endereço, tipo, sistema, cliente, status e link do mapa.',
+            description: 'Use para LISTAR/PROCURAR unidades quando o usuário não sabe o código exato. Procura unidades (locais atendidos) pelo código ou por palavras do nome/endereço. Devolve endereço, tipo, sistema, cliente, status e link do mapa.',
             inputSchema: {
                 busca: z.string().min(2).describe('Código ou palavras do nome, ex.: "ETA Moinhos", "EBAB 12"'),
                 limite: limitArg,
@@ -83,7 +83,7 @@ export function registerUnitTools(server: McpServer): void {
         'siges_unidade',
         {
             title: 'Situação de uma unidade',
-            description: 'Visão completa de UMA unidade: dados cadastrais, ordens de serviço abertas, visitas recentes e situação dos ativos (disponíveis/indisponíveis, último registro). Se a busca bater em várias unidades, devolve a lista para o usuário escolher.',
+            description: 'USE ESTA para qualquer pergunta sobre uma unidade específica (ex.: "unidade 301", "como está a ETA Moinhos", "o que tem aberto na EBAB 12"). Visão completa de UMA unidade: dados cadastrais, ordens de serviço abertas, visitas recentes e situação dos ativos (disponíveis/indisponíveis, último registro). Se a busca bater em várias unidades, devolve a lista para o usuário escolher.',
             inputSchema: {
                 busca: z.string().min(2).describe('Código da unidade (preferível) ou nome'),
                 dias_visitas: z.number().int().min(1).max(365).optional().describe('Janela de visitas recentes em dias (padrão 30)'),

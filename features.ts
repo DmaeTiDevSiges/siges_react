@@ -41,6 +41,25 @@ export const isMultiClientUnitsEnabled = (): boolean => {
 };
 
 /**
+ * Verifica se o modo offline do técnico está habilitado
+ * (relatório do ativo e da visita sem internet — docs/OFFLINE_MODO_CAMPO.md).
+ *
+ * Para ativar: VITE_FEATURE_OFFLINE_MODE=true
+ * Para desativar: VITE_FEATURE_OFFLINE_MODE=false (ou não definir)
+ *
+ * Lido no build (Vite embute o valor): mudar exige novo APK.
+ * Desligada, bloqueia apenas gravações NOVAS offline — a fila que já estiver
+ * no aparelho continua sendo sincronizada até esvaziar (nunca descartar).
+ *
+ * Pré-requisito: migrations 20261116_add_offline_client_uuid.sql,
+ * 20261117_add_orders_visits_assets_lock.sql e
+ * 20261118_create_flow_order_visit_close_v4.sql aplicadas.
+ */
+export const isOfflineModeEnabled = (): boolean => {
+  return import.meta.env.VITE_FEATURE_OFFLINE_MODE === 'true';
+};
+
+/**
  * Status possíveis para aprovação financeira de visitas
  */
 export type VisitCostsStatus = 'pending' | 'waiting' | 'approved' | 'rejected';

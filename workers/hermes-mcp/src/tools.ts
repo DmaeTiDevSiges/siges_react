@@ -1,8 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { MAX_ROWS, dayEnd, dayStart, defaultOnlyMine, formatBr, getSiges, todayInBrazil } from './siges.js';
+import { MAX_ROWS, dayEnd, dayStart, defaultOnlyMine, formatBr, getSiges, isMultiUser, todayInBrazil } from './siges.js';
 import { isoDate, likeTerm, limitArg, safe, scopeLabel } from './toolkit.js';
 import { registerUnitTools } from './units.js';
+import { registerAssetTools } from './assets.js';
 
 /**
  * Ferramentas SOMENTE LEITURA do SIGES para o Hermes.
@@ -19,13 +20,14 @@ const unidadeArg = z.string().min(2).optional()
 
 export function registerTools(server: McpServer): void {
     registerUnitTools(server);
+    registerAssetTools(server);
 
     // -----------------------------------------------------------------------
     server.registerTool(
         'siges_quem_sou_eu',
         {
             title: 'Perfil SIGES vinculado',
-            description: 'Mostra qual usuário do SIGES este assistente representa (nome, equipe, empresa, se é líder/admin). Use para saber o escopo das consultas.',
+            description: 'Mostra qual usuário do SIGES está consultando e o modo de identificação (multiusuário pelo celular ou conta fixa). Traz nome, equipe, empresa e se é líder/admin. Sempre informe o campo modo_identificacao ao usuário.',
             inputSchema: {},
         },
         safe(async () => {
@@ -35,7 +37,14 @@ export function registerTools(server: McpServer): void {
                 const { data } = await db.from('cfg_teams').select('code, description').eq('id', me.teamId).maybeSingle();
                 team = data ? `${data.code ?? ''} ${data.description ?? ''}`.trim() : null;
             }
-            return { ...me, team, hoje: todayInBrazil() };
+            return {
+                modo_identificacao: isMultiUser()
+                    ? 'multiusuário: usuário encontrado pelo celular (users.mobile_full) de quem enviou a mensagem'
+                    : 'usuário único: conta fixa configurada no .env do servidor',
+                ...me,
+                team,
+                hoje: todayInBrazil(),
+            };
         }),
     );
 

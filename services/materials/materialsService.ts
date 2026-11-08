@@ -1,26 +1,13 @@
 import { supabase } from '../core/supabase';
+import { insertWithClientUuid } from '../core/clientUuidInsert';
 import { Material, AssetMaterial } from '../../types';
 import { usersService } from '../users/usersService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
 
-/**
- * Quebra a busca de materiais em termos (por espaço). Cada termo vira uma lista
- * de variantes aceitas: quando junta número e letra ("50mm"), aceita também a
- * forma separada ("50 mm") — o cadastro usa as duas grafias.
- * Curingas do LIKE digitados pelo usuário são removidos.
- */
-export const splitMaterialSearchTerms = (search: string): string[][] =>
-    (search || '')
-        .replace(/[%_\\*]/g, ' ')
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .map(term => {
-            const spaced = term
-                .replace(/(\d)([a-zA-Z\u00C0-\u017F])/g, '$1 $2')
-                .replace(/([a-zA-Z\u00C0-\u017F])(\d)/g, '$1 $2');
-            return spaced !== term ? [term, spaced] : [term];
-        });
+// Regras da busca: services/materials/materialSearchTerms.ts (sem dependências — a busca
+// offline do catálogo usa as mesmas).
+export { splitMaterialSearchTerms } from './materialSearchTerms';
+import { splitMaterialSearchTerms } from './materialSearchTerms';
 
 /** Valor entre aspas para filtros or() do PostgREST (vírgula/parêntese no termo). */
 const quotePostgrestValue = (value: string): string =>
@@ -346,7 +333,7 @@ export const materialsService = {
         }));
     },
 
-    async addMaterialToAsset(ovAssetId: string, materialId: string, amount: number, valueUnit: number, userId: string): Promise<void> {
+    async addMaterialToAsset(ovAssetId: string, materialId: string, amount: number, valueUnit: number, userId: string, options?: { clientUuid?: string }): Promise<void> {
         // 1. Get the visit ID (ov_id) and asset original ID (asset_id) first
         const { data: ova, error: ovaError } = await supabase
             .from('orders_visits_assets')
@@ -360,9 +347,7 @@ export const materialsService = {
         }
 
         // 2. Perform insert with ova_id, ov_id and asset_id
-        const { error } = await supabase
-            .from('orders_visits_assets_materials')
-            .insert({
+        await insertWithClientUuid('orders_visits_assets_materials', {
                 ova_id: parseInt(ovAssetId),
                 ov_id: ova.ov_id,
                 asset_id: ova.asset_id, // Mandatory column in some versions of the schema
@@ -371,9 +356,7 @@ export const materialsService = {
                 value_unit: valueUnit,
                 created_user_id: parseInt(userId),
                 is_deleted: false
-            });
-
-        if (error) throw error;
+            }, options?.clientUuid);
     },
 
     async updateMaterialInAsset(id: string, updates: { amount?: number, discount?: number, valueUnit?: number }): Promise<void> {

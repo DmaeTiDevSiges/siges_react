@@ -21,6 +21,9 @@ visitas, ordens agendadas, detalhe de ordem, estoque e resumo gerencial.
 | `siges_unidades` | Busca unidades por código ou nome (endereço, tipo, sistema, cliente, link do mapa) | `v_units` |
 | `siges_unidade` | Situação de uma unidade: cadastro, OS abertas (status 2–5), visitas recentes, ativos indisponíveis | `v_units`, `v_orders`, `v_orders_visits`, `v_units_assets_tags` |
 | `siges_unidades_proximas` | Unidades ativas num raio de uma coordenada (ex.: localização do WhatsApp) | `v_units` |
+| `siges_ativos` | Busca ativos por código, descrição, marca, modelo ou série (filtro opcional por unidade) | `v_assets` |
+| `siges_ativo` | Situação de um ativo: ficha técnica, disponibilidade atual, alertas abertos, últimas intervenções aprovadas | `v_assets`, `v_units_assets_tags`, `assets_alerts`, `v_orders_visits_assets` |
+| `siges_ativos_indisponiveis` | Posições indisponíveis agora, com motivo e desde quando (mais antigas primeiro) | `v_units_assets_tags` |
 | `siges_visitas` | Visitas iniciadas no período; por padrão só as do usuário (líder ou membro da equipe); filtro opcional por unidade | `v_orders_visits`, `orders_visits_teams` |
 | `siges_ordens_agendadas` | Ordens com status agendada (4) no período; padrão hoje → +7 dias; filtro opcional por unidade | `v_orders` |
 | `siges_ordem` | Detalhe de uma ordem pelo número + visitas dela | `v_orders`, `v_orders_visits` |

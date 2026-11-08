@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { UserNotification } from '../../types';
 import { getPublicImageUrl } from '../media/imageUtils';
-import { getBrazilNaiveTimestamp } from '../../utils/dateUtils';
+import { getBrazilNaiveTimestamp, getBrazilTimestamp } from '../../utils/dateUtils';
 
 export const notificationsService = {
     async getNotificationsCount(authUserId?: string): Promise<number> {
@@ -162,6 +162,24 @@ export const notificationsService = {
             .eq('user_id_to', userData.id);
 
         if (error) throw error;
+    },
+
+    /** Pede a troca da foto de perfil a quem teve a foto recusada na revisão. */
+    async notifyProfilePhotoRejected(targets: { userId: string; message: string }[], fromUserId: string): Promise<number> {
+        if (targets.length === 0) return 0;
+        const rows = targets.map(t => ({
+            user_id_to: parseInt(t.userId, 10),
+            user_id_from: parseInt(fromUserId, 10),
+            title: 'Atualize sua foto de perfil',
+            body: `${t.message} Abra o seu perfil e troque a foto.`,
+            type: 'profile_photo_rejected',
+            is_read: false,
+            created_at: getBrazilTimestamp(),
+            page_target: 'profile',
+        }));
+        const { error } = await supabase.from('users_notifications').insert(rows);
+        if (error) throw error;
+        return rows.length;
     },
 
     async clearAllNotifications(): Promise<void> {
