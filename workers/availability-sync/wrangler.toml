@@ -1,0 +1,34 @@
+# siges-availability-sync — sincroniza disponibilidade de ativos a partir de APIs
+# externas (GuaibaFlow, ...) e entrega ao SIGES via fn_add_assets_available.
+#
+# Publicar:
+#   cd workers/availability-sync
+#   npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   npx wrangler secret put SYNC_TOKEN
+#   npx wrangler secret put INTEGRATION_<id>_API_KEY     # id de cfg_assets_available_integrations
+#   npx wrangler deploy
+#
+# Acompanhar: npx wrangler tail   (ou Workers Logs no painel)
+name = "siges-availability-sync"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[triggers]
+# Cron em UTC. 0h, 6h, 12h e 18h de Brasília (UTC-3) = 3h, 9h, 15h e 21h UTC.
+crons = ["0 3,9,15,21 * * *"]
+
+[observability]
+enabled = true
+
+[vars]
+SUPABASE_URL = "https://vps.supabase.siges-app.com.br"
+USER_AGENT = "SIGES-AvailabilitySync/1.0"
+# Modo observação: só consulta e normaliza, não grava. Trocar para "false"
+# somente após revisar execuções reais (Fase 2 → Fase 3 do plano).
+DRY_RUN = "false"
+# Origens do app que podem chamar POST /app/run (mesma lista do siges-files).
+ALLOWED_ORIGINS = "https://siges.app,https://www.siges.app,https://localhost,http://localhost:3000,http://localhost:5173"
+# SUPABASE_ANON_KEY (pública) é definida como secret: npx wrangler secret put SUPABASE_ANON_KEY
+# Alerta por e-mail quando a execução agendada falha por inteiro (src/alert.ts).
+# Destinatários separados por vírgula. Remetente = secrets GMAIL_USER + GMAIL_APP_PASSWORD.
+ALERT_EMAIL_TO = "edukmattos@gmail.com, mattos@dmae.prefpoa.com.br"

@@ -1,21 +1,27 @@
-# Plano — Integração de disponibilidade de ativos via APIs e n8n
+# Plano — Integração de disponibilidade de ativos via APIs externas
 
-> **Status (05/11/2026):**
+> **Status (07/11/2026):**
 > - **Fase 1 — código pronto:** `20261104_create_assets_available_integrations.sql`
->   (tabelas, RLS, `fn_ingest_asset_availability`). Aplicar manualmente no Supabase
->   e rodar `validate_assets_available_integrations.sql`.
-> - **Fase 2 — código pronto, não publicado:** `SigesGuaibaFlowAvailability.workflow.ts`
->   em modo observação (`dryRun = true`). Push ao n8n pendente (API key do n8nac
->   retornando 401) e credenciais “GuaibaFlow API” / “SIGES Postgres” a criar no n8n.
+>   (tabelas, RLS, `fn_add_assets_available`). Aplicar manualmente no Supabase
+>   e rodar `validate_assets_available_integrations.sql`. Se a 20261104 foi aplicada
+>   antes de 07/11/2026, aplicar também `20261107_rename_fn_ingest_asset_availability.sql`
+>   (renomeia a função para `fn_add_assets_available`).
+> - **Fase 2 — código pronto, não publicado (07/11/2026):** Worker
+>   `workers/availability-sync/` (Cloudflare, Cron às 0h, 6h, 12h e 18h de Brasília) em modo observação
+>   (`DRY_RUN = "true"`), com adaptador `guaibaflow` e testes Jest. Substitui o workflow
+>   n8n `SigesGuaibaFlowAvailability.workflow.ts` (descontinuado, nunca publicado).
+>   Pendente: `wrangler deploy` + secrets (ver §12) e revisão das execuções.
 > - **Fase 3 — pendente:** depende da revisão funcional das execuções em observação.
 > - **Fase 4 — tela pronta:** `20261105_add_assets_available_integrations_route_and_permissions.sql`
->   (rota única `dashboard_assets_available_integrations` + RLS via
->   `fc_has_route_permission`), `services/assets/assetsAvailableIntegrationsService.ts`
->   e `views/Dashboards/DashboardAssetsAvailableIntegrations.tsx` (aba “Disponibilidade
->   de Ativos” em Dashboards). Permissões: view = listar/logs; create = nova integração;
->   edit = editar/ativar e mapear; delete = excluir sem histórico.
+>   + `20261107_move_external_apis_route_to_settings.sql` (rota única `settings_external_apis`
+>   no grupo Settings + RLS via `fc_has_route_permission`),
+>   `services/assets/assetsAvailableIntegrationsService.ts` e
+>   `views/Settings/ExternalApis/ExternalApiIntegrations.tsx`, aberta em Ajustes → card
+>   “APIs Externas” → “GuaibaFlow” (tela filtrada por `provider_code`). Permissões:
+>   view = listar/logs; create = nova integração; edit = editar/ativar e mapear;
+>   delete = excluir sem histórico.
 >   Ainda não cobertos: escopo por empresa no RLS, teste de conectividade no servidor
->   e alertas.  
+>   pela tela já coberto pelo botão “Executar agora” (modo Testar); faltam alertas.  
 > **Escopo:** receber disponibilidade de múltiplas APIs externas, relacioná-las aos
 > registros do SIGES e preservar o fluxo atual de histórico e cascata.
 
@@ -27,7 +33,8 @@ colunas específicas de fornecedores, como `guaiba_flow_id`, à tabela
 
 O cadastro deve permitir identificar a integração, configurar os parâmetros não
 secretos da API e relacionar cada ID externo ao registro interno do SIGES.
-O n8n fará a orquestração, mas o estado e o histórico oficiais continuarão no SIGES.
+O Worker `siges-availability-sync` (Cloudflare) fará a orquestração; o estado e o histórico
+oficiais continuarão no SIGES. (Decisão de 07/11/2026: substitui o n8n — ver §12.)
 
 ## 2. Decisões propostas
 
@@ -37,10 +44,10 @@ O n8n fará a orquestração, mas o estado e o histórico oficiais continuarão 
 | Várias instâncias do mesmo fornecedor | Cada conta/servidor é uma integração independente, com escopo de empresa. |
 | IDs externos | Armazenar como `text`; não presumir que sejam numéricos. |
 | Formatos de resposta | Assumir que cada API pode ter estrutura, autenticação, paginação, nomes de campos e semântica próprios; não criar um parser universal baseado no retorno da primeira API. |
-| Credenciais | Guardar nas Credentials do n8n ou em secret manager; nunca em `VITE_*`, no navegador ou em JSON de configuração sem proteção. |
+| Credenciais | Guardar como secrets do Worker (`wrangler secret`) ou em secret manager; nunca em `VITE_*`, no navegador ou em JSON de configuração sem proteção. |
 | Identidade de origem | Não usar conta humana compartilhada. Preferir registrar a integração como origem técnica; identidade técnica sem login só como compatibilidade temporária se a RPC atual exigir usuário. |
 | `assets_available.comments` | Usar somente um marcador fixo, como `Leitura obtida via integração de APIs.`; não guardar nesse campo IDs, payloads, nome do provedor nem dados técnicos da integração. |
-| Orquestração | n8n consulta a API (webhook ou polling), normaliza os dados e chama um endpoint controlado do SIGES. |
+| Orquestração | Worker `siges-availability-sync` (Cron Trigger) consulta a API por polling, normaliza com o adaptador do provedor e chama a RPC controlada do SIGES. Webhooks de fornecedores, se surgirem, entram como rota do mesmo Worker. |
 | Persistência | O SIGES valida o mapeamento e aplica a atualização pelo fluxo de backend que mantém histórico e cascata. |
 | Sem mapeamento | Não atualizar nenhum ativo; registrar a ocorrência como pendente e disponibilizar para correção administrativa. |
 | Dados repetidos | Operação idempotente: não gerar histórico novo para uma leitura repetida sem mudança relevante. |
@@ -69,7 +76,7 @@ Campos iniciais sugeridos:
 
 Não armazenar `api_key`, senha, token, secret ou cabeçalho de autenticação nesta
 tabela. Se um workflow precisar receber uma referência de credencial, armazenar
-somente um identificador não secreto da Credential do n8n, sem expor o segredo.
+somente um identificador não secreto da secret do Worker, sem expor o segredo.
 
 Para integrações cujo status externo precisa ser traduzido, a configuração da
 integração deve permitir declarar o caminho do campo e um mapa explícito de valores
@@ -122,7 +129,7 @@ explícita sobre conflitos quando fontes diferentes reportarem estados divergent
 ### 3.3 `logs_assets_available_integrations_events` — logs e idempotência
 
 Registrar execuções e itens recebidos em uma estrutura de log, ou usar observabilidade
-equivalente no n8n, contendo pelo menos:
+equivalente nos logs do Worker, contendo pelo menos:
 
 - integração, horário, resultado e mensagem de erro sanitizada;
 - `external_id`, mapeamento resolvido e resultado do processamento;
@@ -136,7 +143,7 @@ segredos. Definir retenção dos logs antes da implantação.
 
 ```text
 API externa
-    ↓ webhook ou polling no n8n
+    ↓ webhook ou polling no Worker de sincronização
 Adaptador da integração: validar e normalizar resposta
     ↓ external_id + status + horário + dados necessários
 Endpoint seguro de ingestão do SIGES
@@ -186,7 +193,7 @@ Para cada item recebido, o processamento deve:
    mudaram.
 10. Aplicar a alteração pelo fluxo oficial do SIGES e registrar o resultado.
 
-## 5. Papel do n8n e contrato de ingestão
+## 5. Papel do orquestrador e contrato de ingestão
 
 - Criar um workflow por provedor ou por padrão de integração, reutilizando nós e
   subworkflows somente quando houver autenticação e formato realmente em comum.
@@ -195,7 +202,7 @@ Para cada item recebido, o processamento deve:
 - Implementar um adaptador por provedor (e por versão/variante de contrato quando
   necessário). Cada adaptador conhece o formato real da resposta, paginação,
   autenticação, códigos de estado, timestamps e regras de erro da sua API.
-- Usar Credentials do n8n para autenticação externa. Segredos devem ser provisionados
+- Usar secrets do Worker (`INTEGRATION_<id>_API_KEY`) para autenticação externa. Segredos devem ser provisionados
   fora dos dados normais da integração e nunca enviados ao frontend.
 - Preferir webhooks quando a fonte os oferecer; usar polling quando necessário,
   com intervalo, timeout, paginação, limite de concorrência e retentativas definidos.
@@ -232,7 +239,7 @@ Para cada item recebido, o processamento deve:
   serve para conferência/mapeamento assistido, nunca para resolver o alvo em produção.
 - O backend resolve `external_id` para `unit_asset_tag_id` e obtém os campos internos
   necessários (`unit_id`, `asset_tag_id`, `asset_tag_sub_id`, empresa e demais valores
-  validados) do próprio SIGES. O n8n não deve enviar esses IDs internos como fonte de
+  validados) do próprio SIGES. O Worker não deve enviar esses IDs internos como fonte de
   autoridade.
 - Para o registro em `assets_available`, o fluxo oficial determina/popula:
   - `unit_asset_tag_id`, `unit_id`, `asset_tag_id`, `asset_tag_sub_id`: dados internos
@@ -250,7 +257,7 @@ Para cada item recebido, o processamento deve:
     atribuir a um usuário humano que não realizou a ação;
   - coordenadas, anexos e `operation_record`: nulos/ausentes se não forem fornecidos
     e não forem necessários à regra de negócio.
-- Não inserir diretamente em `assets_available` pelo n8n. O endpoint chama a RPC/fluxo
+- Não inserir diretamente em `assets_available` pelo Worker. O endpoint chama a RPC/fluxo
   controlado para manter atualização do estado atual, histórico e cascata.
 
 - O contrato canônico deve ter versão e documentação. Campos sem equivalente na
@@ -264,8 +271,8 @@ Para cada item recebido, o processamento deve:
   vindas da configuração para interpretar payloads.
 - O endpoint do SIGES deve autenticar a integração e ser executado apenas no
   servidor. Pode ser uma Edge Function ou outro endpoint backend apropriado. Não
-  entregar `service_role` ao n8n como dado do workflow nem ao navegador; se houver
-  credencial de servidor entre n8n e SIGES, restringir escopo, permitir rotação e
+  entregar `service_role` ao navegador nem em dados de configuração; se houver
+  credencial de servidor entre o Worker e o SIGES, restringir escopo, permitir rotação e
   nunca incluí-la em payloads/logs.
 - O endpoint não deve aceitar nome de tabela, SQL, RPC arbitrária ou parâmetros
   capazes de escolher um alvo fora do mapeamento autorizado.
@@ -286,7 +293,7 @@ implementar a ingestão, decidir como representar corretamente a origem automati
 ### 6.1 Identidade técnica e autoria do informe
 
 **Não criar nem reutilizar uma conta humana do Supabase Auth com senha compartilhada**
-para a automação. A credencial que autentica n8n → SIGES é um segredo de máquina,
+para a automação. A credencial que autentica Worker → SIGES é um segredo de máquina,
 separado de qualquer registro de usuário e armazenado no backend/secret manager.
 
 O marcador fixo em `assets_available.comments` é apenas informativo para quem consulta
@@ -320,7 +327,7 @@ forma nativa.
 
 Em qualquer alternativa, preservar transação, histórico, cascata, auditoria e
 tratamento de datas. Não marcar o evento como originado da interface web se veio do
-n8n.
+Worker de sincronização.
 
 ## 7. Configuração e administração no SIGES
 
@@ -343,7 +350,7 @@ salvo ao cliente.
 - Não expor chaves de APIs externas nem chaves Supabase privilegiadas em variáveis
   `VITE_*`; revisar e remover qualquer uso de `VITE_SUPABASE_SERVICE_ROLE_KEY` no
   frontend antes da implantação.
-- Autenticar n8n → SIGES com credencial de servidor rotacionável e escopo mínimo.
+- Autenticar Worker → SIGES com credencial de servidor rotacionável e escopo mínimo.
 - Validar e restringir URLs configuráveis no servidor para reduzir risco de SSRF;
   bloquear loopback, redes privadas e destinos de metadados, salvo exceção
   explicitamente aprovada.
@@ -372,7 +379,7 @@ salvo ao cliente.
 - Aprovar o modelo de autoria: origem de integração nativa como destino; identidade
   técnica sem login somente como transição, após validar constraints, exibição no
   histórico e possibilidade de migração.
-- Definir como a autenticação de máquina n8n → SIGES será provisionada, rotacionada
+- Definir como a autenticação de máquina Worker → SIGES será provisionada, rotacionada
   e revogada, separadamente da identidade de auditoria.
 
 **Gate:** nenhuma escrita automática até que mapeamento, estado, precedência e
@@ -392,7 +399,7 @@ deduplicação e transação atômica.
 
 ### Fase 2 — Uma API em modo de observação
 
-- Configurar a primeira integração no n8n e cadastrar seus mapeamentos.
+- Configurar a primeira integração no Worker (modo observação, `DRY_RUN = "true"`) e cadastrar seus mapeamentos.
 - Executar consultas sem gravar estado inicialmente; comparar o resultado normalizado
   com o que operadores esperam no SIGES.
 - Corrigir IDs ausentes, statuses e diferenças de horário.
@@ -461,3 +468,78 @@ duplicados; divergências explicadas.
   de histórico e estado.
 - Automatizar todos os fornecedores antes de validar o primeiro em modo de observação.
 - Resolver automaticamente conflitos entre fontes sem regra de precedência aprovada.
+
+## 12. Implementação do orquestrador — Worker `siges-availability-sync`
+
+Decisão de 07/11/2026: a orquestração sai do n8n e passa para um Cloudflare Worker
+versionado no repositório (mesmo padrão de `workers/r2-files`). Motivos: a lógica
+pesada já está em `fn_add_assets_available`, o orquestrador ficou reduzido a
+"consultar → normalizar → chamar a RPC"; o adaptador ganha testes automatizados; e
+some uma plataforma extra guardando segredos. A API da GuaibaFlow é servidor a
+servidor, então a integração não pode rodar no app (navegador/APK).
+
+### 12.1 Estrutura
+
+```text
+workers/availability-sync/
+├── wrangler.toml              cron 0h/6h/12h/18h (BRT), DRY_RUN, SUPABASE_URL, USER_AGENT
+└── src/
+    ├── index.ts               scheduled() + rotas /run, /app/run e /health
+    ├── app.ts                 execução pelo app (sessão + permissão do usuário, CORS)
+    ├── sync.ts                lê integrações/mapeamentos, chama a RPC em lotes de 500
+    ├── sync.test.ts           testes (rodam no `npm test` da raiz)
+    └── adapters/
+        ├── types.ts           contrato canônico v1 e interface Adapter
+        ├── index.ts           registro provider_code → adaptador + validação de URL (SSRF)
+        └── guaibaflow.ts      adaptador GuaibaFlow (ON/OFF, INDISPONIVEL, event id)
+```
+
+Novo provedor = novo arquivo em `adapters/`, registro em `adapters/index.ts` e testes
+com amostras sanitizadas. Banco, tela e contrato não mudam.
+
+### 12.2 Secrets e configuração
+
+| Nome | Tipo | Uso |
+|---|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | secret | Ler integrações/mapeamentos e executar `fn_add_assets_available` (só `service_role`). |
+| `SYNC_TOKEN` | secret | Protege `POST /run`. Gerar valor aleatório longo. |
+| `SUPABASE_ANON_KEY` | secret | Chave pública; usada em `POST /app/run` para validar a sessão e a permissão do usuário. |
+| `ALLOWED_ORIGINS` | var | Origens do app aceitas em `POST /app/run` (CORS). |
+| `INTEGRATION_<id>_API_KEY` | secret | Chave da API externa da integração `<id>` (ex.: `gfk_…`). Uma por instância. |
+| `DRY_RUN` | var | `"true"` = observação (não chama a RPC). Só `"false"` liga a escrita. |
+| `USER_AGENT` | var | Enviado à API externa; a GuaibaFlow recusa (403) User-Agent genérico. |
+
+A URL consultada é `base_url` da integração ou a padrão do adaptador, aceita apenas
+em HTTPS e em host aprovado pelo adaptador (`guaibaflow.com.br`).
+
+### 12.3 Operação
+
+```bash
+cd workers/availability-sync
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+npx wrangler secret put SYNC_TOKEN
+npx wrangler secret put INTEGRATION_<id>_API_KEY
+npx wrangler deploy
+npx wrangler tail                       # logs em JSON por integração
+
+# Execução manual (sempre pode forçar observação com dry=1)
+curl -X POST -H "Authorization: Bearer $SYNC_TOKEN" \
+  "https://siges-availability-sync.<conta>.workers.dev/run?integration=<id>&dry=1"
+```
+
+- Pelo app: Ajustes → APIs Externas → GuaibaFlow → botão ▶ (**Executar agora**).
+  O app chama `POST /app/run?integration=<id>&mode=observe|write` com o token do
+  usuário; o Worker valida sessão e permissão via `rpc/fc_has_route_permission`
+  (`settings_external_apis`: `view` para **Testar**, `edit` para **Executar e gravar**).
+  Gravar só é aceito com `DRY_RUN = "false"`; intervalo mínimo de 15 s por integração.
+  Requer `VITE_AVAILABILITY_SYNC_URL` no `.env` do app.
+- Observação: a resposta/log traz `observation` (estação, status externo, mapeamento
+  resolvido) e `missingMappings`; nada é gravado.
+- Ativação (Fase 3): trocar `DRY_RUN` para `"false"` em `wrangler.toml` e publicar.
+  `/run` não consegue ligar a escrita enquanto o ambiente estiver em observação.
+- Desativação imediata: desligar a integração na tela (`is_active = false`) ou voltar
+  `DRY_RUN = "true"`.
+- Falhas do lote inteiro (API fora, formato inesperado, secret ausente) aparecem só
+  no log do Worker, não em `logs_assets_available_integrations_events`. Alertas
+  continuam pendentes (§8).
+

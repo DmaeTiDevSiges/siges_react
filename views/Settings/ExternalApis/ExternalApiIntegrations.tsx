@@ -1,32 +1,35 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { dataService } from '../../services/dataService';
+import { dataService } from '../../../services/dataService';
 import type {
     AssetsAvailableIntegration,
     AssetsAvailableIntegrationLog,
     AssetsAvailableIntegrationMapping,
+    AssetsAvailableIntegrationRunMode,
+    AssetsAvailableIntegrationRunResult,
     UnitAssetTagOption,
-} from '../../services/assets/assetsAvailableIntegrationsService';
-import type { Company } from '../../types';
-import { usePermissions } from '../../contexts/PermissionsContext';
-import { Loading } from '../../components/ui/Loading';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import { Textarea } from '../../components/ui/Textarea';
-import { SearchInput } from '../../components/ui/SearchInput';
-import { StatusBadge, StatusType } from '../../components/ui/StatusBadge';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { TabsBar } from '../../components/ui/TabsBar';
-import { Modal } from '../../components/ui/Modal';
-import { ButtonSave } from '../../components/ui/ButtonSave';
-import { Button } from '../../components/ui/Button';
-import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
-import { formatDateInBrazil } from '../../utils/formatters';
+} from '../../../services/assets/assetsAvailableIntegrationsService';
+import type { Company } from '../../../types';
+import { usePermissions } from '../../../contexts/PermissionsContext';
+import { Loading } from '../../../components/ui/Loading';
+import { Input } from '../../../components/ui/Input';
+import { Select } from '../../../components/ui/Select';
+import { Textarea } from '../../../components/ui/Textarea';
+import { SearchInput } from '../../../components/ui/SearchInput';
+import { StatusBadge, StatusType } from '../../../components/ui/StatusBadge';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { TabsBar } from '../../../components/ui/TabsBar';
+import { Modal } from '../../../components/ui/Modal';
+import { ButtonSave } from '../../../components/ui/ButtonSave';
+import { Button } from '../../../components/ui/Button';
+import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
+import { formatDateInBrazil } from '../../../utils/formatters';
 
 // APIs externas de disponibilidade de ativos (plano
-// docs/PLANO_INTEGRACAO_DISPONIBILIDADE_APIS.md). Credenciais ficam no n8n.
+// docs/PLANO_INTEGRACAO_DISPONIBILIDADE_APIS.md). Credenciais ficam nos secrets do Worker
+// workers/availability-sync (INTEGRATION_<id>_API_KEY).
 
-const ROUTE_KEY = 'dashboard_assets_available_integrations';
+const ROUTE_KEY = 'settings_external_apis';
 
 type DetailTab = 'mappings' | 'logs';
 
@@ -51,6 +54,21 @@ const EMPTY_FORM: FormState = {
     config: '{\n  "status_path": "status",\n  "status_map": { "ON": true, "OFF": false }\n}',
     isActive: true,
 };
+
+// Valores iniciais do cadastro por adaptador (workers/availability-sync/src/adapters).
+// reason_map.INDISPONIVEL: id de cfg_assets_unavailable_reasons — conferir antes de salvar.
+const PROVIDER_PRESETS: Record<string, Partial<FormState>> = {
+    guaibaflow: {
+        name: 'GuaibaFlow',
+        baseUrl: 'https://guaibaflow.com.br/api-status.php',
+        config: '{\n  "status_path": "status",\n  "status_map": { "ON": true, "OFF": false },\n  "reason_map": { "INDISPONIVEL": 35 }\n}',
+    },
+};
+
+const emptyFormFor = (providerCode?: string): FormState =>
+    providerCode
+        ? { ...EMPTY_FORM, providerCode, ...PROVIDER_PRESETS[providerCode] }
+        : EMPTY_FORM;
 
 const RESULT_BADGE: Record<AssetsAvailableIntegrationLog['result'], { status: StatusType; label: string }> = {
     applied: { status: 'active', label: 'Aplicado' },
@@ -99,12 +117,17 @@ const AddButton: React.FC<{ onClick: () => void; title: string }> = ({ onClick, 
     </button>
 );
 
-interface DashboardAssetsAvailableIntegrationsProps {
-    /** Aberta dentro de Ajustes (APIs externas): o título já vem do cabeçalho do app. */
+interface ExternalApiIntegrationsProps {
+    /** Aberta dentro de Ajustes (APIs Externas): o título já vem do cabeçalho do app. */
     embedded?: boolean;
+    /** Restringe a tela a um adaptador (ex.: 'guaibaflow'): lista filtrada e código fixo no cadastro. */
+    providerCode?: string;
+    /** Nome exibido do provedor (ex.: 'GuaibaFlow'). */
+    providerLabel?: string;
 }
 
-export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvailableIntegrationsProps> = ({ embedded = false }) => {
+export const ExternalApiIntegrations: React.FC<ExternalApiIntegrationsProps> = ({ embedded = false, providerCode, providerLabel }) => {
+    const apiLabel = providerLabel ? `API ${providerLabel}` : 'API';
     const { canView, canCreate, canEdit, canDelete, loading: permissionsLoading } = usePermissions();
     const allowView = canView(ROUTE_KEY);
     const allowCreate = canCreate(ROUTE_KEY);
@@ -118,7 +141,7 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
     const [searchTerm, setSearchTerm] = useState('');
 
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const [form, setForm] = useState<FormState>(EMPTY_FORM);
+    const [form, setForm] = useState<FormState>(() => emptyFormFor(providerCode));
     const [toDelete, setToDelete] = useState<AssetsAvailableIntegration | null>(null);
 
     const [selected, setSelected] = useState<AssetsAvailableIntegration | null>(null);
@@ -134,6 +157,11 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
     const [mappingOptions, setMappingOptions] = useState<UnitAssetTagOption[]>([]);
     const [mappingToDelete, setMappingToDelete] = useState<AssetsAvailableIntegrationMapping | null>(null);
 
+    // Execução manual pelo Worker (POST /app/run).
+    const [runTarget, setRunTarget] = useState<AssetsAvailableIntegration | null>(null);
+    const [runningMode, setRunningMode] = useState<AssetsAvailableIntegrationRunMode | null>(null);
+    const [runResult, setRunResult] = useState<AssetsAvailableIntegrationRunResult | null>(null);
+
     const companyName = useCallback(
         (id: number | null) => companies.find(c => Number(c.id) === id)?.name || (id ? `#${id}` : '—'),
         [companies]
@@ -146,14 +174,16 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
                 dataService.getAssetsAvailableIntegrations(),
                 dataService.getCompanies(),
             ]);
-            setIntegrations(integrationsData);
+            setIntegrations(
+                providerCode ? integrationsData.filter(i => i.providerCode === providerCode) : integrationsData
+            );
             setCompanies(companiesData);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Erro ao carregar APIs');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [providerCode]);
 
     useEffect(() => {
         if (!permissionsLoading && allowView) loadIntegrations();
@@ -193,11 +223,11 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
 
     const closeForm = () => {
         setIsFormOpen(false);
-        setForm(EMPTY_FORM);
+        setForm(emptyFormFor(providerCode));
     };
 
     const openCreate = () => {
-        setForm(EMPTY_FORM);
+        setForm(emptyFormFor(providerCode));
         setIsFormOpen(true);
     };
 
@@ -358,6 +388,28 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
         return [...new Set(ids)];
     }, [logs, mappings]);
 
+    const openRun = (integration: AssetsAvailableIntegration) => {
+        setRunTarget(integration);
+        setRunResult(null);
+    };
+
+    const handleRun = async (mode: AssetsAvailableIntegrationRunMode) => {
+        if (!runTarget || runningMode) return;
+        setRunningMode(mode);
+        setRunResult(null);
+        try {
+            const result = await dataService.runAssetsAvailableIntegration(runTarget.id, mode);
+            setRunResult(result);
+            if (!result.report.ok) toast.error(result.report.error || 'Execução concluída com problemas');
+            else toast.success(mode === 'write' ? 'Execução concluída' : 'Teste concluído — nada foi gravado');
+            if (mode === 'write' && selected?.id === runTarget.id) loadDetails(runTarget.id);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Erro ao executar a API');
+        } finally {
+            setRunningMode(null);
+        }
+    };
+
     const filteredIntegrations = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
         if (!term) return integrations;
@@ -398,6 +450,9 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
                         </div>
                         <MetaLine icon="tag" mono>{integration.providerCode}</MetaLine>
                     </div>
+                    <button onClick={() => openRun(integration)} className={iconButtonClass} title="Executar agora" aria-label="Executar agora">
+                        <span className="material-symbols-outlined text-[20px]">play_arrow</span>
+                    </button>
                     {allowEdit && (
                         <button onClick={() => openEdit(integration)} className={iconButtonClass} title="Editar API" aria-label="Editar API">
                             <span className="material-symbols-outlined text-[20px]">edit</span>
@@ -513,19 +568,19 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
             <div className="px-4 py-4 sticky top-0 z-10 bg-background-light dark:bg-background-dark">
                 {!embedded && (
                     <h2 className="px-1 mb-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        APIs externas de disponibilidade
+                        {providerLabel ? `${apiLabel} — disponibilidade de ativos` : 'APIs externas de disponibilidade'}
                     </h2>
                 )}
                 <div className="flex items-center gap-2">
                     <div className="flex-1">
                         <SearchInput
-                            placeholder="Buscar por nome ou código do provedor..."
+                            placeholder={providerCode ? 'Buscar por nome...' : 'Buscar por nome ou código do provedor...'}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onClear={() => setSearchTerm('')}
                         />
                     </div>
-                    {allowCreate && <AddButton onClick={openCreate} title="Nova API" />}
+                    {allowCreate && <AddButton onClick={openCreate} title={`Nova ${apiLabel}`} />}
                 </div>
             </div>
 
@@ -535,8 +590,8 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
                 ) : filteredIntegrations.length === 0 ? (
                     <EmptyState
                         icon="api"
-                        message={searchTerm ? 'Nenhuma API encontrada para esta busca' : 'Nenhuma API cadastrada'}
-                        action={!searchTerm && allowCreate ? { label: 'Cadastrar API', onClick: openCreate } : undefined}
+                        message={searchTerm ? 'Nenhuma API encontrada para esta busca' : `Nenhuma ${apiLabel} cadastrada`}
+                        action={!searchTerm && allowCreate ? { label: `Cadastrar ${apiLabel}`, onClick: openCreate } : undefined}
                     />
                 ) : (
                     filteredIntegrations.map(integration => (
@@ -558,6 +613,14 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
                                 <MetaLine icon="business">{companyName(integration.companyId)}</MetaLine>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); openRun(integration); }}
+                                    className={iconButtonClass}
+                                    title="Executar agora"
+                                    aria-label="Executar agora"
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">play_arrow</span>
+                                </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); openDetail(integration); }}
                                     className={iconButtonClass}
@@ -583,7 +646,7 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
             <Modal
                 isOpen={isFormOpen}
                 onClose={closeForm}
-                title={form.id ? 'Editar API' : 'Nova API'}
+                title={form.id ? `Editar ${apiLabel}` : `Nova ${apiLabel}`}
                 maxWidth="lg"
                 noPadding
             >
@@ -597,6 +660,7 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
                         <Input label="Nome" required value={form.name} placeholder="Ex.: Telemetria — Unidade Centro"
                             onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
                         <Input label="Código do provedor (adaptador)" required value={form.providerCode} placeholder="Ex.: telemetria_v1"
+                            disabled={!!providerCode}
                             onChange={(e) => setForm(f => ({ ...f, providerCode: e.target.value.toLowerCase() }))} />
                         <Select label="Empresa dona da API" value={form.companyId} placeholder="Selecione..."
                             options={companyOptions}
@@ -617,7 +681,7 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
                             />
                             <p className="px-1 text-[11px] text-slate-500 dark:text-slate-400">
                                 Somente parâmetros não secretos (ex.: <code>status_path</code>, <code>status_map</code>, <code>reason_map</code>).
-                                Tokens e senhas são recusados — cadastre-os nas Credentials do n8n.
+                                Tokens e senhas são recusados — a chave da API é cadastrada no servidor como secret <code>INTEGRATION_{form.id ?? '<id>'}_API_KEY</code>.
                             </p>
                         </div>
                         <Select
@@ -717,6 +781,113 @@ export const DashboardAssetsAvailableIntegrations: React.FC<DashboardAssetsAvail
                         disabled={!mappingExternalId.trim() || !mappingTargetId}
                     />
                 </form>
+            </Modal>
+
+            {/* ── Execução manual ── */}
+            <Modal
+                isOpen={!!runTarget}
+                onClose={() => { if (!runningMode) setRunTarget(null); }}
+                title={`Executar ${runTarget?.name || apiLabel}`}
+                maxWidth="lg"
+                noPadding
+            >
+                <div className="flex flex-col">
+                    {runningMode && (
+                        <div className="h-1 overflow-hidden bg-primary/20">
+                            <div className="h-full bg-primary animate-loading-bar w-[40%]" />
+                        </div>
+                    )}
+                    <div className="p-4 space-y-4">
+                        <p className="px-1 text-sm text-slate-600 dark:text-slate-300">
+                            <strong>Testar</strong> consulta a API agora e mostra o que seria aplicado, sem gravar nada.
+                            {allowEdit && <> <strong>Executar e gravar</strong> aplica as mudanças na disponibilidade dos ativos (só funciona com a gravação ligada no servidor).</>}
+                        </p>
+
+                        {runResult && (() => {
+                            const r = runResult.report;
+                            return (
+                                <div className="space-y-3">
+                                    <div className={`${cardClass} !mb-0 ${r.ok ? '' : 'border-red-200 dark:border-red-900/40'}`}>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <h3 className="font-bold text-slate-900 dark:text-white">
+                                                {runResult.dryRun ? 'Teste (nada gravado)' : 'Execução com gravação'}
+                                            </h3>
+                                            <StatusBadge status={r.ok ? 'active' : 'error'} label={r.ok ? 'OK' : 'Falha'} size="sm" />
+                                        </div>
+                                        {r.error && <MetaLine icon="error">{r.error}</MetaLine>}
+                                        {r.observedAt && <MetaLine icon="schedule">Gerado pela API: {fmtDateTime(r.observedAt)}</MetaLine>}
+                                        {r.stationCount != null && <MetaLine icon="sensors">{r.stationCount} estação(ões) recebida(s)</MetaLine>}
+                                        {r.counts && (
+                                            <MetaLine icon="fact_check">
+                                                Aplicadas {r.counts.applied} · sem mudança {r.counts.unchanged} · sem mapeamento {r.counts.pending_mapping}
+                                                {' '}· rejeitadas {r.counts.rejected} · erros {r.counts.error}
+                                            </MetaLine>
+                                        )}
+                                        {r.problems?.map((p, i) => (
+                                            <MetaLine key={i} icon="warning">{p.external_id || '—'}: {p.message}</MetaLine>
+                                        ))}
+                                    </div>
+
+                                    {!!r.missingMappings?.length && (
+                                        <div className={`${cardClass} !mb-0 border-amber-200 dark:border-amber-900/40`}>
+                                            <MetaLine icon="link_off">Estações sem mapeamento{allowEdit ? ' — toque para mapear' : ''}:</MetaLine>
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {r.missingMappings.map(id => (
+                                                    <button key={id} type="button" disabled={!allowEdit}
+                                                        onClick={() => {
+                                                            const target = runTarget;
+                                                            setRunTarget(null);
+                                                            if (target && selected?.id !== target.id) openDetail(target);
+                                                            openMappingForm(id);
+                                                        }}
+                                                        className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 font-mono text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors cursor-pointer disabled:cursor-default">
+                                                        {id}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {r.observation?.map(o => (
+                                        <div key={o.external_id} className={`${cardClass} !mb-0 flex items-center gap-3`}>
+                                            <IconTile
+                                                icon={o.external_status === 'ON' ? 'check_circle' : 'cancel'}
+                                                tone={o.external_status === 'ON' ? 'success' : 'danger'}
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <h3 className="font-bold text-slate-900 dark:text-white truncate">
+                                                        <span className="font-mono">{o.external_id}</span>{o.name ? ` · ${o.name}` : ''}
+                                                    </h3>
+                                                    <StatusBadge status={o.external_status === 'ON' ? 'active' : 'error'} label={o.external_status} size="sm" />
+                                                </div>
+                                                <MetaLine icon="schedule">Última leitura: {fmtDateTime(o.source_reported_at)}</MetaLine>
+                                                {o.external_reason && <MetaLine icon="info">Motivo na API: {o.external_reason}</MetaLine>}
+                                                <MetaLine icon={o.mapped_unit_asset_tag_id ? 'link' : 'link_off'}>
+                                                    {o.mapped_unit_asset_tag_id ? `Mapeada para o setor #${o.mapped_unit_asset_tag_id}` : 'Sem mapeamento'}
+                                                </MetaLine>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
+                    </div>
+                    <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex gap-3">
+                        <Button type="button" variant="secondary" fullWidth
+                            loading={runningMode === 'observe'} disabled={!!runningMode}
+                            onClick={() => handleRun('observe')}>
+                            <span className="material-symbols-outlined text-[18px]">science</span> Testar
+                        </Button>
+                        {allowEdit && (
+                            <Button type="button" variant="primary" fullWidth
+                                loading={runningMode === 'write'} disabled={!!runningMode}
+                                onClick={() => handleRun('write')}>
+                                <span className="material-symbols-outlined text-[18px]">play_arrow</span> Executar e gravar
+                            </Button>
+                        )}
+                    </div>
+                </div>
             </Modal>
 
             <ConfirmDeleteModal

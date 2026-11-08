@@ -160,6 +160,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, isVisit
                                         <p className="text-[8px] text-white font-bold uppercase tracking-wider">Foto {idx + 1}</p>
                                     </div>
                                 </div>
+                                {/* "Usar como capa": gestor do contrato (contracts_managers.role = 'manager') ou super admin */}
                                 {!isVisitFiled && onUseAsCover && (isContractManagerAdminSuper || isAdminSuper) && (
                                     <button
                                         type="button"
@@ -370,13 +371,14 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 if (!readOnly && user && data.oContractId) {
                     try {
                         isManager = await dataService.isUserContractManager(user.id, data.oContractId);
-                        // Check if user is contract manager/viewer or is admin super
+                        // "Usar como capa": contracts_managers.role = 'manager' (não 'viewer');
+                        // super admin também pode (isAdminSuper na condição do botão).
                         const managers = await dataService.getContractManagers(data.oContractId);
                         const currentManager = managers.find(m =>
                             String(m.managerId) === String(user.id) &&
-                            (m.role?.toLowerCase() === 'manager' || m.role?.toLowerCase() === 'viewer')
+                            m.role?.toLowerCase() === 'manager'
                         );
-                        setIsContractManagerAdminSuper(!!currentManager || !!user.isAdminSuper);
+                        setIsContractManagerAdminSuper(!!currentManager);
                     } catch (mError) {
                         console.warn('Could not verify contract manager status', mError);
                     }

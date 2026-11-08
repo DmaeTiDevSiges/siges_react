@@ -16,7 +16,7 @@
 --   2. Troca as políticas RLS "somente super admin" da Fase 1 por
 --      fc_has_route_permission(...) (super admin continua com acesso total).
 --      Os logs continuam somente leitura pela aplicação: quem grava é a RPC
---      fn_ingest_asset_availability (SECURITY DEFINER / service_role).
+--      fn_add_assets_available (SECURITY DEFINER / service_role).
 --
 -- Idempotente: pode ser reaplicada.
 -- ==============================================================================

@@ -44,7 +44,9 @@ import type {
     AssetsAvailableIntegrationInput,
     AssetsAvailableIntegrationMapping,
     AssetsAvailableIntegrationLog,
-    UnitAssetTagOption
+    UnitAssetTagOption,
+    AssetsAvailableIntegrationRunMode,
+    AssetsAvailableIntegrationRunResult,
 } from './assets/assetsAvailableIntegrationsService';
 import { assetAvailabilityNotificationService } from './assets/assetAvailabilityNotificationService';
 import type { AvailabilityNotificationResult } from './assets/assetAvailabilityNotificationService';
@@ -3734,5 +3736,9 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
 
     async searchUnitAssetTagsForMapping(term: string): Promise<UnitAssetTagOption[]> {
         return assetsAvailableIntegrationsService.searchUnitAssetTagsForMapping.apply(assetsAvailableIntegrationsService, arguments as any);
+    },
+
+    async runAssetsAvailableIntegration(integrationId: number, mode: AssetsAvailableIntegrationRunMode): Promise<AssetsAvailableIntegrationRunResult> {
+        return assetsAvailableIntegrationsService.runAssetsAvailableIntegration.apply(assetsAvailableIntegrationsService, arguments as any);
     },
 };

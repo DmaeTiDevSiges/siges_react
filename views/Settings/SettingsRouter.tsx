@@ -44,7 +44,7 @@ import {
   ProfilePermissionsScreen,
   RouteManagementScreen, RouteFormScreen,
   MaintenancePlansScreen,
-  DashboardAssetsAvailableIntegrations,
+  ExternalApiIntegrations,
 } from '../../app/routes';
 import { dataService } from '../../services/dataService';
 import type {
@@ -293,7 +293,7 @@ export const SETTINGS_SCREENS = new Set([
   'asset-loan-checklist-types', 'asset-loan-checklist-type-form', 'asset-loan-checklist-type-edit',
   'loans-checklists', 'loans-checklist-form', 'loans-checklist-edit',
   'app-tips',
-  'settings-apis',
+  'settings-api-guaibaflow',
   'audit-log',
   'audit-config',
   'vehicle-cost-types',
@@ -648,9 +648,9 @@ export const SettingsRouter: React.FC<SettingsRouterProps> = ({ currentScreen, o
     case 'app-tips':
       return <AppTipsList onBack={handleBack} />;
 
-    // ── APIs (Ajustes > APIs) ────────────────────────────────────────────────
-    case 'settings-apis':
-      return <DashboardAssetsAvailableIntegrations embedded />;
+    // ── APIs Externas (Ajustes > APIs Externas) ─────────────────────────────
+    case 'settings-api-guaibaflow':
+      return <ExternalApiIntegrations embedded providerCode="guaibaflow" providerLabel="GuaibaFlow" />;
 
     case 'audit-log':
       return (

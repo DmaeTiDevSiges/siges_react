@@ -280,17 +280,6 @@ export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigat
                             />
                         </>
                     )}
-                    {canView('dashboard_assets_available_integrations') && (
-                        <>
-                            <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
-                            <SettingItem
-                                icon="api"
-                                title="APIs externas"
-                                subtitle="Parametrizar integrações com APIs de terceiros"
-                                onClick={() => onNavigate?.('settings-apis')}
-                            />
-                        </>
-                    )}
                     {isSuperAdmin && (
                         <>
                             <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4" />
@@ -304,6 +293,23 @@ export const AppSettings: React.FC<AppSettingsProps> = ({ currentUser, onNavigat
                     )}
                 </div>
             </div>
+
+            {/* ── APIs Externas (rota settings_external_apis) ── */}
+            {canView('settings_external_apis') && (
+                <div className="space-y-1 mt-6">
+                    <h3 className="px-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                        APIs Externas
+                    </h3>
+                    <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                        <SettingItem
+                            icon="water_drop"
+                            title="GuaibaFlow"
+                            subtitle="Status ON/OFF das estações monitoradas → disponibilidade de ativos"
+                            onClick={() => onNavigate?.('settings-api-guaibaflow')}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* ── Secoes visiveis APENAS para Super Admin ── */}
             {isSuperAdmin && (

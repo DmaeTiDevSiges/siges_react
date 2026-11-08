@@ -1211,7 +1211,7 @@ export const assetsService = {
 
         const { data, error } = await supabase
             .from('v_units_assets_tags')
-            .select('*, units(latitude, longitude)')
+            .select('*, units(latitude, longitude, unit_type_parent_id)')
             .in('unit_id', unitIds)
             .order('unit_description');
 

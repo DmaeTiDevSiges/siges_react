@@ -11,13 +11,15 @@ import {
     noticeAppliesToUnitSystemParent,
     resolveNoticeSystemParentIds,
 } from '../../utils/appNoticeSystemScope';
-import { User, System, OrderType, Priority } from '../../types';
+import { User, System, UnitType, OrderType, Priority } from '../../types';
 import { toast } from 'sonner';
 import { Card } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { IconButton } from '../../components/ui/IconButton';
 import { Modal } from '../../components/ui/Modal';
+import { FilterSelect } from '../../components/ui/FilterSelect';
+import { FilterSelectionContent } from '../../components/ui/FilterSelectionContent';
 import { Textarea } from '../../components/ui/Textarea';
 import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
@@ -130,12 +132,30 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 }) => {
     const [selectedSystemId, setSelectedSystemId] = useState<string>(() => localStorage.getItem('siges_dashboard_system_id') || '');
     const [systems, setSystems] = useState<System[]>([]);
+    // Filtro TIPO DE UNIDADE ('' = todos): units.unit_type_parent_id → cfg_units_types.
+    const [selectedUnitTypeIds, setSelectedUnitTypeIds] = useState<string[]>(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('siges_dashboard_unit_type_ids') || '[]');
+            return Array.isArray(saved) ? saved.map(String) : [];
+        } catch {
+            return [];
+        }
+    });
+    const [filterModal, setFilterModal] = useState<null | 'system' | 'unitType'>(null);
+    const [unitTypes, setUnitTypes] = useState<UnitType[]>([]);
 
     // Escopo de cliente do filtro SISTEMA (Fase 1D): undefined = sem corte
     // (super admin); lista = clients_ids do departamento do usuário.
     const { clientIds, scopeReady } = useClientScope();
     const systemsScope = systemsScopeOption(clientIds);
-    const [allData, setAllData] = useState<any[]>([]);
+    const [rawData, setAllData] = useState<any[]>([]);
+    // Linhas visíveis: aplica o filtro de tipo de unidade (units.unit_type_parent_id).
+    const allData = useMemo(
+        () => selectedUnitTypeIds.length > 0
+            ? rawData.filter(row => selectedUnitTypeIds.includes(String(row.units?.unit_type_parent_id ?? '')))
+            : rawData,
+        [rawData, selectedUnitTypeIds]
+    );
     const [sectorsData, setSectorsData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedSectorName, setSelectedSectorName] = useState<string>(() => localStorage.getItem('siges_dashboard_sector_name') || '');
@@ -463,6 +483,21 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         }
     }, [selectedSystemId]);
 
+    // Tipos de unidade (descrições para o filtro TIPO DE UNIDADE)
+    useEffect(() => {
+        let cancelled = false;
+        dataService.getUnitTypes().then(data => {
+            if (!cancelled) setUnitTypes(data);
+        });
+        return () => { cancelled = true; };
+    }, []);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('siges_dashboard_unit_type_ids', JSON.stringify(selectedUnitTypeIds));
+        } catch { /* storage indisponível */ }
+    }, [selectedUnitTypeIds]);
+
     useEffect(() => {
         localStorage.setItem('siges_dashboard_sort_mode', sortMode);
     }, [sortMode]);
@@ -658,10 +693,14 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     count: 0,
                     availableCount: 0,
                     lastReportedAt: null,
-                    latestRow: null
+                    latestRow: null,
+                    rateSum: 0,
+                    unitIds: new Set<string>()
                 };
             }
             manualStats[sName].count++;
+            manualStats[sName].rateSum += Number(row.last_asset_available_rate) || 0;
+            manualStats[sName].unitIds.add(String(row.unit_id));
             if (row.last_is_available) manualStats[sName].availableCount++;
 
             if (row.last_reported_at && (!manualStats[sName].lastReportedAt || new Date(row.last_reported_at) > new Date(manualStats[sName].lastReportedAt))) {
@@ -670,11 +709,23 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             }
         });
 
+        // Com tipo de unidade filtrado, a view agregada (nível sistema pai) não
+        // reflete o recorte: o % do setor vira a média do % das unidades visíveis.
+        const subRatePct = (man: any) => {
+            const units = man.unitIds?.size || 0;
+            return units > 0 ? Math.max(0, Math.min(100, Math.round((man.rateSum / units) * 100))) : 0;
+        };
+
         // Use precisely aggregated data from view if available
         if (sectorsData.length > 0) {
-            return sectorsData.map(row => {
+            return sectorsData
+                .filter(row => selectedUnitTypeIds.length === 0 || manualStats[row.asset_tag_description || 'Geral'])
+                .map(row => {
                 const sName = row.asset_tag_description || 'Geral';
                 const man = manualStats[sName] || { count: 0, availableCount: 0, latestRow: null };
+                const pct = (fraction: number) => selectedUnitTypeIds.length > 0
+                    ? subRatePct(man)
+                    : Math.round((fraction || 0) * 100);
 
                 // If the sector doesn't have any specific visibility set, we fallback to general count availability
                 const hasSpecificVisible = row.flow_rate_is_visible || row.power_is_visible || row.pressure_is_visible;
@@ -684,22 +735,24 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     name: sName,
                     flow: {
                         visible: row.flow_rate_is_visible,
-                        percentage: Math.round((row.pct_flow_rate_available_fraction || 0) * 100),
+                        percentage: pct(row.pct_flow_rate_available_fraction),
                         unit: row.flow_rate_unit || ''
                     },
                     power: {
                         visible: row.power_is_visible,
-                        percentage: Math.round((row.pct_power_available_fraction || 0) * 100),
+                        percentage: pct(row.pct_power_available_fraction),
                         unit: row.power_unit || ''
                     },
                     pressure: {
                         visible: row.pressure_is_visible,
-                        percentage: Math.round((row.pct_pressure_available_fraction || 0) * 100),
+                        percentage: pct(row.pct_pressure_available_fraction),
                         unit: row.pressure_unit || ''
                     },
                     general: {
                         visible: !hasSpecificVisible,
-                        percentage: man.count > 0 ? Math.round((man.availableCount / man.count) * 100) : 0,
+                        percentage: selectedUnitTypeIds.length > 0
+                            ? subRatePct(man)
+                            : (man.count > 0 ? Math.round((man.availableCount / man.count) * 100) : 0),
                         unit: ''
                     },
                     lastReportedAt: man.latestRow?.last_reported_at,
@@ -725,7 +778,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
             latestUser: man.latestRow?.last_reported_user_name_short || man.latestRow?.last_created_user_name_short,
             latestAvatar: man.latestRow?.last_user_avatar_url
         })).sort((a, b) => a.name.localeCompare(b.name));
-    }, [allData, sectorsData]);
+    }, [allData, sectorsData, selectedUnitTypeIds]);
 
     // Group units and their specific assets for the active sector name
     const unitsRows = useMemo(() => {
@@ -881,6 +934,41 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         systems.map(s => ({ value: s.id, label: s.description })),
         [systems]);
 
+    // Tipos presentes nas unidades carregadas (units.unit_type_parent_id),
+    // com descrição de cfg_units_types quando disponível.
+    const unitTypeOptions = useMemo(() => {
+        const names = new Map(unitTypes.map(t => [t.id, t.description]));
+        const ids = new Set<string>();
+        rawData.forEach(row => {
+            const id = row.units?.unit_type_parent_id;
+            if (id != null) ids.add(String(id));
+        });
+        const opts = Array.from(ids)
+            .map(id => ({ value: id, label: names.get(id) || `Tipo ${id}` }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+        return opts;
+    }, [unitTypes, rawData]);
+
+    // Seleção persistida que não existe mais nas opções é descartada
+    useEffect(() => {
+        if (selectedUnitTypeIds.length === 0 || rawData.length === 0) return;
+        const valid = selectedUnitTypeIds.filter(id => unitTypeOptions.some(o => o.value === id));
+        if (valid.length !== selectedUnitTypeIds.length) setSelectedUnitTypeIds(valid);
+    }, [unitTypeOptions, selectedUnitTypeIds, rawData.length]);
+
+    // Rótulos exibidos nos chips de filtro (padrão FilterSelect)
+    const selectedSystemLabel = systemOptions.find(o => o.value === selectedSystemId)?.label || '';
+    const unitTypeFilterValue: string | string[] = selectedUnitTypeIds.length === 1
+        ? (unitTypeOptions.find(o => o.value === selectedUnitTypeIds[0])?.label || selectedUnitTypeIds)
+        : selectedUnitTypeIds;
+
+    const handleSystemSelect = (newId: string) => {
+        setFilterModal(null);
+        if (!newId || newId === selectedSystemId) return;
+        setSelectedSystemId(newId);
+        setSelectedUnitTypeIds([]);
+    };
+
 
     return (
         <div className="flex flex-col flex-1 h-full w-full overflow-y-auto no-scrollbar bg-background-light dark:bg-background-dark">
@@ -960,20 +1048,21 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                 <div className="flex flex-col px-4 sm:px-6 py-3 sm:py-4">
                     {/* Header */}
                     <header className="shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-5">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-8 w-full sm:w-auto">
-                            <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white uppercase tracking-tight">Sistema</h1>
-                            <div className="flex items-center gap-3 w-full sm:w-[200px]">
-                                <Select
-                                    options={systemOptions}
-                                    value={selectedSystemId}
-                                    onChange={(e) => {
-                                        const newId = e.target.value;
-                                        setSelectedSystemId(newId);
-                                        loadDashboardData(newId);
-                                    }}
-                                    className="h-11! shadow-sm border-none bg-slate-100 dark:bg-slate-800 w-full"
-                                />
-                            </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar">
+                            <FilterSelect
+                                label="SISTEMA"
+                                value={selectedSystemLabel}
+                                onClick={() => setFilterModal('system')}
+                                onClear={() => {}}
+                                required
+                            />
+                            <FilterSelect
+                                label="TIPO UNIDADE"
+                                value={unitTypeFilterValue}
+                                onClick={() => setFilterModal('unitType')}
+                                onClear={() => setSelectedUnitTypeIds([])}
+                                hidden={unitTypeOptions.length === 0}
+                            />
                         </div>
 
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
@@ -1270,7 +1359,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                                 setExpandedUnitId(isExpanded ? null : unit.id);
                                                             }
                                                         }}
-                                                        className={`shrink-0 w-full md:w-auto md:min-w-[256px] p-2.5 sm:p-3 rounded-[16px]! sm:rounded-[20px]! min-h-[76px] sm:min-h-[88px] h-auto flex flex-col justify-center relative group overflow-hidden border-slate-200 dark:border-slate-800 transition-all ${isExpanded ? 'ring-2 ring-primary border-transparent' : 'cursor-pointer md:cursor-default active:scale-[0.99] md:active:scale-100'
+                                                        className={`shrink-0 w-full md:w-[340px] p-2.5 sm:p-3 rounded-[16px]! sm:rounded-[20px]! min-h-[76px] sm:min-h-[88px] h-auto flex flex-col justify-center relative group overflow-hidden border-slate-200 dark:border-slate-800 transition-all ${isExpanded ? 'ring-2 ring-primary border-transparent' : 'cursor-pointer md:cursor-default active:scale-[0.99] md:active:scale-100'
                                                             }`}
                                                     >
                                                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${unit.percentage >= 85 ? 'bg-emerald-500' : unit.percentage > 50 ? 'bg-amber-400' : 'bg-rose-500'} group-hover:w-1.5 transition-all`}></div>
@@ -1285,7 +1374,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                                                                     color={unit.percentage >= 85 ? 'text-emerald-500' : unit.percentage > 50 ? 'text-amber-400' : 'text-rose-500'}
                                                                 />
                                                                 <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                                                    <h3 className="text-[11px] sm:text-[12px] font-black text-slate-800 dark:text-white uppercase leading-tight truncate">{unit.description}</h3>
+                                                                    <h3 className="text-[11px] sm:text-[12px] font-black text-slate-800 dark:text-white uppercase leading-tight wrap-break-word">{unit.description}</h3>
                                                                     {unit.lastReportedAt ? (
                                                                         <p className="text-[8px] sm:text-[9px] font-black text-primary mt-0.5 uppercase tracking-tight">
                                                                             {formatDashboardRelativeTime(unit.lastReportedAt)}
@@ -1887,6 +1976,52 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
                     ).sort((a: any, b: any) => a.description.localeCompare(b.description))}
                 />
             )}
+            {/* Modal de seleção: SISTEMA (escolha única — o dashboard carrega um sistema por vez) */}
+            <Modal
+                isOpen={filterModal === 'system'}
+                onClose={() => setFilterModal(null)}
+                title="Filtrar por SISTEMA"
+                maxWidth="md"
+            >
+                <div className="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1 text-slate-800 dark:text-gray-100">
+                    {systemOptions.map(opt => {
+                        const isSelected = opt.value === selectedSystemId;
+                        return (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => handleSystemSelect(opt.value)}
+                                className={`flex items-center gap-3 p-3 rounded-xl text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5' : ''}`}
+                            >
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
+                                    {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                                </div>
+                                <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{opt.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </Modal>
+
+            {/* Modal de seleção: TIPO UNIDADE (múltipla) */}
+            <Modal
+                isOpen={filterModal === 'unitType'}
+                onClose={() => setFilterModal(null)}
+                title="Filtrar por TIPO UNIDADE"
+                maxWidth="md"
+            >
+                {filterModal === 'unitType' && (
+                    <FilterSelectionContent
+                        label="TIPO UNIDADE"
+                        options={unitTypeOptions}
+                        initialValue={selectedUnitTypeIds}
+                        onConfirm={(values) => {
+                            setSelectedUnitTypeIds(values);
+                            setFilterModal(null);
+                        }}
+                    />
+                )}
+            </Modal>
         </div>
     );
 };

@@ -73,8 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   canView('dashboard_units_assets_tags') || 
                   canView('dashboard_units_power_electric') ||
                   canView('dashboard_contracts_evaluations') ||
-                  canView('dashboard_teams_shifts') ||
-                  canView('dashboard_assets_available_integrations')) && (
+                  canView('dashboard_teams_shifts')) && (
                     <SidebarItem
                         icon="assignment_add"
                         label="Gestão"

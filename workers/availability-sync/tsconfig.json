@@ -1,0 +1,16 @@
+{
+  // Só para o editor e checagem de tipos (npx tsc -p workers/availability-sync).
+  // O wrangler empacota com esbuild; os testes rodam pelo jest da raiz.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["jest"],
+    "strict": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"]
+}

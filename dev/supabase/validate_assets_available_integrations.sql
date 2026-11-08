@@ -95,7 +95,7 @@ BEGIN
 
     -- ── 1) ID sem mapeamento ─────────────────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"UNMAPPED","status":"available","source_reported_at":"2026-11-04T18:00:00-03:00"}]'::jsonb
     );
@@ -107,7 +107,7 @@ BEGIN
 
     -- ── 2) Status externo desconhecido sem status_map ────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"EXT-1","status":"ON","source_reported_at":"2026-11-04T18:00:00-03:00"}]'::jsonb
     );
@@ -119,7 +119,7 @@ BEGIN
 
     -- ── 3) Timestamp sem offset ──────────────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"EXT-1","status":"available","source_reported_at":"2026-11-04T18:00:00"}]'::jsonb
     );
@@ -131,7 +131,7 @@ BEGIN
 
     -- ── 4) Primeira aplicação válida ─────────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"EXT-1","status":"available","source_reported_at":"2026-11-04T18:17:51-03:00","source_event_id":"evt-1"}]'::jsonb
     );
@@ -160,7 +160,7 @@ BEGIN
 
     -- ── 5) Mesmo evento externo reenviado ────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"EXT-1","status":"unavailable","source_reported_at":"2026-11-04T18:17:51-03:00","source_event_id":"evt-1"}]'::jsonb
     );
@@ -172,7 +172,7 @@ BEGIN
 
     -- ── 6) Leitura atrasada ──────────────────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"EXT-1","status":"unavailable","source_reported_at":"2026-11-04T18:00:00-03:00","source_event_id":"evt-2"}]'::jsonb
     );
@@ -184,7 +184,7 @@ BEGIN
 
     -- ── 7) Mesmo estado, sem histórico novo ──────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"EXT-1","status":"available","source_reported_at":"2026-11-04T19:00:00-03:00","source_event_id":"evt-3"}]'::jsonb
     );
@@ -196,7 +196,7 @@ BEGIN
 
     -- ── 8) Indisponível sem reason_map ───────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"EXT-1","status":"unavailable","source_reported_at":"2026-11-04T20:00:00-03:00","source_event_id":"evt-4","reason":"MANUT"}]'::jsonb
     );
@@ -212,7 +212,7 @@ BEGIN
 
     -- ── 9) Volta a disponível ────────────────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"EXT-1","status":"available","source_reported_at":"2026-11-04T21:00:00-03:00","source_event_id":"evt-5"}]'::jsonb
     );
@@ -223,7 +223,7 @@ BEGIN
 
     -- ── 10) status_map da integração B ───────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_b,
         '[{"external_id":"EXT-1","status":"ON","source_reported_at":"2026-11-04T18:30:00-03:00"}]'::jsonb
     );
@@ -234,7 +234,7 @@ BEGIN
 
     -- ── 11) Status desconhecido no mapa ──────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_b,
         '[{"external_id":"EXT-1","status":"WARN","source_reported_at":"2026-11-04T18:40:00-03:00"}]'::jsonb
     );
@@ -246,7 +246,7 @@ BEGIN
 
     -- ── 12) Empresa fora do escopo ───────────────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_a,
         '[{"external_id":"SCOPE-1","status":"available","source_reported_at":"2026-11-04T18:10:00-03:00"}]'::jsonb
     );
@@ -258,7 +258,7 @@ BEGIN
 
     -- ── 13) Integração inativa ───────────────────────────────────────
     BEGIN
-        PERFORM public.fn_ingest_asset_availability(
+        PERFORM public.fn_add_assets_available(
             v_int_inactive,
             '[{"external_id":"EXT-1","status":"available","source_reported_at":"2026-11-04T18:00:00-03:00"}]'::jsonb
         );
@@ -291,7 +291,7 @@ BEGIN
 
     -- ── 16) Item inválido não derruba o lote ─────────────────────────
     TRUNCATE tr;
-    INSERT INTO tr SELECT * FROM public.fn_ingest_asset_availability(
+    INSERT INTO tr SELECT * FROM public.fn_add_assets_available(
         v_int_b,
         '[
           {"external_id":"EXT-1","status":"OFF","source_reported_at":"2026-11-04T22:00:00-03:00","source_event_id":"evt-b2"},
@@ -342,15 +342,15 @@ BEGIN
 
     -- ── 18) Permissões da ingestão ───────────────────────────────────
     IF has_function_privilege('anon',
-        'public.fn_ingest_asset_availability(bigint,jsonb,integer)', 'EXECUTE') THEN
+        'public.fn_add_assets_available(bigint,jsonb,integer)', 'EXECUTE') THEN
         RAISE EXCEPTION 'FALHA 18: anon não deveria executar ingestão';
     END IF;
     IF has_function_privilege('authenticated',
-        'public.fn_ingest_asset_availability(bigint,jsonb,integer)', 'EXECUTE') THEN
+        'public.fn_add_assets_available(bigint,jsonb,integer)', 'EXECUTE') THEN
         RAISE EXCEPTION 'FALHA 18a: authenticated não deveria executar ingestão';
     END IF;
     IF NOT has_function_privilege('service_role',
-        'public.fn_ingest_asset_availability(bigint,jsonb,integer)', 'EXECUTE') THEN
+        'public.fn_add_assets_available(bigint,jsonb,integer)', 'EXECUTE') THEN
         RAISE EXCEPTION 'FALHA 18b: service_role deveria executar ingestão';
     END IF;
     RAISE NOTICE 'ok 18: ingestão executável apenas por service_role';

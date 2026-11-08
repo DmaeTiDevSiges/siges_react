@@ -14,7 +14,7 @@
 
 BEGIN;
 
-DROP FUNCTION IF EXISTS public.fn_ingest_asset_availability(bigint, jsonb, integer);
+DROP FUNCTION IF EXISTS public.fn_add_assets_available(bigint, jsonb, integer);
 
 DROP FUNCTION IF EXISTS public.fn_log_assets_available_integration_event(
     bigint, bigint, bigint, text, text, timestamp without time zone,

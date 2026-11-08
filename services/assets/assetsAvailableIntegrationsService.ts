@@ -4,7 +4,8 @@ import { supabase } from '../core/supabase';
 // Plano: docs/PLANO_INTEGRACAO_DISPONIBILIDADE_APIS.md
 // Tabelas: cfg_assets_available_integrations, cfg_assets_available_integrations_mappings,
 //          logs_assets_available_integrations_events (somente leitura pela aplicação).
-// Credenciais NUNCA passam por aqui: ficam nas Credentials do n8n.
+// Credenciais NUNCA passam por aqui: ficam como secrets do Worker workers/availability-sync
+// (INTEGRATION_<id>_API_KEY).
 
 export interface AssetsAvailableIntegration {
     id: number;
@@ -55,6 +56,38 @@ export interface UnitAssetTagOption {
     id: number;
     label: string;
 }
+
+// ── Execução manual (Worker workers/availability-sync, rota POST /app/run) ──
+export type AssetsAvailableIntegrationRunMode = 'observe' | 'write';
+
+export interface AssetsAvailableIntegrationRunReport {
+    integrationId: number;
+    name: string;
+    providerCode: string;
+    ok: boolean;
+    dryRun: boolean;
+    error?: string;
+    observedAt?: string;
+    stationCount?: number;
+    missingMappings?: string[];
+    counts?: Record<AssetsAvailableIntegrationLog['result'], number>;
+    observation?: {
+        external_id: string;
+        name: string | null;
+        external_status: string;
+        external_reason: string | null;
+        source_reported_at: string;
+        mapped_unit_asset_tag_id: number | null;
+    }[];
+    problems?: { external_id: string | null; result: string; message: string | null }[];
+}
+
+export interface AssetsAvailableIntegrationRunResult {
+    dryRun: boolean;
+    report: AssetsAvailableIntegrationRunReport;
+}
+
+const SYNC_WORKER_URL = (import.meta.env.VITE_AVAILABILITY_SYNC_URL || '').replace(/\/+$/, '');
 
 const INTEGRATION_COLUMNS =
     'id, company_id, provider_company_id, name, provider_code, base_url, config, is_active, created_at, updated_at';
@@ -245,5 +278,33 @@ export const assetsAvailableIntegrationsService = {
             .limit(30);
         if (error) fail('Erro ao buscar setores', error);
         return (data || []).map((t: any) => ({ id: Number(t.id), label: unitAssetTagLabel(t) }));
+    },
+
+    /** Executa a integração agora pelo Worker (token do usuário; permissão validada no servidor). */
+    async runAssetsAvailableIntegration(
+        integrationId: number,
+        mode: AssetsAvailableIntegrationRunMode,
+    ): Promise<AssetsAvailableIntegrationRunResult> {
+        if (!SYNC_WORKER_URL) {
+            throw new Error('Execução manual indisponível: configure VITE_AVAILABILITY_SYNC_URL');
+        }
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) throw new Error('Sessão expirada. Entre novamente.');
+
+        let response: Response;
+        try {
+            response = await fetch(
+                `${SYNC_WORKER_URL}/app/run?integration=${encodeURIComponent(String(integrationId))}&mode=${mode}`,
+                { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
+            );
+        } catch {
+            throw new Error('Não foi possível contatar o serviço de sincronização');
+        }
+        const body = await response.json().catch(() => null);
+        if (!response.ok) {
+            throw new Error(body?.error || `Falha na execução (HTTP ${response.status})`);
+        }
+        return body as AssetsAvailableIntegrationRunResult;
     },
 };

@@ -9,7 +9,7 @@
 --   3. logs_assets_available_integrations_events   — trilha/idempotência
 --   4. Validação de config (sem segredo, status_map booleano, reason_map inteiro)
 --   5. RLS: apenas super admin lê/gerencia; escrita operacional só via RPC
---   6. RPC fn_ingest_asset_availability(...)          — contrato canônico v1
+--   6. RPC fn_add_assets_available(...)          — contrato canônico v1
 --
 -- Decisões de escopo:
 --   * Nada de coluna por fornecedor em cfg_units_assets_tags.
@@ -443,7 +443,7 @@ REVOKE ALL ON FUNCTION public.fn_log_assets_available_integration_event(
 --   * IDs internos vêm do SIGES (nunca do payload).
 --   * Leitura repetida/atrasada não gera histórico; evento repetido não aplica 2x.
 --   * Autoria humana NULL e comments fixo.
-CREATE OR REPLACE FUNCTION public.fn_ingest_asset_availability(
+CREATE OR REPLACE FUNCTION public.fn_add_assets_available(
     p_integration_id BIGINT,
     p_items JSONB,
     p_contract_version INTEGER DEFAULT 1
@@ -752,9 +752,35 @@ BEGIN
             END IF;
 
             -- ── Ordem das leituras ────────────────────────────────────
+            -- Mesma leitura já processada: a fonte ainda não gerou leitura nova
+            -- (ex.: GuaibaFlow lê a cada ~15 min). Não é erro → 'unchanged'.
+            -- config.record_every_reading = true: grava toda leitura em
+            -- assets_available, mesmo repetida ou sem mudança de estado.
+            IF (v_integration.config ->> 'record_every_reading') IS DISTINCT FROM 'true'
+               AND v_mapping.last_source_reported_at IS NOT NULL
+               AND v_source_at = v_mapping.last_source_reported_at THEN
+                PERFORM public.fn_log_assets_available_integration_event(
+                    p_integration_id => v_integration.id,
+                    p_mapping_id => v_mapping.id,
+                    p_unit_asset_tag_id => v_mapping.unit_asset_tag_id,
+                    p_external_id => v_external_id,
+                    p_source_event_id => v_event_id,
+                    p_source_reported_at => v_source_at,
+                    p_is_available => v_is_available,
+                    p_result => 'unchanged',
+                    p_message => 'Leitura já processada (sem leitura nova na fonte)',
+                    p_asset_available_id => NULL
+                );
+                external_id := v_external_id;
+                result := 'unchanged';
+                message := 'Leitura já processada (sem leitura nova na fonte)';
+                RETURN NEXT;
+                CONTINUE;
+            END IF;
+
             IF v_mapping.last_source_reported_at IS NOT NULL
-               AND v_source_at <= v_mapping.last_source_reported_at THEN
-                RAISE EXCEPTION 'Leitura mais antiga ou igual à última aplicada para este mapeamento'
+               AND v_source_at < v_mapping.last_source_reported_at THEN
+                RAISE EXCEPTION 'Leitura mais antiga que a última aplicada para este mapeamento'
                     USING ERRCODE = '22023';
             END IF;
 
@@ -765,7 +791,9 @@ BEGIN
             END IF;
 
             -- ── Sem mudança relevante: não cria histórico ──────────────
-            IF v_node.last_is_available IS NOT DISTINCT FROM v_is_available
+            -- (ignorado quando config.record_every_reading = true)
+            IF (v_integration.config ->> 'record_every_reading') IS DISTINCT FROM 'true'
+               AND v_node.last_is_available IS NOT DISTINCT FROM v_is_available
                AND (
                    v_is_available IS TRUE
                    OR COALESCE(v_node.last_asset_unavailable_reason_id, 0)
@@ -878,12 +906,12 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.fn_ingest_asset_availability(bigint, jsonb, integer)
+REVOKE ALL ON FUNCTION public.fn_add_assets_available(bigint, jsonb, integer)
     FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.fn_ingest_asset_availability(bigint, jsonb, integer)
+GRANT EXECUTE ON FUNCTION public.fn_add_assets_available(bigint, jsonb, integer)
     TO service_role;
 
-COMMENT ON FUNCTION public.fn_ingest_asset_availability(bigint, jsonb, integer) IS
+COMMENT ON FUNCTION public.fn_add_assets_available(bigint, jsonb, integer) IS
     'Ingestão do contrato canônico v1 de disponibilidade. Resolve mapeamento, valida escopo, deduplica e aplica via report_unit_asset_tag_availability. Executável apenas por service_role.';
 
 NOTIFY pgrst, 'reload schema';
