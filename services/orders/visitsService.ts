@@ -690,6 +690,30 @@ export const visitsService = {
     // TEAM MANAGEMENT
     // -------------------------------------------------------------------------
 
+    /** Visitas em andamento (status 1, não arquivadas) em que o usuário está na equipe. */
+    async getOpenVisitIdsByUser(userId: string): Promise<string[]> {
+        const { data: links, error } = await supabase
+            .from('orders_visits_teams')
+            .select('ov_id')
+            .eq('user_id', Number(userId));
+        if (error) throw error;
+        const ids = Array.from(new Set((links || []).map((l: any) => Number(l.ov_id)).filter(Number.isFinite)));
+        if (ids.length === 0) return [];
+        const open: string[] = [];
+        for (let i = 0; i < ids.length; i += 200) {
+            const { data, error: visitsError } = await supabase
+                .from('orders_visits')
+                .select('id')
+                .in('id', ids.slice(i, i + 200))
+                .eq('ov_status_id', 1)
+                .not('is_deleted', 'is', true)
+                .not('ov_is_filed', 'is', true);
+            if (visitsError) throw visitsError;
+            open.push(...(data || []).map((v: any) => String(v.id)));
+        }
+        return open;
+    },
+
     async getOrderVisitTeam(visitId: string): Promise<OrderVisitTeam[]> {
         // 1. Fetch team links
         const { data: teamLinks, error: teamError } = await supabase

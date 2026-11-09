@@ -2,8 +2,10 @@ import { dataService } from '../dataService';
 import { getOfflineStore } from './offlineConfig';
 import { OFFLINE_COLLECTIONS } from './store/offlineStore';
 import { deleteLockToken, saveLockToken } from './offlineLocks';
-import { materialsCatalogKey, vehiclesCatalogKey } from './offlineFlowOps';
-import { MATERIALS_CATALOG_LIMIT, VEHICLES_CATALOG_LIMIT } from './offlineCatalog';
+import { downloadMaterialsCatalog, downloadVehiclesCatalog } from './offlineCatalogDownload';
+
+/** Catálogos pesados no download automático: no máximo 1x por dia. */
+export const CATALOG_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * "Preparar para campo" (F1, item 1.5).
@@ -42,6 +44,12 @@ export interface PrepareFieldPackageInput {
     /** Ativos (ovaId) travados por ele que foram desmarcados. */
     releaseOvaIds?: string[];
     onProgress?: (done: number, total: number) => void;
+    /**
+     * Preparo automático (offlineAutoSync): não trava nem solta ativos (a trava
+     * acontece ao abrir o relatório do ativo com sinal) e reaproveita catálogos
+     * com menos de 1 dia.
+     */
+    auto?: boolean;
 }
 
 export interface PrepareFieldPackageResult {
@@ -237,29 +245,23 @@ export const prepareFieldPackage = async (
     input.onProgress?.(0, total);
     let failedReads = await runLimited(tasks, 4, tick);
 
-    // ── 4. Catálogo de materiais do fornecedor (busca sem internet, F4) ─────
-    const catalogTasks = Array.from(providerIds).map(providerId => async () => {
-        // Páginas de 1.000: o PostgREST corta respostas maiores (max_rows) sem avisar.
-        const PAGE = 1000;
-        const list: unknown[] = [];
-        for (let page = 0; list.length < MATERIALS_CATALOG_LIMIT; page++) {
-            const chunk = await dataService.getAvailableMaterials('', page, PAGE, providerId);
-            list.push(...chunk);
-            if (chunk.length < PAGE) break;
-        }
-        await getOfflineStore().put(OFFLINE_COLLECTIONS.catalog, materialsCatalogKey(providerId), list);
-    });
-    // ── 5. Cadastro de veículos da empresa (incluir veículo sem internet) ──
-    // Mesma empresa que a tela usa na busca (OrderVisitScreen → providerCompanyId).
+    // ── 4. Catálogos (busca sem internet): materiais do fornecedor e veículos
+    // da empresa (mesma empresa da busca em OrderVisitScreen → providerCompanyId).
+    // Manual: baixa de novo. Automático: só se tiver mais de 1 dia.
+    const catalogMaxAge = input.auto ? CATALOG_MAX_AGE_MS : 0;
+    const catalogTasks: (() => Promise<unknown>)[] = Array.from(providerIds).map(
+        providerId => () => downloadMaterialsCatalog(providerId, catalogMaxAge),
+    );
     const vehicleCompanyId = visit.providerCompanyId ? String(visit.providerCompanyId) : '';
-    if (vehicleCompanyId) {
-        catalogTasks.push(async () => {
-            const list = await dataService.searchVehicles('', vehicleCompanyId, VEHICLES_CATALOG_LIMIT);
-            await getOfflineStore().put(OFFLINE_COLLECTIONS.catalog, vehiclesCatalogKey(vehicleCompanyId), list || []);
-        });
-    }
+    if (vehicleCompanyId) catalogTasks.push(() => downloadVehiclesCatalog(vehicleCompanyId, catalogMaxAge));
     total += catalogTasks.length;
     failedReads += await runLimited(catalogTasks, 2, tick);
+
+    // Automático não mexe nas travas: mantém as que o preparo manual registrou.
+    if (input.auto) {
+        const previous = await getFieldPackage(visitId);
+        if (previous?.lockedOvaIds?.length) lockedOvaIds.push(...previous.lockedOvaIds);
+    }
 
     const pkg: FieldPackage = {
         visitId,

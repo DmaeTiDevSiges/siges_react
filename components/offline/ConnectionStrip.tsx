@@ -1,5 +1,6 @@
 import React from 'react';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { useOfflineAutoSync } from '../../hooks/useOfflineAutoSync';
 
 /**
  * Faixa logo abaixo do cabeçalho (Header) com o estado da conexão e da fila
@@ -8,6 +9,7 @@ import { useOfflineSync } from '../../hooks/useOfflineSync';
  *   sem internet           → vermelho  "Sem internet · N alterações no aparelho"
  *   enviando / aguardando  → azul      "Enviando N alterações…" / "N aguardando envio"
  *   erro / recusadas       → âmbar     "N alterações não enviadas — abra a visita"
+ *   baixando dados offline → barra     "Atualizando dados offline · etapa · N%"
  *   online e fila vazia    → nada
  */
 interface ConnectionStripProps {
@@ -18,6 +20,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 export const ConnectionStrip: React.FC<ConnectionStripProps> = ({ isConnected }) => {
     const { summary, syncing } = useOfflineSync();
+    const autoSync = useOfflineAutoSync();
     const { pending, errors, conflicts } = summary;
     const stuck = errors + conflicts;
 
@@ -41,6 +44,24 @@ export const ConnectionStrip: React.FC<ConnectionStripProps> = ({ isConnected })
         tone = 'bg-amber-500 text-amber-950';
         icon = 'error';
         text = `${plural(stuck, 'alteração não enviada', 'alterações não enviadas')} — abra a visita para resolver`;
+    } else if (autoSync.running) {
+        const percent = autoSync.total > 0 ? Math.min(100, Math.round((autoSync.done / autoSync.total) * 100)) : 0;
+        return (
+            <div role="status" aria-live="polite" className="relative bg-slate-800 text-white dark:bg-slate-900">
+                <div className="flex items-center justify-center gap-1.5 px-4 py-1 text-[11px] font-bold leading-tight">
+                    <span className="material-symbols-outlined text-[14px] animate-spin">sync</span>
+                    <span className="truncate">
+                        Atualizando dados offline{autoSync.phase ? ` · ${autoSync.phase}` : ''}{autoSync.total > 0 ? ` · ${percent}%` : '…'}
+                    </span>
+                </div>
+                <div className="h-0.5 w-full bg-white/10">
+                    <div
+                        className="h-full bg-emerald-400 transition-[width] duration-500"
+                        style={{ width: `${autoSync.total > 0 ? percent : 5}%` }}
+                    />
+                </div>
+            </div>
+        );
     } else {
         return null;
     }

@@ -14,6 +14,7 @@ import { LegacyAppMigrationScreen } from './components/shell/LegacyAppMigrationS
 import { LocationDisclosureModal } from './components/permissions/LocationDisclosureModal';
 import { dataService } from './services/dataService';
 import { getCachedCurrentUser } from './services/offline/offlineAuth';
+import { setOfflineAutoSyncUser } from './services/offline/offlineAutoSync';
 import { usePermissions } from './contexts/PermissionsContext';
 import { permissionService } from './services/core/permissionService';
 import { Sidebar } from './components/shell/Sidebar';
@@ -1089,6 +1090,11 @@ const AppContent: React.FC = () => {
     }, { orderId });
     return () => subscription.unsubscribe();
   }, [selectedOrder?.id]);
+
+  // Dados offline baixados automaticamente (OSs abertas da empresa + visitas em andamento).
+  useEffect(() => {
+    setOfflineAutoSyncUser(currentUser ? { id: currentUser.id, companyId: currentUser.companyId } : null);
+  }, [currentUser?.id, currentUser?.companyId]);
 
   // Background shift monitor - alerts user to change availability status based on shift hours
   const { showShiftAlert, dismissAlert } = useShiftMonitor(currentUser, currentScreen === 'profile');

@@ -63,6 +63,8 @@ const findCatalogVehicle = async (store: Parameters<typeof patchCachedRead>[0], 
 const findCatalogMaterial = async (store: Parameters<typeof patchCachedRead>[0], materialId: unknown) => {
     try {
         for (const key of await store.keys(OFFLINE_COLLECTIONS.catalog)) {
+            // Só catálogos de materiais (o mesmo id pode existir em ativos/veículos).
+            if (!key.startsWith('materials:')) continue;
             const list = await store.get<any[]>(OFFLINE_COLLECTIONS.catalog, key);
             const hit = Array.isArray(list) ? list.find(m => sameId(m?.id, materialId)) : undefined;
             if (hit) return hit;

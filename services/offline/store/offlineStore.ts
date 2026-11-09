@@ -27,6 +27,8 @@ export const OFFLINE_COLLECTIONS = {
     locks: 'locks',
     /** Catálogos baixados no preparo (ex.: materiais do fornecedor) — busca offline. */
     catalog: 'catalog',
+    /** Estado do download automático (offlineAutoSync): o que já foi baixado e quando. */
+    autosync: 'autosync',
 } as const;
 
 /**

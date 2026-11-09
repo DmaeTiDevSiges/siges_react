@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { dataService } from '../services/dataService';
 import { getOfflineStore, isOfflineSupported, isOnline } from '../services/offline/offlineConfig';
 import { getFieldPackage } from '../services/offline/fieldPackageService';
-import { deleteLockToken, saveLockToken } from '../services/offline/offlineLocks';
+import { deleteLockToken, getLockToken, saveLockToken } from '../services/offline/offlineLocks';
 import { OFFLINE_COLLECTIONS } from '../services/offline/store/offlineStore';
 import { useNetworkStatus } from './useNetworkStatus';
 
@@ -14,10 +14,11 @@ import { useNetworkStatus } from './useNetworkStatus';
  *   - técnico da EQUIPE da visita → tenta travar para si (guarda o token, que
  *     o envio da fila confere). Se outro já tem → só leitura, "Em uso por Fulano".
  *   - quem não é da equipe (gestor revisando) → não trava; só mostra o aviso.
- * SEM internet:
- *   - visita preparada com trava → só edita os ativos reservados no preparo;
- *     os demais ficam só leitura ("não reservado para você").
- *   - visita não preparada / sem migration → edita (a fila confere no envio).
+ * SEM internet (opção (a), decisão de 09/11/2026 — o preparo é automático e
+ * não reserva ativos):
+ *   - ativo travado por ele (token guardado) → edita;
+ *   - os demais também editam; a fila trava no envio e, se outro técnico
+ *     tiver a trava, a alteração vira "recusada" (conflito) para resolver.
  * Gestor do contrato/admin pode forçar a liberação (online).
  * Sem a migration 20261117 aplicada → status 'off' e nada muda.
  */
@@ -47,12 +48,7 @@ export const useAssetLock = ({ ovaId, ovId, currentUserId, editable }: UseAssetL
         }
 
         if (!isOnline()) {
-            const pkg = await getFieldPackage(String(ovId));
-            if (pkg?.lockSupported) {
-                setLock({ status: pkg.lockedOvaIds.includes(String(ovaId)) ? 'mine' : 'not-reserved' });
-            } else {
-                setLock({ status: 'off' });
-            }
+            setLock({ status: (await getLockToken(String(ovaId))) ? 'mine' : 'off' });
             return;
         }
 

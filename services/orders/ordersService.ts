@@ -1132,6 +1132,38 @@ export const ordersService = {
         return data || [];
     },
 
+    /**
+     * OSs abertas (status fora de 7/8) de uma empresa prestadora — só as colunas
+     * que o download automático offline precisa (unidade, cliente, tipo).
+     * Paginado em 1.000 (max_rows do PostgREST).
+     */
+    async getOpenOrdersForOffline(providerCompanyId: string): Promise<Array<{
+        id: string; unitId: string | null; clientId: string | null; typeId: string | null; updatedAt: string | null;
+    }>> {
+        const PAGE = 1000;
+        const rows: any[] = [];
+        for (let page = 0; page < 50; page++) {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('id, unit_id, client_id, type_id, updated_at')
+                .eq('provider_company_id', Number(providerCompanyId))
+                .not('status_id', 'in', '(7,8)')
+                .not('is_deleted', 'is', true)
+                .order('id')
+                .range(page * PAGE, page * PAGE + PAGE - 1);
+            if (error) throw error;
+            rows.push(...(data || []));
+            if (!data || data.length < PAGE) break;
+        }
+        return rows.map((r: any) => ({
+            id: String(r.id),
+            unitId: r.unit_id != null ? String(r.unit_id) : null,
+            clientId: r.client_id != null ? String(r.client_id) : null,
+            typeId: r.type_id != null ? String(r.type_id) : null,
+            updatedAt: r.updated_at ?? null,
+        }));
+    },
+
     async getOpenOrdersByUnit(unitId: string, filters: {
         orderObjectId?: string | string[];
         orderTypeId?: string | string[];

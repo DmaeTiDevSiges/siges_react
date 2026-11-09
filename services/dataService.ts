@@ -1869,6 +1869,9 @@ export const dataService = {
         return usersService.setTeamLeader.apply(usersService, arguments as any);
     },
 
+    async getOpenOrdersForOffline(providerCompanyId: string): Promise<Array<{ id: string; unitId: string | null; clientId: string | null; typeId: string | null; updatedAt: string | null }>> {
+        return ordersService.getOpenOrdersForOffline.apply(ordersService, arguments as any);
+    },
     async getOpenOrdersByUnit(unitId: string, filters: {
         orderObjectId?: string | string[];
         orderTypeId?: string | string[];
@@ -2349,6 +2352,9 @@ export const dataService = {
         return visitsService.getActiveOrderVisit.apply(visitsService, arguments as any);
     },
 
+    async getOpenVisitIdsByUser(userId: string): Promise<string[]> {
+        return visitsService.getOpenVisitIdsByUser.apply(visitsService, arguments as any);
+    },
     async getOrderVisitTeam(visitId: string): Promise<OrderVisitTeam[]> {
         return visitsService.getOrderVisitTeam.apply(visitsService, arguments as any);
     },
