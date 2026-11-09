@@ -31,7 +31,7 @@ export const MAX_ROWS = Math.max(1, Math.min(200, Number(process.env.SIGES_MAX_R
 
 export const isMultiUser = () => !!(process.env.SUPABASE_JWT_SECRET && process.env.SIGES_HOOK_SECRET);
 
-const PROFILE_COLUMNS = 'id, uuid, name_short, name_full, email, company_id, team_id, is_team_leader, is_admin, is_available';
+const PROFILE_COLUMNS = 'id, uuid, name_short, name_full, email, company_id, team_id, is_team_leader, is_admin, is_available, status_id';
 
 function toProfile(row: any): SigesProfile {
     return {
@@ -84,7 +84,9 @@ async function getSigesForSender(): Promise<{ db: SupabaseClient; me: SigesProfi
     if (!rows?.length) throw new AccessDenied('este número de WhatsApp não está cadastrado (campo celular) em nenhum usuário do SIGES.');
     if (rows.length > 1) throw new AccessDenied('mais de um usuário do SIGES tem este celular; corrija o cadastro.');
     const row: any = rows[0];
-    if (row.is_available === false) throw new AccessDenied('usuário inativo no SIGES.');
+    // Ativo = status do cadastro (2). is_available é só disponibilidade de trabalho
+    // (turno / em visita): quem está em atendimento também precisa consultar.
+    if (Number(row.status_id) !== 2) throw new AccessDenied('usuário inativo no SIGES.');
     if (!row.uuid || !row.email) throw new AccessDenied('usuário sem login (uuid/e-mail) no SIGES.');
 
     const userJwt = signJwt({

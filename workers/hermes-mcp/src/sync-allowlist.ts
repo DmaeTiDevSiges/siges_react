@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Sincroniza a lista de permitidos do WhatsApp do Hermes (WHATSAPP_ALLOWED_USERS em
- * ~/.hermes/.env) com os usuários ATIVOS do SIGES que têm celular (users.mobile_full).
+ * ~/.hermes/.env) com os usuários ATIVOS do SIGES (status_id = 2) que têm celular
+ * (users.mobile_full).
  *
  * - Só reescreve o arquivo e reinicia o gateway quando a lista muda.
  * - Proteções: nunca grava lista vazia; se a lista encolher mais de 50% de uma vez,
@@ -55,7 +56,11 @@ async function fetchSigesNumbers(): Promise<string[]> {
         const { data, error } = await db
             .from('users')
             .select('mobile_full')
-            .eq('is_available', true)
+            // Usuário ATIVO = status do cadastro (cfg_users_statuses: 2 = Ativo), o mesmo
+            // critério dos painéis. NÃO usar is_available: é a disponibilidade de trabalho
+            // (turno / em visita) — mudava a lista o dia todo, tirava quem estava em
+            // atendimento e reiniciava o gateway a cada mudança.
+            .eq('status_id', 2)
             .not('mobile_full', 'is', null)
             .order('id')
             .range(from, from + pageSize - 1);
