@@ -1,7 +1,7 @@
 import { getBrazilNaiveTimestamp, getBrazilTimestamp } from '../../utils/dateUtils';
 import { OFFLINE_COLLECTIONS } from './store/offlineStore';
 import { cacheKey, findInCachedReads, patchCachedRead, patchCachedReadsOf, readCached, registerReadKey } from './readCache';
-import { getOfflineOpsStore, patchOva, sameId, str, type OfflineOpSpec } from './offlineOps';
+import { getOfflineOpsStore, patchOva, sameId, str, visitOfListItem, type OfflineOpSpec } from './offlineOps';
 
 /**
  * F4 — inclusões e fluxo que podem ser feitos SEM internet.
@@ -16,8 +16,12 @@ import { getOfflineOpsStore, patchOva, sameId, str, type OfflineOpSpec } from '.
  * Encerrar visita (esperam todas as da visita). A hora gravada é a do
  * aparelho. Validações que dependem do servidor são repetidas no envio.
  *
- * Continuam só online: incluir veículo/ociosidade (contrato de locação,
- * busca de veículos), incluir/trocar ativo (busca no cadastro), aprovação.
+ * Veículo: a busca usa o cadastro da empresa baixado no preparo; a linha
+ * nasce com client_uuid como material/serviço. Equipe: incluir/remover membro
+ * (lista de usuários do preparo); no envio a inclusão é idempotente.
+ *
+ * Continuam só online: ociosidade (contrato de locação), incluir/trocar ativo
+ * (busca no cadastro), aprovação.
  */
 
 export const newClientUuid = (): string => {
@@ -39,6 +43,22 @@ const uuidOfTmp = (v: unknown) => (isTmpId(v) ? v.slice(TMP_PREFIX.length) : '')
 
 /** Catálogo de materiais baixado no preparo (offline: busca local). */
 export const materialsCatalogKey = (providerId: unknown) => `materials:${str(providerId)}`;
+/** Cadastro de veículos da empresa baixado no preparo (offline: busca local). */
+export const vehiclesCatalogKey = (companyId: unknown) => `vehicles:${str(companyId)}`;
+
+const findCatalogVehicle = async (store: Parameters<typeof patchCachedRead>[0], vehicleId: unknown) => {
+    try {
+        for (const key of await store.keys(OFFLINE_COLLECTIONS.catalog)) {
+            if (!key.startsWith('vehicles:')) continue;
+            const list = await store.get<any[]>(OFFLINE_COLLECTIONS.catalog, key);
+            const hit = Array.isArray(list) ? list.find(v => sameId(v?.id, vehicleId)) : undefined;
+            if (hit) return hit;
+        }
+    } catch {
+        /* sem cadastro */
+    }
+    return undefined;
+};
 
 const findCatalogMaterial = async (store: Parameters<typeof patchCachedRead>[0], materialId: unknown) => {
     try {
@@ -72,6 +92,8 @@ const cancelsTmpItem = (insertMethod: string, uuidArgIndex: number) => (a: any[]
     if (sameId(p.args[0], a[0])) return true;
     return p.method === insertMethod && str((p.args[uuidArgIndex] as any)?.clientUuid) === uuidOfTmp(a[0]);
 };
+const teamMemberKey = (visitId: unknown, userId: unknown) => `visit:${str(visitId)}:team:${str(userId)}`;
+
 const insertWasCancelled = (insertMethod: string) => (cancelled: { method: string }[]) =>
     cancelled.some(c => c.method === insertMethod);
 
@@ -172,11 +194,102 @@ export const OFFLINE_FLOW_OPS: Record<string, OfflineOpSpec> = {
         },
     },
 
-    // removeVehicleFromOrderVisit(visitVehicleId) — o veículo foi incluído online
+    // addVehicleToOrderVisit(visitId, vehicleId, userId, options?)
+    addVehicleToOrderVisit: {
+        visitId: a => str(a[0]),
+        entityKey: a => `vehicle:${TMP_PREFIX}${str(a[3]?.clientUuid)}`,
+        skipLocalOnOnline: true,
+        prepareArgs: async a => [a[0], a[1], a[2], { clientUuid: newClientUuid() }],
+        applyLocal: async (ctx, a) => {
+            const [visitId, vehicleId, userId, opts] = [str(a[0]), str(a[1]), str(a[2]), a[3] || {}];
+            const vehicle = await findCatalogVehicle(ctx.store, vehicleId);
+            // Mesmo formato de visitsService.getOrderVisitVehicles (linha de Km vazia).
+            const item = {
+                id: `${TMP_PREFIX}${opts.clientUuid}`,
+                ovId: visitId,
+                vehicleId,
+                recorderStart: null,
+                recorderEnd: null,
+                amount: 0,
+                valueUnit: null,
+                valueTotal: null,
+                createdUserId: userId,
+                createdAt: new Date(ctx.now()).toISOString(),
+                costType: 'odometer',
+                description: vehicle?.description || 'Veículo (sem internet)',
+                plates: vehicle?.plates,
+                model: vehicle?.description,
+            };
+            const hit = await patchCachedRead<any[]>(ctx.store, 'getOrderVisitVehicles', [visitId], list => [...(list || []), item]);
+            if (hit === undefined) {
+                await ctx.store.put(OFFLINE_COLLECTIONS.reads, cacheKey('getOrderVisitVehicles', [visitId]), {
+                    value: [item],
+                    savedAt: ctx.now(),
+                });
+                await registerReadKey(ctx.store, 'getOrderVisitVehicles', [visitId]);
+            }
+        },
+    },
+
+    // removeVehicleFromOrderVisit(visitVehicleId)
     removeVehicleFromOrderVisit: {
         entityKey: a => `vehicle:${str(a[0])}`,
+        visitId: a => visitOfListItem('getOrderVisitVehicles', a[0]),
+        tmpIdTable: 'orders_visits_vehicles',
+        cancelsPending: cancelsTmpItem('addVehicleToOrderVisit', 3),
+        skipIfCancelled: insertWasCancelled('addVehicleToOrderVisit'),
         applyLocal: async (ctx, a) => {
             await patchCachedReadsOf<any[]>(ctx.store, 'getOrderVisitVehicles', list => dropFromList(list, a[0]));
+        },
+    },
+
+    // ── Equipe ───────────────────────────────────────────────────────────────
+
+    // addTeamMember(visitId, userId, options?)
+    addTeamMember: {
+        visitId: a => str(a[0]),
+        entityKey: a => teamMemberKey(a[0], a[1]),
+        skipLocalOnOnline: true,
+        // Na fila a inclusão é idempotente: reenvio após queda não vira "já faz parte".
+        prepareArgs: async a => [a[0], a[1], { idempotent: true }],
+        applyLocal: async (ctx, a) => {
+            const [visitId, userId] = [str(a[0]), str(a[1])];
+            const user = await findInCachedReads<any[], any>(ctx.store, 'getUsers', list =>
+                Array.isArray(list) ? list.find(u => sameId(u?.id, userId)) : undefined,
+            );
+            await patchCachedRead<any[]>(ctx.store, 'getOrderVisitTeam', [visitId], list => {
+                const team = Array.isArray(list) ? list : [];
+                if (team.some(m => sameId(m?.userId, userId))) return undefined;
+                const member = {
+                    id: `${TMP_PREFIX}team:${userId}`,
+                    ovId: visitId,
+                    userId,
+                    isLeader: false,
+                    orderId: team.length + 1,
+                    userName: user?.nameShort || user?.nameFull || 'Membro (sem internet)',
+                    userIsAvailable: false,
+                    userAvatarUrl: user?.avatarUrl,
+                };
+                return [...team, member];
+            });
+        },
+    },
+
+    // removeTeamMember(visitId, userId)
+    removeTeamMember: {
+        visitId: a => str(a[0]),
+        entityKey: a => teamMemberKey(a[0], a[1]),
+        // Remover quem foi incluído sem internet e ainda não subiu: anula a inclusão.
+        cancelsPending: (a, p) =>
+            p.method === 'addTeamMember' && sameId(p.args[0], a[0]) && sameId(p.args[1], a[1]),
+        skipIfCancelled: true,
+        applyLocal: async (ctx, a) => {
+            const [visitId, userId] = [str(a[0]), str(a[1])];
+            await patchCachedRead<any[]>(ctx.store, 'getOrderVisitTeam', [visitId], list => {
+                if (!Array.isArray(list)) return undefined;
+                const next = list.filter(m => !sameId(m?.userId, userId));
+                return next.length === list.length ? undefined : next;
+            });
         },
     },
 

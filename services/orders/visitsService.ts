@@ -861,8 +861,10 @@ export const visitsService = {
         }
     },
 
-    async addTeamMember(visitId: string, userId: string): Promise<void> {
-        // 1. Business Rule: No duplicate members
+    async addTeamMember(visitId: string, userId: string, options?: { idempotent?: boolean }): Promise<void> {
+        // 1. Business Rule: No duplicate members.
+        // idempotent (fila offline): se o envio anterior já incluiu o membro, não é
+        // erro — segue para reordenar e atualizar o usuário (passos 4 e 5).
         const { data: existing, error: checkError } = await supabase
             .from('orders_visits_teams')
             .select('id')
@@ -871,7 +873,7 @@ export const visitsService = {
             .maybeSingle();
 
         if (checkError) throw checkError;
-        if (existing) throw new Error('Usuário já faz parte da equipe desta visita');
+        if (existing && !options?.idempotent) throw new Error('Usuário já faz parte da equipe desta visita');
 
         // 2. Fetch Visit and Order Data
         const { data: visit, error: visitError } = await supabase
@@ -891,16 +893,18 @@ export const visitsService = {
         if (orderError || !order) throw orderError || new Error('Ordem de serviço não encontrada');
 
         // 3. Insert into orders_visits_teams
-        const { error: insertError } = await supabase
-            .from('orders_visits_teams')
-            .insert({
-                ov_id: parseInt(visitId),
-                user_id: userId,
-                is_leader: false,
-                order_id: 0 // Temp
-            });
+        if (!existing) {
+            const { error: insertError } = await supabase
+                .from('orders_visits_teams')
+                .insert({
+                    ov_id: parseInt(visitId),
+                    user_id: userId,
+                    is_leader: false,
+                    order_id: 0 // Temp
+                });
 
-        if (insertError) throw insertError;
+            if (insertError) throw insertError;
+        }
 
         // 4. Update order_id for all non-leaders alphabetically by name_short
         const { data: teamMembers, error: membersError } = await supabase
@@ -1280,17 +1284,16 @@ export const visitsService = {
             });
     },
 
-    async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string): Promise<void> {
-        const { error } = await supabase
-            .from('orders_visits_vehicles')
-            .insert({
+    async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string, options?: { clientUuid?: string }): Promise<void> {
+        // clientUuid: inclusão feita sem internet (fila offline) — reenviar não duplica.
+        try {
+            await insertWithClientUuid('orders_visits_vehicles', {
                 ov_id: parseInt(visitId),
                 vehicle_id: parseInt(vehicleId),
                 created_user_id: parseInt(userId),
                 created_at: new Date().toISOString()
-            });
-
-        if (error) {
+            }, options?.clientUuid);
+        } catch (error) {
             console.error('Error adding vehicle to visit:', error);
             throw error;
         }

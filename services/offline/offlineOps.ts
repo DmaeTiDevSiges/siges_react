@@ -314,6 +314,8 @@ export const OFFLINE_OPS: Record<string, OfflineOpSpec> = {
     // updateVehicleKm(visitVehicleId, kmInitial?, kmFinal?)
     updateVehicleKm: {
         entityKey: a => `vehicle:${str(a[0])}`,
+        // Veículo incluído sem internet: "tmp:<uuid>" vira o id real no envio.
+        tmpIdTable: 'orders_visits_vehicles',
         visitId: a => visitOfListItem('getOrderVisitVehicles', a[0]),
         applyLocal: async (ctx, a) => {
             const [id, start, end] = [str(a[0]), a[1], a[2]];

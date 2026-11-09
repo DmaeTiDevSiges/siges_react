@@ -96,9 +96,17 @@ const getRelativeTimeShort = (isoString?: string): string => {
 interface UsersTrackerProps {
     company: Company;
     onBack?: () => void;
+    /** Líderes filtrados no painel de origem. Ausente = todos os líderes da empresa. */
+    leaderIds?: string[];
 }
 
-export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) => {
+export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, leaderIds }) => {
+    // Chave estável (o array chega novo a cada render do App).
+    const allowedLeadersKey = leaderIds ? leaderIds.map(String).join(',') : null;
+    const allowedLeaderIds = React.useMemo(
+        () => (allowedLeadersKey === null ? undefined : allowedLeadersKey.split(',').filter(Boolean)),
+        [allowedLeadersKey]
+    );
     const [users, setUsers] = useState<User[]>([]);
     const [leaders, setLeaders] = useState<User[]>([]);
     const [todayVisits, setTodayVisits] = useState<OrderVisit[]>([]);
@@ -161,13 +169,18 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
 
     // Data loading
     const loadInitialData = useCallback(async () => {
-        const [allUsers, allLeaders, visits] = await Promise.all([
+        const [allUsers, allLeaders, allVisits] = await Promise.all([
             dataService.getUsersByCompany(company.id),
             dataService.getLeadersByCompany(company.id),
             dataService.getTodayVisitsByCompany(company.id)
         ]);
+        const allowed = allowedLeaderIds ? new Set(allowedLeaderIds) : null;
+        // Só as visitas dos líderes filtrados no painel (e só eles na barra/mapa).
+        const visits = allowed
+            ? allVisits.filter(v => !!v.ovTeamLeadId && allowed.has(String(v.ovTeamLeadId)))
+            : allVisits;
         setUsers(allUsers);
-        setLeaders(allLeaders);
+        setLeaders(allowed ? allLeaders.filter(l => allowed.has(String(l.id))) : allLeaders);
         setTodayVisits(visits);
 
         // Pre-select open visits on first load so technicians appear selected by default
@@ -206,7 +219,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                 console.error("Error loading units coordinates:", e);
             }
         }
-    }, [company.id]);
+    }, [company.id, allowedLeaderIds]);
 
     // #7 Pull-to-refresh handlers
     const handlePullTouchStart = useCallback((e: React.TouchEvent) => {
@@ -782,6 +795,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack }) =
                     <div className="absolute top-4 left-4 z-20 max-w-[calc(100%-2rem)]">
                         <UsersTeamsLeadersByCompanyId
                             companyId={company.id}
+                            allowedUserIds={allowedLeaderIds}
                             pinnedUserIds={combinedPinnedIds}
                             titleContent={
                                 <>

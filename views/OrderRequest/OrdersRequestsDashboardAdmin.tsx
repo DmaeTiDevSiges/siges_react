@@ -102,7 +102,7 @@ interface OrdersRequestsDashboardAdminProps {
     currentUser: User | null;
     onSelectOrder?: (order: Order) => void;
     onSelectVisit?: (visit: OrderVisit) => void;
-    onTrackUsers?: (company: Company) => void;
+    onTrackUsers?: (company: Company, leaderIds?: string[]) => void;
     onCreateServiceRequest?: () => void;
     onNavigate?: (path: string) => void;
     onEdit?: (order: Order) => void;
@@ -1699,7 +1699,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                                             cnpj: '',
                                                             contractCount: 0,
                                                             code: ''
-                                                        });
+                                                        }, group.leaders.map(l => String(l.id)));
                                                     }}
                                                     className="p-1 -mr-1 text-slate-400 hover:text-primary transition-colors flex items-center justify-center"
                                                     title="Rastrear Usuários"

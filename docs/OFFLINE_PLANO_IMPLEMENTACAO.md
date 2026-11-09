@@ -243,7 +243,8 @@ sem duplicata, mesmo com queda no meio. Assinatura offline aparece no relatório
 | Buscar material | Offline, filtra o catálogo do fornecedor da OS (baixado em páginas de 1.000, até 10.000) com as **mesmas regras** da busca online (`materialSearchTerms.ts`) |
 | Alterar qtd./remover material ou serviço criado offline | No envio, `tmp:<uuid>` vira o id real (`findIdByClientUuid`). Remover antes de o insert subir **anula** insert + alterações na fila |
 | Incluir/remover serviço | Mesmo esquema; valor/desconto/descrição do serviço do contrato em cache |
-| Remover veículo | Sim (inclusão de veículo/ociosidade continua só online) |
+| Incluir/remover veículo | Busca no **cadastro de veículos da empresa** (`searchVehicles`, até 1.000, baixado no preparo); linha de Km vazia com `client_uuid`/`tmp:<uuid>`; Km e remoção do temporário seguem o insert. Sem cache, Km anterior e contrato de locação ficam em branco (sem aviso). Ociosidade continua só online |
+| Incluir/remover membro da equipe | Lista de usuários do preparo (`getUsers`); entra na fila por visita+usuário; no envio `addTeamMember(..., { idempotent: true })` (reenvio não vira "já faz parte"); remover quem ainda não subiu anula a inclusão |
 | Relatar ativo | Hora do aparelho; contadores da visita atualizados no cache; **espera** todas as alterações daquele ativo; ao subir, solta a trava |
 | Relatar visita | Valida com o cache (mesma regra do serviço) antes de enfileirar; **espera** todas as da visita; reenvio idempotente (`options.idempotent`) |
 | Encerrar visita | Valida Km no aparelho; `flow_order_visit_close_v4` com `p_client_op_id` + `p_client_ended_at` (hora do toque); **espera** todas as da visita; `SG409` → conflito; perfil guardado deixa de estar "em visita" |
@@ -256,7 +257,7 @@ sem duplicata, mesmo com queda no meio. Assinatura offline aparece no relatório
 | `sync_ova_report_v1` (contadores no servidor) | O próprio `reportedOrderVisitAsset` (já recalcula os contadores) com `options.reportedAt` | Reexecutar o recálculo é idempotente |
 | `sync_ov_report_v1` | `reportOrderVisit` com `options.idempotent` (já relatado pelo mesmo usuário → nada a fazer) | Idem |
 | Dependências por operação | **Barreiras** no syncEngine: `'ova'` (Relatar ativo) e `'visit'` (Relatar visita, Encerrar) — esperam qualquer anterior do mesmo ativo/visita que não subiu. Com internet, também esperam a fila | Regra única, testada |
-| Inserir veículo/ativo offline | **Só online** | Dependem de busca no cadastro/contrato de locação |
+| Inserir veículo/ativo offline | Veículo e membro da equipe: **offline** (cadastro de veículos e usuários no pacote). Ativo e ociosidade: só online | Ativo depende da busca no cadastro; ociosidade, do contrato de locação |
 
 Sem as migrations 20261116/20261118 aplicadas: inclusões gravam sem `client_uuid` (sem proteção contra duplicata) e o encerramento cai na v3 (hora = hora do envio).
 
@@ -339,7 +340,8 @@ piloto, custa dados de campo e confiança dos técnicos.
 
 **F4 — inclusões e fluxo**
 - [ ] Offline: buscar material no catálogo, incluir, alterar qtd.; incluir outro e removê-lo
-- [ ] Offline: incluir e remover serviço; remover veículo
+- [ ] Offline: incluir e remover serviço; buscar e incluir veículo, lançar Km, remover outro
+- [ ] Offline: incluir e remover membro da equipe; reconectar → membro na equipe e "em visita"
 - [ ] Offline: **Relatar ativo** → **Encerrar visita** (Km inválido é recusado no aparelho) → **Relatar visita**
 - [ ] Fechar/reabrir offline: técnico não aparece mais "em visita"
 - [ ] Reconectar: fila zera na ordem; banco sem material/serviço duplicado; o removido não existe; `ov_ended_at` = hora do toque; `ov_close_received_at` preenchido; trava solta

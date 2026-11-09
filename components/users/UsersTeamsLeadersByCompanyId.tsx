@@ -23,6 +23,8 @@ interface UsersTeamsLeadersByCompanyIdProps {
     pinnedUserIds?: Set<string>;
     className?: string;
     titleContent?: React.ReactNode;
+    /** Só estes líderes (ex.: filtrados no painel). Ausente = todos da empresa. */
+    allowedUserIds?: string[];
 }
 
 export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyIdProps> = ({ 
@@ -31,8 +33,10 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
     onBusyLeaderClick,
     pinnedUserIds = new Set(),
     className = '',
-    titleContent
+    titleContent,
+    allowedUserIds
 }) => {
+    const allowedKey = allowedUserIds ? allowedUserIds.join(',') : null;
     const [company, setCompany] = useState<Company | null>(null);
     const [leaders, setLeaders] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +54,8 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
                 
                 if (!cancelled) {
                     setCompany(companyData);
-                    setLeaders(leadersData);
+                    const allowed = allowedKey === null ? null : new Set(allowedKey.split(',').filter(Boolean));
+                    setLeaders(allowed ? leadersData.filter(l => allowed.has(String(l.id))) : leadersData);
                 }
             } catch (error) {
                 console.error("Erro ao carregar dados da empresa e líderes:", error);
@@ -88,7 +93,7 @@ export const UsersTeamsLeadersByCompanyId: React.FC<UsersTeamsLeadersByCompanyId
         }
 
         return () => { cancelled = true; };
-    }, [companyId]);
+    }, [companyId, allowedKey]);
 
     if (isLoading) {
         return (

@@ -178,7 +178,8 @@ logAppVersion(__BUILD_ID__);
 
 const AppContent: React.FC = () => {
   const [minTimePassed, setMinTimePassed] = useState(false);
-  const [selectedCompanyForTracker, setSelectedCompanyForTracker] = useState<Company | null>(() => {
+  // trackerLeaderIds: líderes filtrados no painel de origem (ausente = todos da empresa).
+  const [selectedCompanyForTracker, setSelectedCompanyForTracker] = useState<(Company & { trackerLeaderIds?: string[] }) | null>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('screen') === 'users-tracker') {
       const stored = localStorage.getItem('tracker_company');
@@ -2883,6 +2884,7 @@ const AppContent: React.FC = () => {
         return selectedCompanyForTracker ? (
           <UsersTracker
             company={selectedCompanyForTracker}
+            leaderIds={selectedCompanyForTracker.trackerLeaderIds}
             onBack={() => setCurrentScreen('orders-dashboard')}
           />
         ) : null;
@@ -2927,12 +2929,13 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleTrackUsers = (company: Company) => {
+  const handleTrackUsers = (company: Company, leaderIds?: string[]) => {
+    const target = { ...company, trackerLeaderIds: leaderIds };
     if (Capacitor.isNativePlatform()) {
-      setSelectedCompanyForTracker(company);
+      setSelectedCompanyForTracker(target);
       setCurrentScreen('users-tracker');
     } else {
-      localStorage.setItem('tracker_company', JSON.stringify(company));
+      localStorage.setItem('tracker_company', JSON.stringify(target));
       window.open(window.location.pathname + '?screen=users-tracker', '_blank');
     }
   };

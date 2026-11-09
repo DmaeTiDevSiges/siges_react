@@ -2,8 +2,8 @@ import { dataService } from '../dataService';
 import { getOfflineStore } from './offlineConfig';
 import { OFFLINE_COLLECTIONS } from './store/offlineStore';
 import { deleteLockToken, saveLockToken } from './offlineLocks';
-import { materialsCatalogKey } from './offlineFlowOps';
-import { MATERIALS_CATALOG_LIMIT } from './offlineCatalog';
+import { materialsCatalogKey, vehiclesCatalogKey } from './offlineFlowOps';
+import { MATERIALS_CATALOG_LIMIT, VEHICLES_CATALOG_LIMIT } from './offlineCatalog';
 
 /**
  * "Preparar para campo" (F1, item 1.5).
@@ -249,6 +249,15 @@ export const prepareFieldPackage = async (
         }
         await getOfflineStore().put(OFFLINE_COLLECTIONS.catalog, materialsCatalogKey(providerId), list);
     });
+    // ── 5. Cadastro de veículos da empresa (incluir veículo sem internet) ──
+    // Mesma empresa que a tela usa na busca (OrderVisitScreen → providerCompanyId).
+    const vehicleCompanyId = visit.providerCompanyId ? String(visit.providerCompanyId) : '';
+    if (vehicleCompanyId) {
+        catalogTasks.push(async () => {
+            const list = await dataService.searchVehicles('', vehicleCompanyId, VEHICLES_CATALOG_LIMIT);
+            await getOfflineStore().put(OFFLINE_COLLECTIONS.catalog, vehiclesCatalogKey(vehicleCompanyId), list || []);
+        });
+    }
     total += catalogTasks.length;
     failedReads += await runLimited(catalogTasks, 2, tick);
 

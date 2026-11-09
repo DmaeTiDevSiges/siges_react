@@ -55,7 +55,7 @@ interface OrdersRequestsPeriodDashboardAdminProps {
     currentUser: User | null;
     onSelectOrder?: (order: Order) => void;
     onSelectVisit?: (visit: OrderVisit) => void;
-    onTrackUsers?: (company: Company) => void;
+    onTrackUsers?: (company: Company, leaderIds?: string[]) => void;
     onCreateServiceRequest?: () => void;
     onNavigate?: (path: string) => void;
     onEdit?: (order: Order) => void;

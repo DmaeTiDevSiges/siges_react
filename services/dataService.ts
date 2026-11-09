@@ -2365,7 +2365,7 @@ export const dataService = {
         return visitsService.removeTeamMember.apply(visitsService, arguments as any);
     },
 
-    async addTeamMember(visitId: string, userId: string): Promise<void> {
+    async addTeamMember(visitId: string, userId: string, options?: { idempotent?: boolean }): Promise<void> {
         return visitsService.addTeamMember.apply(visitsService, arguments as any);
     },
 
@@ -2400,7 +2400,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.getOrderVisitVehicles.apply(visitsService, arguments as any);
     },
 
-    async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string): Promise<void> {
+    async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string, options?: { clientUuid?: string }): Promise<void> {
         return visitsService.addVehicleToOrderVisit.apply(visitsService, arguments as any);
     },
 

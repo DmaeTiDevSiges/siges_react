@@ -4,7 +4,7 @@ import { getOfflineStore, isOfflinePlatform, isOfflineSupported, isOnline } from
 import { networkFailureCount } from './networkFailures';
 import { OFFLINE_OPS, registerOfflineOps, setOfflineOpsStore, visitOfOva, type OfflineOpContext, type OfflineOpSpec } from './offlineOps';
 import { OFFLINE_FLOW_OPS } from './offlineFlowOps';
-import { searchMaterialsOffline } from './offlineCatalog';
+import { searchMaterialsOffline, searchVehiclesOffline } from './offlineCatalog';
 import { OFFLINE_FILE_OPS } from './offlineFileOps';
 import { deleteOfflineFile, initOfflineFiles, isOfflineFileRef } from './offlineFiles';
 import {
@@ -105,6 +105,8 @@ export const OFFLINE_WRITE_METHODS = [
     'removeServiceFromOrderVisit',
     'removeVehicleFromOrderVisit',
     'removeAssetFromOrderVisit',
+    'addTeamMember',
+    'removeTeamMember',
     // D — arquivos
     'uploadOrderVisitAssetPhoto',
     'removeOrderVisitAssetPhoto',
@@ -126,11 +128,18 @@ export const OFFLINE_WRITE_METHODS = [
     'reverseOrderVisitApproval',
     'deleteOrderVisit',
     'changeOrderVisitAsset',
-    'addTeamMember',
-    'removeTeamMember',
     'lockOrderVisitAsset',
     'unlockOrderVisitAsset',
 ] as const;
+
+/**
+ * Leituras complementares sem cache (ex.: veículo incluído sem internet): sem
+ * aviso, devolvem "vazio" — a tela segue sem o Km anterior / contrato de locação.
+ */
+const OPTIONAL_READ_FALLBACKS: Record<string, () => unknown> = {
+    getPreviousVehicleOdometer: () => null,
+    getRentalContracts: () => [],
+};
 
 export class OfflineWriteBlockedError extends Error {
     readonly method: string;
@@ -266,6 +275,15 @@ export const installOfflineLayer = (target: Record<string, any>): void => {
         };
     }
 
+    // Inclusão de veículo sem internet → cadastro da empresa baixado no preparo.
+    const originalVehicleSearch = target.searchVehicles as AnyFn | undefined;
+    if (typeof originalVehicleSearch === 'function') {
+        target.searchVehicles = function (this: unknown, ...args: any[]) {
+            if (!isOfflineSupported() || isOnline()) return originalVehicleSearch.apply(this, args);
+            return searchVehiclesOffline(getOfflineStore(), args[0], args[1], args[2]);
+        };
+    }
+
     for (const name of OFFLINE_READ_METHODS) {
         const original = target[name] as AnyFn | undefined;
         if (typeof original !== 'function') {
@@ -275,7 +293,10 @@ export const installOfflineLayer = (target: Record<string, any>): void => {
         target[name] = function (this: unknown, ...args: any[]) {
             if (!isOfflineSupported()) return original.apply(this, args);
             return cachedRead(offlineReadDeps(), name, args, () => original.apply(this, args)).catch(error => {
-                if (error instanceof OfflineCacheMissError) notifyOnce(error.message);
+                if (error instanceof OfflineCacheMissError) {
+                    if (name in OPTIONAL_READ_FALLBACKS) return OPTIONAL_READ_FALLBACKS[name]();
+                    notifyOnce(error.message);
+                }
                 throw error;
             });
         };

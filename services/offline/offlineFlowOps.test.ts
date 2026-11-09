@@ -20,7 +20,7 @@ import { cacheKey, readCached, registerReadKey, resetReadIndex } from './readCac
 import { createMemoryOutboxStorage, createOutbox } from './outbox';
 import { runSync, type SyncDeps } from './syncEngine';
 import { networkFailureCount, resetNetworkFailures } from './networkFailures';
-import { filterMaterials, searchMaterialsOffline } from './offlineCatalog';
+import { filterMaterials, filterVehicles, searchMaterialsOffline, searchVehiclesOffline } from './offlineCatalog';
 import { insertWithClientUuid } from '../core/clientUuidInsert';
 
 type Store = ReturnType<typeof createMemoryStore>;
@@ -256,5 +256,86 @@ describe('insertWithClientUuid', () => {
     it('sem clientUuid: insert normal', async () => {
         await insertWithClientUuid('t', { a: 1 });
         expect(insertCalls).toEqual([{ a: 1 }]);
+    });
+});
+
+describe('incluir/remover veículo offline', () => {
+    it('busca no cadastro baixado (descrição ou placa) e respeita o limite', async () => {
+        const store = createMemoryStore();
+        await store.put(OFFLINE_COLLECTIONS.catalog, 'vehicles:5', [
+            { id: '1', description: 'Strada Branca', plates: 'ABC1D23' },
+            { id: '2', description: 'Saveiro', plates: 'XYZ9K88' },
+        ]);
+        expect((await searchVehiclesOffline(store, 'strada', '5')).map(v => v.id)).toEqual(['1']);
+        expect((await searchVehiclesOffline(store, 'xyz9', '5')).map(v => v.id)).toEqual(['2']);
+        expect(await searchVehiclesOffline(store, '', '5', 1)).toHaveLength(1);
+        expect(await searchVehiclesOffline(store, 'strada', '6')).toEqual([]);
+        expect(filterVehicles([{ description: 'A', plates: 'B' }], '  ')).toHaveLength(1);
+    });
+
+    it('inclui linha de Km vazia com id temporário e dados do cadastro', async () => {
+        const store = createMemoryStore();
+        await store.put(OFFLINE_COLLECTIONS.catalog, 'vehicles:5', [{ id: '9', description: 'Strada', plates: 'ABC1D23' }]);
+        await put(store, 'getOrderVisitVehicles', ['70'], []);
+        const args = await OFFLINE_FLOW_OPS.addVehicleToOrderVisit.prepareArgs!(['70', '9', '1']);
+        await OFFLINE_FLOW_OPS.addVehicleToOrderVisit.applyLocal(ctxOf(store), args);
+        const [item] = await read(store, 'getOrderVisitVehicles', ['70']);
+        expect(item).toMatchObject({ id: `tmp:${args[3].clientUuid}`, vehicleId: '9', plates: 'ABC1D23', costType: 'odometer', recorderStart: null });
+        // Encerrar offline continua exigindo o Km do veículo incluído.
+        await expect(validateCloseVisitLocal(store, '70')).rejects.toThrow(/Km/);
+    });
+
+    it('Km e remoção do temporário seguem o insert e resolvem o id real', async () => {
+        const args = await OFFLINE_FLOW_OPS.addVehicleToOrderVisit.prepareArgs!(['70', '9', '1']);
+        const tmp = `tmp:${args[3].clientUuid}`;
+        const key = OFFLINE_FLOW_OPS.addVehicleToOrderVisit.entityKey(args);
+        expect(OFFLINE_OPS.updateVehicleKm.entityKey([tmp, 100])).toBe(key);
+        expect(OFFLINE_FLOW_OPS.removeVehicleFromOrderVisit.entityKey([tmp])).toBe(key);
+        expect(OFFLINE_OPS.updateVehicleKm.tmpIdTable).toBe('orders_visits_vehicles');
+        expect(OFFLINE_FLOW_OPS.removeVehicleFromOrderVisit.tmpIdTable).toBe('orders_visits_vehicles');
+    });
+
+    it('remover antes de subir anula insert + Km', async () => {
+        const outbox = createOutbox(createMemoryOutboxStorage());
+        const add = await OFFLINE_FLOW_OPS.addVehicleToOrderVisit.prepareArgs!(['70', '9', '1']);
+        const tmp = `tmp:${add[3].clientUuid}`;
+        await outbox.enqueue({ method: 'addVehicleToOrderVisit', args: add, userUuid: 'u' });
+        await outbox.enqueue({ method: 'updateVehicleKm', args: [tmp, 100, 150], userUuid: 'u' });
+        await outbox.enqueue({ method: 'updateVehicleKm', args: ['33', 5], userUuid: 'u' });
+        const spec = OFFLINE_FLOW_OPS.removeVehicleFromOrderVisit;
+        const cancelled = await outbox.removeWhere(op => spec.cancelsPending!([tmp], op));
+        expect(cancelled.map(c => c.method)).toEqual(['addVehicleToOrderVisit', 'updateVehicleKm']);
+        expect((spec.skipIfCancelled as Function)(cancelled)).toBe(true);
+    });
+});
+
+describe('equipe offline', () => {
+    it('inclui membro com nome da lista de usuários e não duplica', async () => {
+        const store = createMemoryStore();
+        await put(store, 'getUsers', [], [{ id: '12', nameShort: 'Messias', avatarUrl: 'a.png' }]);
+        await put(store, 'getOrderVisitTeam', ['70'], [{ id: '1', userId: 3, isLeader: true, userName: 'Líder' }]);
+        const args = await OFFLINE_FLOW_OPS.addTeamMember.prepareArgs!(['70', '12']);
+        expect(args[2]).toEqual({ idempotent: true });
+        await OFFLINE_FLOW_OPS.addTeamMember.applyLocal(ctxOf(store), args);
+        await OFFLINE_FLOW_OPS.addTeamMember.applyLocal(ctxOf(store), args);
+        const team = await read(store, 'getOrderVisitTeam', ['70']);
+        expect(team).toHaveLength(2);
+        expect(team[1]).toMatchObject({ userId: '12', userName: 'Messias', userAvatarUrl: 'a.png', isLeader: false });
+    });
+
+    it('remover tira da lista; se a inclusão não subiu, anula e não vai ao servidor', async () => {
+        const store = createMemoryStore();
+        await put(store, 'getOrderVisitTeam', ['70'], [{ id: '1', userId: 3 }, { id: '2', userId: 12 }]);
+        await OFFLINE_FLOW_OPS.removeTeamMember.applyLocal(ctxOf(store), ['70', '12']);
+        expect((await read(store, 'getOrderVisitTeam', ['70'])).map((m: any) => m.userId)).toEqual([3]);
+
+        const outbox = createOutbox(createMemoryOutboxStorage());
+        await outbox.enqueue({ method: 'addTeamMember', args: ['70', '12', { idempotent: true }], userUuid: 'u' });
+        await outbox.enqueue({ method: 'addTeamMember', args: ['70', '13', { idempotent: true }], userUuid: 'u' });
+        const spec = OFFLINE_FLOW_OPS.removeTeamMember;
+        const cancelled = await outbox.removeWhere(op => spec.cancelsPending!(['70', '12'], op));
+        expect(cancelled.map(c => c.args[1])).toEqual(['12']);
+        expect(spec.skipIfCancelled).toBe(true);
+        expect(spec.entityKey(['70', '12'])).toBe(OFFLINE_FLOW_OPS.addTeamMember.entityKey(['70', '12']));
     });
 });

@@ -79,7 +79,8 @@ Levantado em `views/OrderVisit/**` e `components/ordersVisits/**` (sem chat e fi
   respostas e histórico de cada um — o técnico pode escolher/trocar o plano sem internet.
 - **Materiais:** `getProviderCompanyByOvAssetId`, `getAvailableMaterials` (catálogo do fornecedor; estoque = foto do momento)
 - **Serviços:** `getOrderVisitServices`, `getContractServices`
-- **Veículos:** `getOrderVisitVehicles`, `getPreviousVehicleOdometer`, `getRentalContracts`
+- **Veículos:** `getOrderVisitVehicles`, `getPreviousVehicleOdometer`, `getRentalContracts`, `searchVehicles` (cadastro da empresa, até 1.000)
+- **Equipe:** `getOrderVisitTeam`, `getUsers` (lista para incluir membro)
 
 ### B. Gravações simples → fila, última gravação vence por campo
 
@@ -91,7 +92,8 @@ Levantado em `views/OrderVisit/**` e `components/ordersVisits/**` (sem chat e fi
 ### C. Inserts → fila com `client_uuid`
 
 `addMaterialToAsset`, `addServiceToOrderVisit`, `addVehicleToOrderVisit`, `addIdleToOrderVisit`,
-`addAssetToOrderVisit` (só ativos já no pacote da unidade)
+`addAssetToOrderVisit` (só ativos já no pacote da unidade), `addTeamMember`/`removeTeamMember`
+(sem `client_uuid`: chave visita+usuário e inclusão idempotente no envio)
 
 Remoções correspondentes (`removeMaterialFromAsset`, `removeServiceFromOrderVisit`,
 `removeVehicleFromOrderVisit`, `removeAssetFromOrderVisit`): se o item ainda não subiu,
@@ -118,8 +120,8 @@ isso vira RPC com `array_append` no servidor (F3).
 
 `disapproveOrderVisitAsset`, `disapproveOrderVisit`, `fileOrderVisit`, `markOrderVisitAsRevised`,
 `reverseOrderVisitApproval`, `deleteOrderVisit`, `changeOrderVisitAsset`, `checkMovedAssetsForVisit`,
-`getReassignPreview`, `addTeamMember`, `removeTeamMember`, `getUsers`, `searchUnits`,
-`getAssets` (busca livre), `searchVehicles`, chat da visita, painel de IA.
+`getReassignPreview`, `searchUnits`, `getAssets` (busca livre), `addIdleToOrderVisit`,
+chat da visita, painel de IA.
 
 ## Fases
 
