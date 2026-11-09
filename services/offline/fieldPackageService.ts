@@ -161,6 +161,18 @@ export const prepareFieldPackage = async (
 
     // ── 3. Ativos (OrderVisitAssetReport, atividades, materiais, checklist) ─
     const providerIds = new Set<string>();
+    // Estrutura de cada plano (seções + atividades) baixada uma vez só, mesmo que
+    // vários ativos da visita usem o mesmo plano.
+    const planStructures = new Map<string, Promise<unknown>>();
+    const loadPlanStructure = (planId: string) => {
+        if (!planStructures.has(planId)) {
+            planStructures.set(planId, (async () => {
+                const sections = await dataService.getMaintenancePlanSections(planId);
+                await Promise.all((sections || []).map(s => dataService.getMaintenancePlanSectionActivities(String(s.id))));
+            })());
+        }
+        return planStructures.get(planId)!;
+    };
     for (const a of assets || []) {
         const ovaId = String(a.id);
         tasks.push(async () => {
@@ -193,22 +205,28 @@ export const prepareFieldPackage = async (
             const unitId = data.afterUnitId || data.beforeUnitId;
             if (clientId) sub.push(() => dataService.getUnitsByClient(String(clientId)));
             if (unitId) sub.push(() => dataService.getAssetTagsByUnit(String(unitId)));
-            if (data.assetTypeId) sub.push(() => dataService.getMaintenancePlans(String(data.assetTypeId)));
-
-            const planId = data.maintenancePlanId && data.maintenancePlanId !== '0' ? String(data.maintenancePlanId) : '';
-            if (planId) {
-                sub.push(
-                    async () => {
-                        const sections = await dataService.getMaintenancePlanSections(planId);
-                        await Promise.all((sections || []).map(s => dataService.getMaintenancePlanSectionActivities(String(s.id))));
-                    },
-                    () => dataService.getMaintenanceChecklistItems(ovaId, planId),
-                    () =>
-                        data.assetId
-                            ? dataService.getGlobalMaintenanceChecklistItems(String(data.assetId), planId, ovaId)
-                            : Promise.resolve(),
-                );
-            }
+            // Planos de manutenção: TODOS os disponíveis para o tipo do ativo, não só o
+            // já selecionado — em campo o técnico pode escolher/trocar o plano sem internet
+            // (updateOrderVisitAssetPlan entra na fila). Para cada plano: estrutura
+            // (seções + atividades), respostas desta visita e histórico do ativo
+            // (as mesmas leituras de MaintenanceChecklistView.handlePlanSelect).
+            const selectedPlanId = data.maintenancePlanId && data.maintenancePlanId !== '0' ? String(data.maintenancePlanId) : '';
+            const loadPlanForAsset = (planId: string) => Promise.all([
+                loadPlanStructure(planId),
+                dataService.getMaintenanceChecklistItems(ovaId, planId),
+                data.assetId
+                    ? dataService.getGlobalMaintenanceChecklistItems(String(data.assetId), planId, ovaId)
+                    : Promise.resolve(),
+            ]);
+            sub.push(async () => {
+                const planIds = new Set<string>();
+                if (selectedPlanId) planIds.add(selectedPlanId);
+                if (data.assetTypeId) {
+                    const plans = await dataService.getMaintenancePlans(String(data.assetTypeId));
+                    for (const plan of plans || []) if (plan?.id) planIds.add(String(plan.id));
+                }
+                await Promise.all([...planIds].map(loadPlanForAsset));
+            });
             total += sub.length;
             const failed = await runLimited(sub, 3, tick);
             if (failed) throw new Error(`${failed} leituras do ativo ${ovaId} falharam`);

@@ -763,29 +763,13 @@ export const usersService = {
         }
     },
 
+    /**
+     * "Empresta" o usuário para a equipe do líder. team_id_previous guarda SEMPRE a
+     * equipe de CASA (um nível só): se ele já estava emprestado, a origem não é
+     * sobrescrita (X → Y → Z volta direto para X); se está voltando para a própria
+     * equipe de origem, a origem é apagada (voltou para casa).
+     */
     async addUserToTeam(userId: string, newTeamId: string): Promise<void> {
-        const { data: user, error: fetchError } = await supabase
-            .from('users')
-            .select('team_id')
-            .eq('uuid', userId)
-            .single();
-
-        if (fetchError) throw fetchError;
-
-        const oldTeamId = user.team_id;
-
-        const { error: updateError } = await supabase
-            .from('users')
-            .update({
-                team_id_previous: oldTeamId,
-                team_id: parseInt(newTeamId)
-            })
-            .eq('uuid', userId);
-
-        if (updateError) throw updateError;
-    },
-
-    async removeUserFromTeam(userId: string): Promise<void> {
         const { data: user, error: fetchError } = await supabase
             .from('users')
             .select('team_id, team_id_previous')
@@ -794,10 +778,46 @@ export const usersService = {
 
         if (fetchError) throw fetchError;
 
+        const targetTeamId = parseInt(newTeamId);
+        const homeTeamId = user.team_id_previous ?? user.team_id;
+        const teamIdPrevious = homeTeamId === targetTeamId ? null : homeTeamId;
+
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({
+                team_id_previous: teamIdPrevious,
+                team_id: targetTeamId
+            })
+            .eq('uuid', userId);
+
+        if (updateError) throw updateError;
+    },
+
+    /**
+     * Remove o membro da equipe atual DEVOLVENDO-O à equipe de origem (team_id_previous,
+     * gravada por addUserToTeam). Todo usuário precisa ter equipe, então:
+     *   - sem equipe de origem → erro code 'NO_ORIGIN_TEAM' (só admin transfere, em Departamentos);
+     *   - com visita em andamento → erro code 'MEMBER_IN_VISIT'.
+     * O banco confere as mesmas regras (migration 20261120).
+     */
+    async removeUserFromTeam(userId: string): Promise<void> {
+        const { data: user, error: fetchError } = await supabase
+            .from('users')
+            .select('team_id, team_id_previous, is_ov_in_progress, ov_id_in_progress')
+            .eq('uuid', userId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        if (user.is_ov_in_progress || Number(user.ov_id_in_progress || 0) > 0) {
+            throw Object.assign(new Error('O membro está com uma visita em andamento.'), { code: 'MEMBER_IN_VISIT' });
+        }
+
         const previousTeamId = user.team_id_previous;
-        const teamId = previousTeamId != null && previousTeamId !== user.team_id
-            ? previousTeamId
-            : null;
+        if (previousTeamId == null || previousTeamId === user.team_id) {
+            throw Object.assign(new Error('O membro não tem equipe de origem para onde voltar.'), { code: 'NO_ORIGIN_TEAM' });
+        }
+        const teamId = previousTeamId;
         const { data: updatedUser, error } = await supabase
             .from('users')
             .update({ team_id: teamId, team_id_previous: null })
@@ -811,10 +831,15 @@ export const usersService = {
         }
     },
 
+    /**
+     * Transferência DEFINITIVA (admin, Departamentos): a equipe nova vira a de casa e a
+     * origem de empréstimo é apagada. Todo usuário precisa ter equipe — sem destino, recusa.
+     */
     async updateUserTeam(userId: string, teamId: string | null): Promise<void> {
+        if (!teamId) throw new Error('Todo usuário precisa estar em uma equipe: informe a equipe de destino.');
         const { error } = await supabase
             .from('users')
-            .update({ team_id: teamId ? parseInt(teamId) : null })
+            .update({ team_id: parseInt(teamId), team_id_previous: null })
             .eq('uuid', userId);
 
         if (error) {
@@ -824,6 +849,8 @@ export const usersService = {
     },
 
     async createUser(user: Partial<User>, password: string): Promise<void> {
+        // Todo usuário precisa estar em uma equipe (também conferido no banco, 20261120).
+        if (!user.teamId) throw new Error('Selecione a equipe do usuário.');
         const { createClient } = await import('@supabase/supabase-js');
 
         const tempSupabase = createClient(

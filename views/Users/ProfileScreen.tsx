@@ -93,6 +93,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [currentUser, setCurrentLoggedUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
+    // Equipe e veículo: admin altera de qualquer um; fora isso, só o próprio usuário
+    // quando ele é LÍDER de equipe (is_team_leader do usuário logado).
+    const canEditTeamAndVehicle = isAdmin || (isOwner && !!currentUser?.isTeamLeader);
     const [teamMembers, setTeamMembers] = useState<User[]>([]);
     const [memberToRemove, setMemberToRemove] = useState<User | null>(null);
     const [isRemovingMember, setIsRemovingMember] = useState(false);
@@ -648,13 +651,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 message: 'Membro removido da equipe.',
                 type: 'success'
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error removing member", error);
+            const memberName = memberToRemove?.nameShort || memberToRemove?.nameFull || 'O membro';
             setMemberToRemove(null);
+            // Todo usuário precisa ter equipe: a remoção só DEVOLVE o membro à equipe de origem.
+            const message = error?.code === 'NO_ORIGIN_TEAM'
+                ? `${memberName} não tem equipe de origem para onde voltar. Peça a um administrador para transferi-lo para outra equipe.`
+                : error?.code === 'MEMBER_IN_VISIT'
+                    ? `${memberName} está com uma visita em andamento. Remova-o depois que a visita for encerrada.`
+                    : (error?.message && /equipe/i.test(error.message) ? error.message : 'Não foi possível remover o membro.');
             setModal({
                 isOpen: true,
-                title: 'Erro',
-                message: 'Não foi possível remover o membro.',
+                title: 'Não foi possível remover',
+                message,
                 type: 'error'
             });
         } finally {
@@ -1049,7 +1059,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                             label="Equipe"
                                             value={teamId}
                                             onChange={(e) => setTeamId(e.target.value)}
-                                            disabled={!isEditing || !isAdmin}
+                                            // Admin, ou o próprio usuário se for líder de equipe (canEditTeamAndVehicle).
+                                            disabled={!isEditing || !canEditTeamAndVehicle}
                                             options={teams.map(t => ({ value: t.id, label: t.name }))}
                                         />
                                         <div>
@@ -1070,7 +1081,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">Veículo Atual</label>
-                                            {(isEditing && (isOwner || isAdmin)) ? (
+                                            {(isEditing && canEditTeamAndVehicle) ? (
                                                 <Select
                                                     value={currentVehicle?.id || ''}
                                                     onChange={(e) => {
@@ -1122,6 +1133,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                         </button>
                                         {isTeamExpanded && (
                                             <div className="p-4 pt-0 space-y-4 border-t border-slate-100 dark:border-slate-800/50 animation-slide-down">
+                                                {/* Adicionar/remover membros muda a equipe de outras pessoas: só admin ou líder
+                                                    (o banco confere: migration 20261120). Os demais só veem a lista. */}
+                                                {canEditTeamAndVehicle && (<>
                                                 <div className="relative mt-4">
                                                     <input
                                                         type="text"
@@ -1152,6 +1166,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                         ))}
                                                     </div>
                                                 )}
+                                                </>)}
                                                 <div className="space-y-1 pt-2">
                                                     <div className="text-xs font-semibold text-slate-400 uppercase px-1 pb-1">Membros Atuais</div>
                                                     {teamMembers.length === 0 ? (
@@ -1165,9 +1180,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                                         <div className="font-medium text-slate-900 dark:text-white">{member.nameShort || member.nameFull}</div>
                                                                     </div>
                                                                 </div>
-                                                                <button onClick={() => setMemberToRemove(member)} className="w-8 h-8 flex items-center justify-center rounded-full border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Remover da equipe">
+                                                                {canEditTeamAndVehicle && <button onClick={() => setMemberToRemove(member)} className="w-8 h-8 flex items-center justify-center rounded-full border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Remover da equipe">
                                                                     <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                                </button>
+                                                                </button>}
                                                             </div>
                                                         ))
                                                     )}
@@ -1272,7 +1287,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                             <section className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700">
                                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Assinatura Digital</h3>
 
-                                {user?.isTeamLeader ? (
+                                {/* Qualquer usuário cria/altera a PRÓPRIA assinatura (antes: só líderes);
+                                    admin altera de qualquer um. RLS 20261113 permite a própria linha. */}
+                                {(isOwner || isAdmin) ? (
                                     <Card className="p-5 flex flex-col gap-4 relative overflow-hidden group hover:border-primary/30 transition-all border-dashed border-2">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
@@ -1357,8 +1374,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                             <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
                                                 <span className="material-symbols-outlined text-3xl text-slate-400">draw</span>
                                             </div>
-                                            <p className="font-semibold text-slate-700 dark:text-slate-300">Somente líderes</p>
-                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Apenas líderes de equipe podem salvar assinatura padrão.</p>
+                                            <p className="font-semibold text-slate-700 dark:text-slate-300">{signatureUrl ? 'Assinatura cadastrada' : 'Sem assinatura'}</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Só o próprio usuário ou um administrador pode criar ou alterar a assinatura.</p>
                                         </div>
                                     </div>
                                 )}
@@ -1568,7 +1585,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 onClose={() => setMemberToRemove(null)}
                 onConfirm={handleRemoveMember}
                 title="Remover integrante da equipe"
-                description={`Deseja realmente remover ${memberToRemove?.nameShort || memberToRemove?.nameFull || 'este integrante'} da equipe?`}
+                description={`Deseja realmente remover ${memberToRemove?.nameShort || memberToRemove?.nameFull || 'este integrante'} da equipe? Ele voltará para a equipe de origem.`}
                 confirmText="REMOVER"
                 isLoading={isRemovingMember}
             />

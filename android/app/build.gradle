@@ -27,9 +27,23 @@ task npmBuildAndSync(type: Exec) {
 preBuild.dependsOn npmBuildAndSync
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── Identificador do app (applicationId) ───────────────────────────────────
+// Desde nov/2026 o app é br.com.sigesapp. A versão de TRANSIÇÃO (última do pacote
+// antigo, com a tela de migração) é gerada com SIGES_APPLICATION_ID=com.ag.siges.
+// O pacote Java (namespace com.ag.siges) não muda.
+def sigesApplicationId = (System.getenv('SIGES_APPLICATION_ID')
+        ?: project.findProperty('sigesApplicationId')
+        ?: 'br.com.sigesapp').toString().trim()
+// ─────────────────────────────────────────────────────────────────────────────
 // ─── Auto-increment versionCode ─────────────────────────────────────────────
 // Lê o version_app_mask do app_version.txt e gera versionCode automaticamente
 def getAppVersion = { ->
+    // O versionName/versionCode é lido na CONFIGURAÇÃO do Gradle, antes do hook
+    // npmBuildAndSync gravar a versão nova no app_version.txt. Se a versão veio por
+    // APP_VERSION (build-apk.sh/ps1 <versão>), usa ela já aqui — senão o APK sairia
+    // com a versão anterior (ex.: arquivo/JS 1.1.64, Android 1.1.63).
+    def envVersion = System.getenv('APP_VERSION')
+    if (envVersion?.trim()) return envVersion.trim()
     try {
         def versionFile = file('../../public/app_version.txt')
         if (versionFile.exists()) {
@@ -79,7 +93,10 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     defaultConfig {
-        applicationId "com.ag.siges"
+        applicationId sigesApplicationId
+        // Antes fixos em strings.xml; agora acompanham o applicationId.
+        resValue "string", "package_name", sigesApplicationId
+        resValue "string", "custom_url_scheme", sigesApplicationId
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode getVersionCode()

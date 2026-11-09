@@ -39,8 +39,6 @@ const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
     const [isLoading, setIsLoading] = useState(true);
     const [isActivating, setIsActivating] = useState(false);
     const [isReturning, setIsReturning] = useState(false);
-    const [checklistSaved, setChecklistSaved] = useState(false);
-    const [afterChecklistComplete, setAfterChecklistComplete] = useState(false);
     const [signingType, setSigningType] = useState<'delivery' | 'return' | null>(null);
     const [isSavingSignature, setIsSavingSignature] = useState(false);
     const [deletingSignatureType, setDeletingSignatureType] = useState<'delivery' | 'return' | null>(null);
@@ -95,21 +93,6 @@ const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
         setAfterItems(after);
     };
 
-    useEffect(() => {
-        if (loan.status === 'analysis') {
-            checkChecklistComplete();
-        }
-    }, [loan.id, loan.status]);
-
-    const checkChecklistComplete = async () => {
-        try {
-            const complete = await dataService.isAssetLoanChecklistComplete(loan.id, 'before');
-            setChecklistSaved(complete);
-        } catch {
-            setChecklistSaved(false);
-        }
-    };
-
     const loadAsset = async () => {
         try {
             setIsLoading(true);
@@ -121,13 +104,41 @@ const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
         }
     };
 
-    const handleActivate = async () => {
-        const checklistComplete = await dataService.isAssetLoanChecklistComplete(loan.id, 'before');
-        
-        if (!checklistComplete) {
-            toast.error('O checklist "antes" deve ser preenchido para ativar o empréstimo');
-            return;
+    /**
+     * Regras de cada fase, calculadas do que já está SALVO (itens recarregados do banco
+     * após salvar) — mesmas da Cedência/Recebimento (AssetInspectionDetails):
+     *   - ao menos um item e nenhum "pendente";
+     *   - ao menos uma foto em cada item danificado.
+     */
+    const phaseReadiness = (items: ChecklistItemState[] | null) => {
+        const saved = items ?? [];
+        const pending = saved.filter(i => i.status === 'pending').length;
+        const damagedWithoutPhoto = saved.filter(i => i.status === 'damaged' && (i.images?.length ?? 0) === 0).length;
+        return {
+            total: saved.length,
+            pending,
+            damagedWithoutPhoto,
+            ready: saved.length > 0 && pending === 0 && damagedWithoutPhoto === 0,
+        };
+    };
+    const beforeReadiness = phaseReadiness(beforeItems);
+    const afterReadiness = phaseReadiness(afterItems);
+
+    /** Mostra o motivo exato do bloqueio; true = fase pronta. */
+    const checkPhaseReady = (phaseLabel: string, r: ReturnType<typeof phaseReadiness>): boolean => {
+        if (r.total === 0 || r.pending > 0) {
+            toast.error(`Preencha e salve todos os itens do checklist "${phaseLabel}"${r.pending > 0 ? ` (${r.pending} pendente(s))` : ''}.`);
+            return false;
         }
+        if (r.damagedWithoutPhoto > 0) {
+            toast.error(`Todo item danificado precisa de ao menos uma foto no checklist "${phaseLabel}" (${r.damagedWithoutPhoto} sem foto).`);
+            return false;
+        }
+        return true;
+    };
+
+    const handleActivate = async () => {
+        if (!checkPhaseReady('antes', beforeReadiness)) return;
 
         if (!loan.signatureDeliveryPath) {
             toast.error('A assinatura do solicitante é obrigatória para confirmar a entrega');
@@ -149,6 +160,8 @@ const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
     };
 
     const handleReturn = async () => {
+        if (!checkPhaseReady('depois', afterReadiness)) return;
+
         if (!loan.signatureReturnPath) {
             toast.error('A assinatura do solicitante é obrigatória para confirmar a devolução');
             return;
@@ -169,7 +182,6 @@ const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
     };
 
     const handleChecklistSave = async () => {
-        setChecklistSaved(true);
         await loadBothChecklists();
         toast.success('Checklist salvo com sucesso!');
     };
@@ -383,7 +395,6 @@ const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
                     userId={currentUser?.id}
                     items={activeTab === 'before' ? beforeItems ?? undefined : afterItems ?? undefined}
                     onSave={handleChecklistSave}
-                    onCompleteChange={activeTab === 'after' ? setAfterChecklistComplete : undefined}
                 />
             )}
 
@@ -503,9 +514,9 @@ const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
                 {isPending && canCreate('assets_loans') && (
                     <button
                         onClick={handleActivate}
-                        disabled={isActivating || !checklistSaved || !loan.signatureDeliveryPath}
+                        disabled={isActivating || !beforeReadiness.ready || !loan.signatureDeliveryPath}
                         className={`flex-1 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
-                            checklistSaved && loan.signatureDeliveryPath
+                            beforeReadiness.ready && loan.signatureDeliveryPath
                                 ? 'animate-pulse shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50'
                                 : ''
                         }`}
@@ -524,9 +535,9 @@ const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
                 {isActive && activeTab === 'after' && canCreate('assets_loans') && (
                     <button
                         onClick={handleReturn}
-                        disabled={isReturning || !afterChecklistComplete || !loan.signatureReturnPath}
+                        disabled={isReturning || !afterReadiness.ready || !loan.signatureReturnPath}
                         className={`flex-1 py-3 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
-                            afterChecklistComplete && loan.signatureReturnPath
+                            afterReadiness.ready && loan.signatureReturnPath
                                 ? 'animate-pulse shadow-lg shadow-green-500/30 hover:shadow-green-500/50'
                                 : ''
                         }`}

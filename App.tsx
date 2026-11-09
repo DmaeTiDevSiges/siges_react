@@ -10,6 +10,7 @@ import { Button } from './components/ui/Button';
 import { SplashScreen } from './components/shell/SplashScreen';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import UpdateNotifier from './components/shell/UpdateNotifier';
+import { LegacyAppMigrationScreen } from './components/shell/LegacyAppMigrationScreen';
 import { LocationDisclosureModal } from './components/permissions/LocationDisclosureModal';
 import { dataService } from './services/dataService';
 import { getCachedCurrentUser } from './services/offline/offlineAuth';
@@ -3455,6 +3456,8 @@ const AppContent: React.FC = () => {
             }
           />
           <UpdateNotifier />
+          {/* App antigo (com.ag.siges): migração para br.com.sigesapp */}
+          <LegacyAppMigrationScreen />
         </div>
         )}
 

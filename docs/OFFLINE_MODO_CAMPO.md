@@ -74,7 +74,9 @@ Levantado em `views/OrderVisit/**` e `components/ordersVisits/**` (sem chat e fi
   `getManualsWithFilesForAssets` (metadados; PDF só se baixado)
 - **Checklist/planos:** `getMaintenancePlans`, `getMaintenancePlanSections`,
   `getMaintenancePlanSectionActivities`, `getMaintenanceChecklistItems`,
-  `getMaintenanceChecklistItemsByVisit`, `getGlobalMaintenanceChecklistItems` (histórico — opcional)
+  `getMaintenanceChecklistItemsByVisit`, `getGlobalMaintenanceChecklistItems` (histórico — opcional).
+  O pacote baixa **todos os planos do tipo do ativo** (não só o já selecionado), com estrutura,
+  respostas e histórico de cada um — o técnico pode escolher/trocar o plano sem internet.
 - **Materiais:** `getProviderCompanyByOvAssetId`, `getAvailableMaterials` (catálogo do fornecedor; estoque = foto do momento)
 - **Serviços:** `getOrderVisitServices`, `getContractServices`
 - **Veículos:** `getOrderVisitVehicles`, `getPreviousVehicleOdometer`, `getRentalContracts`

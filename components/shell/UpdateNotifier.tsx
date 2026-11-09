@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { Modal } from '../ui/Modal';
 import { dataService } from '../../services/dataService';
 import { markReload } from '../../services/core/clientDiagnosticsService';
+import { CURRENT_APP_ID, isLegacyAppPackage } from '../../services/core/appIdentityService';
 import {
     getUpdateModalState,
     recordUpdateAttempt,
@@ -24,7 +25,7 @@ const CHECK_INTERVAL = 1000 * 60 * 5; // 5 minutes
  */
 const ANDROID_UPDATE_CHANNEL: 'play' | 'apk' =
     import.meta.env.VITE_ANDROID_UPDATE_CHANNEL === 'apk' ? 'apk' : 'play';
-const PLAY_STORE_PACKAGE = 'com.ag.siges';
+const PLAY_STORE_PACKAGE = CURRENT_APP_ID;
 const PLAY_STORE_WEB_URL = `https://play.google.com/store/apps/details?id=${PLAY_STORE_PACKAGE}`;
 const isPlayStoreBuild = () => Capacitor.isNativePlatform() && ANDROID_UPDATE_CHANNEL === 'play';
 const BANNER_AUTO_HIDE_MS = 1000 * 60 * 5; // 5 minutes auto-hide
@@ -125,6 +126,13 @@ const UpdateNotifier: React.FC = () => {
             try {
                 // Fetch the config from the database
                 const remoteConfig = await dataService.getAppConfig();
+                // App antigo (com.ag.siges) em migração: quem conduz é a
+                // LegacyAppMigrationScreen — o aviso de atualização não concorre.
+                if (remoteConfig?.new_apk_url && await isLegacyAppPackage()) {
+                    setShowModal(false);
+                    setShowBanner(false);
+                    return;
+                }
                 // Prefer version_app_mask for semantic comparison, fallback to version_app
                 const remoteMask = remoteConfig.version_app_mask || remoteConfig.version_app;
                 if (!remoteMask) return;
