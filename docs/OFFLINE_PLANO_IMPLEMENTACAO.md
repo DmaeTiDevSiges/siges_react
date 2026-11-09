@@ -4,9 +4,14 @@ Complementa [OFFLINE_MODO_CAMPO.md](OFFLINE_MODO_CAMPO.md) (decisões, inventár
 Estimativa total: **6 a 7 semanas, 1 dev**. Cada fase termina num APK testável e
 pode ir para produção com a flag desligada sem afetar ninguém.
 
-**Situação (08/11/2026):** F1–F4 com código pronto (`tsc` ok, 442 testes). **Próximo passo:
-[portão de validação no aparelho](#-portão-de-validação--f1-a-f4-no-aparelho-antes-da-f5)** —
-a F5 só começa depois dele.
+**Situação (09/11/2026):**
+- F1–F4 com código pronto (08/11). Em 09/11 entraram também: **incluir veículo** e
+  **incluir/remover membro da equipe** offline (F4) e a **etapa 1 do
+  [preparo automático](#preparo-automático-decisões-de-09112026)** (download sem o técnico tocar
+  em nada + barra de progresso + trava opção (a)). Testes de `services/offline`: 80 passando;
+  `tsc` do app inteiro em conferência.
+- **Próximo passo:** [portão de validação no aparelho](#-portão-de-validação--f1-a-f4-no-aparelho-antes-da-f5),
+  agora incluindo a etapa 1. Depois: etapa 2 (incluir ativo offline) → F5 → etapa 3 (iniciar visita offline).
 
 ---
 
@@ -22,8 +27,9 @@ a F5 só começa depois dele.
 
 - **Offline só no APK Android** (`Capacitor.isNativePlatform()`). A web continua online — evita
   SQLite em WASM e mantém o desenvolvimento simples. Desenvolvimento/testes no emulador.
-- **Offline ativo** = `isOfflineModeEnabled()` **e** plataforma nativa **e** visita preparada para campo.
-  Fora disso, o `dataService` se comporta exatamente como hoje.
+- **Offline ativo** = `isOfflineModeEnabled()` **e** plataforma nativa. Os dados chegam pelo
+  **preparo automático** (09/11/2026); o "Preparar para campo" manual continua como "atualizar
+  agora" e para reservar ativos. Fora disso, o `dataService` se comporta exatamente como hoje.
 - **Jest** usa um store em memória (mesma interface do SQLite) — a lógica da fila é testada sem aparelho.
 
 ## Estrutura de arquivos (nova)
@@ -329,7 +335,7 @@ piloto, custa dados de campo e confiança dos técnicos.
 - [ ] Reconectar: painel "Aguardando envio" zera sozinho; valores conferidos no banco
 - [ ] Forçar parada do app no meio do envio → reabrir → termina sem duplicar
 - [ ] Conflito: gestor libera o ativo com o técnico offline → ao reconectar, "Recusadas: N" → Descartar
-- [ ] Ativo não reservado no preparo: offline fica só consulta
+- [ ] Ativo **não** reservado (opção (a), 09/11): offline fica editável; ao reconectar a fila trava e sobe — ou vira "Recusadas" se outro técnico estiver com a trava
 
 **F3 — fotos e assinaturas**
 - [ ] Offline: fotos antes/depois em 2–3 ativos, fotos no checklist, assinatura do líder e do solicitante
@@ -398,8 +404,12 @@ Todos os itens marcados e nenhum defeito aberto que perca, duplique ou sobrescre
 | 2,5–3 | F2 | APK: edição simples offline + sincronização |
 | 4 | F3 | APK: fotos e assinaturas offline |
 | 5–5,5 | F4 | APK: visita completa offline, incluindo encerrar |
-| — | ⛔ Portão | F1–F4 validadas no aparelho real (roteiro acima); defeitos corrigidos |
-| 6–7 | F5 | Piloto em campo → liberação geral |
+| — | Preparo automático, etapa 1 | ✅ código pronto (09/11): download automático + barra + trava (a) |
+| — | ⛔ Portão | F1–F4 + etapa 1 validadas no aparelho real (roteiros acima e abaixo); defeitos corrigidos |
+| +1 | Etapa 2 | APK: incluir ativo da unidade sem internet |
+| +1 | F5 | Pendências/conflitos, chave por empresa/usuário, telemetria |
+| +1,5 | Etapa 3 | APK: encerrar e iniciar outra visita sem internet (migration nova) |
+| +2 | Piloto | 2–3 técnicos por 2 semanas → liberação geral |
 
 ## Riscos e mitigação
 
@@ -408,6 +418,96 @@ Todos os itens marcados e nenhum defeito aberto que perca, duplique ou sobrescre
 | Plugin SQLite incompatível com Capacitor 8 | Testar no dia 1; plano B Dexie/IndexedDB (mesma interface `offlineStore`) |
 | Regra de negócio espalhada no cliente (contadores, movimentação) | Levar para RPCs na F2/F4; o app só enfileira intenções |
 | Esquema do banco muda e o pacote local fica velho | Versão do pacote; ao reconectar, revalida e baixa de novo se mudou |
-| Técnico não prepara a visita antes de sair | Aviso ao iniciar visita com flag ligada: "Preparar para campo?" |
-| Visita preparada há muitos dias | Mostrar data do pacote; sugerir atualizar quando online |
+| Técnico não prepara a visita antes de sair | **Resolvido pelo preparo automático** (09/11): OSs abertas da empresa e visitas em andamento baixadas sem ação do técnico |
+| Visita preparada há muitos dias | Preparo automático atualiza a cada 15 min / ao reconectar; cartão mostra a data do pacote |
+| Volume do download automático (muitas OSs abertas → muitas unidades/ativos) | Unidade baixada uma vez só; incremental (só novo ou > 1 dia); unidades sem OS aberta apagadas; ativos limitados a 5.000 por unidade; medir no portão (tempo da 1ª carga e espaço usado) |
+| Dois técnicos editam o mesmo ativo offline (trava opção (a)) | O 1º a sincronizar fica com a trava; o 2º vê "Recusadas" e resolve na tela de pendências (F5) |
+| Visita iniciada offline (etapa 3) conflita com outra equipe que abriu a mesma OS online | Recusada no envio junto com tudo o que depende dela → precisa da tela de pendências (F5) antes de liberar |
 | Equipe aparece ocupada até o sync | Documentado; aceito (decisão de 08/11/2026) |
+
+## Preparo automático (decisões de 09/11/2026)
+
+Motivo: o técnico pode perder o sinal no meio do atendimento — e até **encerrar uma visita e
+iniciar outra sem internet** — então os dados não podem depender do "Preparar para campo" manual.
+
+| Etapa | Situação |
+|-------|----------|
+| 1. Download automático + barra de progresso + trava opção (a) | ✅ **Código pronto** (09/11) — falta validar no aparelho |
+| 2. Incluir ativo offline (busca nos ativos da unidade baixados) | A fazer — depois do portão |
+| 3. Encerrar e iniciar outra visita offline | A fazer — depois da F5 (tela de pendências) |
+
+Decisões do usuário (09/11/2026):
+1. Preparo **automático**: na 1ª abertura baixa os dados de **todas as OSs abertas** da empresa;
+   depois acompanha as mudanças das OSs abertas.
+2. Escopo = OSs com `provider_company_id` = empresa do usuário logado. Técnico atendendo OS de
+   outra prestadora **nunca deve existir** (confirmado).
+3. Baixar: ativos da unidade, atividades, materiais da `provider_company_id`, planos de
+   manutenção, usuários da empresa (+ veículos).
+4. Travas: **opção (a)** — não reservar no download; travar ao abrir o ativo com sinal.
+5. Barra de progresso global enquanto atualiza (com conexão).
+6. Objetivo final: o técnico pode **encerrar uma visita e iniciar outra sem internet** —
+   por isso todas as unidades das OSs abertas, não só as da visita atual.
+
+**Arquivos da etapa 1**
+- Novos: `services/offline/offlineAutoSync.ts` (gatilhos, execução, estado),
+  `offlineAutoSyncPlan.ts` (+ `.test.ts`, 5 testes — o que baixar/apagar),
+  `offlineCatalogDownload.ts` (catálogos com idade: materiais, veículos, ativos da unidade),
+  `hooks/useOfflineAutoSync.ts`
+- Alterados: `ordersService.getOpenOrdersForOffline`, `visitsService.getOpenVisitIdsByUser`
+  (+ proxies no `dataService`), `fieldPackageService.ts` (`auto: true`: não trava, reaproveita
+  catálogo de < 1 dia, mantém travas do preparo manual), `useAssetLock.ts` (offline: sem
+  "não reservado"), `ConnectionStrip.tsx` (barra), `App.tsx` (liga com o usuário logado),
+  `store/offlineStore.ts` (coleção `autosync`), `offlineFlowOps.ts` (catálogo de materiais
+  não confunde com ativos/veículos)
+
+**Etapa 1 — o que faz**
+- Gatilhos: login/abertura do app (1ª vez baixa tudo), internet voltou, app voltou ao primeiro
+  plano (após 15 min) e a cada 15 min. Só no APK com a flag do modo offline.
+- Escopo: OSs abertas (`status_id` fora de 7/8, não excluídas) com `provider_company_id` = empresa
+  do usuário (`getOpenOrdersForOffline`). **Cada unidade uma vez só.**
+- Baixa: ativos da unidade (`getAssets('all','',unitId)` → catálogo `assets:unit:<id>`), setores
+  (`getAssetTagsByUnit`), unidades do cliente, atividades por tipo de OS, a OS (`getOrderById`),
+  planos de manutenção dos tipos de ativo (estrutura completa), usuários (`getUsers`), materiais
+  e veículos da empresa.
+- Incremental (`offlineAutoSyncPlan.ts`, testado): unidade/tipo com mais de 1 dia ou novo; OS com
+  `updated_at` diferente; unidades que saíram das OSs abertas são apagadas do aparelho.
+- Visitas em andamento do usuário (`getOpenVisitIdsByUser`): mesmo pacote do preparo manual,
+  **sem travar** (`auto: true`). Visita com alterações ainda não enviadas é pulada até a fila subir.
+- Travas — opção (a): online, o relatório do ativo trava ao abrir (`useAssetLock`); offline,
+  qualquer ativo é editável e o envio da fila trava (conflito se outro técnico tiver a trava).
+- Barra: `ConnectionStrip` mostra "Atualizando dados offline · etapa · N%" (a fila tem prioridade).
+
+**Internet volta no meio da visita:** 1º a fila sobe na ordem (barreiras, ids `tmp:`, trava);
+depois o download automático roda; as visitas com pendências só são atualizadas quando a fila
+esvazia.
+
+**Etapa 2 — incluir ativo offline (a fazer)**
+- Busca: `getAssets(filtro, termo, unitId)` offline filtra o catálogo `assets:unit:<id>` com a
+  mesma regra da busca online (cada termo em `searchable`: código, descrição, setor…).
+  Leitor de QR/código também cai na busca local.
+- `addAssetToOrderVisit` vira operação da fila: linha com `client_uuid` (coluna já criada pela
+  20261116 em `orders_visits_assets`) e id `tmp:<uuid>`; os dados "antes/depois" vêm do ativo
+  no catálogo (hoje o serviço lê `assets` + `v_orders_visits` no servidor).
+- Tudo que o técnico fizer no ativo novo (relatório, checklist, atividades, materiais, fotos)
+  usa o id `tmp:` e é resolvido no envio — a resolução de `tmp:` precisa valer para o
+  `ovaId` em qualquer argumento, não só no 1º.
+- Remover o ativo antes de subir anula a inclusão e tudo do ativo na fila.
+- Testes: unidade (busca local, cadeia de ids `tmp:`) + roteiro no aparelho.
+
+**Etapa 3 — encerrar e iniciar outra visita offline (a fazer, depois da F5)**
+- Migration: `flow_order_visit_create_v3` com `p_client_uuid` + `p_client_started_at`
+  (idempotente; mesmas regras da v2) e `client_uuid` em `orders_visits`.
+- Visita nasce `tmp:<uuid>` no aparelho a partir da OS baixada (`getOrderById`) e do perfil;
+  equipe, status do técnico ("em visita") e a OS ficam no cache local.
+- Resolução de `tmp:` da visita em todos os argumentos (`visitId` de serviços, veículos,
+  ativos, encerrar…), em cadeia com os ativos `tmp:` da etapa 2.
+- Conflito: outra equipe abriu a mesma OS / OS concluída enquanto offline → a criação é
+  recusada e tudo o que depende dela fica parado na tela de pendências (F5) para decidir.
+- Antes de começar: confirmar se a regra de negócio permite duas visitas abertas na mesma OS.
+
+**Validar no aparelho (etapa 1)**
+- [ ] 1ª abertura com internet: barra aparece e termina; desligar dados → abrir OS/visita de outra unidade e os planos funcionam
+- [ ] Nova OS aberta para a empresa → em até 15 min a unidade dela é baixada; OS concluída → unidade some (se não houver outra OS aberta nela)
+- [ ] Sem internet no meio da visita, editar ativo não travado no preparo → reconectar → sobe (ou vira conflito se outro técnico travou)
+- [ ] Internet volta com alterações pendentes: a fila sobe primeiro ("Enviando…"), depois a barra do download; a visita com pendências só é atualizada após a fila zerar (nada do que foi feito some da tela)
+- [ ] Medir: tempo da 1ª carga e espaço usado no aparelho (Configurações › Apps › SIGES › Armazenamento)
