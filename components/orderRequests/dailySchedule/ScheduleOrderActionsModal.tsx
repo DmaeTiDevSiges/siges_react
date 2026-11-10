@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal } from '../../ui/Modal';
 import type { DailyScheduleOrder, DailyScheduleTeam } from '../../../services/orders/dailyScheduleService';
 import { DAILY_SCHEDULE_STATUS } from '../../../services/orders/dailyScheduleService';
-import { scheduleTeamRule } from './ScheduleOrderCard';
+import { canChangeTeam, scheduleTeamRule } from './ScheduleOrderCard';
 
 export interface ScheduleActionTarget {
     order: DailyScheduleOrder;
@@ -36,10 +36,15 @@ export const ScheduleOrderActionsModal: React.FC<ScheduleOrderActionsModalProps>
     const status = target?.order.statusId;
     const authorizes = status === DAILY_SCHEDULE_STATUS.EVALUATION;
     const rule = target ? scheduleTeamRule(target.order) : null;
-    // Só a faixa de prioridade manda para equipe; na coluna a OS apenas é reordenada.
-    const targetTeams = !fromPriority || placedTeamId || rule == null
-        ? []
-        : rule === 'any' ? teams : teams.filter(t => t.id === rule);
+    // Da faixa de prioridade: conforme a regra. Da coluna: só a Autorizada troca de equipe.
+    const fromTeam = !fromPriority && !fromOpen;
+    const movesBetweenTeams = !!target && canChangeTeam(target.order);
+    const currentTeamId = fromTeam ? target?.container : placedTeamId;
+    const targetTeams = fromTeam
+        ? (movesBetweenTeams ? teams.filter(t => t.id !== currentTeamId) : [])
+        : (placedTeamId && !movesBetweenTeams) || rule == null
+            ? []
+            : (rule === 'any' ? teams : teams.filter(t => t.id === rule)).filter(t => t.id !== currentTeamId);
 
     const btn = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed';
 
@@ -80,14 +85,14 @@ export const ScheduleOrderActionsModal: React.FC<ScheduleOrderActionsModalProps>
 
                     <div className="flex flex-col gap-2">
                         <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                            {authorizes ? 'Autorizar para a equipe' : 'Inserir na equipe'}
+                            {authorizes ? 'Autorizar para a equipe' : movesBetweenTeams ? 'Mover para a equipe' : 'Inserir na equipe'}
                         </p>
-                        {!fromPriority ? (
+                        {fromTeam && !movesBetweenTeams ? (
                             <p className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                                 <span className="material-symbols-outlined text-[16px]">lock</span>
-                                Na equipe a OS só é reordenada.
+                                Só OS Autorizada troca de equipe; esta só é reordenada.
                             </p>
-                        ) : placedTeamId ? (
+                        ) : !fromTeam && placedTeamId && !movesBetweenTeams ? (
                             <p className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                                 <span className="material-symbols-outlined text-[16px]">check_circle</span>
                                 Já programada para a equipe {teams.find(t => t.id === placedTeamId)?.code || ''} neste dia.
@@ -98,7 +103,7 @@ export const ScheduleOrderActionsModal: React.FC<ScheduleOrderActionsModalProps>
                                 Só OSs Em Avaliação (qualquer equipe) ou com equipe já definida (só a própria equipe) vão para uma equipe.
                             </p>
                         ) : targetTeams.length === 0 ? (
-                            <p className="text-xs text-slate-500">A equipe desta OS não está entre as equipes com líder deste contrato.</p>
+                            <p className="text-xs text-slate-500">Nenhuma outra equipe disponível neste contrato.</p>
                         ) : (
                             <div className="flex flex-col gap-2 max-h-[45vh] overflow-y-auto">
                                 {targetTeams.map(team => (

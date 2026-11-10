@@ -19,20 +19,22 @@ export const isScheduleLocked = (order: DailyScheduleOrder) => order.statusId ==
 
 /** Situações que já têm equipe definida e só entram na coluna da própria equipe. */
 const KEEPS_OWN_TEAM = new Set<number>([
-    DAILY_SCHEDULE_STATUS.AUTHORIZED,
     DAILY_SCHEDULE_STATUS.SCHEDULED,
     DAILY_SCHEDULE_STATUS.SUSPENDED,
 ]);
 
+/** OS Autorizada: muda de equipe (atualiza equipe responsável e líder na OS). */
+export const canChangeTeam = (order: DailyScheduleOrder) => order.statusId === DAILY_SCHEDULE_STATUS.AUTHORIZED;
+
 /**
- * Para qual equipe a OS pode ir (a partir de OS's PRIORIDADE DE ATENDIMENTO):
- *   'any'  → Em Avaliação: qualquer equipe (autoriza para ela, mesmo já tendo equipe informada);
- *   id     → já tem equipe definida: só a própria equipe;
+ * Para qual equipe a OS pode ir:
+ *   'any'  → Em Avaliação (autoriza para a equipe) ou Autorizada (troca equipe e líder na OS);
+ *   id     → Agendada/Suspensa com equipe definida: só a própria equipe;
  *   null   → não vai para equipe (sem situação/equipe válida ou em execução).
  */
 export const scheduleTeamRule = (order: DailyScheduleOrder): 'any' | string | null => {
     if (isScheduleLocked(order)) return null;
-    if (order.statusId === DAILY_SCHEDULE_STATUS.EVALUATION) return 'any';
+    if (order.statusId === DAILY_SCHEDULE_STATUS.EVALUATION || canChangeTeam(order)) return 'any';
     if (KEEPS_OWN_TEAM.has(order.statusId) && order.teamId) return order.teamId;
     return null;
 };

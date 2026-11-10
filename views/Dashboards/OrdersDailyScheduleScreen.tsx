@@ -46,7 +46,7 @@ import { FilterSelectionContent } from '../../components/ui/FilterSelectionConte
 import { Modal } from '../../components/ui/Modal';
 import { Calendar } from '../../components/ui/Calendar';
 import { Loading } from '../../components/ui/Loading';
-import { OPEN_ID_PREFIX, PRIORITY_ID_PREFIX, PriorityOrderCard, ScheduleOrderCardView, isScheduleLocked, scheduleTeamRule } from '../../components/orderRequests/dailySchedule/ScheduleOrderCard';
+import { OPEN_ID_PREFIX, PRIORITY_ID_PREFIX, PriorityOrderCard, ScheduleOrderCardView, canChangeTeam, isScheduleLocked, scheduleTeamRule } from '../../components/orderRequests/dailySchedule/ScheduleOrderCard';
 import { ScheduleTeamColumn } from '../../components/orderRequests/dailySchedule/ScheduleTeamColumn';
 import { ScheduleAuthorizeModal } from '../../components/orderRequests/dailySchedule/ScheduleAuthorizeModal';
 import { ScheduleOrderActionsModal, type ScheduleActionTarget } from '../../components/orderRequests/dailySchedule/ScheduleOrderActionsModal';
@@ -538,6 +538,27 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         return Object.keys(board.columns).find(teamId => board.columns[teamId].some(o => o.id === orderId));
     };
 
+    /**
+     * OS Autorizada para outra equipe (da faixa de prioridade ou de outra coluna): atualiza na
+     * OS a equipe responsável e o líder (só se ela ainda estiver Autorizada) e a coloca na coluna.
+     */
+    const moveAuthorized = async (order: DailyScheduleOrder, team: DailyScheduleTeam, index: number) => {
+        if (!board) return;
+        const previous = board;
+        const fromTeamId = order.teamId;
+        const next = placeInTeam(board, { ...order, teamId: team.id, teamLeaderId: team.leaderId }, team, index);
+        setBoard(next);
+        try {
+            await dataService.moveAuthorizedOrderToScheduleTeam(order.id, team);
+            logMove(order, { action: 'change_team', fromTeamId, toTeamId: team.id, toPosition: index + 1 });
+            toast.success(`OS ${order.orderMask} movida para ${team.code} (líder ${team.leaderName})`);
+            scheduleSave(next);
+        } catch (err) {
+            setBoard(previous);
+            handleConflict(err, 'Erro ao mover a OS');
+        }
+    };
+
     /** OS que já tem a equipe definida: entra na coluna da própria equipe (sem mudar a OS). */
     const placeInOwnTeam = (order: DailyScheduleOrder, team: DailyScheduleTeam, index: number) => {
         if (!board) return;
@@ -607,15 +628,24 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
 
         if (from === PRIORITY) {
             const placed = placedTeamOf(order.id);
+            if (placed && canChangeTeam(order) && placed !== team.id) {
+                // Já está noutra coluna: troca de equipe (sai de lá).
+                void moveAuthorized(order, team, index);
+                return;
+            }
             if (placed) {
                 const placedCode = board.teams.find(t => t.id === placed)?.code || '';
                 toast.info(`A OS ${order.orderMask} já está programada para a equipe ${placedCode} neste dia.`);
                 return;
             }
             const rule = scheduleTeamRule(order);
-            if (rule === 'any') {
+            if (rule === 'any' && order.statusId === DAILY_SCHEDULE_STATUS.EVALUATION) {
                 // Em Avaliação: autoriza para a equipe escolhida (mesmo já tendo outra informada).
                 setPendingAuth({ order, team, index });
+            } else if (rule === 'any') {
+                // Autorizada: mesma equipe só entra na coluna; outra equipe troca equipe e líder na OS.
+                if (order.teamId === team.id) placeInOwnTeam(order, team, index);
+                else void moveAuthorized(order, team, index);
             } else if (rule === team.id) {
                 placeInOwnTeam(order, team, index);
             } else if (rule) {
@@ -631,7 +661,11 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
             reorderWithin(to, oldIndex, Math.min(index, board.columns[to].length - 1));
             return;
         }
-        toast.error('Na programação a OS não troca de equipe: ela só é reordenada na própria coluna.');
+        if (canChangeTeam(order)) {
+            void moveAuthorized(order, team, index);
+            return;
+        }
+        toast.error('Só OS Autorizada troca de equipe. Esta só é reordenada na própria coluna.');
     };
 
     // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -677,11 +711,12 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         if (!active) return undefined;
         if (active.container === OPEN) return false;
         if (active.container === PRIORITY) {
-            if (placedTeamOf(active.order.id)) return false;
+            const placed = placedTeamOf(active.order.id);
+            if (placed) return canChangeTeam(active.order) && placed !== teamId;
             const rule = scheduleTeamRule(active.order);
             return rule === 'any' || rule === teamId;
         }
-        return active.container === teamId;
+        return active.container === teamId || canChangeTeam(active.order);
     };
 
     // ── Menu de ações (alternativa ao arraste) ───────────────────────────────

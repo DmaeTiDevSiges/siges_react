@@ -55,8 +55,10 @@ Cada faixa tem os próprios filtros (Unidade, Setor e busca).
 | PRIORIDADE → PRIORIDADE | Reordena |
 | ABERTAS → equipe | **Proibido** (precisa passar por PRIORIDADE antes) |
 | PRIORIDADE → equipe, OS **Em Avaliação** | Qualquer equipe; ao entrar, a OS é **autorizada** para ela. Hoje não ocorre, porque Em Avaliação não aparece |
-| PRIORIDADE → equipe, OS com **equipe já definida** (Autorizada, Agendada, Suspensa) | **Só a própria equipe**; a OS não muda |
-| Equipe → equipe | **Proibido** (na coluna a OS só é reordenada) |
+| PRIORIDADE → equipe, OS **Autorizada** | **Qualquer equipe.** Na própria, só entra na coluna; em outra, **atualiza na OS a equipe responsável e o líder** (`team_id`/`team_leader_id`, só se ainda estiver Autorizada) |
+| PRIORIDADE → equipe, OS **Agendada/Suspensa** com equipe definida | **Só a própria equipe**; a OS não muda |
+| Equipe → equipe, OS **Autorizada** | Permitido; atualiza equipe responsável e líder na OS e sai da coluna antiga |
+| Equipe → equipe, demais | **Proibido** (só reordena na própria coluna) |
 | Equipe → faixas | Proibido |
 | Cada OS | Entra em **uma equipe só** por dia |
 
@@ -101,7 +103,7 @@ naquele dia**. Equipes que hoje não têm líder ou foram desativadas também ap
 | Cada movimentação | `orders_daily_schedules_logs` | OS, ação, equipe de origem e destino, posição, usuário, horário |
 
 Ações do log: `prioritize`, `unprioritize`, `authorize_team`, `assign_team` e `change_team`.
-`change_team` está reservada e a tela não gera mais. Reordenar dentro da mesma faixa ou
+`change_team` = OS Autorizada mudou de equipe (guarda a equipe de origem e a de destino). Reordenar dentro da mesma faixa ou
 coluna **não** gera log.
 
 **Herança da prioridade:**
@@ -174,9 +176,11 @@ Usuário com `can_create`, contrato com OSs abertas em várias situações, dia 
 - [ ] Soltar sobre o título ou os filtros de PRIORIDADE: entra no fim
 - [ ] PRIORIDADE → ABERTAS volta pela data de abertura; menu ⋮ faz o mesmo nos dois sentidos
 - [ ] ABERTAS → equipe: recusa com aviso
-- [ ] PRIORIDADE → própria equipe: entra na coluna; → outra equipe: recusa com aviso
+- [ ] PRIORIDADE → equipe com OS Autorizada de outra equipe: OS passa a ter a nova equipe e o novo líder (conferir no detalhe da OS)
+- [ ] Autorizada de uma coluna para outra: sai da antiga, atualiza equipe e líder; log `change_team`
+- [ ] Agendada/Suspensa: só entra na própria equipe; outra equipe recusa com aviso
 - [ ] Inserir a mesma OS de novo: aviso "já programada para a equipe X"
-- [ ] Equipe → outra equipe: recusa; reordenar na coluna funciona
+- [ ] Equipe → outra equipe com OS não Autorizada: recusa; reordenar na coluna funciona
 - [ ] Rolar ABERTAS, PRIORIDADE e as equipes clicando e puxando no cartão (sem mover a OS); roda do mouse rola as faixas
 - [ ] Arrastar a OS só pela alça ⠿; no celular, deslizar rola e a alça arrasta
 - [ ] OS em execução: só na coluna da própria equipe (fora de ABERTAS e PRIORIDADE), borda verde pulsando, cadeado, não arrasta, sem menu ⋮
