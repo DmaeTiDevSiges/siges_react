@@ -8,21 +8,25 @@ export const getFilterSelectionValue = (
 const FilterOptionItem = React.memo(({
     opt,
     isSelected,
-    onToggle
+    onToggle,
+    single = false
 }: {
     opt: { value: string; label: string };
     isSelected: boolean;
     onToggle: (value: string) => void;
+    single?: boolean;
 }) => {
     return (
         <label
             className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5' : ''}`}
         >
-            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
-                {isSelected && <span className="material-symbols-outlined text-white text-[16px] font-bold">check</span>}
+            <div className={`w-5 h-5 ${single ? 'rounded-full' : 'rounded'} border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
+                {isSelected && (single
+                    ? <span className="w-2 h-2 rounded-full bg-white" />
+                    : <span className="material-symbols-outlined text-white text-[16px] font-bold">check</span>)}
             </div>
             <input
-                type="checkbox"
+                type={single ? 'radio' : 'checkbox'}
                 className="hidden"
                 checked={isSelected}
                 onChange={() => onToggle(opt.value)}
@@ -37,9 +41,12 @@ export const FilterSelectionContent: React.FC<{
     options: { value: string; label: string }[];
     initialValue: string[];
     onConfirm: (value: string[]) => void;
-}> = ({ label, options, initialValue, onConfirm }) => {
+    /** Seleção de um único item: sem "selecionar todas"; escolher uma opção já confirma. */
+    single?: boolean;
+}> = ({ label, options, initialValue, onConfirm, single = false }) => {
     const [selectionSearch, setSelectionSearch] = useState('');
-    const [currentValue, setCurrentValue] = useState<string[]>(() => getFilterSelectionValue(options, initialValue));
+    const [currentValue, setCurrentValue] = useState<string[]>(() =>
+        single ? initialValue.slice(0, 1) : getFilterSelectionValue(options, initialValue));
 
     const filteredOptions = useMemo(() => {
         const query = selectionSearch.toLowerCase().trim();
@@ -51,12 +58,17 @@ export const FilterSelectionContent: React.FC<{
     const allOptionsSelected = options.length > 0 && options.every(option => selectedSet.has(option.value));
 
     const handleToggle = useCallback((value: string) => {
+        if (single) {
+            setCurrentValue([value]);
+            onConfirm([value]);
+            return;
+        }
         setCurrentValue(prev =>
             prev.includes(value)
                 ? prev.filter(v => v !== value)
                 : [...prev, value]
         );
-    }, []);
+    }, [single, onConfirm]);
 
     const handleToggleAll = useCallback(() => {
         setCurrentValue(allOptionsSelected ? [] : options.map(option => option.value));
@@ -76,7 +88,7 @@ export const FilterSelectionContent: React.FC<{
                 />
             </div>
 
-            <label className="flex items-center gap-2 px-1 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+            {!single && <label className="flex items-center gap-2 px-1 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
                 <input
                     type="checkbox"
                     aria-label={`Selecionar ou desmarcar todas as opções de ${label.toLowerCase()}`}
@@ -86,7 +98,7 @@ export const FilterSelectionContent: React.FC<{
                     className="h-4 w-4 accent-primary cursor-pointer disabled:cursor-not-allowed"
                 />
                 <span>Selecionar todas as opções</span>
-            </label>
+            </label>}
 
             <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-1">
                 {filteredOptions.length > 0 ? (
@@ -96,6 +108,7 @@ export const FilterSelectionContent: React.FC<{
                             opt={opt}
                             isSelected={selectedSet.has(opt.value)}
                             onToggle={handleToggle}
+                            single={single}
                         />
                     ))
                 ) : (
@@ -106,7 +119,7 @@ export const FilterSelectionContent: React.FC<{
                 )}
             </div>
 
-            <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            {!single && <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                     onClick={() => {
                         onConfirm(allOptionsSelected ? [] : currentValue);
@@ -115,7 +128,7 @@ export const FilterSelectionContent: React.FC<{
                 >
                     CONFIRMAR
                 </button>
-            </div>
+            </div>}
         </div>
     );
 };

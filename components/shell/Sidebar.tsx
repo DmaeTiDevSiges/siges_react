@@ -88,6 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             else if (canView('dashboard_units_power_electric')) onNavigate('dashboard-units-power-electric');
                             else if (canView('dashboard_contracts_evaluations')) onNavigate('dashboard-contracts-evaluations');
                             else if (canView('dashboard_teams_shifts')) onNavigate('team-shifts');
+                            else if (canView('orders_daily_schedule')) onNavigate('orders-daily-schedule');
                             else onNavigate('grant-dashboard');
                         }}
                     />

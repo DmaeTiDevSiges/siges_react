@@ -31,6 +31,8 @@ import type {
     VehicleUtilizationRow
 } from './orders/vehicleRentalService';
 import { vehicleRateService } from './orders/vehicleRateService';
+import { dailyScheduleService } from './orders/dailyScheduleService';
+import type { DailyScheduleBoard, DailyScheduleItemInput, DailyScheduleMoveLog, DailyScheduleTeam, MyDayScheduleItem } from './orders/dailyScheduleService';
 import { vehiclesService, SaveVehicleInput } from './orders/vehiclesService';
 import type {
     VehicleRateContract,
@@ -2281,8 +2283,37 @@ export const dataService = {
         return usersService.getActiveUsers.apply(usersService, arguments as any);
     },
 
-    async authorizeOrder(orderId: string, teamId: string, planId?: string, teamLeaderId?: string): Promise<void> {
+    async authorizeOrder(orderId: string, teamId: string, planId?: string, teamLeaderId?: string, expectedStatusId?: number): Promise<void> {
         return ordersService.authorizeOrder.apply(ordersService, arguments as any);
+    },
+
+    // ── Programação Diária (services/orders/dailyScheduleService.ts) ──────────
+    async getDailyScheduleBoard(params: { contractId: string; providerDepartmentId: string; date: string; readOnly: boolean }): Promise<DailyScheduleBoard> {
+        return dailyScheduleService.getBoard.apply(dailyScheduleService, arguments as any);
+    },
+
+    async saveDailySchedule(contractId: string, date: string, items: DailyScheduleItemInput[]): Promise<void> {
+        return dailyScheduleService.saveSchedule.apply(dailyScheduleService, arguments as any);
+    },
+
+    async getMyDaySchedule(date?: string): Promise<MyDayScheduleItem[]> {
+        return dailyScheduleService.getMyDaySchedule.apply(dailyScheduleService, arguments as any);
+    },
+
+    async saveOrderPriorities(contractId: string, date: string, orderIds: string[]): Promise<void> {
+        return dailyScheduleService.savePriorities.apply(dailyScheduleService, arguments as any);
+    },
+
+    async logDailyScheduleMove(log: DailyScheduleMoveLog): Promise<void> {
+        return dailyScheduleService.logMove.apply(dailyScheduleService, arguments as any);
+    },
+
+    async authorizeOrderToScheduleTeam(orderId: string, team: DailyScheduleTeam, planId?: string): Promise<void> {
+        return dailyScheduleService.authorizeToTeam.apply(dailyScheduleService, arguments as any);
+    },
+
+    async moveAuthorizedOrderToScheduleTeam(orderId: string, team: DailyScheduleTeam): Promise<void> {
+        return dailyScheduleService.moveAuthorizedToTeam.apply(dailyScheduleService, arguments as any);
     },
 
     async hasActiveChildOrders(parentOrderId: string | number): Promise<boolean> {

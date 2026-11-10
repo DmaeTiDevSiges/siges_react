@@ -73,6 +73,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab, i
             else if (canView('dashboard_units_power_electric')) setActiveTab('dashboard-units-power-electric');
             else if (canView('dashboard_contracts_evaluations')) setActiveTab('dashboard-contracts-evaluations');
             else if (canView('dashboard_teams_shifts')) setActiveTab('team-shifts');
+            else if (canView('orders_daily_schedule')) setActiveTab('orders-daily-schedule' as any);
           }}
           className={`flex-1 flex flex-col items-center justify-center p-2 gap-1 transition-colors ${activeTab === 'ss' || activeTab === 'orders' || activeTab === 'visits' || activeTab === 'dashboard-units-assets-tags' || activeTab === 'dashboard-units-power-electric' || activeTab === 'dashboard-contracts-evaluations' || activeTab === 'leader-ranking' || activeTab === 'grant-dashboard' || activeTab === 'team-shifts' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
         >

@@ -16,7 +16,7 @@ import { LocationDisclosureModal } from './components/permissions/LocationDisclo
 import { dataService } from './services/dataService';
 import { getCachedCurrentUser } from './services/offline/offlineAuth';
 import { PendingOpsPanel } from './components/offline/PendingOpsPanel';
-import { prefetchVisitOffline, runOfflineAutoSync, setOfflineAutoSyncUser } from './services/offline/offlineAutoSync';
+import { prefetchVisitOffline, runOfflineAutoSync, setOfflineAutoSyncActive, setOfflineAutoSyncUser } from './services/offline/offlineAutoSync';
 import { refreshOfflineGate, subscribeOfflineGate } from './services/offline/offlineGate';
 import { usePermissions } from './contexts/PermissionsContext';
 import { permissionService } from './services/core/permissionService';
@@ -48,6 +48,7 @@ import {
   DashboardUnitsPowerElectric,
   DashboardUnitsAssetsTags,
   DashboardOrdersAdminCalendarScreen,
+  OrdersDailyScheduleScreen,
   DashboardServicesAdminScreen,
   DashboardAdminContractsEvaluationsRequirements,
   LeaderRankingDashboard,
@@ -105,7 +106,7 @@ import { GamificationHistoryModal } from './components/ui/GamificationHistoryMod
 type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashboard' | 'dashboard-units-power-electric' | 'dashboard-units-assets-tags' | 'dashboard-contracts-evaluations' | 'leader-ranking' | 'companies' | 'company-details' | 'company-form' | 'company-edit' | 'department-form' | 'department-details' | 'department-edit' | 'team-form' | 'team-details' | 'team-edit' | 'user-details' | 'user-form' | 'all-users' | 'profile' | 'notifications' | 'contracts' | 'contract-form' | 'contract-edit' | 'contract-details' | 'units-search' | 'unit-create' | 'assets-search' | 'assets-alerts' | 'asset-details' | 'asset-form' | 'asset-edit' | 'asset-clone-wizard' | 'settings' | 'ai-admin' | 'systems' | 'system-form' | 'system-edit' | 'unit-types' | 'unit-type-form' | 'unit-type-edit' | 'clients' | 'client-details' | 'client-form' | 'client-edit' | 'client-units' | 'client-unit-form' | 'client-unit-edit' | 'unit-details' | 'unit-structure' | 'unit-asset-tag-available' | 'unit-asset-tag-details' | 'activities'
   | 'asset-loan-checklist-types' | 'asset-loan-checklist-type-form' | 'asset-loan-checklist-type-edit'
   | 'loans-checklists' | 'loans-checklist-form' | 'loans-checklist-edit'
-  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'audit-log' | 'audit-config' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period'   | 'vehicle-cost-types' | 'rental-contracts' | 'rental-apportionment' | 'rate-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard' | 'team-shifts' | 'settings-api-guaibaflow';
+  | 'activity-form' | 'activity-edit' | 'services' | 'service-form' | 'service-edit' | 'materials' | 'materials-search' | 'material-form' | 'material-edit' | 'material-details' | 'materials-dashboard' | 'evaluation-requirements' | 'priorities' | 'priority-form' | 'priority-edit' | 'order-types' | 'order-type-form' | 'order-type-edit' | 'order-sub-types' | 'order-sub-type-form' | 'order-sub-type-edit' | 'order-plans' | 'order-plan-form' | 'order-plan-edit' | 'order-objects' | 'order-object-form' | 'order-object-edit' | 'asset-types' | 'asset-type-form' | 'asset-type-edit' | 'asset-type-attributes' | 'asset-attributes-brands' | 'asset-statuses' | 'asset-status-form' | 'asset-status-edit' | 'asset-priorities' | 'asset-priority-form' | 'asset-priority-edit' | 'asset-tags' | 'asset-tag-form' | 'asset-tag-edit' | 'asset-tag-subs' | 'asset-tag-sub-form' | 'asset-tag-sub-edit' | 'technical-manuals' | 'technical-manual-form' | 'technical-manual-edit' | 'technical-manual-details' | 'service-request-detail' | 'service-request-create' | 'services-history' | 'order-detail' | 'order-create' | 'users-tracker'   | 'order-visit-execute' | 'order-visit-asset-report' | 'order-visit-asset-activities' | 'order-visit-asset-materials'   | 'profile-permissions' | 'order-visit-approve' | 'order-visit-evaluation' | 'maintenance-plans' | 'maintenance-plan-form' | 'maintenance-plan-edit' | 'maintenance-plan-details' | 'visits-today' | 'tools' | 'dashboard-orders-admin-calendar'   | 'app-notices' | 'extra-workers' | 'app-tips' | 'audit-log' | 'audit-config' | 'route-management' | 'route-form' | 'route-edit' | 'orders-dashboard-period' | 'ss-dashboard-period'   | 'vehicle-cost-types' | 'rental-contracts' | 'rental-apportionment' | 'rate-contracts' | 'vehicles' | 'fuel-expense' | 'grant-dashboard' | 'team-shifts' | 'orders-daily-schedule' | 'settings-api-guaibaflow';
 
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/media/imgproxyService';
@@ -346,6 +347,8 @@ const AppContent: React.FC = () => {
       setCurrentScreen('extra-workers');
     } else if (normalizedTab === 'team-shifts') {
       setCurrentScreen('team-shifts');
+    } else if (normalizedTab === 'orders-daily-schedule') {
+      setCurrentScreen('orders-daily-schedule');
     } else if (normalizedTab === 'fuel-expense') {
       setCurrentScreen('fuel-expense');
     }
@@ -683,6 +686,7 @@ const AppContent: React.FC = () => {
       currentScreen === 'rate-contracts' ||
       currentScreen === 'vehicles' ||
       currentScreen === 'grant-dashboard' ||
+      currentScreen === 'orders-daily-schedule' ||
       currentScreen === 'team-shifts';
     if (!isDashboardScreen) return undefined;
     return (
@@ -1118,6 +1122,11 @@ const AppContent: React.FC = () => {
       unsubscribeGate();
     };
   }, [currentUser?.id, currentUser?.companyId, currentUser?.uuid]);
+
+  // Atualização automática dos dados offline só no "Meu Painel" (de onde se iniciam as visitas).
+  useEffect(() => {
+    setOfflineAutoSyncActive(currentScreen === 'dashboard');
+  }, [currentScreen]);
 
   // Background shift monitor - alerts user to change availability status based on shift hours
   const { showShiftAlert, dismissAlert } = useShiftMonitor(currentUser, currentScreen === 'profile');
@@ -2738,6 +2747,9 @@ const AppContent: React.FC = () => {
                         if (!String(updatedUser.ovIdInProgress).startsWith('tmp:')) {
                           prefetchVisitOffline(updatedUser.ovIdInProgress, true);
                         }
+                        // Verifica em segundo plano se os dados offline mudaram (OSs, unidades,
+                        // materiais...) — não segura o início da visita.
+                        if (!startingOffline) runOfflineAutoSync('visit-start');
                         setLastVisitSource('order-detail');
                         setCurrentScreen('order-visit-execute');
                       } else {
@@ -2987,6 +2999,8 @@ const AppContent: React.FC = () => {
         );
       case 'fuel-expense':
         return <FuelExpenseScreen onNavigate={handleNavigate} />;
+      case 'orders-daily-schedule':
+        return <OrdersDailyScheduleScreen currentUser={currentUser!} onSelectOrder={handleOrderSelect} />;
       case 'grant-dashboard':
         return <GrantDashboardScreen onNavigate={handleNavigate} onSelectOrder={handleOrderSelect} currentUser={currentUser} />;
       default:
@@ -3147,6 +3161,7 @@ const AppContent: React.FC = () => {
       case 'vehicles': return 'Gestão Transportes';
       case 'fuel-expense': return 'Combustível';
       case 'grant-dashboard': return 'Cronograma';
+      case 'orders-daily-schedule': return 'Programação Diária';
       default: return 'Siges';
     }
   };
@@ -3372,7 +3387,8 @@ const AppContent: React.FC = () => {
                 (currentScreen as string) !== 'rental-contracts' &&
                 (currentScreen as string) !== 'rate-contracts' &&
                 (currentScreen as string) !== 'vehicles' &&
-                (currentScreen as string) !== 'grant-dashboard'
+                (currentScreen as string) !== 'grant-dashboard' &&
+                (currentScreen as string) !== 'orders-daily-schedule'
               }
               onBackClick={handleBack}
               currentUser={currentUser}

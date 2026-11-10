@@ -100,6 +100,7 @@ export const OrdersVisitsDashboardAdmin = lazyWithRetry(() => import('../views/D
 export const DashboardOrdersVisitsTodayScreen = lazyWithRetry(() => import('../views/Dashboards/DashboardOrdersVisitsTodayScreen').then(m => ({ default: m.DashboardOrdersVisitsTodayScreen })));
 export const DashboardUnitsPowerElectric = lazyWithRetry(() => import('../views/Dashboards/DashboardUnitsPowerElectric').then(m => ({ default: m.DashboardUnitsPowerElectric })));
 export const DashboardUnitsAssetsTags = lazyWithRetry(() => import('../views/Dashboards/DashboardUnitsAssetsTags').then(m => ({ default: m.DashboardUnitsAssetsTags })));
+export const OrdersDailyScheduleScreen = lazyWithRetry(() => import('../views/Dashboards/OrdersDailyScheduleScreen').then(m => ({ default: m.OrdersDailyScheduleScreen })));
 export const DashboardOrdersAdminCalendarScreen = lazyWithRetry(() => import('../views/Dashboards/DashboardOrdersAdminCalendarScreen').then(m => ({ default: m.DashboardOrdersAdminCalendarScreen })));
 export const DashboardServicesAdminScreen = lazyWithRetry(() => import('../views/Dashboards/DashboardServicesAdminScreen').then(m => ({ default: m.DashboardServicesAdminScreen })));
 export const DashboardAdminContractsEvaluationsRequirements = lazyWithRetry(() => import('../views/Dashboards/DashboardAdminContractsEvaluationsRequirements').then(m => ({ default: m.DashboardAdminContractsEvaluationsRequirements })));

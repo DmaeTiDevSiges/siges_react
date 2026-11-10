@@ -27,8 +27,13 @@ import {
  *   3. as visitas em andamento do usuário (mesmo pacote do "Preparar para
  *      campo", sem travar ativos — a trava acontece ao abrir o ativo).
  *
- * Quando: ao abrir o app (1ª vez baixa tudo), ao voltar a internet / voltar ao
- * app e a cada 5 min. Incremental: só o que é novo ou cuja VERSÃO no banco mudou
+ * Quando (só com o usuário no "Meu Painel" — de onde as visitas são iniciadas;
+ * decisão de 10/11/2026): ao entrar no painel, ao abrir o app, ao voltar a
+ * internet / voltar ao app e a cada 5 min. Fora do painel os gatilhos ficam
+ * guardados e rodam ao voltar para ele. O download pontual de uma visita
+ * (prefetchVisitOffline) continua valendo em qualquer tela. Exceção: ao
+ * iniciar uma visita (trigger 'visit-start') a verificação roda em segundo
+ * plano mesmo fora do painel e sem esperar o intervalo mínimo. Incremental: só o que é novo ou cuja VERSÃO no banco mudou
  * (inclusão, alteração ou exclusão — fn_offline_change_versions, migration
  * 20261122); sem a função, refaz o que tem mais de 1 dia. Unidades que saíram
  * das OSs abertas são apagadas do aparelho.
@@ -61,7 +66,7 @@ const INTERVAL_MS = 5 * 60 * 1000;
 const MIN_GAP_MS = 2 * 60 * 1000;
 const STATE_KEY = 'state';
 
-type Trigger = 'start' | 'reconnect' | 'resume' | 'interval' | 'manual';
+type Trigger = 'start' | 'reconnect' | 'resume' | 'interval' | 'manual' | 'enter' | 'visit-start';
 
 interface AutoSyncUser {
     id?: string | number;
@@ -74,6 +79,10 @@ let currentUser: AutoSyncUser | null = null;
 let lastRunAt = 0;
 let started = false;
 let intervalId: ReturnType<typeof setInterval> | null = null;
+/** Usuário está no "Meu Painel": só aí a rodada automática acontece. */
+let active = false;
+/** Gatilho que chegou fora do painel; roda ao voltar para ele. */
+let pendingTrigger: Trigger | null = null;
 
 const emit = (patch: Partial<AutoSyncStatus>) => {
     status = { ...status, ...patch };
@@ -128,6 +137,8 @@ const runTasks = async (tasks: (() => Promise<unknown>)[], limit: number, onDone
     return failed;
 };
 
+const prefetchingVisits = new Set<string>();
+
 const runOnce = async (trigger: Trigger): Promise<void> => {
     const user = currentUser;
     const userId = user?.id != null ? String(user.id) : '';
@@ -164,8 +175,9 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
     // Visita com alterações ainda não enviadas fica de fora: o pacote novo viria
     // do servidor SEM elas e esconderia o que o técnico fez. Atualiza na próxima
     // rodada, depois que a fila subir.
+    // Visita já sendo baixada à parte (prefetchVisitOffline, ex.: recém-iniciada) também.
     const visitsToFetch = visitIds.filter(
-        v => !hasUnsentForScope(`visit:${v}`) && (forceVisits || !saved.visits[v] || now - saved.visits[v] >= VISIT_MAX_AGE_MS),
+        v => !hasUnsentForScope(`visit:${v}`) && !prefetchingVisits.has(v) && (forceVisits || !saved.visits[v] || now - saved.visits[v] >= VISIT_MAX_AGE_MS),
     );
 
     // ── 2. Base + unidades + clientes + tipos de OS + OSs ──────────────────
@@ -269,8 +281,6 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
     });
 };
 
-const prefetchingVisits = new Set<string>();
-
 /**
  * Baixa já os dados de UMA visita, sem esperar a rodada de 5 min — ex.: logo
  * após iniciar a visita ou ao abrir a tela da visita com internet. Sem isso,
@@ -305,10 +315,18 @@ export const prefetchVisitOffline = async (visitId: string | number | null | und
 };
 
 /** Dispara uma atualização (ignora se já estiver rodando ou sem internet). */
+const TRIGGER_RANK: Record<Trigger, number> = { interval: 0, resume: 1, enter: 1, reconnect: 2, manual: 3, 'visit-start': 3, start: 4 };
+
 export const runOfflineAutoSync = async (trigger: Trigger = 'manual'): Promise<void> => {
     if (!isOfflineSupported() || !currentUser || status.running) return;
+    if (!active && trigger !== 'visit-start') {
+        // Fora do "Meu Painel": guarda o gatilho mais forte para rodar ao voltar.
+        if (!pendingTrigger || TRIGGER_RANK[trigger] > TRIGGER_RANK[pendingTrigger]) pendingTrigger = trigger;
+        return;
+    }
     if (!isOnline()) return;
-    if (trigger !== 'manual' && trigger !== 'start' && Date.now() - lastRunAt < MIN_GAP_MS) return;
+    if (trigger !== 'manual' && trigger !== 'start' && trigger !== 'visit-start' && Date.now() - lastRunAt < MIN_GAP_MS) return;
+    pendingTrigger = null;
     lastRunAt = Date.now();
     try {
         await runOnce(trigger);
@@ -320,6 +338,21 @@ export const runOfflineAutoSync = async (trigger: Trigger = 'manual'): Promise<v
     } finally {
         emit({ running: false, phase: '' });
     }
+};
+
+/**
+ * Liga/desliga a rodada automática conforme o usuário está no "Meu Painel".
+ * Ao entrar, roda (respeitando o intervalo mínimo, salvo se havia um gatilho
+ * forte guardado — ex.: abertura do app ou internet de volta). Uma rodada já
+ * em andamento ao sair do painel termina normalmente.
+ */
+export const setOfflineAutoSyncActive = (value: boolean): void => {
+    if (active === value) return;
+    active = value;
+    if (!active) return;
+    const trigger = pendingTrigger ?? 'enter';
+    pendingTrigger = null;
+    runOfflineAutoSync(trigger);
 };
 
 /**
@@ -367,5 +400,7 @@ export const __resetOfflineAutoSync = () => {
     started = false;
     currentUser = null;
     lastRunAt = 0;
+    active = false;
+    pendingTrigger = null;
     status = { running: false, phase: '', done: 0, total: 0 };
 };

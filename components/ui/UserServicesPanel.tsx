@@ -11,6 +11,8 @@ interface ServiceCardProps {
 }
 
 interface UserServicesPanelProps {
+    /** OSs da programação diária de hoje para a equipe do líder. Sem valor, o card não aparece. */
+    programadasCount?: number;
     autorizadosCount?: number;
     agendadasCount?: number;
     suspensosCount?: number;
@@ -53,6 +55,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ icon, label, count, color, bg
 };
 
 export const UserServicesPanel: React.FC<UserServicesPanelProps> = ({
+    programadasCount,
     autorizadosCount = 0,
     agendadasCount = 0,
     suspensosCount = 0,
@@ -70,6 +73,15 @@ export const UserServicesPanel: React.FC<UserServicesPanelProps> = ({
 
 
     const services = [
+        {
+            id: 'programadas',
+            icon: 'event_available',
+            label: 'Programadas hoje',
+            count: programadasCount ?? 0,
+            hidden: programadasCount === undefined,
+            color: 'text-emerald-400',
+            bgColor: 'bg-emerald-400/10 border-2 border-emerald-400/50 shadow-[0_0_10px_rgba(52,211,153,0.2)]'
+        },
         {
             id: 'autorizados',
             icon: 'check_circle',
@@ -108,7 +120,7 @@ export const UserServicesPanel: React.FC<UserServicesPanelProps> = ({
             {/* Services Grid / Horizontal Scroll */}
             <div className="overflow-x-auto no-scrollbar md:overflow-visible">
                 <div className="flex md:grid md:grid-cols-4 gap-3 px-4 pb-2">
-                    {services.map((service) => (
+                    {services.filter(service => !(service as { hidden?: boolean }).hidden).map((service) => (
                         <ServiceCard
                             key={service.id}
                             icon={service.icon}

@@ -1691,13 +1691,21 @@ export const ordersService = {
         })) as User[];
     },
 
-    async authorizeOrder(orderId: string, teamId: string, planId?: string, teamLeaderId?: string): Promise<void> {
+    /**
+     * @param expectedStatusId Se informado, só autoriza se a OS ainda estiver nesse status
+     *   (ex.: 2 = Avaliação). Caso contrário lança ORDER_STATUS_CONFLICT — evita que dois
+     *   usuários autorizem a mesma OS ao mesmo tempo (Programação Diária).
+     */
+    async authorizeOrder(orderId: string, teamId: string, planId?: string, teamLeaderId?: string, expectedStatusId?: number): Promise<void> {
         const [{ data: { user: authUser } }, { data: order }] = await Promise.all([
             supabase.auth.getUser(),
             supabase.from('v_orders').select('*').eq('id', orderId).single()
         ]);
 
         if (!order) throw new Error("Ordem de serviço não encontrada");
+        if (expectedStatusId != null && Number(order.status_id) !== expectedStatusId) {
+            throw new Error('ORDER_STATUS_CONFLICT');
+        }
 
         let authorizingUserId = '';
         let authorizingUserName = 'Alguém';
@@ -1726,12 +1734,22 @@ export const ordersService = {
             updateData.team_leader_id = Number(teamLeaderId);
         }
 
-        const { error: updateError } = await supabase
-            .from('orders')
-            .update(updateData)
-            .eq('id', orderId);
-
-        if (updateError) throw updateError;
+        if (expectedStatusId != null) {
+            const { data: updatedRows, error: guardedError } = await supabase
+                .from('orders')
+                .update(updateData)
+                .eq('id', orderId)
+                .eq('status_id', expectedStatusId)
+                .select('id');
+            if (guardedError) throw guardedError;
+            if (!updatedRows || updatedRows.length === 0) throw new Error('ORDER_STATUS_CONFLICT');
+        } else {
+            const { error: updateError } = await supabase
+                .from('orders')
+                .update(updateData)
+                .eq('id', orderId);
+            if (updateError) throw updateError;
+        }
 
         if (order.parent_id) {
             await this.updateServiceRequestStatus(order.parent_id.toString());

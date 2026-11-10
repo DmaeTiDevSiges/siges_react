@@ -16,6 +16,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { isVehicleRentalEnabled } from '../../features';
 import { FuelExpenseScreen } from '../Vehicles/FuelExpenseScreen';
 import type { VehicleMonthlyExpense } from '../../services/orders/vehicleRentalService';
+import type { MyDayScheduleItem } from '../../services/orders/dailyScheduleService';
 import { usePermissions } from '../../contexts/PermissionsContext';
 
 type DashboardTab = 'services' | 'visits' | 'fuel';
@@ -87,6 +88,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     const [orders, setOrders] = useState<Order[]>([]);
     const [visits, setVisits] = useState<OrderVisit[]>([]);
     const [openChatVisits, setOpenChatVisits] = useState<OrderVisit[]>([]);
+    /** Programação diária de hoje da equipe (sequência) + OSs programadas que não são do líder. */
+    const [myDaySchedule, setMyDaySchedule] = useState<MyDayScheduleItem[]>([]);
+    const [scheduledExtraOrders, setScheduledExtraOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [fuelExpenses, setFuelExpenses] = useState<VehicleMonthlyExpense[]>([]);
     const [fuelLoading, setFuelLoading] = useState(false);
@@ -151,12 +155,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                 ? dataService.getFuelExpensesByUser(currentUser.id.toString())
                 : Promise.resolve([]);
 
-            const [teamOrders, teamVisits, userChatVisits, fuelData] = await Promise.all([
+            const [teamOrders, teamVisits, userChatVisits, fuelData, daySchedule] = await Promise.all([
                 dataService.getOrdersByLeader(currentUser.id.toString()),
                 dataService.getVisitsByLeader(currentUser.id.toString()),
                 dataService.getOpenChatVisitsForUser(currentUser.id.toString()),
-                fuelPromise
+                fuelPromise,
+                dataService.getMyDaySchedule().catch((err) => {
+                    console.error('Error fetching daily schedule:', err);
+                    return [] as MyDayScheduleItem[];
+                })
             ]);
+            // OS programada para a equipe mas com outro líder: busca à parte.
+            const leaderOrderIds = new Set(teamOrders.map(o => o.id.toString()));
+            const missingIds = daySchedule.map(i => i.orderId).filter(id => !leaderOrderIds.has(id));
+            const extraOrders = missingIds.length > 0
+                ? (await Promise.all(missingIds.map(id => dataService.getOrderById(id).catch(() => null))))
+                    .filter((o): o is Order => !!o)
+                : [];
+            setMyDaySchedule(daySchedule);
+            setScheduledExtraOrders(extraOrders);
             setOrders(teamOrders);
             setVisits(teamVisits);
             setOpenChatVisits(userChatVisits);
@@ -251,16 +268,32 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         };
     }, [loadDashboardData]);
 
+    /** orderId → posição na sequência de hoje. */
+    const scheduledPosition = useMemo(
+        () => new Map(myDaySchedule.map(item => [item.orderId, item.position])),
+        [myDaySchedule]
+    );
+
+    const scheduledOrders = useMemo(() => {
+        const byId = new Map<string, Order>();
+        [...orders, ...scheduledExtraOrders].forEach(o => byId.set(o.id.toString(), o));
+        return myDaySchedule
+            .map(item => byId.get(item.orderId))
+            .filter((o): o is Order => !!o);
+    }, [orders, scheduledExtraOrders, myDaySchedule]);
+
     // Grouping logic based on status IDs 3, 4 and 6
     const stats = useMemo(() => {
         return {
+            programadas: scheduledOrders.length,
             autorizados: orders.filter(o => o.statusId === 3).length,
             agendadas: orders.filter(o => o.statusId === 4).length, // Using 4 for Agendadas per user request
             suspensos: orders.filter(o => o.statusId === 6).length,
         };
-    }, [orders]);
+    }, [orders, scheduledOrders.length]);
 
     const filteredOrders = useMemo(() => {
+        if (selectedService === 'programadas') return scheduledOrders;
         const statusMap: Record<string, number> = {
             'autorizados': 3,
             'agendadas': 4,
@@ -268,7 +301,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         };
         const targetStatus = statusMap[selectedService];
         return orders.filter(o => o.statusId === targetStatus);
-    }, [orders, selectedService]);
+    }, [orders, selectedService, scheduledOrders]);
 
     // Visits Logic
     const openChatList = useMemo(() => {
@@ -341,6 +374,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                             <DashboardCardsSkeleton count={3} />
                         ) : (
                             <UserServicesPanel
+                                programadasCount={stats.programadas}
                                 autorizadosCount={stats.autorizados}
                                 agendadasCount={stats.agendadas}
                                 suspensosCount={stats.suspensos}
@@ -358,7 +392,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                             ) : (
                                 <div className="flex items-center justify-between mb-4 px-1">
                                     <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
-                                        {selectedService === 'autorizados' ? 'OS Autorizados' :
+                                        {selectedService === 'programadas' ? 'OS Programadas hoje · ordem de execução' :
+                                            selectedService === 'autorizados' ? 'OS Autorizados' :
                                             selectedService === 'agendadas' ? 'OS Agendados' : 'OS Suspensos'}
                                     </h2>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -373,16 +408,29 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                 </div>
                             ) : filteredOrders.length > 0 ? (
                                 <div className="flex flex-col gap-3">
-                                    {filteredOrders.map(order => (
-                                        <OrderCardDetail
-                                            key={order.id}
-                                            order={order}
-                                            currentUser={currentUser}
-                                            onClick={() => onSelectOrder?.(order)}
-                                            onSuccess={() => loadDashboardData(false)}
-                                            onEdit={onEdit}
-                                        />
-                                    ))}
+                                    {filteredOrders.map(order => {
+                                        const position = scheduledPosition.get(order.id.toString());
+                                        return (
+                                            <div key={order.id} className="flex flex-col gap-1">
+                                                {position != null && (
+                                                    <span
+                                                        className="self-start flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider"
+                                                        title="Programação diária de hoje — ordem de execução"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[14px]">event_available</span>
+                                                        Hoje · {position}º
+                                                    </span>
+                                                )}
+                                                <OrderCardDetail
+                                                    order={order}
+                                                    currentUser={currentUser}
+                                                    onClick={() => onSelectOrder?.(order)}
+                                                    onSuccess={() => loadDashboardData(false)}
+                                                    onEdit={onEdit}
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-16 text-center">

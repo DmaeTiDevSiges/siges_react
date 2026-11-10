@@ -10,7 +10,9 @@ export const FilterSelect: React.FC<{
     required?: boolean;
     hidden?: boolean;
     variant?: 'horizontal' | 'vertical';
-}> = ({ label, value, onClick, onClear, disabled, required, hidden, variant = 'horizontal' }) => {
+    /** Horizontal: a largura acompanha o valor (sem cortar em 120px); só trunca no limite da tela. */
+    autoWidth?: boolean;
+}> = ({ label, value, onClick, onClear, disabled, required, hidden, variant = 'horizontal', autoWidth }) => {
     const count = Array.isArray(value) ? value.length : (value ? 1 : 0);
     const isEmpty = count === 0;
     const isAllSelected = typeof value === 'string' && value.toLowerCase() === 'todos';
@@ -65,7 +67,7 @@ export const FilterSelect: React.FC<{
     }
 
     return (
-        <div className={`relative flex items-center w-auto shrink-0 min-w-[110px] h-[42px] transition-opacity ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`relative flex items-center w-auto min-w-[110px] h-[42px] transition-opacity ${autoWidth ? 'max-w-full' : 'shrink-0'} ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
             <div className={`flex items-stretch h-full w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden transition-all ${
                 showRequiredError
                     ? '!border-red-400'
@@ -75,14 +77,14 @@ export const FilterSelect: React.FC<{
             }`}>
                 <div
                     onClick={onClick}
-                    className="flex-1 px-3 flex flex-col justify-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                    className="flex-1 min-w-0 px-3 flex flex-col justify-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
                     <div className="flex items-center gap-1 mb-0.5">
                         <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none whitespace-nowrap">{label}</span>
                         {required && <span className="text-red-500 text-[10px] font-black leading-none">*</span>}
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span className={`text-[11px] font-bold whitespace-nowrap truncate max-w-[120px] ${
+                        <span className={`text-[11px] font-bold whitespace-nowrap truncate ${autoWidth ? '' : 'max-w-[120px]'} ${
                             showRequiredError
                                 ? 'text-red-400'
                                 : count > 0
