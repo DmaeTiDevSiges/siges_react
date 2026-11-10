@@ -43,12 +43,17 @@ interface ScheduleOrderCardViewProps {
     /** Exibe o cadeado (OS que não troca de equipe). */
     showLock?: boolean;
     isOverlay?: boolean;
+    /**
+     * Alça de arraste (atributos/listeners do dnd-kit + ref do ativador). Só ela inicia o
+     * arraste: o resto do cartão fica livre para rolar a faixa/equipes.
+     */
+    handleProps?: Record<string, any>;
     onOpenActions?: () => void;
     onOpenOrder?: () => void;
 }
 
 export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
-    order, position, showLock, isOverlay, onOpenActions, onOpenOrder,
+    order, position, showLock, isOverlay, handleProps, onOpenActions, onOpenOrder,
 }) => {
     const status = STATUS_STYLE[order.statusId] || { label: order.statusCode || '?', className: 'bg-slate-500/15 text-slate-500' };
     return (
@@ -58,9 +63,21 @@ export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
                     ? 'shadow-2xl ring-2 ring-primary rotate-1 cursor-grabbing'
                     : isScheduleLocked(order)
                         ? 'border-2 border-emerald-500 animate-execution-pulse cursor-default'
-                        : 'shadow-sm hover:shadow-md border-slate-200 dark:border-white/10 cursor-grab'}`}
+                        : 'shadow-sm hover:shadow-md border-slate-200 dark:border-white/10'}`}
         >
             <div className="flex items-start gap-2">
+                {(handleProps || isOverlay) && (
+                    <button
+                        type="button"
+                        data-drag-handle
+                        {...handleProps}
+                        className="shrink-0 -ml-2 -my-1 py-1 rounded-md text-slate-300 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-grab active:cursor-grabbing touch-none"
+                        title="Arrastar a OS"
+                        aria-label={`Arrastar a OS ${order.orderMask}`}
+                    >
+                        <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
+                    </button>
+                )}
                 {position != null && (
                     <span className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-[11px] font-black">
                         {position}
@@ -152,7 +169,7 @@ export const OPEN_ID_PREFIX = 'o:';
 export const PriorityOrderCard: React.FC<DraggableProps & { rank?: number; variant?: 'priority' | 'open' }> = ({
     order, rank, variant = 'priority', disabled, onOpenActions, onOpenOrder,
 }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
         id: `${variant === 'open' ? OPEN_ID_PREFIX : PRIORITY_ID_PREFIX}${order.id}`,
         data: { container: variant },
         disabled: disabled || isScheduleLocked(order),
@@ -162,14 +179,13 @@ export const PriorityOrderCard: React.FC<DraggableProps & { rank?: number; varia
         <div
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition }}
-            {...attributes}
-            {...listeners}
             className={`w-[240px] shrink-0 touch-manipulation ${isDragging ? 'opacity-30' : ''}`}
         >
             <ScheduleOrderCardView
                 order={order}
                 position={rank}
                 showLock={isScheduleLocked(order)}
+                handleProps={locked ? undefined : { ...attributes, ...listeners, ref: setActivatorNodeRef }}
                 onOpenActions={locked ? undefined : onOpenActions}
                 onOpenOrder={onOpenOrder}
             />
@@ -181,7 +197,7 @@ export const PriorityOrderCard: React.FC<DraggableProps & { rank?: number; varia
 export const SortableTeamOrderCard: React.FC<DraggableProps & { teamId: string; position: number }> = ({
     order, teamId, position, disabled, onOpenActions, onOpenOrder,
 }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
         id: order.id,
         data: { container: teamId },
         disabled: disabled || isScheduleLocked(order),
@@ -191,14 +207,13 @@ export const SortableTeamOrderCard: React.FC<DraggableProps & { teamId: string; 
         <div
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition }}
-            {...attributes}
-            {...listeners}
             className={`touch-manipulation ${isDragging ? 'opacity-30' : ''}`}
         >
             <ScheduleOrderCardView
                 order={order}
                 position={position}
                 showLock={isScheduleLocked(order)}
+                handleProps={locked ? undefined : { ...attributes, ...listeners, ref: setActivatorNodeRef }}
                 onOpenActions={locked ? undefined : onOpenActions}
                 onOpenOrder={onOpenOrder}
             />

@@ -325,14 +325,17 @@ export const dailyScheduleService = {
 
         // OSs Em Avaliação ficam fora da programação (nem ABERTAS nem PRIORIDADE).
         const orders = (data || []).map(mapOrder).filter(o => o.statusId !== DAILY_SCHEDULE_STATUS.EVALUATION);
+        // OS em execução só aparece na coluna da equipe (fora de ABERTAS e de PRIORIDADE).
+        const isExecution = (o: DailyScheduleOrder) => o.statusId === DAILY_SCHEDULE_STATUS.EXECUTION;
+        const stripOrders = orders.filter(o => !isExecution(o));
         // Prioritárias = só as registradas (ou herdadas); o resto fica em ABERTAS.
-        const priorities = orders.filter(o => priorityByOrder.has(o.id)).sort(byPriority);
-        const openOrders = orders.filter(o => !priorityByOrder.has(o.id)).sort(byRequestedAt);
+        const priorities = stripOrders.filter(o => priorityByOrder.has(o.id)).sort(byPriority);
+        const openOrders = stripOrders.filter(o => !priorityByOrder.has(o.id)).sort(byRequestedAt);
 
         // Colunas começam limpas no dia: só as OSs inseridas nelas (sequência salva do dia).
         // Fica de fora a OS que já não pode estar na coluna (equipe trocada, fora de 3/4/5/6):
         // a RPC de gravação recusaria a sequência inteira.
-        const orderById = new Map(orders.map(o => [o.id, o]));
+        const orderById = new Map<string, DailyScheduleOrder>(orders.map(o => [o.id, o]));
         const placeable = new Set<number>([
             DAILY_SCHEDULE_STATUS.AUTHORIZED,
             DAILY_SCHEDULE_STATUS.SCHEDULED,
@@ -348,6 +351,16 @@ export const dailyScheduleService = {
                 if (order.teamId !== teamKey || !placeable.has(order.statusId)) return;
                 columns[teamKey].push(order);
             });
+
+        // Em execução: sempre na coluna da própria equipe, mesmo sem ter sido inserida no dia
+        // (exceção às colunas limpas). As que não estão na sequência salva entram no topo.
+        const executing = orders
+            .filter(o => isExecution(o) && o.teamId && columns[o.teamId])
+            .sort(byRequestedAt);
+        for (const teamId of Object.keys(columns)) {
+            const missing = executing.filter(o => o.teamId === teamId && !columns[teamId].some(c => c.id === o.id));
+            if (missing.length > 0) columns[teamId] = [...missing, ...columns[teamId]];
+        }
 
         return { supported, teams, priorities, openOrders, prioritiesInheritedFrom, columns, updatedAt };
     },

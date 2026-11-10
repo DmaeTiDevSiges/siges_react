@@ -38,6 +38,7 @@ import { dataService } from '../../services/dataService';
 import type { DailyScheduleBoard, DailyScheduleItemInput, DailyScheduleMoveLog, DailyScheduleOrder, DailyScheduleTeam } from '../../services/orders/dailyScheduleService';
 import { DAILY_SCHEDULE_STATUS, ORDER_STATUS_CONFLICT } from '../../services/orders/dailyScheduleService';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { formatDateInBrazil, getBrazilDateInputValue } from '../../utils/formatters';
 import { FilterSelect } from '../../components/ui/FilterSelect';
 import { TreeFilterSelect } from '../../components/ui/TreeFilterSelect';
@@ -144,6 +145,41 @@ const collisionDetection: CollisionDetection = (args) => {
 };
 
 /**
+ * Rolagem horizontal com o mouse: clicar e puxar em qualquer lugar (menos na alça ⠿ e em
+ * campos de texto) rola o contêiner. `wheel`: a roda do mouse também rola para os lados
+ * (até a ponta; depois a página volta a rolar). No toque, a rolagem nativa já funciona.
+ */
+const useHorizontalScroll = (wheel: boolean) => {
+    const drag = useDraggableScroll();
+    const { ref } = drag;
+    useEffect(() => {
+        const el = ref.current;
+        if (!el || !wheel) return;
+        const onWheel = (e: WheelEvent) => {
+            if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+            const max = el.scrollWidth - el.clientWidth;
+            if (max <= 0) return;
+            const next = Math.max(0, Math.min(max, el.scrollLeft + e.deltaY));
+            if (next === el.scrollLeft) return;
+            el.scrollLeft = next;
+            e.preventDefault();
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
+    }, [ref, wheel]);
+    return {
+        ref,
+        onMouseDown: (e: React.MouseEvent) => {
+            // Só a alça fica de fora (ela arrasta a OS). Em botões, um clique sem mover
+            // continua sendo clique (a rolagem só começa após ~5px).
+            if ((e.target as HTMLElement).closest('[data-drag-handle], input, select, textarea')) return;
+            drag.onMouseDown(e);
+        },
+        onClickCapture: drag.onClickCapture,
+    };
+};
+
+/**
  * Faixas OS's ABERTAS / PRIORIDADE DE ATENDIMENTO: a SEÇÃO inteira (título, filtros e
  * cards) é área de soltar — antes só a fileira de cards, e soltar no título caía no alvo
  * "mais próximo" (outra faixa) sem fazer nada. Destaca ao passar por cima: azul quando
@@ -160,6 +196,7 @@ const PriorityStrip: React.FC<{
 }> = ({ containerId, className, header, accepting, refusing, itemIds, children }) => {
     const { setNodeRef } = useDroppable({ id: containerId, data: { container: containerId } });
     const { over } = useDndContext();
+    const scroll = useHorizontalScroll(true);
     // Sobre a faixa ou sobre um card dela (os cards têm prioridade na colisão).
     const hovering = !!over && (String(over.id) === containerId || (over.data.current as any)?.container === containerId);
     const highlight = hovering && refusing
@@ -172,7 +209,12 @@ const PriorityStrip: React.FC<{
     return (
         <section ref={setNodeRef} className={`${className} transition-all ${highlight}`}>
             {header}
-            <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 -mx-1 min-h-[120px] rounded-2xl">
+            <div
+                ref={scroll.ref}
+                onMouseDown={scroll.onMouseDown}
+                onClickCapture={scroll.onClickCapture}
+                className="flex gap-3 overflow-x-auto py-2 px-1 -mx-1 min-h-[120px] rounded-2xl cursor-grab active:cursor-grabbing"
+            >
                 <SortableContext items={itemIds} strategy={horizontalListSortingStrategy}>
                     {children}
                 </SortableContext>
@@ -188,6 +230,8 @@ interface OrdersDailyScheduleScreenProps {
 
 export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps> = ({ currentUser, onSelectOrder }) => {
     const { canCreate } = usePermissions();
+    /** Rolagem das colunas das equipes com o mouse (a roda continua rolando a página). */
+    const teamsScroll = useHorizontalScroll(false);
     const today = getBrazilDateInputValue();
 
     const [contracts, setContracts] = useState<Contract[]>([]);
@@ -593,7 +637,8 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     // ── Drag & drop ───────────────────────────────────────────────────────────
     const sensors = useSensors(
         useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-        useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+        // Arraste só pela alça ⠿ (touch-none): ativa rápido; o resto do cartão rola normalmente.
+        useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 8 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     );
 
@@ -684,7 +729,8 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         error: 'Erro ao salvar',
     };
 
-    const contractOptions = contracts.map(c => ({ value: c.id, label: contractLabel(c) }));
+    // Opções do filtro: só a descrição (sem o código); sem descrição, cai no rótulo completo.
+    const contractOptions = contracts.map(c => ({ value: c.id, label: c.description || contractLabel(c) }));
 
     const teamFilterOptions = (board?.teams || []).map(t => ({
         value: t.id,
@@ -929,7 +975,12 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                                 <p className="text-xs text-slate-400">O departamento prestador deste contrato não tem equipes ativas com líder.</p>
                             </div>
                         ) : (
-                            <div className="flex gap-3 overflow-x-auto pb-4 items-stretch">
+                            <div
+                                ref={teamsScroll.ref}
+                                onMouseDown={teamsScroll.onMouseDown}
+                                onClickCapture={teamsScroll.onClickCapture}
+                                className="flex gap-3 overflow-x-auto pb-4 items-stretch cursor-grab active:cursor-grabbing"
+                            >
                                 {visibleTeams.map(team => (
                                     <ScheduleTeamColumn
                                         key={team.id}

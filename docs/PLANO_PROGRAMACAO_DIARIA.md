@@ -41,6 +41,8 @@ Cada faixa tem os próprios filtros (Unidade, Setor e busca).
 
 - **OSs Em Avaliação (status 2) não aparecem** em nenhuma faixa nem coluna.
 - As **colunas das equipes começam vazias** a cada dia: só mostram as OSs inseridas nelas naquele dia.
+  **Exceção:** OS **em execução** aparece sempre na coluna da própria equipe (no topo, se não
+  estava na sequência salva) e **não aparece** em ABERTAS nem em PRIORIDADE.
 - Ao carregar, a tela descarta da coluna a OS salva que mudou de equipe ou saiu de 3/4/5/6.
   Sem isso, a RPC recusaria salvar a sequência inteira.
 
@@ -58,8 +60,16 @@ Cada faixa tem os próprios filtros (Unidade, Setor e busca).
 | Equipe → faixas | Proibido |
 | Cada OS | Entra em **uma equipe só** por dia |
 
+### 2.3.1 Arrastar × rolar
+
+- A OS só é arrastada pela **alça ⠿** no canto do cartão.
+- Clicar e puxar em qualquer outro lugar **rola** a faixa ou as equipes para os lados.
+- Nas faixas, a roda do mouse também rola para os lados e a barra de rolagem fica visível.
+- No celular, deslizar o dedo rola normalmente; para arrastar, use a alça ou o menu ⋮.
+
 ### 2.4 OS em execução (status 5)
 
+- Aparece **só na coluna da própria equipe**, automaticamente (fora de ABERTAS e PRIORIDADE).
 - **Não se move**: não é arrastável, não tem menu ⋮ e mostra cadeado.
 - Tem **borda verde pulsando** (sem animação para quem configurou o sistema para reduzir movimento).
 - Se outras OSs forem reordenadas em volta, o número dela pode mudar.
@@ -147,8 +157,6 @@ em vez de "OS X foi de A para B".
 - **Em Avaliação fora da programação:** com isso, a regra "Em Avaliação vai para qualquer equipe
   e é autorizada" não é usada. Autorizar passa a ser feito fora da Programação. Revisitar se
   o fluxo de autorização precisar voltar para cá.
-- **OS em execução:** por estar travada, não sai de ABERTAS nem entra numa coluna. Só aparece
-  numa coluna se já estava salva ali no dia.
 - **Trava só no app:** o banco aceita gravar a sequência com OS em execução e não valida a regra
   "só a própria equipe". Considerar validar também nas RPCs.
 - **Dia sem acesso:** o registro nasce quando alguém abre ou mexe na tela naquele dia. Dia sem
@@ -169,7 +177,9 @@ Usuário com `can_create`, contrato com OSs abertas em várias situações, dia 
 - [ ] PRIORIDADE → própria equipe: entra na coluna; → outra equipe: recusa com aviso
 - [ ] Inserir a mesma OS de novo: aviso "já programada para a equipe X"
 - [ ] Equipe → outra equipe: recusa; reordenar na coluna funciona
-- [ ] OS em execução: borda verde pulsando, cadeado, não arrasta, sem menu ⋮
+- [ ] Rolar ABERTAS, PRIORIDADE e as equipes clicando e puxando no cartão (sem mover a OS); roda do mouse rola as faixas
+- [ ] Arrastar a OS só pela alça ⠿; no celular, deslizar rola e a alça arrasta
+- [ ] OS em execução: só na coluna da própria equipe (fora de ABERTAS e PRIORIDADE), borda verde pulsando, cadeado, não arrasta, sem menu ⋮
 - [ ] Cartão expande ao passar o mouse e mostra a descrição inteira; setor e posição no mesmo negrito
 - [ ] Recarregar a página: prioridade e colunas continuam iguais (gravadas)
 - [ ] `orders_daily_schedules_logs` tem uma linha por movimentação, com o usuário certo
