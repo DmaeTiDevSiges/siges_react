@@ -25,11 +25,13 @@ interface ScheduleOrderActionsModalProps {
     onPrioritize: () => void;
     /** OS's PRIORIDADE DE ATENDIMENTO → de volta para OS's ABERTAS. */
     onUnprioritize: () => void;
+    /** OS Autorizada na coluna da equipe → volta para a faixa (sai da equipe no dia). */
+    onReturnToStrip: (strip: 'priority' | 'open') => void;
 }
 
 /** Alternativa ao arraste (útil no celular): reordenar e mover para uma equipe. */
 export const ScheduleOrderActionsModal: React.FC<ScheduleOrderActionsModalProps> = ({
-    target, teams, placedTeamId, onClose, onMoveUp, onMoveDown, onMoveToTeam, onPrioritize, onUnprioritize,
+    target, teams, placedTeamId, onClose, onMoveUp, onMoveDown, onMoveToTeam, onPrioritize, onUnprioritize, onReturnToStrip,
 }) => {
     const fromPriority = target?.container === 'priority';
     const fromOpen = target?.container === 'open';
@@ -75,6 +77,18 @@ export const ScheduleOrderActionsModal: React.FC<ScheduleOrderActionsModalProps>
                                 {fromPriority ? 'Menos prioritária' : 'Descer'}
                             </button>
                         </div>
+                        {fromTeam && movesBetweenTeams && (
+                            <div className="grid grid-cols-2 gap-2">
+                                <button type="button" className={btn} onClick={() => onReturnToStrip('priority')}>
+                                    <span className="material-symbols-outlined">north</span>
+                                    Voltar p/ PRIORIDADE
+                                </button>
+                                <button type="button" className={btn} onClick={() => onReturnToStrip('open')}>
+                                    <span className="material-symbols-outlined">keyboard_double_arrow_up</span>
+                                    Voltar p/ ABERTAS
+                                </button>
+                            </div>
+                        )}
                         {fromPriority && (
                             <button type="button" className={btn} onClick={onUnprioritize}>
                                 <span className="material-symbols-outlined">north</span>

@@ -7,7 +7,8 @@
 --       unprioritize   OS's PRIORIDADE DE ATENDIMENTO → OS's ABERTAS
 --       authorize_team OS's PRIORIDADE DE ATENDIMENTO → EQUIPE (autoriza a OS)
 --       assign_team    OS's PRIORIDADE DE ATENDIMENTO → EQUIPE (OS já com essa equipe definida)
---       change_team    OS Autorizada trocada de equipe (reservado; a tela não troca mais)
+--       change_team    OS Autorizada trocada de equipe (atualiza equipe e líder na OS)
+--       unassign_team  OS Autorizada retirada da equipe (volta para PRIORIDADE ou ABERTAS)
 --   • Gravação só pela RPC fn_orders_daily_schedule_log, que exige a permissão
 --     'create' na rota 'orders_daily_schedule' e recusa dias passados.
 --   • Leitura: quem tem 'view' na rota.
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.orders_daily_schedules_logs (
     order_id       BIGINT NOT NULL REFERENCES public.orders (id) ON DELETE CASCADE,
     action         VARCHAR(20) NOT NULL
                    CONSTRAINT orders_daily_schedules_logs_action_check
-                   CHECK (action IN ('prioritize', 'unprioritize', 'authorize_team', 'assign_team', 'change_team')),
+                   CHECK (action IN ('prioritize', 'unprioritize', 'authorize_team', 'assign_team', 'change_team', 'unassign_team')),
     from_team_id   BIGINT REFERENCES public.cfg_teams (id),
     to_team_id     BIGINT REFERENCES public.cfg_teams (id),
     -- Posição de destino (1 = primeira) quando fizer sentido; NULL nos demais casos.
@@ -38,7 +39,7 @@ CREATE TABLE IF NOT EXISTS public.orders_daily_schedules_logs (
 -- Ações aceitas (recria o CHECK se a tabela já existia com a lista antiga).
 ALTER TABLE public.orders_daily_schedules_logs DROP CONSTRAINT IF EXISTS orders_daily_schedules_logs_action_check;
 ALTER TABLE public.orders_daily_schedules_logs ADD CONSTRAINT orders_daily_schedules_logs_action_check
-    CHECK (action IN ('prioritize', 'unprioritize', 'authorize_team', 'assign_team', 'change_team'));
+    CHECK (action IN ('prioritize', 'unprioritize', 'authorize_team', 'assign_team', 'change_team', 'unassign_team'));
 
 COMMENT ON TABLE public.orders_daily_schedules_logs IS
     'Log das movimentações de OS na Programação Diária (abertas → prioridade → equipes).';

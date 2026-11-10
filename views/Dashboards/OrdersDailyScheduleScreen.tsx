@@ -497,6 +497,31 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         schedulePrioritySave(priorities);
     };
 
+    /**
+     * OS Autorizada na coluna da equipe → volta para PRIORIDADE (na posição `index`) ou para
+     * ABERTAS. Sai da equipe só no dia; a OS continua Autorizada com a mesma equipe e líder.
+     */
+    const returnToStrip = (order: DailyScheduleOrder, fromTeamId: string, strip: StripKind, index: number) => {
+        if (!board || readOnly || !canChangeTeam(order)) return;
+        const wasPrioritized = board.priorities.some(o => o.id === order.id);
+        const columns = { ...board.columns, [fromTeamId]: (board.columns[fromTeamId] || []).filter(o => o.id !== order.id) };
+        const priorities = board.priorities.filter(o => o.id !== order.id);
+        let openOrders = board.openOrders.filter(o => o.id !== order.id);
+        if (strip === PRIORITY) {
+            priorities.splice(Math.min(Math.max(index, 0), priorities.length), 0, order);
+        } else {
+            openOrders = [...openOrders, order].sort(byRequestedAt);
+        }
+        const next: DailyScheduleBoard = { ...board, columns, priorities, openOrders, prioritiesInheritedFrom: undefined };
+        setBoard(next);
+        scheduleSave(next);
+        schedulePrioritySave(priorities);
+        logMove(order, { action: 'unassign_team', fromTeamId });
+        if (strip === OPEN && wasPrioritized) logMove(order, { action: 'unprioritize' });
+        if (strip === PRIORITY && !wasPrioritized) logMove(order, { action: 'prioritize', toPosition: priorities.indexOf(order) + 1 });
+        toast.success(`OS ${order.orderMask} voltou para ${strip === PRIORITY ? "OS's PRIORIDADE DE ATENDIMENTO" : "OS's ABERTAS"}`);
+    };
+
     /** OS's PRIORIDADE DE ATENDIMENTO → de volta para OS's ABERTAS (ordem de abertura). */
     const unprioritize = (order: DailyScheduleOrder) => {
         if (!board || !canEditPriorities) return;
@@ -605,6 +630,12 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         if (!board) return;
         if (isScheduleLocked(order)) {
             toast.error(`A OS ${order.orderMask} está em execução e não pode ser movimentada.`);
+            return;
+        }
+        // Da coluna da equipe para uma faixa: só a Autorizada volta.
+        if (from !== OPEN && from !== PRIORITY && (to === OPEN || to === PRIORITY)) {
+            if (canChangeTeam(order)) returnToStrip(order, from, to as StripKind, index);
+            else toast.error("Só OS Autorizada volta da equipe para as faixas. Esta só é reordenada na própria coluna.");
             return;
         }
         if (from === OPEN || to === OPEN) {
@@ -843,6 +874,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
             </>
         );
         const fromOtherStrip = !!active && active.container !== strip && (active.container === OPEN || active.container === PRIORITY);
+        const fromTeamColumn = !!active && active.container !== OPEN && active.container !== PRIORITY;
         return (
             <PriorityStrip
                 containerId={strip}
@@ -850,8 +882,8 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     ? 'bg-sky-50/50 dark:bg-sky-950/20 border-sky-200/50 dark:border-sky-800/30'
                     : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-800/30'}`}
                 header={header}
-                accepting={fromOtherStrip && canEditPriorities}
-                refusing={!!active && active.container !== PRIORITY && active.container !== OPEN}
+                accepting={canEditPriorities && (fromOtherStrip || (fromTeamColumn && canChangeTeam(active!.order)))}
+                refusing={fromTeamColumn && !canChangeTeam(active!.order)}
                 itemIds={filtered.map(o => `${prefix}${o.id}`)}
             >
                     {filtered.length > 0 ? (
@@ -1103,6 +1135,12 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                 }}
                 onUnprioritize={() => {
                     if (actionTarget) unprioritize(actionTarget.order);
+                    setActionTarget(null);
+                }}
+                onReturnToStrip={(strip) => {
+                    if (actionTarget && board) {
+                        returnToStrip(actionTarget.order, actionTarget.container, strip, board.priorities.length);
+                    }
                     setActionTarget(null);
                 }}
                 onMoveToTeam={(team) => {

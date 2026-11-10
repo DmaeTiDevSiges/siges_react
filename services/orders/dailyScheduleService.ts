@@ -73,7 +73,7 @@ export interface DailyScheduleBoard {
 }
 
 /** Movimentação registrada em orders_daily_schedules_logs (migration 20261126). */
-export type DailyScheduleMoveAction = 'prioritize' | 'unprioritize' | 'authorize_team' | 'assign_team' | 'change_team';
+export type DailyScheduleMoveAction = 'prioritize' | 'unprioritize' | 'authorize_team' | 'assign_team' | 'change_team' | 'unassign_team';
 
 export interface DailyScheduleMoveLog {
     contractId: string;

@@ -59,7 +59,8 @@ Cada faixa tem os próprios filtros (Unidade, Setor e busca).
 | PRIORIDADE → equipe, OS **Agendada/Suspensa** com equipe definida | **Só a própria equipe**; a OS não muda |
 | Equipe → equipe, OS **Autorizada** | Permitido; atualiza equipe responsável e líder na OS e sai da coluna antiga |
 | Equipe → equipe, demais | **Proibido** (só reordena na própria coluna) |
-| Equipe → faixas | Proibido |
+| Equipe → PRIORIDADE ou ABERTAS, OS **Autorizada** | Permitido: sai da coluna do dia (log `unassign_team`); a OS **continua Autorizada com a mesma equipe e líder**. Em PRIORIDADE entra na posição solta; em ABERTAS também sai da prioridade |
+| Equipe → faixas, demais | Proibido |
 | Cada OS | Entra em **uma equipe só** por dia |
 
 ### 2.3.1 Arrastar × rolar
@@ -102,7 +103,7 @@ naquele dia**. Equipes que hoje não têm líder ou foram desativadas também ap
 | Cabeçalho do dia | `orders_daily_schedules` | contrato, dia, quem gravou por último e quando |
 | Cada movimentação | `orders_daily_schedules_logs` | OS, ação, equipe de origem e destino, posição, usuário, horário |
 
-Ações do log: `prioritize`, `unprioritize`, `authorize_team`, `assign_team` e `change_team`.
+Ações do log: `prioritize`, `unprioritize`, `authorize_team`, `assign_team`, `change_team` e `unassign_team`.
 `change_team` = OS Autorizada mudou de equipe (guarda a equipe de origem e a de destino). Reordenar dentro da mesma faixa ou
 coluna **não** gera log.
 
@@ -152,8 +153,8 @@ em vez de "OS X foi de A para B".
 
 ## 5. Em aberto / ideias (não implementadas)
 
-- **Retirar OS da equipe:** hoje uma OS inserida por engano numa coluna não sai pela tela.
-  Sugestão: "Retirar da equipe" no menu ⋮, com log `unassign_team`.
+- **Retirar OS não Autorizada da equipe:** só a Autorizada volta da coluna para as faixas;
+  Agendada/Suspensa inserida por engano não sai pela tela.
 - **Tela de histórico do log:** o log só pode ser consultado no banco. Sugestão: botão
   "Histórico" na Programação com a linha do tempo do dia.
 - **Em Avaliação fora da programação:** com isso, a regra "Em Avaliação vai para qualquer equipe
@@ -178,6 +179,7 @@ Usuário com `can_create`, contrato com OSs abertas em várias situações, dia 
 - [ ] ABERTAS → equipe: recusa com aviso
 - [ ] PRIORIDADE → equipe com OS Autorizada de outra equipe: OS passa a ter a nova equipe e o novo líder (conferir no detalhe da OS)
 - [ ] Autorizada de uma coluna para outra: sai da antiga, atualiza equipe e líder; log `change_team`
+- [ ] Autorizada da coluna para PRIORIDADE (entra na posição) e para ABERTAS (sai também da prioridade); equipe e líder da OS não mudam; log `unassign_team`
 - [ ] Agendada/Suspensa: só entra na própria equipe; outra equipe recusa com aviso
 - [ ] Inserir a mesma OS de novo: aviso "já programada para a equipe X"
 - [ ] Equipe → outra equipe com OS não Autorizada: recusa; reordenar na coluna funciona
