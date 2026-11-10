@@ -4,7 +4,10 @@ Complementa [OFFLINE_MODO_CAMPO.md](OFFLINE_MODO_CAMPO.md) (decisões, inventár
 Estimativa total: **6 a 7 semanas, 1 dev**. Cada fase termina num APK testável e
 pode ir para produção com a flag desligada sem afetar ninguém.
 
-**Situação (09/11/2026):**
+**Situação (10/11/2026):** migrations **20261116, 20261117, 20261118 e 20261122 aplicadas** no Supabase
+(informado pelo usuário). Falta conferir a trava com usuários reais e rodar o portão no aparelho.
+
+**Situação anterior (09/11/2026):**
 - F1–F4 com código pronto (08/11). Em 09/11 entraram também: **incluir veículo** e
   **incluir/remover membro da equipe** offline (F4) e a **etapa 1 do
   [preparo automático](#preparo-automático-decisões-de-09112026)** (download sem o técnico tocar
@@ -75,8 +78,8 @@ Documentos JSON por coleção (não um espelho das tabelas):
 | `outbox` | opId | operação (tipo, payload, depende de, estado, tentativas, erro) |
 | `profile` | `me` | usuário atual + permissões |
 
-Item criado offline recebe id local `tmp:<client_uuid>`; operações seguintes referenciam o
-`client_uuid`, e o servidor resolve. Após o envio, `onSuccess` troca `tmp:` pelo id real no cache.
+Item criado offline recebe id local `tmp:<offline_uuid>`; operações seguintes referenciam o
+`offline_uuid`, e o servidor resolve. Após o envio, `onSuccess` troca `tmp:` pelo id real no cache.
 
 ---
 
@@ -245,11 +248,11 @@ sem duplicata, mesmo com queda no meio. Assinatura offline aparece no relatório
 
 | Ação | Como |
 |------|------|
-| Incluir material no ativo | Linha nasce com `client_uuid` e id local `tmp:<uuid>`; aparece na lista com descrição do **catálogo baixado no preparo** |
+| Incluir material no ativo | Linha nasce com `offline_uuid` e id local `tmp:<uuid>`; aparece na lista com descrição do **catálogo baixado no preparo** |
 | Buscar material | Offline, filtra o catálogo do fornecedor da OS (baixado em páginas de 1.000, até 10.000) com as **mesmas regras** da busca online (`materialSearchTerms.ts`) |
-| Alterar qtd./remover material ou serviço criado offline | No envio, `tmp:<uuid>` vira o id real (`findIdByClientUuid`). Remover antes de o insert subir **anula** insert + alterações na fila |
+| Alterar qtd./remover material ou serviço criado offline | No envio, `tmp:<uuid>` vira o id real (`findIdByOfflineUuid`). Remover antes de o insert subir **anula** insert + alterações na fila |
 | Incluir/remover serviço | Mesmo esquema; valor/desconto/descrição do serviço do contrato em cache |
-| Incluir/remover veículo | Busca no **cadastro de veículos da empresa** (`searchVehicles`, até 1.000, baixado no preparo); linha de Km vazia com `client_uuid`/`tmp:<uuid>`; Km e remoção do temporário seguem o insert. Sem cache, Km anterior e contrato de locação ficam em branco (sem aviso). Ociosidade continua só online |
+| Incluir/remover veículo | Busca no **cadastro de veículos da empresa** (`searchVehicles`, até 1.000, baixado no preparo); linha de Km vazia com `offline_uuid`/`tmp:<uuid>`; Km e remoção do temporário seguem o insert. Sem cache, Km anterior e contrato de locação ficam em branco (sem aviso). Ociosidade continua só online |
 | Incluir/remover membro da equipe | Lista de usuários do preparo (`getUsers`); entra na fila por visita+usuário; no envio `addTeamMember(..., { idempotent: true })` (reenvio não vira "já faz parte"); remover quem ainda não subiu anula a inclusão |
 | Relatar ativo | Hora do aparelho; contadores da visita atualizados no cache; **espera** todas as alterações daquele ativo; ao subir, solta a trava |
 | Relatar visita | Valida com o cache (mesma regra do serviço) antes de enfileirar; **espera** todas as da visita; reenvio idempotente (`options.idempotent`) |
@@ -259,17 +262,17 @@ sem duplicata, mesmo com queda no meio. Assinatura offline aparece no relatório
 
 | Plano | Implementado | Por quê |
 |-------|--------------|---------|
-| `offline_ops_applied` + RPCs `sync_*_add_v1` | **Nenhuma migration nova.** `insertWithClientUuid` (`services/core/clientUuidInsert.ts`): grava `client_uuid`; `23505` no índice do `client_uuid` = já gravado = sucesso | O índice UNIQUE da 20261116 já garante "não duplica"; menos SQL para manter |
+| `offline_ops_applied` + RPCs `sync_*_add_v1` | **Nenhuma migration nova.** `insertWithOfflineUuid` (`services/core/offlineUuidInsert.ts`): grava `offline_uuid`; `23505` no índice do `offline_uuid` = já gravado = sucesso | O índice UNIQUE da 20261116 já garante "não duplica"; menos SQL para manter |
 | `sync_ova_report_v1` (contadores no servidor) | O próprio `reportedOrderVisitAsset` (já recalcula os contadores) com `options.reportedAt` | Reexecutar o recálculo é idempotente |
 | `sync_ov_report_v1` | `reportOrderVisit` com `options.idempotent` (já relatado pelo mesmo usuário → nada a fazer) | Idem |
 | Dependências por operação | **Barreiras** no syncEngine: `'ova'` (Relatar ativo) e `'visit'` (Relatar visita, Encerrar) — esperam qualquer anterior do mesmo ativo/visita que não subiu. Com internet, também esperam a fila | Regra única, testada |
 | Inserir veículo/ativo offline | Veículo e membro da equipe: **offline** (cadastro de veículos e usuários no pacote). Ativo e ociosidade: só online | Ativo depende da busca no cadastro; ociosidade, do contrato de locação |
 
-Sem as migrations 20261116/20261118 aplicadas: inclusões gravam sem `client_uuid` (sem proteção contra duplicata) e o encerramento cai na v3 (hora = hora do envio).
+Sem as migrations 20261116/20261118 aplicadas: inclusões gravam sem `offline_uuid` (sem proteção contra duplicata) e o encerramento cai na v3 (hora = hora do envio).
 
 ### Arquivos
 
-- Novos: `services/offline/offlineFlowOps.ts` (+ `offlineFlowOps.test.ts`, 21 testes), `offlineCatalog.ts`, `services/core/clientUuidInsert.ts`, `services/materials/materialSearchTerms.ts`
+- Novos: `services/offline/offlineFlowOps.ts` (+ `offlineFlowOps.test.ts`, 21 testes), `offlineCatalog.ts`, `services/core/offlineUuidInsert.ts`, `services/materials/materialSearchTerms.ts`
 - Alterados: `materialsService.addMaterialToAsset`, `visitsService.addServiceToOrderVisit` / `reportedOrderVisitAsset` / `reportOrderVisit` / `closeOrderVisit` (parâmetro `options`), proxies no `dataService`, `syncEngine.ts` (barreiras), `outbox.ts` (`visitId`), `offlineOps.ts`, `offlineLayer.ts` (escopo, barreira online, busca offline), `offlineSync.ts` (id temporário, pós-envio, `SG409`), `fieldPackageService.ts` (catálogo), `useAssetLock.ts`
 
 ### Como testar
@@ -288,7 +291,7 @@ Sem as migrations 20261116/20261118 aplicadas: inclusões gravam sem `client_uui
 
 | # | Tarefa | Arquivos |
 |---|--------|----------|
-| 4.1 | RPCs com `client_uuid`: `sync_ova_material_add_v1`, `sync_ov_service_add_v1`, `sync_ov_vehicle_add_v1`, `sync_ov_idle_add_v1`, `sync_ov_asset_add_v1` + remoções (soft delete por id **ou** `client_uuid`) | migration |
+| 4.1 | RPCs com `offline_uuid`: `sync_ova_material_add_v1`, `sync_ov_service_add_v1`, `sync_ov_vehicle_add_v1`, `sync_ov_idle_add_v1`, `sync_ov_asset_add_v1` + remoções (soft delete por id **ou** `offline_uuid`) | migration |
 | 4.2 | Remoção de item ainda não enviado = cancela a operação na fila (nada vai ao servidor) | `outbox.ts` |
 | 4.3 | `sync_ova_report_v1`: relatar ativo + **contadores no servidor** (substitui `syncOrderVisitAssetsProcessing` do cliente) + solta a trava | migration, `operations/reportAsset.ts` |
 | 4.4 | `sync_ov_report_v1`: mesmas validações de `reportOrderVisit` (processing 1/4, ativos) no servidor | migration |
@@ -302,9 +305,19 @@ Sem as migrations 20261116/20261118 aplicadas: inclusões gravam sem `client_uui
 
 ---
 
-## ⛔ Portão de validação — F1 a F4 no aparelho (antes da F5)
+## ⛔ Portão de validação — F1 a F5 no aparelho (antes do piloto e da etapa 3)
 
 **Decisão (08/11/2026):** a F5 só começa depois que a F1–F4 passar no aparelho real.
+**Atualização (10/11/2026):** a pedido do usuário a F5 foi implantada antes; o portão agora
+valida F1–F5 (roteiro da F5 na seção dela) e vem antes do piloto e da etapa 3.
+
+> ✅ **Portão considerado APROVADO por decisão do usuário (10/11/2026)** — "assumir como todos os
+> testes realizados e aprovados". Não há registro item a item da execução: as caixas abaixo
+> ficaram sem marcar e servem de roteiro de referência / regressão. Defeitos encontrados em campo
+> entram na tabela "Defeitos".
+>
+> Junto: **liberação geral** decidida pelo usuário (`cfg_companies.offline_enabled = true` para
+> todas as empresas, padrão `true` para novas), **sem piloto**.
 
 **Por quê:** a F5 serve para **liberar** o modo offline aos técnicos (tela de pendências, chave por
 empresa/usuário, piloto). Até aqui tudo foi validado com `tsc` + 442 testes unitários, mas nada
@@ -314,7 +327,7 @@ piloto, custa dados de campo e confiança dos técnicos.
 
 ### Pré-requisitos
 
-- [ ] Migrations aplicadas no SQL Editor, nesta ordem, com as consultas de conferência do fim de cada arquivo:
+- [x] Migrations aplicadas no SQL Editor (✅ 10/11/2026, informado pelo usuário), nesta ordem, com as consultas de conferência do fim de cada arquivo:
       `20261116_add_offline_client_uuid.sql` → `20261117_add_orders_visits_assets_lock.sql` → `20261118_create_flow_order_visit_close_v4.sql`
 - [ ] Trava conferida com usuários reais: técnico → `ov_asset_lock` devolve `locked: true`; gestor → `ov_asset_unlock(id, true)` devolve `forced: true` (confirma RLS dos RPCs `SECURITY INVOKER`)
 - [ ] `VITE_FEATURE_OFFLINE_MODE=true` no `.env.local` (ou `.env.android`) → `npm run build:android` → APK instalado
@@ -373,7 +386,47 @@ Todos os itens marcados e nenhum defeito aberto que perca, duplique ou sobrescre
 
 ---
 
-## F5 — Pendências, conflitos, piloto (1 semana) — ⏸ aguarda o portão de validação
+## F5 — Pendências, conflitos, piloto (1 semana) — ✅ código pronto (10/11/2026), falta testar no aparelho
+
+**Decisão (10/11/2026):** a F5 foi implantada **antes** do portão, a pedido do usuário (muda a
+decisão de 08/11). A etapa 3 (iniciar visita offline) continua **depois** do portão. O portão
+passa a cobrir F1–F5.
+
+### Como ficou
+
+| # | Implementado |
+|---|--------------|
+| 5.1 | **Tela de pendências** (`components/offline/PendingOpsPanel.tsx`): painel em tela cheia montado uma vez no `App`, aberto tocando na faixa do cabeçalho (quando há fila) ou em "Ver pendências" no cartão "Modo campo". Lista por visita, com o nome de cada operação em português, ativo, data, tentativas e o erro em texto legível. Pendente: só informa. Erro: **Tentar de novo** / **Descartar**. Recusada: **Descartar**. Descartar leva junto o que depende do item (ex.: material criado offline → quantidade; ativo criado offline → tudo dele) e apaga as fotos locais dessas operações. Botões "Enviar agora" e "Tentar de novo os com erro". Botão "voltar" do Android fecha o painel |
+| 5.2 | **Aviso ao sair** (`offlineLogoutGuard.ts`) no `ProfileScreen` e no `AuthContext`: com internet tenta enviar antes; se sobrar algo, pergunta. A fila não é apagada — sobe quando o mesmo usuário entrar de novo |
+| 5.3 | **Chave do banco** (migration **20261123**, `offlineGate.ts`): offline só com a flag do APK **e** `fn_offline_enabled()` = usuário (`users.offline_enabled`) > empresa (`cfg_companies.offline_enabled`, padrão `false`). Lida no login e quando a internet volta; o último valor fica no aparelho (vale offline). Sem a migration: chave aberta (como antes). Fechar não apaga a fila. Liberar depois com o técnico logado começa o download sem reabrir o app |
+| 5.4 | **Telemetria**: evento `offline_sync` em `logs_app_client_events` a cada rodada que enviou, errou ou foi recusada — enviadas, erros, recusadas, seguradas, fila restante, minutos sem internet e falhas por operação. Só grava depois que a 20261123 foi detectada |
+| 5.5 | Piloto — **dispensado** pelo usuário em 10/11/2026: liberação geral direto (acompanhar a telemetria `offline_sync` nas primeiras semanas) |
+
+**Liberar o piloto (SQL Editor, depois de aplicar a 20261123):**
+```sql
+UPDATE public.users SET offline_enabled = true WHERE id IN (/* 2 ou 3 técnicos */);
+-- Telemetria:
+SELECT created_at, user_uuid, message, extra FROM public.logs_app_client_events
+ WHERE event_type = 'offline_sync' ORDER BY id DESC LIMIT 50;
+```
+
+**Atenção:** aplicar a 20261123 **desliga o offline para todos** até liberar empresa/usuário.
+
+### Arquivos
+
+- Novos: `services/offline/pendingOps.ts` (+ `pendingOps.test.ts`, 9 testes), `offlineGate.ts`, `offlineLogoutGuard.ts`, `components/offline/PendingOpsPanel.tsx`, `dev/supabase/migrations/20261123_add_offline_enabled.sql` (+ `_DOWN`, validada em Postgres local)
+- Alterados: `offlineSync.ts` (`retryOfflineOp`, `discardOfflineOp`, telemetria), `offlineConfig.ts` (chave do banco em `isOfflineSupported`), `offlineLayer.ts`, `App.tsx` (painel + chave antes do download automático), `ConnectionStrip.tsx` (faixa abre as pendências), `FieldPackageCard.tsx` ("Ver pendências"), `ProfileScreen.tsx`, `AuthContext.tsx`, `clientDiagnosticsService.ts` (tipo `offline_sync`)
+
+### Como testar (entra no portão)
+
+- [ ] Aplicar a 20261123 → técnico sem liberação: sem faixa de modo campo, sem download automático; liberar o usuário → em segundos começa o download (sem reabrir o app)
+- [ ] Gerar um erro e uma recusa (ex.: gestor libera o ativo com o técnico offline) → faixa âmbar → tocar → tela de pendências mostra os dois com o motivo
+- [ ] "Tentar de novo" num erro; "Descartar" numa recusa; descartar a inclusão de um material criado offline leva junto a quantidade alterada
+- [ ] Sair do app (Perfil → Sair) com fila pendente sem internet → aviso; cancelar mantém logado
+- [ ] Depois de uma rodada de envio, conferir a linha `offline_sync` em `logs_app_client_events`
+- [ ] Desligar a chave do técnico com fila pendente → a fila ainda sobe
+
+### Itens (plano original)
 
 | # | Tarefa |
 |---|--------|
@@ -433,8 +486,8 @@ iniciar outra sem internet** — então os dados não podem depender do "Prepara
 | Etapa | Situação |
 |-------|----------|
 | 1. Download automático + barra de progresso + trava opção (a) | ✅ **Código pronto** (09/11) — falta validar no aparelho |
-| 2. Incluir ativo offline (busca nos ativos da unidade baixados) | A fazer — depois do portão |
-| 3. Encerrar e iniciar outra visita offline | A fazer — depois da F5 (tela de pendências) |
+| 2. Incluir ativo offline (busca nos ativos da unidade baixados) | ✅ **Código pronto** (10/11, antecipado a pedido do usuário) — falta validar no aparelho |
+| 3. Encerrar e iniciar outra visita offline | ✅ **Código pronto** (10/11) — migration 20261124 aplicada |
 
 Decisões do usuário (09/11/2026):
 1. Preparo **automático**: na 1ª abertura baixa os dados de **todas as OSs abertas** da empresa;
@@ -448,10 +501,13 @@ Decisões do usuário (09/11/2026):
 6. Objetivo final: o técnico pode **encerrar uma visita e iniciar outra sem internet** —
    por isso todas as unidades das OSs abertas, não só as da visita atual.
 
+**Pré-requisito:** aplicar `20261122_create_fn_offline_change_versions.sql` (conferência no fim do arquivo). ✅ Aplicada em 10/11/2026 (informado pelo usuário).
+
 **Arquivos da etapa 1**
 - Novos: `services/offline/offlineAutoSync.ts` (gatilhos, execução, estado),
   `offlineAutoSyncPlan.ts` (+ `.test.ts`, 5 testes — o que baixar/apagar),
   `offlineCatalogDownload.ts` (catálogos com idade: materiais, veículos, ativos da unidade),
+  `offlineVersionsService.ts` (versões do banco — `fn_offline_change_versions`),
   `hooks/useOfflineAutoSync.ts`
 - Alterados: `ordersService.getOpenOrdersForOffline`, `visitsService.getOpenVisitIdsByUser`
   (+ proxies no `dataService`), `fieldPackageService.ts` (`auto: true`: não trava, reaproveita
@@ -462,15 +518,25 @@ Decisões do usuário (09/11/2026):
 
 **Etapa 1 — o que faz**
 - Gatilhos: login/abertura do app (1ª vez baixa tudo), internet voltou, app voltou ao primeiro
-  plano (após 15 min) e a cada 15 min. Só no APK com a flag do modo offline.
+  plano e **conferência a cada 5 min**. Só no APK com a flag do modo offline.
 - Escopo: OSs abertas (`status_id` fora de 7/8, não excluídas) com `provider_company_id` = empresa
   do usuário (`getOpenOrdersForOffline`). **Cada unidade uma vez só.**
 - Baixa: ativos da unidade (`getAssets('all','',unitId)` → catálogo `assets:unit:<id>`), setores
   (`getAssetTagsByUnit`), unidades do cliente, atividades por tipo de OS, a OS (`getOrderById`),
   planos de manutenção dos tipos de ativo (estrutura completa), usuários (`getUsers`), materiais
   e veículos da empresa.
-- Incremental (`offlineAutoSyncPlan.ts`, testado): unidade/tipo com mais de 1 dia ou novo; OS com
-  `updated_at` diferente; unidades que saíram das OSs abertas são apagadas do aparelho.
+- Incremental (`offlineAutoSyncPlan.ts`, testado): baixa de novo **só o que mudou** — inclusão,
+  alteração ou exclusão (decisão de 09/11/2026). A cada conferência o app chama
+  `fn_offline_change_versions` (migration **20261122**), que devolve uma versão por grupo:
+  | Grupo | Versão muda quando… |
+  |-------|---------------------|
+  | Unidade | ativo ou setor (`cfg_units_assets_tags`) incluído, alterado ou excluído |
+  | Tipo de ativo | plano, seção ou atividade de seção incluído, alterado ou excluído |
+  | Tipo de OS | atividade (`cfg_orders_types_activities` / `cfg_activities`) incluída, alterada ou excluída (md5 do conteúdo — tabelas sem data) |
+  | Materiais / veículos / usuários | cadastro incluído, alterado ou excluído (estoque não entra) |
+  | OS | `updated_at` da OS mudou |
+  Prazo de segurança: 7 dias (sem a função no banco: 1 dia, como antes). Unidades que saíram das
+  OSs abertas são apagadas do aparelho. A barra só aparece quando há download de verdade.
 - Visitas em andamento do usuário (`getOpenVisitIdsByUser`): mesmo pacote do preparo manual,
   **sem travar** (`auto: true`). Visita com alterações ainda não enviadas é pulada até a fila subir.
 - Travas — opção (a): online, o relatório do ativo trava ao abrir (`useAssetLock`); offline,
@@ -481,11 +547,11 @@ Decisões do usuário (09/11/2026):
 depois o download automático roda; as visitas com pendências só são atualizadas quando a fila
 esvazia.
 
-**Etapa 2 — incluir ativo offline (a fazer)**
+**Etapa 2 — incluir ativo offline (✅ código pronto em 10/11/2026)**
 - Busca: `getAssets(filtro, termo, unitId)` offline filtra o catálogo `assets:unit:<id>` com a
   mesma regra da busca online (cada termo em `searchable`: código, descrição, setor…).
   Leitor de QR/código também cai na busca local.
-- `addAssetToOrderVisit` vira operação da fila: linha com `client_uuid` (coluna já criada pela
+- `addAssetToOrderVisit` vira operação da fila: linha com `offline_uuid` (coluna já criada pela
   20261116 em `orders_visits_assets`) e id `tmp:<uuid>`; os dados "antes/depois" vêm do ativo
   no catálogo (hoje o serviço lê `assets` + `v_orders_visits` no servidor).
 - Tudo que o técnico fizer no ativo novo (relatório, checklist, atividades, materiais, fotos)
@@ -494,20 +560,91 @@ esvazia.
 - Remover o ativo antes de subir anula a inclusão e tudo do ativo na fila.
 - Testes: unidade (busca local, cadeia de ids `tmp:`) + roteiro no aparelho.
 
-**Etapa 3 — encerrar e iniciar outra visita offline (a fazer, depois da F5)**
+Implementado (10/11/2026):
+- `getAssets` / `searchUnits` sem internet → `searchAssetsOffline` / `searchUnitsOffline`
+  (`offlineCatalog.ts`), no catálogo `assets:unit:<id>`.
+- `addAssetToOrderVisit` / `removeAssetFromOrderVisit` em `offlineFlowOps.ts`. Remover offline
+  só vale para ativo `tmp:` (o que já está no servidor continua exigindo conexão).
+- Envio (`syncEngine` + `offlineSync`): operação com `ovaId` `tmp:` não confere trava, espera
+  a inclusão (se ela falhou, as do ativo ficam pendentes) e tem o `tmp:` trocado pelo id real
+  em todos os argumentos (`replaceDeep`, inclusive `{ ovaId }` do alerta).
+- Leituras do ativo novo sem cache devolvem vazio (`TMP_READ_FALLBACKS`); trava = do técnico.
+- Testes: `services/offline/assetOffline.test.ts`.
+
+Roteiro no aparelho (etapa 2):
+- [ ] Com internet, abrir a visita e esperar "Atualizando dados offline" terminar.
+- [ ] Sem internet: buscar ativo por código e por unidade; associar.
+- [ ] Abrir o relatório do ativo novo: condições, fotos, checklist, atividades, materiais, registrador.
+- [ ] Reportar o ativo sem internet.
+- [ ] Associar outro ativo e removê-lo antes de reconectar (não deve subir nada dele).
+- [ ] Reconectar: conferir no servidor que o ativo entrou **uma vez**, com fotos, checklist e materiais.
+
+**Etapa 3 — encerrar e iniciar outra visita offline — ✅ código pronto (10/11/2026)**
+
+Implementado (10/11/2026):
+- **Migration `20261124_create_flow_order_visit_create_v3.sql`** (+ `_DOWN`, validada em Postgres
+  local): `orders_visits.offline_uuid` (UNIQUE) e `flow_order_visit_create_v3(payload)` — mesma
+  lógica da v2 + idempotência (`offline_uuid`: reenvio devolve a visita já criada, sem duplicar
+  visita/equipe/veículo/contador/notificação), hora do aparelho (`client_started_at`; futuro → agora;
+  início manual do contrato continua com prioridade), veículo do líder com `vehicle_client_uuid`,
+  conflito `SG409` (OS concluída/cancelada/excluída ou com outro líder) e conferência de que quem
+  chama é o líder (`auth.uid()`). A v2 não muda.
+- **App:** sem internet e com o modo offline liberado, "Iniciar visita" vai para a fila e o técnico
+  entra na visita na hora (`tmp:<uuid>`), montada no aparelho a partir da OS: dados da OS, equipe só
+  com o líder, veículo do líder (`tmp:` — o Km digitado acha a linha criada pela v3), OS "Em
+  andamento", perfil "em visita". Validações no aparelho iguais às da tela (OS aberta, líder
+  designado, técnico disponível).
+- **Envio:** tudo da visita nova espera o "Iniciar"; aceito → o `tmp:` da visita vira o id real em
+  todos os argumentos (serviços, veículos, ativos, fotos, encerrar, relatar…). Recusado → conflito,
+  e tudo dela fica parado; descartar na tela de pendências leva junto (inclusive o Km do veículo).
+- **Sem a v3 no banco:** o "Iniciar" da fila vira erro (não cai na v2, que poderia duplicar a visita).
+- **Encerrar → iniciar outra sem internet:** ao encerrar, o líder volta "disponível" na tela (igual ao
+  servidor), liberando o "Iniciar" da próxima OS.
+- Limite conhecido: se o encerramento da visita anterior ainda não tiver subido quando o "Iniciar"
+  chegar, os membros da equipe ainda constam "em visita" no servidor e não entram na equipe nova
+  (dá para incluir depois — incluir membro offline já existe).
+- Testes: `services/offline/visitOffline.test.ts` (9).
+
+Roteiro no aparelho (etapa 3):
+- [x] Aplicar a 20261124 (✅ 10/11/2026, informado pelo usuário).
+- [ ] Sem internet: encerrar a visita atual → abrir outra OS (de outra unidade) → **Iniciar** → cai na visita nova.
+- [ ] Na visita nova: Km do veículo, incluir ativo, relatório, serviço, assinatura, **Encerrar**, **Relatar**.
+- [ ] Fechar/reabrir offline: continua na visita nova.
+- [ ] Reconectar: no banco a visita aparece **uma vez**, com `ov_started_at` = hora do toque, número `OS-xxx.NN`, veículo com o Km, ativos/serviços nela, encerrada.
+- [ ] Conflito: gestor conclui a OS (ou troca o líder) antes de reconectar → "Recusada" na tela de pendências; descartar leva tudo da visita.
+
+Decisões e plano original:
+
+Decisões do usuário (10/11/2026):
+
+| # | Tema | Decisão |
+|---|------|---------|
+| 1 | Quando | **Depois do portão** de validação no aparelho (F1–F4 + etapas 1–2 testadas e defeitos corrigidos) |
+| 2 | Equipe da visita iniciada offline | **Regra atual, aplicada no envio**: o banco inclui os membros da equipe do líder disponíveis no momento em que a criação chega ao servidor. No aparelho, a visita começa só com o líder até sincronizar |
+| 3 | Horário de início | **Hora do aparelho** (toque em "Iniciar"), com as mesmas proteções contra relógio errado da `close_v4` (futuro → agora; antes de limites aceitáveis → recusa) |
+| 4 | OS mudou enquanto offline (líder trocado, OS cancelada/concluída) | **Recusar e segurar**: a criação vira conflito; tudo o que depende da visita fica parado no aparelho até decisão na tela de pendências (F5) |
+
+Contexto levantado (10/11/2026): só o líder designado na OS e disponível pode iniciar
+(`OrderRequestView.canStartVisit`), então duas visitas abertas na mesma OS só surgem se o gestor
+mexer na OS durante o offline. `flow_order_visit_create_v2` também gera o número da visita
+(`ov_mask`, contador da OS — offline só aparece após o envio), muda OS/SS para "Em andamento",
+inclui o veículo do líder e notifica os seguidores da SS. Estimativa: ~1,5 semana.
+
+Plano técnico:
 - Migration: `flow_order_visit_create_v3` com `p_client_uuid` + `p_client_started_at`
-  (idempotente; mesmas regras da v2) e `client_uuid` em `orders_visits`.
+  (idempotente; mesmas regras da v2) e `offline_uuid` em `orders_visits`.
 - Visita nasce `tmp:<uuid>` no aparelho a partir da OS baixada (`getOrderById`) e do perfil;
   equipe, status do técnico ("em visita") e a OS ficam no cache local.
 - Resolução de `tmp:` da visita em todos os argumentos (`visitId` de serviços, veículos,
   ativos, encerrar…), em cadeia com os ativos `tmp:` da etapa 2.
 - Conflito: outra equipe abriu a mesma OS / OS concluída enquanto offline → a criação é
   recusada e tudo o que depende dela fica parado na tela de pendências (F5) para decidir.
-- Antes de começar: confirmar se a regra de negócio permite duas visitas abertas na mesma OS.
+- ~~Antes de começar: confirmar se a regra de negócio permite duas visitas abertas na mesma OS.~~ Respondido em 10/11 (decisão 4 acima + contexto).
 
 **Validar no aparelho (etapa 1)**
 - [ ] 1ª abertura com internet: barra aparece e termina; desligar dados → abrir OS/visita de outra unidade e os planos funcionam
-- [ ] Nova OS aberta para a empresa → em até 15 min a unidade dela é baixada; OS concluída → unidade some (se não houver outra OS aberta nela)
+- [ ] Nova OS aberta para a empresa → em até 5 min a unidade dela é baixada; OS concluída → unidade some (se não houver outra OS aberta nela)
+- [ ] Com a migration 20261122: incluir/alterar/excluir um ativo da unidade, uma atividade do tipo de OS e uma seção de plano → em até 5 min a mudança aparece offline; sem mudança, nenhuma barra a cada 5 min
 - [ ] Sem internet no meio da visita, editar ativo não travado no preparo → reconectar → sobe (ou vira conflito se outro técnico travou)
 - [ ] Internet volta com alterações pendentes: a fila sobe primeiro ("Enviando…"), depois a barra do download; a visita com pendências só é atualizada após a fila zerar (nada do que foi feito some da tela)
 - [ ] Medir: tempo da 1ª carga e espaço usado no aparelho (Configurações › Apps › SIGES › Armazenamento)

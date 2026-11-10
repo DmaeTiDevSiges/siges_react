@@ -1,4 +1,4 @@
-import { assetTypesToFetch, emptyAutoSyncSaved, planAutoSync, type OpenOrderRef } from './offlineAutoSyncPlan';
+import { assetTypesToFetch, emptyAutoSyncSaved, planAutoSync, type OpenOrderRef, type RemoteVersions } from './offlineAutoSyncPlan';
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 10 * DAY;
@@ -50,5 +50,63 @@ describe('planAutoSync — download automático offline', () => {
         const saved = { ...emptyAutoSyncSaved('9', '5'), assetTypes: { '20': NOW - 1000 } };
         const assets = [{ typeId: '20' }, { typeId: '21' }, { typeId: '21' }, { typeId: null }];
         expect(assetTypesToFetch(saved, assets, NOW, DAY)).toEqual(['21']);
+    });
+
+    describe('versões do banco (inclusão, alteração, exclusão)', () => {
+        const remote = (patch: Partial<RemoteVersions>): RemoteVersions => ({
+            units: {}, assetTypes: {}, orderTypes: {}, materials: null, vehicles: null, users: null, ...patch,
+        });
+        const fresh = () => ({
+            ...emptyAutoSyncSaved('9', '5'),
+            units: { '10': NOW - 1000, '11': NOW - 1000 },
+            orderTypes: { '3': NOW - 1000 },
+            assetTypes: { '20': NOW - 1000 },
+            orders: { '1': 'u1', '2': 'u1' },
+            versions: {
+                units: { '10': '5:a|2:a', '11': '7:b|1:b' },
+                orderTypes: { '3': 'md5x' },
+                assetTypes: { '20': '1:a|2:a|9:a' },
+                materials: '100:a', vehicles: '3:a', users: '40:a',
+            },
+        });
+        const orders = [os('1', '10'), os('2', '11')];
+
+        it('dado recente e versão igual: nada a baixar', () => {
+            const plan = planAutoSync(fresh(), orders, NOW, 7 * DAY, remote({
+                units: { '10': '5:a|2:a', '11': '7:b|1:b' }, orderTypes: { '3': 'md5x' },
+                materials: '100:a', vehicles: '3:a', users: '40:a',
+            }));
+            expect(plan.unitsToFetch).toEqual([]);
+            expect(plan.orderTypesToFetch).toEqual([]);
+            expect([plan.materialsChanged, plan.vehiclesChanged, plan.usersChanged]).toEqual([false, false, false]);
+        });
+
+        it('ativo incluído/alterado/excluído na unidade → só ela é baixada de novo', () => {
+            const plan = planAutoSync(fresh(), orders, NOW, 7 * DAY, remote({
+                units: { '10': '6:b|2:a', '11': '7:b|1:b' }, orderTypes: { '3': 'md5x' },
+            }));
+            expect(plan.unitsToFetch).toEqual(['10']);
+        });
+
+        it('atividade do tipo de OS mudou → baixa as atividades do tipo', () => {
+            const plan = planAutoSync(fresh(), orders, NOW, 7 * DAY, remote({ orderTypes: { '3': 'md5y' } }));
+            expect(plan.orderTypesToFetch).toEqual(['3']);
+        });
+
+        it('materiais, veículos e usuários com versão nova', () => {
+            const plan = planAutoSync(fresh(), orders, NOW, 7 * DAY, remote({ materials: '101:b', vehicles: '3:a', users: '41:b' }));
+            expect([plan.materialsChanged, plan.vehiclesChanged, plan.usersChanged]).toEqual([true, false, true]);
+        });
+
+        it('plano de manutenção alterado → baixa o tipo de ativo', () => {
+            const saved = fresh();
+            expect(assetTypesToFetch(saved, [{ typeId: '20' }], NOW, 7 * DAY, remote({ assetTypes: { '20': '1:b|2:a|9:a' } }))).toEqual(['20']);
+            expect(assetTypesToFetch(saved, [{ typeId: '20' }], NOW, 7 * DAY, remote({ assetTypes: { '20': '1:a|2:a|9:a' } }))).toEqual([]);
+        });
+
+        it('sem a função no banco (remote null): só o prazo vale', () => {
+            expect(planAutoSync(fresh(), orders, NOW, DAY, null).unitsToFetch).toEqual([]);
+            expect(planAutoSync(fresh(), orders, NOW + 2 * DAY, DAY, null).unitsToFetch).toEqual(['10', '11']);
+        });
     });
 });

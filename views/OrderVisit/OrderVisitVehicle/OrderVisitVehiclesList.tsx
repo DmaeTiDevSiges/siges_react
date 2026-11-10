@@ -197,7 +197,9 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
             if (onVisitRefresh) onVisitRefresh();
         } catch (error) {
             console.error('Error adding vehicle:', error);
-            toast.error('Erro ao adicionar veículo');
+            // Mostra o motivo real (ex.: sem internet / fila) em vez só do genérico
+            const reason = error instanceof Error ? error.message : (error as any)?.message;
+            toast.error(reason ? `Erro ao adicionar veículo: ${reason}` : 'Erro ao adicionar veículo', { duration: 8000 });
             setAddingVehicleId(null);
         }
     };
@@ -319,9 +321,11 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
     }
 
     return (
-        <div className="space-y-4">
+        // Desktop (lg+): incluindo → busca à esquerda (fixa ao rolar) e veículos à direita;
+        // sem incluir → veículos na largura toda, 2 colunas. Mobile: empilhado como antes.
+        <div className={`flex flex-col gap-4 ${isAdding ? 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-x-6 lg:items-start' : ''}`}>
             {/* Header / Add Button */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center lg:col-span-2">
                 <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">
                     TRANSPORTE
                 </h3>
@@ -350,7 +354,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
 
             {/* Add Vehicle Search Area */}
             {isAdding && (
-                <div className="animate-in slide-in-from-top-2 duration-300 mb-4">
+                <div className="animate-in slide-in-from-top-2 duration-300 mb-4 lg:mb-0 lg:col-start-1 lg:row-start-2 lg:sticky lg:top-0 lg:p-4 lg:rounded-2xl lg:border lg:border-slate-200 lg:dark:border-slate-800 lg:bg-white lg:dark:bg-slate-900/60">
 
                     <div className="relative">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
@@ -378,7 +382,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                         </div>
                     )}
 
-                    <div className="mt-2 max-h-60 overflow-y-auto space-y-2">
+                    <div className="mt-2 max-h-60 lg:max-h-[calc(100vh-20rem)] overflow-y-auto space-y-2">
                         {searchResults.filter(vehicle => !visitVehicles.some(vv => vv.vehicleId === vehicle.id)).map(vehicle => (
                             <div key={vehicle.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-white/5 shadow-sm">
                                 <div className="flex items-center gap-3">
@@ -407,9 +411,9 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
             )}
 
             {/* List */}
-            <div className="grid gap-4">
+            <div className={`grid gap-4 content-start min-w-0 lg:col-start-2 lg:row-start-2 ${!isAdding ? 'lg:grid-cols-2' : ''}`}>
                 {visitVehicles.length === 0 && !isAdding && (
-                    <div className="text-center py-8 opacity-50">
+                    <div className="lg:col-span-2 text-center py-8 opacity-50">
                         <span className="material-symbols-outlined text-4xl mb-2">no_crash</span>
                         <p className="text-xs font-bold uppercase tracking-widest">Nenhum veículo associado</p>
                     </div>
@@ -656,7 +660,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
 
                 {/* Total de Veículos (ociosidade fora do total) */}
                 {visitVehicles.length > 0 && canView('orders_visits_costs') && (
-                    <div className="mt-2 flex justify-end">
+                    <div className={`mt-2 flex justify-end ${!isAdding ? 'lg:col-span-2' : ''}`}>
                         <div className="text-right">
                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1">TOTAL</span>
                             <span className="text-2xl font-black text-blue-600 dark:text-blue-400">

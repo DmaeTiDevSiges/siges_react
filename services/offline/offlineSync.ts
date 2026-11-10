@@ -3,16 +3,20 @@ import { Preferences } from '@capacitor/preferences';
 import { App } from '@capacitor/app';
 import { supabase, readStoredSessionUserId } from '../core/supabase';
 import { networkService } from '../core/networkService';
+import { logClientEvent } from '../core/clientDiagnosticsService';
+import { isOfflineTelemetryAvailable } from './offlineGate';
 import { getOfflineStore, isOnline } from './offlineConfig';
 import { networkFailureCount } from './networkFailures';
 import { createOutbox, type Outbox, type OutboxOp, type OutboxStorage, type OutboxSummary } from './outbox';
-import { backoffMs, runSync, type ErrorKind, type SyncResult } from './syncEngine';
+import { backoffMs, replaceDeep, runSync, type ErrorKind, type SyncResult } from './syncEngine';
 import { OFFLINE_OPS, opEntityKey } from './offlineOps';
 import { deleteLockToken, getLockToken, saveLockToken } from './offlineLocks';
 import { isTmpId, TMP_PREFIX } from './offlineFlowOps';
-import { findIdByClientUuid } from '../core/clientUuidInsert';
+import { findIdByOfflineUuid } from '../core/offlineUuidInsert';
 import { OFFLINE_COLLECTIONS } from './store/offlineStore';
-import { isOfflineFileRef, loadOfflineFile, markOfflineFileUploaded } from './offlineFiles';
+import { isIndexedDbAvailable } from './store/indexedDbStore';
+import { deleteOfflineFile, isOfflineFileRef, loadOfflineFile, markOfflineFileUploaded } from './offlineFiles';
+import { dependentsOf } from './pendingOps';
 
 /**
  * Liga a fila (outbox) e o motor (syncEngine) ao app (F2).
@@ -21,6 +25,8 @@ import { isOfflineFileRef, loadOfflineFile, markOfflineFileUploaded } from './of
  */
 
 const OUTBOX_KEY = 'siges_offline_outbox_v1';
+/** Coleção da fila no store do navegador (IndexedDB). */
+const OUTBOX_COLLECTION = 'outbox';
 
 const platformStorage = (): OutboxStorage => {
     if (Capacitor.isNativePlatform()) {
@@ -34,7 +40,33 @@ const platformStorage = (): OutboxStorage => {
             },
         };
     }
-    // Navegador (dev). Atenção: o logout limpa o localStorage — só para testes.
+    // Navegador (dev): IndexedDB (via store offline), sem o limite de ~5 MB do
+    // localStorage. A fila antiga no localStorage é migrada uma vez.
+    if (isIndexedDbAvailable()) {
+        const store = getOfflineStore();
+        return {
+            async load() {
+                const saved = await store.get<OutboxOp[]>(OUTBOX_COLLECTION, OUTBOX_KEY);
+                if (saved) return saved;
+                try {
+                    const legacy = window.localStorage.getItem(OUTBOX_KEY);
+                    if (legacy) {
+                        const ops = JSON.parse(legacy) as OutboxOp[];
+                        await store.put(OUTBOX_COLLECTION, OUTBOX_KEY, ops);
+                        window.localStorage.removeItem(OUTBOX_KEY);
+                        return ops;
+                    }
+                } catch {
+                    /* sem fila antiga */
+                }
+                return [];
+            },
+            async save(ops) {
+                await store.put(OUTBOX_COLLECTION, OUTBOX_KEY, ops);
+            },
+        };
+    }
+    // Sem IndexedDB: localStorage. Atenção: o logout limpa o localStorage — só para testes.
     return {
         async load() {
             const raw = window.localStorage.getItem(OUTBOX_KEY);
@@ -143,9 +175,23 @@ const doSync = async (): Promise<SyncResult> => {
                 // F3: referência a arquivo do aparelho → File / data URL de novo.
                 const refs = op.args.filter(isOfflineFileRef);
                 const args = await Promise.all(op.args.map(a => (isOfflineFileRef(a) ? loadOfflineFile(a) : a)));
-                // F4: item criado offline ("tmp:<uuid>") → id real pelo client_uuid.
+                // Visita iniciada offline (etapa 3): o "tmp:" dela vira o id real em
+                // TODOS os argumentos (exceto no próprio "Iniciar", que vai criá-la).
+                if (op.visitId && isTmpId(op.visitId) && op.method !== 'startOrderVisit') {
+                    const realVisit = await findIdByOfflineUuid('orders_visits', op.visitId.slice(TMP_PREFIX.length));
+                    if (!realVisit) throw new Error('A visita iniciada sem internet ainda não chegou ao servidor.');
+                    for (let i = 0; i < args.length; i++) args[i] = replaceDeep(args[i], op.visitId, realVisit);
+                }
+                // Ativo criado offline: o "tmp:" dele vira o id real em TODOS os
+                // argumentos (exceto na própria inclusão, que ainda vai criá-lo).
+                if (op.ovaId && isTmpId(op.ovaId) && op.method !== 'addAssetToOrderVisit') {
+                    const realOva = await findIdByOfflineUuid('orders_visits_assets', op.ovaId.slice(TMP_PREFIX.length));
+                    if (!realOva) throw new Error('O ativo incluído sem internet ainda não chegou ao servidor.');
+                    for (let i = 0; i < args.length; i++) args[i] = replaceDeep(args[i], op.ovaId, realOva);
+                }
+                // F4: item criado offline ("tmp:<uuid>") → id real pelo offline_uuid.
                 if (spec?.tmpIdTable && isTmpId(args[0])) {
-                    const realId = await findIdByClientUuid(spec.tmpIdTable, String(args[0]).slice(TMP_PREFIX.length));
+                    const realId = await findIdByOfflineUuid(spec.tmpIdTable, String(args[0]).slice(TMP_PREFIX.length));
                     if (!realId) throw new Error('O item criado sem internet ainda não chegou ao servidor.');
                     args[0] = realId;
                 }
@@ -162,6 +208,7 @@ const doSync = async (): Promise<SyncResult> => {
             classifyError: classifySyncError,
             entityKey: op => opEntityKey(op.method, op.args),
             barrier: op => OFFLINE_OPS[op.method]?.barrier,
+            isTemporaryId: isTmpId,
         });
         const summary = await outbox.summary();
         if (result.stoppedByNetwork && summary.pending > 0) {
@@ -171,6 +218,7 @@ const doSync = async (): Promise<SyncResult> => {
             failedRounds = 0;
         }
         emit({ lastResult: result, lastSyncAt: Date.now() });
+        reportSyncTelemetry(result, summary).catch(() => undefined);
         return result;
     } finally {
         emit({ syncing: false });
@@ -217,6 +265,7 @@ export const initOfflineSync = (originalMethods: Record<string, AnyFn>): void =>
 export const startOfflineSync = (): void => {
     if (started || !outbox) return;
     started = true;
+    watchOfflineTime(); // F5: mede quanto tempo o aparelho ficou sem internet
     networkService.subscribe(s => {
         if (s.isConnected) {
             failedRounds = 0;
@@ -259,3 +308,80 @@ export const retryOfflineErrors = async (): Promise<void> => {
 export const discardOfflineConflicts = async (): Promise<number> => (outbox ? outbox.discard('conflict') : 0);
 
 export const discardOfflineErrors = async (): Promise<number> => (outbox ? outbox.discard('error') : 0);
+
+// ── F5: ações por operação (tela de pendências) ─────────────────────────────
+
+/** Uma operação com erro volta para a fila e o envio é disparado. */
+export const retryOfflineOp = async (opId: string): Promise<void> => {
+    if (!outbox) return;
+    await outbox.update(opId, { status: 'pending', lastError: undefined });
+    scheduleSync(0);
+};
+
+/**
+ * Descarta a operação e as que dependem dela (itens criados offline por ela),
+ * apagando as fotos/assinaturas locais que só existiam para essas operações.
+ * Devolve quantas operações saíram da fila.
+ */
+export const discardOfflineOp = async (opId: string): Promise<number> => {
+    if (!outbox) return 0;
+    const all = await outbox.list();
+    const op = all.find(o => o.id === opId);
+    if (!op) return 0;
+    const ids = new Set([op.id, ...dependentsOf(op, all).map(d => d.id)]);
+    const removed = await outbox.removeWhere(o => ids.has(o.id));
+    for (const r of removed) {
+        for (const a of r.args) if (isOfflineFileRef(a)) await deleteOfflineFile(a.name);
+    }
+    return removed.length;
+};
+
+// ── F5: telemetria (item 5.4) ────────────────────────────────────────────────
+// Uma linha em logs_app_client_events por rodada que fez algo (enviou, errou
+// ou foi recusada): tamanho da fila, tempo sem internet, falhas por operação.
+
+let offlineSince: number | null = null;
+let lastOfflineMs: number | null = null;
+let telemetryWatching = false;
+
+const watchOfflineTime = () => {
+    if (telemetryWatching) return;
+    telemetryWatching = true;
+    if (!isOnline()) offlineSince = Date.now();
+    networkService.subscribe(s => {
+        if (!s.isConnected && offlineSince == null) offlineSince = Date.now();
+        if (s.isConnected && offlineSince != null) {
+            lastOfflineMs = Date.now() - offlineSince;
+            offlineSince = null;
+        }
+    });
+};
+
+const reportSyncTelemetry = async (result: SyncResult, after: OutboxSummary): Promise<void> => {
+    watchOfflineTime();
+    if (!result.sent && !result.errors && !result.conflicts) return;
+    if (!isOfflineTelemetryAvailable()) return; // migration 20261123 ainda não aplicada
+    const failedByMethod: Record<string, number> = {};
+    for (const op of (await outbox?.list()) || []) {
+        if (op.status !== 'pending') failedByMethod[op.method] = (failedByMethod[op.method] || 0) + 1;
+    }
+    logClientEvent(
+        'offline_sync',
+        `fila: ${result.sent} enviada(s), ${result.errors} erro(s), ${result.conflicts} recusada(s), ${after.total} restante(s)`,
+        {
+            extra: {
+                sent: result.sent,
+                errors: result.errors,
+                conflicts: result.conflicts,
+                heldBack: result.heldBack,
+                skippedOtherUser: result.skippedOtherUser,
+                stoppedByNetwork: result.stoppedByNetwork,
+                queueAfter: after,
+                offlineMinutes: lastOfflineMs != null ? Math.round(lastOfflineMs / 60000) : null,
+                failedByMethod,
+            },
+        },
+    );
+    lastOfflineMs = null;
+};
+

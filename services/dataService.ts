@@ -79,6 +79,7 @@ import { assetsTypesChecklistService } from './assets/assetsTypesChecklistServic
 import { loansChecklistService } from './assets/loansChecklistService';
 import { Asset, Contract, ContractManager, Company, Client, Department, Team, User, UserStatus, Profile, Permission, System, UnitType, Unit, Vehicle, VehicleCompanyInfo, Activity, Priority, Service, ContractService, Route, Material, OrderVisitAssetMaterial, OrderType, OrderSubType, OrderPlan, OrderObject, AssetType, AssetStatus, AssetPriority, AssetTag, AssetTagSub, AssetAttribute, TypeAttributeConfig, AssetAttributeValue, Order, UserNotification, AssetActivityEntry, AssetHistoryItem, OrderFilters, OrderVisit, OrderVisitTeam, OrderVisitVehicle, OrderVisitService, OrderVisitAssetView, OrderVisitAssetActivity, ServiceHistoryItem, OrderStatusLogItem, MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity, AssetAlert, SuspendedReason, CauseReason, VehicleCostType, OrderVisitChatMessage, OrderVisitChatParticipant, TechnicalManual, TechnicalManualCategory, TechnicalManualFile, TechnicalManualAsset, SystemNotice, CreateSystemNoticeInput, NoticeFilters, NoticeWorker, NoticeWorkerPeriod, NoticeWorkersSummaryOptions, NoticeWorkersSummaryItem, AppTip, CreateAppTipInput, AppTipFilters, LeaderMonthlyScore, LeaderScoreHistory, LeaderScoreBadge, LeaderRankingEntry, TeamRankingEntry, OrderVisitScore, AssetMaterial, AssetLoan, AssetLoanChecklistPhase, LoansChecklist, AssetLoanChecklistType, AssetLoanChecklist, AssetLoanChecklistImage, CreateAssetLoanInput, UpdateAssetLoanInput, SaveChecklistItemInput, CreateChecklistTypeInput, CreateLoansChecklistInput, UpdateLoansChecklistInput, TeamShiftsMonthly, TeamShiftsRecord, TeamShiftsSaveEntry, TeamShiftsMonthLock, TeamShiftsCalendarEntry, AuditLogItem, AuditLogFilters, AuditTableConfig, AuditTableConfigChange, OrderVisitAssetLockResult, OrderVisitAssetUnlockResult, OrderVisitAssetsLocks } from '../types';
 import { installOfflineLayer } from './offline/offlineLayer';
+import { offlineVersionsService, type OfflineChangeVersions } from './offline/offlineVersionsService';
 import { getLocalOfflineFileUrl } from './offline/offlineFileUrls';
 
 
@@ -2327,7 +2328,7 @@ export const dataService = {
         return visitsService.getOpenChatVisitsForUser.apply(visitsService, arguments as any);
     },
 
-    async startOrderVisit(order: Order, currentUser: User, startedAt?: string): Promise<void> {
+    async startOrderVisit(order: Pick<Order, 'id' | 'parentId'>, currentUser: Pick<User, 'id'>, startedAt?: string, options?: { offlineUuid?: string; clientStartedAt?: string; vehicleOfflineUuid?: string; clientUuid?: string; vehicleClientUuid?: string }): Promise<void> {
         return visitsService.startOrderVisit.apply(visitsService, arguments as any);
     },
     async getReassignPreview(visitId: string | number, targetOrderId: string | number): Promise<{
@@ -2352,6 +2353,9 @@ export const dataService = {
         return visitsService.getActiveOrderVisit.apply(visitsService, arguments as any);
     },
 
+    async getOfflineChangeVersions(companyId: string, unitIds: string[], assetTypeIds: string[], orderTypeIds: string[]): Promise<OfflineChangeVersions> {
+        return offlineVersionsService.getOfflineChangeVersions.apply(offlineVersionsService, arguments as any);
+    },
     async getOpenVisitIdsByUser(userId: string): Promise<string[]> {
         return visitsService.getOpenVisitIdsByUser.apply(visitsService, arguments as any);
     },
@@ -2406,7 +2410,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.getOrderVisitVehicles.apply(visitsService, arguments as any);
     },
 
-    async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string, options?: { clientUuid?: string }): Promise<void> {
+    async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
         return visitsService.addVehicleToOrderVisit.apply(visitsService, arguments as any);
     },
 
@@ -2630,7 +2634,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.updateVisitAssetsAmount.apply(visitsService, arguments as any);
     },
 
-    async addAssetToOrderVisit(visitId: string, assetId: string, userId: string): Promise<void> {
+    async addAssetToOrderVisit(visitId: string, assetId: string, userId: string, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
         return visitsService.addAssetToOrderVisit.apply(visitsService, arguments as any);
     },
 
@@ -2665,7 +2669,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.getOrderVisitServices.apply(visitsService, arguments as any);
     },
 
-    async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1, options?: { clientUuid?: string }): Promise<void> {
+    async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
         return visitsService.addServiceToOrderVisit.apply(visitsService, arguments as any);
     },
 
@@ -2783,7 +2787,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return materialsService.getOrderVisitAssetMaterials.apply(materialsService, arguments as any);
     },
 
-    async addMaterialToAsset(ovAssetId: string, materialId: string, amount: number, valueUnit: number, userId: string, options?: { clientUuid?: string }): Promise<void> {
+    async addMaterialToAsset(ovAssetId: string, materialId: string, amount: number, valueUnit: number, userId: string, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
         return materialsService.addMaterialToAsset.apply(materialsService, arguments as any);
     },
 

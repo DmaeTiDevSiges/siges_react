@@ -28,8 +28,10 @@ import {
  *      campo", sem travar ativos — a trava acontece ao abrir o ativo).
  *
  * Quando: ao abrir o app (1ª vez baixa tudo), ao voltar a internet / voltar ao
- * app e a cada 15 min. Incremental: só o que é novo ou tem mais de 1 dia;
- * unidades que saíram das OSs abertas são apagadas do aparelho.
+ * app e a cada 5 min. Incremental: só o que é novo ou cuja VERSÃO no banco mudou
+ * (inclusão, alteração ou exclusão — fn_offline_change_versions, migration
+ * 20261122); sem a função, refaz o que tem mais de 1 dia. Unidades que saíram
+ * das OSs abertas são apagadas do aparelho.
  * As leituras passam pelo dataService, então a camada offline (offlineLayer)
  * guarda cada resposta com a mesma chave que as telas usam.
  */
@@ -44,11 +46,17 @@ export interface AutoSyncStatus {
     lastError?: string;
 }
 
-/** Dados de unidades/planos/OSs: refaz se tiver mais de 1 dia. */
+/**
+ * Prazo de segurança para baixar de novo. Com a função de versões (20261122) as
+ * mudanças são detectadas na hora e o prazo é só uma garantia (7 dias); sem ela,
+ * vale a regra antiga de 1 dia.
+ */
 const DATA_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const DATA_MAX_AGE_WITH_VERSIONS_MS = 7 * DATA_MAX_AGE_MS;
 /** Visita em andamento: atualiza o pacote a cada 30 min (ou ao abrir/reconectar). */
 const VISIT_MAX_AGE_MS = 30 * 60 * 1000;
-const INTERVAL_MS = 15 * 60 * 1000;
+/** Conferência de mudanças (leve: OSs abertas + versões); só baixa o que mudou. */
+const INTERVAL_MS = 5 * 60 * 1000;
 /** Reconexões seguidas não disparam vários downloads. */
 const MIN_GAP_MS = 2 * 60 * 1000;
 const STATE_KEY = 'state';
@@ -84,7 +92,11 @@ const loadSaved = async (userId: string, companyId: string): Promise<AutoSyncSav
     try {
         const saved = await getOfflineStore().get<AutoSyncSaved>(OFFLINE_COLLECTIONS.autosync, STATE_KEY);
         // Outro usuário/empresa no aparelho: começa do zero.
-        if (saved && saved.userId === userId && saved.companyId === companyId) return { ...emptyAutoSyncSaved(userId, companyId), ...saved };
+        if (saved && saved.userId === userId && saved.companyId === companyId) {
+            const empty = emptyAutoSyncSaved(userId, companyId);
+            // Estado gravado antes das versões (20261122) não tem "versions".
+            return { ...empty, ...saved, versions: { ...empty.versions, ...(saved.versions || {}) } };
+        }
     } catch {
         /* sem estado */
     }
@@ -132,9 +144,21 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
 
     emit({ running: true, phase: 'Verificando OSs abertas', done: 0, total: 0, lastError: undefined });
 
-    // ── 1. OSs abertas → plano incremental ─────────────────────────────────
+    // ── 1. OSs abertas + versões do banco → plano incremental ──────────────
+    // Inclusão, alteração ou exclusão num grupo muda a versão dele
+    // (fn_offline_change_versions); só esses grupos são baixados de novo.
     const openOrders = await dataService.getOpenOrdersForOffline(companyId);
-    const plan = planAutoSync(saved, openOrders, now, DATA_MAX_AGE_MS);
+    const unitIdsForVersions = Array.from(new Set(openOrders.map(o => o.unitId).filter((u): u is string => !!u)));
+    const orderTypeIdsForVersions = Array.from(new Set(openOrders.map(o => o.typeId).filter((t): t is string => !!t)));
+    const remote = await dataService
+        .getOfflineChangeVersions(companyId, unitIdsForVersions, Object.keys(saved.assetTypes), orderTypeIdsForVersions)
+        .catch(e => {
+            console.warn('[offline-auto] versões indisponíveis:', e);
+            return null;
+        });
+    const versionsOn = !!remote?.supported;
+    const maxAge = versionsOn ? DATA_MAX_AGE_WITH_VERSIONS_MS : DATA_MAX_AGE_MS;
+    const plan = planAutoSync(saved, openOrders, now, maxAge, versionsOn ? remote : null);
     const forceVisits = trigger === 'start' || trigger === 'reconnect' || trigger === 'manual';
     const visitIds = await dataService.getOpenVisitIdsByUser(userId).catch(() => [] as string[]);
     // Visita com alterações ainda não enviadas fica de fora: o pacote novo viria
@@ -150,29 +174,48 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
     const stamp = (bucket: Record<string, number>, id: string) => () => {
         bucket[id] = Date.now();
     };
-    const tasks: (() => Promise<unknown>)[] = [
-        () => dataService.getUsers(),
-        () => downloadMaterialsCatalog(companyId, DATA_MAX_AGE_MS),
-        () => downloadVehiclesCatalog(companyId, DATA_MAX_AGE_MS),
+    const v = saved.versions;
+    const tasks: (() => Promise<unknown>)[] = [];
+    if (plan.usersChanged || saved.usersAt === undefined || now - saved.usersAt >= maxAge) {
+        tasks.push(async () => {
+            await dataService.getUsers();
+            saved.usersAt = Date.now();
+            if (remote?.users) v.users = remote.users;
+        });
+    }
+    tasks.push(
+        async () => {
+            await downloadMaterialsCatalog(companyId, plan.materialsChanged ? 0 : maxAge);
+            if (remote?.materials) v.materials = remote.materials;
+        },
+        async () => {
+            await downloadVehiclesCatalog(companyId, plan.vehiclesChanged ? 0 : maxAge);
+            if (remote?.vehicles) v.vehicles = remote.vehicles;
+        },
+    );
+    tasks.push(
         ...plan.unitsToFetch.map(unitId => async () => {
             unitAssets[unitId] = await downloadUnitAssets(unitId);
             await dataService.getAssetTagsByUnit(unitId);
             stamp(saved.units, unitId)();
+            if (remote?.units[unitId]) v.units[unitId] = remote.units[unitId];
         }),
         ...plan.clientsToFetch.map(clientId => async () => {
             await dataService.getUnitsByClient(clientId);
             stamp(saved.clients, clientId)();
         }),
+        // Atividades por tipo de OS (incluir/alterar/excluir atividade muda a versão).
         ...plan.orderTypesToFetch.map(typeId => async () => {
             await dataService.getActivitiesByOrderType(typeId);
             stamp(saved.orderTypes, typeId)();
+            if (remote?.orderTypes[typeId]) v.orderTypes[typeId] = remote.orderTypes[typeId];
         }),
         ...plan.ordersToFetch.map(orderId => async () => {
             await dataService.getOrderById(orderId);
             const ref = openOrders.find(o => o.id === orderId);
             saved.orders[orderId] = ref?.updatedAt ?? '';
         }),
-    ];
+    );
     addTotal(tasks.length);
     failed += await runTasks(tasks, 4, tick);
 
@@ -180,6 +223,7 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
     for (const unitId of plan.unitsToDrop) {
         await removeCatalog(unitAssetsCatalogKey(unitId));
         delete saved.units[unitId];
+        delete v.units[unitId];
     }
     for (const orderId of plan.ordersToDrop) delete saved.orders[orderId];
 
@@ -190,7 +234,7 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
         allAssets.push(...(unitAssets[unitId] || (await downloadUnitAssets(unitId, Number.MAX_SAFE_INTEGER).catch(() => []))));
     }
     const planStructures = new Set<string>();
-    const typeTasks = assetTypesToFetch(saved, allAssets, now, DATA_MAX_AGE_MS).map(typeId => async () => {
+    const typeTasks = assetTypesToFetch(saved, allAssets, now, maxAge, versionsOn ? remote : null).map(typeId => async () => {
         const plans = await dataService.getMaintenancePlans(typeId);
         for (const p of plans || []) {
             const planId = p?.id != null ? String(p.id) : '';
@@ -200,6 +244,7 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
             await Promise.all((sections || []).map(s => dataService.getMaintenancePlanSectionActivities(String(s.id))));
         }
         saved.assetTypes[typeId] = Date.now();
+        if (remote?.assetTypes[typeId]) v.assetTypes[typeId] = remote.assetTypes[typeId];
     });
     addTotal(typeTasks.length);
     failed += await runTasks(typeTasks, 3, tick);
@@ -220,8 +265,43 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
     await saveState(saved);
     emit({
         lastSuccessAt: saved.lastSuccessAt,
-        lastError: failed > 0 ? `${failed} ${failed === 1 ? 'item não baixou' : 'itens não baixaram'} — nova tentativa em 15 min` : undefined,
+        lastError: failed > 0 ? `${failed} ${failed === 1 ? 'item não baixou' : 'itens não baixaram'} — nova tentativa em 5 min` : undefined,
     });
+};
+
+const prefetchingVisits = new Set<string>();
+
+/**
+ * Baixa já os dados de UMA visita, sem esperar a rodada de 5 min — ex.: logo
+ * após iniciar a visita ou ao abrir a tela da visita com internet. Sem isso,
+ * quem iniciava a visita e perdia o sinal antes da próxima rodada ficava sem
+ * veículos/equipe/serviços no aparelho.
+ * `force`: baixa mesmo que o aparelho tenha uma cópia recente (< 30 min).
+ */
+export const prefetchVisitOffline = async (visitId: string | number | null | undefined, force = false): Promise<void> => {
+    const id = visitId != null ? String(visitId) : '';
+    const user = currentUser;
+    if (!id || !user || !isOfflineSupported() || !isOnline()) return;
+    if (prefetchingVisits.has(id) || hasUnsentForScope(`visit:${id}`)) return;
+    const userId = String(user.id);
+    const companyId = String(user.companyId);
+
+    prefetchingVisits.add(id);
+    try {
+        if (!force) {
+            const saved = await loadSaved(userId, companyId);
+            const last = saved.visits[id];
+            if (last && Date.now() - last < VISIT_MAX_AGE_MS) return;
+        }
+        await prepareFieldPackage({ visitId: id, userId, lockOvaIds: [], auto: true });
+        const saved = await loadSaved(userId, companyId);
+        saved.visits[id] = Date.now();
+        await saveState(saved);
+    } catch (e) {
+        console.warn('[offline-auto] download da visita falhou:', e);
+    } finally {
+        prefetchingVisits.delete(id);
+    }
 };
 
 /** Dispara uma atualização (ignora se já estiver rodando ou sem internet). */

@@ -1,6 +1,8 @@
 // F4 — inclusões e fluxo offline.
 const insertCalls: any[] = [];
 let insertResponses: any[] = [];
+const selectCalls: any[] = [];
+let selectResponses: any[] = [];
 jest.mock('../core/supabase', () => ({
     supabase: {
         from: () => ({
@@ -8,6 +10,14 @@ jest.mock('../core/supabase', () => ({
                 insertCalls.push(row);
                 return insertResponses.shift() ?? { error: null };
             },
+            select: () => ({
+                eq: (column: string, value: string) => ({
+                    maybeSingle: async () => {
+                        selectCalls.push([column, value]);
+                        return selectResponses.shift() ?? { data: null, error: null };
+                    },
+                }),
+            }),
         }),
     },
 }));
@@ -21,7 +31,8 @@ import { createMemoryOutboxStorage, createOutbox } from './outbox';
 import { runSync, type SyncDeps } from './syncEngine';
 import { networkFailureCount, resetNetworkFailures } from './networkFailures';
 import { filterMaterials, filterVehicles, searchMaterialsOffline, searchVehiclesOffline } from './offlineCatalog';
-import { insertWithClientUuid } from '../core/clientUuidInsert';
+import { __resetOfflineUuidColumn, findIdByOfflineUuid, insertWithOfflineUuid } from '../core/offlineUuidInsert';
+import { offlineUuidOf } from './offlineUuid';
 
 type Store = ReturnType<typeof createMemoryStore>;
 const put = async (store: Store, method: string, args: unknown[], value: unknown) => {
@@ -36,6 +47,9 @@ beforeEach(() => {
     resetNetworkFailures();
     insertCalls.length = 0;
     insertResponses = [];
+    selectCalls.length = 0;
+    selectResponses = [];
+    __resetOfflineUuidColumn();
 });
 
 describe('incluir/remover material offline', () => {
@@ -47,7 +61,7 @@ describe('incluir/remover material offline', () => {
         await OFFLINE_FLOW_OPS.addMaterialToAsset.applyLocal(ctxOf(store), args);
         const [item] = await read(store, 'getOrderVisitAssetMaterials', ['7']);
         expect(isTmpId(item.id)).toBe(true);
-        expect(item.id).toBe(`tmp:${args[5].clientUuid}`);
+        expect(item.id).toBe(`tmp:${args[5].offlineUuid}`);
         expect(item).toMatchObject({ materialDescription: 'Tubo PVC 50mm', materialUnit: 'm', amount: 1, valueTotal: 12.5 });
     });
 
@@ -60,7 +74,7 @@ describe('incluir/remover material offline', () => {
 
     it('alterar/remover o temporário usam a chave do insert (mesma ordem na fila)', async () => {
         const args = await OFFLINE_FLOW_OPS.addMaterialToAsset.prepareArgs!(['7', '88', 1, 1, '1']);
-        const tmp = `tmp:${args[5].clientUuid}`;
+        const tmp = `tmp:${args[5].offlineUuid}`;
         const key = OFFLINE_FLOW_OPS.addMaterialToAsset.entityKey(args);
         expect(OFFLINE_OPS.updateMaterialInAsset.entityKey([tmp, { amount: 3 }])).toBe(key);
         expect(OFFLINE_FLOW_OPS.removeMaterialFromAsset.entityKey([tmp, '1'])).toBe(key);
@@ -70,7 +84,7 @@ describe('incluir/remover material offline', () => {
     it('remover antes de subir anula insert + alterações e não vai ao servidor', async () => {
         const outbox = createOutbox(createMemoryOutboxStorage());
         const add = await OFFLINE_FLOW_OPS.addMaterialToAsset.prepareArgs!(['7', '88', 1, 1, '1']);
-        const tmp = `tmp:${add[5].clientUuid}`;
+        const tmp = `tmp:${add[5].offlineUuid}`;
         await outbox.enqueue({ method: 'addMaterialToAsset', args: add, userUuid: 'u' });
         await outbox.enqueue({ method: 'updateMaterialInAsset', args: [tmp, { amount: 4 }], userUuid: 'u' });
         await outbox.enqueue({ method: 'updateVehicleKm', args: ['1', 5], userUuid: 'u' });
@@ -238,24 +252,59 @@ describe('catálogo de materiais offline', () => {
     });
 });
 
-describe('insertWithClientUuid', () => {
-    it('grava client_uuid; duplicata pelo client_uuid conta como sucesso', async () => {
-        insertResponses = [{ error: { code: '23505', message: 'duplicate key value violates unique constraint "ux_orders_visits_services_client_uuid"' } }];
-        await expect(insertWithClientUuid('orders_visits_services', { a: 1 }, 'uuid-1')).resolves.toBeUndefined();
-        expect(insertCalls[0]).toEqual({ a: 1, client_uuid: 'uuid-1' });
+describe('insertWithOfflineUuid / findIdByOfflineUuid', () => {
+    it('grava offline_uuid; duplicata pelo offline_uuid conta como sucesso', async () => {
+        insertResponses = [{ error: { code: '23505', message: 'duplicate key value violates unique constraint "ux_orders_visits_services_offline_uuid"' } }];
+        await expect(insertWithOfflineUuid('orders_visits_services', { a: 1 }, 'uuid-1')).resolves.toBeUndefined();
+        expect(insertCalls[0]).toEqual({ a: 1, offline_uuid: 'uuid-1' });
     });
-    it('outra duplicata (não client_uuid) continua erro', async () => {
+    it('outra duplicata (não o UUID offline) continua erro', async () => {
         insertResponses = [{ error: { code: '23505', message: 'duplicate key value violates unique constraint "x_pkey"' } }];
-        await expect(insertWithClientUuid('t', { a: 1 }, 'uuid-1')).rejects.toMatchObject({ code: '23505' });
+        await expect(insertWithOfflineUuid('t', { a: 1 }, 'uuid-1')).rejects.toMatchObject({ code: '23505' });
     });
-    it('sem a migration (coluna inexistente): grava sem client_uuid', async () => {
-        insertResponses = [{ error: { code: 'PGRST204', message: "Could not find the 'client_uuid' column" } }, { error: null }];
-        await insertWithClientUuid('t', { a: 1 }, 'uuid-1');
-        expect(insertCalls).toEqual([{ a: 1, client_uuid: 'uuid-1' }, { a: 1 }]);
+    it('banco ainda sem a 20261125: cai para client_uuid e lembra a coluna', async () => {
+        insertResponses = [{ error: { code: 'PGRST204', message: "Could not find the 'offline_uuid' column" } }, { error: null }];
+        await insertWithOfflineUuid('t', { a: 1 }, 'uuid-1');
+        await insertWithOfflineUuid('t', { b: 2 }, 'uuid-2');
+        expect(insertCalls).toEqual([{ a: 1, offline_uuid: 'uuid-1' }, { a: 1, client_uuid: 'uuid-1' }, { b: 2, client_uuid: 'uuid-2' }]);
     });
-    it('sem clientUuid: insert normal', async () => {
-        await insertWithClientUuid('t', { a: 1 });
+    it('sem nenhuma das colunas (migrations não aplicadas): grava sem o UUID', async () => {
+        insertResponses = [
+            { error: { code: 'PGRST204', message: "Could not find the 'offline_uuid' column" } },
+            { error: { code: 'PGRST204', message: "Could not find the 'client_uuid' column" } },
+            { error: null },
+        ];
+        await insertWithOfflineUuid('t', { a: 1 }, 'uuid-1');
+        expect(insertCalls).toEqual([{ a: 1, offline_uuid: 'uuid-1' }, { a: 1, client_uuid: 'uuid-1' }, { a: 1 }]);
+    });
+    it('sem UUID: insert normal', async () => {
+        await insertWithOfflineUuid('t', { a: 1 });
         expect(insertCalls).toEqual([{ a: 1 }]);
+    });
+    it('acha o id real pelo offline_uuid; banco antigo → client_uuid', async () => {
+        selectResponses = [{ data: { id: 42 }, error: null }];
+        expect(await findIdByOfflineUuid('t', 'u1')).toBe('42');
+        expect(selectCalls).toEqual([['offline_uuid', 'u1']]);
+        __resetOfflineUuidColumn();
+        selectCalls.length = 0;
+        selectResponses = [{ data: null, error: { code: '42703', message: 'column t.offline_uuid does not exist' } }, { data: { id: 7 }, error: null }];
+        expect(await findIdByOfflineUuid('t', 'u2')).toBe('7');
+        expect(selectCalls).toEqual([['offline_uuid', 'u2'], ['client_uuid', 'u2']]);
+    });
+});
+
+describe('fila de APK anterior (chave clientUuid)', () => {
+    it('offlineUuidOf lê os dois nomes', () => {
+        expect(offlineUuidOf({ offlineUuid: 'a' })).toBe('a');
+        expect(offlineUuidOf({ clientUuid: 'b' })).toBe('b');
+        expect(offlineUuidOf({})).toBeUndefined();
+    });
+    it('remover um material tmp criado por APK antigo ainda anula a inclusão', () => {
+        const spec = OFFLINE_FLOW_OPS.removeMaterialFromAsset;
+        expect(spec.cancelsPending!(['tmp:old1', '1'], { method: 'addMaterialToAsset', args: ['7', '88', 1, 1, '1', { clientUuid: 'old1' }] })).toBe(true);
+    });
+    it('chave de ordem da inclusão antiga bate com a do item tmp', () => {
+        expect(OFFLINE_FLOW_OPS.addMaterialToAsset.entityKey(['7', '88', 1, 1, '1', { clientUuid: 'old1' }])).toBe('material:tmp:old1');
     });
 });
 
@@ -280,14 +329,14 @@ describe('incluir/remover veículo offline', () => {
         const args = await OFFLINE_FLOW_OPS.addVehicleToOrderVisit.prepareArgs!(['70', '9', '1']);
         await OFFLINE_FLOW_OPS.addVehicleToOrderVisit.applyLocal(ctxOf(store), args);
         const [item] = await read(store, 'getOrderVisitVehicles', ['70']);
-        expect(item).toMatchObject({ id: `tmp:${args[3].clientUuid}`, vehicleId: '9', plates: 'ABC1D23', costType: 'odometer', recorderStart: null });
+        expect(item).toMatchObject({ id: `tmp:${args[3].offlineUuid}`, vehicleId: '9', plates: 'ABC1D23', costType: 'odometer', recorderStart: null });
         // Encerrar offline continua exigindo o Km do veículo incluído.
         await expect(validateCloseVisitLocal(store, '70')).rejects.toThrow(/Km/);
     });
 
     it('Km e remoção do temporário seguem o insert e resolvem o id real', async () => {
         const args = await OFFLINE_FLOW_OPS.addVehicleToOrderVisit.prepareArgs!(['70', '9', '1']);
-        const tmp = `tmp:${args[3].clientUuid}`;
+        const tmp = `tmp:${args[3].offlineUuid}`;
         const key = OFFLINE_FLOW_OPS.addVehicleToOrderVisit.entityKey(args);
         expect(OFFLINE_OPS.updateVehicleKm.entityKey([tmp, 100])).toBe(key);
         expect(OFFLINE_FLOW_OPS.removeVehicleFromOrderVisit.entityKey([tmp])).toBe(key);
@@ -298,7 +347,7 @@ describe('incluir/remover veículo offline', () => {
     it('remover antes de subir anula insert + Km', async () => {
         const outbox = createOutbox(createMemoryOutboxStorage());
         const add = await OFFLINE_FLOW_OPS.addVehicleToOrderVisit.prepareArgs!(['70', '9', '1']);
-        const tmp = `tmp:${add[3].clientUuid}`;
+        const tmp = `tmp:${add[3].offlineUuid}`;
         await outbox.enqueue({ method: 'addVehicleToOrderVisit', args: add, userUuid: 'u' });
         await outbox.enqueue({ method: 'updateVehicleKm', args: [tmp, 100, 150], userUuid: 'u' });
         await outbox.enqueue({ method: 'updateVehicleKm', args: ['33', 5], userUuid: 'u' });

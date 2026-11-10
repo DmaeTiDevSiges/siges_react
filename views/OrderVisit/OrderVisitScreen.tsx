@@ -46,6 +46,8 @@ import { AIContextualBar } from '../../components/ai/AIContextualBar';
 import { AlertModal } from '../../components/ui/AlertModal';
 import { VisitEvaluationInline } from '../Visits/VisitEvaluationInline';
 import { FieldPackageCard } from '../../components/offline/FieldPackageCard';
+import { isOfflineFieldCardEnabled } from '../../features';
+import { prefetchVisitOffline } from '../../services/offline/offlineAutoSync';
 
 export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     visitId,
@@ -103,6 +105,20 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     };
     const { canView, canDelete } = usePermissions();
 
+    // Modo offline: com internet, garante a cópia da visita no aparelho
+    // (veículos, equipe, serviços, ativos) — sem esperar a rodada de 5 min.
+    useEffect(() => {
+        prefetchVisitOffline(visitId);
+        // Código das telas do ativo (carregadas sob demanda): baixa já, com
+        // internet, para abrirem depois mesmo sem conexão.
+        if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+            Promise.all([
+                import('./OrderVisitAsset/OrderVisitAssetReport'),
+                import('./OrderVisitAsset/OrderVisitAssetActivities'),
+                import('./OrderVisitAsset/OrderVisitAssetMaterials'),
+            ]).catch(() => undefined);
+        }
+    }, [visitId]);
 
     useEffect(() => {
         const loadPageData = async () => {
@@ -638,7 +654,10 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                             />
                         </Card>
 
-                        <FieldPackageCard visit={visit} team={team} currentUserId={currentUser?.id} />
+                        {/* Cartão "Modo campo" — escondido por padrão (VITE_FEATURE_OFFLINE_FIELD_CARD) */}
+                        {isOfflineFieldCardEnabled() && (
+                            <FieldPackageCard visit={visit} team={team} currentUserId={currentUser?.id} />
+                        )}
 
                         <OrderVisitCardDetail
                             visit={visit}
@@ -803,7 +822,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                     {renderTabContent()}
                 </div>
             ) : (
-                <KeyboardAwareScrollView className="flex-1 p-4 pb-[calc(var(--bottom-nav-h,calc(5rem+env(safe-area-inset-bottom,0px)))+3rem)] md:max-w-3xl md:mx-auto w-full no-scrollbar" extraPadding={30}>
+                <KeyboardAwareScrollView className={`flex-1 p-4 pb-[calc(var(--bottom-nav-h,calc(5rem+env(safe-area-inset-bottom,0px)))+3rem)] md:max-w-3xl md:mx-auto w-full no-scrollbar ${['services', 'assets', 'transport'].includes(activeTab) ? 'lg:max-w-6xl' : ''}`} extraPadding={30}>
                     {renderTabContent()}
                 </KeyboardAwareScrollView>
             )}

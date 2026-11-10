@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { User } from '../types';
 import { dataService } from '../services/dataService';
+import { confirmLogoutWithOfflineQueue } from '../services/offline/offlineLogoutGuard';
 
 interface AuthContextType {
     currentUser: User | null;
@@ -91,6 +92,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
      * Logout user
      */
     const logout = async () => {
+        // Modo offline (F5): alterações feitas sem internet ainda não enviadas.
+        if (!(await confirmLogoutWithOfflineQueue())) return;
         try {
             const hasActiveVisit = currentUser?.isOvInProgress || (currentUser?.ovIdInProgress && Number(currentUser.ovIdInProgress) > 0);
             await dataService.signOut(currentUser?.uuid, hasActiveVisit);

@@ -24,6 +24,8 @@ interface MaintenanceChecklistViewProps {
     userId: string;
     initialPlanId?: string;
     onUpdateProgress?: (progress: number) => void;
+    /** Avisa quando o plano escolhido muda ('' = nenhum). */
+    onPlanChange?: (planId: string) => void;
     disabled?: boolean;
     /** Abre "Novo Alerta" com a descrição pré-preenchida (título do item + observação). */
     onAddAlert?: (description: string) => void;
@@ -258,6 +260,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
     userId,
     initialPlanId,
     onUpdateProgress,
+    onPlanChange,
     disabled = false,
     onAddAlert
 }) => {
@@ -334,7 +337,12 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
             }
         } catch (error) {
             console.error('Error fetching plans:', error);
-            toast.error('Erro ao buscar planos de manutenção');
+            if ((error as any)?.name === 'OfflineCacheMissError') {
+                // Sem internet e o download automático ainda não trouxe este tipo de ativo
+                toast.info('Sem internet: os planos de manutenção deste tipo de ativo ainda não foram baixados para o aparelho. Com internet, eles baixam sozinhos.', { id: 'plans-offline-miss', duration: 7000 });
+            } else {
+                toast.error('Erro ao buscar planos de manutenção');
+            }
         } finally {
             setLoadingPlans(false);
         }
@@ -342,6 +350,7 @@ export const MaintenanceChecklistView: React.FC<MaintenanceChecklistViewProps> =
 
     const handlePlanSelect = async (planId: string) => {
         setSelectedPlanId(planId);
+        onPlanChange?.(planId);
 
         // Update the maintenance_plan_id on the OrderVisitAsset record
         dataService.updateOrderVisitAssetPlan(ovAssetId, planId).catch(err => {

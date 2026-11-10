@@ -27,7 +27,7 @@ export interface CachedRead<T = unknown> {
 export class OfflineCacheMissError extends Error {
     readonly method: string;
     constructor(method: string) {
-        super('Sem internet e sem dados salvos desta tela. Prepare a visita para campo quando estiver com internet.');
+        super('Sem internet e estes dados ainda não foram baixados para o aparelho. Com internet, o download é automático.');
         this.name = 'OfflineCacheMissError';
         this.method = method;
     }

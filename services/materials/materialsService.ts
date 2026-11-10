@@ -1,5 +1,6 @@
 import { supabase } from '../core/supabase';
-import { insertWithClientUuid } from '../core/clientUuidInsert';
+import { insertWithOfflineUuid } from '../core/offlineUuidInsert';
+import { offlineUuidOf } from '../offline/offlineUuid';
 import { Material, AssetMaterial } from '../../types';
 import { usersService } from '../users/usersService';
 import { getBrazilTimestamp } from '../../utils/dateUtils';
@@ -321,7 +322,7 @@ export const materialsService = {
             amount: item.amount || 0,
             valueUnit: item.value_unit || 0,
             valueTotal: item.value_total || 0,
-            discount: item.discount || 0,
+            discount: item.discount ?? 1, // banco: COALESCE(discount, 1)
             isDeleted: !!item.is_deleted || !!item.is_deteted, // Handle both just in case
             createdUserId: item.created_user_id?.toString(),
 
@@ -333,7 +334,7 @@ export const materialsService = {
         }));
     },
 
-    async addMaterialToAsset(ovAssetId: string, materialId: string, amount: number, valueUnit: number, userId: string, options?: { clientUuid?: string }): Promise<void> {
+    async addMaterialToAsset(ovAssetId: string, materialId: string, amount: number, valueUnit: number, userId: string, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
         // 1. Get the visit ID (ov_id) and asset original ID (asset_id) first
         const { data: ova, error: ovaError } = await supabase
             .from('orders_visits_assets')
@@ -347,7 +348,7 @@ export const materialsService = {
         }
 
         // 2. Perform insert with ova_id, ov_id and asset_id
-        await insertWithClientUuid('orders_visits_assets_materials', {
+        await insertWithOfflineUuid('orders_visits_assets_materials', {
                 ova_id: parseInt(ovAssetId),
                 ov_id: ova.ov_id,
                 asset_id: ova.asset_id, // Mandatory column in some versions of the schema
@@ -356,7 +357,7 @@ export const materialsService = {
                 value_unit: valueUnit,
                 created_user_id: parseInt(userId),
                 is_deleted: false
-            }, options?.clientUuid);
+            }, offlineUuidOf(options));
     },
 
     async updateMaterialInAsset(id: string, updates: { amount?: number, discount?: number, valueUnit?: number }): Promise<void> {

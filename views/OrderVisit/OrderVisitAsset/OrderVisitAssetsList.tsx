@@ -12,6 +12,9 @@ import { scanBarcode, IS_NATIVE } from '../../../utils/scanner';
 import { IconButton } from '../../../components/ui/IconButton';
 import { BarcodeScannerModal } from '../../../components/ui/BarcodeScannerModal';
 import { Loading } from '../../../components/ui/Loading';
+import { useOfflineSync } from '../../../hooks/useOfflineSync';
+import { isTmpId } from '../../../services/offline/offlineFlowOps';
+import { isOnline } from '../../../services/offline/offlineConfig';
 
 
 interface OrderVisitAssetsListProps {
@@ -67,6 +70,15 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
     useEffect(() => {
         loadVisitAssets();
     }, [visitId]);
+
+    // Ativo incluído sem internet ("tmp:…"): quando a fila terminar de enviar,
+    // recarrega para trocar pelo id real do servidor.
+    const offlineSync = useOfflineSync();
+    useEffect(() => {
+        if (offlineSync.syncing || !isOnline()) return;
+        if (visitAssets.some(a => isTmpId(a.id))) loadVisitAssets();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [offlineSync.syncing, offlineSync.summary.total]);
 
     const loadVisitAssets = async () => {
         try {
@@ -155,7 +167,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
 
         } catch (error) {
             console.error('Error adding asset:', error);
-            toast.error('Erro ao associar ativo');
+            toast.error(error instanceof Error && error.message ? `Erro ao associar ativo: ${error.message}` : 'Erro ao associar ativo');
             setAssetIdAdding(null);
         }
     };
@@ -178,7 +190,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
             if (onVisitRefresh) onVisitRefresh();
         } catch (error) {
             console.error('Error removing asset:', error);
-            toast.error('Erro ao remover ativo');
+            toast.error(error instanceof Error && error.message ? `Erro ao remover ativo: ${error.message}` : 'Erro ao remover ativo');
         } finally {
             setIsDeleting(false);
         }
@@ -201,9 +213,11 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
     }
 
     return (
-        <div className="space-y-6">
+        // Desktop (lg+): associando → busca à esquerda (fixa ao rolar) e lista à direita;
+        // sem associar → lista na largura toda, 2 colunas. Mobile: empilhado como antes.
+        <div className={`flex flex-col gap-6 ${isAdding ? 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-x-6 lg:items-start' : ''}`}>
             {/* Header / Add Button */}
-            <div className="flex justify-between items-center px-1">
+            <div className="flex justify-between items-center px-1 lg:col-span-2">
                 <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">
                     ATIVOS
                 </h3>
@@ -232,8 +246,8 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
 
             {/* Association Area */}
             {isAdding && (
-                <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-xl space-y-4 animate-in slide-in-from-top-4 duration-500">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-xl space-y-4 animate-in slide-in-from-top-4 duration-500 lg:col-start-1 lg:row-start-2 lg:sticky lg:top-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
                         {/* Unit Search */}
                         <div className="relative">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
@@ -328,7 +342,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
 
                     {/* Results */}
                     {searchResults.length > 0 && (
-                        <div className="space-y-2 mt-4">
+                        <div className="space-y-2 mt-4 lg:max-h-[calc(100vh-24rem)] lg:overflow-y-auto lg:pr-1">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">RESULTADOS DA BUSCA</p>
                             {searchResults.map(asset => {
                                 const isAlreadyAdded = visitAssets.some(va => va.assetId === asset.id);
@@ -402,9 +416,9 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
             />
 
             {/* List associated assets */}
-            <div className="space-y-4">
+            <div className={`grid grid-cols-1 gap-4 content-start min-w-0 lg:col-start-2 lg:row-start-2 ${!isAdding ? 'lg:grid-cols-2' : ''}`}>
                 {visitAssets.length === 0 && !isAdding && (
-                    <div className="bg-white dark:bg-slate-900/50 rounded-2xl p-10 border border-dashed border-slate-200 dark:border-white/5 text-center">
+                    <div className="lg:col-span-2 bg-white dark:bg-slate-900/50 rounded-2xl p-10 border border-dashed border-slate-200 dark:border-white/5 text-center">
                         <div className="w-16 h-16 bg-slate-50 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                             <span className="material-symbols-outlined text-4xl">inventory_2</span>
                         </div>

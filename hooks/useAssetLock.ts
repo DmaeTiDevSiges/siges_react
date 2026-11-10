@@ -5,6 +5,7 @@ import { getOfflineStore, isOfflineSupported, isOnline } from '../services/offli
 import { getFieldPackage } from '../services/offline/fieldPackageService';
 import { deleteLockToken, getLockToken, saveLockToken } from '../services/offline/offlineLocks';
 import { OFFLINE_COLLECTIONS } from '../services/offline/store/offlineStore';
+import { isTmpId } from '../services/offline/offlineFlowOps';
 import { useNetworkStatus } from './useNetworkStatus';
 
 /**
@@ -44,6 +45,12 @@ export const useAssetLock = ({ ovaId, ovId, currentUserId, editable }: UseAssetL
     const check = useCallback(async () => {
         if (!ovaId || !ovId || !currentUserId || !editable || !isOfflineSupported()) {
             setLock({ status: 'off' });
+            return;
+        }
+
+        // Ativo incluído sem internet: ainda não existe no servidor — é do técnico.
+        if (isTmpId(String(ovaId))) {
+            setLock({ status: 'mine' });
             return;
         }
 
@@ -100,7 +107,8 @@ export const useAssetLock = ({ ovaId, ovId, currentUserId, editable }: UseAssetL
     const releaseMine = useCallback(async () => {
         if (!ovaId || lock.status !== 'mine') return;
         // Sem internet, o "Relatar" foi para a fila; a trava é solta quando ele subir.
-        if (!isOnline()) return;
+        // Ativo incluído offline: não tem trava no servidor.
+        if (!isOnline() || isTmpId(String(ovaId))) return;
         try {
             await dataService.unlockOrderVisitAsset(String(ovaId), false);
             await deleteLockToken(String(ovaId));

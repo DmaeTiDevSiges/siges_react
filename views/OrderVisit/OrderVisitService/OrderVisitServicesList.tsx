@@ -1,22 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { OrderVisitService, ContractService } from '../../../types';
+/**
+ * OrderVisitServicesList — aba "Serviços" da visita.
+ *
+ * Layout por largura do próprio conteúdo (container queries), dentro da aba:
+ *  - celular: cartão com descrição + lixeira; quantidade (− + e calculadora)
+ *    na largura toda; valor unitário e A/D lado a lado; total à direita;
+ *  - desktop: mesma linha de descrição; quantidade, valor, A/D e total numa linha.
+ * Busca no contrato sempre visível (quando editável); serviço já incluído aparece
+ * como "Na visita". Edição com o mesmo comportamento dos materiais do ativo
+ * (hooks/useCostRowEditor): grava ~1 s depois de parar de digitar e mostra o
+ * total oficial do banco.
+ */
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { ContractService, OrderVisitService } from '../../../types';
 import { dataService } from '../../../services/dataService';
-import { Card } from '../../../components/ui/Card';
-import { ButtonDelete } from '../../../components/ui/ButtonDelete';
-import { ButtonNew } from '../../../components/ui/ButtonNew';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useCostRowEditor } from '../../../hooks/useCostRowEditor';
+import { AD_TOOLTIP, AdjustHint, CostSaveStatus, NumberInput, QtyStepper, appLabelClass, brl } from '../../../components/ordersVisits/ordersVisitsCosts/CostFields';
 import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
 import { CalculatorModal } from '../../../components/ui/CalculatorModal';
-import { toast } from 'sonner';
+import { SearchInput } from '../../../components/ui/SearchInput';
 import { Loading } from '../../../components/ui/Loading';
-
-const formatNumber = (val: number | undefined | null) => {
-    if (val === undefined || val === null) return '0,00';
-    return new Intl.NumberFormat('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(val);
-};
-
 
 interface OrderVisitServicesListProps {
     visitId: string;
@@ -25,110 +29,118 @@ interface OrderVisitServicesListProps {
     onVisitRefresh?: () => void;
 }
 
+/** Minúsculas e sem acento. */
+const normalize = (value?: string) =>
+    (value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
 export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
     visitId,
     isEditable = true,
     contractId,
     onVisitRefresh
 }) => {
+    const { currentUser: authUser } = useAuth();
     const [visitServices, setVisitServices] = useState<OrderVisitService[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userId, setUserId] = useState('');
 
-    // Add Service State
-    const [isAdding, setIsAdding] = useState(false);
+    // Busca no contrato
     const [searchTerm, setSearchTerm] = useState('');
-    const [availableServices, setAvailableServices] = useState<ContractService[]>([]);
-    const [searching, setSearching] = useState(false);
-    const [addingServiceId, setAddingServiceId] = useState<string | null>(null);
-    const [successServiceId, setSuccessServiceId] = useState<string | null>(null);
+    const [contractServices, setContractServices] = useState<ContractService[] | null>(null);
+    const [loadingContract, setLoadingContract] = useState(false);
+    const [addingId, setAddingId] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadVisitServices();
-    }, [visitId]);
+    // Remoção e calculadora
+    const [serviceToDelete, setServiceToDelete] = useState<OrderVisitService | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [calculatorServiceId, setCalculatorServiceId] = useState<string | null>(null);
 
     const loadVisitServices = async () => {
         try {
-            setLoading(true);
             const data = await dataService.getOrderVisitServices(visitId);
             setVisitServices(data);
         } catch (error) {
             console.error('Error loading visit services:', error);
             toast.error('Erro ao carregar serviços da visita');
-        } finally {
-            setLoading(false);
         }
     };
 
-    const handleSearch = async (term: string) => {
-        setSearchTerm(term);
-        if (!contractId) return;
+    useEffect(() => {
+        let active = true;
+        setLoading(true);
+        loadVisitServices().finally(() => { if (active) setLoading(false); });
+        dataService.getCurrentUser()
+            .then(u => { if (active) setUserId(u?.id || ''); })
+            .catch(() => undefined);
+        return () => { active = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visitId]);
 
-        try {
-            setSearching(true);
-            // We fetch all services for the contract and then filter locally by search term
-            // This is efficient since a contract typically has < 50 services
-            if (availableServices.length === 0) {
-                const results = await dataService.getContractServices(contractId);
-                setAvailableServices(results);
-            }
-        } catch (error) {
-            console.error('Error loading contract services:', error);
-        } finally {
-            setSearching(false);
-        }
-    };
-
-    const filteredSearchResults = availableServices.filter(s => {
-        const matchesSearch = s.serviceDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.serviceCode?.toLowerCase().includes(searchTerm.toLowerCase());
-        // Compare cfg_services.id stored in visit service (vs.serviceId) against cfg_services.id of the contract service (s.serviceId)
-        const alreadyAdded = visitServices.some(vs => vs.serviceId === s.serviceId);
-        return matchesSearch && !alreadyAdded && searchTerm.length >= 1;
+    const editor = useCostRowEditor<OrderVisitService>({
+        setRows: setVisitServices,
+        save: (id, updates) => dataService.updateOrderVisitService(id, updates),
+        fetchTotal: async (id) => (await dataService.getOrderVisitServices(visitId)).find(s => s.id === id)?.valueTotal,
+        onSaved: onVisitRefresh,
+        onError: () => {
+            toast.error('Erro ao salvar o serviço. Os valores foram recarregados.');
+            loadVisitServices();
+        },
     });
 
-    const handleAddService = async (contractService: ContractService, userId: string) => {
+    // Serviços do contrato: poucos por contrato, carregados uma vez e filtrados aqui
+    const ensureContractServices = async () => {
+        if (!contractId || contractServices || loadingContract) return;
         try {
-            setAddingServiceId(contractService.id);
-            await dataService.addServiceToOrderVisit(visitId, contractService.id, userId);
-            
-            setAddingServiceId(null);
-            setSuccessServiceId(contractService.id);
-            toast.success('Serviço adicionado!');
-            
-            // Revert success state after a while
-            setTimeout(() => {
-                setSuccessServiceId(null);
-            }, 1500);
+            setLoadingContract(true);
+            setContractServices(await dataService.getContractServices(contractId));
+        } catch (error) {
+            console.error('Error loading contract services:', error);
+            toast.error('Erro ao carregar serviços do contrato');
+        } finally {
+            setLoadingContract(false);
+        }
+    };
 
-            // Removed premature close of adding mode to allow adding multiple services
-            // setIsAdding(false); 
-            // setSearchTerm('');
+    const handleSearch = (term: string) => {
+        setSearchTerm(term);
+        if (term.trim()) ensureContractServices();
+    };
 
+    const search = normalize(searchTerm);
+    const results = search
+        ? (contractServices || []).filter(s => normalize(s.serviceDescription).includes(search) || normalize(s.serviceCode).includes(search))
+        : [];
+    // cfg_services.id do serviço da visita (vs.serviceId) x do serviço do contrato (s.serviceId)
+    const addedServiceIds = new Set(visitServices.map(vs => vs.serviceId));
+
+    const handleAdd = async (cs: ContractService) => {
+        const uid = userId || authUser?.id || '';
+        if (!uid) {
+            toast.error('Não foi possível identificar o usuário. Abra a tela novamente.');
+            return;
+        }
+        try {
+            setAddingId(cs.id);
+            await dataService.addServiceToOrderVisit(visitId, cs.id, uid);
             await loadVisitServices();
-            if (onVisitRefresh) onVisitRefresh();
+            onVisitRefresh?.();
         } catch (error) {
             console.error('Error adding service:', error);
             toast.error('Erro ao adicionar serviço');
-            setAddingServiceId(null);
+        } finally {
+            setAddingId(null);
         }
     };
 
-    const [serviceToDelete, setServiceToDelete] = useState<OrderVisitService | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    const handleRemoveService = (vs: OrderVisitService) => {
-        setServiceToDelete(vs);
-    };
-
-    const confirmRemoveService = async () => {
+    const confirmRemove = async () => {
         if (!serviceToDelete) return;
         setIsDeleting(true);
         try {
+            editor.cancelRow(serviceToDelete.id);
             await dataService.removeServiceFromOrderVisit(serviceToDelete.id);
-            toast.success('Serviço removido com sucesso!');
             setVisitServices(prev => prev.filter(s => s.id !== serviceToDelete.id));
             setServiceToDelete(null);
-            if (onVisitRefresh) onVisitRefresh();
+            onVisitRefresh?.();
         } catch (error) {
             console.error('Error removing service:', error);
             toast.error('Erro ao remover serviço');
@@ -136,75 +148,6 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
             setIsDeleting(false);
         }
     };
-
-    // State to track raw input values during typing
-    const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
-
-    // Calculator state
-    const [showCalculator, setShowCalculator] = useState(false);
-    const [calculatorServiceId, setCalculatorServiceId] = useState<string | null>(null);
-
-    const handleUpdateField = async (ovServiceId: string, field: 'amount' | 'discount' | 'valueUnit', value: string) => {
-        // 1. MASK LOGIC: Sanitize input to allow only numbers and ONE decimal separator
-        let sanitized = value.replace(/[^\d.,]/g, ''); // Remove anything not digit, dot or comma
-        sanitized = sanitized.replace(',', '.'); // Normalize to dot for logic
-
-        // Handle multiple dots (keep only the first one)
-        const parts = sanitized.split('.');
-        if (parts.length > 2) {
-            sanitized = parts[0] + '.' + parts.slice(1).join('');
-        }
-
-        // Limit decimal places based on field
-        const maxDecimals = field === 'amount' || field === 'valueUnit' ? 2 : 4;
-        if (parts.length === 2 && parts[1].length > maxDecimals) {
-            sanitized = parts[0] + '.' + parts[1].substring(0, maxDecimals);
-        }
-
-        // 2. Update raw input state (showing as comma for the user)
-        const displayValue = sanitized.replace('.', ',');
-        const inputKey = `${ovServiceId}_${field}`;
-        setRawInputs(prev => ({ ...prev, [inputKey]: displayValue }));
-
-        // 3. Database Update logic
-        const numValue = parseFloat(sanitized);
-
-        // If it's a valid number and doesn't end with a separator, we update the DB
-        if (isNaN(numValue) || numValue < 0 || sanitized.endsWith('.')) {
-            return;
-        }
-
-        // Optimistic update
-        setVisitServices(prev => prev.map(s => {
-            if (s.id === ovServiceId) {
-                const newAmount = field === 'amount' ? numValue : (s.amount || 0);
-                const newDiscount = field === 'discount' ? numValue : (s.discount || 0);
-                const newValueUnit = field === 'valueUnit' ? numValue : (s.valueUnit || 0);
-                return {
-                    ...s,
-                    [field]: numValue,
-                    valueTotal: newAmount * newValueUnit * (newDiscount || 1)
-                };
-            }
-            return s;
-        }));
-
-        try {
-            await dataService.updateOrderVisitService(ovServiceId, { [field]: numValue });
-            if (onVisitRefresh) onVisitRefresh();
-        } catch (error) {
-            console.error(`Error updating service ${field}:`, error);
-            toast.error('Erro ao atualizar serviço');
-            loadVisitServices();
-        }
-    };
-
-    const [currentUserId, setCurrentUserId] = useState<string>('');
-    useEffect(() => {
-        dataService.getCurrentUser().then(u => {
-            if (u) setCurrentUserId(u.id);
-        });
-    }, []);
 
     if (loading) {
         return (
@@ -214,273 +157,226 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
         );
     }
 
+    const total = visitServices.reduce((sum, vs) => sum + (vs.valueTotal || 0), 0);
+    const count = visitServices.length;
+    const canAdd = isEditable && !!contractId;
+
     return (
-        <div className="space-y-4">
-            {/* Header / Add Button */}
-            <div className="flex justify-between items-center">
-                <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">
-                    SERVIÇOS REALIZADOS
-                </h3>
-                {isEditable && contractId && (
-                    <button
-                        onClick={() => setIsAdding(!isAdding)}
-                        className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${isAdding
-                            ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                            : 'bg-indigo-500 text-white hover:bg-indigo-600'
-                            }`}
-                    >
-                        {isAdding ? (
-                            <>
-                                <span className="material-symbols-outlined text-sm">close</span>
-                                CANCELAR
-                            </>
-                        ) : (
-                            <>
-                                <span className="material-symbols-outlined text-sm">add</span>
-                                ASSOCIAR
-                            </>
-                        )}
-                    </button>
+        <div
+            className={`@container flex flex-col gap-4 ${canAdd
+                ? 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-x-6 lg:items-start'
+                : ''}`}
+        >
+            {/* Desktop (lg+, com inclusão liberada): busca no contrato à esquerda (fixa ao rolar),
+                serviços realizados à direita. Mobile: empilhado — resumo, busca, lista. */}
+
+            {/* Resumo */}
+            <div className="flex items-end justify-between gap-3 lg:col-start-2 lg:row-start-1">
+                <div>
+                    <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                        Serviços realizados ({count})
+                    </h3>
+                    {isEditable && editor.saveState !== 'idle' && <CostSaveStatus state={editor.saveState} />}
+                </div>
+                {count > 0 && (
+                    <div className="text-right">
+                        <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Total</span>
+                        <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 tabular-nums">{brl(total)}</span>
+                    </div>
                 )}
             </div>
 
-            {!contractId && !loading && (
-                <div className="p-4 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-bold text-center">
-                    CONTRATO NÃO VINCULADO PARA ESTA ORDEM
+            {!contractId && (
+                <div className="lg:col-span-2 p-4 rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/20 text-sm font-bold text-amber-700 dark:text-amber-400 flex items-start gap-2">
+                    <span className="material-symbols-outlined">description</span>
+                    Contrato não vinculado a esta ordem: não é possível incluir serviços.
                 </div>
             )}
 
-            {/* Add Service Search Area */}
-            {isAdding && (
-                <div className="animate-in slide-in-from-top-2 duration-300 mb-4">
-                    <div className="relative">
-                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                            search
-                        </span>
-                        <input
-                            type="text"
-                            placeholder="Buscar serviço no contrato..."
-                            value={searchTerm}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium"
-                            autoFocus
-                        />
-                    </div>
+            {/* Busca no contrato */}
+            {canAdd && (
+                <section
+                    className="space-y-2 lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-0 lg:p-4 lg:rounded-2xl lg:border lg:border-slate-200 lg:dark:border-slate-800 lg:bg-white lg:dark:bg-slate-900/60"
+                    aria-label="Serviços do contrato"
+                >
+                    <h3 className="hidden lg:block text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                        Serviços do contrato
+                    </h3>
+                    <SearchInput
+                        inputMode="search"
+                        aria-label="Buscar serviço do contrato"
+                        placeholder="Buscar serviço do contrato por nome ou código"
+                        value={searchTerm}
+                        onFocus={ensureContractServices}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        onClear={() => setSearchTerm('')}
+                        className="text-base"
+                    />
 
-                    {searching && (
-                        <div className="p-4 text-center text-slate-400 text-xs font-bold">
-                            BUSCANDO...
-                        </div>
+                    {search && loadingContract && (
+                        <div className="flex justify-center py-4"><Loading size="xs" /></div>
                     )}
 
-                    {!searching && searchTerm.length >= 1 && filteredSearchResults.length === 0 && (
-                        <div className="p-4 text-center text-slate-400 text-xs font-bold">
-                            NENHUM SERVIÇO ENCONTRADO NO CONTRATO
-                        </div>
+                    {search && !loadingContract && results.length === 0 && (
+                        <p className="px-1 py-3 text-sm font-bold text-slate-500">Nenhum serviço do contrato encontrado para "{searchTerm}".</p>
                     )}
 
-                    <div className="mt-2 max-h-60 overflow-y-auto space-y-2">
-                        {filteredSearchResults.map(cs => (
-                            <div key={cs.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-white/5 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div>
-                                        <p className="font-bold text-slate-900 dark:text-white text-sm leading-tight">
-                                            {cs.serviceDescription}
-                                        </p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                            {cs.serviceCode} • {cs.serviceUnit} • R$ {formatNumber(cs.valueUnit)}
-                                        </p>
-                                    </div>
-                                </div>
-                                <ButtonNew
-                                    isLoading={addingServiceId === cs.id}
-                                    isSuccess={successServiceId === cs.id}
-                                    onClick={() => handleAddService(cs, currentUserId)}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* List */}
-            <div className="grid gap-4">
-                {visitServices.length === 0 && !isAdding && (
-                    <div className="bg-white dark:bg-slate-900/50 rounded-2xl p-10 border border-dashed border-slate-200 dark:border-white/5 text-center">
-                        <div className="w-16 h-16 bg-slate-50 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                            <span className="material-symbols-outlined text-4xl">construction</span>
-                        </div>
-                        <p className="text-sm font-bold text-slate-400">Nenhum serviço registrado.</p>
-                        {isEditable && contractId && (
-                            <button
-                                onClick={() => setIsAdding(true)}
-                                className="mt-4 text-indigo-500 text-xs font-black uppercase tracking-widest hover:text-indigo-600"
-                            >
-                                Adicionar Primeiro Serviço
-                            </button>
-                        )}
-                    </div>
-                )}
-
-
-                {visitServices.map(vs => (
-                    <Card key={vs.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm">
-                        <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                <div>
-                                    <h4 className="text-sm font-black text-slate-900 dark:text-white leading-tight">
-                                        {vs.serviceDescription}
-                                    </h4>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-1">
-                                        {vs.serviceCode} • R$ {formatNumber(vs.valueUnit)} / {vs.serviceUnit}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {isEditable && (
-                                <ButtonDelete
-                                    onClick={() => handleRemoveService(vs)}
-                                    icon="delete"
-                                />
-                            )}
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-100 dark:border-white/5">
-                            <div className="flex items-center gap-4">
-                                <div className="w-24">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                        QUANTIDADE
-                                    </label>
-                                    <div className="flex items-center gap-1">
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={rawInputs[`${vs.id}_amount`] ?? (vs.amount % 1 === 0 ? vs.amount.toString() : vs.amount.toFixed(2).replace('.', ','))}
-                                            disabled={!isEditable}
-                                            onChange={(e) => handleUpdateField(vs.id, 'amount', e.target.value)}
-                                            onBlur={() => setRawInputs(prev => {
-                                                const news = { ...prev };
-                                                delete news[`${vs.id}_amount`];
-                                                return news;
-                                            })}
-                                            className="flex-1 min-w-0 bg-slate-50 dark:bg-black/20 border-none rounded-lg text-sm font-bold text-slate-700 dark:text-white p-2 focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                        {isEditable && (
+                    {search && !loadingContract && results.length > 0 && (
+                        <ul className="space-y-2 max-h-80 lg:max-h-[calc(100vh-18rem)] overflow-y-auto pr-1">
+                            {results.map(cs => {
+                                const added = addedServiceIds.has(cs.serviceId);
+                                const isAdding = addingId === cs.id;
+                                return (
+                                    <li
+                                        key={cs.id}
+                                        className={`flex items-center gap-3 p-3 rounded-xl border ${added
+                                            ? 'bg-emerald-50/60 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/30'
+                                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                                            }`}
+                                    >
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 leading-snug">{cs.serviceDescription}</p>
+                                            <p className="text-[11px] text-slate-500 mt-0.5">
+                                                {[cs.serviceCode, cs.serviceUnit].filter(Boolean).join(' · ')} · {brl(cs.valueUnit)}
+                                            </p>
+                                        </div>
+                                        {added ? (
+                                            <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-black uppercase text-emerald-600 dark:text-emerald-400">
+                                                <span className="material-symbols-outlined text-base">check_circle</span>
+                                                Na visita
+                                            </span>
+                                        ) : (
                                             <button
-                                                onClick={() => {
-                                                    setCalculatorServiceId(vs.id);
-                                                    setShowCalculator(true);
-                                                }}
-                                                className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 flex items-center justify-center transition-colors shrink-0"
-                                                title="Calculadora"
+                                                type="button"
+                                                onClick={() => handleAdd(cs)}
+                                                disabled={isAdding}
+                                                aria-label={`Adicionar ${cs.serviceDescription}`}
+                                                className="w-11 h-11 shrink-0 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 disabled:opacity-60"
                                             >
-                                                <span className="material-symbols-outlined text-sm">calculate</span>
+                                                <span className={`material-symbols-outlined ${isAdding ? 'animate-spin' : ''}`}>
+                                                    {isAdding ? 'progress_activity' : 'add'}
+                                                </span>
                                             </button>
                                         )}
-                                        <span className="text-xs font-bold text-slate-400 shrink-0">{vs.serviceUnit}</span>
-                                    </div>
-                                </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </section>
+            )}
 
-                                <div className="w-28">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                        V. UNITÁRIO
-                                    </label>
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-xs font-bold text-slate-400">R$</span>
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={rawInputs[`${vs.id}_valueUnit`] ?? (vs.valueUnit % 1 === 0 ? vs.valueUnit.toString() : vs.valueUnit.toFixed(2).replace('.', ','))}
-                                            disabled={!isEditable}
-                                            onChange={(e) => handleUpdateField(vs.id, 'valueUnit', e.target.value)}
-                                            onBlur={() => setRawInputs(prev => {
-                                                const news = { ...prev };
-                                                delete news[`${vs.id}_valueUnit`];
-                                                return news;
-                                            })}
-                                            className="w-full bg-slate-50 dark:bg-black/20 border-none rounded-lg text-sm font-bold text-slate-700 dark:text-white p-2 focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                    </div>
-                                </div>
+            {/* Serviços da visita */}
+            {count === 0 ? (
+                <div className="lg:col-start-2 lg:row-start-2 p-8 text-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                    <span className="material-symbols-outlined text-3xl text-slate-300">construction</span>
+                    <p className="mt-1 text-sm font-bold text-slate-500">Nenhum serviço registrado.</p>
+                    {canAdd && <p className="text-xs text-slate-400">Busque um serviço do contrato acima e toque em +.</p>}
+                </div>
+            ) : (
+                // @container próprio: as linhas se ajustam à largura da coluna, não da tela.
+                <ul className="@container space-y-3 lg:col-start-2 lg:row-start-2 min-w-0">
+                    {visitServices.map(vs => (
+                        <li key={vs.id} className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <span className="absolute left-0 inset-y-0 w-1 bg-indigo-500" aria-hidden="true" />
 
-                                <div className="w-20">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                        A / D
-                                    </label>
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={rawInputs[`${vs.id}_discount`] ?? (vs.discount % 1 === 0 ? vs.discount.toString() : vs.discount.toFixed(4).replace('.', ','))}
+                            {/* Linha 1: descrição + lixeira */}
+                            <div className="flex items-center gap-3 pl-5 pr-2 py-2 border-b border-slate-100 dark:border-slate-800">
+                                <div className="min-w-0 flex-1 py-1">
+                                    <p className="text-sm font-black text-slate-800 dark:text-slate-100 leading-snug">{vs.serviceDescription}</p>
+                                    <p className="text-[11px] text-slate-500">
+                                        {[vs.serviceCode, vs.serviceUnit].filter(Boolean).join(' · ')}
+                                    </p>
+                                </div>
+                                {isEditable && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setServiceToDelete(vs)}
+                                        aria-label={`Remover ${vs.serviceDescription}`}
+                                        title="Remover serviço"
+                                        className="w-11 h-11 shrink-0 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center justify-center"
+                                    >
+                                        <span className="material-symbols-outlined">delete</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Linha 2: campos */}
+                            <div className="pl-5 pr-4 py-3 grid gap-3 grid-cols-2 @xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto] @xl:items-start">
+                                <div className="col-span-2 @xl:col-span-1">
+                                    <span className={appLabelClass}>Quantidade</span>
+                                    <QtyStepper
+                                        value={editor.fieldText(vs, 'amount')}
+                                        amount={vs.amount || 0}
+                                        unit={vs.serviceUnit}
                                         disabled={!isEditable}
-                                        onChange={(e) => handleUpdateField(vs.id, 'discount', e.target.value)}
-                                        onBlur={() => setRawInputs(prev => {
-                                            const news = { ...prev };
-                                            delete news[`${vs.id}_discount`];
-                                            return news;
-                                        })}
-                                        className="w-full bg-slate-50 dark:bg-black/20 border-none rounded-lg text-sm font-bold text-slate-700 dark:text-white p-2 focus:ring-1 focus:ring-indigo-500"
+                                        onChange={(t) => editor.change(vs.id, 'amount', t)}
+                                        onBlur={() => editor.blur(vs.id, 'amount')}
+                                        onStep={(d) => editor.step(vs, d)}
+                                        extra={
+                                            <button
+                                                type="button"
+                                                onClick={() => setCalculatorServiceId(vs.id)}
+                                                aria-label="Calculadora"
+                                                title="Calculadora"
+                                                className="w-12 h-12 shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1e293b] text-indigo-500 shadow-sm flex items-center justify-center hover:border-primary transition-colors"
+                                            >
+                                                <span className="material-symbols-outlined">calculate</span>
+                                            </button>
+                                        }
                                     />
                                 </div>
+
+                                <NumberInput
+                                    label="Vlr. unit."
+                                    value={editor.fieldText(vs, 'valueUnit')}
+                                    disabled={!isEditable}
+                                    onChange={(t) => editor.change(vs.id, 'valueUnit', t)}
+                                    onBlur={() => editor.blur(vs.id, 'valueUnit')}
+                                />
+
+                                <div title={AD_TOOLTIP}>
+                                    <NumberInput
+                                        label="A / D (fator)"
+                                        value={editor.fieldText(vs, 'discount')}
+                                        disabled={!isEditable}
+                                        onChange={(t) => editor.change(vs.id, 'discount', t)}
+                                        onBlur={() => editor.blur(vs.id, 'discount')}
+                                    />
+                                    <AdjustHint factor={vs.discount} />
+                                </div>
+
+                                <div className="col-span-2 @xl:col-span-1 flex items-baseline justify-end gap-2 @xl:block @xl:text-right @xl:min-w-[110px]">
+                                    <span className={`${appLabelClass} !mb-0 @xl:!mb-1.5`}>Total</span>
+                                    <span className="block text-lg font-black text-indigo-600 dark:text-indigo-400 tabular-nums @xl:h-12 @xl:leading-[3rem]">
+                                        {brl(vs.valueTotal)}
+                                    </span>
+                                </div>
                             </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
 
-                            <div className="flex justify-end items-center gap-2 mt-2">
-                                <span className="text-[10px] font-bold text-slate-400">TOTAL</span>
-                                <span className="text-lg font-black text-blue-500">
-                                    R$ {formatNumber(vs.valueTotal)}
-                                </span>
-                            </div>
-                        </div>
-                    </Card>
-                ))}
-
-                {/* Total */}
-                {visitServices.length > 0 && (
-                    <div className="mt-2 flex justify-end">
-                        <div className="text-right">
-                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1">TOTAL SERVIÇOS</span>
-                            <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                                R$ {formatNumber(visitServices.reduce((sum, vs) => sum + (vs.valueTotal || 0), 0))}
-                            </span>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Delete Modal */}
             <ConfirmDeleteModal
                 isOpen={!!serviceToDelete}
-                onClose={() => setServiceToDelete(null)}
-                onConfirm={confirmRemoveService}
+                onClose={() => { if (!isDeleting) setServiceToDelete(null); }}
+                onConfirm={confirmRemove}
                 title="Remover Serviço"
-                description={
-                    serviceToDelete ? (
-                        <>
-                            Confirma a remoção do serviço <strong className="text-slate-700 dark:text-slate-200">{serviceToDelete.serviceDescription}</strong>?
-                        </>
-                    ) : undefined
-                }
+                description={serviceToDelete ? (
+                    <>Confirma a remoção do serviço <strong className="text-slate-700 dark:text-slate-200">{serviceToDelete.serviceDescription}</strong>?</>
+                ) : undefined}
                 isLoading={isDeleting}
             />
 
-            {/* Calculator Modal */}
             <CalculatorModal
-                isOpen={showCalculator}
-                currentValue={
-                    calculatorServiceId
-                        ? visitServices.find(vs => vs.id === calculatorServiceId)?.amount || 0
-                        : 0
-                }
+                isOpen={!!calculatorServiceId}
+                currentValue={calculatorServiceId ? visitServices.find(vs => vs.id === calculatorServiceId)?.amount || 0 : 0}
                 onApply={(result) => {
-                    if (calculatorServiceId) {
-                        handleUpdateField(calculatorServiceId, 'amount', result.toString());
-                    }
-                    setShowCalculator(false);
+                    if (calculatorServiceId) editor.setValue(calculatorServiceId, 'amount', Math.max(0, Math.round(Number(result) * 100) / 100));
                     setCalculatorServiceId(null);
                 }}
-                onClose={() => {
-                    setShowCalculator(false);
-                    setCalculatorServiceId(null);
-                }}
+                onClose={() => setCalculatorServiceId(null)}
             />
         </div>
     );

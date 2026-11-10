@@ -1,18 +1,21 @@
 import { Capacitor } from '@capacitor/core';
 import { isOfflineModeEnabled } from '../../features';
 import { networkService } from '../core/networkService';
+import { isOfflineDbGateOpen } from './offlineGate';
 import type { OfflineStore } from './store/offlineStore';
 import { createFilesystemStore } from './store/filesystemStore';
 import { createLocalStorageStore } from './store/localStorageStore';
+import { createIndexedDbStore, isIndexedDbAvailable } from './store/indexedDbStore';
 import { createMemoryStore } from './store/memoryStore';
 
 /**
  * Modo offline disponível neste build/plataforma:
  *   flag VITE_FEATURE_OFFLINE_MODE=true  E  (APK  OU  navegador em `npm run dev`)
+ *   E chave do banco aberta para o usuário (F5 — offlineGate, migration 20261123)
  * Na web de produção fica desligado (decisão do plano: offline só no APK).
  */
 export const isOfflineSupported = (): boolean =>
-    isOfflineModeEnabled() && (Capacitor.isNativePlatform() || import.meta.env.DEV);
+    isOfflineModeEnabled() && (Capacitor.isNativePlatform() || import.meta.env.DEV) && isOfflineDbGateOpen();
 
 /**
  * Plataforma onde o modo offline pode rodar (APK ou `npm run dev`), com ou
@@ -43,7 +46,11 @@ let store: OfflineStore | null = null;
 export const getOfflineStore = (): OfflineStore => {
     if (!store) {
         try {
-            store = Capacitor.isNativePlatform() ? createFilesystemStore() : createLocalStorageStore();
+            // APK: Filesystem. Navegador (dev): IndexedDB — o localStorage (~5 MB)
+            // enchia com o download automático e a fila parava de gravar.
+            store = Capacitor.isNativePlatform()
+                ? createFilesystemStore()
+                : isIndexedDbAvailable() ? createIndexedDbStore() : createLocalStorageStore();
         } catch {
             store = createMemoryStore();
         }

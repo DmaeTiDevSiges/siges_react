@@ -1,6 +1,7 @@
 import React from 'react';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 import { useOfflineAutoSync } from '../../hooks/useOfflineAutoSync';
+import { openPendingOpsPanel } from './PendingOpsPanel';
 
 /**
  * Faixa logo abaixo do cabeçalho (Header) com o estado da conexão e da fila
@@ -44,12 +45,14 @@ export const ConnectionStrip: React.FC<ConnectionStripProps> = ({ isConnected })
         tone = 'bg-amber-500 text-amber-950';
         icon = 'error';
         text = `${plural(stuck, 'alteração não enviada', 'alterações não enviadas')} — abra a visita para resolver`;
-    } else if (autoSync.running) {
+    } else if (autoSync.running && autoSync.total > 0) {
+        // Só com download de verdade: a conferência de mudanças (a cada 5 min) não aparece.
         const percent = autoSync.total > 0 ? Math.min(100, Math.round((autoSync.done / autoSync.total) * 100)) : 0;
         return (
             <div role="status" aria-live="polite" className="relative bg-slate-800 text-white dark:bg-slate-900">
                 <div className="flex items-center justify-center gap-1.5 px-4 py-1 text-[11px] font-bold leading-tight">
-                    <span className="material-symbols-outlined text-[14px] animate-spin">sync</span>
+                    {/* O ícone "sync" tem setas no sentido anti-horário: gira ao contrário do animate-spin */}
+                    <span className="material-symbols-outlined text-[14px] animate-spin [animation-direction:reverse]">sync</span>
                     <span className="truncate">
                         Atualizando dados offline{autoSync.phase ? ` · ${autoSync.phase}` : ''}{autoSync.total > 0 ? ` · ${percent}%` : '…'}
                     </span>
@@ -66,14 +69,23 @@ export const ConnectionStrip: React.FC<ConnectionStripProps> = ({ isConnected })
         return null;
     }
 
-    return (
-        <div
-            role="status"
-            aria-live="polite"
-            className={`flex items-center justify-center gap-1.5 px-4 py-1 text-[11px] font-bold leading-tight ${tone}`}
-        >
-            <span className={`material-symbols-outlined text-[14px] ${syncing && isConnected ? 'animate-spin' : ''}`}>{icon}</span>
+    const content = (
+        <>
+            <span className={`material-symbols-outlined text-[14px] ${syncing && isConnected ? 'animate-spin [animation-direction:reverse]' : ''}`}>{icon}</span>
             <span className="truncate">{text}</span>
+            {summary.total > 0 && <span className="material-symbols-outlined text-[14px] opacity-80">chevron_right</span>}
+        </>
+    );
+    const classes = `w-full flex items-center justify-center gap-1.5 px-4 py-1 text-[11px] font-bold leading-tight ${tone}`;
+
+    // Com alterações na fila, a faixa abre a tela de pendências (F5).
+    return summary.total > 0 ? (
+        <button type="button" onClick={openPendingOpsPanel} aria-live="polite" aria-label={`${text}. Ver pendências`} className={classes}>
+            {content}
+        </button>
+    ) : (
+        <div role="status" aria-live="polite" className={classes}>
+            {content}
         </div>
     );
 };

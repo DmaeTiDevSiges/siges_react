@@ -6,6 +6,7 @@ import { useNetworkStatus, useNetworkAndQuality, useQualityNotifications } from 
 import { useNetworkAndQuality as useCombinedNetwork } from './hooks/useNetworkAndQuality';
 import { Layout } from './components/shell/Layout';
 import { BottomNav } from './components/shell/BottomNav';
+import { isOfflineSupported, isOnline } from './services/offline/offlineConfig';
 import { Button } from './components/ui/Button';
 import { SplashScreen } from './components/shell/SplashScreen';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
@@ -14,7 +15,9 @@ import { LegacyAppMigrationScreen } from './components/shell/LegacyAppMigrationS
 import { LocationDisclosureModal } from './components/permissions/LocationDisclosureModal';
 import { dataService } from './services/dataService';
 import { getCachedCurrentUser } from './services/offline/offlineAuth';
-import { setOfflineAutoSyncUser } from './services/offline/offlineAutoSync';
+import { PendingOpsPanel } from './components/offline/PendingOpsPanel';
+import { prefetchVisitOffline, runOfflineAutoSync, setOfflineAutoSyncUser } from './services/offline/offlineAutoSync';
+import { refreshOfflineGate, subscribeOfflineGate } from './services/offline/offlineGate';
 import { usePermissions } from './contexts/PermissionsContext';
 import { permissionService } from './services/core/permissionService';
 import { Sidebar } from './components/shell/Sidebar';
@@ -518,6 +521,8 @@ const AppContent: React.FC = () => {
   const [selectedOrderTypeId, setSelectedOrderTypeId] = useState<string | null>(null);
   const [selectedUnitAssetTag, setSelectedUnitAssetTag] = useState<any>(null);
   const [assetReportBackScreen, setAssetReportBackScreen] = useState<Screen>('order-visit-execute');
+  // Seção do relatório do ativo a centralizar ao voltar (ex.: atividades → materiais)
+  const [assetReportFocus, setAssetReportFocus] = useState<'materials' | null>(null);
 
   const handleManageAvailability = (item: any) => {
     setSelectedUnitAssetTag(item);
@@ -1092,9 +1097,27 @@ const AppContent: React.FC = () => {
   }, [selectedOrder?.id]);
 
   // Dados offline baixados automaticamente (OSs abertas da empresa + visitas em andamento).
+  // F5: antes, lê a chave do banco (fn_offline_enabled) — offline só para quem foi liberado.
   useEffect(() => {
-    setOfflineAutoSyncUser(currentUser ? { id: currentUser.id, companyId: currentUser.companyId } : null);
-  }, [currentUser?.id, currentUser?.companyId]);
+    let cancelled = false;
+    const user = currentUser ? { id: currentUser.id, companyId: currentUser.companyId } : null;
+    refreshOfflineGate(currentUser?.uuid)
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setOfflineAutoSyncUser(user);
+      });
+    // Liberado depois (piloto ativado com o técnico já logado): começa a baixar.
+    const unsubscribeGate = subscribeOfflineGate(open => {
+      if (open && user) {
+        setOfflineAutoSyncUser(user);
+        runOfflineAutoSync('manual');
+      }
+    });
+    return () => {
+      cancelled = true;
+      unsubscribeGate();
+    };
+  }, [currentUser?.id, currentUser?.companyId, currentUser?.uuid]);
 
   // Background shift monitor - alerts user to change availability status based on shift hours
   const { showShiftAlert, dismissAlert } = useShiftMonitor(currentUser, currentScreen === 'profile');
@@ -2687,18 +2710,34 @@ const AppContent: React.FC = () => {
             }}
             onStartVisit={(startedAt?: string) => {
               return new Promise<void>(async (resolve, reject) => {
+                // Sem internet: com o modo offline liberado, a visita nasce no aparelho
+                // ("tmp:") e vai para a fila (etapa 3, flow_order_visit_create_v3).
+                // Sem o modo offline, continua exigindo conexão.
+                if (!isOnline() && !isOfflineSupported()) {
+                  toast.error('Sem internet. Para iniciar a visita é preciso estar conectado. Conecte-se e tente de novo.', { id: 'start-visit-offline', duration: 6000 });
+                  reject(new Error('offline'));
+                  return;
+                }
+                const startingOffline = !isOnline();
                 if (selectedOrder && currentUser) {
                   try {
                     toast.loading('Iniciando visita...');
                     await dataService.startOrderVisit(selectedOrder, currentUser, startedAt);
                     toast.dismiss();
-                    toast.success('Visita iniciada com sucesso!');
+                    toast.success(startingOffline
+                      ? 'Visita iniciada sem internet. Ela será enviada quando a conexão voltar.'
+                      : 'Visita iniciada com sucesso!');
 
                     // Refresh user data to update isAvailable and inProgress status
                     const updatedUser = await dataService.getCurrentUser({ force: true });
                     if (updatedUser) {
                       setCurrentUser(updatedUser);
                       if (updatedUser.ovIdInProgress) {
+                        // Visita nova: baixa já para o aparelho (o sinal pode cair logo).
+                        // Iniciada offline ("tmp:") já foi montada no aparelho.
+                        if (!String(updatedUser.ovIdInProgress).startsWith('tmp:')) {
+                          prefetchVisitOffline(updatedUser.ovIdInProgress, true);
+                        }
                         setLastVisitSource('order-detail');
                         setCurrentScreen('order-visit-execute');
                       } else {
@@ -2747,7 +2786,9 @@ const AppContent: React.FC = () => {
             onEndVisit={() => {
               setSelectedVisit(null);
               if (currentUser) {
-                setCurrentUser({ ...currentUser, isOvInProgress: false, ovIdInProgress: undefined });
+                // Igual ao servidor no encerramento: líder volta disponível (sem isso,
+                // encerrar sem internet travava o "Iniciar" da próxima OS).
+                setCurrentUser({ ...currentUser, isOvInProgress: false, ovIdInProgress: undefined, isAvailable: true });
               }
               setCurrentScreen('dashboard');
               toast.success('Visita encerrada com sucesso');
@@ -2853,6 +2894,17 @@ const AppContent: React.FC = () => {
             initialAsset={selectedOrderVisitAsset || undefined}
             initialVisit={selectedVisitForAssetReport || undefined}
             onBack={() => setCurrentScreen(assetReportBackScreen)}
+            focusSection={assetReportFocus}
+            onFocusHandled={() => setAssetReportFocus(null)}
+            onApproved={() => {
+              // Aberto pela visita: volta para a aba de ativos, já atualizada.
+              // Aberto por outra tela (ex.: detalhes do ativo): volta para ela.
+              if (assetReportBackScreen === 'order-visit-execute') {
+                setVisitActiveTab('assets');
+                setVisitRefreshKey(k => k + 1);
+              }
+              setCurrentScreen(assetReportBackScreen);
+            }}
             onManageActivities={(orderTypeId) => {
               setSelectedOrderTypeId(orderTypeId);
               setCurrentScreen('order-visit-asset-activities');
@@ -2876,14 +2928,21 @@ const AppContent: React.FC = () => {
           <OrderVisitAssetActivities
             ovAssetId={selectedOrderVisitAssetId}
             orderTypeId={selectedOrderTypeId}
-            onBack={() => setCurrentScreen('order-visit-asset-report')}
+            onBack={() => {
+              // Próximo passo do preenchimento: materiais
+              setAssetReportFocus('materials');
+              setCurrentScreen('order-visit-asset-report');
+            }}
           />
         ) : null;
       case 'order-visit-asset-materials':
         return selectedOrderVisitAssetId ? (
           <OrderVisitAssetMaterials
             ovAssetId={selectedOrderVisitAssetId}
-            onBack={() => setCurrentScreen('order-visit-asset-report')}
+            onBack={() => {
+              setAssetReportFocus('materials');
+              setCurrentScreen('order-visit-asset-report');
+            }}
           />
         ) : null;
       case 'users-tracker':
@@ -3280,6 +3339,9 @@ const AppContent: React.FC = () => {
               title={getTitle()}
               showBackButton={
                 (currentScreen as string) !== 'dashboard' &&
+                // Atividades/materiais do ativo: o "Voltar" fica na barra do rodapé
+                (currentScreen as string) !== 'order-visit-asset-activities' &&
+                (currentScreen as string) !== 'order-visit-asset-materials' &&
                 (currentScreen as string) !== 'ss-dashboard' &&
                 (currentScreen as string) !== 'ss-dashboard-period' &&
                 (currentScreen as string) !== 'orders-dashboard' &&
@@ -3454,6 +3516,9 @@ const AppContent: React.FC = () => {
               }
             }}
           />
+
+          {/* Modo offline (F5): tela de pendências — aberta pela faixa do cabeçalho / cartão Modo campo */}
+          <PendingOpsPanel />
 
           <Toaster
             position={Capacitor.isNativePlatform() ? 'bottom-center' : 'top-right'}

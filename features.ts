@@ -60,6 +60,23 @@ export const isOfflineModeEnabled = (): boolean => {
 };
 
 /**
+ * Mostra o cartão "Modo campo" na aba inicial da visita (preparar/atualizar o
+ * pacote offline, aviso de sem internet, resumo da fila).
+ *
+ * Escondido por padrão (decisão de 10/11/2026): o download offline é automático e
+ * a faixa do cabeçalho (ConnectionStrip) + a tela de pendências já mostram o
+ * estado da conexão e da fila. Para voltar a mostrar:
+ *
+ * Para ativar: VITE_FEATURE_OFFLINE_FIELD_CARD=true
+ * Para desativar: VITE_FEATURE_OFFLINE_FIELD_CARD=false (ou não definir)
+ *
+ * Lido no build: mudar exige novo APK.
+ */
+export const isOfflineFieldCardEnabled = (): boolean => {
+  return import.meta.env.VITE_FEATURE_OFFLINE_FIELD_CARD === 'true';
+};
+
+/**
  * Status possíveis para aprovação financeira de visitas
  */
 export type VisitCostsStatus = 'pending' | 'waiting' | 'approved' | 'rejected';

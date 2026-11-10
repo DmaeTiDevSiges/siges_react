@@ -6,6 +6,7 @@ import { Layout } from '../../components/shell/Layout';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { dataService } from '../../services/dataService';
+import { confirmLogoutWithOfflineQueue } from '../../services/offline/offlineLogoutGuard';
 import { toolsService } from '../../services/tools/toolsService';
 import { User, Profile, Permission, Vehicle, Company, Team, UserStatus as OrganizationStatus, UserTool, LeaderMonthlyScore, LeaderScoreBadge } from '../../types';
 import { Modal } from '../../components/ui/Modal';
@@ -454,6 +455,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
     const [confirmLogoutModal, setConfirmLogoutModal] = useState(false);
 
     const handleLogout = async () => {
+        // Modo offline (F5): alterações feitas sem internet ainda não enviadas.
+        if (!(await confirmLogoutWithOfflineQueue())) return;
         const hasActiveVisit = user?.isOvInProgress || (user?.ovIdInProgress && Number(user.ovIdInProgress) > 0);
         if (hasActiveVisit) {
             setConfirmLogoutModal(true);

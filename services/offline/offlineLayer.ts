@@ -1,10 +1,13 @@
 import { toast } from 'sonner';
-import { cachedRead, OfflineCacheMissError, type ReadCacheDeps } from './readCache';
+import { cachedRead, findInCachedReads, OfflineCacheMissError, readCached, type ReadCacheDeps } from './readCache';
 import { getOfflineStore, isOfflinePlatform, isOfflineSupported, isOnline } from './offlineConfig';
+import { loadPersistedOfflineGate } from './offlineGate';
 import { networkFailureCount } from './networkFailures';
 import { OFFLINE_OPS, registerOfflineOps, setOfflineOpsStore, visitOfOva, type OfflineOpContext, type OfflineOpSpec } from './offlineOps';
-import { OFFLINE_FLOW_OPS } from './offlineFlowOps';
-import { searchMaterialsOffline, searchVehiclesOffline } from './offlineCatalog';
+import { OFFLINE_FLOW_OPS, TMP_PREFIX, isTmpId } from './offlineFlowOps';
+import { replaceDeep } from './syncEngine';
+import { findIdByOfflineUuid } from '../core/offlineUuidInsert';
+import { searchAssetsOffline, searchMaterialsOffline, searchUnitsOffline, searchVehiclesOffline } from './offlineCatalog';
 import { OFFLINE_FILE_OPS } from './offlineFileOps';
 import { deleteOfflineFile, initOfflineFiles, isOfflineFileRef } from './offlineFiles';
 import {
@@ -120,6 +123,7 @@ export const OFFLINE_WRITE_METHODS = [
     'updateOrderVisitAssetProcessingStatus',
     'reportOrderVisit',
     'closeOrderVisit',
+    'startOrderVisit', // etapa 3: iniciar visita sem internet
     // F — só online
     'disapproveOrderVisitAsset',
     'disapproveOrderVisit',
@@ -139,7 +143,53 @@ export const OFFLINE_WRITE_METHODS = [
 const OPTIONAL_READ_FALLBACKS: Record<string, () => unknown> = {
     getPreviousVehicleOdometer: () => null,
     getRentalContracts: () => [],
+    // Alertas são informativos: ativo sem alertas baixados segue sem eles.
+    getAssetAlerts: () => [],
 };
+
+/**
+ * Leituras de um ativo incluído sem internet ("tmp:…" nos argumentos) que o
+ * aparelho ainda não tem: o servidor também não teria nada → "vazio".
+ */
+const TMP_READ_FALLBACKS: Record<string, () => unknown> = {
+    // Visita iniciada sem internet (etapa 3), sem resposta no aparelho.
+    getOrderVisitTeam: () => [],
+    getOrderVisitAssets: () => [],
+    getOrderVisitServices: () => [],
+    getOrderVisitVehicles: () => [],
+    getVisitEvaluations: () => [],
+    getPreviousVehicleOdometer: () => null,
+    getOrderVisitAssetActivities: () => [],
+    getOrderVisitAssetMaterials: () => [],
+    getMaintenanceChecklistItems: () => [],
+    getMaintenanceChecklistItemsByVisit: () => [],
+    getGlobalMaintenanceChecklistItems: () => [],
+    getProviderCompanyByOvAssetId: () => null,
+};
+
+/**
+ * Ativo incluído ou visita iniciada sem internet ("tmp:<uuid>"): enquanto não chegou
+ * ao servidor, leituras usam o aparelho e gravações vão para a fila. Depois que
+ * chegou, o "tmp:" vira o id real e segue o caminho normal — sem isso a tela
+ * consultava o servidor com "tmp:…", recebia vazio ("Ativo não encontrado") e
+ * ainda gravava esse vazio no aparelho.
+ */
+const resolveTmpOva = async (tmp: string): Promise<string | null> => {
+    const uuid = tmp.slice(TMP_PREFIX.length);
+    try {
+        // Ativo incluído offline (etapa 2) ou visita iniciada offline (etapa 3):
+        // o uuid é único, então basta procurar nas duas tabelas.
+        return (
+            (await findIdByOfflineUuid('orders_visits_assets', uuid)) ??
+            (await findIdByOfflineUuid('orders_visits', uuid))
+        );
+    } catch {
+        return null;
+    }
+};
+/** O "tmp:" já pode virar id real: online e nada dele (ativo ou visita) ainda na fila. */
+const tmpOvaReady = (tmp: string) =>
+    isOnline() && !hasUnsentForScope(`ova:${tmp}`) && !hasUnsentForScope(`visit:${tmp}`);
 
 export class OfflineWriteBlockedError extends Error {
     readonly method: string;
@@ -276,6 +326,23 @@ export const installOfflineLayer = (target: Record<string, any>): void => {
     }
 
     // Inclusão de veículo sem internet → cadastro da empresa baixado no preparo.
+    // Associar ativo sem internet: busca de ativos e unidades no catálogo das
+    // unidades baixado pelo download automático (assets:unit:<id>).
+    const originalGetAssets = target.getAssets as AnyFn | undefined;
+    if (typeof originalGetAssets === 'function') {
+        target.getAssets = function (this: unknown, ...args: any[]) {
+            if (!isOfflineSupported() || isOnline()) return originalGetAssets.apply(this, args);
+            return searchAssetsOffline(getOfflineStore(), args[1], args[2]);
+        };
+    }
+    const originalSearchUnits = target.searchUnits as AnyFn | undefined;
+    if (typeof originalSearchUnits === 'function') {
+        target.searchUnits = function (this: unknown, ...args: any[]) {
+            if (!isOfflineSupported() || isOnline()) return originalSearchUnits.apply(this, args);
+            return searchUnitsOffline(getOfflineStore(), args[0], args[1]);
+        };
+    }
+
     const originalVehicleSearch = target.searchVehicles as AnyFn | undefined;
     if (typeof originalVehicleSearch === 'function') {
         target.searchVehicles = function (this: unknown, ...args: any[]) {
@@ -290,11 +357,32 @@ export const installOfflineLayer = (target: Record<string, any>): void => {
             console.warn(`[offline] dataService.${name} não existe — fora do cache.`);
             continue;
         }
-        target[name] = function (this: unknown, ...args: any[]) {
+        target[name] = async function (this: unknown, ...args: any[]) {
             if (!isOfflineSupported()) return original.apply(this, args);
+            const tmp = args.find(isTmpId) as string | undefined;
+            if (tmp) {
+                const real = tmpOvaReady(tmp) ? await resolveTmpOva(tmp) : null;
+                if (real) return (target[name] as AnyFn).apply(this, args.map(a => replaceDeep(a, tmp, real)));
+                // Inclusão ainda no aparelho: o servidor não tem este ativo.
+                const hit = await readCached(getOfflineStore(), name, args).catch(() => null);
+                if (hit && hit.value != null) return hit.value;
+                // Relatório do ativo: remonta pela lista da visita (cópia vazia de
+                // uma consulta antiga ao servidor com "tmp:" não vale).
+                if (name === 'getOrderVisitAssetById') {
+                    const fromList = await findInCachedReads<any[], any>(getOfflineStore(), 'getOrderVisitAssets', list =>
+                        Array.isArray(list) ? list.find(x => x?.id === tmp) : undefined,
+                    ).catch(() => undefined);
+                    if (fromList) return fromList;
+                }
+                if (hit) return hit.value;
+                if (name in TMP_READ_FALLBACKS) return TMP_READ_FALLBACKS[name]();
+                if (name in OPTIONAL_READ_FALLBACKS) return OPTIONAL_READ_FALLBACKS[name]();
+                throw new OfflineCacheMissError(name);
+            }
             return cachedRead(offlineReadDeps(), name, args, () => original.apply(this, args)).catch(error => {
                 if (error instanceof OfflineCacheMissError) {
                     if (name in OPTIONAL_READ_FALLBACKS) return OPTIONAL_READ_FALLBACKS[name]();
+                    if (name in TMP_READ_FALLBACKS && args.some(isTmpId)) return TMP_READ_FALLBACKS[name]();
                     notifyOnce(error.message);
                 }
                 throw error;
@@ -315,6 +403,22 @@ export const installOfflineLayer = (target: Record<string, any>): void => {
             // F2 — grupo B: sem internet (ou atrás de uma pendente do mesmo registro) → fila.
             target[name] = async function (this: unknown, ...args: any[]) {
                 if (!isOfflineSupported()) return original.apply(this, args);
+                // Ativo incluído offline: fila enquanto a inclusão não subiu; depois, id real.
+                // Visita iniciada offline (etapa 3): mesma regra do ativo incluído offline.
+                const scopeVisit = name === 'startOrderVisit' ? undefined : await Promise.resolve(spec.visitId?.(args)).catch(() => undefined);
+                if (scopeVisit && isTmpId(scopeVisit)) {
+                    if (!tmpOvaReady(scopeVisit)) return enqueueWrite(name, args);
+                    const realVisit = await resolveTmpOva(scopeVisit);
+                    if (!realVisit) return enqueueWrite(name, args);
+                    args = args.map(a => replaceDeep(a, scopeVisit, realVisit));
+                }
+                const scopeOva = await Promise.resolve(spec.ovaId?.(args)).catch(() => undefined);
+                if (scopeOva && isTmpId(scopeOva)) {
+                    if (!tmpOvaReady(scopeOva)) return enqueueWrite(name, args);
+                    const real = await resolveTmpOva(scopeOva);
+                    if (!real) return enqueueWrite(name, args);
+                    args = args.map(a => replaceDeep(a, scopeOva, real));
+                }
                 const behindQueue = hasUnsentFor(spec.entityKey(args)) || (await behindBarrier(spec, args));
                 if (isOnline() && !behindQueue) {
                     const before = networkFailureCount();
@@ -363,6 +467,8 @@ export const installOfflineLayer = (target: Record<string, any>): void => {
 
     // A fila roda no APK/dev mesmo com a flag desligada: o que ficou no aparelho é enviado.
     if (isOfflinePlatform()) {
+        // F5: último valor da chave do banco guardado no aparelho (vale sem internet).
+        loadPersistedOfflineGate().catch(() => undefined);
         initOfflineSync(originals);
         startOfflineSync();
         initOfflineFiles().catch(e => console.warn('[offline] arquivos locais:', e));

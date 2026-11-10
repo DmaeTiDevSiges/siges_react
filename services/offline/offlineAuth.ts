@@ -84,7 +84,10 @@ export const getCachedCurrentUser = async <T extends ProfileLike>(): Promise<T |
 /** Logout: apaga perfil, cache de leitura e pacotes do aparelho. */
 export const clearOfflineData = async (): Promise<void> => {
     try {
-        await getOfflineStore().clear();
+        // Só os dados baixados: a fila (no navegador, coleção "outbox" do mesmo
+        // store) fica — igual ao APK, onde ela está no Preferences.
+        const store = getOfflineStore();
+        await Promise.all(Object.values(OFFLINE_COLLECTIONS).map(c => store.clear(c)));
     } catch (e) {
         console.warn('[offline] falha ao limpar dados offline:', e);
     }

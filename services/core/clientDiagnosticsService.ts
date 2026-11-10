@@ -23,7 +23,9 @@ export type ClientEventType =
     | 'reload'
     | 'unexpected_restart'
     | 'restored_after_kill'
-    | 'app_restored_result';
+    | 'app_restored_result'
+    // Modo offline (F5): resumo de cada rodada de envio da fila (migration 20261123).
+    | 'offline_sync';
 
 export type ReloadReason = 'chunk_error' | 'update' | 'error_boundary' | 'impersonation_end';
 

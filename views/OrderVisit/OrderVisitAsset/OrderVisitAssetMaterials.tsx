@@ -1,14 +1,31 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { usePermissions } from '../../../contexts/PermissionsContext';
-import { dataService } from '../../../services/dataService';
-import { Material, OrderVisitAssetMaterial, User } from '../../../types';
+/**
+ * OrderVisitAssetMaterials — materiais usados no ativo durante a visita.
+ *
+ * Layout por largura do próprio conteúdo (container queries):
+ *  - celular: busca no topo, resultados, depois "Neste ativo" em cartões;
+ *  - desktop: catálogo à esquerda e tabela "Neste ativo" à direita.
+ * Nos dois: barra fixa no rodapé com total, estado do salvamento e Voltar.
+ *
+ * Edição de quantidade / valor unitário / A-D:
+ *  - grava ~1 s depois de parar de digitar (ou ao sair do campo / ao usar − +),
+ *    uma gravação por material por vez, na ordem;
+ *  - o total mostrado usa a mesma conta do banco
+ *    (trigger fc_orders_visits_assets_materials_update_value_total:
+ *     amount * value_unit * COALESCE(discount, 1)) e, após gravar, é trocado
+ *    pelo valor oficial devolvido pelo servidor.
+ */
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCostRowEditor } from '../../../hooks/useCostRowEditor';
+import { AD_TOOLTIP, AdjustHint, CostSaveStatus, NumberInput, QtyStepper, appLabelClass, brl } from '../../../components/ordersVisits/ordersVisitsCosts/CostFields';
 import { toast } from 'sonner';
-import { Card } from '../../../components/ui/Card';
-import { ButtonDelete } from '../../../components/ui/ButtonDelete';
-import { ButtonNew } from '../../../components/ui/ButtonNew';
+import { usePermissions } from '../../../contexts/PermissionsContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { dataService } from '../../../services/dataService';
+import { Material, OrderVisitAssetMaterial, OrderVisitAssetView } from '../../../types';
 import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
+import { SearchInput } from '../../../components/ui/SearchInput';
 import { Loading } from '../../../components/ui/Loading';
-
+import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
 
 interface OrderVisitAssetMaterialsProps {
     ovAssetId: string;
@@ -16,128 +33,136 @@ interface OrderVisitAssetMaterialsProps {
 }
 
 export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> = ({ ovAssetId, onBack }) => {
+    const { canView } = usePermissions();
+    const showCosts = canView('orders_visits_costs');
+    const { currentUser: authUser } = useAuth();
+
     const [usedMaterials, setUsedMaterials] = useState<OrderVisitAssetMaterial[]>([]);
     const [loading, setLoading] = useState(true);
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [userId, setUserId] = useState('');
     const [providerCompanyId, setProviderCompanyId] = useState<string | null>(null);
+    const [asset, setAsset] = useState<OrderVisitAssetView | null>(null);
 
-    // Add Material State
-    const [isAdding, setIsAdding] = useState(false);
+    // Busca no catálogo
     const [searchTerm, setSearchTerm] = useState('');
-    const [availableMaterials, setAvailableMaterials] = useState<Material[]>([]);
+    const [results, setResults] = useState<Material[]>([]);
     const [searching, setSearching] = useState(false);
-    const [addingMaterialId, setAddingMaterialId] = useState<string | null>(null);
-    const [successMaterialId, setSuccessMaterialId] = useState<string | null>(null);
+    const [addingId, setAddingId] = useState<string | null>(null);
+    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const searchSeqRef = useRef(0);
 
-    // Debounce Ref
-    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    const { canView } = usePermissions();
-
-    useEffect(() => {
-        loadInitialData();
-    }, [ovAssetId]);
-
-    const loadInitialData = async () => {
-        try {
-            setLoading(true);
-            const [user, pCompanyId] = await Promise.all([
-                dataService.getCurrentUser(),
-                dataService.getProviderCompanyByOvAssetId(ovAssetId)
-            ]);
-            setCurrentUser(user);
-            setProviderCompanyId(pCompanyId);
-            await loadUsedMaterials();
-        } catch (error) {
-            console.error('Error loading initial data:', error);
-            toast.error('Erro ao carregar dados');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadUsedMaterials = async () => {
-        try {
-            const used = await dataService.getOrderVisitAssetMaterials(ovAssetId);
-            setUsedMaterials(used || []);
-        } catch (error) {
-            console.error('Error mapping used materials', error);
-        }
-    };
-
-    const handleSearch = (term: string) => {
-        setSearchTerm(term);
-        
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
-
-        if (term.length < 2 || !providerCompanyId) {
-            setAvailableMaterials([]);
-            setSearching(false);
-            return;
-        }
-
-        setSearching(true);
-        searchTimeoutRef.current = setTimeout(async () => {
-            try {
-                // Catálogo da empresa prestadora da OS (v_materials.provider_company_id =
-                // v_orders.provider_company_id), não a do usuário logado.
-                const results = await dataService.getAvailableMaterials(term, 0, 20, providerCompanyId);
-                setAvailableMaterials(results);
-            } catch (error) {
-                console.error('Error searching materials:', error);
-            } finally {
-                setSearching(false);
-            }
-        }, 500);
-    };
-
-    const filteredSearchResults = availableMaterials.filter(m => {
-        const alreadyAdded = usedMaterials.some(um => um.materialId === m.id);
-        return !alreadyAdded;
-    });
-
-    const handleAddMaterial = async (material: Material, userId: string) => {
-        try {
-            setAddingMaterialId(material.id);
-            await dataService.addMaterialToAsset(
-                ovAssetId,
-                material.id,
-                1, // default 1
-                material.priceUnit || 0,
-                userId
-            );
-            
-            setAddingMaterialId(null);
-            setSuccessMaterialId(material.id);
-            toast.success('Material adicionado!');
-            
-            setTimeout(() => {
-                setSuccessMaterialId(null);
-            }, 1500);
-
-            loadUsedMaterials();
-        } catch (error) {
-            console.error('Error adding material:', error);
-            toast.error('Erro ao adicionar material');
-            setAddingMaterialId(null);
-        }
-    };
-
+    // Remoção
     const [materialToDelete, setMaterialToDelete] = useState<OrderVisitAssetMaterial | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const handleRemoveMaterial = (m: OrderVisitAssetMaterial) => {
-        setMaterialToDelete(m);
+    const resolveUserId = () => userId || authUser?.id || '';
+
+    const loadUsedMaterials = useCallback(async () => {
+        try {
+            const used = await dataService.getOrderVisitAssetMaterials(ovAssetId);
+            setUsedMaterials(used || []);
+            return used || [];
+        } catch (error) {
+            console.error('Error loading used materials', error);
+            return null;
+        }
+    }, [ovAssetId]);
+
+    useEffect(() => {
+        let active = true;
+        (async () => {
+            try {
+                setLoading(true);
+                const [user, companyId] = await Promise.all([
+                    dataService.getCurrentUser().catch(() => null),
+                    dataService.getProviderCompanyByOvAssetId(ovAssetId),
+                ]);
+                if (!active) return;
+                setUserId(user?.id || authUser?.id || '');
+                setProviderCompanyId(companyId);
+                await loadUsedMaterials();
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+                toast.error('Erro ao carregar dados');
+            } finally {
+                if (active) setLoading(false);
+            }
+        })();
+        dataService.getOrderVisitAssetById(ovAssetId)
+            .then(data => { if (active) setAsset(data); })
+            .catch(() => undefined);
+        return () => { active = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ovAssetId]);
+
+    // ── Edição (hooks/useCostRowEditor) ─────────────────────────────────────
+    const editor = useCostRowEditor<OrderVisitAssetMaterial>({
+        setRows: setUsedMaterials,
+        save: (id, updates) => dataService.updateMaterialInAsset(id, updates),
+        // Total oficial (trigger do banco) só deste material
+        fetchTotal: async (id) => (await dataService.getOrderVisitAssetMaterials(ovAssetId)).find(m => m.id === id)?.valueTotal,
+        onError: () => {
+            toast.error('Erro ao salvar o material. Os valores foram recarregados.');
+            loadUsedMaterials();
+        },
+    });
+    const { saveState, fieldText, change: handleFieldChange, blur: handleFieldBlur, step: handleStep } = editor;
+
+    // ── Catálogo ─────────────────────────────────────────────────────────────
+
+    const handleSearch = (term: string) => {
+        setSearchTerm(term);
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        if (term.trim().length < 2 || !providerCompanyId) {
+            setResults([]);
+            setSearching(false);
+            return;
+        }
+        setSearching(true);
+        const seq = ++searchSeqRef.current;
+        searchTimerRef.current = setTimeout(async () => {
+            try {
+                // Catálogo da empresa prestadora da OS (não a do usuário logado)
+                const found = await dataService.getAvailableMaterials(term.trim(), 0, 20, providerCompanyId);
+                if (seq === searchSeqRef.current) setResults(found);
+            } catch (error) {
+                console.error('Error searching materials:', error);
+                if (seq === searchSeqRef.current) toast.error('Erro ao buscar materiais');
+            } finally {
+                if (seq === searchSeqRef.current) setSearching(false);
+            }
+        }, 400);
     };
 
-    const confirmRemoveMaterial = async () => {
-        if (!materialToDelete || !currentUser) return;
+    const handleAdd = async (material: Material) => {
+        const uid = resolveUserId();
+        if (!uid) {
+            toast.error('Não foi possível identificar o usuário. Abra a tela novamente.');
+            return;
+        }
+        try {
+            setAddingId(material.id);
+            await dataService.addMaterialToAsset(ovAssetId, material.id, 1, material.priceUnit || 0, uid);
+            await loadUsedMaterials();
+        } catch (error) {
+            console.error('Error adding material:', error);
+            toast.error('Erro ao adicionar material');
+        } finally {
+            setAddingId(null);
+        }
+    };
+
+    const confirmRemove = async () => {
+        if (!materialToDelete) return;
+        const uid = resolveUserId();
+        if (!uid) {
+            toast.error('Não foi possível identificar o usuário. Abra a tela novamente.');
+            return;
+        }
         setIsDeleting(true);
         try {
-            await dataService.removeMaterialFromAsset(materialToDelete.id, currentUser.id);
-            toast.success('Material removido com sucesso!');
+            editor.cancelRow(materialToDelete.id);
+            await dataService.removeMaterialFromAsset(materialToDelete.id, uid);
             setUsedMaterials(prev => prev.filter(m => m.id !== materialToDelete.id));
             setMaterialToDelete(null);
         } catch (error) {
@@ -145,59 +170,6 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
             toast.error('Erro ao remover material');
         } finally {
             setIsDeleting(false);
-        }
-    };
-
-    // State to track raw input values during typing
-    const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
-
-    const handleUpdateField = async (id: string, field: 'amount' | 'discount' | 'valueUnit', value: string) => {
-        // Sanitize input to allow only numbers and decimal block
-        let sanitized = value.replace(/[^\d.,]/g, '');
-        sanitized = sanitized.replace(',', '.');
-
-        const parts = sanitized.split('.');
-        if (parts.length > 2) {
-            sanitized = parts[0] + '.' + parts.slice(1).join('');
-        }
-
-        const maxDecimals = field === 'discount' ? 4 : 2;
-        if (parts.length === 2 && parts[1].length > maxDecimals) {
-            sanitized = parts[0] + '.' + parts[1].substring(0, maxDecimals);
-        }
-
-        const displayValue = sanitized.replace('.', ',');
-        const inputKey = `${id}_${field}`;
-        setRawInputs(prev => ({ ...prev, [inputKey]: displayValue }));
-
-        const numValue = parseFloat(sanitized);
-
-        if (isNaN(numValue) || numValue < 0 || sanitized.endsWith('.')) {
-            return;
-        }
-
-        // Optimistic update
-        setUsedMaterials(prev => prev.map(m => {
-            if (m.id === id) {
-                const newAmount = field === 'amount' ? numValue : (m.amount || 0);
-                const newDiscount = field === 'discount' ? numValue : (m.discount || 0);
-                const newValueUnit = field === 'valueUnit' ? numValue : (m.valueUnit || 0);
-                return {
-                    ...m,
-                    [field]: numValue,
-                    valueTotal: newAmount * newValueUnit * (newDiscount || 1) // default multiplier assumption
-                };
-            }
-            return m;
-        }));
-
-        try {
-            const dbField = field === 'valueUnit' ? 'valueUnit' : field;
-            await dataService.updateMaterialInAsset(id, { [dbField]: numValue });
-        } catch (error) {
-            console.error(`Error updating material ${field}:`, error);
-            toast.error('Erro ao atualizar material');
-            loadUsedMaterials();
         }
     };
 
@@ -209,282 +181,274 @@ export const OrderVisitAssetMaterials: React.FC<OrderVisitAssetMaterialsProps> =
         );
     }
 
-    return (
-        <div className="max-w-md mx-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] animate-in fade-in slide-in-from-right-4 duration-300 space-y-4">
-            {/* Header / Add Button */}
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                        <span className="material-symbols-outlined text-xl">inventory_2</span>
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide">
-                            MATERIAIS UTILIZADOS
-                        </h2>
-                    </div>
-                </div>
+    // Já no ativo: por id e, como reserva, pelo código (a view pode não trazer material_id)
+    const usedIds = new Set(usedMaterials.map(m => m.materialId).filter(Boolean));
+    const usedCodes = new Set(usedMaterials.map(m => m.materialCode).filter(c => c && c !== '---'));
+    const isInAsset = (m: Material) => usedIds.has(m.id) || (!!m.code && usedCodes.has(m.code));
+    const total = usedMaterials.reduce((sum, m) => sum + (m.valueTotal || 0), 0);
+    const count = usedMaterials.length;
+    const showResults = searchTerm.trim().length >= 2;
 
-                <button
-                    onClick={() => {
-                        setIsAdding(!isAdding);
-                        setSearchTerm('');
-                        setAvailableMaterials([]);
-                    }}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${isAdding
-                        ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                        : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-md shadow-indigo-500/20'
-                        }`}
-                >
-                    {isAdding ? (
-                        <>
-                            <span className="material-symbols-outlined text-sm">close</span>
-                            CANCELAR
-                        </>
-                    ) : (
-                        <>
-                            <span className="material-symbols-outlined text-sm">add</span>
-                            ASSOCIAR
-                        </>
-                    )}
-                </button>
-            </div>
+    // ── Blocos ───────────────────────────────────────────────────────────────
 
-            {!providerCompanyId && !loading && (
-                <div className="p-4 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-bold text-center">
-                    COMPANHIA NÃO VINCULADA PARA ESTE ATIVO
+    const searchPanel = (
+        <section className="space-y-3" aria-label="Catálogo de materiais">
+            <SearchInput
+                inputMode="search"
+                aria-label="Buscar material no catálogo"
+                placeholder="Buscar material por nome ou código"
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                onClear={() => handleSearch('')}
+                disabled={!providerCompanyId}
+                className="text-base"
+            />
+
+            {!providerCompanyId && (
+                <div className="p-4 rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/20 text-sm font-bold text-amber-700 dark:text-amber-400 flex items-start gap-2">
+                    <span className="material-symbols-outlined">domain_disabled</span>
+                    A OS não tem empresa prestadora definida. Defina-a para buscar os materiais.
                 </div>
             )}
 
-            {/* Add Material Search Area */}
-            {isAdding && (
-                <div className="animate-in slide-in-from-top-2 duration-300 mb-6 space-y-2">
-                    <div className="relative group focus-within:scale-[1.02] transition-all duration-300">
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                            search
-                        </span>
-                        <input
-                            type="text"
-                            placeholder="Buscar material na base..."
-                            value={searchTerm}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            className="w-full pl-12 pr-12 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm transition-all"
-                            autoFocus
-                        />
-                        {searchTerm && (
-                            <button
-                                onClick={() => handleSearch('')}
-                                className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+            {providerCompanyId && !showResults && (
+                <p className="px-1 text-xs text-slate-500 dark:text-slate-400">Digite pelo menos 2 letras para buscar no catálogo.</p>
+            )}
+
+            {showResults && searching && (
+                <div className="flex justify-center py-6"><Loading size="xs" /></div>
+            )}
+
+            {showResults && !searching && results.length === 0 && providerCompanyId && (
+                <div className="p-6 text-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                    <span className="material-symbols-outlined text-3xl text-slate-300">search_off</span>
+                    <p className="mt-1 text-sm font-bold text-slate-500">Nada encontrado para "{searchTerm}".</p>
+                </div>
+            )}
+
+            {showResults && !searching && results.length > 0 && (
+                <ul className="space-y-2 @4xl/page:max-h-[calc(100vh-18rem)] @4xl/page:overflow-y-auto @4xl/page:pr-1">
+                    {results.map(m => {
+                        const added = isInAsset(m);
+                        const isAdding = addingId === m.id;
+                        return (
+                            <li
+                                key={m.id}
+                                className={`flex items-center gap-3 p-3 rounded-xl border ${added
+                                    ? 'bg-emerald-50/60 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/30'
+                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                                    }`}
                             >
-                                <span className="material-symbols-outlined text-lg">close</span>
-                            </button>
-                        )}
-                    </div>
-
-                    {searching && (
-                        <div className="p-4 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                            BUSCANDO...
-                        </div>
-                    )}
-
-                    {!searching && searchTerm.length >= 2 && !providerCompanyId && (
-                        <div className="p-6 text-center border-2 border-dashed border-amber-200 dark:border-amber-800/50 rounded-2xl">
-                            <span className="material-symbols-outlined text-3xl text-amber-400 mb-2">domain_disabled</span>
-                            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest leading-relaxed">
-                                A OS não tem empresa prestadora definida. <br/> Defina-a para buscar os materiais.
-                            </p>
-                        </div>
-                    )}
-
-                    {!searching && searchTerm.length >= 2 && !!providerCompanyId && filteredSearchResults.length === 0 && (
-                        <div className="p-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                            <span className="material-symbols-outlined text-3xl text-slate-300 mb-2">search_off</span>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
-                                NENHUM MATERIAL NÃO-ASSOCIADO <br/> ENCONTRADO PARA "{searchTerm}"
-                            </p>
-                        </div>
-                    )}
-
-                    {!searching && searchTerm.length < 2 && (
-                        <div className="p-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            Digite pelo menos 2 letras para buscar.
-                        </div>
-                    )}
-
-                    {/* Sem altura fixa: os resultados ocupam a tela e rolam com a página
-                        (o <main> do Layout já reserva a barra inferior + área segura). */}
-                    <div className="mt-2 space-y-2">
-                        {filteredSearchResults.map(m => (
-                            <div key={m.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:border-indigo-500/30 transition-all">
-                                <div>
-                                    <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">
-                                        {m.code}
-                                    </p>
-                                    <p className="font-black text-slate-700 dark:text-slate-200 text-xs leading-tight">
-                                        {m.description}
-                                    </p>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">
-                                        Unid: <span className="text-indigo-500">{m.unit}</span>
+                                <div className="min-w-0 flex-1">
+                                    {m.code && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{m.code}</p>}
+                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 leading-snug">{m.description}</p>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                        Unid.: <span className="font-bold text-indigo-500">{m.unit}</span>
+                                        {showCosts && m.priceUnit ? <> · {brl(m.priceUnit)}</> : null}
                                     </p>
                                 </div>
-                                <ButtonNew
-                                    isLoading={addingMaterialId === m.id}
-                                    isSuccess={successMaterialId === m.id}
-                                    onClick={() => handleAddMaterial(m, currentUser?.id || '')}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                                {added ? (
+                                    <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-black uppercase text-emerald-600 dark:text-emerald-400">
+                                        <span className="material-symbols-outlined text-base">check_circle</span>
+                                        No ativo
+                                    </span>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAdd(m)}
+                                        disabled={isAdding}
+                                        aria-label={`Adicionar ${m.description}`}
+                                        className="w-11 h-11 shrink-0 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 disabled:opacity-60"
+                                    >
+                                        {isAdding
+                                            ? <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                                            : <span className="material-symbols-outlined">add</span>}
+                                    </button>
+                                )}
+                            </li>
+                        );
+                    })}
+                </ul>
             )}
+        </section>
+    );
 
-            {/* List */}
-            <div className="grid gap-4 pb-12">
-                {usedMaterials.length === 0 && !isAdding && (
-                    <div className="p-10 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl group transition-all">
-                        <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-colors">
-                            <span className="material-symbols-outlined text-3xl">inventory_2</span>
+    const emptyUsed = (
+        <div className="p-8 text-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <span className="material-symbols-outlined text-3xl text-slate-300">inventory_2</span>
+            <p className="mt-1 text-sm font-bold text-slate-500">Nenhum material neste ativo.</p>
+            <p className="text-xs text-slate-400">Busque no catálogo e toque em + para adicionar.</p>
+        </div>
+    );
+
+    const deleteButton = (m: OrderVisitAssetMaterial) => (
+        <button
+            type="button"
+            onClick={() => setMaterialToDelete(m)}
+            aria-label={`Remover ${m.materialDescription}`}
+            title="Remover material"
+            className="w-11 h-11 shrink-0 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center justify-center"
+        >
+            <span className="material-symbols-outlined">delete</span>
+        </button>
+    );
+
+    // Celular: cartões
+    const usedCards = (
+        <ul className="space-y-3 @4xl/page:hidden">
+            {usedMaterials.map(m => (
+                <li key={m.id} className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+                    <span className="absolute left-0 inset-y-0 w-1 bg-indigo-500" aria-hidden="true" />
+                    <div className="flex items-start gap-2 pl-1">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase leading-snug">{m.materialDescription}</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5">{m.materialCode}{m.materialUnit ? ` · ${m.materialUnit}` : ''}</p>
                         </div>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                            Nenhum material registrado <br /> neste ativo.
-                        </p>
-                        <button
-                            onClick={() => setIsAdding(true)}
-                            className="mt-4 text-indigo-500 text-[10px] font-black uppercase tracking-widest hover:text-indigo-600 transition-colors"
-                        >
-                            Clique para Adicionar
-                        </button>
+                        {deleteButton(m)}
                     </div>
-                )}
 
-                {usedMaterials.map(m => (
-                    <Card key={m.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden rounded-2xl relative">
-                        {/* Status bar */}
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
-                        
-                        <div className="flex items-start justify-between mb-4 pl-2">
-                            <div>
-                                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase leading-snug">
-                                    {m.materialDescription}
-                                </h4>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-1">
-                                    {m.materialCode} {canView('orders_visits_costs') && `• ${m.valueUnit?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`} / {m.materialUnit}
-                                </p>
+                    <div className="mt-3 pl-1">
+                        <span className={appLabelClass}>Quantidade</span>
+                        <QtyStepper
+                            value={fieldText(m, 'amount')}
+                            amount={m.amount || 0}
+                            unit={m.materialUnit}
+                            onChange={(t) => handleFieldChange(m.id, 'amount', t)}
+                            onBlur={() => handleFieldBlur(m.id, 'amount')}
+                            onStep={(d) => handleStep(m, d)}
+                        />
+                    </div>
+
+                    {showCosts && (
+                        <div className="mt-3 pl-1 grid grid-cols-2 gap-3">
+                            <NumberInput label="Vlr. unit." value={fieldText(m, 'valueUnit')} onChange={(t) => handleFieldChange(m.id, 'valueUnit', t)} onBlur={() => handleFieldBlur(m.id, 'valueUnit')} />
+                            <div title={AD_TOOLTIP}>
+                                <NumberInput label="A / D (fator)" value={fieldText(m, 'discount')} onChange={(t) => handleFieldChange(m.id, 'discount', t)} onBlur={() => handleFieldBlur(m.id, 'discount')} />
+                                <AdjustHint factor={m.discount} />
                             </div>
+                        </div>
+                    )}
 
-                            <ButtonDelete
-                                onClick={() => handleRemoveMaterial(m)}
-                                icon="delete"
+                    {showCosts && (
+                        <div className="mt-3 pl-1 flex items-baseline justify-end gap-2">
+                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Total</span>
+                            <span className="text-lg font-black text-indigo-600 dark:text-indigo-400 tabular-nums">{brl(m.valueTotal)}</span>
+                        </div>
+                    )}
+                </li>
+            ))}
+        </ul>
+    );
+
+    // Desktop: cada material em duas linhas —
+    // 1) descrição + lixeira à direita; 2) quantidade, valores e total.
+    const cols = showCosts
+        ? 'grid-cols-[200px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]'
+        : 'grid-cols-[200px]';
+    const usedTable = (
+        <ul className="hidden @4xl/page:block space-y-3">
+            {usedMaterials.map(m => (
+                <li key={m.id} className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <span className="absolute left-0 inset-y-0 w-1 bg-indigo-500" aria-hidden="true" />
+
+                    {/* Linha 1: descrição + lixeira */}
+                    <div className="flex items-center gap-3 pl-5 pr-2 py-2 border-b border-slate-100 dark:border-slate-800">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase leading-snug">{m.materialDescription}</p>
+                            <p className="text-[11px] text-slate-500">{m.materialCode}{m.materialUnit ? ` · ${m.materialUnit}` : ''}</p>
+                        </div>
+                        {deleteButton(m)}
+                    </div>
+
+                    {/* Linha 2: campos */}
+                    <div className={`grid ${cols} gap-4 items-start pl-5 pr-4 py-3`}>
+                        <div>
+                            <span className={appLabelClass}>Quantidade</span>
+                            <QtyStepper
+                                value={fieldText(m, 'amount')}
+                                amount={m.amount || 0}
+                                onChange={(t) => handleFieldChange(m.id, 'amount', t)}
+                                onBlur={() => handleFieldBlur(m.id, 'amount')}
+                                onStep={(d) => handleStep(m, d)}
                             />
                         </div>
-
-                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 pl-2">
-                            <div className="flex items-center gap-2 w-full pr-1">
-                                <div className="flex-1">
-                                    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 focus-within:text-indigo-500 text-center">
-                                        QTD
-                                    </label>
-                                    <div className="flex items-center gap-1.5 justify-center relative">
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={rawInputs[`${m.id}_amount`] ?? (m.amount % 1 === 0 ? m.amount.toString() : m.amount.toFixed(2).replace('.', ','))}
-                                            onChange={(e) => handleUpdateField(m.id, 'amount', e.target.value)}
-                                            onBlur={() => setRawInputs(prev => {
-                                                const news = { ...prev };
-                                                delete news[`${m.id}_amount`];
-                                                return news;
-                                            })}
-                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm font-black text-slate-700 dark:text-slate-200 p-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-mono"
-                                        />
-                                    </div>
-                                </div>
-
-                                {canView('orders_visits_costs') && (
-                                    <>
-                                        <div className="flex-[1.2]">
-                                            <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 focus-within:text-indigo-500 text-center">
-                                                Vlr.Unit
-                                            </label>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={rawInputs[`${m.id}_valueUnit`] ?? (m.valueUnit % 1 === 0 ? m.valueUnit.toString() : m.valueUnit.toFixed(2).replace('.', ','))}
-                                                onChange={(e) => handleUpdateField(m.id, 'valueUnit', e.target.value)}
-                                                onBlur={() => setRawInputs(prev => {
-                                                    const news = { ...prev };
-                                                    delete news[`${m.id}_valueUnit`];
-                                                    return news;
-                                                })}
-                                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm font-black text-slate-700 dark:text-slate-200 p-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-mono"
-                                            />
-                                        </div>
-
-                                        <div className="flex-[0.9]">
-                                            <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 focus-within:text-indigo-500 text-center">
-                                                A / D
-                                            </label>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={rawInputs[`${m.id}_discount`] ?? (m.discount % 1 === 0 ? m.discount.toString() : m.discount.toFixed(4).replace('.', ','))}
-                                                onChange={(e) => handleUpdateField(m.id, 'discount', e.target.value)}
-                                                onBlur={() => setRawInputs(prev => {
-                                                    const news = { ...prev };
-                                                    delete news[`${m.id}_discount`];
-                                                    return news;
-                                                })}
-                                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm font-black text-slate-700 dark:text-slate-200 p-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-mono"
-                                            />
-                                        </div>
-                                    </>
-                                )}
+                        {showCosts && (
+                            <NumberInput label="Vlr. unit." value={fieldText(m, 'valueUnit')} onChange={(t) => handleFieldChange(m.id, 'valueUnit', t)} onBlur={() => handleFieldBlur(m.id, 'valueUnit')} />
+                        )}
+                        {showCosts && (
+                            <div title={AD_TOOLTIP}>
+                                <NumberInput label="A / D (fator)" value={fieldText(m, 'discount')} onChange={(t) => handleFieldChange(m.id, 'discount', t)} onBlur={() => handleFieldBlur(m.id, 'discount')} />
+                                <AdjustHint factor={m.discount} />
                             </div>
+                        )}
+                        {showCosts && (
+                            <div className="text-right">
+                                <span className={appLabelClass}>Total</span>
+                                <span className="block h-12 leading-[3rem] text-lg font-black text-indigo-600 dark:text-indigo-400 tabular-nums">{brl(m.valueTotal)}</span>
+                            </div>
+                        )}
+                    </div>
+                </li>
+            ))}
+        </ul>
+    );
 
-                            {canView('orders_visits_costs') && (
-                                <div className="flex justify-end items-center gap-1 mt-1">
-                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">TOTAL</span>
-                                    <span className="text-[13px] sm:text-[15px] font-black text-indigo-600 dark:text-indigo-400 leading-none">
-                                        {m.valueTotal?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                    </span>
-                                </div>
-                            )}
+    return (
+        <div className="@container/page min-h-full flex flex-col">
+            <div className="flex-1 w-full max-w-md @4xl/page:max-w-6xl mx-auto py-4 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] space-y-5 animate-in fade-in duration-300">
+
+                <div className="space-y-5 @4xl/page:space-y-0 @4xl/page:grid @4xl/page:grid-cols-[340px_minmax(0,1fr)] @4xl/page:gap-6 @4xl/page:items-start">
+                    {/* Ativo associado + catálogo (no desktop: coluna esquerda fixa) */}
+                    <div className="space-y-5 @4xl/page:sticky @4xl/page:top-4">
+                        {asset && <OrderVisitAssetCardDetail asset={asset} />}
+                        <div>
+                            <h3 className="hidden @4xl/page:block mb-3 text-[11px] font-black text-slate-500 uppercase tracking-widest">Catálogo</h3>
+                            {searchPanel}
                         </div>
-                    </Card>
-                ))}
+                    </div>
+
+                    <section aria-label="Materiais neste ativo">
+                        {count === 0 ? emptyUsed : (
+                            <>
+                                {usedCards}
+                                {usedTable}
+                            </>
+                        )}
+                    </section>
+                </div>
             </div>
 
-            {/* Back Button */}
-            {!isAdding && (
-                <div className="pb-8">
+            {/* Barra fixa: total + salvamento + voltar (celular e desktop) */}
+            <div className="sticky bottom-0 z-30 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+                <div className="w-full max-w-md @4xl/page:max-w-6xl mx-auto flex flex-row-reverse items-center gap-3">
+                    <div className="min-w-0 flex-1 text-right">
+                        <p className="text-sm font-black text-slate-700 dark:text-slate-200 truncate">
+                            {count === 0 ? 'Nenhum material' : `${count} ${count === 1 ? 'material' : 'materiais'}`}
+                            {showCosts && count > 0 && <span className="tabular-nums"> · {brl(total)}</span>}
+                        </p>
+                        <CostSaveStatus state={saveState} align="right" />
+                    </div>
                     <button
+                        type="button"
                         onClick={onBack}
-                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 group"
+                        className="shrink-0 h-12 px-5 @4xl/page:px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-indigo-500/20 transition-colors flex items-center gap-2"
                     >
-                        <span className="material-symbols-outlined text-lg group-hover:animate-pulse">arrow_back</span>
-                        VOLTAR AO RELATÓRIO
+                        <span className="material-symbols-outlined text-lg">arrow_back</span>
+                        Voltar
                     </button>
-                    <p className="text-[9px] text-slate-400 font-bold text-center mt-3 uppercase tracking-tighter">
-                        As alterações são salvas automaticamente
-                    </p>
                 </div>
-            )}
+            </div>
 
-            {/* Delete Modal */}
             <ConfirmDeleteModal
                 isOpen={!!materialToDelete}
-                onClose={() => setMaterialToDelete(null)}
-                onConfirm={confirmRemoveMaterial}
+                onClose={() => { if (!isDeleting) setMaterialToDelete(null); }}
+                onConfirm={confirmRemove}
                 title="Remover Material"
-                description={
-                    materialToDelete ? (
-                        <>
-                            Confirma a remoção do material <strong className="text-slate-700 dark:text-slate-200">{materialToDelete.materialDescription}</strong>?
-                        </>
-                    ) : undefined
-                }
+                description={materialToDelete ? (
+                    <>Confirma a remoção do material <strong className="text-slate-700 dark:text-slate-200">{materialToDelete.materialDescription}</strong>?</>
+                ) : undefined}
                 isLoading={isDeleting}
             />
         </div>
     );
 };
-

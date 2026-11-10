@@ -54,6 +54,12 @@ function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any
             resolve(mod);
           })
           .catch((err) => {
+            // Sem internet: recarregar a página derruba o app (o navegador mostra
+            // a página de offline). Falha aqui; o ErrorBoundary mostra a tela de erro.
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+              reject(err);
+              return;
+            }
             if (isChunkLoadError(err)) {
               // Stale hashed chunk (new deploy) or Cloudflare challenge HTML served
               // as JS: retrying the URL won't help — do one clean reload.

@@ -40,6 +40,11 @@ export interface SyncDeps {
      * outro usuário, esperando), esta espera também.
      */
     barrier?: (op: OutboxOp) => 'ova' | 'visit' | undefined;
+    /**
+     * Ativo criado sem internet ("tmp:<uuid>"): não confere trava (ainda não
+     * existe no servidor) e as operações dele esperam a inclusão chegar.
+     */
+    isTemporaryId?: (id: string) => boolean;
     now?: () => number;
 }
 
@@ -113,8 +118,26 @@ export const runSync = async (deps: SyncDeps): Promise<SyncResult> => {
             continue;
         }
 
+        // Visita iniciada offline (etapa 3): se o "Iniciar" (ou algo dela) não chegou, espera.
+        const tmpVisit = !!op.visitId && !!deps.isTemporaryId?.(op.visitId);
+        if (tmpVisit && unsentScopes.has(`visit:${op.visitId}`)) {
+            result.heldBack++;
+            markUnsent(op);
+            blocked.add(keyOf(op));
+            continue;
+        }
+
+        // Ativo criado offline: se a inclusão (ou algo dele) não chegou, espera.
+        const tmpOva = !!op.ovaId && !!deps.isTemporaryId?.(op.ovaId);
+        if (tmpOva && unsentScopes.has(`ova:${op.ovaId}`)) {
+            result.heldBack++;
+            markUnsent(op);
+            blocked.add(keyOf(op)); // as seguintes do mesmo registro esperam junto
+            continue;
+        }
+
         // Trava do ativo — uma checagem por ativo por rodada.
-        if (op.ovaId) {
+        if (op.ovaId && !tmpOva) {
             let state = lockState.get(op.ovaId);
             if (!state) {
                 const before = deps.failureCount();
@@ -174,6 +197,18 @@ export const runSync = async (deps: SyncDeps): Promise<SyncResult> => {
     }
 
     return result;
+};
+
+/** Troca um valor (ex.: id temporário) em strings, listas e objetos simples. */
+export const replaceDeep = (value: unknown, from: string, to: string): unknown => {
+    if (value === from) return to;
+    if (Array.isArray(value)) return value.map(v => replaceDeep(v, from, to));
+    if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(value)) out[k] = replaceDeep(v, from, to);
+        return out;
+    }
+    return value;
 };
 
 /** Espera entre tentativas após falha de rede: 5 s, 10 s, 20 s… até 5 min. */

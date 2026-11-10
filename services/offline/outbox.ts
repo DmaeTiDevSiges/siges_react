@@ -108,9 +108,14 @@ export const createOutbox = (storage: OutboxStorage, now: () => number = Date.no
     const mutate = <T>(fn: (ops: OutboxOp[]) => T): Promise<T> => {
         const run = chain.then(async () => {
             const ops = await load();
-            const result = fn(ops);
-            await storage.save(ops);
-            notify(ops);
+            // Muda uma cópia e só a adota depois de gravada: se a gravação falhar
+            // (ex.: armazenamento cheio), a fila em memória fica como estava —
+            // antes a operação ficava na memória e era enviada mesmo com o erro.
+            const draft = ops.map(o => ({ ...o }));
+            const result = fn(draft);
+            await storage.save(draft);
+            cache = draft;
+            notify(draft);
             return result;
         });
         chain = run.catch(() => undefined);

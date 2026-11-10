@@ -10,6 +10,7 @@ import {
 } from '../../services/offline/fieldPackageService';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { openPendingOpsPanel } from './PendingOpsPanel';
 import {
     discardOfflineConflicts,
     discardOfflineErrors,
@@ -153,10 +154,14 @@ export const FieldPackageCard: React.FC<FieldPackageCardProps> = ({ visit, team,
     const { pending, errors, conflicts } = sync.summary;
     const queuePanel = (pending > 0 || errors > 0 || conflicts > 0) && isConnected ? (
         <Card className="px-4 py-3 space-y-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-2xl shadow-lg text-xs">
+            <button onClick={openPendingOpsPanel} className="w-full flex items-center justify-between font-black uppercase text-[11px] text-slate-600 dark:text-slate-300">
+                Ver pendências
+                <span className="material-symbols-outlined text-base">chevron_right</span>
+            </button>
             {pending > 0 && (
                 <div className="flex items-center justify-between gap-3">
                     <span className="flex items-center gap-2 font-bold text-indigo-700 dark:text-indigo-300">
-                        <span className={`material-symbols-outlined text-base ${sync.syncing ? 'animate-spin' : ''}`}>
+                        <span className={`material-symbols-outlined text-base ${sync.syncing ? 'animate-spin [animation-direction:reverse]' : ''}`}>
                             {sync.syncing ? 'sync' : 'cloud_upload'}
                         </span>
                         {sync.syncing ? 'Enviando' : 'Aguardando envio'}: {pending}

@@ -1,63 +1,50 @@
 /**
- * OrderVisitAssetReport - View for asset individual report during a visit.
+ * OrderVisitAssetReport — relatório individual do ativo durante a visita.
+ *
+ * Layout (por largura do próprio formulário, via container queries — funciona
+ * igual em tela cheia e embutido no OrderRequestView):
+ *  - estreito (celular): uma coluna na ordem do trabalho em campo, progresso no
+ *    topo, seções recolhíveis e barra fixa no rodapé com a ação principal;
+ *  - largo (desktop): Antes/Depois lado a lado e painel lateral fixo com ativo,
+ *    pendências, salvamento e ações (revisão/aprovação).
+ *
+ * Seções em components/ordersVisits/ordersVisitsAssets/assetReport/;
+ * salvamento automático em hooks/useReportAutosave; fotos em hooks/useReportPhotos.
  */
-import React, { useEffect, useState, useRef } from 'react';
-import { dataService } from '../../../services/dataService';
-import { OrderVisitAssetActivity, OrderVisitAssetMaterial, OrderVisitAssetView, Asset, AssetAlert, OrderVisit } from '../../../types';
-import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
-import { OrderVisitAssetCardListItem } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardListItem';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { CAMERA_PHOTO_LIMITS } from '../../../utils/cameraOptions';
 import { Capacitor } from '@capacitor/core';
-import { OptimizedImage } from '../../../components/ui/OptimizedImage';
-import { PhotoViewer } from '../../../components/ui/PhotoViewer';
-import { Button } from '../../../components/ui/Button';
-import { ButtonNew } from '../../../components/ui/ButtonNew';
-import { AIAssetPanel } from '../../../components/ai/AIAssetPanel';
-import { OrderVisitAssetManualsSection } from './OrderVisitAssetManualsSection';
-import { createPortal } from 'react-dom';
+import { dataService } from '../../../services/dataService';
+import { Asset, AssetAlert, OrderVisit, OrderVisitAssetActivity, OrderVisitAssetMaterial, OrderVisitAssetView } from '../../../types';
+import { CAMERA_PHOTO_LIMITS } from '../../../utils/cameraOptions';
 import { usePermissions } from '../../../contexts/PermissionsContext';
-import { AssetAlertModal } from '../../Assets/AssetAlertModal';
-import { Select } from '../../../components/ui/Select';
-import { Modal } from '../../../components/ui/Modal';
-import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
-import { getProcessingStatus } from '../../../components/ordersVisits/OrderVisitProcessingButton';
-import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
-import { ImageUploadSheet } from '../../../components/ui/ImageUploadSheet';
-import { ImageEditorModal } from '../../../components/ui/ImageEditorModal';
-import { Loading } from '../../../components/ui/Loading';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAssetLock } from '../../../hooks/useAssetLock';
 import { useOfflineSync } from '../../../hooks/useOfflineSync';
-
-
-const Switch: React.FC<{ checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }> = ({ checked, onChange, disabled }) => {
-    const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
-        if (disabled) {
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-        }
-        onChange(!checked);
-    };
-
-    return (
-        <button
-            type="button"
-            disabled={disabled}
-            onClick={handleClick}
-            onTouchStart={disabled ? handleClick : undefined}
-            className={`relative inline-flex h-5 w-10 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} ${checked ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
-        >
-            <span
-                aria-hidden="true"
-                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`}
-            />
-        </button>
-    );
-};
-
+import { useReportAutosave } from '../../../hooks/useReportAutosave';
+import { useReportPhotos } from '../../../hooks/useReportPhotos';
+import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
+import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
+import { OVA_PROCESSING, MAX_REPORT_PHOTOS, REPORT_SECTION_IDS, ReportPhotoSide, ReportSection, parseRecorder } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/assetReportShared';
+import { AssetReportConditionSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportConditionSection';
+import { AssetReportActivitiesSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportActivitiesSection';
+import { AssetReportMaterialsSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportMaterialsSection';
+import { AssetReportMovementSection, UnitAssetTagOption } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportMovementSection';
+import { AssetReportRecorderSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportRecorderSection';
+import { AssetReportAlertsSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportAlertsSection';
+import { AssetReportSwapPage } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportSwapPage';
+import { AssetReportProgress, AssetReportSaveStatus, ReportProgressItem } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportProgress';
+import { AssetReportActions, AssetReportActionFlags, hasPrimaryReportAction } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportActions';
+import { OrderVisitAssetManualsSection } from './OrderVisitAssetManualsSection';
+import { AssetAlertModal } from '../../Assets/AssetAlertModal';
+import { PhotoViewer } from '../../../components/ui/PhotoViewer';
+import { Modal } from '../../../components/ui/Modal';
+import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
+import { ImageUploadSheet } from '../../../components/ui/ImageUploadSheet';
+import { ImageEditorModal } from '../../../components/ui/ImageEditorModal';
+import { Loading } from '../../../components/ui/Loading';
 
 interface OrderVisitAssetReportProps {
     assetId: string;
@@ -68,274 +55,150 @@ interface OrderVisitAssetReportProps {
     readOnly?: boolean;
     initialAsset?: OrderVisitAssetView;
     initialVisit?: OrderVisit;
+    /** Chamado depois que a aprovação foi gravada (ex.: voltar para os ativos da visita). */
+    onApproved?: () => void;
+    /** Seção a centralizar na tela ao abrir (ex.: voltando da seleção de atividades). */
+    focusSection?: 'materials' | null;
+    onFocusHandled?: () => void;
 }
 
-const SectionHeader: React.FC<{ icon: string; title: string; required?: boolean; action?: React.ReactNode }> = ({ icon, title, required, action }) => (
-    <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                <span className="material-symbols-outlined text-lg">{icon}</span>
-            </div>
-            <h2 className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide flex items-center gap-1">
-                {title}
-                {required && <span className="text-red-500 text-lg leading-none">*</span>}
-            </h2>
-        </div>
-        {action}
-    </div>
-);
+const EDITABLE_STATUSES: number[] = [OVA_PROCESSING.DRAFT, OVA_PROCESSING.REJECTED];
 
-interface ImageGridProps {
-    images: string[];
-    type: 'initial' | 'final';
-    isReadOnly: boolean;
-    isVisitFiled: boolean;
-    setExpandedImage: (img: string) => void;
-    removeImage: (type: 'initial' | 'final', index: number) => void;
-    editImage: (type: 'initial' | 'final', index: number) => void;
-    setPhotoActionSection: (section: 'initial' | 'final') => void;
-    onUseAsCover?: (imageUrl: string) => void;
-    onFileDrop?: (type: 'initial' | 'final', file: File) => void;
-    isContractManagerAdminSuper?: boolean;
-    isAdminSuper?: boolean;
-}
-
-const ImageGrid: React.FC<ImageGridProps> = ({ images, type, isReadOnly, isVisitFiled, setExpandedImage, removeImage, editImage, setPhotoActionSection, onUseAsCover, onFileDrop, isContractManagerAdminSuper, isAdminSuper }) => {
-    const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
-
-    const handleDragOver = (e: React.DragEvent, idx: number) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragOverIdx(idx);
-    };
-
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragOverIdx(null);
-    };
-
-    const handleDrop = (e: React.DragEvent, idx: number) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragOverIdx(null);
-        const file = e.dataTransfer.files?.[0];
-        if (file && file.type.startsWith('image/') && onFileDrop) {
-            onFileDrop(type, file);
-        }
-    };
-
-    return (
-        <div className="space-y-2 mt-3">
-            <div className="grid grid-cols-3 gap-3">
-                {[0, 1, 2].map((idx) => {
-                    const img = images[idx];
-                    if (img) {
-                        return (
-                            <div key={idx} className="flex flex-col gap-1">
-                                <div className="relative rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer" style={{ height: '96px' }}>
-                                    <OptimizedImage
-                                        src={img}
-                                        alt={`Foto ${idx + 1}`}
-                                        className="w-full h-full object-cover"
-                                        onClick={() => isReadOnly ? setExpandedImage(img) : editImage(type, idx)}
-                                        preset="medium"
-                                    />
-                                    {!isReadOnly && (
-                                        <>
-                                            {images.length > 1 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        removeImage(type, idx);
-                                                    }}
-                                                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg z-20"
-                                                >
-                                                    <span className="material-symbols-outlined text-[14px]">delete</span>
-                                                </button>
-                                            )}
-
-                                        </>
-                                    )}
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px] text-center">
-                                        <p className="text-[8px] text-white font-bold uppercase tracking-wider">Foto {idx + 1}</p>
-                                    </div>
-                                </div>
-                                {/* "Usar como capa": gestor do contrato (contracts_managers.role = 'manager') ou super admin */}
-                                {!isVisitFiled && onUseAsCover && (isContractManagerAdminSuper || isAdminSuper) && (
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onUseAsCover(img);
-                                        }}
-                                        className="w-full py-1.5 px-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20 text-[8px] font-bold uppercase tracking-wider hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all flex items-center justify-center gap-1"
-                                    >
-                                        <span className="material-symbols-outlined text-[10px]">photo_camera</span>
-                                        Usar como capa
-                                    </button>
-                                )}
-                            </div>
-                        );
-                    } else if (!isReadOnly) {
-                        const isDragOver = dragOverIdx === idx;
-                        return (
-                            <div
-                                key={idx}
-                                onClick={() => setPhotoActionSection(type)}
-                                onDragOver={(e) => onFileDrop ? handleDragOver(e, idx) : undefined}
-                                onDragLeave={onFileDrop ? handleDragLeave : undefined}
-                                onDrop={(e) => onFileDrop ? handleDrop(e, idx) : undefined}
-                                className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all group relative overflow-hidden ${isDragOver
-                                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30 scale-[1.02]'
-                                    : (images.length === 0 && idx === 0)
-                                        ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:border-red-500'
-                                        : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-blue-500/50'
-                                    }`}
-                                style={{ height: '96px' }}
-                            >
-                                <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center mb-1 shadow-sm">
-                                    <span className={`material-symbols-outlined text-xl ${isDragOver ? 'text-blue-500' : (images.length === 0 && idx === 0) ? 'text-red-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`}>
-                                        {isDragOver ? 'upload_file' : 'add_a_photo'}
-                                    </span>
-                                </div>
-                                <div className="text-center px-1">
-                                    <p className={`text-[8px] font-bold uppercase ${isDragOver ? 'text-blue-600 dark:text-blue-400' : (images.length === 0 && idx === 0) ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                                        {isDragOver ? 'Solte aqui' : (images.length === 0 && idx === 0) ? 'Obrigatório' : 'Adicionar'}
-                                    </p>
-                                    <p className="text-[7px] text-slate-400 dark:text-slate-600 font-medium italic">Foto {idx + 1}</p>
-                                </div>
-                            </div>
-                        );
-                    } else {
-                        return (
-                            <div key={idx} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/10 dark:bg-slate-900/10 flex flex-col items-center justify-center" style={{ height: '96px' }}>
-                                <span className="material-symbols-outlined text-slate-200 dark:text-slate-800 text-lg mb-1">image_not_supported</span>
-                                <p className="text-[7px] text-slate-300 dark:text-slate-700 font-medium italic">Sem Foto {idx + 1}</p>
-                            </div>
-                        );
-                    }
-                })}
-            </div>
-        </div>
-    );
-};
-
-export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials, onViewAsset, readOnly, initialAsset, initialVisit }) => {
+export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials, onViewAsset, readOnly, initialAsset, initialVisit, onApproved, focusSection, onFocusHandled }) => {
     const [asset, setAsset] = useState<OrderVisitAssetView | null>(initialAsset || null);
     const [loading, setLoading] = useState(!initialAsset);
+    const [dataReady, setDataReady] = useState(false);
     const [initialCondition, setInitialCondition] = useState(initialAsset?.beforeComments || '');
     const [finalCondition, setFinalCondition] = useState(initialAsset?.afterComments || '');
-    const [initialImages, setInitialImages] = useState<string[]>(initialAsset?.initialPhotoUrls || []);
-    const [finalImages, setFinalImages] = useState<string[]>(initialAsset?.finalPhotoUrls || []);
-    const [expandedImage, setExpandedImage] = useState<string | null>(null);
-    const [photoActionSection, setPhotoActionSection] = useState<'initial' | 'final' | null>(null);
     const [activities, setActivities] = useState<OrderVisitAssetActivity[]>([]);
     const [usedMaterials, setUsedMaterials] = useState<OrderVisitAssetMaterial[]>([]);
-    const [uploadingCount, setUploadingCount] = useState(0);
     const [currentUserId, setCurrentUserId] = useState<string>('');
     const { currentUser: authUser } = useAuth();
     const currentUserIsAdminSuper = authUser?.isAdminSuper === true;
-    const [showRejectionModal, setShowRejectionModal] = useState(false);
-    const [rejectionNotes, setRejectionNotes] = useState('');
+    const { canView, canCreate } = usePermissions();
+
+    // Fluxo de status
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [localEditMode, setLocalEditMode] = useState<'review' | 'approval' | null>(null);
-    const [showMovementModal, setShowMovementModal] = useState(false);
-    const [showRemoveModal, setShowRemoveModal] = useState(false);
-    const [showReportConfirmModal, setShowReportConfirmModal] = useState(false);
-    const [showApproveMovedModal, setShowApproveMovedModal] = useState(false);
     const [visitProcessingId, setVisitProcessingId] = useState<number | null>(initialVisit?.ovProcessingId || null);
     const [isVisitFiled, setIsVisitFiled] = useState(!!initialVisit?.isFiled);
-    const [editingImage, setEditingImage] = useState<{ type: 'initial' | 'final', index: number | null, src: string | File } | null>(null);
     const [isContractManager, setIsContractManager] = useState(false);
     const [isContractManagerAdminSuper, setIsContractManagerAdminSuper] = useState(false);
     const [maintenanceProgress, setMaintenanceProgress] = useState<number>(initialAsset?.maintenancePlanProgress || 0);
-    const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
-    const [reportAssetAlerts, setReportAssetAlerts] = useState<AssetAlert[]>([]);
-    const [completedAlertIds, setCompletedAlertIds] = useState<string[]>([]);
-    const [isAddingAlert, setIsAddingAlert] = useState(false);
-    const [alertInitialDescription, setAlertInitialDescription] = useState('');
+    // A checklist calcula o progresso a partir das respostas e é a fonte da verdade;
+    // o valor gravado no banco só vale até ela informar o dela.
+    const checklistProgressKnownRef = useRef(false);
+    const handleChecklistProgress = useCallback((value: number) => {
+        checklistProgressKnownRef.current = true;
+        setMaintenanceProgress(value);
+    }, []);
+    // Plano escolhido na checklist (pode mudar na tela, ex.: na revisão).
+    const [checklistPlanId, setChecklistPlanId] = useState<string>(initialAsset?.maintenancePlanId || '');
+    const checklistPlanKnownRef = useRef(false);
+    const handleChecklistPlanChange = useCallback((planId: string) => {
+        checklistPlanKnownRef.current = true;
+        setChecklistPlanId(planId);
+        if (!planId) setMaintenanceProgress(0);
+    }, []);
 
-    // Cover photo state
+    // Modais
+    const [showRejectionModal, setShowRejectionModal] = useState(false);
+    const [rejectionNotes, setRejectionNotes] = useState('');
+    const [showMovementModal, setShowMovementModal] = useState(false);
+    const [showUnmoveConfirmModal, setShowUnmoveConfirmModal] = useState(false);
+    const [showRemoveModal, setShowRemoveModal] = useState(false);
+    const [showReportConfirmModal, setShowReportConfirmModal] = useState(false);
+    const [showApproveMovedModal, setShowApproveMovedModal] = useState(false);
+    const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
+
+    // Fotos
+    const photos = useReportPhotos(assetId, initialAsset);
+    const initialImages = photos.initialPhotos.map(p => p.url);
+    const finalImages = photos.finalPhotos.map(p => p.url);
+    const uploadingCount = photos.pendingCount;
+    const [expandedImage, setExpandedImage] = useState<string | null>(null);
+    const [photoActionSection, setPhotoActionSection] = useState<ReportPhotoSide | null>(null);
+    const [editingImage, setEditingImage] = useState<{ type: ReportPhotoSide; index: number | null; src: string | File } | null>(null);
     const [showCoverConfirmModal, setShowCoverConfirmModal] = useState(false);
     const [selectedCoverUrl, setSelectedCoverUrl] = useState<string | null>(null);
     const [isUpdatingCover, setIsUpdatingCover] = useState(false);
+
+    // Atividades / materiais
     const [removingActivityId, setRemovingActivityId] = useState<string | null>(null);
     const [removingMaterialId, setRemovingMaterialId] = useState<string | null>(null);
     const [materialToDelete, setMaterialToDelete] = useState<OrderVisitAssetMaterial | null>(null);
 
-    // Recorder state
+    // Alertas
+    const [reportAssetAlerts, setReportAssetAlerts] = useState<AssetAlert[]>([]);
+    const [completedAlertIds, setCompletedAlertIds] = useState<string[]>([]);
+    const [updatingAlertId, setUpdatingAlertId] = useState<string | null>(null);
+    const [isAddingAlert, setIsAddingAlert] = useState(false);
+    const [alertInitialDescription, setAlertInitialDescription] = useState('');
+
+    // Registrador
     const [hasRecorder, setHasRecorder] = useState(initialAsset?.hasRecorder ?? true);
     const [beforeRecorder, setBeforeRecorder] = useState<string>(initialAsset?.beforeRecorder != null ? String(initialAsset.beforeRecorder) : '');
     const [afterRecorder, setAfterRecorder] = useState<string>(initialAsset?.afterRecorder != null ? String(initialAsset.afterRecorder) : '');
 
-    // Manuais do ativo + assistente (pergunta pré-preenchada)
-    const [assetAssistantPrompt, setAssetAssistantPrompt] = useState<{ text: string; seq: number } | null>(null);
-    const assetPromptSeq = useRef(0);
-    const [showAssetAssistant, setShowAssetAssistant] = useState(false);
-
-    const handleAskAssetAssistant = (prompt: string) => {
-        assetPromptSeq.current += 1;
-        setAssetAssistantPrompt({ text: prompt, seq: assetPromptSeq.current });
-        setShowAssetAssistant(true);
-    };
-
-    // Asset swap state
+    // Troca de ativo
     const [showSwapPage, setShowSwapPage] = useState(false);
-    const [swapSearchCode, setSwapSearchCode] = useState('');
-    const [swapSearchResults, setSwapSearchResults] = useState<Asset[]>([]);
-    const [isSearchingSwap, setIsSearchingSwap] = useState(false);
     const [isSwapping, setIsSwapping] = useState(false);
-    const [swapSearchUnitId, setSwapSearchUnitId] = useState('');
-    const [swapSearchClientId, setSwapSearchClientId] = useState('');
-    const [swapClientsList, setSwapClientsList] = useState<{ value: string; label: string }[]>([]);
-    const [swapUnitsList, setSwapUnitsList] = useState<{ value: string; label: string }[]>([]);
-    const [selectedAssetForSwap, setSelectedAssetForSwap] = useState<Asset | null>(null);
 
-    // Movement state
+    // Movimentação
     const [isMoved, setIsMoved] = useState(initialAsset?.isMoved || false);
     const [afterClientId, setAfterClientId] = useState('');
     const [afterUnitId, setAfterUnitId] = useState('');
     const [afterUnitAssetTagId, setAfterUnitAssetTagId] = useState('');
-    const [afterTagId, setAfterTagId] = useState('');
-    const [afterTagSubId, setAfterTagSubId] = useState('');
     const [afterStatusId, setAfterStatusId] = useState('');
     const [afterPriorityId, setAfterPriorityId] = useState<number | undefined>(undefined);
     const [afterLocation, setAfterLocation] = useState('');
     const [movedComments, setMovedComments] = useState(initialAsset?.movedComments || '');
 
-    const [clientsList, setClientsList] = useState<any[]>([]);
-    const [unitsList, setUnitsList] = useState<any[]>([]);
-    const [unitAssetTagsList, setUnitAssetTagsList] = useState<any[]>([]);
-    const [statusesList, setStatusesList] = useState<any[]>([]);
-    const [prioritiesList, setPrioritiesList] = useState<any[]>([]);
+    // Barra fixa do celular some enquanto digita (o teclado ocupa a tela)
+    const [isTyping, setIsTyping] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
 
-    const { canView, canCreate } = usePermissions();
+    const { saveState, queueSave, saveNow, stage, flushSave, flushQuietly } = useReportAutosave(assetId);
 
-    const canRemoveActivities = !readOnly && asset ? Number(asset.processingId) !== 5 : false;
+    const processingId = Number(asset?.processingId || OVA_PROCESSING.DRAFT);
+    const canRemoveItems = !readOnly && !!asset && processingId !== OVA_PROCESSING.APPROVED;
 
     // Modo offline: trava do relatório para o técnico que abriu (useAssetLock).
     const { lock: assetLock, forceRelease: forceReleaseLock, releaseMine: releaseMyLock } = useAssetLock({
         ovaId: asset?.id ? String(asset.id) : undefined,
         ovId: asset?.ovId ? String(asset.ovId) : undefined,
         currentUserId,
-        editable: !readOnly && !!asset && [1, 4].includes(asset.processingId || 1),
+        editable: !readOnly && !!asset && EDITABLE_STATUSES.includes(processingId),
     });
     const isLockedByOther = assetLock.status === 'other';
     const isNotReservedOffline = assetLock.status === 'not-reserved';
     const offlineSync = useOfflineSync();
     const hasUnsentChanges = !!asset?.id && offlineSync.unsentOvaIds.includes(String(asset.id));
 
-    const isReadOnly = readOnly || isLockedByOther || isNotReservedOffline || (asset ? (
-        ![1, 4].includes(asset.processingId || 1) && !localEditMode
-    ) : true);
+    const isReadOnly = readOnly || isLockedByOther || isNotReservedOffline || (asset
+        ? !EDITABLE_STATUSES.includes(processingId) && !localEditMode
+        : true);
+
+    useEffect(() => {
+        const el = rootRef.current;
+        if (!el) return;
+        const isField = (t: EventTarget | null) =>
+            t instanceof HTMLTextAreaElement || (t instanceof HTMLInputElement && !['checkbox', 'radio', 'button'].includes(t.type));
+        const onIn = (e: FocusEvent) => { if (isField(e.target)) setIsTyping(true); };
+        const onOut = (e: FocusEvent) => { if (isField(e.target)) setIsTyping(false); };
+        el.addEventListener('focusin', onIn);
+        el.addEventListener('focusout', onOut);
+        return () => {
+            el.removeEventListener('focusin', onIn);
+            el.removeEventListener('focusout', onOut);
+        };
+    }, [loading]);
 
     const loadPageData = async () => {
         try {
             if (!initialAsset) setLoading(true);
 
-            // In readOnly mode, skip user/permissions data — only fetch display data
+            // Somente leitura: pula usuário/permissões — só dados de exibição
             const [data, activitiesData, materialsData, user] = await Promise.all([
                 dataService.getOrderVisitAssetById(assetId),
                 dataService.getOrderVisitAssetActivities(assetId),
@@ -355,92 +218,92 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 }
             }
 
-            if (user) {
-                setCurrentUserId(user.id);
-            }
-            let isManager = false;
+            if (user) setCurrentUserId(user.id);
 
-            if (data) {
-                setAsset(data);
-                setActivities(activitiesData.filter(act => !act.maintenancePlanId || act.maintenancePlanId === '0'));
-                setUsedMaterials(materialsData);
-                setInitialCondition(data.beforeComments || '');
-                setFinalCondition(data.afterComments || '');
-                setInitialImages(data.initialPhotoUrls || []);
-                setFinalImages(data.finalPhotoUrls || []);
-
-                setIsMoved(data.isMoved || false);
-                const initialClientId = data.afterClientId || data.beforeClientId || data.clientId || '';
-                const initialUnitId = data.afterUnitId || data.beforeUnitId || '';
-
-                setAfterClientId(initialClientId);
-                setAfterUnitId(initialUnitId);
-                setAfterUnitAssetTagId(data.afterUnitAssetTagId || '');
-                setAfterTagId(data.afterTagId || '');
-                setAfterTagSubId(data.afterTagSubId || '');
-                setAfterStatusId(data.afterStatusId || '');
-                setAfterPriorityId(data.afterPriorityId);
-                setAfterLocation(data.afterLocation || '');
-
-                if (!readOnly && user && data.oContractId) {
-                    try {
-                        isManager = await dataService.isUserContractManager(user.id, data.oContractId);
-                        // "Usar como capa": contracts_managers.role = 'manager' (não 'viewer');
-                        // super admin também pode (isAdminSuper na condição do botão).
-                        const managers = await dataService.getContractManagers(data.oContractId);
-                        const currentManager = managers.find(m =>
-                            String(m.managerId) === String(user.id) &&
-                            m.role?.toLowerCase() === 'manager'
-                        );
-                        setIsContractManagerAdminSuper(!!currentManager);
-                    } catch (mError) {
-                        console.warn('Could not verify contract manager status', mError);
-                    }
-                }
-                setIsContractManager(isManager);
-                setMaintenanceProgress(data.maintenancePlanProgress ?? 0);
-                setHasRecorder(data.hasRecorder ?? true);
-                setBeforeRecorder(data.beforeRecorder != null ? String(data.beforeRecorder) : '');
-                setAfterRecorder(data.afterRecorder != null ? String(data.afterRecorder) : '');
-            } else {
+            if (!data) {
                 toast.error('Ativo da visita não encontrado');
                 onBack();
+                return;
             }
+
+            setAsset(data);
+            setActivities(activitiesData.filter(act => !act.maintenancePlanId || act.maintenancePlanId === '0'));
+            setUsedMaterials(materialsData);
+            setInitialCondition(data.beforeComments || '');
+            setFinalCondition(data.afterComments || '');
+            photos.reset(data);
+
+            setIsMoved(data.isMoved || false);
+            setAfterClientId(data.afterClientId || data.beforeClientId || data.clientId || '');
+            setAfterUnitId(data.afterUnitId || data.beforeUnitId || '');
+            setAfterUnitAssetTagId(data.afterUnitAssetTagId || '');
+            setAfterStatusId(data.afterStatusId || '');
+            setAfterPriorityId(data.afterPriorityId);
+            setAfterLocation(data.afterLocation || '');
+            setMovedComments(data.movedComments || '');
+
+            let isManager = false;
+            if (!readOnly && user && data.oContractId) {
+                try {
+                    isManager = await dataService.isUserContractManager(user.id, data.oContractId);
+                    // "Usar como capa": contracts_managers.role = 'manager' (não 'viewer');
+                    // super admin também pode.
+                    const managers = await dataService.getContractManagers(data.oContractId);
+                    const currentManager = managers.find(m =>
+                        String(m.managerId) === String(user.id) && m.role?.toLowerCase() === 'manager'
+                    );
+                    setIsContractManagerAdminSuper(!!currentManager);
+                } catch (mError) {
+                    console.warn('Could not verify contract manager status', mError);
+                }
+            }
+            setIsContractManager(isManager);
+            if (!checklistProgressKnownRef.current) setMaintenanceProgress(data.maintenancePlanProgress ?? 0);
+            if (!checklistPlanKnownRef.current) setChecklistPlanId(data.maintenancePlanId || '');
+            setHasRecorder(data.hasRecorder ?? true);
+            setBeforeRecorder(data.beforeRecorder != null ? String(data.beforeRecorder) : '');
+            setAfterRecorder(data.afterRecorder != null ? String(data.afterRecorder) : '');
         } catch (error) {
             console.error('Error loading asset:', error);
             toast.error('Erro ao carregar detalhes do ativo');
         } finally {
             setLoading(false);
+            setDataReady(true);
         }
     };
 
+    // Centraliza a seção pedida depois que os dados chegaram (a altura das seções muda)
     useEffect(() => {
-        if (assetId) {
-            loadPageData();
-        }
+        if (!dataReady || !focusSection) return;
+        const timer = setTimeout(() => {
+            document.getElementById(REPORT_SECTION_IDS[focusSection])
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            onFocusHandled?.();
+        }, 300);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataReady, focusSection]);
+
+    useEffect(() => {
+        if (assetId) loadPageData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assetId]);
 
     useEffect(() => {
         let isMounted = true;
-
-        const loadOpenAssetAlerts = async () => {
+        const load = async () => {
             if (!asset?.assetId) {
                 setReportAssetAlerts([]);
                 setCompletedAlertIds([]);
                 return;
             }
-
             try {
-                const orderVisitAssetId = asset.id;
+                const ovaId = asset.id;
                 const alerts = await dataService.getAssetAlerts(asset.assetId);
-                const visibleAlerts = alerts.filter(alert =>
-                    !alert.isDeleted && (!alert.isDone || alert.ovaId === orderVisitAssetId)
-                );
-
+                const visible = alerts.filter(a => !a.isDeleted && (!a.isDone || a.ovaId === ovaId));
                 if (!isMounted) return;
-
-                setReportAssetAlerts(visibleAlerts);
-                setCompletedAlertIds(visibleAlerts.filter(alert => alert.isDone && alert.ovaId === orderVisitAssetId).map(alert => alert.id));
+                setReportAssetAlerts(visible);
+                setCompletedAlertIds(visible.filter(a => a.isDone && a.ovaId === ovaId).map(a => a.id));
             } catch (error) {
                 console.error('Error loading asset alerts:', error);
                 if (isMounted) {
@@ -449,97 +312,83 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 }
             }
         };
-
-        loadOpenAssetAlerts();
-
-        return () => {
-            isMounted = false;
-        };
+        load();
+        return () => { isMounted = false; };
     }, [asset?.assetId]);
 
-    useEffect(() => {
-        if (!isMoved) return;
+    // ── Fotos ────────────────────────────────────────────────────────────────
 
-        let isActive = true;
-        const loadLists = async () => {
-            try {
-                const [clients, statuses, priorities] = await Promise.all([
-                    dataService.getClients(),
-                    dataService.getAssetStatuses(),
-                    dataService.getAssetPriorities()
-                ]);
+    const imagesOf = (side: ReportPhotoSide) => (side === 'initial' ? initialImages : finalImages);
 
-                if (!isActive) return;
-                setClientsList(clients.map(c => ({ value: c.id, label: c.name })));
-                setStatusesList(statuses.map(s => ({ value: s.id, label: s.description })));
-                setPrioritiesList(priorities.map(p => ({ value: p.id, label: p.description })));
-            } catch (error) {
-                console.error('Error loading movement lists:', error);
-                if (isActive) toast.error('Erro ao carregar opções de movimentação');
-            }
-        };
-        loadLists();
-
-        return () => { isActive = false; };
-    }, [isMoved]);
-
-    useEffect(() => {
-        let isActive = true;
-        if (!isMoved || !afterClientId) {
-            setUnitsList([]);
-            return () => { isActive = false; };
+    const ensurePhotoRoom = (side: ReportPhotoSide) => {
+        if (imagesOf(side).length >= MAX_REPORT_PHOTOS) {
+            toast.error(`Máximo de ${MAX_REPORT_PHOTOS} fotos permitido`);
+            return false;
         }
+        return true;
+    };
 
-        setUnitsList([]);
-        dataService.getUnitsByClient(afterClientId)
-            .then(units => {
-                if (!isActive) return;
-                setUnitsList(
-                    units
-                        .map(unit => ({ value: unit.id, label: unit.descriptionFull || unit.description }))
-                        .sort((a, b) => a.label.localeCompare(b.label))
-                );
-            })
-            .catch(error => {
-                console.error('Error loading units for selected client:', error);
-                if (isActive) {
-                    setUnitsList([]);
-                    toast.error('Erro ao carregar unidades do cliente selecionado');
-                }
-            });
-
-        return () => { isActive = false; };
-    }, [afterClientId, isMoved]);
-
-    useEffect(() => {
-        let isActive = true;
-        if (!isMoved || !afterUnitId) {
-            setUnitAssetTagsList([]);
-            return () => { isActive = false; };
-        }
-
-        setUnitAssetTagsList([]);
-        dataService.getAssetTagsByUnit(afterUnitId)
-            .then(tags => {
-                if (isActive) setUnitAssetTagsList(tags);
-            })
-            .catch(error => {
-                console.error('Error loading sectors for selected unit:', error);
-                if (isActive) {
-                    setUnitAssetTagsList([]);
-                    toast.error('Erro ao carregar setores da unidade selecionada');
-                }
-            });
-
-        return () => { isActive = false; };
-    }, [afterUnitId, isMoved]);
-
-    const handleUpdateField = async (updates: any) => {
+    const handleAddPhotos = async (side: ReportPhotoSide) => {
+        if (!ensurePhotoRoom(side)) return;
         try {
-            await dataService.updateOrderVisitAsset(assetId, updates);
+            const result = await Camera.pickImages({ quality: 80, limit: 1 });
+            if (result.photos.length === 0) return;
+            const photo = result.photos[0];
+            let blob: Blob;
+            try {
+                blob = await (await fetch(photo.webPath!)).blob();
+            } catch (fetchError) {
+                if (!photo.path) throw fetchError;
+                const { Filesystem } = await import('@capacitor/filesystem');
+                const fileData = await Filesystem.readFile({ path: photo.path });
+                blob = await (await fetch(`data:image/${photo.format};base64,${fileData.data}`)).blob();
+            }
+            const file = new File([blob], `report_${side}_${Date.now()}.${photo.format}`, { type: blob.type });
+            setEditingImage({ type: side, index: null, src: file });
         } catch (error) {
-            console.error('Error autosaving field:', error);
+            console.error('Error picking images', error);
         }
+    };
+
+    const takeCameraPhoto = async (side: ReportPhotoSide) => {
+        if (!ensurePhotoRoom(side)) return;
+        try {
+            const image = await Camera.getPhoto({
+                ...CAMERA_PHOTO_LIMITS,
+                quality: 80,
+                allowEditing: false,
+                resultType: CameraResultType.Uri,
+                source: CameraSource.Camera
+            });
+            if (!image.webPath) return;
+            const blob = await (await fetch(image.webPath)).blob();
+            const file = new File([blob], `report_${side}_${Date.now()}.${image.format}`, { type: blob.type });
+            setEditingImage({ type: side, index: null, src: file });
+        } catch (error) {
+            console.error('Error taking photo', error);
+        }
+    };
+
+    const handleFileDrop = (side: ReportPhotoSide, file: File) => {
+        if (!ensurePhotoRoom(side)) return;
+        setEditingImage({ type: side, index: null, src: file });
+    };
+
+    const handleEditImage = (side: ReportPhotoSide, index: number) => {
+        const photo = (side === 'initial' ? photos.initialPhotos : photos.finalPhotos)[index];
+        if (!photo) return;
+        if (photo.pending) {
+            toast.info('Aguarde o envio desta foto terminar');
+            return;
+        }
+        setEditingImage({ type: side, index, src: photo.url });
+    };
+
+    const handleSaveEditedImage = (editedFile: File) => {
+        if (!editingImage) return;
+        const { type, index } = editingImage;
+        setEditingImage(null);
+        photos.savePhoto(type, index, editedFile);
     };
 
     const handleUseAsCover = (imageUrl: string) => {
@@ -549,22 +398,12 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
     const handleConfirmCoverPhoto = async () => {
         if (!selectedCoverUrl || !asset?.assetId || !asset?.oCompanyId) return;
-
         try {
             setIsUpdatingCover(true);
-
             const urlParts = selectedCoverUrl.split('/');
             const fileName = urlParts[urlParts.length - 1].split('?')[0];
-            const pathParts = urlParts.slice(urlParts.indexOf('companies'), urlParts.length - 1);
-            const sourceFolderPath = pathParts.join('/');
-
-            await dataService.updateAssetPhotoFromReport(
-                asset.assetId,
-                asset.oCompanyId,
-                fileName,
-                sourceFolderPath
-            );
-
+            const sourceFolderPath = urlParts.slice(urlParts.indexOf('companies'), urlParts.length - 1).join('/');
+            await dataService.updateAssetPhotoFromReport(asset.assetId, asset.oCompanyId, fileName, sourceFolderPath);
             toast.success('Foto do ativo atualizada com sucesso!');
             setShowCoverConfirmModal(false);
             setSelectedCoverUrl(null);
@@ -576,93 +415,96 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         }
     };
 
-    const handleConfirmApproval = async () => {
-        const targetStatus = localEditMode === 'review' ? 3 : 5;
-        const previousAsset = asset;
+    // ── Movimentação ─────────────────────────────────────────────────────────
 
-        // 1. Optimistic UI update: update state immediately
-        setAsset(prev => prev ? {
-            ...prev,
-            processingId: targetStatus,
-            processingDescription: targetStatus === 3 ? 'Revisado' : 'Aprovado'
-        } : prev);
-        setLocalEditMode(null);
-        setShowApproveMovedModal(false);
-        toast.success(`Processamento alterado para ${targetStatus === 3 ? 'Revisado' : 'Aprovado'}`);
-
-        // 2. Perform DB update in background
-        try {
-            setIsUpdatingStatus(true);
-            await dataService.updateOrderVisitAssetProcessingStatus(assetId, targetStatus, currentUserId);
-        } catch (error) {
-            console.error('Error confirming processing:', error);
-            toast.error('Erro ao confirmar processamento');
-            // 3. Rollback on failure
-            setAsset(previousAsset);
-        } finally {
-            setIsUpdatingStatus(false);
-        }
+    const clearMovement = async () => {
+        setShowUnmoveConfirmModal(false);
+        setIsMoved(false);
+        setAfterClientId('');
+        setAfterUnitId('');
+        setAfterUnitAssetTagId('');
+        setAfterStatusId('');
+        setAfterPriorityId(undefined);
+        setAfterLocation('');
+        setMovedComments('');
+        await saveNow({
+            is_moved: false,
+            after_client_id: null,
+            after_unit_id: null,
+            after_unit_asset_tag_id: null,
+            after_tag_id: null,
+            after_tag_sub_id: null,
+            after_status_id: null,
+            after_priority_id: null,
+            after_location: null,
+            moved_comments: null
+        });
+        toast.info('Movimentação desativada e dados de destino resetados');
     };
 
     const handleToggleMoved = async (val: boolean) => {
         if (!val) {
-            const confirmed = window.confirm("Se retornar o switch para false, os dados de destino serão desconsiderados voltando o que era originalmente. Deseja continuar?");
-            if (!confirmed) return;
-
-            setIsMoved(false);
-            setAfterClientId('');
-            setAfterUnitId('');
-            setAfterUnitAssetTagId('');
-            setAfterTagId('');
-            setAfterTagSubId('');
-            setAfterStatusId('');
-            setAfterPriorityId(undefined);
-            setAfterLocation('');
-            setMovedComments('');
-
-            await handleUpdateField({
-                is_moved: false,
-                after_client_id: null,
-                after_unit_id: null,
-                after_unit_asset_tag_id: null,
-                after_tag_id: null,
-                after_tag_sub_id: null,
-                after_status_id: null,
-                after_priority_id: null,
-                after_location: null,
-                moved_comments: null
-            });
-            toast.info('Movimentação desativada e dados de destino resetados');
-        } else {
-            setIsMoved(true);
-            const updates: any = { is_moved: true };
-            if (!afterClientId && asset?.clientId) {
-                setAfterClientId(asset.clientId);
-                updates.after_client_id = asset.clientId;
-            }
-            if (!afterUnitId && asset?.beforeUnitId) {
-                setAfterUnitId(asset.beforeUnitId);
-                updates.after_unit_id = asset.beforeUnitId;
-            }
-            if (!afterUnitAssetTagId && asset?.beforeUnitAssetTagId) {
-                setAfterUnitAssetTagId(asset.beforeUnitAssetTagId);
-                updates.after_unit_asset_tag_id = asset.beforeUnitAssetTagId;
-            }
-            if (afterPriorityId === undefined && asset?.beforePriorityId !== undefined) {
-                setAfterPriorityId(asset.beforePriorityId);
-                updates.after_priority_id = asset.beforePriorityId;
-            }
-            if (!afterStatusId && asset?.beforeStatusId) {
-                setAfterStatusId(asset.beforeStatusId);
-                updates.after_status_id = asset.beforeStatusId;
-            }
-            if (!afterLocation && asset?.beforeLocation) {
-                setAfterLocation(asset.beforeLocation);
-                updates.after_location = asset.beforeLocation;
-            }
-            await handleUpdateField(updates);
+            setShowUnmoveConfirmModal(true);
+            return;
         }
+        setIsMoved(true);
+        const updates: Record<string, unknown> = { is_moved: true };
+        if (!afterClientId && asset?.clientId) {
+            setAfterClientId(asset.clientId);
+            updates.after_client_id = asset.clientId;
+        }
+        if (!afterUnitId && asset?.beforeUnitId) {
+            setAfterUnitId(asset.beforeUnitId);
+            updates.after_unit_id = asset.beforeUnitId;
+        }
+        if (!afterUnitAssetTagId && asset?.beforeUnitAssetTagId) {
+            setAfterUnitAssetTagId(asset.beforeUnitAssetTagId);
+            updates.after_unit_asset_tag_id = asset.beforeUnitAssetTagId;
+        }
+        if (afterPriorityId === undefined && asset?.beforePriorityId !== undefined) {
+            setAfterPriorityId(asset.beforePriorityId);
+            updates.after_priority_id = asset.beforePriorityId;
+        }
+        if (!afterStatusId && asset?.beforeStatusId) {
+            setAfterStatusId(asset.beforeStatusId);
+            updates.after_status_id = asset.beforeStatusId;
+        }
+        if (!afterLocation && asset?.beforeLocation) {
+            setAfterLocation(asset.beforeLocation);
+            updates.after_location = asset.beforeLocation;
+        }
+        await saveNow(updates);
     };
+
+    const handleAfterClientChange = (clientId: string) => {
+        setAfterClientId(clientId);
+        setAfterUnitId('');
+        setAfterUnitAssetTagId('');
+        saveNow({
+            after_client_id: clientId,
+            after_unit_id: null,
+            after_unit_asset_tag_id: null,
+            after_tag_id: null,
+            after_tag_sub_id: null
+        });
+    };
+
+    const handleAfterUnitChange = (unitId: string) => {
+        setAfterUnitId(unitId);
+        setAfterUnitAssetTagId('');
+        saveNow({ after_unit_id: unitId, after_unit_asset_tag_id: null, after_tag_id: null, after_tag_sub_id: null });
+    };
+
+    const handleUnitAssetTagChange = (tag: UnitAssetTagOption | null) => {
+        setAfterUnitAssetTagId(tag?.id || '');
+        saveNow({
+            after_unit_asset_tag_id: tag?.id || null,
+            after_tag_id: tag?.asset_tag_id?.toString() || null,
+            after_tag_sub_id: tag?.asset_tag_sub_id?.toString() || null
+        });
+    };
+
+    const isMovementComplete = !!(afterClientId && afterUnitId && afterUnitAssetTagId && afterPriorityId && afterStatusId);
 
     const validateMovement = (): boolean => {
         if (!isMoved) return true;
@@ -673,7 +515,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             afterPriorityId === asset?.beforePriorityId &&
             afterStatusId === (asset?.beforeStatusId || '') &&
             afterLocation === (asset?.beforeLocation || '');
-
         if (isSameDestination) {
             setShowMovementModal(true);
             return false;
@@ -681,27 +522,163 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         return true;
     };
 
-    const toggleCompletedAlert = async (alertId: string) => {
-        if (!asset?.id) return;
+    // ── Validação e status ───────────────────────────────────────────────────
 
-        const alert = reportAssetAlerts.find(item => item.id === alertId);
-        if (!alert) return;
+    const hasMaintenancePlan = !!checklistPlanId && checklistPlanId !== '0';
+    const beforeDone = !!initialCondition.trim() && initialImages.length > 0;
+    const afterDone = !!finalCondition.trim() && finalImages.length > 0;
 
-        const shouldComplete = !completedAlertIds.includes(alertId);
+    const progressItems: ReportProgressItem[] = [
+        { key: 'before', label: 'Condição antes', done: beforeDone, sectionId: REPORT_SECTION_IDS.before },
+        ...(hasMaintenancePlan ? [{ key: 'checklist', label: `Checklist ${maintenanceProgress}%`, done: maintenanceProgress >= 100, sectionId: REPORT_SECTION_IDS.checklist }] : []),
+        { key: 'activities', label: 'Atividades', done: activities.length > 0, sectionId: REPORT_SECTION_IDS.activities },
+        ...(isMoved ? [{ key: 'movement', label: 'Movimentação', done: isMovementComplete, sectionId: REPORT_SECTION_IDS.movement }] : []),
+        { key: 'after', label: 'Condição depois', done: afterDone, sectionId: REPORT_SECTION_IDS.after },
+    ];
 
-        // 1. Optimistic UI update: update local state instantly
-        setCompletedAlertIds(prev =>
-            shouldComplete ? [...prev, alertId] : prev.filter(id => id !== alertId)
-        );
-        setReportAssetAlerts(prev => prev.map(item =>
-            item.id === alertId
-                ? { ...item, isDone: shouldComplete, ovaId: shouldComplete ? asset.id : null }
-                : item
-        ));
+    /** Regras para reportar, revisar e aprovar (mesmas nos três caminhos). */
+    const validateReport = (verb: 'reportar' | 'confirmar'): boolean => {
+        if (uploadingCount > 0) {
+            toast.info('Aguarde o envio das fotos terminar');
+            return false;
+        }
+        if (!beforeDone || !afterDone) {
+            toast.error(`Preencha as condições e adicione fotos antes de ${verb}`);
+            return false;
+        }
+        if (activities.length === 0) {
+            toast.error('É necessário selecionar ao menos uma intervenção realizada');
+            return false;
+        }
+        if (isMoved) {
+            if (!isMovementComplete) {
+                toast.error('Preencha todos os campos obrigatórios da movimentação');
+                return false;
+            }
+            if (!validateMovement()) return false;
+        }
+        return true;
+    };
 
-        // 2. Perform network request in background
+    const handleReportClick = () => {
+        if (!validateReport('reportar')) return;
+        if (hasMaintenancePlan && maintenanceProgress < 100) {
+            setShowIncompletePlanConfirmModal(true);
+            return;
+        }
+        setShowReportConfirmModal(true);
+    };
+
+    const handleConfirmReport = async () => {
         try {
             setIsUpdatingStatus(true);
+            // Garante os textos e grava tudo que ainda estiver pendente
+            stage({ before_comments: initialCondition, after_comments: finalCondition });
+            try {
+                await flushSave();
+            } catch {
+                return; // aviso já exibido; continua em rascunho
+            }
+            await completeSelectedAlerts();
+            await dataService.reportedOrderVisitAsset(assetId, currentUserId);
+            await releaseMyLock();
+            toast.success('Relatório reportado com sucesso!');
+            onBack();
+        } catch (error) {
+            toast.error('Erro ao reportar');
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    const handleConfirmApproval = async () => {
+        const targetStatus = localEditMode === 'review' ? OVA_PROCESSING.REVIEWED : OVA_PROCESSING.APPROVED;
+        const previousAsset = asset;
+
+        setAsset(prev => prev ? {
+            ...prev,
+            processingId: targetStatus,
+            processingDescription: targetStatus === OVA_PROCESSING.REVIEWED ? 'Revisado' : 'Aprovado'
+        } : prev);
+        setLocalEditMode(null);
+        setShowApproveMovedModal(false);
+        toast.success(`Processamento alterado para ${targetStatus === OVA_PROCESSING.REVIEWED ? 'Revisado' : 'Aprovado'}`);
+
+        try {
+            setIsUpdatingStatus(true);
+            await dataService.updateOrderVisitAssetProcessingStatus(assetId, targetStatus, currentUserId);
+            // Aprovado: volta para a lista de ativos da visita
+            if (targetStatus === OVA_PROCESSING.APPROVED) (onApproved || onBack)();
+        } catch (error) {
+            console.error('Error confirming processing:', error);
+            toast.error('Erro ao confirmar processamento');
+            setAsset(previousAsset);
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    const handleConfirmEdit = async () => {
+        if (!validateReport('confirmar')) return;
+        try {
+            await flushSave();
+        } catch {
+            return;
+        }
+        if (localEditMode === 'approval' && isMoved) {
+            setShowApproveMovedModal(true);
+            return;
+        }
+        await handleConfirmApproval();
+    };
+
+    const handleRevertDraft = async () => {
+        try {
+            setIsUpdatingStatus(true);
+            await dataService.updateOrderVisitAssetProcessingStatus(assetId, OVA_PROCESSING.DRAFT, currentUserId);
+            toast.info('Relatório do ativo revertido para Rascunho');
+        } catch (error) {
+            console.error('Error reverting asset to draft:', error);
+            toast.error('Erro ao retornar para rascunho');
+        } finally {
+            setIsUpdatingStatus(false);
+            onBack();
+        }
+    };
+
+    const handleConfirmRejection = async () => {
+        if (!asset) return;
+        try {
+            setIsUpdatingStatus(true);
+            await dataService.disapproveOrderVisitAsset(assetId, currentUserId, rejectionNotes);
+            setAsset({ ...asset, processingId: OVA_PROCESSING.REJECTED, processingDescription: 'Rejeitado', disapprovedNotes: rejectionNotes });
+            setShowRejectionModal(false);
+            setRejectionNotes('');
+            toast.success('Relatório Rejeitado');
+        } catch (error) {
+            toast.error('Erro ao rejeitar');
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    // ── Alertas ──────────────────────────────────────────────────────────────
+
+    const toggleCompletedAlert = async (alertId: string) => {
+        if (!asset?.id) return;
+        const alert = reportAssetAlerts.find(item => item.id === alertId);
+        if (!alert) return;
+        const shouldComplete = !completedAlertIds.includes(alertId);
+        const apply = (complete: boolean) => {
+            setCompletedAlertIds(prev => complete ? [...prev, alertId] : prev.filter(id => id !== alertId));
+            setReportAssetAlerts(prev => prev.map(item =>
+                item.id === alertId ? { ...item, isDone: complete, ovaId: complete ? asset.id : null } : item
+            ));
+        };
+
+        apply(shouldComplete);
+        try {
+            setUpdatingAlertId(alertId);
             await dataService.updateAssetAlert(alertId, {
                 isDone: shouldComplete,
                 updatedUserId: currentUserId,
@@ -710,40 +687,26 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         } catch (error) {
             console.error('Error updating alert status:', error);
             toast.error('Erro ao atualizar status do alerta.');
-
-            // 3. Rollback on failure
-            setCompletedAlertIds(prev =>
-                shouldComplete ? prev.filter(id => id !== alertId) : [...prev, alertId]
-            );
-            setReportAssetAlerts(prev => prev.map(item =>
-                item.id === alertId
-                    ? { ...item, isDone: !shouldComplete, ovaId: !shouldComplete ? asset.id : null }
-                    : item
-            ));
+            apply(!shouldComplete);
         } finally {
-            setIsUpdatingStatus(false);
+            setUpdatingAlertId(null);
         }
     };
 
     const completeSelectedAlerts = async () => {
-        const orderVisitAssetId = asset?.id;
-
+        const ovaId = asset?.id;
         const updates = reportAssetAlerts
-            .filter(alert => completedAlertIds.includes(alert.id) !== (alert.isDone && alert.ovaId === orderVisitAssetId))
+            .filter(alert => completedAlertIds.includes(alert.id) !== (alert.isDone && alert.ovaId === ovaId))
             .map(alert => {
                 const shouldComplete = completedAlertIds.includes(alert.id);
-
                 return dataService.updateAssetAlert(alert.id, {
                     isDone: shouldComplete,
                     updatedUserId: currentUserId,
-                    ovaId: shouldComplete ? orderVisitAssetId : null
+                    ovaId: shouldComplete ? ovaId : null
                 });
             });
-
         if (updates.length === 0) return;
-
         await Promise.all(updates);
-
         setReportAssetAlerts(prev => prev.filter(alert => completedAlertIds.includes(alert.id)));
     };
 
@@ -751,379 +714,23 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         if (!asset?.assetId) return;
         setIsAddingAlert(false);
         const alerts = await dataService.getAssetAlerts(asset.assetId);
-        const visibleAlerts = alerts.filter(a =>
-            !a.isDeleted && (!a.isDone || a.ovaId === asset.id)
-        );
-        setReportAssetAlerts(visibleAlerts);
+        setReportAssetAlerts(alerts.filter(a => !a.isDeleted && (!a.isDone || a.ovaId === asset.id)));
     };
 
-    const handleRemoveAsset = async () => {
-        try {
-            setIsUpdatingStatus(true);
-            await dataService.removeAssetFromOrderVisit(assetId);
-            toast.success('Ativo removido da visita');
-            onBack();
-        } catch (error) {
-            console.error('Error removing asset:', error);
-            toast.error('Erro ao remover ativo');
-        } finally {
-            setIsUpdatingStatus(false);
-        }
-    };
+    // ── Atividades, materiais, ativo ─────────────────────────────────────────
 
-    const handleSearchNewAsset = async () => {
-        if (!swapSearchCode.trim()) {
-            toast.info('Informe o código para pesquisar');
-            return;
-        }
-
-        try {
-            setIsSearchingSwap(true);
-            const results = await dataService.getAssets('active', swapSearchCode, swapSearchUnitId || undefined);
-            // Filter out current asset
-            const filteredResults = results.filter(r => r.id !== asset?.assetId);
-            setSwapSearchResults(filteredResults);
-            setSelectedAssetForSwap(null);
-
-            if (filteredResults.length === 0) {
-                toast.info('Nenhum ativo encontrado com este código para esta unidade');
-            }
-        } catch (error) {
-            console.error('Error searching assets:', error);
-            toast.error('Erro ao pesquisar ativos');
-        } finally {
-            setIsSearchingSwap(false);
-        }
-    };
-
-    const openSwapModal = async () => {
-        setShowSwapPage(true);
-        try {
-            const clients = await dataService.getClients();
-            const clientsMapped = clients.map(c => ({ value: c.id, label: c.name }));
-            setSwapClientsList(clientsMapped);
-            
-            const initialClientId = asset?.clientId || '';
-            setSwapSearchClientId(initialClientId);
-
-            if (initialClientId) {
-                const units = await dataService.getUnitsByClient(initialClientId);
-                setSwapUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })).sort((a: any, b: any) => a.label.localeCompare(b.label)));
-                if (!swapSearchUnitId || swapSearchClientId !== initialClientId) {
-                    setSwapSearchUnitId(asset?.unitId || '');
-                }
-            }
-        } catch (error) {
-            console.error('Error loading data for swap modal:', error);
-        }
-    };
-
-    const handleSwapClientChange = async (clientId: string) => {
-        setSwapSearchClientId(clientId);
-        setSwapSearchUnitId(''); // Reset unit when client changes
-        setSwapUnitsList([]);
-        setSwapSearchResults([]); // Clear results on client change
-        setSelectedAssetForSwap(null); // Clear selection on client change
-        
-        if (clientId) {
-            try {
-                const units = await dataService.getUnitsByClient(clientId);
-                setSwapUnitsList(units.map(u => ({ value: u.id, label: u.descriptionFull || u.description })).sort((a: any, b: any) => a.label.localeCompare(b.label)));
-            } catch (error) {
-                console.error('Error loading units for client:', clientId, error);
-            }
-        }
-    };
-
-    const handleSwapAsset = async (newAsset: Asset) => {
-        try {
-            setIsSwapping(true);
-            await dataService.changeOrderVisitAsset(assetId, newAsset.id, currentUserId);
-            toast.success('Ativo alterado com sucesso!');
-            setShowSwapPage(false);
-            loadPageData(); // Redirecionar/Recarregar para o relatório do novo ativo
-        } catch (error: any) {
-            console.error('Error swapping asset:', error);
-            toast.error(error.message || 'Erro ao trocar ativo');
-        } finally {
-            setIsSwapping(false);
-        }
-    };
-
-    const handleUpdateComments = async (field: 'before' | 'after', value: string) => {
-        try {
-            await dataService.updateOrderVisitAsset(assetId, {
-                [field === 'before' ? 'before_comments' : 'after_comments']: value
-            });
-        } catch (error) {
-            console.error('Error autosaving comments:', error);
-        }
-    };
-
-    const handleAddPhotos = async (type: 'initial' | 'final') => {
-        const currentImages = type === 'initial' ? initialImages : finalImages;
-        if (currentImages.length >= 3) {
-            toast.error("Máximo de 3 fotos permitido");
-            return;
-        }
-
-        try {
-            const result = await Camera.pickImages({
-                quality: 80,
-                limit: 1 // For auto-open flow, limit to 1 at a time for better UX
-            });
-
-            if (result.photos.length > 0) {
-                const photo = result.photos[0];
-                let blob: Blob;
-                try {
-                    const response = await fetch(photo.webPath!);
-                    blob = await response.blob();
-                } catch (fetchError) {
-                    if (photo.path) {
-                        const { Filesystem } = await import('@capacitor/filesystem');
-                        const fileData = await Filesystem.readFile({ path: photo.path });
-                        const responseB64 = await fetch(`data:image/${photo.format};base64,${fileData.data}`);
-                        blob = await responseB64.blob();
-                    } else { throw fetchError; }
-                }
-                const file = new File([blob], `report_${type}_${Date.now()}.${photo.format}`, { type: blob.type });
-                setEditingImage({ type, index: null, src: file });
-            }
-        } catch (error) {
-            console.error('Error picking images', error);
-        }
-    };
-
-    const takeCameraPhoto = async (type: 'initial' | 'final') => {
-        const currentImages = type === 'initial' ? initialImages : finalImages;
-        if (currentImages.length >= 3) {
-            toast.error("Máximo de 3 fotos permitido");
-            return;
-        }
-
-        try {
-            const image = await Camera.getPhoto({
-                ...CAMERA_PHOTO_LIMITS,
-                quality: 80,
-                allowEditing: false,
-                resultType: CameraResultType.Uri,
-                source: CameraSource.Camera
-            });
-
-            if (image.webPath) {
-                const response = await fetch(image.webPath!);
-                const blob = await response.blob();
-                const file = new File([blob], `report_${type}_${Date.now()}.${image.format}`, { type: blob.type });
-                setEditingImage({ type, index: null, src: file });
-            }
-        } catch (error) {
-            console.error('Error taking photo', error);
-        }
-    };
-
-    const handleFileDrop = async (type: 'initial' | 'final', file: File) => {
-        const currentImages = type === 'initial' ? initialImages : finalImages;
-        if (currentImages.length >= 3) {
-            toast.error("Máximo de 3 fotos permitido");
-            return;
-        }
-        setEditingImage({ type, index: null, src: file });
-    };
-
-    const removeImage = async (type: 'initial' | 'final', index: number) => {
-        if (!asset) return;
-        const currentImages = type === 'initial' ? initialImages : finalImages;
-        if (currentImages.length <= 1) {
-            toast.error('É necessário manter pelo menos 1 foto');
-            return;
-        }
-
-        const filenames = type === 'initial' ? asset.beforeImgFilesNames : asset.afterImgFilesNames;
-        const fileNameToDelete = filenames?.[index];
-
-        if (!fileNameToDelete) {
-            if (type === 'initial') setInitialImages(prev => prev.filter((_, i) => i !== index));
-            else setFinalImages(prev => prev.filter((_, i) => i !== index));
-            return;
-        }
-
-        try {
-            const deletePromise = dataService.removeOrderVisitAssetPhoto(
-                assetId,
-                type === 'initial' ? 'before' : 'after',
-                fileNameToDelete
-            );
-
-            toast.promise(deletePromise, {
-                loading: 'Removendo foto...',
-                success: () => {
-                    if (type === 'initial') {
-                        setInitialImages(prev => prev.filter((_, i) => i !== index));
-                        setAsset(prev => prev ? {
-                            ...prev,
-                            beforeImgFilesNames: (prev.beforeImgFilesNames || []).filter((_, i) => i !== index)
-                        } : prev);
-                    } else {
-                        setFinalImages(prev => prev.filter((_, i) => i !== index));
-                        setAsset(prev => prev ? {
-                            ...prev,
-                            afterImgFilesNames: (prev.afterImgFilesNames || []).filter((_, i) => i !== index)
-                        } : prev);
-                    }
-                    return 'Foto removida!';
-                },
-                error: 'Erro ao remover foto'
-            });
-        } catch (error) {
-            console.error('Error removing image', error);
-        }
-    };
-
-    const handleSaveEditedImage = async (editedFile: File) => {
-        if (!editingImage) return;
-        const { type, index } = editingImage;
-
-        const newWebPath = URL.createObjectURL(editedFile);
-        
-        // 1. Update state immediately (Optimistic UI)
-        if (type === 'initial') {
-            setInitialImages(prev => {
-                const next = [...prev];
-                if (index !== null) next[index] = newWebPath;
-                else next.push(newWebPath);
-                return next;
-            });
-            setAsset(prev => {
-                if (!prev) return prev;
-                const nextUrls = [...(prev.initialPhotoUrls || [])];
-                if (index !== null) nextUrls[index] = newWebPath;
-                else nextUrls.push(newWebPath);
-                return { ...prev, initialPhotoUrls: nextUrls };
-            });
-        } else {
-            setFinalImages(prev => {
-                const next = [...prev];
-                if (index !== null) next[index] = newWebPath;
-                else next.push(newWebPath);
-                return next;
-            });
-            setAsset(prev => {
-                if (!prev) return prev;
-                const nextUrls = [...(prev.finalPhotoUrls || [])];
-                if (index !== null) nextUrls[index] = newWebPath;
-                else nextUrls.push(newWebPath);
-                return { ...prev, finalPhotoUrls: nextUrls };
-            });
-        }
-        
-        setEditingImage(null);
-
-        // 2. Upload in background
-        try {
-            const uploadPromise = async () => {
-                const uploadResult = await dataService.uploadOrderVisitAssetPhoto(
-                    assetId,
-                    editedFile,
-                    type === 'initial' ? 'before' : 'after'
-                );
-
-                // If editing existing, remove old version
-                if (index !== null) {
-                    const filenames = type === 'initial' ? asset?.beforeImgFilesNames : asset?.afterImgFilesNames;
-                    const oldFilename = filenames?.[index];
-                    if (oldFilename) {
-                        try {
-                            await dataService.removeOrderVisitAssetPhoto(assetId, type === 'initial' ? 'before' : 'after', oldFilename);
-                        } catch (e) { console.warn('Could not remove old image:', e); }
-                    }
-                }
-
-                // Update server-side filename in state
-                setAsset(prev => {
-                    if (!prev) return prev;
-                    if (type === 'initial') {
-                        const nextFilenames = [...(prev.beforeImgFilesNames || [])];
-                        if (index !== null) nextFilenames[index] = uploadResult.filename;
-                        else nextFilenames.push(uploadResult.filename);
-                        return { ...prev, beforeImgFilesNames: nextFilenames };
-                    } else {
-                        const nextFilenames = [...(prev.afterImgFilesNames || [])];
-                        if (index !== null) nextFilenames[index] = uploadResult.filename;
-                        else nextFilenames.push(uploadResult.filename);
-                        return { ...prev, afterImgFilesNames: nextFilenames };
-                    }
-                });
-            };
-
-            toast.promise(uploadPromise(), {
-                loading: 'Salvando no servidor...',
-                success: 'Imagem sincronizada!',
-                error: 'Erro ao sincronizar imagem'
-            });
-        } catch (error) {
-            console.error('Error in background upload:', error);
-        }
-    };
-
-    const handleEditImage = (type: 'initial' | 'final', index: number) => {
-        const src = type === 'initial' ? initialImages[index] : finalImages[index];
-        setEditingImage({ type, index, src });
-    };
-
-    const handleAfterClientChange = async (clientId: string) => {
-        setAfterClientId(clientId);
-        setAfterUnitId('');
-        setAfterUnitAssetTagId('');
-        setAfterTagId('');
-        setAfterTagSubId('');
-
-        await handleUpdateField({
-            after_client_id: clientId,
-            after_unit_id: null,
-            after_unit_asset_tag_id: null,
-            after_tag_id: null,
-            after_tag_sub_id: null
-        });
-    };
-
-    const handleUnitAssetTagChange = async (unitAssetTagId: string) => {
-        const selectedTag = unitAssetTagsList.find(t => t.id === unitAssetTagId);
-        if (selectedTag) {
-            const updates = {
-                after_unit_asset_tag_id: unitAssetTagId,
-                after_tag_id: selectedTag.asset_tag_id?.toString() || null,
-                after_tag_sub_id: selectedTag.asset_tag_sub_id?.toString() || null
-            };
-            setAfterUnitAssetTagId(unitAssetTagId);
-            setAfterTagId(updates.after_tag_id || '');
-            setAfterTagSubId(updates.after_tag_sub_id || '');
-            await handleUpdateField(updates);
-        } else {
-            setAfterUnitAssetTagId('');
-            setAfterTagId('');
-            setAfterTagSubId('');
-            await handleUpdateField({
-                after_unit_asset_tag_id: null,
-                after_tag_id: null,
-                after_tag_sub_id: null
-            });
-        }
+    const ensureUserId = async (): Promise<string> => {
+        if (currentUserId) return currentUserId;
+        const u = await dataService.getCurrentUser();
+        if (u) setCurrentUserId(u.id);
+        return u?.id || '';
     };
 
     const handleRemoveMaterial = async (materialRowId: string) => {
         setRemovingMaterialId(materialRowId);
         try {
-            let userId = currentUserId;
-            if (!userId) {
-                const u = await dataService.getCurrentUser();
-                if (u) {
-                    userId = u.id;
-                    setCurrentUserId(u.id);
-                }
-            }
+            const userId = await ensureUserId();
             if (!userId) return;
-
             await dataService.removeMaterialFromAsset(materialRowId, userId);
             setUsedMaterials(prev => prev.filter(m => m.id !== materialRowId));
             setMaterialToDelete(null);
@@ -1139,16 +746,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const handleRemoveActivity = async (activityId: string) => {
         setRemovingActivityId(activityId);
         try {
-            let userId = currentUserId;
-            if (!userId) {
-                const u = await dataService.getCurrentUser();
-                if (u) {
-                    userId = u.id;
-                    setCurrentUserId(u.id);
-                }
-            }
+            const userId = await ensureUserId();
             if (!userId) return;
-
             await dataService.toggleOrderVisitAssetActivity(assetId, activityId, userId, false);
             setActivities(prev => prev.filter(a => a.activityId !== activityId));
             toast.success('Atividade removida');
@@ -1160,7 +759,36 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         }
     };
 
+    const handleRemoveAsset = async () => {
+        try {
+            setIsUpdatingStatus(true);
+            await dataService.removeAssetFromOrderVisit(assetId);
+            toast.success('Ativo removido da visita');
+            onBack();
+        } catch (error) {
+            console.error('Error removing asset:', error);
+            toast.error(error instanceof Error && error.message ? `Erro ao remover ativo: ${error.message}` : 'Erro ao remover ativo');
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
 
+    const handleSwapAsset = async (newAsset: Asset) => {
+        try {
+            setIsSwapping(true);
+            await dataService.changeOrderVisitAsset(assetId, newAsset.id, currentUserId);
+            toast.success('Ativo alterado com sucesso!');
+            setShowSwapPage(false);
+            loadPageData();
+        } catch (error: any) {
+            console.error('Error swapping asset:', error);
+            toast.error(error.message || 'Erro ao trocar ativo');
+        } finally {
+            setIsSwapping(false);
+        }
+    };
+
+    // ── Render ───────────────────────────────────────────────────────────────
 
     if (loading) {
         return (
@@ -1172,915 +800,334 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
     if (!asset) return null;
 
-    const processingStatus = getProcessingStatus(asset.processingId || 1);
+    const visitPid = Number(visitProcessingId || OVA_PROCESSING.DRAFT);
+    const actionFlags: AssetReportActionFlags = {
+        showReport: [OVA_PROCESSING.DRAFT, OVA_PROCESSING.REVIEWED, OVA_PROCESSING.REJECTED].includes(processingId as any),
+        showRevertDraft: processingId === OVA_PROCESSING.REPORTED && !localEditMode && visitPid === OVA_PROCESSING.DRAFT,
+        showReview: processingId === OVA_PROCESSING.REPORTED || processingId === OVA_PROCESSING.REVIEWED || !!localEditMode,
+        showSwap: [2, 3, 4].includes(Number(visitProcessingId)) && !isMoved && asset.isFiled === false,
+        showRemove: Number(visitProcessingId) !== OVA_PROCESSING.APPROVED && (!asset.isFiled || !isMoved),
+        canDisapprove: canView('orders_visits_processing_disapprove'),
+        canReview: canView('orders_visits_processing_review'),
+        canApprove: isContractManager,
+    };
+    const actionProps = {
+        ...actionFlags,
+        localEditMode,
+        isUpdatingStatus,
+        uploadingCount,
+        onReport: handleReportClick,
+        onKeepDraft: onBack,
+        onRevertDraft: handleRevertDraft,
+        onReject: () => setShowRejectionModal(true),
+        onStartReview: () => setLocalEditMode('review'),
+        onStartApproval: () => setLocalEditMode('approval'),
+        onCancelEdit: () => setLocalEditMode(null),
+        onConfirmEdit: handleConfirmEdit,
+        onSwap: () => setShowSwapPage(true),
+        onRemove: () => setShowRemoveModal(true),
+    };
+    const showMobileBar = !readOnly && hasPrimaryReportAction(actionFlags, localEditMode);
+    const showProgress = !isReadOnly;
+    const progressReadyLabel = localEditMode === 'review'
+        ? 'Pronto para revisar'
+        : localEditMode === 'approval'
+            ? 'Pronto para aprovar'
+            : 'Pronto para reportar';
 
-    return (
-        <div className="min-h-screen bg-transparent">
+    const gridProps = {
+        isReadOnly,
+        canUseAsCover: !isVisitFiled && (isContractManagerAdminSuper || currentUserIsAdminSuper),
+        onView: setExpandedImage,
+        onEdit: handleEditImage,
+        onRemove: photos.removePhoto,
+        onAdd: setPhotoActionSection,
+        onUseAsCover: handleUseAsCover,
+        onFileDrop: !Capacitor.isNativePlatform() ? handleFileDrop : undefined,
+    };
 
-            <div className="max-w-md mx-auto p-4 space-y-6 pb-32">
-
-
-                {asset.processingId === 4 && asset.disapprovedNotes && (
-                    <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-500/20 p-4 rounded-2xl">
-                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-2">
-                            <span className="material-symbols-outlined text-sm">info</span>
-                            <span className="text-[10px] font-black uppercase tracking-widest">Motivo da Rejeição</span>
-                        </div>
-                        <p className="text-xs font-bold text-red-800 dark:text-red-300 leading-relaxed">
-                            {asset.disapprovedNotes}
-                        </p>
+    const notices = (
+        <>
+            {processingId === OVA_PROCESSING.REJECTED && asset.disapprovedNotes && (
+                <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-500/20 p-4 rounded-2xl">
+                    <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-2">
+                        <span className="material-symbols-outlined text-sm">info</span>
+                        <span className="text-[11px] font-black uppercase tracking-widest">Motivo da Rejeição</span>
                     </div>
-                )}
+                    <p className="text-sm font-bold text-red-800 dark:text-red-300 leading-relaxed">{asset.disapprovedNotes}</p>
+                </div>
+            )}
 
-                {/* Modo offline: ativo reservado para outro técnico */}
-                {isLockedByOther && (
-                    <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-500/20 p-4 rounded-2xl flex items-start gap-3">
-                        <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">lock</span>
-                        <div className="flex-1 text-xs">
-                            <p className="font-black text-amber-800 dark:text-amber-300">
-                                Em uso por {assetLock.userName || 'outro técnico'}
-                            </p>
-                            <p className="text-amber-700 dark:text-amber-400/80 mt-0.5">
-                                Só consulta enquanto o relatório não for enviado.
-                            </p>
-                        </div>
-                        {(isContractManager || authUser?.isAdmin || authUser?.isAdminSuper) && (
-                            <button
-                                onClick={forceReleaseLock}
-                                className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-[11px] font-black uppercase"
-                            >
-                                Liberar
-                            </button>
-                        )}
+            {/* Modo offline: ativo reservado para outro técnico */}
+            {isLockedByOther && (
+                <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-500/20 p-4 rounded-2xl flex items-start gap-3">
+                    <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">lock</span>
+                    <div className="flex-1 text-xs">
+                        <p className="font-black text-amber-800 dark:text-amber-300">Em uso por {assetLock.userName || 'outro técnico'}</p>
+                        <p className="text-amber-700 dark:text-amber-400/80 mt-0.5">Só consulta enquanto o relatório não for enviado.</p>
                     </div>
-                )}
-
-                {/* Modo offline: ativo não reservado no preparo */}
-                {isNotReservedOffline && (
-                    <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 p-4 rounded-2xl flex items-start gap-3">
-                        <span className="material-symbols-outlined text-slate-500">cloud_off</span>
-                        <div className="flex-1 text-xs">
-                            <p className="font-black text-slate-700 dark:text-slate-200">Sem internet · só consulta</p>
-                            <p className="text-slate-500 dark:text-slate-400 mt-0.5">
-                                Este ativo não foi reservado para você em "Preparar para campo".
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Modo offline: alterações deste ativo ainda no aparelho */}
-                {hasUnsentChanges && (
-                    <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-500/20 px-4 py-2.5 rounded-2xl flex items-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300">
-                        <span className="material-symbols-outlined text-base">cloud_upload</span>
-                        Alterações deste ativo aguardando envio
-                    </div>
-                )}
-
-                {/* Asset Detail Card */}
-                {!readOnly && <OrderVisitAssetCardDetail asset={asset} onClick={onViewAsset} />}
-
-                {/* 🤖 Assistente IA do Ativo — visita não aprovada */}
-                {/* Assistente desativado temporariamente */}
-                {/* {asset?.code && Number(asset.processingId) !== 5 && (
-                    <AIAssetPanel
-                        assetCode={asset.code}
-                        assetId={asset.assetId}
-                        assetDescription={asset.description}
-                        unitDescription={asset.beforeUnitDescription}
-                        pendingPrompt={assetAssistantPrompt}
-                    />
-                )} */}
-                {currentUserIsAdminSuper && asset?.code && Number(asset.processingId) !== 5 && (
-                    <div>
-                        {/* 📚 Manuais Técnicos do ativo — seção sempre visível */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
-                            <SectionHeader icon="menu_book" title="Manuais Técnicos" />
-                            <OrderVisitAssetManualsSection
-                                assetId={String(asset.assetId)}
-                                assetCode={asset.code}
-                                onAskAssistant={handleAskAssetAssistant}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {/* Condição Antes */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
-                    <SectionHeader icon="assignment" title="Condição Antes" required />
-                    <textarea
-                        value={initialCondition}
-                        onChange={(e) => setInitialCondition(e.target.value)}
-                        onBlur={(e) => handleUpdateComments('before', e.target.value)}
-                        disabled={isReadOnly}
-                        placeholder={isReadOnly ? "Sem comentários" : "Descreva como foi encontrado o ativo..."}
-                        className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[100px] disabled:opacity-70 disabled:cursor-not-allowed"
-                    />
-                    <ImageGrid
-                        images={initialImages}
-                        type="initial"
-                        isReadOnly={isReadOnly}
-                        isVisitFiled={isVisitFiled}
-                        setExpandedImage={setExpandedImage}
-                        removeImage={removeImage}
-                        editImage={handleEditImage}
-                        setPhotoActionSection={setPhotoActionSection}
-                        onUseAsCover={handleUseAsCover}
-                        onFileDrop={!Capacitor.isNativePlatform() ? handleFileDrop : undefined}
-                        isContractManagerAdminSuper={isContractManagerAdminSuper}
-                        isAdminSuper={currentUserIsAdminSuper}
-                    />
-                </div>
-
-                {/* Checklist de Manutenção Preventiva */}
-                <MaintenanceChecklistView 
-                    ovAssetId={asset.id} 
-                    assetId={asset.assetId}
-                    assetTypeId={asset.assetTypeId} 
-                    companyId={asset.oCompanyId}
-                    userId={currentUserId}
-                    initialPlanId={asset.maintenancePlanId}
-                    onUpdateProgress={(val) => setMaintenanceProgress(val)}
-                    disabled={isReadOnly || isVisitFiled}
-                    onAddAlert={canCreate('assets_alerts') ? (description) => {
-                        setAlertInitialDescription(description);
-                        setIsAddingAlert(true);
-                    } : undefined}
-                />
-
-                {/* Atividades realizadas */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
-                    <SectionHeader
-                        icon="build"
-                        title="Atividades realizadas"
-                        action={!isReadOnly && <ButtonNew onClick={() => {
-                            if (asset?.orderTypeId && onManageActivities) {
-                                onManageActivities(asset.orderTypeId);
-                            } else {
-                                toast.error('Não foi possível identificar o tipo de OS');
-                            }
-                        }} />}
-                    />
-                    {activities.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                            {activities.map((act) => {
-                                const isRemoving = removingActivityId === act.activityId;
-                                return (
-                                    <div
-                                        key={act.id}
-                                        className={`px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-xl flex items-center gap-2 transition-all ${
-                                            isRemoving ? 'opacity-50 pointer-events-none scale-95' : ''
-                                        }`}
-                                    >
-                                        <span className="material-symbols-outlined text-xs text-emerald-500 font-black">done</span>
-                                        <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest leading-none pt-0.5">
-                                            {act.activityDescription}
-                                        </span>
-                                        {canRemoveActivities && (
-                                            <>
-                                                <div className="self-stretch -my-2 w-px bg-emerald-200 dark:bg-emerald-500/30 ml-1 mr-0.5" />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveActivity(act.activityId)}
-                                                    disabled={isRemoving}
-                                                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-0.5 rounded-md flex items-center justify-center -mr-1 cursor-pointer disabled:cursor-not-allowed"
-                                                    title="Remover atividade"
-                                                >
-                                                    {isRemoving ? (
-                                                        <span className="material-symbols-outlined text-sm animate-spin text-red-500">
-                                                            progress_activity
-                                                        </span>
-                                                    ) : (
-                                                        <span className="material-symbols-outlined text-sm">delete</span>
-                                                    )}
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="p-8 border-2 border-dashed border-slate-50 dark:border-slate-800/50 rounded-2xl text-center">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                                Nenhuma atividade selecionada.
-                            </p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Materiais utilizados */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
-                    <SectionHeader
-                        icon="inventory_2"
-                        title="Materiais utilizados"
-                        action={!isReadOnly && <ButtonNew onClick={() => {
-                            if (onManageMaterials) {
-                                onManageMaterials();
-                            } else {
-                                toast.error('Funcionalidade indisponível');
-                            }
-                        }} />}
-                    />
-                    {usedMaterials.length > 0 ? (
-                        <>
-                            <div className="space-y-2">
-                                {usedMaterials.map((item) => {
-                                    const isRemoving = removingMaterialId === item.id;
-                                    return (
-                                    <div
-                                        key={item.id}
-                                        className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 transition-all ${isRemoving ? 'opacity-50 pointer-events-none scale-[0.98]' : ''}`}
-                                    >
-                                        <div className="flex flex-col items-start gap-1">
-                                            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
-                                                {item.materialCode}
-                                            </span>
-                                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide">
-                                                {item.materialDescription}
-                                            </span>
-                                            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-tight">
-                                                {item.amount} {item.materialUnit}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <div className="text-right flex flex-col items-end">
-                                                {canView('orders_visits_costs') && (
-                                                    <span className="text-[10px] font-black text-slate-900 dark:text-white">
-                                                        {item.valueTotal?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {/* Mesma regra das atividades: some com a visita aprovada */}
-                                            {canRemoveActivities && (
-                                                <>
-                                                    <div className="self-stretch w-px bg-slate-200 dark:bg-slate-700" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setMaterialToDelete(item)}
-                                                        disabled={isRemoving}
-                                                        className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1 rounded-md flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
-                                                        title="Remover material"
-                                                        aria-label="Remover material"
-                                                    >
-                                                        {isRemoving ? (
-                                                            <span className="material-symbols-outlined text-sm animate-spin text-red-500">progress_activity</span>
-                                                        ) : (
-                                                            <span className="material-symbols-outlined text-sm">delete</span>
-                                                        )}
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                    );
-                                })}
-                            </div>
-                            {canView('orders_visits_costs') && (
-                                <div className="mt-4 flex items-center justify-end gap-2">
-                                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                                        TOTAL
-                                    </span>
-                                    <span className="text-xl font-black text-blue-600 dark:text-blue-400">
-                                        {usedMaterials.reduce((sum, item) => sum + (item.valueTotal || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                    </span>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="p-8 border-2 border-dashed border-slate-50 dark:border-slate-800/50 rounded-2xl text-center">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                                Nenhum material registrado.
-                            </p>
-                        </div>
-                    )}
-                </div>
-
-                {/* 4) Movimentação */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all duration-300">
-                    <SectionHeader
-                        icon="local_shipping"
-                        title="Movimentação"
-                        action={<Switch checked={isMoved} onChange={handleToggleMoved} disabled={isReadOnly} />}
-                    />
-
-                    {isMoved ? (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300 pt-2 pb-2">
-                            <div className="p-4 bg-indigo-50/50 dark:bg-indigo-500/5 rounded-2xl border border-indigo-100/50 dark:border-indigo-500/10 mb-4">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center">
-                                        <span className="material-symbols-outlined text-sm">info</span>
-                                    </div>
-                                    <p className="text-[10px] font-black text-indigo-900 dark:text-indigo-400 uppercase tracking-widest">
-                                        Informe o destino
-                                    </p>
-                                </div>
-                            </div>
-
-                            <Select
-                                label="Cliente / Parceiro ? *"
-                                placeholder="Selecione o destino..."
-                                options={clientsList}
-                                value={afterClientId}
-                                onChange={(e) => handleAfterClientChange(e.target.value)}
-                                disabled={isReadOnly}
-                            />
-
-                            <Select
-                                label="Unidade ? *"
-                                placeholder="Selecione a unidade de destino..."
-                                options={unitsList}
-                                value={afterUnitId}
-                                onChange={(e) => {
-                                    setAfterUnitId(e.target.value);
-                                    setAfterUnitAssetTagId('');
-                                    handleUpdateField({ after_unit_id: e.target.value, after_unit_asset_tag_id: null, after_tag_id: null, after_tag_sub_id: null });
-                                }}
-                                disabled={isReadOnly || !afterClientId}
-                            />
-
-                            <Select
-                                label="Setor / Posição ? *"
-                                placeholder="Selecione o setor/posição..."
-                                options={unitAssetTagsList.map(t => ({ value: t.id, label: t.description }))}
-                                value={afterUnitAssetTagId}
-                                onChange={(e) => handleUnitAssetTagChange(e.target.value)}
-                                disabled={isReadOnly || !afterUnitId}
-                            />
-
-                            <Select
-                                label="Situação ? *"
-                                options={statusesList}
-                                value={afterStatusId}
-                                onChange={(e) => {
-                                    setAfterStatusId(e.target.value);
-                                    handleUpdateField({ after_status_id: e.target.value });
-                                }}
-                                disabled={isReadOnly}
-                            />
-
-                            <Select
-                                label="Prioridade ? *"
-                                options={prioritiesList}
-                                value={afterPriorityId?.toString()}
-                                onChange={(e) => {
-                                    const val = e.target.value ? parseInt(e.target.value) : undefined;
-                                    setAfterPriorityId(val);
-                                    handleUpdateField({ after_priority_id: val });
-                                }}
-                                disabled={isReadOnly}
-                            />
-
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
-                                    Localização ?
-                                </label>
-                                <textarea
-                                    value={afterLocation}
-                                    onChange={(e) => setAfterLocation(e.target.value)}
-                                    onBlur={(e) => handleUpdateField({ after_location: e.target.value })}
-                                    disabled={isReadOnly}
-                                    placeholder="Localização específica..."
-                                    className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[50px] disabled:opacity-70 disabled:cursor-not-allowed"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
-                                    Observações ?
-                                </label>
-                                <textarea
-                                    value={movedComments}
-                                    onChange={(e) => setMovedComments(e.target.value)}
-                                    onBlur={(e) => handleUpdateField({ moved_comments: e.target.value })}
-                                    disabled={isReadOnly}
-                                    placeholder="Observações sobre a movimentação..."
-                                    className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[80px] disabled:opacity-70 disabled:cursor-not-allowed"
-                                />
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="p-8 border-2 border-dashed border-slate-50 dark:border-slate-800/50 rounded-2xl text-center">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                                Clique no switch para informar movimentação do ativo.
-                            </p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Condição Depois */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
-                    <SectionHeader icon="assignment_turned_in" title="Condição Depois" required />
-                    <textarea
-                        value={finalCondition}
-                        onChange={(e) => setFinalCondition(e.target.value)}
-                        onBlur={(e) => handleUpdateComments('after', e.target.value)}
-                        disabled={isReadOnly}
-                        placeholder={isReadOnly ? "Sem comentários" : "Descreva a condição final (depois) do ativo..."}
-                        className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[100px] disabled:opacity-70 disabled:cursor-not-allowed"
-                    />
-                    <ImageGrid
-                        images={finalImages}
-                        type="final"
-                        isReadOnly={isReadOnly}
-                        isVisitFiled={isVisitFiled}
-                        setExpandedImage={setExpandedImage}
-                        removeImage={removeImage}
-                        editImage={handleEditImage}
-                        setPhotoActionSection={setPhotoActionSection}
-                        onUseAsCover={handleUseAsCover}
-                        onFileDrop={!Capacitor.isNativePlatform() ? handleFileDrop : undefined}
-                        isContractManagerAdminSuper={isContractManagerAdminSuper}
-                        isAdminSuper={currentUserIsAdminSuper}
-                    />
-                </div>
-
-                {/* Registrador */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
-                    <SectionHeader
-                        icon="speed"
-                        title="Registrador"
-                        action={
-                            <Switch
-                                checked={hasRecorder}
-                                disabled={isReadOnly}
-                                onChange={async (val) => {
-                                    setHasRecorder(val);
-                                    await handleUpdateField({ has_recorder: val });
-                                }}
-                            />
-                        }
-                    />
-                    {hasRecorder && (
-                        <div className="flex items-center gap-3 mt-2">
-                            {/* Campo ANTES */}
-                            <div className="flex-1 space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Antes</label>
-                                <input
-                                    type="number"
-                                    value={beforeRecorder}
-                                    onChange={(e) => setBeforeRecorder(e.target.value)}
-                                    onBlur={(e) => {
-                                        const val = e.target.value.trim();
-                                        handleUpdateField({ before_recorder: val !== '' ? parseFloat(val) : null });
-                                    }}
-                                    disabled={isReadOnly}
-                                    placeholder="0"
-                                    className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed text-center"
-                                />
-                            </div>
-
-                            {/* Botão de cópia ou diferença */}
-                            <div className="flex flex-col items-center justify-end pb-0.5 pt-5">
-                                {beforeRecorder !== '' && beforeRecorder != null && (afterRecorder === '' || afterRecorder == null) ? (
-                                    // Botão de copiar: beforeRecorder preenchido e afterRecorder vazio
-                                    <button
-                                        type="button"
-                                        disabled={isReadOnly}
-                                        onClick={async () => {
-                                            setAfterRecorder(beforeRecorder);
-                                            await handleUpdateField({ after_recorder: parseFloat(beforeRecorder) });
-                                        }}
-                                        title="Copiar valor de Antes para Depois"
-                                        className="w-9 h-9 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">content_copy</span>
-                                    </button>
-                                ) : beforeRecorder !== '' && beforeRecorder != null && afterRecorder !== '' && afterRecorder != null ? (
-                                    // Exibir diferença: ambos preenchidos
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dif.</span>
-                                        <span className={`text-xs font-black ${
-                                            parseFloat(afterRecorder) - parseFloat(beforeRecorder) >= 0
-                                                ? 'text-emerald-600 dark:text-emerald-400'
-                                                : 'text-red-500 dark:text-red-400'
-                                        }`}>
-                                            {parseFloat(afterRecorder) - parseFloat(beforeRecorder) >= 0 ? '+' : ''}{(parseFloat(afterRecorder) - parseFloat(beforeRecorder)).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
-                                        </span>
-                                    </div>
-                                ) : (
-                                    // Espaçador neutro quando nenhuma condição é satisfeita
-                                    <div className="w-9 h-9" />
-                                )}
-                            </div>
-
-                            {/* Campo DEPOIS */}
-                            <div className="flex-1 space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Depois</label>
-                                <input
-                                    type="number"
-                                    value={afterRecorder}
-                                    onChange={(e) => setAfterRecorder(e.target.value)}
-                                    onBlur={(e) => {
-                                        const val = e.target.value.trim();
-                                        handleUpdateField({ after_recorder: val !== '' ? parseFloat(val) : null });
-                                    }}
-                                    disabled={isReadOnly}
-                                    placeholder="0"
-                                    className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed text-center"
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <ConfirmDeleteModal
-                    isOpen={!!materialToDelete}
-                    onClose={() => { if (!removingMaterialId) setMaterialToDelete(null); }}
-                    onConfirm={() => { if (materialToDelete) handleRemoveMaterial(materialToDelete.id); }}
-                    title="Remover Material"
-                    description={
-                        materialToDelete ? (
-                            <>
-                                Confirma a remoção do material <strong className="text-slate-700 dark:text-slate-200">{materialToDelete.materialDescription}</strong>?
-                            </>
-                        ) : undefined
-                    }
-                    isLoading={!!removingMaterialId}
-                />
-
-                <AssetAlertModal
-                    isOpen={isAddingAlert}
-                    onClose={() => { setIsAddingAlert(false); setAlertInitialDescription(''); }}
-                    assetId={asset?.assetId || ''}
-                    ovaId={asset?.id}
-                    initialDescription={alertInitialDescription}
-                    onSaved={refreshAlerts}
-                />
-
-                {/* Action Buttons */}
-                {!readOnly && (
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800">
-                        <SectionHeader
-                            icon="notifications"
-                            title="ALERTAS RESOLVIDOS"
-                            action={
-                                canCreate('assets_alerts') && !!localEditMode && (
-                                    <button
-                                        onClick={() => { setAlertInitialDescription(''); setIsAddingAlert(true); }}
-                                        className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all cursor-pointer"
-                                    >
-                                        <span className="material-symbols-outlined text-lg">add_alert</span>
-                                    </button>
-                                )
-                            }
-                        />
-
-                        {reportAssetAlerts.length > 0 ? (
-                            <div className="space-y-3">
-                                {reportAssetAlerts.map(alert => {
-                                    const checked = completedAlertIds.includes(alert.id);
-
-                                    return (
-                                        <label
-                                            key={alert.id}
-                                            className={`flex items-start justify-between gap-4 p-4 rounded-2xl border transition-all ${checked
-                                                ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30'
-                                                : 'bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-800'
-                                                }`}
-                                        >
-                                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-relaxed">
-                                                {alert.description || 'Alerta sem descricao.'}
-                                            </span>
-                                            <span className="flex shrink-0 items-center gap-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={checked}
-                                                    disabled={isUpdatingStatus || (localEditMode === null && Number(asset.processingId) !== 1)}
-                                                    onChange={() => toggleCompletedAlert(alert.id)}
-                                                    className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
-                                                />
-                                            </span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="p-8 border-2 border-dashed border-slate-50 dark:border-slate-800/50 rounded-2xl text-center">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                                    Nenhum alerta em aberto para este ativo.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {!readOnly && (
-                <div className="flex flex-col gap-4 pb-12">
-                    {/* 1) RASCUNHO (1), REVISADO (3) ou REJEITADO (4) actions */}
-                    {([1, 3, 4].includes(Number(asset.processingId || 1))) && (
-                        <div className="flex flex-col gap-3">
-                            <button
-                                disabled={uploadingCount > 0 || isUpdatingStatus}
-                                onClick={() => {
-                                    if (!initialCondition.trim() || initialImages.length === 0 || !finalCondition.trim() || finalImages.length === 0) {
-                                        toast.error('Preencha as condições e adicione fotos antes de reportar');
-                                        return;
-                                    }
-
-                                    if (activities.length === 0) {
-                                        toast.error('É necessário selecionar ao menos uma intervenção realizada');
-                                        return;
-                                    }
-
-                                    if (isMoved) {
-                                        if (!afterClientId || !afterUnitId || !afterUnitAssetTagId || !afterPriorityId || !afterStatusId) {
-                                            toast.error('Preencha todos os campos obrigatórios da movimentação');
-                                            return;
-                                        }
-                                        if (!validateMovement()) return;
-                                    }
-
-                                    // Checagem de plano de manutenção incompleto
-                                    const hasMaintenancePlan = asset.maintenancePlanId && asset.maintenancePlanId !== '0';
-                                    if (hasMaintenancePlan && maintenanceProgress < 100) {
-                                        setShowIncompletePlanConfirmModal(true);
-                                        return;
-                                    }
-
-                                    setShowReportConfirmModal(true);
-                                }}
-                                className="w-full py-4 rounded-2xl bg-indigo-500 text-white text-xs font-black uppercase tracking-widest hover:bg-indigo-600 shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
-                            >
-                                {isUpdatingStatus ? 'Processando...' : 'Reportar Relatório do Ativo'}
-                            </button>
-
-                            <button
-                                onClick={onBack}
-                                className="w-full py-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all"
-                            >
-                                Manter como Rascunho
-                            </button>
-
-                        </div>
-                    )}
-
-                    {/* 2) REPORTADO (2) button for simple exit (only if visit is also in draft/processing) */}
-                    {Number(asset.processingId) === 2 && !localEditMode && Number(visitProcessingId || 1) === 1 && (
+                    {(isContractManager || authUser?.isAdmin || authUser?.isAdminSuper) && (
                         <button
-                            disabled={isUpdatingStatus}
-                            onClick={async () => {
-                                try {
-                                    setIsUpdatingStatus(true);
-                                    await dataService.updateOrderVisitAssetProcessingStatus(assetId, 1, currentUserId);
-                                    toast.info('Relatório do ativo revertido para Rascunho');
-                                    onBack();
-                                } catch (error) {
-                                    console.error('Error reverting asset to draft:', error);
-                                    toast.error('Erro ao retornar para rascunho');
-                                    onBack(); // Go back anyway to avoid being stuck
-                                } finally {
-                                    setIsUpdatingStatus(false);
-                                }
-                            }}
-                            className="w-full py-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all"
+                            type="button"
+                            onClick={forceReleaseLock}
+                            className="shrink-0 min-h-[40px] px-3 rounded-lg bg-amber-600 text-white text-[11px] font-black uppercase"
                         >
-                            {isUpdatingStatus ? 'Processando...' : 'Manter como Rascunho'}
+                            Liberar
                         </button>
                     )}
+                </div>
+            )}
 
-                    {/* 2) REPORTADO ou REVISADO -> Review / Approve actions (for users with permissions) */}
-                    {(Number(asset.processingId) === 2 || Number(asset.processingId) === 3 || localEditMode) && (
-                        <div className="flex flex-col gap-3">
-                            {!localEditMode ? (
-                                <>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {canView('orders_visits_processing_disapprove') && (
-                                            <button
-                                                onClick={() => setShowRejectionModal(true)}
-                                                className={`py-4 rounded-2xl bg-red-500/10 text-red-500 border border-red-500/20 text-xs font-black uppercase tracking-widest active:scale-95 transition-all ${!canView('orders_visits_processing_review') ? 'col-span-2' : ''}`}
-                                            >
-                                                Rejeitar
-                                            </button>
-                                        )}
-                                        {canView('orders_visits_processing_review') && (
-                                            <button
-                                                onClick={() => setLocalEditMode('review')}
-                                                className={`py-4 rounded-2xl bg-amber-500/10 text-black dark:text-amber-600 border border-amber-500/20 text-xs font-black uppercase tracking-widest active:scale-95 transition-all ${!canView('orders_visits_processing_disapprove') ? 'col-span-2' : ''}`}
-                                            >
-                                                Revisar
-                                            </button>
-                                        )}
-                                    </div>
-                                    {isContractManager && (
-                                        <button
-                                            onClick={() => setLocalEditMode('approval')}
-                                            className="py-4 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-emerald-500/20"
-                                        >
-                                            Aprovar
-                                        </button>
-                                    )}
-                                </>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-4">
-                                    <button
-                                        onClick={() => setLocalEditMode(null)}
-                                        className="py-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        disabled={isUpdatingStatus}
-                                        onClick={async () => {
-                                            if (!initialCondition.trim() || initialImages.length === 0 || !finalCondition.trim() || finalImages.length === 0) {
-                                                toast.error('Preencha as condições e adicione fotos antes de confirmar');
-                                                return;
-                                            }
+            {/* Modo offline: ativo não reservado no preparo */}
+            {isNotReservedOffline && (
+                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 p-4 rounded-2xl flex items-start gap-3">
+                    <span className="material-symbols-outlined text-slate-500">cloud_off</span>
+                    <div className="flex-1 text-xs">
+                        <p className="font-black text-slate-700 dark:text-slate-200">Sem internet · só consulta</p>
+                        <p className="text-slate-500 dark:text-slate-400 mt-0.5">Este ativo não foi reservado para você em "Preparar para campo".</p>
+                    </div>
+                </div>
+            )}
 
-                                            if (activities.length === 0) {
-                                                toast.error('É necessário selecionar ao menos uma intervenção realizada');
-                                                return;
-                                            }
-                                            if (!validateMovement()) return;
-                                            
-                                            // Se for aprovação e tiver movimentação, mostra modal de aviso
-                                            if (localEditMode === 'approval' && isMoved) {
-                                                setShowApproveMovedModal(true);
-                                                return;
-                                            }
+            {/* Modo offline: alterações deste ativo ainda no aparelho */}
+            {hasUnsentChanges && (
+                <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-500/20 px-4 py-2.5 rounded-2xl flex items-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                    <span className="material-symbols-outlined text-base">cloud_upload</span>
+                    Alterações deste ativo aguardando envio
+                </div>
+            )}
+        </>
+    );
 
-                                            await handleConfirmApproval();
-                                        }}
-                                        className={`py-4 rounded-2xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg ${localEditMode === 'review' ? 'bg-amber-500 text-black shadow-amber-500/20' : 'bg-emerald-500 text-white shadow-emerald-500/20'}`}
-                                    >
-                                        {isUpdatingStatus ? (localEditMode === 'review' ? 'Revisando...' : 'APROVANDO...') : localEditMode === 'review' ? 'Confirmar Revisão' : 'Confirmar Aprovação'}
-                                    </button>
+    return (
+        <div ref={rootRef} className="@container/page min-h-screen bg-transparent">
+            <div className={`mx-auto pt-4 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] ${readOnly ? 'max-w-md' : 'max-w-md @4xl/page:max-w-6xl'} ${showMobileBar ? 'pb-8' : 'pb-[calc(8rem+env(safe-area-inset-bottom,0px))]'} @4xl/page:pb-[calc(2rem+env(safe-area-inset-bottom,0px))]`}>
+                <div className={readOnly ? '' : '@4xl/page:grid @4xl/page:grid-cols-[340px_minmax(0,1fr)] @4xl/page:gap-6 @4xl/page:items-start'}>
+
+                    {/* Desktop: painel lateral fixo (à esquerda) */}
+                    {!readOnly && (
+                        <aside className="hidden @4xl/page:block sticky top-4 space-y-4">
+                            <OrderVisitAssetCardDetail asset={asset} onClick={onViewAsset} />
+                            {showProgress && <AssetReportProgress items={progressItems} variant="list" readyLabel={progressReadyLabel} />}
+                            {!isReadOnly && saveState !== 'idle' && (
+                                <div className="bg-white dark:bg-slate-900 rounded-2xl px-4 py-3 shadow-sm border border-slate-100 dark:border-slate-800">
+                                    <AssetReportSaveStatus state={saveState} onRetry={flushQuietly} />
                                 </div>
                             )}
-                        </div>
+                            <AssetReportActions mode="all" {...actionProps} />
+                        </aside>
                     )}
 
-                    {/* Botão Trocar Ativo (condições específicas: Status Reportado/Revisado/Rejeitado, não movido e não arquivado) */}
-                    {[2, 3, 4].includes(Number(visitProcessingId)) && !isMoved && asset.isFiled === false && (
-                        <div className="flex flex-col gap-3 mt-4">
-                            <button
-                                type="button"
-                                onClick={openSwapModal}
-                                className="w-full py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-black dark:text-amber-600 border border-amber-100 dark:border-amber-500/20 text-xs font-black uppercase tracking-widest hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-all active:scale-95"
-                            >
-                                Trocar Ativo (Ativo Errado)
-                            </button>
-                        </div>
-                    )}
+                    {/* Coluna principal */}
+                    <div className="@container min-w-0 space-y-6">
+                        {notices}
 
-                    {Number(visitProcessingId) !== 5 && (!asset.isFiled || !isMoved) && (
-                        <div className="flex flex-col gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setShowRemoveModal(true)}
-                                className="w-full py-4 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-500 border border-red-100 dark:border-red-500/20 text-xs font-black uppercase tracking-widest hover:bg-red-100 dark:hover:bg-red-500/20 transition-all active:scale-95"
-                            >
-                                Remover Ativo da Visita
-                            </button>
-                        </div>
-                    )}
+                        {/* Celular: ativo + progresso no topo (no desktop vão para o painel) */}
+                        {!readOnly && (
+                            <div className="space-y-4 @4xl/page:hidden">
+                                <OrderVisitAssetCardDetail asset={asset} onClick={onViewAsset} />
+                                {showProgress && <AssetReportProgress items={progressItems} variant="compact" readyLabel={progressReadyLabel} />}
+                            </div>
+                        )}
 
+                        {/*
+                          Seções: no celular seguem a ordem do DOM (ordem do trabalho);
+                          com a coluna larga (@2xl) Antes/Depois ficam lado a lado.
+                        */}
+                        <div className="grid grid-cols-1 gap-6 @2xl:grid-cols-2">
+                            {currentUserIsAdminSuper && asset.code && processingId !== OVA_PROCESSING.APPROVED && (
+                                <ReportSection icon="menu_book" title="Manuais Técnicos" className="@2xl:col-span-2 @2xl:order-0">
+                                    <OrderVisitAssetManualsSection assetId={String(asset.assetId)} assetCode={asset.code} />
+                                </ReportSection>
+                            )}
+
+                            <AssetReportConditionSection
+                                id={REPORT_SECTION_IDS.before}
+                                className="@2xl:order-1"
+                                side="initial"
+                                photos={photos.initialPhotos}
+                                value={initialCondition}
+                                onChange={(v) => {
+                                    setInitialCondition(v);
+                                    queueSave({ before_comments: v });
+                                }}
+                                onBlur={flushQuietly}
+                                {...gridProps}
+                            />
+
+                            <div id={REPORT_SECTION_IDS.checklist} className="scroll-mt-4 @2xl:col-span-2 @2xl:order-3">
+                                <MaintenanceChecklistView
+                                    ovAssetId={asset.id}
+                                    assetId={asset.assetId}
+                                    assetTypeId={asset.assetTypeId}
+                                    companyId={asset.oCompanyId}
+                                    userId={currentUserId}
+                                    initialPlanId={asset.maintenancePlanId}
+                                    onUpdateProgress={handleChecklistProgress}
+                                    onPlanChange={handleChecklistPlanChange}
+                                    disabled={isReadOnly || isVisitFiled}
+                                    onAddAlert={canCreate('assets_alerts') ? (description) => {
+                                        setAlertInitialDescription(description);
+                                        setIsAddingAlert(true);
+                                    } : undefined}
+                                />
+                            </div>
+
+                            <AssetReportActivitiesSection
+                                id={REPORT_SECTION_IDS.activities}
+                                className="@2xl:col-span-2 @2xl:order-4"
+                                activities={activities}
+                                isReadOnly={isReadOnly}
+                                canRemove={canRemoveItems}
+                                removingActivityId={removingActivityId}
+                                onAdd={() => {
+                                    if (asset.orderTypeId && onManageActivities) onManageActivities(asset.orderTypeId);
+                                    else toast.error('Não foi possível identificar o tipo de OS');
+                                }}
+                                onRemove={handleRemoveActivity}
+                            />
+
+                            <AssetReportMaterialsSection
+                                id={REPORT_SECTION_IDS.materials}
+                                className="@2xl:col-span-2 @2xl:order-5"
+                                materials={usedMaterials}
+                                isReadOnly={isReadOnly}
+                                canRemove={canRemoveItems}
+                                showCosts={canView('orders_visits_costs')}
+                                removingMaterialId={removingMaterialId}
+                                onAdd={() => {
+                                    if (onManageMaterials) onManageMaterials();
+                                    else toast.error('Funcionalidade indisponível');
+                                }}
+                                onRemove={setMaterialToDelete}
+                            />
+
+                            <AssetReportMovementSection
+                                id={REPORT_SECTION_IDS.movement}
+                                className="@2xl:col-span-2 @2xl:order-6"
+                                isMoved={isMoved}
+                                isReadOnly={isReadOnly}
+                                showMissing={!isReadOnly && isMoved && !isMovementComplete}
+                                origin={{
+                                    clientName: asset.beforeClientName || asset.clientName,
+                                    unitDescription: asset.beforeUnitDescription,
+                                    tagDescription: [asset.beforeTagDescription, asset.beforeTagSubDescription].filter(Boolean).join(' / ') || undefined,
+                                    statusDescription: asset.beforeStatusDescription,
+                                    location: asset.beforeLocation,
+                                }}
+                                values={{
+                                    clientId: afterClientId,
+                                    unitId: afterUnitId,
+                                    unitAssetTagId: afterUnitAssetTagId,
+                                    statusId: afterStatusId,
+                                    priorityId: afterPriorityId,
+                                    location: afterLocation,
+                                    comments: movedComments,
+                                }}
+                                onToggle={handleToggleMoved}
+                                onClientChange={handleAfterClientChange}
+                                onUnitChange={handleAfterUnitChange}
+                                onUnitAssetTagChange={handleUnitAssetTagChange}
+                                onStatusChange={(v) => { setAfterStatusId(v); saveNow({ after_status_id: v }); }}
+                                onPriorityChange={(v) => { setAfterPriorityId(v); saveNow({ after_priority_id: v ?? null }); }}
+                                onLocationChange={(v) => { setAfterLocation(v); queueSave({ after_location: v }); }}
+                                onCommentsChange={(v) => { setMovedComments(v); queueSave({ moved_comments: v }); }}
+                                onTextBlur={flushQuietly}
+                            />
+
+                            <AssetReportConditionSection
+                                id={REPORT_SECTION_IDS.after}
+                                className="@2xl:order-2"
+                                side="final"
+                                photos={photos.finalPhotos}
+                                value={finalCondition}
+                                onChange={(v) => {
+                                    setFinalCondition(v);
+                                    queueSave({ after_comments: v });
+                                }}
+                                onBlur={flushQuietly}
+                                {...gridProps}
+                            />
+
+                            <AssetReportRecorderSection
+                                id={REPORT_SECTION_IDS.recorder}
+                                className={`@2xl:order-7 ${readOnly ? '@2xl:col-span-2' : ''}`}
+                                hasRecorder={hasRecorder}
+                                before={beforeRecorder}
+                                after={afterRecorder}
+                                isReadOnly={isReadOnly}
+                                onToggle={(val) => { setHasRecorder(val); saveNow({ has_recorder: val }); }}
+                                onBeforeChange={(v) => { setBeforeRecorder(v); queueSave({ before_recorder: parseRecorder(v) }); }}
+                                onAfterChange={(v) => { setAfterRecorder(v); queueSave({ after_recorder: parseRecorder(v) }); }}
+                                onCopyBeforeToAfter={() => { setAfterRecorder(beforeRecorder); saveNow({ after_recorder: parseRecorder(beforeRecorder) }); }}
+                                onBlur={flushQuietly}
+                            />
+
+                            {!readOnly && (
+                                <AssetReportAlertsSection
+                                    id={REPORT_SECTION_IDS.alerts}
+                                    className="@2xl:order-8"
+                                    alerts={reportAssetAlerts}
+                                    completedAlertIds={completedAlertIds}
+                                    updatingAlertId={updatingAlertId}
+                                    disabled={isUpdatingStatus || (localEditMode === null && processingId !== OVA_PROCESSING.DRAFT)}
+                                    onToggle={toggleCompletedAlert}
+                                    onAdd={canCreate('assets_alerts') && !!localEditMode
+                                        ? () => { setAlertInitialDescription(''); setIsAddingAlert(true); }
+                                        : undefined}
+                                />
+                            )}
+                        </div>
+
+                        {/* Celular: ações secundárias no fim (a principal fica na barra fixa) */}
+                        {!readOnly && (
+                            <div className="@4xl/page:hidden">
+                                <AssetReportActions mode={showMobileBar ? 'secondary' : 'all'} {...actionProps} />
+                            </div>
+                        )}
+                    </div>
                 </div>
-                )}
             </div>
 
-            {/* Asset Swap Page (Overlay) */}
-            {showSwapPage && (
-                <div className="fixed inset-0 z-150 bg-slate-100 dark:bg-slate-950 animate-in slide-in-from-right duration-300 overflow-y-auto sheet-safe-bottom">
-                    {/* Page Header */}
-                    <div className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-100 dark:border-slate-800 p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
-                        <div className="max-w-md flex items-center gap-4">
-                            <button
-                                onClick={() => setShowSwapPage(false)}
-                                className="p-2 -ml-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            >
-                                <span className="material-symbols-outlined">arrow_back</span>
-                            </button>
-                            <h2 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Buscar Ativo</h2>
-                        </div>
-                    </div>
-
-                    <div className="max-w-md mx-auto p-4 pb-12 space-y-6">
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm space-y-5">
-                            <div className="flex flex-col gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
-                                        Cliente
-                                    </label>
-                                    <Select
-                                        options={swapClientsList}
-                                        value={swapSearchClientId}
-                                        onChange={(e) => handleSwapClientChange(e.target.value)}
-                                        placeholder="Selecione o cliente..."
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
-                                        Unidade
-                                    </label>
-                                    <Select
-                                        options={swapUnitsList}
-                                        value={swapSearchUnitId}
-                                        onChange={(e) => setSwapSearchUnitId(e.target.value)}
-                                        placeholder="Selecione a unidade..."
-                                        disabled={!swapSearchClientId}
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
-                                        Código do Ativo
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={swapSearchCode}
-                                            onChange={(e) => setSwapSearchCode(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleSearchNewAsset()}
-                                            placeholder="Ex: MTR-01"
-                                            className="flex-1 p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                            disabled={!swapSearchUnitId}
-                                        />
-                                        <button
-                                            onClick={handleSearchNewAsset}
-                                            disabled={isSearchingSwap || !swapSearchCode}
-                                            className="w-12 h-12 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20"
-                                        >
-                                            {isSearchingSwap ? (
-                                                <Loading size="xs" />
-                                            ) : (
-                                                <span className="material-symbols-outlined">search</span>
-                                            )}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {isSearchingSwap && (
-                            <div className="flex justify-center py-12">
-                                <Loading size="sm" />
-                            </div>
-                        )}
-
-                        {!isSearchingSwap && swapSearchResults.length > 0 && (
-                            <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-2">
-                                    Resultados Encontrados ({swapSearchResults.length})
-                                </h4>
-                                <div className="space-y-3">
-                                    {swapSearchResults.map(res => {
-                                        const isSelected = selectedAssetForSwap?.id === res.id;
-                                        const mappedAsset: any = {
-                                            ...res,
-                                            beforeUnitDescription: res.unitDescriptionFull,
-                                            beforeTagDescription: res.tagName,
-                                            beforeTagSubDescription: res.tagSubName,
-                                            beforeStatusDescription: res.statusCode,
-                                            beforeStatusColor: res.statusColor,
-                                        };
-
-                                        return (
-                                            <div key={res.id} className="space-y-3">
-                                                <div className={`${isSelected ? 'ring-2 ring-indigo-500 rounded-2xl shadow-xl ring-offset-4 bg-white dark:bg-slate-900 dark:ring-offset-slate-950 transition-all' : ''}`}>
-                                                    <OrderVisitAssetCardListItem
-                                                        asset={mappedAsset}
-                                                        onClick={() => setSelectedAssetForSwap(isSelected ? null : res)}
-                                                    />
-                                                </div>
-                                                {isSelected && (
-                                                    <div className="animate-in fade-in slide-in-from-top-4 duration-500 px-1">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleSwapAsset(res);
-                                                            }}
-                                                            disabled={isSwapping}
-                                                            className="w-full py-5 bg-indigo-500 hover:bg-indigo-600 active:scale-[0.98] text-white font-black rounded-[24px] shadow-xl shadow-indigo-500/20 transition-all flex items-center justify-center gap-3 group"
-                                                        >
-                                                            {isSwapping ? (
-                                                                <Loading size="xs" />
-                                                            ) : (
-                                                                <>
-                                                                    <span className="material-symbols-outlined text-2xl transition-transform group-hover:scale-110">check_circle</span>
-                                                                    CONFIRMAR SUBSTITUIÇÃO
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {!isSearchingSwap && swapSearchResults.length === 0 && swapSearchCode && (
-                            <div className="text-center py-12 px-6">
-                                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                                    <span className="material-symbols-outlined text-4xl">search_off</span>
-                                </div>
-                                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Nenhum Ativo Encontrado</h3>
-                            </div>
-                        )}
+            {/* Celular: barra fixa com a ação principal */}
+            {showMobileBar && !isTyping && (
+                <div className="@4xl/page:hidden sticky bottom-0 z-30 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+                    <div className="max-w-md mx-auto space-y-2">
+                        {!isReadOnly && <AssetReportSaveStatus state={saveState} onRetry={flushQuietly} />}
+                        <AssetReportActions mode="primary" {...actionProps} />
                     </div>
                 </div>
+            )}
+
+            <ConfirmDeleteModal
+                isOpen={!!materialToDelete}
+                onClose={() => { if (!removingMaterialId) setMaterialToDelete(null); }}
+                onConfirm={() => { if (materialToDelete) handleRemoveMaterial(materialToDelete.id); }}
+                title="Remover Material"
+                description={materialToDelete ? (
+                    <>Confirma a remoção do material <strong className="text-slate-700 dark:text-slate-200">{materialToDelete.materialDescription}</strong>?</>
+                ) : undefined}
+                isLoading={!!removingMaterialId}
+            />
+
+            <AssetAlertModal
+                isOpen={isAddingAlert}
+                onClose={() => { setIsAddingAlert(false); setAlertInitialDescription(''); }}
+                assetId={asset.assetId || ''}
+                ovaId={asset.id}
+                initialDescription={alertInitialDescription}
+                onSaved={refreshAlerts}
+            />
+
+            {showSwapPage && (
+                <AssetReportSwapPage
+                    currentAssetId={asset.assetId}
+                    initialClientId={asset.clientId || ''}
+                    initialUnitId={asset.unitId || ''}
+                    isSwapping={isSwapping}
+                    onClose={() => setShowSwapPage(false)}
+                    onConfirm={handleSwapAsset}
+                />
             )}
 
             {expandedImage && (
@@ -2093,7 +1140,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 />
             )}
 
-            {/* Photo Action Sheet */}
             {photoActionSection && (
                 <ImageUploadSheet
                     isOpen={!!photoActionSection}
@@ -2103,7 +1149,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 />
             )}
 
-            {/* Image Editor Modal */}
             {editingImage && (
                 <ImageEditorModal
                     isOpen={!!editingImage}
@@ -2113,38 +1158,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 />
             )}
 
-            {/* Upload Progress Overlay */}
-            {uploadingCount > 0 && (
-                <div className="fixed inset-0 pad-safe-4 z-200 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl max-w-sm mx-4 animate-in zoom-in duration-300">
-                        <div className="flex flex-col items-center gap-6">
-                            <div className="relative">
-                                <div className="w-20 h-20 rounded-full bg-indigo-500/10 flex items-center justify-center">
-                                    <span className="material-symbols-outlined text-5xl text-indigo-500 animate-bounce">
-                                        cloud_upload
-                                    </span>
-                                </div>
-                                <Loading size="xs" />
-                            </div>
-                            <div className="text-center space-y-2">
-                                <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                                    Enviando {uploadingCount} {uploadingCount === 1 ? 'foto' : 'fotos'}
-                                </h3>
-                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                                    Aguarde um momento...
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Rejection Modal */}
             {showRejectionModal && createPortal(
                 <div className="fixed inset-0 z-200 flex items-center justify-center pad-safe-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowRejectionModal(false)}>
                     <div
@@ -2163,35 +1176,21 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                                 value={rejectionNotes}
                                 onChange={(e) => setRejectionNotes(e.target.value)}
                                 placeholder="Descreva os motivos..."
-                                className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all min-h-[120px]"
+                                aria-label="Motivo da rejeição"
+                                className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all min-h-[120px]"
                             />
                         </div>
                         <div className="p-6 pt-0 flex flex-col gap-3">
                             <button
+                                type="button"
                                 disabled={!rejectionNotes.trim() || isUpdatingStatus}
-                                onClick={async () => {
-                                    try {
-                                        setIsUpdatingStatus(true);
-                                        await dataService.disapproveOrderVisitAsset(assetId, currentUserId, rejectionNotes);
-                                        setAsset({
-                                            ...asset!,
-                                            processingId: 4,
-                                            processingDescription: 'Rejeitado',
-                                            disapprovedNotes: rejectionNotes
-                                        });
-                                        setShowRejectionModal(false);
-                                        toast.success('Relatório Rejeitado');
-                                    } catch (error) {
-                                        toast.error('Erro ao rejeitar');
-                                    } finally {
-                                        setIsUpdatingStatus(false);
-                                    }
-                                }}
+                                onClick={handleConfirmRejection}
                                 className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-red-500/20 transition-all active:scale-95 disabled:opacity-50"
                             >
                                 {isUpdatingStatus ? 'Processando...' : 'Confirmar Rejeição'}
                             </button>
                             <button
+                                type="button"
                                 onClick={() => setShowRejectionModal(false)}
                                 className="w-full py-4 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest text-xs rounded-2xl transition-all active:scale-95"
                             >
@@ -2203,7 +1202,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 document.body
             )}
 
-            {/* Movement Validation Modal */}
             <Modal
                 isOpen={showMovementModal}
                 onClose={() => setShowMovementModal(false)}
@@ -2213,7 +1211,17 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 confirmLabel="Entendi"
             />
 
-            {/* Remove Confirmation Modal */}
+            <Modal
+                isOpen={showUnmoveConfirmModal}
+                onClose={() => setShowUnmoveConfirmModal(false)}
+                onConfirm={clearMovement}
+                title="Desligar movimentação"
+                message="Os dados de destino serão descartados e o ativo continua como estava originalmente. Deseja continuar?"
+                type="warning"
+                confirmLabel="Sim, Desligar"
+                cancelLabel="Cancelar"
+            />
+
             <Modal
                 isOpen={showRemoveModal}
                 onClose={() => setShowRemoveModal(false)}
@@ -2227,7 +1235,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 cancelLabel="Não, Manter"
             />
 
-            {/* Cover Photo Confirmation Modal */}
             <Modal
                 isOpen={showCoverConfirmModal}
                 onClose={() => {
@@ -2244,7 +1251,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 cancelLabel="Cancelar"
             />
 
-            {/* Approval with Movement Confirmation Modal */}
             <Modal
                 isOpen={showApproveMovedModal}
                 onClose={() => setShowApproveMovedModal(false)}
@@ -2258,7 +1264,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 cancelLabel="Cancelar"
             />
 
-            {/* Incomplete Maintenance Plan Confirmation Modal */}
             <Modal
                 isOpen={showIncompletePlanConfirmModal}
                 onClose={() => setShowIncompletePlanConfirmModal(false)}
@@ -2266,8 +1271,9 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     setShowIncompletePlanConfirmModal(false);
                     if (maintenanceProgress === 0) {
                         try {
-                            // Quando progress = 0, desvincula o plano
+                            // Progresso 0: desvincula o plano
                             await dataService.updateOrderVisitAssetPlan(assetId, null as any);
+                            setChecklistPlanId('');
                             await dataService.updateOrderVisitAssetProgress(assetId, 0);
                         } catch (err) {
                             console.error('Error clearing maintenance plan:', err);
@@ -2278,34 +1284,18 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 title="Plano de Manutenção Incompleto"
                 message={
                     maintenanceProgress === 0
-                        ? "O plano de manutenção associado a este ativo está apenas 0% concluído. Portanto, a relação com este será desvinculado. Deseja reportar o relatório assim mesmo?"
-                        : `O plano de manutenção associado a este ativo está apenas ${maintenanceProgress}% concluído. Portanto os itens faltantes deverao ser respondidos em outro momento para fins de encerrar a relação com o plano de manutencao. Deseja reportar o relatório assim mesmo?`
+                        ? 'O plano de manutenção associado a este ativo está 0% concluído, por isso será desvinculado deste relatório. Deseja reportar o relatório assim mesmo?'
+                        : `O plano de manutenção associado a este ativo está ${maintenanceProgress}% concluído. Os itens que faltam deverão ser respondidos em outro momento para encerrar a relação com o plano de manutenção. Deseja reportar o relatório assim mesmo?`
                 }
                 type="warning"
                 confirmLabel="Sim, Reportar assim mesmo"
                 cancelLabel="Não, Voltar ao checklist"
             />
 
-            {/* Report Confirmation Modal */}
             <Modal
                 isOpen={showReportConfirmModal}
                 onClose={() => setShowReportConfirmModal(false)}
-                onConfirm={async () => {
-                    try {
-                        setIsUpdatingStatus(true);
-                        if (initialCondition) await handleUpdateComments('before', initialCondition);
-                        if (finalCondition) await handleUpdateComments('after', finalCondition);
-                        await completeSelectedAlerts();
-                        await dataService.reportedOrderVisitAsset(assetId, currentUserId);
-                        await releaseMyLock();
-                        toast.success('Relatório reportado com sucesso!');
-                        onBack();
-                    } catch (error) {
-                        toast.error('Erro ao reportar');
-                    } finally {
-                        setIsUpdatingStatus(false);
-                    }
-                }}
+                onConfirm={handleConfirmReport}
                 title="Confirmar Reporte"
                 message="Após reportar, as informações não poderão ser mais atualizadas. Deseja continuar?"
                 type="warning"

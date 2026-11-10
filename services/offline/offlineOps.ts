@@ -7,7 +7,7 @@ import { findInCachedReads, patchCachedRead, patchCachedReadsOf, readCached } fr
  * Todas só DEFINEM valores ("comentário = X", "atividade marcada = sim"):
  * reenviar a mesma operação dá o mesmo resultado. Por isso a fila reexecuta
  * o próprio método do serviço, sem RPC novo. Inserts (material novo, serviço
- * novo…) duplicariam linhas — ficam para a F4, com client_uuid.
+ * novo…) duplicariam linhas — ficam para a F4, com offline_uuid.
  *
  * Para cada método:
  *   ovaId(args)          → ativo da visita afetado (checagem da trava no envio)
@@ -42,7 +42,7 @@ export interface OfflineOpSpec {
     barrier?: 'ova' | 'visit';
     /**
      * F4 — args[0] pode ser o id temporário de uma linha criada offline
-     * ("tmp:<client_uuid>"); no envio vira o id real, procurado nesta tabela.
+     * ("tmp:<offline_uuid>"); no envio vira o id real, procurado nesta tabela.
      */
     tmpIdTable?: string;
     /** F4 — depois de enviada (ex.: soltar a trava ao relatar o ativo). */
@@ -332,6 +332,9 @@ export const OFFLINE_OPS: Record<string, OfflineOpSpec> = {
     // updateAssetAlert(id, alert) → AssetAlert
     updateAssetAlert: {
         entityKey: a => `alert:${str(a[0])}`,
+        // Alerta resolvido num ativo incluído offline ({ ovaId: "tmp:…" }): espera
+        // a inclusão e recebe o id real no envio (offlineSync).
+        ovaId: a => (str(a[1]?.ovaId).startsWith('tmp:') ? str(a[1].ovaId) : undefined),
         applyLocal: async (ctx, a) => {
             const [id, patch] = [str(a[0]), (a[1] || {}) as Record<string, unknown>];
             let merged: any;

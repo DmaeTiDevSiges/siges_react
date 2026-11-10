@@ -1,5 +1,6 @@
 import { supabase } from '../core/supabase';
-import { insertWithClientUuid } from '../core/clientUuidInsert';
+import { insertWithOfflineUuid } from '../core/offlineUuidInsert';
+import { offlineUuidOf, vehicleOfflineUuidOf } from '../offline/offlineUuid';
 import { r2Service } from '../media/r2Service';
 import { getBrazilNaiveTimestamp, getBrazilTimestamp } from '../../utils/dateUtils';
 import { getPublicImageUrl } from '../media/imageUtils';
@@ -405,7 +406,19 @@ export const visitsService = {
     // VISIT START
     // -------------------------------------------------------------------------
 
-    async startOrderVisit(order: Order, currentUser: User, startedAt?: string): Promise<void> {
+    async startOrderVisit(
+        order: Pick<Order, 'id' | 'parentId'>,
+        currentUser: Pick<User, 'id'>,
+        startedAt?: string,
+        options?: {
+            offlineUuid?: string;
+            clientStartedAt?: string;
+            vehicleOfflineUuid?: string;
+            /** fila de APK anterior (nomes antigos) */
+            clientUuid?: string;
+            vehicleClientUuid?: string;
+        }
+    ): Promise<void> {
         const payload: { order_id: number; user_id: number; started_at?: string } = {
             order_id: Number(order.id),
             user_id: Number(currentUser.id)
@@ -413,6 +426,38 @@ export const visitsService = {
 
         if (startedAt) {
             payload.started_at = toBrazilNaiveDateTime(startedAt);
+        }
+
+        // Modo offline (etapa 3): início vindo da fila → v3 (idempotente pelo
+        // offline_uuid, hora do aparelho, conflito SG409). Sem a v3 no banco NÃO
+        // cai na v2: reenviar pela v2 poderia criar a visita duas vezes.
+        const offlineUuid = offlineUuidOf(options);
+        const vehicleOfflineUuid = vehicleOfflineUuidOf(options);
+        if (offlineUuid) {
+            const { error: v3Error } = await supabase.rpc('flow_order_visit_create_v3', {
+                payload: {
+                    ...payload,
+                    // Nomes novos (20261125) e antigos: funciona antes e depois da migration.
+                    offline_uuid: offlineUuid,
+                    client_uuid: offlineUuid,
+                    client_started_at: options?.clientStartedAt || null,
+                    vehicle_offline_uuid: vehicleOfflineUuid || null,
+                    vehicle_client_uuid: vehicleOfflineUuid || null,
+                }
+            });
+            if (v3Error) {
+                const err: any = new Error(
+                    v3Error.code === 'PGRST202' || v3Error.code === '42883'
+                        ? 'O banco ainda não tem a função para iniciar visita sem internet (migration 20261124).'
+                        : v3Error.message || 'Erro ao iniciar visita'
+                );
+                err.code = v3Error.code;
+                throw err;
+            }
+            if (order.parentId) {
+                await ordersService.updateServiceRequestStatus(order.parentId.toString());
+            }
+            return;
         }
 
         const { data, error } = await supabase.rpc('flow_order_visit_create_v2', {
@@ -1308,15 +1353,15 @@ export const visitsService = {
             });
     },
 
-    async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string, options?: { clientUuid?: string }): Promise<void> {
-        // clientUuid: inclusão feita sem internet (fila offline) — reenviar não duplica.
+    async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
+        // offlineUuid: inclusão feita sem internet (fila offline) — reenviar não duplica.
         try {
-            await insertWithClientUuid('orders_visits_vehicles', {
+            await insertWithOfflineUuid('orders_visits_vehicles', {
                 ov_id: parseInt(visitId),
                 vehicle_id: parseInt(vehicleId),
                 created_user_id: parseInt(userId),
                 created_at: new Date().toISOString()
-            }, options?.clientUuid);
+            }, offlineUuidOf(options));
         } catch (error) {
             console.error('Error adding vehicle to visit:', error);
             throw error;
@@ -1749,6 +1794,7 @@ export const visitsService = {
             orderTypeId: orderTypeId,
             oContractId: contractId,
             maintenancePlanId: data.maintenance_plan_id?.toString(),
+            maintenancePlanProgress: data.maintenance_plan_progress != null ? Number(data.maintenance_plan_progress) : undefined,
             hasRecorder: data.has_recorder ?? false,
             beforeRecorder: data.before_recorder ?? null,
             afterRecorder: data.after_recorder ?? null,
@@ -2167,7 +2213,7 @@ export const visitsService = {
         return visitsService.syncOrderVisitAssetsProcessing(visitId);
     },
 
-    async addAssetToOrderVisit(visitId: string, assetId: string, userId: string): Promise<void> {
+    async addAssetToOrderVisit(visitId: string, assetId: string, userId: string, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
         // 1. Fetch asset details
         const { data: asset, error: assetError } = await supabase
             .from('assets')
@@ -2227,11 +2273,10 @@ export const visitsService = {
             op_id: visit.op_id
         };
 
-        const { error } = await supabase
-            .from('orders_visits_assets')
-            .insert(payload);
-
-        if (error) {
+        // Modo offline: incluído sem internet → offline_uuid (reenviar não duplica)
+        try {
+            await insertWithOfflineUuid('orders_visits_assets', payload, offlineUuidOf(options));
+        } catch (error) {
             console.error('Error adding asset to visit:', error);
             throw error;
         }
@@ -2477,7 +2522,7 @@ export const visitsService = {
             serviceId: item.service_id?.toString(), // cfg_services.id — used for alreadyAdded filter
             amount: Number(item.amount),
             valueUnit: Number(item.value_unit),
-            discount: Number(item.discount || 0),
+            discount: item.discount != null ? Number(item.discount) : 1, // banco: COALESCE(discount, 1)
             valueTotal: Number(item.value_total),
             versionMode: item.version_mode,
             serviceDescription: item.description,
@@ -2486,7 +2531,7 @@ export const visitsService = {
         }));
     },
 
-    async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1, options?: { clientUuid?: string }): Promise<void> {
+    async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
         // Fetch contract service details: value_unit, discount and the actual cfg_services.id (service_id)
         const { data: cs } = await supabase
             .from('contracts_services')
@@ -2499,7 +2544,7 @@ export const visitsService = {
         // service_id must reference cfg_services.id so the view v_orders_visits_services resolves correctly
         const serviceId = cs?.service_id ? parseInt(cs.service_id) : parseInt(contractServiceId);
 
-        await insertWithClientUuid('orders_visits_services', {
+        await insertWithOfflineUuid('orders_visits_services', {
                 ov_id: parseInt(visitId),
                 service_id: serviceId,
                 amount: amount,
@@ -2508,7 +2553,7 @@ export const visitsService = {
                 value_total: amount * valueUnit * (discount || 1),
                 created_user_id: parseInt(userId),
                 created_at: new Date().toISOString()
-            }, options?.clientUuid);
+            }, offlineUuidOf(options));
     },
 
     async removeServiceFromOrderVisit(ovServiceId: string): Promise<void> {

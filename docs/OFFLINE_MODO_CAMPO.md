@@ -1,6 +1,6 @@
 # Modo offline em campo — relatório do ativo e da visita
 
-Status: **F0 concluída; F1–F4 com código pronto. Próximo passo: portão de validação no aparelho — a F5 só começa depois dele** (decisão de 08/11/2026; roteiro em [OFFLINE_PLANO_IMPLEMENTACAO.md](OFFLINE_PLANO_IMPLEMENTACAO.md)). Flag: `VITE_FEATURE_OFFLINE_MODE` (`features.ts → isOfflineModeEnabled`).
+Status: **F0–F5 e etapas 1–3 do preparo automático com código pronto** (10/11/2026) — portão aprovado por decisão do usuário; liberação geral. Migration 20261124 (iniciar visita offline) aplicada em 10/11/2026. Pendências fora do código: troca do pacote Android (rollout) e Worker do R2 (deploy). Flag: `VITE_FEATURE_OFFLINE_MODE` + chave `cfg_companies.offline_enabled`.
 
 ## Objetivo
 
@@ -26,7 +26,7 @@ View ──► dataService (fachada) ──► offline ON e método da visita?
                                                  │
                      networkService (reconectou) ▼
                                    motor de sincronização: renova sessão → envia em ordem
-                                   → RPCs idempotentes (client_uuid / client_op_id / lock_token)
+                                   → RPCs idempotentes (offline_uuid / client_op_id / lock_token)
 ```
 
 - **Banco local:** F1 usa `@capacitor/filesystem` (`Directory.Data`, não é limpo como o IndexedDB do WebView) atrás da interface `OfflineStore`; SQLite (`@capacitor-community/sqlite` 8.1.1, compatível) fica como opção se a F2 precisar.
@@ -35,11 +35,18 @@ View ──► dataService (fachada) ──► offline ON e método da visita?
   `op_id` (UUID), dependências e estado `pendente | enviando | ok | erro | conflito`.
 - **Conflito:** nunca some em silêncio — aparece na tela de pendências do técnico.
 
+> **Coluna `offline_uuid` (antes `client_uuid`)** — renomeada pela migration
+> `20261125_rename_client_uuid_to_offline_uuid.sql` (10/11/2026): "client" se confundia com
+> **cliente** (empresa). É o UUID que o **app** gera para uma linha criada sem internet (id local
+> `tmp:<uuid>`); o UNIQUE impede duplicar no reenvio da fila; `NULL` = criada online. As
+> migrations antigas abaixo citam `client_uuid` porque foram escritas antes do renomear.
+> **Ordem segura:** distribuir o APK novo (funciona com os dois nomes) e só então aplicar a 20261125.
+
 ## Banco (F0 — aplicar no SQL Editor, nesta ordem)
 
 | Migration | O que faz | Reverter |
 |-----------|-----------|----------|
-| `20261116_add_offline_client_uuid.sql` | `client_uuid UUID UNIQUE` em `orders_visits_assets`, `_assets_activities`, `_assets_materials`, `orders_visits_services`, `orders_visits_vehicles` | `_DOWN` |
+| `20261116_add_offline_client_uuid.sql` | `offline_uuid UUID UNIQUE` em `orders_visits_assets`, `_assets_activities`, `_assets_materials`, `orders_visits_services`, `orders_visits_vehicles` | `_DOWN` |
 | `20261117_add_orders_visits_assets_lock.sql` | `locked_user_id`, `locked_at`, `lock_token` + RPCs `ov_asset_lock(ova_id)` e `ov_asset_unlock(ova_id, force)` | `_DOWN` |
 | `20261118_create_flow_order_visit_close_v4.sql` | `flow_order_visit_close_v4` (hora do aparelho, idempotente por `p_client_op_id`, conflito `SG409`) + `ov_close_client_op_id`, `ov_close_received_at` em `orders_visits`. **A v3 não muda.** | `_DOWN` |
 
@@ -89,11 +96,11 @@ Levantado em `views/OrderVisit/**` e `components/ordersVisits/**` (sem chat e fi
 `toggleOrderVisitAssetActivity` (idempotente por ativo+atividade),
 `upsertMaintenanceChecklistItem`, `deleteMaintenanceChecklistItem`
 
-### C. Inserts → fila com `client_uuid`
+### C. Inserts → fila com `offline_uuid`
 
 `addMaterialToAsset`, `addServiceToOrderVisit`, `addVehicleToOrderVisit`, `addIdleToOrderVisit`,
 `addAssetToOrderVisit` (só ativos já no pacote da unidade), `addTeamMember`/`removeTeamMember`
-(sem `client_uuid`: chave visita+usuário e inclusão idempotente no envio)
+(sem `offline_uuid`: chave visita+usuário e inclusão idempotente no envio)
 
 Remoções correspondentes (`removeMaterialFromAsset`, `removeServiceFromOrderVisit`,
 `removeVehicleFromOrderVisit`, `removeAssetFromOrderVisit`): se o item ainda não subiu,
@@ -129,13 +136,13 @@ Plano detalhado (tarefas, arquivos, critérios de aceite, testes): [OFFLINE_PLAN
 
 | Fase | Entrega | Status |
 |------|---------|--------|
-| F0 | Migrations, flag, este inventário | ✅ 08/11/2026 (migrations a aplicar) |
+| F0 | Migrations, flag, este inventário | ✅ 08/11/2026 · migrations 16/17/18 (+ 22) aplicadas em 10/11/2026 |
 | F1 | Store local + "Preparar para campo" + leituras (A) com cache + trava ao abrir o ativo + login offline | 🟡 código pronto 08/11/2026 — testar no aparelho |
 | F2 | Fila + motor de sincronização + gravações simples (B) | 🟡 código pronto 08/11/2026 — testar no aparelho |
 | F3 | Fotos/assinaturas offline (D) | 🟡 código pronto 08/11/2026 — testar no aparelho |
-| F4 | Inserts (C) + fluxo (E) (sem RPC novo: client_uuid + barreiras) | 🟡 código pronto 08/11/2026 — testar no aparelho |
-| ⛔ | Portão: F1–F4 validadas no aparelho real, defeitos corrigidos | ⏳ próximo passo |
-| F5 | Tela de pendências/conflitos, testes em modo avião, liberação por empresa/usuário | ⏸ aguarda o portão de validação (F1–F4 no aparelho) |
+| F4 | Inserts (C) + fluxo (E) (sem RPC novo: offline_uuid + barreiras) | 🟡 código pronto 08/11/2026 — testar no aparelho |
+| ✅ | Portão F1–F5 | Aprovado por decisão do usuário em 10/11/2026 (sem registro item a item); liberação geral sem piloto |
+| F5 | Tela de pendências, aviso ao sair, chave por empresa/usuário (20261123), telemetria | ✅ 10/11/2026 — liberação geral (piloto dispensado pelo usuário) |
 
 ## Riscos conhecidos
 
