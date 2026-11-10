@@ -302,7 +302,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                             </div>
 
                             {/* Linha 2: campos */}
-                            <div className="pl-5 pr-4 py-3 grid gap-3 grid-cols-2 @xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto] @xl:items-start">
+                            <div className="pl-5 pr-4 py-3 grid gap-3 grid-cols-2 @xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,0.6fr)_auto] @xl:items-start">
                                 <div className="col-span-2 @xl:col-span-1">
                                     <span className={appLabelClass}>Quantidade</span>
                                     <QtyStepper
@@ -312,7 +312,7 @@ export const OrderVisitServicesList: React.FC<OrderVisitServicesListProps> = ({
                                         disabled={!isEditable}
                                         onChange={(t) => editor.change(vs.id, 'amount', t)}
                                         onBlur={() => editor.blur(vs.id, 'amount')}
-                                        onStep={(d) => editor.step(vs, d)}
+                                        hideSteps
                                         extra={
                                             <button
                                                 type="button"

@@ -411,9 +411,9 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
             )}
 
             {/* List */}
-            <div className={`grid gap-4 content-start min-w-0 lg:col-start-2 lg:row-start-2 ${!isAdding ? 'lg:grid-cols-2' : ''}`}>
+            <div className={`grid gap-4 content-start min-w-0 lg:col-start-2 lg:row-start-2`}>
                 {visitVehicles.length === 0 && !isAdding && (
-                    <div className="lg:col-span-2 text-center py-8 opacity-50">
+                    <div className="text-center py-8 opacity-50">
                         <span className="material-symbols-outlined text-4xl mb-2">no_crash</span>
                         <p className="text-xs font-bold uppercase tracking-widest">Nenhum veículo associado</p>
                     </div>
@@ -660,7 +660,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
 
                 {/* Total de Veículos (ociosidade fora do total) */}
                 {visitVehicles.length > 0 && canView('orders_visits_costs') && (
-                    <div className={`mt-2 flex justify-end ${!isAdding ? 'lg:col-span-2' : ''}`}>
+                    <div className="mt-2 flex justify-end">
                         <div className="text-right">
                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1">TOTAL</span>
                             <span className="text-2xl font-black text-blue-600 dark:text-blue-400">

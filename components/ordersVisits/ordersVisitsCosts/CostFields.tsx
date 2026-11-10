@@ -55,7 +55,7 @@ export const NumberInput: React.FC<{
 
 const stepBtn = 'w-12 h-12 shrink-0 rounded-xl shadow-sm flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 
-/** Quantidade com − e +; `extra` aparece depois do + (ex.: calculadora). */
+/** Quantidade com − e + (`hideSteps` tira os dois); `extra` aparece no fim (ex.: calculadora). */
 export const QtyStepper: React.FC<{
     value: string;
     amount: number;
@@ -63,11 +63,12 @@ export const QtyStepper: React.FC<{
     disabled?: boolean;
     onChange: (text: string) => void;
     onBlur: () => void;
-    onStep: (delta: number) => void;
+    onStep?: (delta: number) => void;
+    hideSteps?: boolean;
     extra?: React.ReactNode;
-}> = ({ value, amount, unit, disabled, onChange, onBlur, onStep, extra }) => (
+}> = ({ value, amount, unit, disabled, onChange, onBlur, onStep, hideSteps, extra }) => (
     <div className="flex items-center gap-1.5">
-        {!disabled && (
+        {!disabled && !hideSteps && onStep && (
             <button
                 type="button"
                 onClick={() => onStep(-1)}
@@ -84,7 +85,7 @@ export const QtyStepper: React.FC<{
                 <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400 uppercase">{unit}</span>
             )}
         </div>
-        {!disabled && (
+        {!disabled && !hideSteps && onStep && (
             <button
                 type="button"
                 onClick={() => onStep(1)}
