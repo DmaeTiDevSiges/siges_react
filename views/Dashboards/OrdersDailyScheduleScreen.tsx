@@ -46,7 +46,7 @@ import { FilterSelectionContent } from '../../components/ui/FilterSelectionConte
 import { Modal } from '../../components/ui/Modal';
 import { Calendar } from '../../components/ui/Calendar';
 import { Loading } from '../../components/ui/Loading';
-import { OPEN_ID_PREFIX, PRIORITY_ID_PREFIX, PriorityOrderCard, ScheduleOrderCardView, canChangeTeam, isScheduleLocked, scheduleTeamRule } from '../../components/orderRequests/dailySchedule/ScheduleOrderCard';
+import { OPEN_ID_PREFIX, PRIORITY_ID_PREFIX, PriorityOrderCard, ScheduleOrderCardView, canChangeTeam, canReturnFromTeam, isScheduleLocked, scheduleTeamRule } from '../../components/orderRequests/dailySchedule/ScheduleOrderCard';
 import { ScheduleTeamColumn } from '../../components/orderRequests/dailySchedule/ScheduleTeamColumn';
 import { ScheduleAuthorizeModal } from '../../components/orderRequests/dailySchedule/ScheduleAuthorizeModal';
 import { ScheduleOrderActionsModal, type ScheduleActionTarget } from '../../components/orderRequests/dailySchedule/ScheduleOrderActionsModal';
@@ -75,6 +75,8 @@ const filterStrip = (list: DailyScheduleOrder[], f: StripFilter) => {
 const byRequestedAt = (a: DailyScheduleOrder, b: DailyScheduleOrder) =>
     String(a.requestedAt || '').localeCompare(String(b.requestedAt || ''));
 const CONTRACT_STORAGE_KEY = 'dailySchedule_contractId';
+/** Dia de atendimento escolhido: ao sair e voltar para a tela, continua o mesmo. */
+const DATE_STORAGE_KEY = 'dailySchedule_date';
 const SAVE_DELAY_MS = 1000;
 const ROUTE_KEY = 'orders_daily_schedule';
 
@@ -237,7 +239,10 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [contractsLoading, setContractsLoading] = useState(true);
     const [contractId, setContractId] = useState<string>(() => readStorage(CONTRACT_STORAGE_KEY));
-    const [date, setDate] = useState<string>(today);
+    const [date, setDate] = useState<string>(() => {
+        const saved = readStorage(DATE_STORAGE_KEY);
+        return /^\d{4}-\d{2}-\d{2}$/.test(saved) ? saved : today;
+    });
     const [calendarOpen, setCalendarOpen] = useState(false);
     const [contractModalOpen, setContractModalOpen] = useState(false);
     /** Filtro EQ.RESPONSAVEL: vazio = todas as equipes. */
@@ -250,6 +255,8 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
 
     const [board, setBoard] = useState<DailyScheduleBoard | null>(null);
     const [loading, setLoading] = useState(false);
+    /** Giro do botão de atualizar: dura o carregamento, no mínimo ~0,7 s (visível mesmo se for rápido). */
+    const [refreshing, setRefreshing] = useState(false);
     const [saveState, setSaveState] = useState<SaveState>('idle');
 
     const [active, setActive] = useState<{ order: DailyScheduleOrder; container: string } | null>(null);
@@ -385,7 +392,8 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     }, [flushSave]);
 
     // ── Carga do quadro ───────────────────────────────────────────────────────
-    const loadBoard = useCallback(async () => {
+    /** `fresh`: busca tudo de novo, inclusive as equipes (botão atualizar). */
+    const loadBoard = useCallback(async (fresh?: boolean) => {
         if (!contract) { setBoard(null); return; }
         if (!contract.providerDepartmentId) {
             setBoard(null);
@@ -399,6 +407,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                 providerDepartmentId: contract.providerDepartmentId,
                 date,
                 readOnly: date < getBrazilDateInputValue(),
+                fresh,
             });
             if (seq === loadSeqRef.current) {
                 setBoard(data);
@@ -427,6 +436,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     const changeDate = (next: string) => {
         flushSave();
         setDate(next);
+        writeStorage(DATE_STORAGE_KEY, next);
         setCalendarOpen(false);
     };
 
@@ -502,7 +512,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
      * ABERTAS. Sai da equipe só no dia; a OS continua Autorizada com a mesma equipe e líder.
      */
     const returnToStrip = (order: DailyScheduleOrder, fromTeamId: string, strip: StripKind, index: number) => {
-        if (!board || readOnly || !canChangeTeam(order)) return;
+        if (!board || readOnly || !canReturnFromTeam(order, strip)) return;
         const wasPrioritized = board.priorities.some(o => o.id === order.id);
         const columns = { ...board.columns, [fromTeamId]: (board.columns[fromTeamId] || []).filter(o => o.id !== order.id) };
         const priorities = board.priorities.filter(o => o.id !== order.id);
@@ -634,8 +644,9 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         }
         // Da coluna da equipe para uma faixa: só a Autorizada volta.
         if (from !== OPEN && from !== PRIORITY && (to === OPEN || to === PRIORITY)) {
-            if (canChangeTeam(order)) returnToStrip(order, from, to as StripKind, index);
-            else toast.error("Só OS Autorizada volta da equipe para as faixas. Esta só é reordenada na própria coluna.");
+            if (canReturnFromTeam(order, to as StripKind)) returnToStrip(order, from, to as StripKind, index);
+            else if (canReturnFromTeam(order, PRIORITY)) toast.error("OS Suspensa volta primeiro para OS's PRIORIDADE DE ATENDIMENTO; de lá pode ir para ABERTAS.");
+            else toast.error('Só OS Autorizada ou Suspensa volta da equipe para as faixas. Esta só é reordenada na própria coluna.');
             return;
         }
         if (from === OPEN || to === OPEN) {
@@ -840,6 +851,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     )}
                     <div className="flex flex-wrap items-center gap-2 ml-auto w-full lg:w-auto">
                         <FilterSelect
+                            autoWidth
                             label="UNIDADE"
                             value={labelsOf(filter.unit, unitOptions)}
                             onClick={() => setStripFilterModal({ strip, field: 'unit' })}
@@ -882,8 +894,8 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     ? 'bg-sky-50/50 dark:bg-sky-950/20 border-sky-200/50 dark:border-sky-800/30'
                     : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-800/30'}`}
                 header={header}
-                accepting={canEditPriorities && (fromOtherStrip || (fromTeamColumn && canChangeTeam(active!.order)))}
-                refusing={fromTeamColumn && !canChangeTeam(active!.order)}
+                accepting={canEditPriorities && (fromOtherStrip || (fromTeamColumn && canReturnFromTeam(active!.order, strip)))}
+                refusing={fromTeamColumn && !canReturnFromTeam(active!.order, strip)}
                 itemIds={filtered.map(o => `${prefix}${o.id}`)}
             >
                     {filtered.length > 0 ? (
@@ -910,7 +922,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
             {/* Título */}
             <div>
                 <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Programação Diária</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Arraste as OSs em avaliação para as equipes e ordene a execução do dia.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Priorize as OSs abertas, distribua entre as equipes e ordene a execução do dia.</p>
             </div>
 
             {/* Contrato (esquerda) + dia (direita) */}
@@ -919,7 +931,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     <FilterSelect
                         autoWidth
                         label="CONTRATO"
-                        value={contract ? contractLabel(contract) : ''}
+                        value={contract ? (contract.description || contractLabel(contract)) : ''}
                         onClick={() => setContractModalOpen(true)}
                         disabled={contractsLoading}
                         required
@@ -932,6 +944,24 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                         onClear={() => setTeamFilter([])}
                         disabled={!board || board.teams.length === 0}
                     />
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (refreshing || loading) return;
+                            const startedAt = Date.now();
+                            setRefreshing(true);
+                            flushSave();
+                            void loadBoard(true).finally(() => {
+                                setTimeout(() => setRefreshing(false), Math.max(0, 700 - (Date.now() - startedAt)));
+                            });
+                        }}
+                        disabled={!contract}
+                        className="self-start sm:self-auto shrink-0 flex items-center justify-center w-[42px] h-[42px] rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm text-slate-500 hover:text-primary hover:border-primary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                        title="Atualizar a programação"
+                        aria-label="Atualizar a programação"
+                    >
+                        <span className={`material-symbols-outlined text-[20px] ${refreshing || loading ? 'animate-spin' : ''}`}>refresh</span>
+                    </button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 md:justify-end">
@@ -1064,7 +1094,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     </div>
 
                     <DragOverlay>
-                        {active ? <div className="w-[260px]"><ScheduleOrderCardView order={active.order} isOverlay /></div> : null}
+                        {active ? <div className="w-[280px]"><ScheduleOrderCardView order={active.order} isOverlay /></div> : null}
                     </DragOverlay>
                 </DndContext>
             ) : null}

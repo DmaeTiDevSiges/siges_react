@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal } from '../../ui/Modal';
 import type { DailyScheduleOrder, DailyScheduleTeam } from '../../../services/orders/dailyScheduleService';
 import { DAILY_SCHEDULE_STATUS } from '../../../services/orders/dailyScheduleService';
-import { canChangeTeam, scheduleTeamRule } from './ScheduleOrderCard';
+import { canChangeTeam, canReturnFromTeam, scheduleTeamRule } from './ScheduleOrderCard';
 
 export interface ScheduleActionTarget {
     order: DailyScheduleOrder;
@@ -77,16 +77,18 @@ export const ScheduleOrderActionsModal: React.FC<ScheduleOrderActionsModalProps>
                                 {fromPriority ? 'Menos prioritária' : 'Descer'}
                             </button>
                         </div>
-                        {fromTeam && movesBetweenTeams && (
+                        {fromTeam && canReturnFromTeam(target.order, 'priority') && (
                             <div className="grid grid-cols-2 gap-2">
                                 <button type="button" className={btn} onClick={() => onReturnToStrip('priority')}>
                                     <span className="material-symbols-outlined">north</span>
                                     Voltar p/ PRIORIDADE
                                 </button>
-                                <button type="button" className={btn} onClick={() => onReturnToStrip('open')}>
-                                    <span className="material-symbols-outlined">keyboard_double_arrow_up</span>
-                                    Voltar p/ ABERTAS
-                                </button>
+                                {canReturnFromTeam(target.order, 'open') && (
+                                    <button type="button" className={btn} onClick={() => onReturnToStrip('open')}>
+                                        <span className="material-symbols-outlined">keyboard_double_arrow_up</span>
+                                        Voltar p/ ABERTAS
+                                    </button>
+                                )}
                             </div>
                         )}
                         {fromPriority && (

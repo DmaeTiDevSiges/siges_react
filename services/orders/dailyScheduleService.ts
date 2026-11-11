@@ -139,9 +139,42 @@ const isMissingRelation = (error: any) =>
 const byRequestedAt = (a: DailyScheduleOrder, b: DailyScheduleOrder) =>
     String(a.requestedAt || '').localeCompare(String(b.requestedAt || ''));
 
+/** Função ausente no banco (RPC ainda não criada pela migration). */
+const isMissingFunction = (error: any) =>
+    ['PGRST202', '42883'].includes(error?.code) || /could not find the function/i.test(error?.message || '');
+
+/** RPC fn_orders_daily_schedule_board indisponível (migration 20261128 pendente) nesta sessão. */
+let boardRpcMissing = false;
+
+const TEAMS_CACHE_MS = 5 * 60 * 1000;
+const teamsCache = new Map<string, { at: number; teams: DailyScheduleTeam[] }>();
+
+interface RawBoardData {
+    /** false → migration 20261110 ainda não aplicada. */
+    supported: boolean;
+    hasSchedule: boolean;
+    updatedAt?: string;
+    savedItems: Array<{ order_id: number; team_id: number; position: number }>;
+    savedPriorities: Array<{ order_id: number; position: number }>;
+    prioritiesInheritedFrom?: string;
+    /** Dia de hoje/futuro: OSs abertas do contrato; dia passado: só as registradas no dia. */
+    orders: DailyScheduleOrder[];
+}
+
 export const dailyScheduleService = {
-    /** Equipes ativas do departamento prestador que têm ao menos um líder ativo. */
-    async getTeamsWithLeaders(providerDepartmentId: string): Promise<DailyScheduleTeam[]> {
+    /**
+     * Equipes ativas do departamento prestador que têm ao menos um líder ativo.
+     * Guardadas por TEAMS_CACHE_MS (quase não mudam); `fresh` busca de novo.
+     */
+    async getTeamsWithLeaders(providerDepartmentId: string, fresh?: boolean): Promise<DailyScheduleTeam[]> {
+        const cached = teamsCache.get(providerDepartmentId);
+        if (!fresh && cached && Date.now() - cached.at < TEAMS_CACHE_MS) return cached.teams;
+        const teams = await this.fetchTeamsWithLeaders(providerDepartmentId);
+        teamsCache.set(providerDepartmentId, { at: Date.now(), teams });
+        return teams;
+    },
+
+    async fetchTeamsWithLeaders(providerDepartmentId: string): Promise<DailyScheduleTeam[]> {
         const { data: teams, error } = await supabase
             .from('cfg_teams')
             .select('id, code, description, sort_order, parent_id')
@@ -187,81 +220,139 @@ export const dailyScheduleService = {
     },
 
     /**
+     * Dados crus do dia (sequência, prioridade/herança e OSs). 1º tenta a RPC única
+     * fn_orders_daily_schedule_board (migration 20261128: uma ida ao banco, consulta enxuta);
+     * sem ela, cai nas consultas diretas — em paralelo e com a herança numa consulta só.
+     */
+    async loadBoardData(contractId: string, date: string, readOnly: boolean, fresh?: boolean): Promise<RawBoardData> {
+        if (fresh) boardRpcMissing = false;
+        if (!boardRpcMissing) {
+            const { data, error } = await supabase.rpc('fn_orders_daily_schedule_board', {
+                p_contract_id: Number(contractId),
+                p_date: date,
+                p_read_only: readOnly,
+            });
+            if (!error && data) {
+                const raw = data as any;
+                return {
+                    supported: true,
+                    hasSchedule: !!raw.schedule,
+                    updatedAt: raw.schedule?.updated_at,
+                    savedItems: raw.items || [],
+                    savedPriorities: raw.priorities || [],
+                    prioritiesInheritedFrom: raw.inherited_from || undefined,
+                    orders: ((raw.orders || []) as any[]).map(mapOrder),
+                };
+            }
+            if (error && !isMissingFunction(error)) throw error;
+            boardRpcMissing = true; // migration 20261128 ainda não aplicada
+        }
+        return this.loadBoardDataDirect(contractId, date, readOnly);
+    },
+
+    /** Caminho sem a RPC: consultas diretas em paralelo (tolerante à migration 20261110 ausente). */
+    async loadBoardDataDirect(contractId: string, date: string, readOnly: boolean): Promise<RawBoardData> {
+        const schedulePromise = supabase
+            .from('orders_daily_schedules')
+            .select('id, updated_at, orders_daily_schedules_items(order_id, team_id, position), orders_daily_schedules_priorities(order_id, position)')
+            .eq('contract_id', contractId)
+            .eq('schedule_date', date)
+            .maybeSingle();
+        // Herança (dia sem registro): a última prioridade registrada antes do dia, numa consulta
+        // só (!inner = só dias que têm prioridade). Roda junto; é descartada se o dia tiver registro.
+        const inheritPromise = readOnly
+            ? Promise.resolve(null)
+            : supabase
+                .from('orders_daily_schedules')
+                .select('schedule_date, orders_daily_schedules_priorities!inner(order_id, position)')
+                .eq('contract_id', contractId)
+                .lt('schedule_date', date)
+                .order('schedule_date', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+        const openOrdersPromise = readOnly
+            ? Promise.resolve(null)
+            : supabase
+                .from('v_orders')
+                .select(ORDER_COLUMNS)
+                .eq('contract_id', contractId)
+                .not('parent_id', 'is', null)
+                .not('status_id', 'in', '(7,8)')
+                .order('requested_at', { ascending: true });
+
+        const [scheduleRes, inheritRes, openRes] = await Promise.all([schedulePromise, inheritPromise, openOrdersPromise]);
+
+        let supported = true;
+        const schedule: any = scheduleRes.data;
+        if (scheduleRes.error) {
+            if (isMissingRelation(scheduleRes.error)) supported = false;
+            else throw scheduleRes.error;
+        }
+        const savedItems = (schedule?.orders_daily_schedules_items || []) as RawBoardData['savedItems'];
+        let savedPriorities = (schedule?.orders_daily_schedules_priorities || []) as RawBoardData['savedPriorities'];
+        let prioritiesInheritedFrom: string | undefined;
+        // Dia SEM registro nenhum: parte da última prioridade registrada antes dele.
+        // (Dia com registro e prioridade vazia = esvaziada de propósito: não herda.)
+        if (supported && !schedule && inheritRes) {
+            if (inheritRes.error && !isMissingRelation(inheritRes.error)) throw inheritRes.error;
+            const previous: any = inheritRes.data;
+            if (previous) {
+                savedPriorities = previous.orders_daily_schedules_priorities || [];
+                prioritiesInheritedFrom = previous.schedule_date;
+            }
+        }
+
+        let orders: DailyScheduleOrder[] = [];
+        if (readOnly) {
+            // Dia passado: só as OSs registradas no dia (podem já estar concluídas).
+            const ids = [...new Set([...savedItems.map(i => i.order_id), ...savedPriorities.map(p => p.order_id)])];
+            if (ids.length > 0) {
+                const { data, error } = await supabase.from('v_orders').select(ORDER_COLUMNS).in('id', ids);
+                if (error) throw error;
+                orders = (data || []).map(mapOrder);
+            }
+        } else if (openRes) {
+            if (openRes.error) throw openRes.error;
+            orders = (openRes.data || []).map(mapOrder);
+        }
+
+        return {
+            supported,
+            hasSchedule: !!schedule,
+            updatedAt: schedule?.updated_at,
+            savedItems,
+            savedPriorities,
+            prioritiesInheritedFrom,
+            orders,
+        };
+    },
+
+    /**
      * Monta o quadro do dia.
      * readOnly (dia passado): HISTÓRICO — exatamente a prioridade e a distribuição por equipe
      * registradas naquele dia (inclusive equipes que hoje não têm líder).
      * Senão: ABERTAS = OSs abertas não priorizadas (sem Em Avaliação); PRIORIDADE = as
      * registradas no dia (ou herdadas do último dia registrado); colunas = só as OSs
      * inseridas no dia, na sequência salva.
+     * Equipes e dados do dia são buscados ao mesmo tempo. `fresh`: ignora o cache das equipes
+     * (botão atualizar).
      */
     async getBoard(params: {
         contractId: string;
         providerDepartmentId: string;
         date: string; // YYYY-MM-DD
         readOnly: boolean;
+        fresh?: boolean;
     }): Promise<DailyScheduleBoard> {
-        const { contractId, providerDepartmentId, date, readOnly } = params;
+        const { contractId, providerDepartmentId, date, readOnly, fresh } = params;
 
-        const teams = await this.getTeamsWithLeaders(providerDepartmentId);
-
-        // Sequência e prioridades salvas do dia (tolerante à migration ainda não aplicada).
-        let supported = true;
-        let updatedAt: string | undefined;
-        let savedItems: Array<{ order_id: number; team_id: number; position: number }> = [];
-        let savedPriorities: Array<{ order_id: number; position: number }> = [];
-        const { data: schedule, error: scheduleError } = await supabase
-            .from('orders_daily_schedules')
-            .select('id, updated_at, orders_daily_schedules_items(order_id, team_id, position)')
-            .eq('contract_id', contractId)
-            .eq('schedule_date', date)
-            .maybeSingle();
-        if (scheduleError) {
-            if (isMissingRelation(scheduleError)) supported = false;
-            else throw scheduleError;
-        } else if (schedule) {
-            updatedAt = schedule.updated_at;
-            savedItems = (schedule as any).orders_daily_schedules_items || [];
-        }
-
-        // Prioridades em consultas separadas: se a tabela ainda não existir, o quadro carrega mesmo assim.
-        let prioritiesInheritedFrom: string | undefined;
-        if (supported) {
-            const readPriorities = async (scheduleId: number) => {
-                const { data, error } = await supabase
-                    .from('orders_daily_schedules_priorities')
-                    .select('order_id, position')
-                    .eq('schedule_id', scheduleId);
-                if (error) {
-                    if (isMissingRelation(error)) { supported = false; return []; }
-                    throw error;
-                }
-                return (data || []) as Array<{ order_id: number; position: number }>;
-            };
-
-            if (schedule) savedPriorities = await readPriorities((schedule as any).id);
-
-            // Dia SEM registro nenhum: parte da última prioridade registrada antes dele.
-            // (Dia com registro e prioridade vazia = esvaziada de propósito: não herda.)
-            if (supported && !readOnly && !schedule) {
-                const { data: previousDays, error: previousError } = await supabase
-                    .from('orders_daily_schedules')
-                    .select('id, schedule_date')
-                    .eq('contract_id', contractId)
-                    .lt('schedule_date', date)
-                    .order('schedule_date', { ascending: false })
-                    .limit(30);
-                if (previousError && !isMissingRelation(previousError)) throw previousError;
-                for (const day of previousDays || []) {
-                    const rows = await readPriorities((day as any).id);
-                    if (!supported) break;
-                    if (rows.length > 0) {
-                        savedPriorities = rows;
-                        prioritiesInheritedFrom = (day as any).schedule_date;
-                        break;
-                    }
-                }
-            }
-        }
+        const [cachedTeams, raw] = await Promise.all([
+            this.getTeamsWithLeaders(providerDepartmentId, fresh),
+            this.loadBoardData(contractId, date, readOnly, fresh),
+        ]);
+        // Cópia: o histórico acrescenta equipes sem líder e não pode sujar o cache.
+        const teams = [...cachedTeams];
+        const { supported, updatedAt, savedItems, savedPriorities, prioritiesInheritedFrom } = raw;
 
         const priorityByOrder = new Map<string, number>(savedPriorities.map(p => [p.order_id.toString(), p.position]));
         const byPriority = (a: DailyScheduleOrder, b: DailyScheduleOrder) => {
@@ -278,15 +369,9 @@ export const dailyScheduleService = {
 
         if (readOnly) {
             // Dia passado: exatamente o que foi registrado (OSs podem já estar concluídas).
-            const ids = [...new Set([...savedItems.map(i => i.order_id), ...savedPriorities.map(p => p.order_id)])];
-            let orderMap = new Map<string, DailyScheduleOrder>();
-            if (ids.length > 0) {
-                const { data, error } = await supabase.from('v_orders').select(ORDER_COLUMNS).in('id', ids);
-                if (error) throw error;
-                orderMap = new Map<string, DailyScheduleOrder>((data || []).map((row: any) => [row.id.toString(), mapOrder(row)]));
-            }
+            const orderMap = new Map<string, DailyScheduleOrder>(raw.orders.map(o => [o.id, o]));
             // Histórico: equipe que recebeu OS no dia aparece mesmo sem líder hoje / desativada.
-            const missingTeamIds = [...new Set(savedItems.map(i => i.team_id.toString()))].filter(id => !columns[id]);
+            const missingTeamIds = [...new Set<string>(savedItems.map(i => i.team_id.toString()))].filter(id => !columns[id]);
             if (missingTeamIds.length > 0) {
                 const { data: oldTeams, error: oldTeamsError } = await supabase
                     .from('cfg_teams')
@@ -314,17 +399,8 @@ export const dailyScheduleService = {
             return { supported, teams, priorities, openOrders: [], columns, updatedAt };
         }
 
-        const { data, error } = await supabase
-            .from('v_orders')
-            .select(ORDER_COLUMNS)
-            .eq('contract_id', contractId)
-            .not('parent_id', 'is', null)
-            .not('status_id', 'in', '(7,8)')
-            .order('requested_at', { ascending: true });
-        if (error) throw error;
-
         // OSs Em Avaliação ficam fora da programação (nem ABERTAS nem PRIORIDADE).
-        const orders = (data || []).map(mapOrder).filter(o => o.statusId !== DAILY_SCHEDULE_STATUS.EVALUATION);
+        const orders = raw.orders.filter(o => o.statusId !== DAILY_SCHEDULE_STATUS.EVALUATION);
         // OS em execução só aparece na coluna da equipe (fora de ABERTAS e de PRIORIDADE).
         const isExecution = (o: DailyScheduleOrder) => o.statusId === DAILY_SCHEDULE_STATUS.EXECUTION;
         const stripOrders = orders.filter(o => !isExecution(o));

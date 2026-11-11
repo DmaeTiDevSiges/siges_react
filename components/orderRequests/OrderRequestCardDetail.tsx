@@ -237,11 +237,11 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
                             <span className={`material-symbols-outlined text-lg ${statusCfg.color}`}>{statusCfg.icon}</span>
                             <div className="flex flex-col min-w-0 flex-1">
                                 <span className={`text-xs font-bold ${statusCfg.color}`}>{req.statusDescription || statusCfg.label}</span>
-                                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
                                     {formatDateTime(req.statusAt || (req as any).status_at)}
                                     {req.canceledUserNameShort && ` • ${req.canceledUserNameShort}`}
                                 </span>
-                                <span className="text-[10px] font-black text-slate-500/70 dark:text-slate-400/50 uppercase tracking-tighter">{req.teamCode || (req as any).team_code || '---'} {(req.teamLeaderNameShort || (req as any).team_leader_name_short) && `| ${req.teamLeaderNameShort || (req as any).team_leader_name_short}`}</span>
+                                <span className="text-xs font-black text-slate-500/70 dark:text-slate-400/50 uppercase tracking-tighter">{req.teamCode || (req as any).team_code || '---'} {(req.teamLeaderNameShort || (req as any).team_leader_name_short) && `| ${req.teamLeaderNameShort || (req as any).team_leader_name_short}`}</span>
                             </div>
                             <OrderActionManager order={req} currentUser={currentUser ?? null} onSuccess={onSuccess} onEdit={onEdit} />
                         </div>
@@ -271,9 +271,9 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
                             </span>
                         </div>
                         <div className="flex flex-col flex-1">
-                            <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">{req.statusDescription || (req as any).status_description || (req as any).status_name || 'Status'}</span>
-                            <span className="text-[9px] font-bold text-slate-400">{formatDateTime(req.statusAt || (req as any).status_at)}</span>
-                            <span className="text-[9px] font-black text-slate-500/70 dark:text-slate-400/50 uppercase tracking-tighter">{req.teamCode || (req as any).team_code || '---'} {(req.teamLeaderNameShort || (req as any).team_leader_name_short) && `| ${req.teamLeaderNameShort || (req as any).team_leader_name_short}`}</span>
+                            <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{req.statusDescription || (req as any).status_description || (req as any).status_name || 'Status'}</span>
+                            <span className="text-xs font-bold text-slate-400">{formatDateTime(req.statusAt || (req as any).status_at)}</span>
+                            <span className="text-xs font-black text-slate-500/70 dark:text-slate-400/50 uppercase tracking-tighter">{req.teamCode || (req as any).team_code || '---'} {(req.teamLeaderNameShort || (req as any).team_leader_name_short) && `| ${req.teamLeaderNameShort || (req as any).team_leader_name_short}`}</span>
                         </div>
                         <OrderActionManager order={req} currentUser={currentUser ?? null} onSuccess={onSuccess} onEdit={onEdit} />
                     </div>

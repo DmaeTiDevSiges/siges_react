@@ -27,6 +27,14 @@ const KEEPS_OWN_TEAM = new Set<number>([
 export const canChangeTeam = (order: DailyScheduleOrder) => order.statusId === DAILY_SCHEDULE_STATUS.AUTHORIZED;
 
 /**
+ * Da coluna da equipe de volta para uma faixa (sai da equipe só no dia; a OS não muda):
+ *   Autorizada → PRIORIDADE ou ABERTAS;
+ *   Suspensa   → só PRIORIDADE (de lá pode seguir para ABERTAS).
+ */
+export const canReturnFromTeam = (order: DailyScheduleOrder, strip: 'priority' | 'open') =>
+    canChangeTeam(order) || (order.statusId === DAILY_SCHEDULE_STATUS.SUSPENDED && strip === 'priority');
+
+/**
  * Para qual equipe a OS pode ir:
  *   'any'  → Em Avaliação (autoriza para a equipe) ou Autorizada (troca equipe e líder na OS);
  *   id     → Agendada/Suspensa com equipe definida: só a própria equipe;
@@ -181,7 +189,7 @@ export const PriorityOrderCard: React.FC<DraggableProps & { rank?: number; varia
         <div
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition }}
-            className={`w-[240px] shrink-0 touch-manipulation ${isDragging ? 'opacity-30' : ''}`}
+            className={`w-[260px] shrink-0 touch-manipulation ${isDragging ? 'opacity-30' : ''}`}
         >
             <ScheduleOrderCardView
                 order={order}

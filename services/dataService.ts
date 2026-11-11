@@ -2288,7 +2288,7 @@ export const dataService = {
     },
 
     // ── Programação Diária (services/orders/dailyScheduleService.ts) ──────────
-    async getDailyScheduleBoard(params: { contractId: string; providerDepartmentId: string; date: string; readOnly: boolean }): Promise<DailyScheduleBoard> {
+    async getDailyScheduleBoard(params: { contractId: string; providerDepartmentId: string; date: string; readOnly: boolean; fresh?: boolean }): Promise<DailyScheduleBoard> {
         return dailyScheduleService.getBoard.apply(dailyScheduleService, arguments as any);
     },
 

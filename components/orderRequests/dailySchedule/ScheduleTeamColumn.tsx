@@ -30,7 +30,7 @@ export const ScheduleTeamColumn: React.FC<ScheduleTeamColumnProps> = ({
 
     return (
         <section
-            className={`w-[280px] shrink-0 flex flex-col rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/40 transition-all ${stateClass}`}
+            className={`w-[300px] shrink-0 flex flex-col rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/40 transition-all ${stateClass}`}
             aria-label={`Equipe ${team.code} — líder ${team.leaderName}`}
         >
             <header className="flex items-center gap-2 p-3 border-b border-slate-200 dark:border-white/10">

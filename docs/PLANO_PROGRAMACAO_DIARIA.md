@@ -20,6 +20,8 @@ pelo [roteiro de testes](#roteiro-de-testes-na-tela).
 | 4 | Conferir `npx tsc --noEmit` sem erros | Dev | Em andamento |
 | 5 | Rodar o [roteiro de testes](#roteiro-de-testes-na-tela) | Usuário + dev | Pendente |
 | 6 | Commit das mudanças | Dev, quando o usuário pedir | Pendente |
+| 7 | Aplicar `20261128_orders_daily_schedule_board_performance.sql` (desempenho: visão enxuta + RPC única + índice). Antes, rodar a conferência de colunas do cabeçalho do arquivo | Usuário (SQL Editor) | Pendente |
+| 8 | (Opcional) `20261127_clear_orders_daily_schedules_priorities.sql`: limpa a prioridade de todos os dias (com cópia de segurança) | Usuário (SQL Editor) | Pendente |
 
 As duas migrations são idempotentes (testadas em Postgres local; a 20261126 aplicada duas vezes
 sem erro) e rodam dentro de `BEGIN/COMMIT`. A 20261126 tem `_DOWN` para reverter.
@@ -60,6 +62,7 @@ Cada faixa tem os próprios filtros (Unidade, Setor e busca).
 | Equipe → equipe, OS **Autorizada** | Permitido; atualiza equipe responsável e líder na OS e sai da coluna antiga |
 | Equipe → equipe, demais | **Proibido** (só reordena na própria coluna) |
 | Equipe → PRIORIDADE ou ABERTAS, OS **Autorizada** | Permitido: sai da coluna do dia (log `unassign_team`); a OS **continua Autorizada com a mesma equipe e líder**. Em PRIORIDADE entra na posição solta; em ABERTAS também sai da prioridade |
+| Equipe → PRIORIDADE, OS **Suspensa** | Permitido: sai da coluna do dia (log `unassign_team`), continua Suspensa com a mesma equipe e líder; de PRIORIDADE pode seguir para ABERTAS. **Direto para ABERTAS, não** |
 | Equipe → faixas, demais | Proibido |
 | Cada OS | Entra em **uma equipe só** por dia |
 
@@ -135,6 +138,20 @@ em vez de "OS X foi de A para B".
 
 ---
 
+## 3.1 Desempenho da carga do quadro (10/11/2026)
+
+| Passo | O quê | Onde |
+|-------|-------|------|
+| 1 | Equipes e dados do dia buscados **ao mesmo tempo** | `getBoard` |
+| 2 | Herança da prioridade numa **consulta só** (antes: laço de até 30) | RPC; sem ela, `loadBoardDataDirect` com `!inner` |
+| 3 | Equipes e líderes **guardados por 5 min**; o botão ⟳ busca de novo (`fresh`) | `getTeamsWithLeaders` |
+| 4 | **Visão enxuta** `v_orders_daily_schedule` (só as junções obrigatórias da `v_orders` e as do cartão) | migration 20261128 |
+| 5 | **RPC única** `fn_orders_daily_schedule_board(contrato, dia, só_leitura)`: cabeçalho, sequência, prioridade/herança e OSs num JSON (`SECURITY INVOKER`) | migration 20261128 |
+| 6 | **Índice parcial** `idx_orders_contract_open_requested` (OSs abertas por contrato) | migration 20261128 |
+
+Sem a 20261128, o app usa as consultas diretas, já com os passos 1 a 3. Com ela, passa a usar
+a RPC sozinho; se a RPC sumir (DOWN), volta para as consultas diretas.
+
 ## 4. Arquivos
 
 | Arquivo | Papel |
@@ -153,8 +170,8 @@ em vez de "OS X foi de A para B".
 
 ## 5. Em aberto / ideias (não implementadas)
 
-- **Retirar OS não Autorizada da equipe:** só a Autorizada volta da coluna para as faixas;
-  Agendada/Suspensa inserida por engano não sai pela tela.
+- **Retirar OS Agendada da equipe:** Autorizada e Suspensa voltam da coluna para as faixas;
+  Agendada inserida por engano não sai pela tela.
 - **Tela de histórico do log:** o log só pode ser consultado no banco. Sugestão: botão
   "Histórico" na Programação com a linha do tempo do dia.
 - **Em Avaliação fora da programação:** com isso, a regra "Em Avaliação vai para qualquer equipe
@@ -181,6 +198,7 @@ Usuário com `can_create`, contrato com OSs abertas em várias situações, dia 
 - [ ] Autorizada de uma coluna para outra: sai da antiga, atualiza equipe e líder; log `change_team`
 - [ ] Autorizada da coluna para PRIORIDADE (entra na posição) e para ABERTAS (sai também da prioridade); equipe e líder da OS não mudam; log `unassign_team`
 - [ ] Agendada/Suspensa: só entra na própria equipe; outra equipe recusa com aviso
+- [ ] Suspensa da coluna para PRIORIDADE: sai da equipe no dia (log `unassign_team`); direto para ABERTAS recusa com aviso; de PRIORIDADE vai para ABERTAS
 - [ ] Inserir a mesma OS de novo: aviso "já programada para a equipe X"
 - [ ] Equipe → outra equipe com OS não Autorizada: recusa; reordenar na coluna funciona
 - [ ] Rolar ABERTAS, PRIORIDADE e as equipes clicando e puxando no cartão (sem mover a OS); roda do mouse rola as faixas

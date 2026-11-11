@@ -8,7 +8,7 @@
 --       authorize_team OS's PRIORIDADE DE ATENDIMENTO → EQUIPE (autoriza a OS)
 --       assign_team    OS's PRIORIDADE DE ATENDIMENTO → EQUIPE (OS já com essa equipe definida)
 --       change_team    OS Autorizada trocada de equipe (atualiza equipe e líder na OS)
---       unassign_team  OS Autorizada retirada da equipe (volta para PRIORIDADE ou ABERTAS)
+--       unassign_team  OS retirada da equipe no dia (Autorizada → PRIORIDADE/ABERTAS; Suspensa → PRIORIDADE)
 --   • Gravação só pela RPC fn_orders_daily_schedule_log, que exige a permissão
 --     'create' na rota 'orders_daily_schedule' e recusa dias passados.
 --   • Leitura: quem tem 'view' na rota.

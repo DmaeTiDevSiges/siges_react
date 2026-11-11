@@ -285,7 +285,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                         <span className={`material-symbols-outlined text-lg ${statusCfg.color}`}>{statusCfg.icon}</span>
                         <div className="flex flex-col min-w-0 flex-1">
                             <span className={`text-xs font-bold ${statusCfg.color}`}>{req.statusDescription || statusCfg.label}</span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
                                 {formatGridDate(req.statusAt || req.requestedAt)}
                                 {req.canceledUserNameShort && ` • ${req.canceledUserNameShort}`}
                             </span>
@@ -330,10 +330,10 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                             </span>
                         </div>
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-[11px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
                                 {req.statusDescription}
                             </span>
-                            <span className="text-[10px] font-bold text-slate-400">
+                            <span className="text-xs font-bold text-slate-400">
                                 {formatGridDate(req.statusAt || req.requestedAt)}
                             </span>
                         </div>
