@@ -6,9 +6,8 @@ import { dataService } from '../../services/dataService';
 import { BatchVisitReportDocument, VisitReportData } from './VisitReportDocument';
 import { urlsToBase64, getLogoBase64, addWhiteBackgroundToImage } from '../../utils/PdfImageUtils';
 import { imgproxyService } from '../../services/media/imgproxyService';
-import { FaFilePdf } from 'react-icons/fa';
+import { PDFButton } from '../ui/PDFButton';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
-import { Loading } from '../ui/Loading';
 
 
 interface BatchVisitReportPDFButtonProps {
@@ -281,49 +280,15 @@ export const BatchVisitReportPDFButton = ({
         }
     };
 
-    if (variant === 'action') {
-        return (
-            <button
-                onClick={handleExport}
-                disabled={loading}
-                className={`flex items-center gap-2 px-3 h-8 bg-[#0f172a] border border-white/5 rounded-full hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 ${className}`}
-                title={label || "Exportar relatórios completos em um único PDF"}
-            >
-                {loading ? (
-                    <>
-                        <Loading size="xs" />
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-tight">Gerando...</span>
-                    </>
-                ) : (
-                    <>
-                        <FaFilePdf size={14} className="text-red-500" />
-                        <span className="text-[11px] font-black text-slate-200 uppercase tracking-tight">
-                            PDF{(count ?? visits?.length ?? 0) > 0 ? ` (${count ?? visits?.length})` : ''}
-                        </span>
-                    </>
-                )}
-            </button>
-        );
-    }
-
+    // Botão PDF padrão do app.
+    const total = count ?? visits?.length ?? 0;
     return (
-        <button
+        <PDFButton
             onClick={handleExport}
-            disabled={loading}
-            className={`flex items-center gap-2 px-3 h-8 bg-[#0f172a] border border-white/5 rounded-full hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 ${className}`}
-            title={label || "Exportar relatórios em PDF"}
-        >
-            {loading ? (
-                <>
-                    <Loading size="xs" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">...</span>
-                </>
-            ) : (
-                <>
-                    <FaFilePdf size={14} className="text-red-500" />
-                    <span className="text-[11px] font-black text-slate-200 uppercase tracking-tight">PDF</span>
-                </>
-            )}
-        </button>
+            loading={loading}
+            count={variant === 'action' && total > 0 ? total : undefined}
+            title={label || (variant === 'action' ? 'Exportar relatórios completos em um único PDF' : 'Exportar relatórios em PDF')}
+            className={className}
+        />
     );
 };

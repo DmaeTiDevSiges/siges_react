@@ -6,9 +6,8 @@ import { dataService } from '../../services/dataService';
 import { MaintenancePlanDocument } from './MaintenancePlanDocument';
 import { getLogoBase64 } from '../../utils/PdfImageUtils';
 import { MaintenancePlan, MaintenancePlanSection, MaintenancePlanSectionActivity } from '../../types';
-import { FaFilePdf } from 'react-icons/fa';
+import { PDFButton } from '../ui/PDFButton';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
-import { Loading } from '../ui/Loading';
 import { getBrazilDateInputValue } from '../../utils/formatters';
 
 
@@ -86,60 +85,15 @@ export const MaintenancePlanPDFButton: React.FC<MaintenancePlanPDFButtonProps> =
         }
     };
 
-    // Estilo "Pílula" (Imagem 2)
-    if (variant === 'action') {
-        return (
-            <button
-                onClick={handleExport}
-                disabled={loading}
-                className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${className}`}
-                title="Gerar Relatório PDF"
-            >
-                {loading ? (
-                    <Loading size="xs" />
-                ) : (
-                    <FaFilePdf className="text-[14px]" />
-                )}
-                <span className="font-black uppercase tracking-tight">
-                    {label || 'PDF'}
-                </span>
-            </button>
-        );
-    }
-
-    // Estilo Compacto Quadrado (Imagem 1)
-    if (compact) {
-        return (
-            <button
-                onClick={handleExport}
-                disabled={loading}
-                className={`flex items-center justify-center w-8 h-8 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-                title="Exportar PDF do Plano"
-            >
-                {loading ? (
-                    <Loading size="xs" />
-                ) : (
-                    <FaFilePdf className="text-[14px]" />
-                )}
-            </button>
-        );
-    }
-
-    // Estilo Padrão
+    // Botão PDF padrão do app; `compact` = só o ícone.
     return (
-        <button
+        <PDFButton
             onClick={handleExport}
-            disabled={loading}
-            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${className}`}
-        >
-            {loading ? (
-                <Loading size="xs" />
-            ) : (
-                <FaFilePdf className="text-[14px]" />
-            )}
-            <span className="font-black uppercase tracking-tight">
-                {label || 'PDF'}
-            </span>
-        </button>
+            loading={loading}
+            label={variant === 'action' || !compact ? (label || 'PDF') : undefined}
+            iconOnly={compact && variant !== 'action'}
+            title={compact && variant !== 'action' ? 'Exportar PDF do Plano' : 'Gerar Relatório PDF'}
+            className={className}
+        />
     );
 };

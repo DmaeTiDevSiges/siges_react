@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { toast } from 'sonner';
-import { FaFilePdf } from 'react-icons/fa';
+import { PDFButton } from '../ui/PDFButton';
 import { FileUtils } from '../../utils/FileUtils';
 import { getLogoBase64 } from '../../utils/PdfImageUtils';
 import { MaterialsPurchasesListDocument, MaterialsPurchasesRow } from './MaterialsPurchasesListDocument';
-import { Loading } from '../ui/Loading';
 
 interface MaterialsPurchasesPDFButtonProps {
     purchases: MaterialsPurchasesRow[];
@@ -60,18 +59,13 @@ export const MaterialsPurchasesPDFButton: React.FC<MaterialsPurchasesPDFButtonPr
     };
 
     return (
-        <button
+        <PDFButton
             onClick={generatePDF}
-            disabled={isGenerating || !purchases || purchases.length === 0}
-            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${className}`}
-            title="Exportar Compras para PDF"
-        >
-            {isGenerating ? (
-                <Loading size="xs" />
-            ) : (
-                <FaFilePdf className="text-[14px]" />
-            )}
-            <span>PDF ({purchases.length})</span>
-        </button>
+            loading={isGenerating}
+            disabled={!purchases || purchases.length === 0}
+            title={"Exportar Compras para PDF"}
+            count={purchases?.length}
+            className={className}
+        />
     );
 };

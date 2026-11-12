@@ -22,24 +22,21 @@ const OrderTeamLeaderLine: React.FC<{ order: Order }> = ({ order }) => {
     const leaderName = order.teamLeaderNameShort || (order as any).team_leader_name_short;
     if (!teamCode && !leaderName) {
         return (
-            <span className="flex items-center gap-1 mt-0.5 text-xs font-bold text-slate-400 dark:text-slate-500 italic">
-                <span className="material-symbols-outlined text-[14px]">groups</span>
+            <span className="mt-0.5 text-xs font-bold text-slate-400 dark:text-slate-500 italic">
                 Sem equipe definida
             </span>
         );
     }
     return (
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs min-w-0">
+        <span className="mt-0.5 text-xs min-w-0 truncate">
             <span
-                className="flex items-center gap-1 font-black text-slate-700 dark:text-slate-200 uppercase min-w-0"
+                className="font-black text-slate-700 dark:text-slate-200 uppercase"
                 title={[teamCode, teamDescription].filter(Boolean).join(' - ') || undefined}
             >
-                <span className="material-symbols-outlined text-[14px] text-slate-400">groups</span>
-                <span className="truncate">{teamCode || 'Equipe N/I'}</span>
+                {teamCode || 'Equipe N/I'}
             </span>
-            <span className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-300 min-w-0" title="Líder da equipe">
-                <span className="material-symbols-outlined text-[14px] text-slate-400">person</span>
-                <span className="truncate">{leaderName || 'Sem líder'}</span>
+            <span className="font-bold text-slate-600 dark:text-slate-300" title="Líder da equipe">
+                {' | '}{leaderName || 'Sem líder'}
             </span>
         </span>
     );

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { formatDateInBrazil } from '../../utils/formatters';
+import { formatDateInBrazil, getBrazilDateInputValue } from '../../utils/formatters';
+import { buildYearWeeks, isLastWeekOfMonth, monthWeekCounts, toBrazilDay, weekIndexOf, type GrantWeek } from '../../utils/grantWeeks';
 
 import { User, OrderFilters, Order } from '../../types';
 import { dataService } from '../../services/dataService';
@@ -30,8 +31,13 @@ interface PlottedOSBar {
   authorizedAt: string | null;
   statusDescription: string;
   style: CapsuleStyle;
-  startWeek: number; // 0 to 47 (12 months * 4 weeks)
-  endWeek: number;   // 0 to 47
+  /** Índice da semana real (utils/grantWeeks), já limitado à grade do ano. */
+  startWeek: number;
+  endWeek: number;
+  /** Começou antes do ano exibido (barra encostada em JAN). */
+  startsBeforeYear?: boolean;
+  /** Termina depois do ano exibido (barra encostada em DEZ). */
+  endsAfterYear?: boolean;
   startDateStr: string;
   endDateStr: string;
   visitsCount: number;
@@ -50,7 +56,8 @@ interface UnitGroup {
 }
 
 const MONTHS_SHORT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-const TOTAL_WEEKS = 48; // 12 months * 4 weeks
+/** Largura de cada coluna de semana (px). */
+const WEEK_WIDTH = 34;
 const SECTOR_DOT_COLORS = [
   'bg-rose-500',
   'bg-amber-500',
@@ -70,41 +77,23 @@ const getSectorDotColor = (sectorId: string): string => {
   return SECTOR_DOT_COLORS[Math.abs(hash) % SECTOR_DOT_COLORS.length];
 };
 
-// Helper to convert date string into global week index [0..47]
-const dateToWeekIndex = (dateStr: string, year: number): number => {
-  const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
-  const parsedDate = isoDate ? null : new Date(dateStr);
-  const dYear = isoDate ? Number(isoDate[1]) : parsedDate!.getFullYear();
-  if (dYear < year) return 0;
-  if (dYear > year) return TOTAL_WEEKS - 1;
-
-  const month = isoDate ? Number(isoDate[2]) - 1 : parsedDate!.getMonth(); // 0..11
-  const day = isoDate ? Number(isoDate[3]) : parsedDate!.getDate(); // 1..31
-
-  let weekInMonth = 0;
-  if (day <= 7) {
-    weekInMonth = 0;
-  } else if (day <= 14) {
-    weekInMonth = 1;
-  } else if (day <= 21) {
-    weekInMonth = 2;
-  } else {
-    weekInMonth = 3;
-  }
-
-  return month * 4 + weekInMonth;
+/** Semana (índice limitado à grade) de uma data; null se a data for vazia/inválida. */
+const clampedWeekOf = (dateStr: string | null | undefined, weeks: GrantWeek[]): number | null => {
+  const day = toBrazilDay(dateStr);
+  if (!day) return null;
+  return Math.min(Math.max(weekIndexOf(day, weeks), 0), weeks.length - 1);
 };
 
+// Timestamp sem offset = horário de São Paulo (formatDateInBrazil trata); não passar por new Date().
 const formatGrantDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return dateStr;
-  return formatDateInBrazil(date, 'dateTime', 'pt-BR', {
+  const formatted = formatDateInBrazil(dateStr, 'dateTime', 'pt-BR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+  return formatted === 'Invalid Date' ? dateStr : formatted;
 };
 
 // ─── Component Props ─────────────────────────────────────────────────────────
@@ -124,12 +113,25 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   onFilterBarRef,
   onMobileFilterCountChange,
 }) => {
-  const currentYear = new Date().getFullYear();
-  const currentMonthIndex = new Date().getMonth();
-  const currentDay = new Date().getDate();
-  const currentWeekInMonth = currentDay <= 7 ? 0 : currentDay <= 14 ? 1 : currentDay <= 21 ? 2 : 3;
+  // "Hoje" no fuso de São Paulo.
+  const todayDay = getBrazilDateInputValue();
+  const currentYear = Number(todayDay.slice(0, 4));
+  const currentMonthIndex = Number(todayDay.slice(5, 7)) - 1;
 
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  /** Semanas reais do ano exibido (53 ou 54 colunas). */
+  const weeks = useMemo(() => buildYearWeeks(selectedYear), [selectedYear]);
+  const totalWeeks = weeks.length;
+  const monthCounts = useMemo(() => monthWeekCounts(weeks), [weeks]);
+  const currentWeekIndex = selectedYear === currentYear ? weekIndexOf(todayDay, weeks) : -1;
+  /** Posição (px) da linha do "hoje" dentro da semana atual; null fora do ano exibido. */
+  const todayOffset = useMemo(() => {
+    if (currentWeekIndex < 0 || currentWeekIndex >= weeks.length) return null;
+    const dayInWeek = Math.round(
+      (Date.parse(`${todayDay}T00:00:00Z`) - Date.parse(`${weeks[currentWeekIndex].start}T00:00:00Z`)) / 86_400_000,
+    );
+    return currentWeekIndex * WEEK_WIDTH + ((dayInWeek + 0.5) / 7) * WEEK_WIDTH;
+  }, [currentWeekIndex, weeks, todayDay]);
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
   const [yearPickerDecade, setYearPickerDecade] = useState(Math.floor(currentYear / 10) * 10);
   const [search, setSearch] = useState('');
@@ -409,31 +411,38 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
       const startDate = `${year}-01-01 00:00:00`;
       const endDate = `${year}-12-31 23:59:59`;
 
-      // 2) Requirement 2: Fetch all matching orders
+      // 2) Todas as linhas OS×visita do ano. Antes parava em 10 páginas (5.000 linhas) e cortava
+      //    o resto sem avisar. O total exato (caro na v_orders_visits) só é pedido na 1ª página.
+      const pageSize = 1000;
+      const MAX_PAGES = 100; // trava de segurança: 100.000 linhas
       let allRows: any[] = [];
-      let page = 0;
-      const pageSize = 500;
-      let hasMore = true;
+      let expectedTotal: number | null = null;
+      let truncated = false;
 
-      while (hasMore) {
+      for (let page = 0; ; page++) {
+        if (page >= MAX_PAGES) {
+          truncated = true;
+          break;
+        }
         const result = await dataService.getOrdersVisitsView({
           startDate,
           endDate,
           page,
           pageSize,
+          withCount: page === 0,
           ...orderFilters,
           assetTagId: selectedSectors.length > 0 ? selectedSectors.map(String) : undefined,
         });
 
         const data = result?.data || [];
-        allRows = [...allRows, ...data];
+        if (page === 0) expectedTotal = typeof result?.count === 'number' ? result.count : null;
+        allRows.push(...data);
 
-        if (data.length < pageSize || allRows.length >= (result?.count || 0)) {
-          hasMore = false;
-        } else {
-          page++;
-          if (page >= 10) break;
-        }
+        if (data.length < pageSize || (expectedTotal !== null && allRows.length >= expectedTotal)) break;
+      }
+
+      if (truncated) {
+        toast.warning(`Cronograma incompleto: ${allRows.length.toLocaleString('pt-BR')} de ${expectedTotal?.toLocaleString('pt-BR') ?? 'muitas'} visitas carregadas. Refine os filtros.`);
       }
 
       const selectedMaintenancePlanIds = Array.isArray(maintenancePlanId)
@@ -522,40 +531,34 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
         }
       }
 
-      // 3) Requirement 3: Plot OSs by week columns, using union of visits (1st visit start to 2nd visit end)
+      // 3) Barra da OS: do início da 1ª visita ao fim da última (todas as visitas, não só as 2 primeiras).
+      //    Sem visita: data da OS. Semanas reais (segunda a domingo) — utils/grantWeeks.
       const unitMap = new Map<string, UnitGroup>();
+      const yearWeeks = buildYearWeeks(year);
 
       for (const os of orderMap.values()) {
-        const validVisits = os.visits
-          .filter(v => v.startedAt || v.endedAt)
-          .sort((a, b) => {
-            const timeA = new Date(a.startedAt || a.endedAt || 0).getTime();
-            const timeB = new Date(b.startedAt || b.endedAt || 0).getTime();
-            return timeA - timeB;
-          });
+        // Horário original (exibido no tooltip) + dia em São Paulo (posição na grade).
+        const visitPoints = os.visits
+          .flatMap(v => [v.startedAt || v.endedAt, v.endedAt || v.startedAt])
+          .map(raw => ({ raw: raw || '', day: toBrazilDay(raw) }))
+          .filter((p): p is { raw: string; day: string } => !!p.day)
+          .sort((a, b) => a.day.localeCompare(b.day) || a.raw.localeCompare(b.raw));
+        const requestedDay = toBrazilDay(os.requestedAt);
+        const first = visitPoints[0] || (requestedDay ? { raw: os.requestedAt!, day: requestedDay } : null);
+        const last = visitPoints[visitPoints.length - 1] || first;
 
-        let startDateStr = '';
-        let endDateStr = '';
+        if (!first || !last) continue;
+        const startDateStr = first.raw;
+        const endDateStr = last.raw;
 
-        if (validVisits.length >= 2) {
-          // 1st visit start & 2nd visit end
-          const firstVisit = validVisits[0];
-          const secondVisit = validVisits[1] || validVisits[validVisits.length - 1];
-          startDateStr = firstVisit.startedAt || firstVisit.endedAt || '';
-          endDateStr = secondVisit.endedAt || secondVisit.startedAt || startDateStr;
-        } else if (validVisits.length === 1) {
-          const onlyVisit = validVisits[0];
-          startDateStr = onlyVisit.startedAt || onlyVisit.endedAt || '';
-          endDateStr = onlyVisit.endedAt || onlyVisit.startedAt || startDateStr;
-        } else if (os.requestedAt) {
-          startDateStr = os.requestedAt;
-          endDateStr = os.requestedAt;
-        }
-
-        if (!startDateStr) continue;
-
-        const startWeek = dateToWeekIndex(startDateStr, year);
-        let endWeek = dateToWeekIndex(endDateStr || startDateStr, year);
+        const rawStart = weekIndexOf(first.day, yearWeeks);
+        const rawEnd = weekIndexOf(last.day, yearWeeks);
+        // OS inteira fora do ano exibido (ex.: só visitas no ano seguinte): não entra.
+        if (rawEnd < 0 || rawStart >= yearWeeks.length) continue;
+        const startsBeforeYear = rawStart < 0;
+        const endsAfterYear = rawEnd >= yearWeeks.length;
+        const startWeek = Math.max(rawStart, 0);
+        let endWeek = Math.min(rawEnd, yearWeeks.length - 1);
 
         if (startWeek > endWeek) {
           endWeek = startWeek;
@@ -608,6 +611,8 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
           style,
           startWeek,
           endWeek,
+          startsBeforeYear,
+          endsAfterYear,
           startDateStr,
           endDateStr,
           visitsCount: os.visits.length,
@@ -911,7 +916,8 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
     }
     el.textContent = 'UNIDADES';
     max = Math.max(max, el.offsetWidth);
-    if (max > 0) setAutoUnitColWidth(Math.min(600, max + 52));
+    // +52 de respiro e +36 do selo com a quantidade de OSs da unidade.
+    if (max > 0) setAutoUnitColWidth(Math.min(600, max + 52 + 36));
   }, [filteredUnits, unitColWidth]);
 
   // ── KPI Statistics (Total OS's, OS's Suspensas, OS's Concluídas) ──
@@ -1030,18 +1036,18 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
   };
 
   const renderUnitRow = (unit: UnitGroup) => {
-    const cellWidth = TOTAL_WEEKS * 34;
+    const cellWidth = totalWeeks * WEEK_WIDTH;
     const laneHeight = 44;
     const timelineBars = unit.bars.map(bar => {
       const authorizationWeek = bar.wasAuthorized && (bar.statusId === 6 || bar.statusId === 8) && bar.authorizedAt
-        ? dateToWeekIndex(bar.authorizedAt, selectedYear)
+        ? clampedWeekOf(bar.authorizedAt, weeks)
         : null;
       const timelineStartWeek = authorizationWeek === null
         ? bar.startWeek
         : Math.max(0, Math.min(bar.startWeek, authorizationWeek) - 1);
       const timelineEndWeek = authorizationWeek === null
         ? bar.endWeek
-        : Math.min(TOTAL_WEEKS - 1, Math.max(bar.endWeek, authorizationWeek) + 1);
+        : Math.min(totalWeeks - 1, Math.max(bar.endWeek, authorizationWeek) + 1);
       return {
         bar,
         authorizationWeek,
@@ -1067,22 +1073,26 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
         <td
           className="sticky left-0 z-10 bg-white dark:bg-[#090f1d] px-4 py-3 border-r-2 border-slate-300 dark:border-[#1e2a44] font-bold text-xs text-slate-700 dark:text-slate-200 tracking-wider whitespace-nowrap"
           style={{ width: unitColWidth ?? autoUnitColWidth, minWidth: unitColWidth ?? autoUnitColWidth, maxWidth: unitColWidth ?? autoUnitColWidth }}
-          title={unit.name}
+          title={`${unit.name} · ${unit.bars.length} OS(s)`}
         >
-          {unit.name}
+          <span className="flex items-center justify-between gap-2">
+            <span className="truncate">{unit.name}</span>
+            <span className="shrink-0 rounded-md bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 text-[10px] font-black text-slate-500 dark:text-slate-400">
+              {unit.bars.length}
+            </span>
+          </span>
         </td>
         <td
-          colSpan={TOTAL_WEEKS}
+          colSpan={totalWeeks}
           className={`relative p-0 ${positionedBars.some(({ bar }) => bar.id === hoveredBar?.bar.id) ? 'z-50' : ''}`}
           style={{ width: cellWidth, minWidth: cellWidth }}
         >
           <div className="relative" style={{ width: cellWidth, height: timelineHeight }}>
-            <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${TOTAL_WEEKS}, 34px)` }}>
-              {Array.from({ length: TOTAL_WEEKS }, (_, week) => {
-                const monthIndex = Math.floor(week / 4);
+            <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${totalWeeks}, ${WEEK_WIDTH}px)` }}>
+              {weeks.map(({ index: week, month: monthIndex }) => {
                 const isCurrentMonth = monthIndex === currentMonthIndex && selectedYear === currentYear;
-                const isCurrentWeek = isCurrentMonth && week % 4 === currentWeekInMonth;
-                const isMonthEnd = week % 4 === 3;
+                const isCurrentWeek = week === currentWeekIndex;
+                const isMonthEnd = isLastWeekOfMonth(weeks, week);
                 return (
                   <div
                     key={`${unit.id}-week-bg-${week}`}
@@ -1093,23 +1103,22 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                 );
               })}
             </div>
+            {todayOffset !== null && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute top-0 bottom-0 z-[5] w-0 border-l-2 border-dashed border-rose-500/60"
+                style={{ left: todayOffset }}
+              />
+            )}
             {positionedBars.map(({ bar, authorizationWeek, startWeek, endWeek, lane }) => {
               const hasMarker = authorizationWeek !== null;
-              const barWidth = (bar.endWeek - bar.startWeek + 1) * 34;
-              const timelineOffset = (bar.startWeek - startWeek) * 34;
-              const markerCenter = hasMarker ? (authorizationWeek - startWeek) * 34 + 17 : 0;
-              const barCenter = timelineOffset + barWidth / 2;
-              const connectorPath = !hasMarker
-                ? ''
-                : markerCenter === barCenter
-                  ? `M ${markerCenter} 16 V 20`
-                  : (() => {
-                      const direction = barCenter > markerCenter ? 1 : -1;
-                      const radius = Math.min(4, Math.abs(barCenter - markerCenter) / 2);
-                      const markerTurn = markerCenter + direction * radius;
-                      const barTurn = barCenter - direction * radius;
-                      return `M ${markerCenter} 16 V 17 Q ${markerCenter} 20 ${markerTurn} 20 H ${barTurn} Q ${barCenter} 20 ${barCenter} 20 V 20`;
-                    })();
+              const barWidth = (bar.endWeek - bar.startWeek + 1) * WEEK_WIDTH;
+              const timelineOffset = (bar.startWeek - startWeek) * WEEK_WIDTH;
+              const markerCenter = hasMarker ? (authorizationWeek - startWeek) * WEEK_WIDTH + WEEK_WIDTH / 2 : 0;
+              // Autorizada → executada: trecho tracejado da autorização até o início da execução.
+              const capsuleTop = 8;
+              const authBeforeStart = hasMarker && markerCenter < timelineOffset;
+              const authDay = hasMarker ? toBrazilDay(bar.authorizedAt)?.slice(8, 10) ?? '--' : '';
 
               return (
                 <div
@@ -1124,38 +1133,52 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                   style={{
                     top: lane * laneHeight,
                     height: laneHeight,
-                    left: startWeek * 34,
-                    width: (endWeek - startWeek + 1) * 34,
+                    left: startWeek * WEEK_WIDTH,
+                    width: (endWeek - startWeek + 1) * WEEK_WIDTH,
                   }}
                 >
+                  {hasMarker && authBeforeStart && (
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute z-0 border-t-2 border-dashed border-sky-400/80 dark:border-sky-500/70"
+                      style={{ left: markerCenter, width: timelineOffset - markerCenter, top: capsuleTop + 13 }}
+                    />
+                  )}
                   {hasMarker && (
-                    <>
-                      <svg
-                        aria-hidden="true"
-                        className="pointer-events-none absolute left-0 top-0 z-0"
-                        width={(endWeek - startWeek + 1) * 34}
-                        height="20"
-                      >
-                        <path d={connectorPath} className="stroke-sky-400 dark:stroke-sky-500" fill="none" strokeWidth="1" />
-                      </svg>
-                      <span
-                        title={`Autorizada em ${bar.authorizedAt ? formatGrantDate(bar.authorizedAt) : 'data não informada'}`}
-                        aria-label={`Autorizada no dia ${new Date(bar.authorizedAt!).getDate()}`}
-                        className="absolute top-0 z-10 inline-flex h-4 min-w-[48px] -translate-x-1/2 items-center justify-center gap-0.5 rounded-full border border-sky-200 bg-white px-1.5 text-[9px] font-bold leading-none text-sky-700 shadow-sm dark:border-sky-500/30 dark:bg-slate-900 dark:text-sky-300"
-                        style={{ left: markerCenter }}
-                      >
-                        <span className="material-symbols-outlined text-[11px] leading-none">verified</span>
-                        <span>{String(new Date(bar.authorizedAt!).getDate()).padStart(2, '0')}</span>
-                      </span>
-                    </>
+                    <span
+                      title={`Autorizada em ${bar.authorizedAt ? formatGrantDate(bar.authorizedAt) : 'data não informada'}`}
+                      aria-label={`Autorizada no dia ${authDay}`}
+                      className="absolute z-30 inline-flex h-4 -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 rounded-full border border-sky-300 bg-white px-1 text-[9px] font-bold leading-none text-sky-700 shadow-sm dark:border-sky-500/40 dark:bg-slate-900 dark:text-sky-300"
+                      style={{ left: markerCenter, top: authBeforeStart ? capsuleTop + 14 : capsuleTop - 1 }}
+                    >
+                      <span className="material-symbols-outlined text-[11px] leading-none">verified</span>
+                      <span>{authDay}</span>
+                    </span>
                   )}
                   <div
                     data-os-capsule=""
                     className="absolute left-0"
-                    style={{ left: timelineOffset, top: hasMarker ? 18 : 8, width: barWidth }}
-                    title={`OS ${bar.orderMask}`}
+                    style={{ left: timelineOffset, top: capsuleTop, width: barWidth }}
+                    title={`OS ${bar.orderMask}${bar.startsBeforeYear ? ' · começou no ano anterior' : ''}${bar.endsAfterYear ? ' · continua no ano seguinte' : ''}`}
                   >
                     {renderCapsule(bar)}
+                    {/* OS que atravessa a virada do ano: seta na ponta cortada da barra. */}
+                    {bar.startsBeforeYear && (
+                      <span
+                        className="pointer-events-none absolute -left-2 top-1/2 z-30 -translate-y-1/2 flex items-center justify-center w-4 h-4 rounded-full bg-slate-700 text-white shadow"
+                        aria-label={`Começou em ${selectedYear - 1}`}
+                      >
+                        <span className="material-symbols-outlined text-[13px] leading-none">chevron_left</span>
+                      </span>
+                    )}
+                    {bar.endsAfterYear && (
+                      <span
+                        className="pointer-events-none absolute -right-2 top-1/2 z-30 -translate-y-1/2 flex items-center justify-center w-4 h-4 rounded-full bg-slate-700 text-white shadow"
+                        aria-label={`Continua em ${selectedYear + 1}`}
+                      >
+                        <span className="material-symbols-outlined text-[13px] leading-none">chevron_right</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               );
@@ -1380,6 +1403,30 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
             </div>
           </div>
 
+          {/* Legenda: o que cada cor/sinal da grade significa */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2 border-b border-slate-200 dark:border-[#1e2a44] text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Legenda:</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-5 rounded-full bg-[#10b981]" />Concluída</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-5 rounded-full bg-[#0284c7]" />Em andamento</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-5 rounded-full border border-amber-500 bg-amber-100 dark:bg-[#78350f]/40" />Aberta</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-5 rounded-full bg-gradient-to-r from-[#ea580c] to-[#dc2626]" />Suspensa / alerta</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex h-4 items-center rounded-full border border-sky-300 bg-white px-1 text-sky-700 dark:border-sky-500/40 dark:bg-slate-900 dark:text-sky-300">
+                <span className="material-symbols-outlined text-[11px] leading-none">verified</span>
+              </span>
+              <span className="w-5 border-t-2 border-dashed border-sky-400/80" />
+              Autorizada → execução
+            </span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-0 border-l-2 border-dashed border-rose-500/70" />Hoje</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="flex items-center justify-center w-4 h-4 rounded-full bg-slate-700 text-white">
+                <span className="material-symbols-outlined text-[13px] leading-none">chevron_right</span>
+              </span>
+              Continua no ano seguinte
+            </span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-rose-500 ring-1 ring-white/70" />Setor (cor)</span>
+          </div>
+
           {/* Gantt Table with Weeks inside each month */}
           <div
             className="flex-1 overflow-auto cursor-grab active:cursor-grabbing"
@@ -1425,7 +1472,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                     return (
                       <th
                         key={month}
-                        colSpan={4}
+                        colSpan={monthCounts[i]}
                         className={`px-2 py-2.5 text-center text-[11px] uppercase tracking-wider border-r-2 border-slate-200 dark:border-[#1e2a44] ${
                           isCurrentMonth
                             ? 'text-sky-600 dark:text-[#38bdf8] font-black bg-sky-500/10'
@@ -1438,36 +1485,35 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                   })}
                 </tr>
 
-                {/* Row 2: Weeks (S1, S2, S3, S4) inside each month */}
+                {/* Linha 2: semanas reais (segunda a domingo); o número é o 1º dia da semana no ano. */}
                 <tr className="bg-white dark:bg-[#090f1d] border-b border-slate-200 dark:border-[#1e2a44] sticky top-[38px] z-20">
-                  {MONTHS_SHORT.map((month, mIdx) => {
-                    const isCurrentMonth = mIdx === currentMonthIndex && selectedYear === currentYear;
-                    return ['S1', 'S2', 'S3', 'S4'].map((wLabel, wIdx) => {
-                      const isCurrentWeek = isCurrentMonth && wIdx === currentWeekInMonth;
-                      const isMonthEnd = wIdx === 3;
-                      return (
-                        <th
-                          key={`${month}-${wLabel}`}
-                          className={`py-1 px-0.5 text-center text-[10px] uppercase font-semibold select-none border-b-2 border-slate-200 dark:border-[#2b3d63] shadow-[inset_0_-2px_0_#e2e8f0] dark:shadow-[inset_0_-2px_0_#2b3d63] ${
-                            isMonthEnd ? 'border-r-2 border-slate-200 dark:border-[#1e2a44]' : 'border-r border-slate-100 dark:border-[#1e2a44]/50'
-                          } ${
-                            isCurrentWeek
-                              ? 'text-sky-600 dark:text-sky-300 font-bold bg-sky-500/20'
-                              : (isCurrentMonth ? 'text-sky-600/80 dark:text-sky-400/80 bg-sky-500/5' : 'text-slate-400 dark:text-slate-400')
-                          }`}
-                          style={{ minWidth: 34, width: 34 }}
-                        >
-                          {wLabel}
-                        </th>
-                      );
-                    });
+                  {weeks.map(week => {
+                    const isCurrentMonth = week.month === currentMonthIndex && selectedYear === currentYear;
+                    const isCurrentWeek = week.index === currentWeekIndex;
+                    const isMonthEnd = isLastWeekOfMonth(weeks, week.index);
+                    return (
+                      <th
+                        key={week.start}
+                        title={`Semana de ${formatDateInBrazil(`${week.start}T12:00:00`, 'date', 'pt-BR', { day: '2-digit', month: '2-digit' })} a ${formatDateInBrazil(`${week.end}T12:00:00`, 'date', 'pt-BR', { day: '2-digit', month: '2-digit' })}`}
+                        className={`py-1 px-0.5 text-center text-[10px] font-semibold select-none border-b-2 border-slate-200 dark:border-[#2b3d63] shadow-[inset_0_-2px_0_#e2e8f0] dark:shadow-[inset_0_-2px_0_#2b3d63] ${
+                          isMonthEnd ? 'border-r-2 border-slate-200 dark:border-[#1e2a44]' : 'border-r border-slate-100 dark:border-[#1e2a44]/50'
+                        } ${
+                          isCurrentWeek
+                            ? 'text-sky-600 dark:text-sky-300 font-bold bg-sky-500/20'
+                            : (isCurrentMonth ? 'text-sky-600/80 dark:text-sky-400/80 bg-sky-500/5' : 'text-slate-400 dark:text-slate-400')
+                        }`}
+                        style={{ minWidth: WEEK_WIDTH, width: WEEK_WIDTH }}
+                      >
+                        {week.label}
+                      </th>
+                    );
                   })}
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={49} className="py-24 text-center">
+                    <td colSpan={totalWeeks + 1} className="py-24 text-center">
                       <div className="flex flex-col items-center gap-3 text-slate-400">
                         <span className="material-symbols-outlined text-4xl animate-spin text-[#0284c7]">
                           progress_activity
@@ -1478,7 +1524,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                   </tr>
                 ) : filteredUnits.length === 0 ? (
                   <tr>
-                    <td colSpan={49} className="py-24 text-center">
+                    <td colSpan={totalWeeks + 1} className="py-24 text-center">
                       <div className="flex flex-col items-center gap-2 text-slate-500">
                         <span className="material-symbols-outlined text-4xl">search_off</span>
                         <span className="text-sm font-medium">

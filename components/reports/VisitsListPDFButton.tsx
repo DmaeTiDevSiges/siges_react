@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { VisitsListDocument, VisitListRow } from './VisitsListDocument';
-import { FaFilePdf } from 'react-icons/fa';
+import { PDFButton } from '../ui/PDFButton';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 import { FileUtils } from '../../utils/FileUtils';
 import { getLogoBase64 } from '../../utils/PdfImageUtils';
-import { Loading } from '../ui/Loading';
 
 
 interface VisitsListPDFButtonProps {
@@ -72,18 +71,12 @@ export const VisitsListPDFButton = ({
     };
 
     return (
-        <button
+        <PDFButton
             onClick={handleDownload}
-            disabled={isGenerating}
-            title="Exportar lista de visitas em PDF"
-            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-[10px] uppercase tracking-wider ${className}`}
-        >
-            {isGenerating ? (
-                <Loading size="xs" />
-            ) : (
-                <FaFilePdf className="text-[14px]" />
-            )}
-            <span>PDF {totalCount ? `(${totalCount})` : ''}</span>
-        </button>
+            loading={isGenerating}
+            title={"Exportar lista de visitas em PDF"}
+            count={totalCount || undefined}
+            className={className}
+        />
     );
 };

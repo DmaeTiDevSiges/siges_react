@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
-import { FaFilePdf } from 'react-icons/fa';
+import { PDFButton } from '../ui/PDFButton';
 import { toast } from 'sonner';
 import { TeamShiftsCalendarEntry, TeamShiftsMonthly } from '../../types';
 import { FileUtils } from '../../utils/FileUtils';
 import { getLogoBase64 } from '../../utils/PdfImageUtils';
-import { Loading } from '../ui/Loading';
 import { TeamShiftsCalendarDocument } from './TeamShiftsCalendarDocument';
 
 interface TeamShiftsCalendarPDFButtonProps {
@@ -64,15 +63,11 @@ export const TeamShiftsCalendarPDFButton: React.FC<TeamShiftsCalendarPDFButtonPr
     };
 
     return (
-        <button
-            type="button"
+        <PDFButton
             onClick={handleDownload}
-            disabled={disabled || isGenerating}
+            loading={isGenerating}
+            disabled={disabled}
             title="Exportar o mês completo com marcações e totais"
-            className="flex shrink-0 items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-500/20 disabled:cursor-wait disabled:opacity-50 dark:text-red-400"
-        >
-            {isGenerating ? <Loading size="xs" /> : <FaFilePdf className="text-sm" />}
-            PDF
-        </button>
+        />
     );
 };

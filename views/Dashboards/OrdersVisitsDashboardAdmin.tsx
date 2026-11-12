@@ -22,7 +22,7 @@ import { AssetsListDocument } from '../../components/reports/AssetsListDocument'
 import { AssetMovementsDocument } from '../../components/reports/AssetMovementsDocument';
 import { pdf } from '@react-pdf/renderer';
 import { RiFileExcel2Fill } from 'react-icons/ri';
-import { FaFilePdf } from 'react-icons/fa';
+import { PDFButton } from '../../components/ui/PDFButton';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { useClientScope } from '../../hooks/useClientScope';
 import { systemsScopeOption } from '../../utils/clientScope';
@@ -2186,15 +2186,12 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                                 {isExportingExcel ? <Loading size="xs" /> : <RiFileExcel2Fill className="text-[14px]" />}
                                 <span>XLS ({(appropriationData as any)?.movedAssets?.length || 0})</span>
                             </button>
-                            <button
+                            <PDFButton
                                 onClick={handleExportPDF}
-                                disabled={isExportingPDF}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs"
+                                loading={isExportingPDF}
+                                count={(appropriationData as any)?.movedAssets?.length || 0}
                                 title="Exportar Movimentações para PDF"
-                            >
-                                {isExportingPDF ? <Loading size="xs" /> : <FaFilePdf className="text-[14px]" />}
-                                <span>PDF ({(appropriationData as any)?.movedAssets?.length || 0})</span>
-                            </button>
+                            />
                         </div>
                     </div>
                     <div className="max-h-[60vh] overflow-y-auto p-1 no-scrollbar">

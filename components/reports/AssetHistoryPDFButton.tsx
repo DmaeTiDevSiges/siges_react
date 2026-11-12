@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { toast } from 'sonner';
-import { FaFilePdf } from 'react-icons/fa';
+import { PDFButton } from '../ui/PDFButton';
 import { AssetHistoryDocument } from './AssetHistoryDocument';
 import { Asset, AssetHistoryItem } from '../../types';
 import { urlsToBase64 } from '../../utils/PdfImageUtils';
 import { imgproxyService } from '../../services/media/imgproxyService';
 import { FileUtils } from '../../utils/FileUtils';
-import { Loading } from '../ui/Loading';
 
 interface AssetHistoryPDFButtonProps {
     asset: Asset;
@@ -63,18 +62,13 @@ export const AssetHistoryPDFButton = ({ asset, history, className }: AssetHistor
     };
 
     return (
-        <button
+        <PDFButton
             onClick={handleGeneratePDF}
-            disabled={isGenerating || history.length === 0}
+            loading={isGenerating}
+            disabled={history.length === 0}
             title={history.length === 0 ? 'Nenhum histórico para exportar' : 'Exportar histórico em PDF'}
-            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${isGenerating ? 'animate-pulse' : ''} ${className || ''}`}
-        >
-            {isGenerating ? (
-                <Loading size="xs" />
-            ) : (
-                <FaFilePdf className="text-[14px]" />
-            )}
-            <span>PDF {history.length > 0 ? `(${history.length})` : ''}</span>
-        </button>
+            count={history.length > 0 ? history.length : undefined}
+            className={className || ''}
+        />
     );
 };

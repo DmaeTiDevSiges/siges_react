@@ -6,9 +6,8 @@ import { dataService } from '../../services/dataService';
 import { VisitReportDocument, VisitReportData } from './VisitReportDocument';
 import { urlsToBase64, getLogoBase64, addWhiteBackgroundToImage } from '../../utils/PdfImageUtils';
 import { imgproxyService } from '../../services/media/imgproxyService';
-import { FaFilePdf } from 'react-icons/fa';
+import { PDFButton } from '../ui/PDFButton';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
-import { Loading } from '../ui/Loading';
 import { getBrazilDateInputValue } from '../../utils/formatters';
 
 
@@ -374,58 +373,16 @@ export const VisitReportPDFButton = ({
         }
     };
 
-    if (variant === 'action') {
-        return (
-            <button
-                onClick={handleExport}
-                disabled={loading}
-                className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-wait shrink-0 text-xs ${className}`}
-                title="Gerar Relatório PDF"
-            >
-                {loading ? (
-                    <Loading size="xs" />
-                ) : (
-                    <FaFilePdf className="text-[14px]" />
-                )}
-                <span className="font-black uppercase tracking-tight">
-                    {label || 'PDF'}
-                </span>
-            </button>
-        );
-    }
-
-    if (compact) {
-        return (
-            <button
-                onClick={handleExport}
-                disabled={loading}
-                className={`flex items-center justify-center w-8 h-8 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-                title="Exportar Relatório PDF da Visita"
-            >
-                {loading ? (
-                    <Loading size="xs" />
-                ) : (
-                    <FaFilePdf className="text-[14px]" />
-                )}
-            </button>
-        );
-    }
-
+    // Botão PDF padrão do app; `compact` = só o ícone.
+    const iconOnly = compact && variant !== 'action';
     return (
-        <button
+        <PDFButton
             onClick={handleExport}
-            disabled={loading}
-            className={`flex items-center gap-2 px-3 py-1.5 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 text-red-500 hover:bg-red-500/20 rounded-[8px] font-bold active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-xs ${className}`}
-            title="Exportar Relatório PDF da Visita"
-        >
-            {loading ? (
-                <Loading size="xs" />
-            ) : (
-                <FaFilePdf className="text-[14px]" />
-            )}
-            <span className="font-black uppercase tracking-tight">
-                {label || 'PDF'}
-            </span>
-        </button>
+            loading={loading}
+            label={label || 'PDF'}
+            iconOnly={iconOnly}
+            title={variant === 'action' ? 'Gerar Relatório PDF' : 'Exportar Relatório PDF da Visita'}
+            className={className}
+        />
     );
 };
