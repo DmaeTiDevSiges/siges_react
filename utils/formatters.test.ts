@@ -1,4 +1,4 @@
-import { formatDateInBrazil, formatDurationHuman, getBrazilDateTimeInputValue, getNaiveDurationHours, toBrazilNaiveDateTime } from './formatters';
+import { formatDate, formatDateInBrazil, formatDateTime, formatDurationHuman, getBrazilDateTimeInputValue, getNaiveDurationHours, toBrazilNaiveDateTime } from './formatters';
 import { getBrazilTimestamp } from './dateUtils';
 
 describe('formatDateInBrazil', () => {
@@ -75,5 +75,20 @@ describe('manual visit date/time helpers', () => {
         expect(formatDurationHuman(32.5)).toBe('1 d 8 h 30 min');
         expect(formatDurationHuman(2)).toBe('2 h');
         expect(formatDurationHuman(0.5)).toBe('30 min');
+    });
+});
+
+describe('datas fora do esperado não derrubam a tela', () => {
+    it('ano digitado errado (0206): fuso histórico GMT-03:06:28 não lança erro', () => {
+        // Ativo 23082 tinha status_at = 0206-09-10 e a tela do ativo caía no ErrorBoundary.
+        expect(formatDateTime('0206-09-10 00:00:00')).toBe('10/09/206 00:00 h');
+        expect(formatDate('0206-09-10 00:00:00')).toBe('10/09/206');
+        expect(() => formatDateInBrazil('0206-09-10 00:00:00', 'dateTime')).not.toThrow();
+    });
+
+    it('formatDate com texto que não é data devolve o próprio texto', () => {
+        expect(formatDate('15/03/2020')).toBe('15/03/2020');
+        expect(formatDate('')).toBe('-');
+        expect(formatDate(null)).toBe('-');
     });
 });

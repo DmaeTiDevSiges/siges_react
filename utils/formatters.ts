@@ -12,10 +12,13 @@ const getBrazilTimezoneOffset = (timestamp: number): number => {
     if (!timeZoneName) throw new Error(`Não foi possível determinar o fuso horário ${BRAZIL_TIME_ZONE}`);
     if (timeZoneName === 'GMT') return 0;
 
-    const offset = timeZoneName.match(/^GMT([+-])(\d{2}):?(\d{2})?$/);
-    if (!offset) throw new Error(`Fuso horário inesperado para ${BRAZIL_TIME_ZONE}: ${timeZoneName}`);
-    const minutes = Number(offset[2]) * 60 + Number(offset[3] || 0);
-    return (offset[1] === '+' ? 1 : -1) * minutes * 60_000;
+    // Antes de 1914 o fuso de São Paulo era a hora solar local (GMT-03:06:28): aceita segundos.
+    // Datas assim só aparecem por erro de digitação (ex.: ano 0206 em vez de 2026) e não
+    // podem derrubar a tela — em último caso usa -03:00.
+    const offset = timeZoneName.match(/^GMT([+-])(\d{2}):?(\d{2})?(?::(\d{2}))?$/);
+    if (!offset) return -3 * 3_600_000;
+    const seconds = Number(offset[2]) * 3600 + Number(offset[3] || 0) * 60 + Number(offset[4] || 0);
+    return (offset[1] === '+' ? 1 : -1) * seconds * 1000;
 };
 
 export const parseBrazilDate = (value: Date | string | number): Date => {
@@ -206,7 +209,8 @@ export const formatCurrency = (value: number): string => {
  * @param date - Date string or Date object
  * @returns Formatted date string (DD/MM/YYYY)
  */
-export const formatDate = (date: string | Date): string => {
+export const formatDate = (date: string | Date | null | undefined): string => {
+    if (date == null || date === '') return '-';
     if (typeof date === 'string') {
         const dateOnlyMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
         if (dateOnlyMatch) {
@@ -215,6 +219,9 @@ export const formatDate = (date: string | Date): string => {
         }
     }
     const d = parseBrazilDate(date);
+    // Data inválida (ex.: atributo de texto livre "15/03/2020"): Intl.format lançaria
+    // RangeError e derrubaria a tela inteira — devolve o texto original.
+    if (Number.isNaN(d.getTime())) return typeof date === 'string' ? date : '-';
     return new Intl.DateTimeFormat('pt-BR', { timeZone: BRAZIL_TIME_ZONE }).format(d);
 };
 

@@ -33,6 +33,10 @@ export interface DailyScheduleOrder {
     statusAt?: string;
     teamId?: string;
     teamLeaderId?: string;
+    /** Equipe responsável (cfg_teams.code / description) e líder (users.name_short) na OS. */
+    teamCode?: string;
+    teamDescription?: string;
+    teamLeaderName?: string;
     priorityCode?: string;
     priorityDescription?: string;
     unitId?: string;
@@ -104,7 +108,7 @@ export const ORDER_STATUS_CONFLICT = 'ORDER_STATUS_CONFLICT';
 
 const ORDER_COLUMNS = [
     'id', 'order_mask', 'status_id', 'status_code', 'status_description', 'status_at',
-    'team_id', 'team_leader_id', 'priority_code', 'priority_description',
+    'team_id', 'team_code', 'team_description', 'team_leader_id', 'team_leader_name_short', 'priority_code', 'priority_description',
     'unit_id', 'unit_description', 'asset_tag_id', 'asset_tag_description', 'asset_tag_sub_description',
     'requested_services',
     'type_code', 'type_sub_code', 'object_code', 'requested_at',
@@ -119,6 +123,9 @@ const mapOrder = (item: any): DailyScheduleOrder => ({
     statusAt: item.status_at,
     teamId: item.team_id?.toString(),
     teamLeaderId: item.team_leader_id?.toString(),
+    teamCode: item.team_code || undefined,
+    teamDescription: item.team_description || undefined,
+    teamLeaderName: item.team_leader_name_short || undefined,
     priorityCode: item.priority_code,
     priorityDescription: item.priority_description,
     unitId: item.unit_id?.toString(),
@@ -353,6 +360,19 @@ export const dailyScheduleService = {
         // Cópia: o histórico acrescenta equipes sem líder e não pode sujar o cache.
         const teams = [...cachedTeams];
         const { supported, updatedAt, savedItems, savedPriorities, prioritiesInheritedFrom } = raw;
+
+        // Sem a migration 20261129 a RPC não traz equipe/líder: completa pelas equipes do quadro
+        // (mesma equipe; o líder da OS normalmente é o líder atual da equipe).
+        const teamById = new Map<string, DailyScheduleTeam>(cachedTeams.map(t => [t.id, t]));
+        for (const order of raw.orders) {
+            const team = order.teamId ? teamById.get(order.teamId) : undefined;
+            if (!team) continue;
+            if (!order.teamCode) {
+                order.teamCode = team.code;
+                order.teamDescription = order.teamDescription || team.name;
+            }
+            if (!order.teamLeaderName && order.teamLeaderId === team.leaderId) order.teamLeaderName = team.leaderName;
+        }
 
         const priorityByOrder = new Map<string, number>(savedPriorities.map(p => [p.order_id.toString(), p.position]));
         const byPriority = (a: DailyScheduleOrder, b: DailyScheduleOrder) => {

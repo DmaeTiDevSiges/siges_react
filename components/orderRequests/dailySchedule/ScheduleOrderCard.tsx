@@ -53,6 +53,8 @@ interface ScheduleOrderCardViewProps {
     /** Exibe o cadeado (OS que não troca de equipe). */
     showLock?: boolean;
     isOverlay?: boolean;
+    /** Exibe a equipe responsável e o líder da OS (faixas; nas colunas a equipe já é o cabeçalho). */
+    showTeam?: boolean;
     /**
      * Alça de arraste (atributos/listeners do dnd-kit + ref do ativador). Só ela inicia o
      * arraste: o resto do cartão fica livre para rolar a faixa/equipes.
@@ -63,7 +65,7 @@ interface ScheduleOrderCardViewProps {
 }
 
 export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
-    order, position, showLock, isOverlay, handleProps, onOpenActions, onOpenOrder,
+    order, position, showLock, isOverlay, showTeam, handleProps, onOpenActions, onOpenOrder,
 }) => {
     const status = STATUS_STYLE[order.statusId] || { label: order.statusCode || '?', className: 'bg-slate-500/15 text-slate-500' };
     return (
@@ -76,22 +78,29 @@ export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
                         : 'shadow-sm hover:shadow-md border-slate-200 dark:border-white/10'}`}
         >
             <div className="flex items-start gap-2">
-                {(handleProps || isOverlay) && (
-                    <button
-                        type="button"
-                        data-drag-handle
-                        {...handleProps}
-                        className="shrink-0 -ml-2 -my-1 py-1 rounded-md text-slate-300 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-grab active:cursor-grabbing touch-none"
-                        title="Arrastar a OS"
-                        aria-label={`Arrastar a OS ${order.orderMask}`}
-                    >
-                        <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
-                    </button>
-                )}
-                {position != null && (
-                    <span className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-[11px] font-black">
-                        {position}
-                    </span>
+                {/* Coluna esquerda: alça de arraste no topo, número (prioridade/sequência) no canto inferior. */}
+                {(handleProps || isOverlay || position != null) && (
+                    <div className="shrink-0 self-stretch -ml-2 flex flex-col items-center">
+                        {(handleProps || isOverlay) && (
+                            <button
+                                type="button"
+                                data-drag-handle
+                                {...handleProps}
+                                className="-my-1 py-1 rounded-md text-slate-300 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-grab active:cursor-grabbing touch-none"
+                                title="Arrastar a OS"
+                                aria-label={`Arrastar a OS ${order.orderMask}`}
+                            >
+                                <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
+                            </button>
+                        )}
+                        {position != null && (
+                            <span className="mt-auto pt-2 flex items-center justify-center">
+                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-[11px] font-black">
+                                    {position}
+                                </span>
+                            </span>
+                        )}
+                    </div>
                 )}
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
@@ -140,6 +149,25 @@ export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
                             className={`text-[11px] text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-line break-words ${isOverlay ? 'line-clamp-2' : 'line-clamp-2 group-hover:line-clamp-none'}`}
                         >
                             {order.requestedServices}
+                        </p>
+                    )}
+                    {showTeam && (
+                        <p
+                            className={`flex items-center mt-1.5 pt-1.5 border-t border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase truncate ${order.teamCode || order.teamLeaderName
+                                ? 'text-slate-600 dark:text-slate-300'
+                                : 'text-slate-400 dark:text-slate-500 italic'}`}
+                            title={order.teamCode || order.teamLeaderName
+                                ? `Equipe: ${[order.teamCode, order.teamDescription].filter(Boolean).join(' - ') || 'N/I'} | Líder: ${order.teamLeaderName || 'N/I'}`
+                                : 'OS sem equipe definida'}
+                        >
+                            {order.teamCode || order.teamLeaderName ? (
+                                <span className="truncate">
+                                    {order.teamCode || 'Equipe N/I'}
+                                    <span className="font-semibold normal-case text-slate-500 dark:text-slate-400">{" | "}{order.teamLeaderName || 'Sem líder'}</span>
+                                </span>
+                            ) : (
+                                <span className="truncate normal-case">Sem equipe</span>
+                            )}
                         </p>
                     )}
                 </div>
@@ -195,6 +223,7 @@ export const PriorityOrderCard: React.FC<DraggableProps & { rank?: number; varia
                 order={order}
                 position={rank}
                 showLock={isScheduleLocked(order)}
+                showTeam
                 handleProps={locked ? undefined : { ...attributes, ...listeners, ref: setActivatorNodeRef }}
                 onOpenActions={locked ? undefined : onOpenActions}
                 onOpenOrder={onOpenOrder}

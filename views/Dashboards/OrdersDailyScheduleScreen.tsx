@@ -74,6 +74,15 @@ const filterStrip = (list: DailyScheduleOrder[], f: StripFilter) => {
 
 const byRequestedAt = (a: DailyScheduleOrder, b: DailyScheduleOrder) =>
     String(a.requestedAt || '').localeCompare(String(b.requestedAt || ''));
+/** Equipe responsável e líder gravados na OS ao ir para a coluna da equipe (espelha v_orders). */
+const teamFields = (team: DailyScheduleTeam): Partial<DailyScheduleOrder> => ({
+    teamId: team.id,
+    teamLeaderId: team.leaderId,
+    teamCode: team.code,
+    teamDescription: team.name,
+    teamLeaderName: team.leaderName,
+});
+
 const CONTRACT_STORAGE_KEY = 'dailySchedule_contractId';
 /** Dia de atendimento escolhido: ao sair e voltar para a tela, continua o mesmo. */
 const DATE_STORAGE_KEY = 'dailySchedule_date';
@@ -581,7 +590,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         if (!board) return;
         const previous = board;
         const fromTeamId = order.teamId;
-        const next = placeInTeam(board, { ...order, teamId: team.id, teamLeaderId: team.leaderId }, team, index);
+        const next = placeInTeam(board, { ...order, ...teamFields(team) }, team, index);
         setBoard(next);
         try {
             await dataService.moveAuthorizedOrderToScheduleTeam(order.id, team);
@@ -616,8 +625,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                 statusId: DAILY_SCHEDULE_STATUS.AUTHORIZED,
                 statusCode: 'AU',
                 statusDescription: 'AUTORIZADA',
-                teamId: team.id,
-                teamLeaderId: team.leaderId,
+                ...teamFields(team),
             };
             setBoard(current => {
                 if (!current) return current;
@@ -1094,7 +1102,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     </div>
 
                     <DragOverlay>
-                        {active ? <div className="w-[280px]"><ScheduleOrderCardView order={active.order} isOverlay /></div> : null}
+                        {active ? <div className="w-[280px]"><ScheduleOrderCardView order={active.order} isOverlay showTeam={active.container === PRIORITY || active.container === OPEN} /></div> : null}
                     </DragOverlay>
                 </DndContext>
             ) : null}

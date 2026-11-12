@@ -15,6 +15,36 @@ import { Loading } from '../ui/Loading';
 import { Marker } from '../ui/Marker';
 
 
+/** Equipe responsável e líder da OS (v_orders.team_code / team_description / team_leader_name_short). */
+const OrderTeamLeaderLine: React.FC<{ order: Order }> = ({ order }) => {
+    const teamCode = order.teamCode || (order as any).team_code;
+    const teamDescription = order.teamDescription || (order as any).team_description;
+    const leaderName = order.teamLeaderNameShort || (order as any).team_leader_name_short;
+    if (!teamCode && !leaderName) {
+        return (
+            <span className="flex items-center gap-1 mt-0.5 text-xs font-bold text-slate-400 dark:text-slate-500 italic">
+                <span className="material-symbols-outlined text-[14px]">groups</span>
+                Sem equipe definida
+            </span>
+        );
+    }
+    return (
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs min-w-0">
+            <span
+                className="flex items-center gap-1 font-black text-slate-700 dark:text-slate-200 uppercase min-w-0"
+                title={[teamCode, teamDescription].filter(Boolean).join(' - ') || undefined}
+            >
+                <span className="material-symbols-outlined text-[14px] text-slate-400">groups</span>
+                <span className="truncate">{teamCode || 'Equipe N/I'}</span>
+            </span>
+            <span className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-300 min-w-0" title="Líder da equipe">
+                <span className="material-symbols-outlined text-[14px] text-slate-400">person</span>
+                <span className="truncate">{leaderName || 'Sem líder'}</span>
+            </span>
+        </span>
+    );
+};
+
 interface OrderCardDetailProps {
     order: Order;
     currentUser?: User | null;
@@ -241,7 +271,7 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
                                     {formatDateTime(req.statusAt || (req as any).status_at)}
                                     {req.canceledUserNameShort && ` • ${req.canceledUserNameShort}`}
                                 </span>
-                                <span className="text-xs font-black text-slate-500/70 dark:text-slate-400/50 uppercase tracking-tighter">{req.teamCode || (req as any).team_code || '---'} {(req.teamLeaderNameShort || (req as any).team_leader_name_short) && `| ${req.teamLeaderNameShort || (req as any).team_leader_name_short}`}</span>
+                                <OrderTeamLeaderLine order={req} />
                             </div>
                             <OrderActionManager order={req} currentUser={currentUser ?? null} onSuccess={onSuccess} onEdit={onEdit} />
                         </div>
@@ -273,7 +303,7 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
                         <div className="flex flex-col flex-1">
                             <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{req.statusDescription || (req as any).status_description || (req as any).status_name || 'Status'}</span>
                             <span className="text-xs font-bold text-slate-400">{formatDateTime(req.statusAt || (req as any).status_at)}</span>
-                            <span className="text-xs font-black text-slate-500/70 dark:text-slate-400/50 uppercase tracking-tighter">{req.teamCode || (req as any).team_code || '---'} {(req.teamLeaderNameShort || (req as any).team_leader_name_short) && `| ${req.teamLeaderNameShort || (req as any).team_leader_name_short}`}</span>
+                            <OrderTeamLeaderLine order={req} />
                         </div>
                         <OrderActionManager order={req} currentUser={currentUser ?? null} onSuccess={onSuccess} onEdit={onEdit} />
                     </div>
