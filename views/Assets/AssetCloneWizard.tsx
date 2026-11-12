@@ -8,7 +8,8 @@ import { Loading } from '../../components/ui/Loading';
 interface AssetCloneWizardProps {
     sourceAsset: Asset;
     onCancel: () => void;
-    onComplete: () => void;
+    /** Chamado ao terminar, com o ativo recém-criado (já com imagem/atributos), para abrir a página dele. */
+    onComplete: (newAsset: Asset) => void;
 }
 
 type Step = 1 | 2 | 3;
@@ -199,7 +200,9 @@ export const AssetCloneWizard: React.FC<AssetCloneWizardProps> = ({
             }
 
             toast.success('Ativo clonado com sucesso!');
-            onComplete();
+            // Recarrega: a cópia inicial foi lida antes da imagem, dos atributos e dos componentes.
+            const createdAsset = (savedAsset.id && await dataService.getAssetById(savedAsset.id)) || savedAsset;
+            onComplete(createdAsset);
         } catch (error: any) {
             console.error('Error cloning asset:', error);
             toast.error('Erro ao clonar ativo: ' + error.message);

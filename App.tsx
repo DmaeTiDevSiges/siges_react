@@ -2644,9 +2644,11 @@ const AppContent: React.FC = () => {
           <AssetCloneWizard
             sourceAsset={cloneSourceAsset}
             onCancel={handleBack}
-            onComplete={() => {
+            onComplete={(newAsset) => {
+              // Abre a página do ativo recém-criado (voltar leva de volta à origem da navegação).
               setCloneSourceAsset(null);
-              setCurrentScreen('assets-search');
+              setSelectedAsset(newAsset);
+              setCurrentScreen('asset-details');
             }}
           />
         ) : null;
