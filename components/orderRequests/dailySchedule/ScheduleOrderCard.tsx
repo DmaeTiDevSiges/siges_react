@@ -28,11 +28,11 @@ export const canChangeTeam = (order: DailyScheduleOrder) => order.statusId === D
 
 /**
  * Da coluna da equipe de volta para uma faixa (sai da equipe só no dia; a OS não muda):
- *   Autorizada → PRIORIDADE ou ABERTAS;
- *   Suspensa   → só PRIORIDADE (de lá pode seguir para ABERTAS).
+ * Autorizada ou Suspensa → só PRIORIDADE. OS programada numa equipe nunca vai direto para
+ * ABERTAS; fora da equipe (já na PRIORIDADE), pode seguir para ABERTAS.
  */
 export const canReturnFromTeam = (order: DailyScheduleOrder, strip: 'priority' | 'open') =>
-    canChangeTeam(order) || (order.statusId === DAILY_SCHEDULE_STATUS.SUSPENDED && strip === 'priority');
+    strip === 'priority' && (canChangeTeam(order) || order.statusId === DAILY_SCHEDULE_STATUS.SUSPENDED);
 
 /**
  * Para qual equipe a OS pode ir:
@@ -56,6 +56,11 @@ interface ScheduleOrderCardViewProps {
     /** Exibe a equipe responsável e o líder da OS (faixas; nas colunas a equipe já é o cabeçalho). */
     showTeam?: boolean;
     /**
+     * Faixa de prioridade: OS já programada na coluna desta equipe no dia (código da equipe).
+     * O card fica com aspecto de desabilitado, mas continua reordenável.
+     */
+    scheduledTeamCode?: string;
+    /**
      * Alça de arraste (atributos/listeners do dnd-kit + ref do ativador). Só ela inicia o
      * arraste: o resto do cartão fica livre para rolar a faixa/equipes.
      */
@@ -65,8 +70,9 @@ interface ScheduleOrderCardViewProps {
 }
 
 export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
-    order, position, showLock, isOverlay, showTeam, handleProps, onOpenActions, onOpenOrder,
+    order, position, showLock, isOverlay, showTeam, scheduledTeamCode, handleProps, onOpenActions, onOpenOrder,
 }) => {
+    const scheduled = scheduledTeamCode != null && !isOverlay;
     const status = STATUS_STYLE[order.statusId] || { label: order.statusCode || '?', className: 'bg-slate-500/15 text-slate-500' };
     return (
         <div
@@ -75,7 +81,10 @@ export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
                     ? 'shadow-2xl ring-2 ring-primary rotate-1 cursor-grabbing'
                     : isScheduleLocked(order)
                         ? 'border-2 border-emerald-500 animate-execution-pulse cursor-default'
-                        : 'shadow-sm hover:shadow-md border-slate-200 dark:border-white/10'}`}
+                        : scheduled
+                            ? 'border-dashed border-slate-300 dark:border-white/15 bg-slate-100! dark:bg-slate-800/40! opacity-60 grayscale hover:opacity-100 hover:grayscale-0'
+                            : 'shadow-sm hover:shadow-md border-slate-200 dark:border-white/10'}`}
+            title={scheduled ? `Já programada na equipe ${scheduledTeamCode || ''} neste dia` : undefined}
         >
             <div className="flex items-start gap-2">
                 {/* Coluna esquerda: alça de arraste no topo, número (prioridade/sequência) no canto inferior. */}
@@ -108,7 +117,7 @@ export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
                             type="button"
                             onPointerDown={e => e.stopPropagation()}
                             onClick={onOpenOrder}
-                            className="font-black text-sm text-slate-900 dark:text-white truncate hover:text-primary hover:underline"
+                            className="shrink-0 font-black text-sm text-slate-900 dark:text-white hover:text-primary hover:underline"
                             title="Abrir OS"
                         >
                             {order.orderMask}
@@ -153,7 +162,7 @@ export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
                     )}
                     {showTeam && (
                         <p
-                            className={`flex items-center mt-1.5 pt-1.5 border-t border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase truncate ${order.teamCode || order.teamLeaderName
+                            className={`flex items-center mt-1.5 pt-1.5 ${scheduled ? 'pr-5' : ''} border-t border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase truncate ${order.teamCode || order.teamLeaderName
                                 ? 'text-slate-600 dark:text-slate-300'
                                 : 'text-slate-400 dark:text-slate-500 italic'}`}
                             title={order.teamCode || order.teamLeaderName
@@ -184,6 +193,15 @@ export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
                     </button>
                 )}
             </div>
+            {scheduled && (
+                <span
+                    className="material-symbols-outlined absolute bottom-2 right-2 text-[16px] text-slate-500 dark:text-slate-400"
+                    title={`Já programada na equipe ${scheduledTeamCode || ''} neste dia`}
+                    aria-label="Já programada numa equipe neste dia"
+                >
+                    event_available
+                </span>
+            )}
         </div>
     );
 };
@@ -204,8 +222,8 @@ export const OPEN_ID_PREFIX = 'o:';
  * Card das faixas horizontais: OS's PRIORIDADE DE ATENDIMENTO (padrão; o número é a prioridade) ou
  * OS's ABERTAS (variant 'open': sem número).
  */
-export const PriorityOrderCard: React.FC<DraggableProps & { rank?: number; variant?: 'priority' | 'open' }> = ({
-    order, rank, variant = 'priority', disabled, onOpenActions, onOpenOrder,
+export const PriorityOrderCard: React.FC<DraggableProps & { rank?: number; variant?: 'priority' | 'open'; scheduledTeamCode?: string }> = ({
+    order, rank, variant = 'priority', scheduledTeamCode, disabled, onOpenActions, onOpenOrder,
 }) => {
     const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
         id: `${variant === 'open' ? OPEN_ID_PREFIX : PRIORITY_ID_PREFIX}${order.id}`,
@@ -224,6 +242,7 @@ export const PriorityOrderCard: React.FC<DraggableProps & { rank?: number; varia
                 position={rank}
                 showLock={isScheduleLocked(order)}
                 showTeam
+                scheduledTeamCode={scheduledTeamCode}
                 handleProps={locked ? undefined : { ...attributes, ...listeners, ref: setActivatorNodeRef }}
                 onOpenActions={locked ? undefined : onOpenActions}
                 onOpenOrder={onOpenOrder}

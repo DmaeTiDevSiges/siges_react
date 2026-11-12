@@ -43,10 +43,16 @@ export const FilterSelectionContent: React.FC<{
     onConfirm: (value: string[]) => void;
     /** Seleção de um único item: sem "selecionar todas"; escolher uma opção já confirma. */
     single?: boolean;
-}> = ({ label, options, initialValue, onConfirm, single = false }) => {
+    /**
+     * Abre só com o que está filtrado marcado (sem filtro = nada marcado) e confirma exatamente
+     * o que foi marcado; nada marcado = todos. Sem isso, com uma única opção ela já vem marcada e
+     * confirmar volta para "todos" — parece que a seleção não funciona.
+     */
+    explicit?: boolean;
+}> = ({ label, options, initialValue, onConfirm, single = false, explicit = false }) => {
     const [selectionSearch, setSelectionSearch] = useState('');
     const [currentValue, setCurrentValue] = useState<string[]>(() =>
-        single ? initialValue.slice(0, 1) : getFilterSelectionValue(options, initialValue));
+        single ? initialValue.slice(0, 1) : explicit ? initialValue : getFilterSelectionValue(options, initialValue));
 
     const filteredOptions = useMemo(() => {
         const query = selectionSearch.toLowerCase().trim();
@@ -88,7 +94,18 @@ export const FilterSelectionContent: React.FC<{
                 />
             </div>
 
-            {!single && <label className="flex items-center gap-2 px-1 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+            {explicit && !single && (
+                <div className="flex items-center justify-between gap-2 px-1 text-xs font-semibold text-slate-500">
+                    <span>Nenhuma marcada = todas.</span>
+                    {currentValue.length > 0 && (
+                        <button type="button" onClick={() => setCurrentValue([])} className="text-primary font-bold hover:underline">
+                            Limpar seleção
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {!single && !explicit && <label className="flex items-center gap-2 px-1 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
                 <input
                     type="checkbox"
                     aria-label={`Selecionar ou desmarcar todas as opções de ${label.toLowerCase()}`}
@@ -122,7 +139,7 @@ export const FilterSelectionContent: React.FC<{
             {!single && <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                     onClick={() => {
-                        onConfirm(allOptionsSelected ? [] : currentValue);
+                        onConfirm(explicit ? currentValue : allOptionsSelected ? [] : currentValue);
                     }}
                     className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all active:scale-95"
                 >

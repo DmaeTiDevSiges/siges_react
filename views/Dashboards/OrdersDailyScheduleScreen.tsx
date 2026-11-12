@@ -46,6 +46,8 @@ import { FilterSelectionContent } from '../../components/ui/FilterSelectionConte
 import { Modal } from '../../components/ui/Modal';
 import { Calendar } from '../../components/ui/Calendar';
 import { Loading } from '../../components/ui/Loading';
+import { DailySchedulePDFButton } from '../../components/reports/DailySchedulePDFButton';
+import type { DailyScheduleReportOrder, DailyScheduleReportPriority, DailyScheduleReportTeam } from '../../components/reports/DailyScheduleDocument';
 import { OPEN_ID_PREFIX, PRIORITY_ID_PREFIX, PriorityOrderCard, ScheduleOrderCardView, canChangeTeam, canReturnFromTeam, isScheduleLocked, scheduleTeamRule } from '../../components/orderRequests/dailySchedule/ScheduleOrderCard';
 import { ScheduleTeamColumn } from '../../components/orderRequests/dailySchedule/ScheduleTeamColumn';
 import { ScheduleAuthorizeModal } from '../../components/orderRequests/dailySchedule/ScheduleAuthorizeModal';
@@ -121,6 +123,33 @@ const readStorage = (key: string) => {
 };
 const writeStorage = (key: string, value: string) => {
     try { localStorage.setItem(key, value); } catch { /* sem storage: ignora */ }
+};
+
+/** Filtros salvos por contrato (só neste navegador): EQ.RESPONSAVEL e unidade/setor de cada faixa. */
+const FILTERS_STORAGE_PREFIX = 'dailySchedule_filters_';
+interface SavedFilters { team: string[]; strips: Record<StripKind, StripFilter> }
+const EMPTY_SAVED_FILTERS: SavedFilters = { team: [], strips: EMPTY_STRIP_FILTERS };
+const toIds = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+const loadFilters = (contractId: string): SavedFilters => {
+    if (!contractId) return EMPTY_SAVED_FILTERS;
+    try {
+        const raw = JSON.parse(readStorage(FILTERS_STORAGE_PREFIX + contractId) || 'null');
+        if (!raw || typeof raw !== 'object') return EMPTY_SAVED_FILTERS;
+        const strip = (k: StripKind): StripFilter => ({ unit: toIds(raw.strips?.[k]?.unit), tag: toIds(raw.strips?.[k]?.tag), search: '' });
+        return { team: toIds(raw.team), strips: { open: strip(OPEN), priority: strip(PRIORITY) } };
+    } catch {
+        return EMPTY_SAVED_FILTERS;
+    }
+};
+const saveFilters = (contractId: string, filters: SavedFilters) => {
+    if (!contractId) return;
+    // A busca por texto não é salva: é pontual e esconderia OSs na próxima visita.
+    const strip = (f: StripFilter) => ({ unit: f.unit, tag: f.tag });
+    writeStorage(FILTERS_STORAGE_PREFIX + contractId, JSON.stringify({
+        team: filters.team,
+        strips: { open: strip(filters.strips.open), priority: strip(filters.strips.priority) },
+    }));
 };
 
 const contractLabel = (c: Contract) => [c.code, c.description].filter(Boolean).join(' · ') || `Contrato ${c.id}`;
@@ -254,10 +283,13 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     });
     const [calendarOpen, setCalendarOpen] = useState(false);
     const [contractModalOpen, setContractModalOpen] = useState(false);
-    /** Filtro EQ.RESPONSAVEL: vazio = todas as equipes. */
-    const [teamFilter, setTeamFilter] = useState<string[]>([]);
-    /** Filtros da faixa de prioridades: vazio = todos. */
-    const [stripFilters, setStripFilters] = useState<Record<StripKind, StripFilter>>(EMPTY_STRIP_FILTERS);
+    /** Filtro EQ.RESPONSAVEL: vazio = todas as equipes. Salvo por contrato. */
+    const [teamFilter, setTeamFilter] = useState<string[]>(() => loadFilters(contractId).team);
+    /** Filtros das faixas ABERTAS / PRIORIDADE: vazio = todos. Unidade/setor salvos por contrato. */
+    const [stripFilters, setStripFilters] = useState<Record<StripKind, StripFilter>>(() => loadFilters(contractId).strips);
+    useEffect(() => {
+        saveFilters(contractId, { team: teamFilter, strips: stripFilters });
+    }, [contractId, teamFilter, stripFilters]);
     const [stripFilterModal, setStripFilterModal] = useState<{ strip: StripKind; field: 'unit' | 'tag' } | null>(null);
     const patchStripFilter = (strip: StripKind, patch: Partial<StripFilter>) =>
         setStripFilters(current => ({ ...current, [strip]: { ...current[strip], ...patch } }));
@@ -452,8 +484,10 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     const changeContract = (next: string) => {
         flushSave();
         if (next !== contractId) {
-            setTeamFilter([]);
-            setStripFilters(EMPTY_STRIP_FILTERS);
+            // Cada contrato volta com os filtros que tinha.
+            const saved = loadFilters(next);
+            setTeamFilter(saved.team);
+            setStripFilters(saved.strips);
         }
         setContractId(next);
         writeStorage(CONTRACT_STORAGE_KEY, next);
@@ -541,9 +575,16 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         toast.success(`OS ${order.orderMask} voltou para ${strip === PRIORITY ? "OS's PRIORIDADE DE ATENDIMENTO" : "OS's ABERTAS"}`);
     };
 
-    /** OS's PRIORIDADE DE ATENDIMENTO → de volta para OS's ABERTAS (ordem de abertura). */
+    /**
+     * OS's PRIORIDADE DE ATENDIMENTO → de volta para OS's ABERTAS (ordem de abertura).
+     * Bloqueado enquanto a OS estiver programada numa equipe no dia.
+     */
     const unprioritize = (order: DailyScheduleOrder) => {
         if (!board || !canEditPriorities) return;
+        if (placedTeamOf(order.id)) {
+            toast.error(`A OS ${order.orderMask} está programada para a equipe ${scheduledTeamCode(order.id) || ''} e não volta para OS's ABERTAS. Retire-a da equipe antes.`);
+            return;
+        }
         logMove(order, { action: 'unprioritize' });
         const priorities = board.priorities.filter(o => o.id !== order.id);
         const openOrders = [...board.openOrders.filter(o => o.id !== order.id), order].sort(byRequestedAt);
@@ -580,6 +621,13 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     const placedTeamOf = (orderId: string): string | undefined => {
         if (!board) return undefined;
         return Object.keys(board.columns).find(teamId => board.columns[teamId].some(o => o.id === orderId));
+    };
+
+    /** Código da equipe em cuja coluna a OS já está programada no dia ('' se a equipe não tiver código). */
+    const scheduledTeamCode = (orderId: string): string | undefined => {
+        const teamId = placedTeamOf(orderId);
+        if (!teamId) return undefined;
+        return board?.teams.find(t => t.id === teamId)?.code || '';
     };
 
     /**
@@ -653,7 +701,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         // Da coluna da equipe para uma faixa: só a Autorizada volta.
         if (from !== OPEN && from !== PRIORITY && (to === OPEN || to === PRIORITY)) {
             if (canReturnFromTeam(order, to as StripKind)) returnToStrip(order, from, to as StripKind, index);
-            else if (canReturnFromTeam(order, PRIORITY)) toast.error("OS Suspensa volta primeiro para OS's PRIORIDADE DE ATENDIMENTO; de lá pode ir para ABERTAS.");
+            else if (canReturnFromTeam(order, PRIORITY)) toast.error("OS programada numa equipe não volta para OS's ABERTAS. Devolva-a para OS's PRIORIDADE DE ATENDIMENTO.");
             else toast.error('Só OS Autorizada ou Suspensa volta da equipe para as faixas. Esta só é reordenada na própria coluna.');
             return;
         }
@@ -822,9 +870,37 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         label: `${t.code} · ${t.leaderName}`,
         parentId: t.parentId,
     }));
-    const visibleTeams = (board?.teams || []).filter(t => teamFilter.length === 0 || teamFilter.includes(t.id));
+    // Filtro salvo pode citar equipe que saiu do contrato: só valem as que estão no quadro
+    // (nenhuma válida = todas, para o quadro não abrir vazio).
+    const activeTeamFilter = board ? teamFilter.filter(id => board.teams.some(t => t.id === id)) : teamFilter;
+    const visibleTeams = (board?.teams || []).filter(t => activeTeamFilter.length === 0 || activeTeamFilter.includes(t.id));
 
     const totalScheduled = board ? Object.values(board.columns).reduce((acc, list) => acc + list.length, 0) : 0;
+
+    // ── Relatório PDF: o que está na tela (equipes do filtro EQ.RESPONSAVEL e filtros da faixa de prioridade).
+    const toReportOrder = (o: DailyScheduleOrder): DailyScheduleReportOrder => ({
+        orderMask: o.orderMask,
+        statusLabel: o.statusDescription || o.statusCode,
+        priorityCode: o.priorityCode,
+        unitDescription: o.unitDescription,
+        assetTag: [o.assetTagDescription, o.assetTagSubDescription].filter(Boolean).join(' / '),
+        requestedServices: o.requestedServices,
+        responsibleTeam: [o.teamCode, o.teamLeaderName].filter(Boolean).join(' | '),
+    });
+    const reportTeams: DailyScheduleReportTeam[] = visibleTeams
+        .filter(t => (board?.columns[t.id] || []).length > 0)
+        .map(t => ({ code: t.code, name: t.name, leaderName: t.leaderName, orders: (board?.columns[t.id] || []).map(toReportOrder) }));
+    const reportEmptyTeams = visibleTeams
+        .filter(t => (board?.columns[t.id] || []).length === 0)
+        .map(t => `${t.code} (${t.leaderName})`);
+    const reportPriorities: DailyScheduleReportPriority[] = filterStrip(board?.priorities || [], stripFilters.priority)
+        .map(o => ({ ...toReportOrder(o), rank: rankById.get(o.id) || 0, scheduledTeamCode: scheduledTeamCode(o.id) }));
+    const reportFilters = [
+        activeTeamFilter.length > 0 ? `${activeTeamFilter.length} equipe(s) selecionada(s)` : '',
+        stripFilters.priority.unit.length > 0 ? `unidade (prioridade): ${stripOptions(PRIORITY, 'unit').filter(o => stripFilters.priority.unit.includes(o.value)).map(o => o.label).join(', ')}` : '',
+        stripFilters.priority.tag.length > 0 ? `setor (prioridade): ${stripOptions(PRIORITY, 'tag').filter(o => stripFilters.priority.tag.includes(o.value)).map(o => o.label).join(', ')}` : '',
+        stripFilters.priority.search.trim() ? `busca (prioridade): "${stripFilters.priority.search.trim()}"` : '',
+    ].filter(Boolean).join(' · ');
 
     /** Faixa horizontal OS's ABERTAS ou OS's PRIORIDADE DE ATENDIMENTO (mesmo layout, filtros próprios). */
     const renderStrip = (strip: StripKind) => {
@@ -895,6 +971,8 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         );
         const fromOtherStrip = !!active && active.container !== strip && (active.container === OPEN || active.container === PRIORITY);
         const fromTeamColumn = !!active && active.container !== OPEN && active.container !== PRIORITY;
+        // PRIORIDADE → ABERTAS: recusado se a OS já está programada numa equipe.
+        const blockedToOpen = isOpen && !!active && active.container === PRIORITY && !!placedTeamOf(active.order.id);
         return (
             <PriorityStrip
                 containerId={strip}
@@ -902,8 +980,8 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     ? 'bg-sky-50/50 dark:bg-sky-950/20 border-sky-200/50 dark:border-sky-800/30'
                     : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-800/30'}`}
                 header={header}
-                accepting={canEditPriorities && (fromOtherStrip || (fromTeamColumn && canReturnFromTeam(active!.order, strip)))}
-                refusing={fromTeamColumn && !canReturnFromTeam(active!.order, strip)}
+                accepting={canEditPriorities && ((fromOtherStrip && !blockedToOpen) || (fromTeamColumn && canReturnFromTeam(active!.order, strip)))}
+                refusing={blockedToOpen || (fromTeamColumn && !canReturnFromTeam(active!.order, strip))}
                 itemIds={filtered.map(o => `${prefix}${o.id}`)}
             >
                     {filtered.length > 0 ? (
@@ -913,6 +991,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                                 order={order}
                                 variant={strip}
                                 rank={isOpen ? undefined : rankById.get(order.id) || 0}
+                                scheduledTeamCode={isOpen ? undefined : scheduledTeamCode(order.id)}
                                 disabled={!canEditPriorities}
                                 onOpenActions={() => openActions(order, strip)}
                                 onOpenOrder={() => openOrder(order)}
@@ -946,7 +1025,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     />
                     <TreeFilterSelect
                         label="EQ.RESPONSAVEL"
-                        value={teamFilter}
+                        value={activeTeamFilter}
                         options={teamFilterOptions}
                         onChange={setTeamFilter}
                         onClear={() => setTeamFilter([])}
@@ -981,6 +1060,16 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                             {saveLabel[saveState]}
                         </span>
                     )}
+                    <DailySchedulePDFButton
+                        contractLabel={contract ? (contract.description || contractLabel(contract)) : ''}
+                        date={date}
+                        dateLabel={dateLabel}
+                        filtersLabel={reportFilters}
+                        teams={reportTeams}
+                        emptyTeams={reportEmptyTeams}
+                        priorities={reportPriorities}
+                        disabled={!board || loading}
+                    />
                     {date !== today && (
                         <button
                             type="button"
@@ -1070,7 +1159,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                         <div className="flex items-center gap-2 mb-2">
                             <h3 className="font-extrabold text-slate-900 dark:text-white">Equipes</h3>
                             <span className="text-xs font-bold text-slate-400">
-                                {teamFilter.length > 0 ? `${visibleTeams.length} de ${board.teams.length}` : board.teams.length} equipes · {totalScheduled} OSs no dia
+                                {activeTeamFilter.length > 0 ? `${visibleTeams.length} de ${board.teams.length}` : board.teams.length} equipes · {totalScheduled} OSs no dia
                             </span>
                         </div>
                         {board.teams.length === 0 ? (
@@ -1132,6 +1221,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                         label={stripFilterModal.field === 'unit' ? 'UNIDADE' : 'SETOR'}
                         options={stripOptions(stripFilterModal.strip, stripFilterModal.field)}
                         initialValue={stripFilters[stripFilterModal.strip][stripFilterModal.field]}
+                        explicit
                         onConfirm={(values) => {
                             patchStripFilter(stripFilterModal.strip, { [stripFilterModal.field]: values });
                             setStripFilterModal(null);

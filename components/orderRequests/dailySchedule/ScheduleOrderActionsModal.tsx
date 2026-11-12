@@ -141,20 +141,15 @@ export const ScheduleOrderActionsModal: React.FC<ScheduleOrderActionsModalProps>
                                     onClick={() => onReturnToStrip('priority')}
                                 />
                             )}
-                            {fromTeam && canReturnFromTeam(target.order, 'open') && (
-                                <ActionItem
-                                    icon="keyboard_double_arrow_up"
-                                    label="Voltar para ABERTAS"
-                                    description="Sai da equipe e da prioridade neste dia"
-                                    onClick={() => onReturnToStrip('open')}
-                                />
-                            )}
                             {fromPriority && (
                                 <ActionItem
                                     icon="north"
                                     label="Devolver para ABERTAS"
-                                    description="Remove da prioridade de atendimento"
+                                    description={placedTeamId
+                                        ? `Programada na equipe ${teams.find(t => t.id === placedTeamId)?.code || ''}: retire-a da equipe antes`
+                                        : 'Remove da prioridade de atendimento'}
                                     variant="danger"
+                                    disabled={!!placedTeamId}
                                     onClick={onUnprioritize}
                                 />
                             )}
