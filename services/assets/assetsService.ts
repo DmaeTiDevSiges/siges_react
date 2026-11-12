@@ -291,6 +291,7 @@ export const assetsService = {
             id: data.id.toString(),
             code: data.code || '',
             description: data.description || '',
+            companyId: data.company_id?.toString(),
             clientId: data.client_id?.toString(),
             clientName: data.client_name || '',
             unitId: data.unit_id?.toString(),
@@ -342,8 +343,28 @@ export const assetsService = {
         } as Asset;
     },
 
+    /**
+     * Empresa (assets.company_id) do ativo: a informada → a da unidade → a do cliente → padrão (1,
+     * a mesma empresa usada nas fotos `companies/1/...` e nos materiais). Nunca deixa em branco.
+     */
+    async resolveAssetCompanyId(asset: Partial<Asset>): Promise<number> {
+        const given = asset.companyId ? parseInt(asset.companyId) : NaN;
+        if (Number.isFinite(given)) return given;
+
+        if (asset.unitId) {
+            const { data } = await supabase.from('units').select('company_id').eq('id', asset.unitId).maybeSingle();
+            if (data?.company_id) return Number(data.company_id);
+        }
+        if (asset.clientId) {
+            const { data } = await supabase.from('clients').select('company_id').eq('id', asset.clientId).maybeSingle();
+            if (data?.company_id) return Number(data.company_id);
+        }
+        return 1;
+    },
+
     async createAsset(asset: Partial<Asset>): Promise<Asset> {
         const dbData: any = {
+            company_id: await this.resolveAssetCompanyId(asset),
             code: asset.code,
             description: asset.description,
             client_id: asset.clientId ? parseInt(asset.clientId) : null,
