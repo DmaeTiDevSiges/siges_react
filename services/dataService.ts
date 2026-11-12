@@ -3334,7 +3334,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return technicalManualsService.getTechnicalManualFiles.apply(technicalManualsService, arguments as any);
     },
 
-    async uploadTechnicalManualFile(tmId: string, file: File, companyId?: string, tmCategoryId?: string): Promise<TechnicalManualFile> {
+    async uploadTechnicalManualFile(tmId: string, file: File, companyId?: string, tmCategoryId?: string, onProgress?: (progress: number) => void): Promise<TechnicalManualFile> {
         return technicalManualsService.uploadTechnicalManualFile.apply(technicalManualsService, arguments as any);
     },
 

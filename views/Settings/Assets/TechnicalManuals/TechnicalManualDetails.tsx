@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TechnicalManual, TechnicalManualFile, TechnicalManualAsset, TechnicalManualCategory } from '../../../../types';
 import { dataService } from '../../../../services/dataService';
+import { getMaxUploadBytes } from '../../../../services/media/r2Service';
 import { getPublicImageUrl } from '../../../../services/media/imageUtils';
 import { OptimizedImage } from '../../../../components/ui/OptimizedImage';
 import { Button } from '../../../../components/ui/Button';
@@ -8,6 +9,7 @@ import { SearchInput } from '../../../../components/ui/SearchInput';
 import { Select } from '../../../../components/ui/Select';
 import { Loading } from '../../../../components/ui/Loading';
 import { Modal } from '../../../../components/ui/Modal';
+import { AlertModal } from '../../../../components/ui/AlertModal';
 import { TabsBar } from '../../../../components/ui/TabsBar';
 import { toast } from 'sonner';
 import { usePermissions } from '../../../../contexts/PermissionsContext';
@@ -19,6 +21,10 @@ interface TechnicalManualDetailsProps {
     onDelete: () => void;
     onSelectAsset?: (assetId: string) => void;
 }
+
+/** Limite por arquivo do manual técnico (o Worker do R2 também recusa acima de 25 MB). */
+const MAX_MANUAL_FILE_MB = 25;
+const MAX_MANUAL_FILE_BYTES = Math.min(MAX_MANUAL_FILE_MB * 1024 * 1024, getMaxUploadBytes() ?? Infinity);
 
 export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
     manual,
@@ -34,6 +40,10 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
     const [assets, setAssets] = useState<TechnicalManualAsset[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    /** Arquivo recusado por passar do limite (abre o modal de aviso). */
+    const [oversizedFile, setOversizedFile] = useState<{ name: string; sizeMb: number } | null>(null);
+    /** 0–100 durante o envio (null = preparando / sem progresso ainda). */
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [showAssociateModal, setShowAssociateModal] = useState(false);
     const [searchAssets, setSearchAssets] = useState('');
     const [availableAssets, setAvailableAssets] = useState<{ id: string; code: string; description: string; tagDescription?: string; tagSubDescription?: string; statusDescription?: string }[]>([]);
@@ -199,17 +209,28 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
             return;
         }
 
+        if (file.size > MAX_MANUAL_FILE_BYTES) {
+            setOversizedFile({ name: file.name, sizeMb: file.size / 1024 / 1024 });
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
         setUploading(true);
+        setUploadProgress(null);
         let uploadedFile: TechnicalManualFile | null = null;
         try {
-            uploadedFile = await dataService.uploadTechnicalManualFile(manual.id, file, manual.companyId || '1', selectedCategoryId || undefined);
+            uploadedFile = await dataService.uploadTechnicalManualFile(
+                manual.id, file, manual.companyId || '1', selectedCategoryId || undefined,
+                (progress) => setUploadProgress(progress),
+            );
             toast.success('Arquivo enviado com sucesso!');
             await loadData();
         } catch (error) {
             console.error('Error uploading file:', error);
-            toast.error('Erro ao enviar arquivo');
+            toast.error(error instanceof Error && error.message ? `Erro ao enviar arquivo: ${error.message}` : 'Erro ao enviar arquivo');
         } finally {
             setUploading(false);
+            setUploadProgress(null);
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
@@ -488,8 +509,22 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                             <span className="material-symbols-outlined text-sm mr-2">upload</span>
                             Adicionar Arquivo
                         </Button>
+                        {uploading && (
+                            <div className="flex flex-col gap-1" role="status" aria-live="polite">
+                                <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div
+                                        className={`h-full bg-primary transition-all duration-300 ${uploadProgress === null ? 'w-1/3 animate-pulse' : ''}`}
+                                        style={uploadProgress === null ? undefined : { width: `${uploadProgress}%` }}
+                                    />
+                                </div>
+                                <p className="text-[11px] font-semibold text-slate-500 text-center">
+                                    {uploadProgress === null ? 'Preparando envio…' : uploadProgress >= 100 ? 'Finalizando…' : `Enviando ${uploadProgress}%`}
+                                </p>
+                            </div>
+                        )}
                         <p className="text-xs text-slate-400 text-center mt-1">
                             Formatos: JPG, PNG, PDF, Word, Excel, TXT, CSV, GPC
+                            {` · até ${MAX_MANUAL_FILE_MB} MB`}
                         </p>
 
                         {/* Bulk RAG Indexing (acervo antigo) */}
@@ -697,6 +732,26 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* Arquivo acima do limite: upload negado (modal padrão de aviso) */}
+            <AlertModal
+                isOpen={!!oversizedFile}
+                onClose={() => setOversizedFile(null)}
+                icon="cloud_off"
+                iconClassName="text-amber-500"
+                iconBgClassName="bg-amber-50 dark:bg-amber-900/20"
+                iconRingClassName="ring-amber-50/50 dark:ring-amber-900/10"
+                title="Arquivo acima do limite"
+                description={oversizedFile && (
+                    <>
+                        O arquivo <strong className="break-all">{oversizedFile.name}</strong> tem{' '}
+                        <strong>{oversizedFile.sizeMb.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB</strong> e ultrapassa
+                        o limite permitido de <strong>{MAX_MANUAL_FILE_MB} MB</strong> por arquivo. O envio não foi realizado.
+                        Reduza o tamanho (por exemplo, comprimindo o PDF) ou divida em partes menores.
+                    </>
+                )}
+                primaryAction={{ label: 'Entendi', onClick: () => setOversizedFile(null), variant: 'slate' }}
+            />
 
             {/* Associate Asset Modal */}
             <Modal

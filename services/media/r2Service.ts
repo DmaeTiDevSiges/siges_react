@@ -70,7 +70,9 @@ const workerUpload = async (
         };
         xhr.onerror = () => reject(new Error('Falha de rede no upload'));
         xhr.ontimeout = () => reject(new Error('Tempo esgotado no upload'));
-        xhr.timeout = 5 * 60_000;
+        // 5 min + 1 min a cada 5 MB: arquivo grande em rede móvel não estoura no meio.
+        const size = body instanceof Uint8Array ? body.byteLength : body.size;
+        xhr.timeout = 5 * 60_000 + Math.ceil(size / (5 * 1024 * 1024)) * 60_000;
         xhr.send(body instanceof Uint8Array ? new Blob([body]) : body);
     });
 };
@@ -126,6 +128,10 @@ const getR2Client = async (): Promise<S3Client> => {
             accessKeyId,
             secretAccessKey,
         },
+        // SDK ≥ 3.729 calcula/envia checksums (CRC) por padrão; o R2 não suporta todos e o
+        // envio multipart (arquivos > 5 MB) pode falhar ou travar. Recomendação da Cloudflare.
+        requestChecksumCalculation: 'WHEN_REQUIRED',
+        responseChecksumValidation: 'WHEN_REQUIRED',
     });
     cachedEndpoint = endpoint;
     return cachedClient;
@@ -136,18 +142,29 @@ export interface UploadResult {
     publicUrl: string;
 }
 
+// PDF fica de fora: já é compactado internamente (gzip quase não reduz) e um PDF grande
+// virava 2 cópias inteiras na memória + segundos de CPU antes do envio começar.
 const COMPRESSIBLE_TYPES = new Set([
-    'application/pdf',
     'application/json',
     'application/xml',
 ]);
+/** Acima disso não compacta: o ganho não compensa memória/tempo no aparelho. */
+const MAX_COMPRESS_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Tamanho máximo de upload (bytes) ou null = sem limite conhecido.
+ * Modo Worker: limite do Worker (MAX_UPLOAD_MB no wrangler.toml, espelhado em
+ * VITE_R2_MAX_UPLOAD_MB; padrão 25). Modo legado (SDK S3, multipart): sem limite prático.
+ */
+export const getMaxUploadBytes = (): number | null =>
+    useWorker() ? Number(import.meta.env.VITE_R2_MAX_UPLOAD_MB || '25') * 1024 * 1024 : null;
 
 export const maybeCompress = async (
     file: File | Blob
 ): Promise<{ body: File | Blob | Uint8Array; contentEncoding?: string }> => {
     const isCompressible = COMPRESSIBLE_TYPES.has(file.type) || file.type.startsWith('text/');
-    // Imagens/binários: passa o Blob direto ao SDK (evita cópia via arrayBuffer)
-    if (!isCompressible) return { body: file };
+    // Imagens/PDF/binários e arquivos grandes: passa o Blob direto (evita cópia via arrayBuffer)
+    if (!isCompressible || file.size > MAX_COMPRESS_BYTES) return { body: file };
     const raw = new Uint8Array(await file.arrayBuffer());
     const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'));
     const gzipped = new Uint8Array(await new Response(stream).arrayBuffer());
@@ -174,10 +191,16 @@ export const uploadFile = async (file: File | Blob, path: string, onProgress?: (
         console.log(`[r2Service] Upload: ${sizeKB} KB | ${file.type || 'unknown'} | → ${path}`);
     }
 
+    const maxBytes = getMaxUploadBytes();
+    if (maxBytes !== null && file.size > maxBytes) {
+        throw new Error(`Arquivo de ${(file.size / 1024 / 1024).toFixed(1)} MB passa do limite de ${Math.round(maxBytes / 1024 / 1024)} MB.`);
+    }
+
     try {
         const { body, contentEncoding } = await maybeCompress(file);
 
         if (useWorker()) {
+            onProgress?.(0);
             await workerUpload(path, body, file.type, contentEncoding, onProgress);
             return { path, publicUrl: getPublicUrl(path) };
         }
@@ -187,6 +210,10 @@ export const uploadFile = async (file: File | Blob, path: string, onProgress?: (
 
         const upload = new Upload({
             client,
+            // Pedaços de 5 MB (mínimo do S3), 4 em paralelo: aproveita a banda em conexões
+            // com latência. O progresso avança a cada pedaço concluído ("0%" já sai no início).
+            partSize: 5 * 1024 * 1024,
+            queueSize: 4,
             params: {
                 Bucket: bucketName,
                 Key: path,
@@ -205,6 +232,7 @@ export const uploadFile = async (file: File | Blob, path: string, onProgress?: (
             }
         });
 
+        onProgress?.(0); // envio começou (o 1º aviso real só vem ao concluir o 1º pedaço)
         await upload.done();
 
         const publicUrl = getPublicUrl(path);

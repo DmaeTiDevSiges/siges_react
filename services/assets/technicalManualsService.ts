@@ -245,7 +245,9 @@ export const technicalManualsService = {
         tmId: string,
         file: File,
         companyId: string = '1',
-        tmCategoryId?: string
+        tmCategoryId?: string,
+        /** 0–100 durante o envio ao R2. */
+        onProgress?: (progress: number) => void
     ): Promise<TechnicalManualFile> {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
@@ -259,7 +261,7 @@ export const technicalManualsService = {
         else if (file.type.includes('sheet') || file.type.includes('excel')) fileType = 'excel';
 
         try {
-            await r2Service.uploadFile(file, fullPath);
+            await r2Service.uploadFile(file, fullPath, onProgress);
         } catch (uploadError) {
             console.error('Error uploading file to R2:', uploadError);
             throw uploadError;
