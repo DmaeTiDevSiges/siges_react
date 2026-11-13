@@ -1,4 +1,5 @@
 import React from 'react';
+import { useUiVersion } from '../../contexts/UiVersionContext';
 
 interface CardProps {
     children: React.ReactNode;
@@ -10,6 +11,21 @@ interface CardProps {
 }
 
 export const Card: React.FC<CardProps> = ({ children, className = '', onClick, id, noBorder, noShadow }) => {
+    const { isV2 } = useUiVersion();
+
+    if (isV2) {
+        // v2: superfície plana — sem borda e sem sombra; separação por espaço.
+        return (
+            <div
+                id={id}
+                onClick={onClick}
+                className={`bg-surface p-4 rounded-card ${onClick ? 'cursor-pointer active:scale-[0.99] transition-transform' : ''} ${className}`}
+            >
+                {children}
+            </div>
+        );
+    }
+
     return (
         <div
             id={id}

@@ -21,6 +21,10 @@ import { Loading } from '../../components/ui/Loading';
 import { AccountDeletionSection } from '../../components/users/AccountDeletionSection';
 import { verifyHumanFaceInImage } from '../../services/ai/faceDetectionService';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { useUiVersion } from '../../contexts/UiVersionContext';
+
+// Vitrine do kit do visual novo — carregada só quando aberta.
+const DesignKitScreen = React.lazy(() => import('../Dev/DesignKitScreen').then(m => ({ default: m.DesignKitScreen })));
 
 
 
@@ -57,6 +61,8 @@ const statusConfig = {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser, onBack, onMenuClick, onThemeToggle, isDarkMode, onUserUpdate, onStatusChange }) => {
     const { refreshPermissions } = usePermissions();
+    const { available: uiV2Available, isV2, setUiVersion } = useUiVersion();
+    const [showDesignKit, setShowDesignKit] = useState(false);
     const [user, setUser] = useState<User | null>(initialUser || null);
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(!initialUser);
@@ -750,6 +756,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
             currentUser={user}
             rightAction={
                 <div className="flex items-center gap-2">
+                    {uiV2Available && (
+                        <button
+                            onClick={() => setUiVersion(isV2 ? 'v1' : 'v2')}
+                            className={`h-[34px] px-3 flex items-center gap-1.5 rounded-full text-xs font-semibold transition-colors ${isV2 ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800'}`}
+                            title={isV2 ? 'Voltar ao visual atual' : 'Experimentar o visual novo'}
+                            aria-pressed={isV2}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+                            Visual novo (beta)
+                        </button>
+                    )}
+                    {uiV2Available && import.meta.env.DEV && (
+                        <button
+                            onClick={() => setShowDesignKit(true)}
+                            className="w-[34px] h-[34px] flex items-center justify-center rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            title="Ver kit de componentes"
+                        >
+                            <span className="material-symbols-outlined text-[22px]">palette</span>
+                        </button>
+                    )}
                     <button
                         onClick={() => onThemeToggle?.()}
                         className="w-[34px] h-[34px] flex items-center justify-center rounded-full text-slate-600 dark:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -773,6 +799,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                 </div>
             }
         >
+            {showDesignKit && (
+                <React.Suspense fallback={null}>
+                    <DesignKitScreen onClose={() => setShowDesignKit(false)} />
+                </React.Suspense>
+            )}
             <div className="pb-24 space-y-8 relative">
                 {saving && (
                     <div className="absolute top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-primary/20">

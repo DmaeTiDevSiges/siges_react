@@ -18,6 +18,11 @@ import { FuelExpenseScreen } from '../Vehicles/FuelExpenseScreen';
 import type { VehicleMonthlyExpense } from '../../services/orders/vehicleRentalService';
 import type { MyDayScheduleItem } from '../../services/orders/dailyScheduleService';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { useUiVersion } from '../../contexts/UiVersionContext';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import { SectionCard } from '../../components/ui/SectionCard';
+import { HiddenValue } from '../../components/ui/HiddenValue';
 
 type DashboardTab = 'services' | 'visits' | 'fuel';
 
@@ -67,10 +72,15 @@ interface DashboardScreenProps {
     onTabChange?: (tab: DashboardTab) => void;
     onNavigate?: (screen: string) => void;
     onGamificationChange?: (ranking: { position: number; positionChange?: number } | null) => void;
+    /** Visual novo (v2): conteúdo no topo da home (ex.: atalhos), rola junto com os cards. */
+    topSlot?: React.ReactNode;
 }
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onSelectVisit, onEdit, initialTab = 'services', onTabChange, onNavigate, onGamificationChange }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onSelectVisit, onEdit, initialTab = 'services', onTabChange, onNavigate, onGamificationChange, topSlot }) => {
     const { canCreate, canView, loading: permissionsLoading } = usePermissions();
+    const { isV2 } = useUiVersion();
+    /** Visual novo: 'home' = cards resumidos; 'list' = listas atuais (abas). */
+    const [v2View, setV2View] = useState<'home' | 'list'>('home');
     const fuelTabAvailable = isVehicleRentalEnabled() && canView('dashboard_vehicles_costs_periods');
 
     // Persistence keys
@@ -347,7 +357,42 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         (currentUser as any)?.is_ov_in_progress === 1 ||
         (currentUser as any)?.is_ov_in_progress === 'true';
 
-    return (
+    // ── Visual novo (v2) ──
+    const openV2List = useCallback((tab: DashboardTab, filter?: string) => {
+        if (tab === 'services' && filter) handleServiceSelect(filter);
+        if (tab === 'visits' && filter) handleVisitStatusSelect(filter);
+        handleTabChange(tab);
+        setV2View('list');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const { fuelMonthTotal, fuelMonthCount } = useMemo(() => {
+        const now = new Date();
+        const month = fuelExpenses.filter(f => {
+            if (!f.createdAt) return false;
+            const d = new Date(f.createdAt);
+            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+        });
+        return {
+            fuelMonthTotal: month.reduce((sum, f) => sum + (Number(f.value) || 0), 0),
+            fuelMonthCount: month.length,
+        };
+    }, [fuelExpenses]);
+
+    // Botão "voltar" do Android: da lista volta aos cards (sem isso, sai do app).
+    useEffect(() => {
+        if (!isV2 || v2View !== 'list' || !Capacitor.isNativePlatform()) return;
+        let remove: (() => void) | undefined;
+        CapApp.addListener('backButton', () => setV2View('home'))
+            .then(h => { remove = () => h.remove(); })
+            .catch(() => undefined);
+        return () => remove?.();
+    }, [isV2, v2View]);
+
+    // Desligar a chave com a lista aberta não deve prender ninguém nela.
+    useEffect(() => { if (!isV2) setV2View('home'); }, [isV2]);
+
+    const panelView = (
         <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 bg-background-light dark:bg-background-dark safe-area-bottom pt-4">
             {/* Navigation Tabs */}
             <TabsBar
@@ -620,6 +665,147 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                 ) : null}
             </div>
 
+        </div>
+    );
+
+    if (!isV2) return panelView;
+
+    if (v2View === 'list') {
+        return (
+            <div className="flex flex-col h-full bg-bg">
+                <div className="shrink-0 px-2 pt-2">
+                    <button
+                        type="button"
+                        onClick={() => setV2View('home')}
+                        className="h-10 pl-1 pr-3 inline-flex items-center gap-0.5 rounded-full text-label text-brand cursor-pointer hover:bg-brand-soft transition-colors"
+                    >
+                        <span className="material-symbols-outlined text-[22px]">chevron_left</span>
+                        Início
+                    </button>
+                </div>
+                <div className="flex-1 min-h-0">{panelView}</div>
+            </div>
+        );
+    }
+
+    return (
+        <V2Home
+            topSlot={topSlot}
+            isLoading={isLoading}
+            isInProgress={isInProgress}
+            inProgressLabel={currentUser?.ovIdInProgressMask}
+            onResumeVisit={() => onResumeVisit?.(currentUser?.ovIdInProgress?.toString() || '')}
+            stats={stats}
+            visitsStats={visitsStats}
+            nextScheduled={scheduledOrders[0]}
+            fuelTabAvailable={fuelTabAvailable}
+            fuelMonthTotal={fuelMonthTotal}
+            fuelMonthCount={fuelMonthCount}
+            openList={openV2List}
+        />
+    );
+};
+
+/* ─────────────────────────── Visual novo (v2) ─────────────────────────── */
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+interface V2HomeProps {
+    topSlot?: React.ReactNode;
+    isLoading: boolean;
+    isInProgress: boolean;
+    inProgressLabel?: string;
+    onResumeVisit: () => void;
+    stats: { programadas: number; autorizados: number; agendadas: number; suspensos: number };
+    visitsStats: { rascunho: number; reportadas: number; revisadas: number; reprovadas: number; chatPendentes: number };
+    nextScheduled?: Order;
+    fuelTabAvailable: boolean;
+    fuelMonthTotal: number;
+    fuelMonthCount: number;
+    openList: (tab: DashboardTab, filter?: string) => void;
+}
+
+const V2Home: React.FC<V2HomeProps> = ({
+    topSlot, isLoading, isInProgress, inProgressLabel, onResumeVisit, stats, visitsStats,
+    nextScheduled, fuelTabAvailable, fuelMonthTotal, fuelMonthCount, openList,
+}) => {
+    const nextLabel = nextScheduled
+        ? [nextScheduled.orderMask, nextScheduled.unitName || nextScheduled.unitDescription].filter(Boolean).join(' · ')
+        : null;
+
+    return (
+        <div className="h-full overflow-y-auto no-scrollbar bg-bg safe-area-bottom">
+            {topSlot}
+
+            <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
+                {isLoading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="rounded-card bg-surface p-5" aria-hidden="true">
+                            <Skeleton variant="text" width="40%" />
+                            <Skeleton variant="text" width="25%" height={28} className="mt-3" />
+                            <Skeleton variant="text" width="60%" className="mt-2" />
+                        </div>
+                    ))
+                ) : (
+                    <>
+                        {isInProgress && (
+                            <SectionCard
+                                highlight
+                                icon="play_circle"
+                                title="Visita em andamento"
+                                value={inProgressLabel || 'Visita atual'}
+                                action={{ label: 'Retomar visita', onClick: onResumeVisit }}
+                                onClick={onResumeVisit}
+                            />
+                        )}
+
+                        <SectionCard
+                            icon="event_available"
+                            title="Hoje"
+                            value={stats.programadas > 0 ? plural(stats.programadas, 'OS programada', 'OS programadas') : 'Nada programado'}
+                            description={nextLabel ? `Próxima: ${nextLabel}` : 'Sem programação diária para sua equipe hoje'}
+                            onClick={() => openList('services', 'programadas')}
+                        />
+
+                        <SectionCard
+                            icon="assignment"
+                            title="Serviços"
+                            value={plural(stats.autorizados, 'autorizado', 'autorizados')}
+                            description={`${plural(stats.agendadas, 'agendado', 'agendados')} · ${plural(stats.suspensos, 'suspenso', 'suspensos')}`}
+                            onClick={() => openList('services', 'autorizados')}
+                        />
+
+                        <SectionCard
+                            icon="engineering"
+                            title="Visitas"
+                            value={plural(visitsStats.rascunho, 'em rascunho', 'em rascunho')}
+                            description={`${plural(visitsStats.reportadas, 'reportada', 'reportadas')} · ${plural(visitsStats.reprovadas, 'reprovada', 'reprovadas')}`}
+                            onClick={() => openList('visits', 'rascunho')}
+                        >
+                            {visitsStats.chatPendentes > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); openList('visits', 'chats'); }}
+                                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-warning-soft text-warning text-label cursor-pointer"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">chat</span>
+                                    {plural(visitsStats.chatPendentes, 'chat pendente', 'chats pendentes')}
+                                </button>
+                            )}
+                        </SectionCard>
+
+                        {fuelTabAvailable && (
+                            <SectionCard
+                                icon="local_gas_station"
+                                title="Abastecimentos no mês"
+                                value={<HiddenValue>{formatCurrency(fuelMonthTotal)}</HiddenValue>}
+                                description={plural(fuelMonthCount, 'registro', 'registros')}
+                                onClick={() => openList('fuel')}
+                            />
+                        )}
+                    </>
+                )}
+            </div>
         </div>
     );
 };

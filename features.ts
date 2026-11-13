@@ -110,3 +110,17 @@ export const VISIT_COSTS_STATUS_CONFIG: Record<VisitCostsStatus, {
     bgColor: 'bg-red-100'
   }
 };
+
+/**
+ * Visual novo (redesign inspirado em apps de banco digital) — beta.
+ *
+ * Com a flag ligada, aparece no Perfil a chave "Visual novo (beta)" (preferência por usuário,
+ * padrão desligado). Com a flag desligada, ninguém vê nada novo — o app fica no visual atual.
+ * Plano: docs/PLANO_DESIGN_ESTILO_NUBANK.md (seção 5.1).
+ *
+ * Para ativar: VITE_FEATURE_UI_V2=true
+ * Para desativar: VITE_FEATURE_UI_V2=false (ou não definir)
+ */
+export const isUiV2Available = (): boolean => {
+  return import.meta.env.VITE_FEATURE_UI_V2 === 'true';
+};

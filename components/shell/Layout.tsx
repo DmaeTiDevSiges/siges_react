@@ -1,5 +1,7 @@
 import React from 'react';
 import { Header } from './Header';
+import { HeroHeader } from './HeroHeader';
+import { useUiVersion } from '../../contexts/UiVersionContext';
 import { UserProfileHeader } from '../ui/UserProfileHeader';
 import { Loading } from '../ui/Loading';
 import { ScrollToTopButton } from '../ui/ScrollToTopButton';
@@ -60,6 +62,9 @@ export const Layout: React.FC<LayoutProps> = ({
   currentScreen
 }) => {
   const mainRef = React.useRef<HTMLElement>(null);
+  const { isV2 } = useUiVersion();
+  // Visual novo: a home usa o topo "hero" na cor da marca.
+  const useHero = isV2 && currentScreen === 'dashboard';
 
   // Scroll to top when title changes (likely a navigation)
   React.useEffect(() => {
@@ -74,8 +79,17 @@ export const Layout: React.FC<LayoutProps> = ({
 
       <div className="flex flex-col flex-1 min-w-0">
         {!hideHeader && (
-          <div className="safe-area-top bg-surface-light dark:bg-card-dark">
+          <div className={`safe-area-top ${useHero ? 'bg-hero' : 'bg-surface-light dark:bg-card-dark'}`}>
             <div className="w-full">
+              {useHero ? (
+                <HeroHeader
+                  currentUser={currentUser}
+                  onProfileClick={onProfileClick}
+                  onNotificationsClick={onNotificationsClick}
+                  userLeftElement={userLeftElement}
+                  titleRightElement={titleRightElement}
+                />
+              ) : (
               <Header
                 title={title}
                 onMenuClick={onMenuClick}
@@ -91,6 +105,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 hideBorder={hideHeaderBorder}
                 titleRightElement={titleRightElement}
               />
+              )}
             </div>
             <AppNoticeTicker dashboard={dashboard} />
             {currentScreen && currentUser?.id && (

@@ -1,204 +1,94 @@
-# Design System Master File
+# Design System — SIGES
 
 > **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
 > If that file exists, its rules **override** this Master file.
-> If not, strictly follow the rules below.
+> If not, follow the rules below.
+
+Fonte da verdade dos valores: [`index.css`](../../index.css) (`@theme` + overrides no fim do arquivo).
+Plano do redesign: [`docs/PLANO_DESIGN_ESTILO_NUBANK.md`](../../docs/PLANO_DESIGN_ESTILO_NUBANK.md).
 
 ---
 
-**Project:** Siges
-**Generated:** 2026-01-27 21:17:23
-**Category:** Consulting Firm
+## Dois visuais em paralelo (beta)
+
+| | Visual atual (v1) | Visual novo (v2) |
+|---|---|---|
+| Ativação | padrão | `VITE_FEATURE_UI_V2=true` + chave "Visual novo (beta)" no Perfil |
+| Classe na raiz | — | `ui-v2` em `<html>` |
+| Em código | `useUiVersion().isV2 === false` | `useUiVersion().isV2 === true` (`contexts/UiVersionContext.tsx`) |
+
+Os tokens semânticos abaixo existem nos dois visuais, com valores diferentes. **UI nova deve usar
+os tokens** — assim funciona nos dois sem `if`. Só use `isV2` quando a *estrutura* muda.
 
 ---
 
-## Global Rules
+## Tokens de cor (Tailwind: `bg-*`, `text-*`, `border-*`)
 
-### Color Palette
+| Token | Uso | v1 claro | v2 claro | v2 escuro |
+|---|---|---|---|---|
+| `brand` | ações primárias, links, ativo na nav | `#137fec` | `#1a6fd1` | `#3b93f0` |
+| `brand-strong` | hover/pressed do primário | `#0e5eb0` | `#0e5eb0` | `#5aa5f5` |
+| `brand-soft` | fundo de ícone/chip/destaque | `#e7f2fd` | `#e8f2fe` | `#142b45` |
+| `on-brand` | texto sobre `brand` (no escuro é escuro!) | `#fff` | `#fff` | `#0e0e10` |
+| `hero` / `on-hero` | topo da home | — | `#1a6fd1` / `#fff` | `#1a6fd1` / `#fff` |
+| `bg` | fundo da página | `#f1f5f9` | `#f5f5f7` | `#0e0e10` |
+| `surface` | cards, sheets, header | `#fff` | `#fff` | `#18181b` |
+| `surface-2` | círculo de atalho, input, pressed | `#f1f5f9` | `#f0f1f5` | `#232328` |
+| `line` | divisórias | `#e2e8f0` | `#ececf0` | `#26262b` |
+| `fg` | texto principal | `#0f172a` | `#111114` | `#f4f4f5` |
+| `fg-muted` | texto secundário | `#64748b` | `#6b6b76` | `#a1a1aa` |
+| `fg-subtle` | placeholder, chevron, desabilitado | `#94a3b8` | `#a1a1aa` | `#71717a` |
+| `success` / `warning` / `danger` / `info` (+ `-soft`) | status | — | — | — |
 
-| Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#0F172A` | `--color-primary` |
-| Secondary | `#334155` | `--color-secondary` |
-| CTA/Accent | `#0369A1` | `--color-cta` |
-| Background | `#F8FAFC` | `--color-background` |
-| Text | `#020617` | `--color-text` |
+No v2, `primary`, `background-light`, `background-dark`, `card-dark` e toda a escala `slate-*`
+são remapeados para a paleta neutra — telas antigas mudam de cor sem edição. A cor da marca
+(decisão D1) é trocada **só** em `:root.ui-v2` / `:root.ui-v2.dark` no `index.css`.
 
-**Color Notes:** Professional blue + neutral grey
+## Tipografia (Inter)
 
-### Typography
+| Classe | Tamanho / linha / peso | Uso |
+|---|---|---|
+| `text-display` | 28 / 34 / 700 | número de destaque |
+| `text-title` | 22 / 28 / 700 | saudação, título de tela |
+| `text-headline` | 18 / 24 / 600 | título de card/seção |
+| `text-body` | 16 / 22 / 400 | texto, título de linha |
+| `text-label` | 14 / 20 / 500 | rótulos, botões, subtítulos |
+| `text-caption` | 12 / 16 / 400 | legendas de atalho, metadados |
 
-- **Heading Font:** Poppins
-- **Body Font:** Open Sans
-- **Mood:** modern, professional, clean, corporate, friendly, approachable
-- **Google Fonts:** [Poppins + Open Sans](https://fonts.google.com/share?selection.family=Open+Sans:wght@300;400;500;600;700|Poppins:wght@400;500;600;700)
+**Sentence case.** Não usar `uppercase tracking-*` em UI nova (no v2 é neutralizado por CSS).
+Não usar `font-black` (no v2 vira 700).
 
-**CSS Import:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
-```
+## Forma
 
-### Spacing Variables
+| Token | Valor | Uso |
+|---|---|---|
+| `rounded-card` | 16px (v1) / 20px (v2) | cards |
+| `rounded-sheet` | 24px | topo do bottom sheet |
+| `rounded-full` | — | botões (v2), atalhos, chips |
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--space-xs` | `4px` / `0.25rem` | Tight gaps |
-| `--space-sm` | `8px` / `0.5rem` | Icon gaps, inline spacing |
-| `--space-md` | `16px` / `1rem` | Standard padding |
-| `--space-lg` | `24px` / `1.5rem` | Section padding |
-| `--space-xl` | `32px` / `2rem` | Large gaps |
-| `--space-2xl` | `48px` / `3rem` | Section margins |
-| `--space-3xl` | `64px` / `4rem` | Hero padding |
+Superfícies planas: sem borda e sem sombra em cards; separação por espaço e `divide-line`.
 
-### Shadow Depths
+## Componentes (`components/ui`)
 
-| Level | Value | Usage |
-|-------|-------|-------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
-| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
-| `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
+| Componente | Quando usar |
+|---|---|
+| `Button` | ações. v2 = pílula, sem sombra. Variantes `primary`, `secondary`, `ghost`, `dashed` |
+| `Card` | container genérico. v2 = plano, `rounded-card` |
+| `SectionCard` | card da home: título + valor + apoio + chevron, card inteiro clicável |
+| `ListRow` | linha "ícone · título/subtítulo · valor · ›" — listas e menus |
+| `ShortcutRail` / `ShortcutButton` | atalhos circulares em carrossel horizontal |
+| `HiddenValue` | valores sensíveis (custos); somem com o "olho" do topo da home |
+| `BottomSheet` | confirmações e ações secundárias (preferir a modal centralizada) |
+| `PDFButton` | **todo** botão de PDF — continua vermelho |
 
----
+Shell: `components/shell/HeroHeader.tsx` (topo da home no v2), `HomeShortcutsRail.tsx`.
 
-## Component Specs
+## Regras
 
-### Buttons
-
-```css
-/* Primary Button */
-.btn-primary {
-  background: #0369A1;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-/* Secondary Button */
-.btn-secondary {
-  background: transparent;
-  color: #0F172A;
-  border: 2px solid #0F172A;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-```
-
-### Cards
-
-```css
-.card {
-  background: #F8FAFC;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-
-.card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-}
-```
-
-### Inputs
-
-```css
-.input {
-  padding: 12px 16px;
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 200ms ease;
-}
-
-.input:focus {
-  border-color: #0F172A;
-  outline: none;
-  box-shadow: 0 0 0 3px #0F172A20;
-}
-```
-
-### Modals
-
-```css
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
-
-.modal {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: var(--shadow-xl);
-  max-width: 500px;
-  width: 90%;
-}
-```
-
----
-
-## Style Guidelines
-
-**Style:** Trust & Authority
-
-**Keywords:** Certificates/badges displayed, expert credentials, case studies with metrics, before/after comparisons, industry recognition, security badges
-
-**Best For:** Healthcare/medical landing pages, financial services, enterprise software, premium/luxury products, legal services
-
-**Key Effects:** Badge hover effects, metric pulse animations, certificate carousel, smooth stat reveal
-
-### Page Pattern
-
-**Pattern Name:** App Store Style Landing
-
-- **Conversion Strategy:** Show real screenshots. Include ratings (4.5+ stars). QR code for mobile. Platform-specific CTAs.
-- **CTA Placement:** Download buttons prominent (App Store + Play Store) throughout
-- **Section Order:** 1. Hero with device mockup, 2. Screenshots carousel, 3. Features with icons, 4. Reviews/ratings, 5. Download CTAs
-
----
-
-## Anti-Patterns (Do NOT Use)
-
-- ❌ Generic content
-- ❌ No credentials
-- ❌ AI purple/pink gradients
-
-### Additional Forbidden Patterns
-
-- ❌ **Emojis as icons** — Use SVG icons (Heroicons, Lucide, Simple Icons)
-- ❌ **Missing cursor:pointer** — All clickable elements must have cursor:pointer
-- ❌ **Layout-shifting hovers** — Avoid scale transforms that shift layout
-- ❌ **Low contrast text** — Maintain 4.5:1 minimum contrast ratio
-- ❌ **Instant state changes** — Always use transitions (150-300ms)
-- ❌ **Invisible focus states** — Focus states must be visible for a11y
-
----
-
-## Pre-Delivery Checklist
-
-Before delivering any UI code, verify:
-
-- [ ] No emojis used as icons (use SVG instead)
-- [ ] All icons from consistent icon set (Heroicons/Lucide)
-- [ ] `cursor-pointer` on all clickable elements
-- [ ] Hover states with smooth transitions (150-300ms)
-- [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
-- [ ] `prefers-reduced-motion` respected
-- [ ] Responsive: 375px, 768px, 1024px, 1440px
-- [ ] No content hidden behind fixed navbars
-- [ ] No horizontal scroll on mobile
+- ❌ Emojis como ícone — usar Material Symbols.
+- ❌ Cores fixas (`bg-white`, `text-slate-*`, hex) em UI nova — usar tokens.
+- ❌ Gradientes roxos / identidade de terceiros (roxo Nubank, Graphik).
+- ✅ `cursor-pointer` e foco visível (`focus-visible:ring-2 ring-brand/40`) em clicáveis.
+- ✅ Transições 150–250ms; press com `active:scale-[0.98]` (sem deslocar layout).
+- ✅ Contraste mínimo 4.5:1 nos dois temas — o app é usado ao sol.
+- ✅ Testar nos 4 modos: v1/v2 × claro/escuro.

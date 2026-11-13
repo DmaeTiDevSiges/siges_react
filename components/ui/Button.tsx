@@ -1,5 +1,6 @@
 import React from 'react';
 import { Loading } from './Loading';
+import { useUiVersion } from '../../contexts/UiVersionContext';
 
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -12,9 +13,19 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ({ variant = 'primary', size = 'md', fullWidth = false, withIcon = false, loading = false, className = '', children, disabled, ...props }, ref) => {
-        const baseStyles = "inline-flex items-center justify-center font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2";
+        const { isV2 } = useUiVersion();
 
-        const variants = {
+        const baseStyles = isV2
+            // v2: pílula, plano, foco visível sem deslocar layout
+            ? "inline-flex items-center justify-center font-semibold rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+            : "inline-flex items-center justify-center font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2";
+
+        const variants = isV2 ? {
+            primary: "bg-brand hover:bg-brand-strong text-on-brand",
+            secondary: "bg-surface-2 text-fg hover:brightness-95",
+            dashed: "border border-dashed border-line text-fg-muted hover:text-brand bg-transparent",
+            ghost: "bg-transparent text-brand hover:bg-brand-soft"
+        } : {
             primary: "bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/20",
             secondary: "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600",
             dashed: "border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 hover:text-primary bg-transparent",

@@ -7,6 +7,7 @@ import './index.css';
 import './global.css';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 import { AuthProvider } from './contexts/AuthContext';
+import { UiVersionProvider } from './contexts/UiVersionContext';
 import { initClientDiagnostics } from './services/core/clientDiagnosticsService';
 
 // Diagnóstico de recargas/fechamentos inesperados — antes de tudo.
@@ -24,7 +25,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <AuthProvider>
-      <App />
+      <UiVersionProvider>
+        <App />
+      </UiVersionProvider>
     </AuthProvider>
   </React.StrictMode>
 );

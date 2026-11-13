@@ -5,6 +5,8 @@ import { announceNotificationArrival } from './hooks/useNotificationArrival';
 import { useNetworkStatus, useNetworkAndQuality, useQualityNotifications } from './hooks/useNetworkStatus';
 import { useNetworkAndQuality as useCombinedNetwork } from './hooks/useNetworkAndQuality';
 import { Layout } from './components/shell/Layout';
+import { HomeShortcutsRail } from './components/shell/HomeShortcutsRail';
+import { useUiVersion } from './contexts/UiVersionContext';
 import { BottomNav } from './components/shell/BottomNav';
 import { isOfflineSupported, isOnline } from './services/offline/offlineConfig';
 import { Button } from './components/ui/Button';
@@ -417,6 +419,7 @@ const AppContent: React.FC = () => {
     }
   }, [currentScreen]);
   const showSplash = !minTimePassed || authLoading;
+  const { isV2: isUiV2 } = useUiVersion();
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('app_theme') as 'light' | 'dark') || 'dark';
   });
@@ -873,6 +876,34 @@ const AppContent: React.FC = () => {
       }).catch(() => {});
     }
   }, [theme]);
+
+  // Visual novo (beta): barra de status acompanha o topo — cor da marca na home ("hero"),
+  // superfície neutra nas demais. Ao desligar a chave, volta às cores do efeito acima.
+  const isHeroScreen = isUiV2 && currentScreen === 'dashboard';
+  const uiV2StatusBarInit = useRef(false);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (!isUiV2 && !uiV2StatusBarInit.current) return; // v1 puro: nada muda
+    uiV2StatusBarInit.current = true;
+    // Espera o provider aplicar .ui-v2 no <html> antes de ler os tokens.
+    const raf = requestAnimationFrame(() => {
+      const css = getComputedStyle(document.documentElement);
+      const token = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
+      import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+        if (isHeroScreen) {
+          StatusBar.setStyle({ style: Style.Dark }); // ícones claros sobre a marca
+          StatusBar.setBackgroundColor({ color: token('--color-hero', '#1a6fd1') });
+        } else if (theme === 'dark') {
+          StatusBar.setStyle({ style: Style.Dark });
+          StatusBar.setBackgroundColor({ color: isUiV2 ? token('--color-surface', '#18181b') : '#101922' });
+        } else {
+          StatusBar.setStyle({ style: Style.Light });
+          StatusBar.setBackgroundColor({ color: '#ffffff' });
+        }
+      }).catch(() => {});
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [theme, isUiV2, isHeroScreen]);
 
   // Request native permissions on startup
   useEffect(() => {
@@ -2200,8 +2231,8 @@ const AppContent: React.FC = () => {
     }
 
     switch (currentScreen) {
-      case 'dashboard':
-        return (
+      case 'dashboard': {
+        const dashboardScreen = (
           <DashboardScreen
             currentUser={currentUser}
             onGamificationChange={setDashboardGamification}
@@ -2221,8 +2252,18 @@ const AppContent: React.FC = () => {
               setCurrentScreen('order-create');
             }}
             onNavigate={(screen) => setCurrentScreen(screen as any)}
+            topSlot={isUiV2 ? (
+              // Visual novo: atalhos circulares no topo da home (docs/PLANO_DESIGN_ESTILO_NUBANK.md, F3)
+              <HomeShortcutsRail
+                navigate={(tab) => handleMainTabChange(tab)}
+                isAdminSuper={currentUser?.isAdminSuper}
+                isAdmin={currentUser?.isAdmin}
+              />
+            ) : undefined}
           />
         );
+        return dashboardScreen;
+      }
       case 'ss-dashboard':
         return (
           <SsScreenGate onForbidden={handleSsScreenForbidden}>

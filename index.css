@@ -15,6 +15,56 @@
     --radius-lg: 12px;
     --radius-xl: 12px;
 
+    /* ── Tokens semânticos (docs/PLANO_DESIGN_ESTILO_NUBANK.md, F0) ──────────────
+       Valores padrão = visual atual (v1). Redefinidos em .dark, .ui-v2 e .ui-v2.dark
+       no fim deste arquivo. UI nova deve usar estes nomes, não slate/white/hex. */
+    --color-brand: #137fec;
+    --color-brand-strong: #0e5eb0;
+    --color-brand-soft: #e7f2fd;
+    --color-on-brand: #ffffff;
+    /* Topo "hero" da home (só v2) */
+    --color-hero: #137fec;
+    --color-on-hero: #ffffff;
+
+    --color-bg: #f1f5f9;
+    --color-surface: #ffffff;
+    --color-surface-2: #f1f5f9;
+    --color-line: #e2e8f0;
+    --color-fg: #0f172a;
+    --color-fg-muted: #64748b;
+    --color-fg-subtle: #94a3b8;
+
+    --color-success: #16a34a;
+    --color-success-soft: #dcfce7;
+    --color-warning: #d97706;
+    --color-warning-soft: #fef3c7;
+    --color-danger: #dc2626;
+    --color-danger-soft: #fee2e2;
+    --color-info: #137fec;
+    --color-info-soft: #e7f2fd;
+
+    --radius-card: 16px;
+    --radius-sheet: 24px;
+    --radius-pill: 9999px;
+
+    /* Escala tipográfica: text-display / text-title / text-headline / text-body / text-label / text-caption */
+    --text-display: 28px;
+    --text-display--line-height: 34px;
+    --text-display--font-weight: 700;
+    --text-title: 22px;
+    --text-title--line-height: 28px;
+    --text-title--font-weight: 700;
+    --text-headline: 18px;
+    --text-headline--line-height: 24px;
+    --text-headline--font-weight: 600;
+    --text-body: 16px;
+    --text-body--line-height: 22px;
+    --text-label: 14px;
+    --text-label--line-height: 20px;
+    --text-label--font-weight: 500;
+    --text-caption: 12px;
+    --text-caption--line-height: 16px;
+
     --animate-loading-bar: loading-bar 1.5s infinite linear;
     --animate-spin: spin 1s linear infinite;
 
@@ -631,4 +681,125 @@
 }
 .inline-report-wrapper .h-screen {
     height: auto !important;
+}
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tokens por tema e "Visual novo (beta)" — docs/PLANO_DESIGN_ESTILO_NUBANK.md
+   Tudo abaixo de .ui-v2 só vale com a chave ligada (contexts/UiVersionContext).
+   Para reverter o visual novo: desligar a chave ou VITE_FEATURE_UI_V2=false.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* v1 escuro — tokens semânticos equivalentes ao visual atual */
+:root.dark {
+    --color-brand-soft: #13314f;
+    --color-bg: #101922;
+    --color-surface: #1b2531;
+    --color-surface-2: #1e293b;
+    --color-line: #1e293b;
+    --color-fg: #f8fafc;
+    --color-fg-muted: #94a3b8;
+    --color-fg-subtle: #64748b;
+    --color-success-soft: #14532d;
+    --color-warning-soft: #451a03;
+    --color-danger-soft: #450a0a;
+    --color-info-soft: #13314f;
+}
+
+/* v2 claro */
+:root.ui-v2 {
+    /* Cor da marca — decisão D1 (azul SIGES, um tom mais escuro que #137fec para o texto
+       branco passar 4.5:1 — 4.95). Trocar só aqui e no .dark abaixo. */
+    --color-brand: #1a6fd1;
+    --color-brand-strong: #0e5eb0;
+    --color-brand-soft: #e8f2fe;
+    --color-on-brand: #ffffff;
+    --color-hero: #1a6fd1;
+    --color-on-hero: #ffffff;
+
+    --color-bg: #f5f5f7;
+    --color-surface: #ffffff;
+    --color-surface-2: #f0f1f5;
+    --color-line: #ececf0;
+    --color-fg: #111114;
+    --color-fg-muted: #6b6b76;
+    --color-fg-subtle: #a1a1aa;
+
+    --radius-card: 20px;
+
+    /* Aliases legados → mesma paleta (recolore o app sem tocar nas telas) */
+    --color-primary: var(--color-brand);
+    --color-primary-dark: var(--color-brand-strong);
+    --color-background-light: var(--color-bg);
+    --color-surface-light: var(--color-surface);
+
+    /* slate (azulado) → cinza neutro, como nos apps de banco digital */
+    --color-slate-50: #fafafa;
+    --color-slate-100: #f4f4f5;
+    --color-slate-200: #e4e4e7;
+    --color-slate-300: #d4d4d8;
+    --color-slate-400: #a1a1aa;
+    --color-slate-500: #71717a;
+    --color-slate-600: #52525b;
+    --color-slate-700: #3f3f46;
+    --color-slate-800: #27272a;
+    --color-slate-900: #18181b;
+    --color-slate-950: #09090b;
+}
+
+/* v2 escuro */
+:root.ui-v2.dark {
+    /* Escuro: marca clara (texto/ícone sobre fundo escuro: 5.6:1) com texto escuro por cima (6:1). */
+    --color-brand: #3b93f0;
+    --color-brand-strong: #5aa5f5;
+    --color-brand-soft: #142b45;
+    --color-on-brand: #0e0e10;
+    --color-hero: #1a6fd1;
+    --color-on-hero: #ffffff;
+    /* Telas antigas usam bg-primary + text-white fixo: tom que passa com branco (4.53:1). */
+    --color-primary: #1f75dc;
+    --color-primary-dark: #1a6fd1;
+
+    --color-bg: #0e0e10;
+    --color-surface: #18181b;
+    --color-surface-2: #232328;
+    --color-line: #26262b;
+    --color-fg: #f4f4f5;
+    --color-fg-muted: #a1a1aa;
+    --color-fg-subtle: #71717a;
+
+    --color-background-dark: var(--color-bg);
+    --color-card-dark: var(--color-surface);
+    --color-surface-dark: var(--color-surface);
+}
+
+/* v2 — tipografia: sentence case no lugar de MAIÚSCULAS espaçadas, sem peso 900 */
+.ui-v2 .uppercase[class*="tracking-"] {
+    text-transform: none;
+    letter-spacing: normal;
+}
+.ui-v2 .font-black {
+    font-weight: 700;
+}
+
+/* v2 — superfícies planas: some a sombra colorida dos botões primários */
+.ui-v2 [class*="shadow-primary"] {
+    --tw-shadow-color: transparent;
+}
+
+/* v2 — bottom sheet: superfície branca, raio 24px */
+.ui-v2 .ui-v2-sheet {
+    background-color: var(--color-surface);
+    border-top-left-radius: var(--radius-sheet);
+    border-top-right-radius: var(--radius-sheet);
+}
+
+/* StepFlow — entrada de cada passo */
+@keyframes ui-step-enter {
+    from { opacity: 0; transform: translateX(16px); }
+    to { opacity: 1; transform: none; }
+}
+.ui-step-enter {
+    animation: ui-step-enter 200ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+    .ui-step-enter { animation: none; }
 }
