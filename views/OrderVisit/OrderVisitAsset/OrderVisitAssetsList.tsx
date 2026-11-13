@@ -18,6 +18,15 @@ import { isTmpId } from '../../../services/offline/offlineFlowOps';
 import { isOnline } from '../../../services/offline/offlineConfig';
 
 
+/** Resultados da busca de ativos: setor → posição → descrição (código como desempate). */
+const sortSearchResults = (assets: Asset[]) =>
+    sortBySectorPositionDescription(assets, a => ({
+        tagName: a.tagName,
+        tagSubName: a.tagSubName,
+        description: a.description,
+        code: a.code,
+    }));
+
 interface OrderVisitAssetsListProps {
     visitId: string;
     isEditable?: boolean;
@@ -64,7 +73,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
             if (results.length === 1 && (results[0].code === result || results[0].id === result)) {
                 await handleAddAsset(results[0], currentUserId);
             } else {
-                setSearchResults(results);
+                setSearchResults(sortSearchResults(results));
             }
         } catch (err: any) {
             console.error('Error finding asset after scan:', err);
@@ -133,7 +142,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
 
             // Filter out assets already added
             const existingIds = visitAssets.map(a => a.assetId);
-            setSearchResults(results.filter(r => !existingIds.includes(r.id)));
+            setSearchResults(sortSearchResults(results.filter(r => !existingIds.includes(r.id))));
 
             if (results.length === 0) {
                 toast.info('Nenhum ativo encontrado com estes critérios');
