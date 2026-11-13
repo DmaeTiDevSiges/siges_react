@@ -18,6 +18,8 @@ export interface AssetReportActionFlags {
     showReview: boolean;
     showSwap: boolean;
     showRemove: boolean;
+    /** Rascunho editável: copiar as informações do relatório de outro ativo. */
+    showCopyFrom?: boolean;
     canDisapprove: boolean;
     canReview: boolean;
     canApprove: boolean;
@@ -38,6 +40,7 @@ interface Props extends AssetReportActionFlags {
     onConfirmEdit: () => void;
     onSwap: () => void;
     onRemove: () => void;
+    onCopyFrom?: () => void;
 }
 
 const base = 'w-full min-h-[48px] py-3 rounded-2xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed';
@@ -132,6 +135,19 @@ export const AssetReportActions: React.FC<Props> = (p) => {
                 </div>
             );
         }
+    }
+
+    if (p.showCopyFrom && p.onCopyFrom) {
+        secondary.push(
+            <button
+                key="copy-from"
+                type="button"
+                onClick={p.onCopyFrom}
+                className={`${base} bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-100 dark:hover:bg-indigo-500/20`}
+            >
+                Copiar de Outro Ativo
+            </button>
+        );
     }
 
     if (p.showSwap) {

@@ -1835,6 +1835,128 @@ export const visitsService = {
         }
     },
 
+    /**
+     * Copia para o relatório `targetOvaId` (em RASCUNHO) as informações do relatório `sourceOvaId`
+     * (qualquer situação, exceto REJEITADO): condição inicial/final, horímetro, situação final,
+     * movimentação, plano de manutenção/progresso, atividades e materiais. As FOTOS não são
+     * copiadas — nem as do relatório nem as das atividades; as fotos já existentes no destino ficam.
+     * O que o destino já tinha de atividades/materiais é substituído (marcado como excluído).
+     * Totais e descrição das atividades são recalculados pelos gatilhos do banco.
+     */
+    async copyOrderVisitAssetReport(targetOvaId: string, sourceOvaId: string, userId: string): Promise<{ activities: number; materials: number }> {
+        if (String(targetOvaId) === String(sourceOvaId)) throw new Error('Escolha o relatório de outro ativo.');
+        const targetId = parseInt(targetOvaId);
+        const sourceId = parseInt(sourceOvaId);
+        const now = getBrazilTimestamp();
+        const uid = parseInt(userId);
+
+        const REPORT_FIELDS = [
+            'before_comments', 'after_comments', 'has_recorder', 'before_recorder', 'after_recorder',
+            'is_moved', 'moved_comments', 'after_status_id', 'after_status_at', 'after_priority_id',
+            'after_client_id', 'after_unit_id', 'after_unit_asset_tag_id', 'after_tag_id', 'after_tag_sub_id',
+            'after_location', 'maintenance_plan_id', 'maintenance_plan_progress',
+        ];
+
+        const [{ data: target, error: targetError }, { data: source, error: sourceError }] = await Promise.all([
+            supabase.from('orders_visits_assets').select('id, ov_id, asset_id, processing_id').eq('id', targetId).single(),
+            supabase.from('orders_visits_assets').select(['id', 'processing_id', ...REPORT_FIELDS].join(', ')).eq('id', sourceId).single(),
+        ]);
+        if (targetError || !target) throw new Error('Relatório de destino não encontrado.');
+        if (sourceError || !source) throw new Error('Relatório de origem não encontrado.');
+        if (Number(target.processing_id) !== 1) throw new Error('Só é possível copiar para um relatório em rascunho.');
+        if (Number((source as any).processing_id) === 4) throw new Error('Não é possível copiar de um relatório rejeitado.');
+
+        // 1. Campos do relatório (sem fotos)
+        const reportUpdate: Record<string, any> = { updated_at: now, updated_user_id: uid };
+        REPORT_FIELDS.forEach(field => { reportUpdate[field] = (source as any)[field]; });
+        const { error: updateError } = await supabase.from('orders_visits_assets').update(reportUpdate).eq('id', targetId);
+        if (updateError) throw updateError;
+
+        // 2. Atividades: reaproveita a linha do destino da mesma atividade (como o liga/desliga faz),
+        //    insere as que faltam e marca como excluídas as que a origem não tem. Fotos não são copiadas.
+        const [{ data: sourceActivities, error: saError }, { data: targetActivities, error: taError }] = await Promise.all([
+            supabase.from('orders_visits_assets_activities')
+                .select('activity_id, amount, comments, status, maintenance_plan_id')
+                .eq('ova_id', sourceId).eq('is_deleted', false),
+            supabase.from('orders_visits_assets_activities')
+                .select('id, activity_id, is_deleted')
+                .eq('ova_id', targetId),
+        ]);
+        if (saError) throw saError;
+        if (taError) throw taError;
+
+        const sourceActivityIds = new Set((sourceActivities || []).map((a: any) => String(a.activity_id)));
+        const targetByActivity = new Map<string, any>();
+        (targetActivities || []).forEach((a: any) => { if (!targetByActivity.has(String(a.activity_id))) targetByActivity.set(String(a.activity_id), a); });
+
+        const toRemove = (targetActivities || [])
+            .filter((a: any) => !a.is_deleted && !sourceActivityIds.has(String(a.activity_id)))
+            .map((a: any) => a.id);
+        if (toRemove.length > 0) {
+            const { error } = await supabase.from('orders_visits_assets_activities')
+                .update({ is_deleted: true, updated_at: now, updated_user_id: uid })
+                .in('id', toRemove);
+            if (error) throw error;
+        }
+
+        const toInsert: any[] = [];
+        for (const act of sourceActivities || []) {
+            const fields = {
+                amount: act.amount,
+                comments: act.comments,
+                status: act.status,
+                maintenance_plan_id: act.maintenance_plan_id,
+                is_deleted: false,
+            };
+            const existing = targetByActivity.get(String(act.activity_id));
+            if (existing) {
+                const { error } = await supabase.from('orders_visits_assets_activities')
+                    .update({ ...fields, updated_at: now, updated_user_id: uid })
+                    .eq('id', existing.id);
+                if (error) throw error;
+            } else {
+                toInsert.push({ ...fields, ova_id: targetId, activity_id: act.activity_id, created_user_id: uid, created_at: now });
+            }
+        }
+        if (toInsert.length > 0) {
+            const { error } = await supabase.from('orders_visits_assets_activities').insert(toInsert);
+            if (error) throw error;
+        }
+
+        // 3. Materiais: os do destino saem (excluídos) e entram cópias dos da origem.
+        const { data: sourceMaterials, error: smError } = await supabase
+            .from('orders_visits_assets_materials')
+            .select('material_id, amount, value_unit, discount, comments')
+            .eq('ova_id', sourceId).eq('is_deleted', false);
+        if (smError) throw smError;
+
+        const { error: removeMaterialsError } = await supabase.from('orders_visits_assets_materials')
+            .update({ is_deleted: true, updated_at: now, updated_user_id: uid })
+            .eq('ova_id', targetId).eq('is_deleted', false);
+        if (removeMaterialsError) throw removeMaterialsError;
+
+        if ((sourceMaterials || []).length > 0) {
+            const { error } = await supabase.from('orders_visits_assets_materials').insert(
+                (sourceMaterials || []).map((m: any) => ({
+                    ova_id: targetId,
+                    ov_id: target.ov_id,
+                    asset_id: target.asset_id,
+                    material_id: m.material_id,
+                    amount: m.amount,
+                    value_unit: m.value_unit,
+                    discount: m.discount,
+                    comments: m.comments,
+                    created_user_id: uid,
+                    created_at: now,
+                    is_deleted: false,
+                })),
+            );
+            if (error) throw error;
+        }
+
+        return { activities: (sourceActivities || []).length, materials: (sourceMaterials || []).length };
+    },
+
     // ── Modo offline: trava do relatório do ativo (migration 20261117) ──────
     // Sem a migration aplicada (RPC/coluna inexistente) devolve supported=false
     // e o app segue sem trava, como hoje.

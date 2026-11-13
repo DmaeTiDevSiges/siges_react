@@ -37,6 +37,9 @@ import { AssetReportAlertsSection } from '../../../components/ordersVisits/order
 import { AssetReportSwapPage } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportSwapPage';
 import { AssetReportProgress, AssetReportSaveStatus, ReportProgressItem } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportProgress';
 import { AssetReportActions, AssetReportActionFlags, hasPrimaryReportAction } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportActions';
+import { AssetReportCopyFromModal } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportCopyFromModal';
+import { isOnline } from '../../../services/offline/offlineConfig';
+import { sortBySectorPositionDescription } from '../../../utils/assetReportSort';
 import { OrderVisitAssetManualsSection } from './OrderVisitAssetManualsSection';
 import { AssetAlertModal } from '../../Assets/AssetAlertModal';
 import { PhotoViewer } from '../../../components/ui/PhotoViewer';
@@ -60,11 +63,13 @@ interface OrderVisitAssetReportProps {
     /** Seção a centralizar na tela ao abrir (ex.: voltando da seleção de atividades). */
     focusSection?: 'materials' | null;
     onFocusHandled?: () => void;
+    /** Desktop: abre o relatório do ativo anterior/seguinte da visita (setas do painel lateral). */
+    onNavigateAsset?: (target: OrderVisitAssetView) => void;
 }
 
 const EDITABLE_STATUSES: number[] = [OVA_PROCESSING.DRAFT, OVA_PROCESSING.REJECTED];
 
-export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials, onViewAsset, readOnly, initialAsset, initialVisit, onApproved, focusSection, onFocusHandled }) => {
+export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials, onViewAsset, readOnly, initialAsset, initialVisit, onApproved, focusSection, onFocusHandled, onNavigateAsset }) => {
     const [asset, setAsset] = useState<OrderVisitAssetView | null>(initialAsset || null);
     const [loading, setLoading] = useState(!initialAsset);
     const [dataReady, setDataReady] = useState(false);
@@ -107,6 +112,10 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [showMovementModal, setShowMovementModal] = useState(false);
     const [showUnmoveConfirmModal, setShowUnmoveConfirmModal] = useState(false);
     const [showRemoveModal, setShowRemoveModal] = useState(false);
+    /** Copiar de outro ativo: escolha da origem e confirmação. */
+    const [showCopyFromModal, setShowCopyFromModal] = useState(false);
+    const [copySource, setCopySource] = useState<OrderVisitAssetView | null>(null);
+    const [isCopying, setIsCopying] = useState(false);
     const [showReportConfirmModal, setShowReportConfirmModal] = useState(false);
     const [showApproveMovedModal, setShowApproveMovedModal] = useState(false);
     const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
@@ -583,7 +592,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             await dataService.reportedOrderVisitAsset(assetId, currentUserId);
             await releaseMyLock();
             toast.success('Relatório reportado com sucesso!');
-            onBack();
+            advanceAfterAction();
         } catch (error) {
             toast.error('Erro ao reportar');
         } finally {
@@ -607,8 +616,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         try {
             setIsUpdatingStatus(true);
             await dataService.updateOrderVisitAssetProcessingStatus(assetId, targetStatus, currentUserId);
-            // Aprovado: volta para a lista de ativos da visita
-            if (targetStatus === OVA_PROCESSING.APPROVED) (onApproved || onBack)();
+            // Revisado/aprovado: segue para o próximo ativo da visita (no último, volta para a lista)
+            advanceAfterAction();
         } catch (error) {
             console.error('Error confirming processing:', error);
             toast.error('Erro ao confirmar processamento');
@@ -630,6 +639,84 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             return;
         }
         await handleConfirmApproval();
+    };
+
+    // ── Desktop: anterior/próximo na lista de ativos da visita (mesma ordem da lista) ──
+    const [visitSiblings, setVisitSiblings] = useState<OrderVisitAssetView[]>([]);
+    const [isNavigating, setIsNavigating] = useState(false);
+    const siblingsOvId = asset?.ovId ? String(asset.ovId) : '';
+    useEffect(() => {
+        if (!onNavigateAsset || readOnly || !siblingsOvId) return;
+        let cancelled = false;
+        dataService.getOrderVisitAssets(siblingsOvId)
+            .then(list => {
+                if (cancelled) return;
+                setVisitSiblings(sortBySectorPositionDescription(list, a => ({
+                    tagName: a.beforeTagDescription,
+                    tagSubName: a.beforeTagSubDescription,
+                    description: a.description,
+                    code: a.code,
+                })));
+            })
+            .catch(() => { /* sem lista: as setas só não aparecem */ });
+        return () => { cancelled = true; };
+    }, [siblingsOvId, onNavigateAsset, readOnly]);
+
+    const siblingIndex = visitSiblings.findIndex(a => String(a.id) === String(assetId));
+    const prevSibling = siblingIndex > 0 ? visitSiblings[siblingIndex - 1] : null;
+    const nextSibling = siblingIndex >= 0 && siblingIndex < visitSiblings.length - 1 ? visitSiblings[siblingIndex + 1] : null;
+
+    /**
+     * Depois de reportar, revisar ou aprovar: abre o próximo ativo da visita (mesma ordem da
+     * lista). No último — ou sem a lista/navegação — volta para a lista de ativos da visita.
+     */
+    const advanceAfterAction = () => {
+        if (nextSibling && onNavigateAsset) {
+            onNavigateAsset(nextSibling);
+            return;
+        }
+        (onApproved || onBack)();
+    };
+
+    /** Grava o pendente e abre o relatório do outro ativo. */
+    const goToSibling = async (target: OrderVisitAssetView | null) => {
+        if (!target || !onNavigateAsset || isNavigating) return;
+        if (uploadingCount > 0) {
+            toast.info('Aguarde o envio das fotos antes de trocar de ativo.');
+            return;
+        }
+        setIsNavigating(true);
+        try {
+            if (!isReadOnly) await flushSave();
+        } catch {
+            toast.error('Não foi possível salvar as alterações deste ativo. Tente novamente.');
+            setIsNavigating(false);
+            return;
+        }
+        onNavigateAsset(target);
+    };
+
+    /** Copia o relatório da origem escolhida para este (em rascunho); fotos não são copiadas. */
+    const handleCopyFromConfirm = async () => {
+        if (!copySource || !asset) return;
+        if (!isOnline()) {
+            toast.error('Copiar de outro ativo precisa de internet.');
+            return;
+        }
+        setIsCopying(true);
+        try {
+            // Grava o que estiver pendente antes, para o autosave não sobrescrever a cópia depois.
+            await flushSave().catch(() => undefined);
+            const result = await dataService.copyOrderVisitAssetReport(String(asset.id), String(copySource.id), currentUserId);
+            toast.success(`Relatório copiado de ${copySource.code || 'outro ativo'}: ${result.activities} atividade(s) e ${result.materials} material(is). Inclua as fotos.`);
+            setCopySource(null);
+            await loadPageData();
+        } catch (error) {
+            console.error('Erro ao copiar relatório:', error);
+            toast.error(error instanceof Error && error.message ? error.message : 'Erro ao copiar o relatório.');
+        } finally {
+            setIsCopying(false);
+        }
     };
 
     const handleRevertDraft = async () => {
@@ -807,6 +894,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         showReview: processingId === OVA_PROCESSING.REPORTED || processingId === OVA_PROCESSING.REVIEWED || !!localEditMode,
         showSwap: [2, 3, 4].includes(Number(visitProcessingId)) && !isMoved && asset.isFiled === false,
         showRemove: Number(visitProcessingId) !== OVA_PROCESSING.APPROVED && (!asset.isFiled || !isMoved),
+        showCopyFrom: processingId === OVA_PROCESSING.DRAFT && !isReadOnly && !localEditMode,
         canDisapprove: canView('orders_visits_processing_disapprove'),
         canReview: canView('orders_visits_processing_review'),
         canApprove: isContractManager,
@@ -826,6 +914,10 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         onConfirmEdit: handleConfirmEdit,
         onSwap: () => setShowSwapPage(true),
         onRemove: () => setShowRemoveModal(true),
+        onCopyFrom: () => {
+            if (!isOnline()) { toast.error('Copiar de outro ativo precisa de internet.'); return; }
+            setShowCopyFromModal(true);
+        },
     };
     const showMobileBar = !readOnly && hasPrimaryReportAction(actionFlags, localEditMode);
     const showProgress = !isReadOnly;
@@ -907,6 +999,36 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                     {/* Desktop: painel lateral fixo (à esquerda) */}
                     {!readOnly && (
                         <aside className="hidden @4xl/page:block sticky top-4 space-y-4">
+                            {onNavigateAsset && siblingIndex >= 0 && visitSiblings.length > 1 && (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => goToSibling(prevSibling)}
+                                        disabled={!prevSibling || isNavigating}
+                                        title={prevSibling ? `Anterior: ${prevSibling.code} · ${prevSibling.description || ''}` : 'Primeiro ativo da visita'}
+                                        aria-label="Ativo anterior"
+                                        className="w-11 h-11 shrink-0 flex items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-500 shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+                                    >
+                                        <span className="material-symbols-outlined">chevron_left</span>
+                                    </button>
+                                    <div className="flex-1 text-center leading-tight">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ativos da visita</p>
+                                        <p className="text-sm font-black text-slate-700 dark:text-slate-200">
+                                            {isNavigating ? 'Abrindo…' : `${siblingIndex + 1} de ${visitSiblings.length}`}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => goToSibling(nextSibling)}
+                                        disabled={!nextSibling || isNavigating}
+                                        title={nextSibling ? `Próximo: ${nextSibling.code} · ${nextSibling.description || ''}` : 'Último ativo da visita'}
+                                        aria-label="Próximo ativo"
+                                        className="w-11 h-11 shrink-0 flex items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-500 shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+                                    >
+                                        <span className="material-symbols-outlined">chevron_right</span>
+                                    </button>
+                                </div>
+                            )}
                             <OrderVisitAssetCardDetail asset={asset} onClick={onViewAsset} />
                             {showProgress && <AssetReportProgress items={progressItems} variant="list" readyLabel={progressReadyLabel} />}
                             {!isReadOnly && saveState !== 'idle' && (
@@ -1219,6 +1341,27 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 message="Os dados de destino serão descartados e o ativo continua como estava originalmente. Deseja continuar?"
                 type="warning"
                 confirmLabel="Sim, Desligar"
+                cancelLabel="Cancelar"
+            />
+
+            <AssetReportCopyFromModal
+                isOpen={showCopyFromModal}
+                visitId={asset.ovId ? String(asset.ovId) : undefined}
+                currentOvaId={String(asset.id)}
+                onClose={() => setShowCopyFromModal(false)}
+                onSelect={(source) => { setShowCopyFromModal(false); setCopySource(source); }}
+            />
+
+            <Modal
+                isOpen={!!copySource}
+                onClose={() => { if (!isCopying) setCopySource(null); }}
+                onConfirm={handleCopyFromConfirm}
+                title="Copiar relatório"
+                message={`Copiar as informações do relatório de ${copySource?.code || ''} ${copySource?.description || ''} para este ativo? Condições, horímetro, situação final, movimentação, plano, atividades e materiais deste relatório serão substituídos. As fotos não são copiadas e continuam como estão.`}
+                type="warning"
+                confirmLabel="Sim, Copiar"
+                confirmLoading={isCopying}
+                confirmLoadingLabel="COPIANDO..."
                 cancelLabel="Cancelar"
             />
 

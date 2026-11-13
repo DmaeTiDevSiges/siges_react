@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { toast } from 'sonner';
 import { dataService } from '../../services/dataService';
+import { sortAssetsBySectorPosition } from '../../utils/assetReportSort';
 import { ExcelExportUtils } from '../../utils/ExcelExportUtils';
 import { Loading } from '../ui/Loading';
 
@@ -44,7 +45,8 @@ export const AssetsListExcelButton: React.FC<AssetsListExcelButtonProps> = ({
             const types = await dataService.getAssetTypes('all');
             const typeMap = new Map(types.map(t => [t.id.toString(), t.description]));
 
-            const reportRows = assets.map(a => ({
+            // Ordem do relatório: setor → posição → código.
+            const reportRows = sortAssetsBySectorPosition(assets.map(a => ({
                 unitDescriptionFull: a.unitDescriptionFull || unitName,
                 tagName: a.tagName || '',
                 tagSubName: a.tagSubName || '',
@@ -53,7 +55,7 @@ export const AssetsListExcelButton: React.FC<AssetsListExcelButtonProps> = ({
                 statusDescription: a.statusDescription || a.statusCode || a.statusId || '',
                 statusAt: a.statusAt,
                 typeDescription: a.typeId ? typeMap.get(a.typeId.toString()) : '-'
-            }));
+            })));
 
             const mapping = {
                 unitDescriptionFull: 'Unidade',

@@ -1668,7 +1668,11 @@ const AppContent: React.FC = () => {
         // Save dynamic attribute values
         await dataService.saveAssetAttributeValues(savedAsset.id, attributeValues);
 
-        setCurrentScreen('assets-search');
+        // Abre a página do ativo recém-criado (relido: já com imagem e atributos); voltar leva à lista.
+        savedAsset = (await dataService.getAssetById(savedAsset.id)) || savedAsset;
+        setSelectedAsset(savedAsset);
+        setLastAssetSource('assets-search');
+        setCurrentScreen('asset-details');
         toast.success('Ativo criado com sucesso!');
       }
     } catch (error: any) {
@@ -2904,7 +2908,14 @@ const AppContent: React.FC = () => {
       case 'order-visit-asset-report':
         return selectedOrderVisitAssetId ? (
           <OrderVisitAssetReport
+            // key: trocar de ativo (setas do desktop) remonta a tela — fotos, autosave e trava zerados.
+            key={selectedOrderVisitAssetId}
             assetId={selectedOrderVisitAssetId}
+            // Só aberto pela visita: setas (desktop) e avanço automático após reportar/revisar/aprovar.
+            onNavigateAsset={assetReportBackScreen === 'order-visit-execute' ? (target) => {
+              setSelectedOrderVisitAsset(target);
+              setSelectedOrderVisitAssetId(String(target.id));
+            } : undefined}
             initialAsset={selectedOrderVisitAsset || undefined}
             initialVisit={selectedVisitForAssetReport || undefined}
             onBack={() => setCurrentScreen(assetReportBackScreen)}

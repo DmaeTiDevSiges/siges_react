@@ -2606,6 +2606,10 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return visitsService.getOrderVisitAssetById.apply(visitsService, arguments as any);
     },
 
+    async copyOrderVisitAssetReport(targetOvaId: string, sourceOvaId: string, userId: string): Promise<{ activities: number; materials: number }> {
+        return visitsService.copyOrderVisitAssetReport.apply(visitsService, arguments as any);
+    },
+
     async updateOrderVisitAsset(id: string, updates: Partial<{
         before_comments: string;
         after_comments: string;

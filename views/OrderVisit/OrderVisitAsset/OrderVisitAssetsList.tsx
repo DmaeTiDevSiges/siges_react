@@ -12,6 +12,7 @@ import { scanBarcode, IS_NATIVE } from '../../../utils/scanner';
 import { IconButton } from '../../../components/ui/IconButton';
 import { BarcodeScannerModal } from '../../../components/ui/BarcodeScannerModal';
 import { Loading } from '../../../components/ui/Loading';
+import { sortBySectorPositionDescription } from '../../../utils/assetReportSort';
 import { useOfflineSync } from '../../../hooks/useOfflineSync';
 import { isTmpId } from '../../../services/offline/offlineFlowOps';
 import { isOnline } from '../../../services/offline/offlineConfig';
@@ -51,6 +52,9 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [assetIdAdding, setAssetIdAdding] = useState<string | null>(null);
     const [assetIdSuccess, setAssetIdSuccess] = useState<string | null>(null);
+    /** Ativos marcados nos resultados para associar de uma vez (persiste entre buscas). */
+    const [selectedAssets, setSelectedAssets] = useState<Map<string, Asset>>(new Map());
+    const [associating, setAssociating] = useState(false);
 
     const handleScanResult = async (result: string) => {
         setSearchCode(result);
@@ -84,7 +88,13 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
         try {
             setLoading(true);
             const data = await dataService.getOrderVisitAssets(visitId);
-            setVisitAssets(data);
+            // Ordem: setor → posição → descrição (o card mostra o setor/posição de antes).
+            setVisitAssets(sortBySectorPositionDescription(data, a => ({
+                tagName: a.beforeTagDescription,
+                tagSubName: a.beforeTagSubDescription,
+                description: a.description,
+                code: a.code,
+            })));
         } catch (error) {
             console.error('Error loading visit assets:', error);
             toast.error('Erro ao carregar ativos da visita');
@@ -172,6 +182,62 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
         }
     };
 
+    const isAssetInVisit = (assetId: string) => visitAssets.some(va => va.assetId === assetId);
+
+    const toggleAssetSelection = (asset: Asset) => {
+        if (associating || isAssetInVisit(asset.id)) return;
+        setSelectedAssets(current => {
+            const next = new Map(current);
+            if (next.has(asset.id)) next.delete(asset.id);
+            else next.set(asset.id, asset);
+            return next;
+        });
+    };
+
+    /** Marca/desmarca todos os resultados que ainda não estão na visita. */
+    const toggleSelectAllResults = () => {
+        const selectable = searchResults.filter(a => !isAssetInVisit(a.id));
+        setSelectedAssets(current => {
+            const next = new Map(current);
+            const allSelected = selectable.length > 0 && selectable.every(a => next.has(a.id));
+            selectable.forEach(a => (allSelected ? next.delete(a.id) : next.set(a.id, a)));
+            return next;
+        });
+    };
+
+    /** Associa à visita todos os ativos marcados, um por vez; o que falhar continua marcado. */
+    const handleAssociateSelected = async () => {
+        if (associating || selectedAssets.size === 0) return;
+        setAssociating(true);
+        const added: string[] = [];
+        const failed: Array<{ asset: Asset; message: string }> = [];
+        for (const asset of selectedAssets.values()) {
+            if (isAssetInVisit(asset.id)) continue;
+            try {
+                await dataService.addAssetToOrderVisit(visitId, asset.id, currentUserId);
+                added.push(asset.id);
+            } catch (error) {
+                console.error('Error adding asset:', asset.code, error);
+                failed.push({ asset, message: error instanceof Error ? error.message : '' });
+            }
+        }
+        setAssociating(false);
+
+        if (added.length > 0) toast.success(added.length === 1 ? 'Ativo associado!' : `${added.length} ativos associados!`);
+        if (failed.length > 0) {
+            const codes = failed.map(f => f.asset.code).join(', ');
+            toast.error(`${failed.length === 1 ? 'Não foi possível associar o ativo' : 'Não foi possível associar os ativos'} ${codes}${failed[0].message ? `: ${failed[0].message}` : ''}`);
+        }
+
+        // Os associados saem dos resultados; os que falharam seguem marcados para nova tentativa.
+        setSelectedAssets(new Map(failed.map(f => [f.asset.id, f.asset])));
+        setSearchResults(current => current.filter(r => !added.includes(r.id)));
+        if (added.length > 0) {
+            loadVisitAssets();
+            if (onVisitRefresh) onVisitRefresh();
+        }
+    };
+
     const [assetToDelete, setAssetToDelete] = useState<OrderVisitAssetView | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -223,7 +289,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                 </h3>
                 {isEditable && (
                     <button
-                        onClick={() => setIsAdding(!isAdding)}
+                        onClick={() => { if (isAdding) setSelectedAssets(new Map()); setIsAdding(!isAdding); }}
                         className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${isAdding
                             ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                             : 'bg-indigo-500 text-white hover:bg-indigo-600'
@@ -343,19 +409,30 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                     {/* Results */}
                     {searchResults.length > 0 && (
                         <div className="space-y-2 mt-4 lg:max-h-[calc(100vh-24rem)] lg:overflow-y-auto lg:pr-1">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">RESULTADOS DA BUSCA</p>
+                            <div className="flex items-center justify-between gap-2 ml-1">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">RESULTADOS DA BUSCA</p>
+                                {searchResults.some(a => !isAssetInVisit(a.id)) && (
+                                    <button
+                                        type="button"
+                                        onClick={toggleSelectAllResults}
+                                        disabled={associating}
+                                        className="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 disabled:opacity-50"
+                                    >
+                                        {searchResults.filter(a => !isAssetInVisit(a.id)).every(a => selectedAssets.has(a.id)) ? 'Desmarcar todos' : 'Selecionar todos'}
+                                    </button>
+                                )}
+                            </div>
                             {searchResults.map(asset => {
                                 const isAlreadyAdded = visitAssets.some(va => va.assetId === asset.id);
                                 const isAddingThis = assetIdAdding === asset.id;
                                 const isSuccessThis = assetIdSuccess === asset.id;
+                                const isSelected = selectedAssets.has(asset.id);
 
                                 return (
                                     <div
                                         key={asset.id}
                                         onClick={() => {
-                                            if (!isAlreadyAdded && !isAddingThis && !isSuccessThis) {
-                                                handleAddAsset(asset, currentUserId);
-                                            }
+                                            if (!isAddingThis && !isSuccessThis) toggleAssetSelection(asset);
                                         }}
                                         className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all group ${
                                             isAlreadyAdded
@@ -364,8 +441,13 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                                                     ? 'bg-indigo-50/60 dark:bg-indigo-500/20 border-indigo-300 dark:border-indigo-500/50 cursor-wait shadow-sm scale-[0.99]'
                                                     : isSuccessThis
                                                         ? 'bg-emerald-50 dark:bg-emerald-500/20 border-emerald-300 dark:border-emerald-500/50 cursor-default'
-                                                        : 'bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-white/10 hover:border-indigo-400 hover:shadow-md hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer active:scale-[0.99]'
+                                                        : isSelected
+                                                            ? 'bg-indigo-50/60 dark:bg-indigo-500/15 border-indigo-400 dark:border-indigo-500/60 shadow-sm cursor-pointer active:scale-[0.99]'
+                                                            : 'bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-white/10 hover:border-indigo-400 hover:shadow-md hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer active:scale-[0.99]'
                                         }`}
+                                        role="checkbox"
+                                        aria-checked={isSelected}
+                                        aria-disabled={isAlreadyAdded}
                                     >
                                         <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                                             <div className="min-w-0">
@@ -395,15 +477,52 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                                                 <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-sm animate-in zoom-in-50 duration-200">
                                                     <span className="material-symbols-outlined text-xl font-bold">check</span>
                                                 </div>
+                                            ) : isSelected && associating ? (
+                                                <div className="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                                                    <span className="material-symbols-outlined text-xl animate-spin">progress_activity</span>
+                                                </div>
+                                            ) : isSelected ? (
+                                                <div className="w-10 h-10 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-sm">
+                                                    <span className="material-symbols-outlined text-xl font-bold">check</span>
+                                                </div>
                                             ) : (
-                                                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-all flex items-center justify-center">
-                                                    <span className="material-symbols-outlined text-xl">add</span>
+                                                <div className="w-10 h-10 rounded-2xl border-2 border-slate-200 dark:border-slate-600 text-transparent group-hover:border-indigo-400 transition-all flex items-center justify-center">
+                                                    <span className="material-symbols-outlined text-xl">check</span>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                 );
                             })}
+                        </div>
+                    )}
+
+                    {/* Confirmação: associa todos os marcados (inclusive de buscas anteriores) */}
+                    {selectedAssets.size > 0 && (
+                        <div className="sticky bottom-3 z-10 mt-4 flex items-center gap-2 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur border border-indigo-200 dark:border-indigo-500/30 p-2 shadow-lg">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedAssets(new Map())}
+                                disabled={associating}
+                                className="px-3 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+                            >
+                                Limpar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleAssociateSelected}
+                                disabled={associating}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-black active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-wait"
+                            >
+                                {associating ? (
+                                    <span className="material-symbols-outlined text-xl animate-spin">progress_activity</span>
+                                ) : (
+                                    <span className="material-symbols-outlined text-xl">add_task</span>
+                                )}
+                                {associating
+                                    ? 'Associando…'
+                                    : selectedAssets.size === 1 ? 'Associar 1 ativo' : `Associar ${selectedAssets.size} ativos`}
+                            </button>
                         </div>
                     )}
                 </div>

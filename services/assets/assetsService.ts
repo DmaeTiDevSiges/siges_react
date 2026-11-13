@@ -365,17 +365,19 @@ export const assetsService = {
     async createAsset(asset: Partial<Asset>): Promise<Asset> {
         const dbData: any = {
             company_id: await this.resolveAssetCompanyId(asset),
-            code: asset.code,
-            description: asset.description,
+            // code/description/brand/model/serial alimentam o trigger de `searchable`, que concatena com ||:
+            // um NULL deixa o searchable inteiro em branco. Por isso vão sempre como texto ('' se vazio).
+            code: asset.code ?? '',
+            description: asset.description ?? '',
             client_id: asset.clientId ? parseInt(asset.clientId) : null,
             unit_id: asset.unitId ? parseInt(asset.unitId) : null,
             status_id: asset.statusId ? parseInt(asset.statusId) : null,
             tag_id: asset.tagId ? parseInt(asset.tagId) : null,
             tag_sub_id: asset.tagSubId ? parseInt(asset.tagSubId) : null,
             comments: asset.comments,
-            brand: asset.brand,
-            model: asset.model,
-            serial: asset.serial,
+            brand: asset.brand ?? '',
+            model: asset.model ?? '',
+            serial: asset.serial ?? '',
             location: asset.location,
             acquisition_at: asset.acquisitionAt || null,
             status_at: asset.statusAt || null,
@@ -453,9 +455,10 @@ export const assetsService = {
         if (asset.tagId !== undefined) dbData.tag_id = asset.tagId ? parseInt(asset.tagId) : null;
         if (asset.tagSubId !== undefined) dbData.tag_sub_id = asset.tagSubId ? parseInt(asset.tagSubId) : null;
         if (asset.comments !== undefined) dbData.comments = asset.comments;
-        if (asset.brand !== undefined) dbData.brand = asset.brand;
-        if (asset.model !== undefined) dbData.model = asset.model;
-        if (asset.serial !== undefined) dbData.serial = asset.serial;
+        // '' em vez de null: o trigger de `searchable` concatena esses campos (NULL zeraria a busca).
+        if (asset.brand !== undefined) dbData.brand = asset.brand ?? '';
+        if (asset.model !== undefined) dbData.model = asset.model ?? '';
+        if (asset.serial !== undefined) dbData.serial = asset.serial ?? '';
         if (asset.location !== undefined) dbData.location = asset.location;
         if (asset.acquisitionAt !== undefined) dbData.acquisition_at = asset.acquisitionAt || null;
         if (asset.statusAt !== undefined) dbData.status_at = asset.statusAt || null;

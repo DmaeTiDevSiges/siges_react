@@ -5,6 +5,7 @@ import { PDFButton } from '../ui/PDFButton';
 import { FileUtils } from '../../utils/FileUtils';
 import { AssetsListDocument, AssetListRow } from './AssetsListDocument';
 import { dataService } from '../../services/dataService';
+import { sortAssetsBySectorPosition } from '../../utils/assetReportSort';
 import { getLogoBase64 } from '../../utils/PdfImageUtils';
 
 
@@ -50,7 +51,8 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
             const typeMap = new Map<string, string>(types.map(t => [t.id.toString(), t.description as string]));
 
             // 3. Map to report rows
-            const reportRows: AssetListRow[] = assets.map(a => ({
+            // Ordem do relatório: setor → posição → código.
+            const reportRows: AssetListRow[] = sortAssetsBySectorPosition(assets.map(a => ({
                 unitDescriptionFull: a.unitDescriptionFull || unitName,
                 tagName: a.tagName,
                 tagSubName: a.tagSubName || '',
@@ -59,7 +61,7 @@ export const AssetsListPDFButton: React.FC<AssetsListPDFButtonProps> = ({
                 statusDescription: a.statusDescription || a.statusCode || '',
                 statusAt: a.statusAt,
                 typeDescription: (a.typeId ? typeMap.get(a.typeId.toString()) : null) || '—'
-            }));
+            })));
 
             // 4. Generate the PDF
             const logoBase64 = await getLogoBase64();
