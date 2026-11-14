@@ -23,15 +23,17 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 - Testes: `hooks/useScreenHistory.test.tsx`, `utils/backButton.test.ts`, `app/screenBack.test.ts`, `components/ui/Modal.test.tsx`. Jest `ui` agora transforma `react-router` (ESM) via `tests/tsJestImportMeta.cjs` (traduz `import.meta`).
 - NÃO verificado em aparelho/emulador (só Jest + build do Vite): roteiro no fim deste bloco.
 
-**Fase 1b — em andamento (fluxo da visita, OS/SS, ativo e aprovação/avaliação feitos em 13/11/2026):**
+**Fase 1b — em andamento (fluxo da visita, OS/SS, ativo e aprovação/avaliação e cadastros do grupo A feitos em 13/11/2026):**
 - `app/screenRoutes.ts`: rotas com parâmetros — `#/visita/:visitId`, `#/visita-ativo/:ovaId`, `#/visita-ativo/:ovaId/atividades/:orderTypeId`, `#/visita-ativo/:ovaId/materiais`. `toPath`/`fromPath` (com `matchPath`/`generatePath`; ids com ":" de ativo criado offline funcionam).
 - `useScreenHistory` agora trabalha com **caminhos** (tela + ids): trocar de ativo na mesma tela vira entrada nova; voltar/avançar, recarregar (F5) e link aberto leem a seleção **da URL** (`applySelection`), sem passar por `canEnter`. Link aberto antes do login só é seguido depois de logar (o hash fica intacto enquanto deslogado).
 - No `App.tsx`: `routeSelection` (de onde vêm os ids) e `applyRouteSelection` (como a URL volta para a memória). `leaveAssetReport()` descobre a visita pelo ativo quando o relatório foi aberto por link/recarregamento (senão a tela da visita ficava em branco).
 - **OS/SS e ativo:** `#/os/:orderId` (`order-detail`), `#/ss/:orderId` (`service-request-detail`) e `#/ativo/:assetId` (`asset-details`). Essas telas recebem o objeto pronto e não buscam sozinhas, então o `App.tsx` usa `hooks/useRouteEntity.ts`: quando a URL traz um id diferente do que está em memória, busca (`getOrderById`/`getAssetById`); enquanto isso, `pendingId` mostra "Carregando..." e segura o id na URL; se não achar (ou estiver offline, ou for ativo `tmp:` ainda não enviado) avisa e cai no painel. `handleOrderSelect`/`handleAssetSelect` chamam `cancel()` para descartar busca atrasada. A aba da OS/SS, `lastOrderSource` e `lastAssetSource` seguem em memória (após F5, o voltar cai na origem padrão: painel de OS / busca de ativos).
 - **Aprovação/avaliação da visita:** `#/visita/:id/aprovar` (`order-visit-approve`) e `#/visita/:id/avaliar` (`order-visit-evaluation`), com o id em `approvalVisitId` (separado de `visitId` para não confundir com a visita em execução). Ao abrir por URL, `routeApproval` (`useRouteEntity`) busca a visita e, se a OS em memória for outra, a OS dela; a tela da visita (destino do voltar/aprovar) recebe o mesmo id.
+- **Cadastros — grupo A (só telas de detalhe):** `#/empresa/:id`, `#/contrato/:id`, `#/unidade/:id`, `#/material/:id`, `#/manual/:id`. Cada um usa `useRouteEntity` com o `getXById` do `dataService`; a unidade também carrega o cliente dela (a seta de voltar precisa dele). Unidade, material e manual são desenhados pelo `SettingsRouter`, então o "Carregando..." fica no `App.tsx`, antes dele. **Formulários (`*-form`, `*-edit`) ficam sem rota de propósito:** recarregar no meio de uma edição perderia o que foi digitado; eles seguem por `canEnter` e caem no painel.
+- **Cadastros que faltam (decisão pendente):** grupo B (cliente, departamento, equipe, usuário — precisam de `getXById` novo), C (tabelas simples de configuração, ~10) e D (tipos de ativo, 5). Sugestão: B se houver demanda; C e D só se o voltar do navegador nelas incomodar.
 - **Para migrar outra tela:** incluir em `ROUTES` (`screenRoutes.ts`, mais específicas primeiro), incluir o id em `Selection`, ligar em `routeSelection`/`applyRouteSelection` (se a tela não buscar sozinha pelo id, usar `useRouteEntity`) e conferir o que acontece ao recarregar nela (a tela busca tudo pelo id? o "voltar" depende de estado em memória?).
 - **Ainda em memória (não vão para a URL):** aba da visita (`visitActiveTab`), `assetReportBackScreen`, `lastVisitSource`, aba da OS/SS (`orderDetailActiveTab`/`ssDetailActiveTab`), `lastOrderSource`.
-- **Próximas na fila:** cadastros (empresa, cliente, unidade…).
+- **Próximas na fila:** cadastros dos grupos B/C/D (ver acima).
 **Outras telas com overlay próprio** (`fixed inset-0` sem usar `Modal`) ainda não tratam o voltar do Android: migrar para `Modal` ou `useBackToClose`.
 
 **Roteiro de teste manual (Android):**
@@ -44,6 +46,7 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 7. Abrir `#/visita-ativo/<id>` colado no navegador (logado): abre o relatório do ativo; voltar leva à visita (não à tela em branco).
 8. OS/SS/ativo: abrir uma OS (ou ativo), recarregar (F5) → reabre a mesma; colar `#/os/<id>`, `#/ss/<id>` ou `#/ativo/<id>` no navegador abre a tela; id inexistente avisa e cai no painel.
 9. Aprovação: na visita, abrir a aprovação, recarregar (F5) → reabre a aprovação (com a OS certa); colar `#/visita/<id>/aprovar` ou `/avaliar` funciona; voltar leva à visita.
+10. Cadastros: abrir uma empresa/contrato/unidade/material/manual, recarregar (F5) → reabre o mesmo; na unidade, a seta de voltar leva à lista de unidades do cliente (não quebra).
 
 ## Etapa 2 — Camada de dados (TanStack Query) (PENDENTE)
 `QueryClientProvider` por cima do `dataService`; migrar telas de leitura uma a uma (começando por listas). O `readCache` offline continua por baixo (fonte de `initialData`). Invalidar por chave após cada operação da fila offline. Meta: sumir os `useEffect` + `loading/error` manuais.

@@ -24,6 +24,12 @@ export type Selection = {
     approvalVisitId?: string | null;
     /** Ativo aberto (asset-details). */
     assetId?: string | null;
+    /** Cadastros (telas de detalhe). */
+    companyId?: string | null;
+    contractId?: string | null;
+    unitId?: string | null;
+    materialId?: string | null;
+    manualId?: string | null;
 };
 
 type SelectionKey = keyof Selection;
@@ -45,6 +51,11 @@ const ROUTES: RouteDef[] = [
     { screen: 'order-detail', pattern: '/os/:orderId', params: ['orderId'] },
     { screen: 'service-request-detail', pattern: '/ss/:orderId', params: ['orderId'] },
     { screen: 'asset-details', pattern: '/ativo/:assetId', params: ['assetId'] },
+    { screen: 'company-details', pattern: '/empresa/:companyId', params: ['companyId'] },
+    { screen: 'contract-details', pattern: '/contrato/:contractId', params: ['contractId'] },
+    { screen: 'unit-details', pattern: '/unidade/:unitId', params: ['unitId'] },
+    { screen: 'material-details', pattern: '/material/:materialId', params: ['materialId'] },
+    { screen: 'technical-manual-details', pattern: '/manual/:manualId', params: ['manualId'] },
 ];
 
 /** Caminho da tela. Sem rota própria (ou sem os ids dela) cai em `/<tela>`. */

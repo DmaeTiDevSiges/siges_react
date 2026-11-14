@@ -14,6 +14,16 @@ describe('toPath', () => {
         expect(toPath('order-visit-approve', { visitId: '12' })).toBe('/order-visit-approve');
     });
 
+    it('monta o caminho dos cadastros (só telas de detalhe)', () => {
+        expect(toPath('company-details', { companyId: '3' })).toBe('/empresa/3');
+        expect(toPath('contract-details', { contractId: '4' })).toBe('/contrato/4');
+        expect(toPath('unit-details', { unitId: '5' })).toBe('/unidade/5');
+        expect(toPath('material-details', { materialId: '6' })).toBe('/material/6');
+        expect(toPath('technical-manual-details', { manualId: '7' })).toBe('/manual/7');
+        // formulários não têm rota: recarregar neles não pode perder o que foi digitado
+        expect(toPath('company-edit', { companyId: '3' })).toBe('/company-edit');
+    });
+
     it('monta o caminho da OS e da SS', () => {
         expect(toPath('order-detail', { orderId: '77' })).toBe('/os/77');
         expect(toPath('service-request-detail', { orderId: '76' })).toBe('/ss/76');
@@ -44,6 +54,14 @@ describe('fromPath', () => {
         expect(fromPath('/visita/12/aprovar')).toEqual({ screen: 'order-visit-approve', selection: { approvalVisitId: '12' } });
         expect(fromPath('/visita/12/avaliar')).toEqual({ screen: 'order-visit-evaluation', selection: { approvalVisitId: '12' } });
         expect(fromPath('/visita/12')).toEqual({ screen: 'order-visit-execute', selection: { visitId: '12' } });
+    });
+
+    it('lê os cadastros do caminho', () => {
+        expect(fromPath('/empresa/3')).toEqual({ screen: 'company-details', selection: { companyId: '3' } });
+        expect(fromPath('/contrato/4')).toEqual({ screen: 'contract-details', selection: { contractId: '4' } });
+        expect(fromPath('/unidade/5')).toEqual({ screen: 'unit-details', selection: { unitId: '5' } });
+        expect(fromPath('/material/6')).toEqual({ screen: 'material-details', selection: { materialId: '6' } });
+        expect(fromPath('/manual/7')).toEqual({ screen: 'technical-manual-details', selection: { manualId: '7' } });
     });
 
     it('lê OS e SS do caminho', () => {

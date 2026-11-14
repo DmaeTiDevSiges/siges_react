@@ -726,6 +726,7 @@ const AppContent: React.FC = () => {
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
 
   const handleCompanySelect = (company: Company) => {
+    routeCompany.cancel();
     setSelectedCompany(company);
     setCurrentScreen('company-details');
   };
@@ -1365,6 +1366,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleTechnicalManualSelect = (tm: import('./types').TechnicalManual) => {
+    routeManual.cancel();
     setSelectedTechnicalManual(tm);
     setCurrentScreen('technical-manual-details');
   };
@@ -1892,6 +1894,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleUnitSelect = async (unit: import('./types').Unit) => {
+    routeUnit.cancel();
     setSelectedUnit(unit);
 
     // Ensure selectedClient matches the unit's clientId
@@ -2054,6 +2057,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleMaterialSelect = (material: import('./types').Material) => {
+    routeMaterial.cancel();
     setSelectedMaterial(material);
     setCurrentScreen('material-details');
   };
@@ -2171,6 +2175,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleContractSelect = (contract: Contract) => {
+    routeContract.cancel();
     setSelectedContract(contract);
     setCurrentScreen('contract-details');
   };
@@ -2212,6 +2217,19 @@ const AppContent: React.FC = () => {
         <UserUnavailableScreen
           onBecomeAvailable={() => handleUserStatusChange(true, null)}
         />
+      );
+    }
+
+    if (
+      (currentScreen === 'unit-details' && routeUnit.pendingId) ||
+      (currentScreen === 'material-details' && routeMaterial.pendingId) ||
+      (currentScreen === 'technical-manual-details' && routeManual.pendingId)
+    ) {
+      return (
+        <div className="flex items-center justify-center py-20 text-slate-500">
+          <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+          Carregando...
+        </div>
       );
     }
 
@@ -2499,6 +2517,12 @@ const AppContent: React.FC = () => {
       case 'companies':
         return <CompaniesList onSelect={handleCompanySelect} onAdd={handleAddClick} />;
       case 'company-details':
+        if (routeCompany.pendingId) return (
+          <div className="flex items-center justify-center py-20 text-slate-500">
+            <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+            Carregando...
+          </div>
+        );
         return selectedCompany ? (
           <CompanyDetails
             key={selectedCompany.id}
@@ -2639,6 +2663,12 @@ const AppContent: React.FC = () => {
           />
         );
       case 'contract-details':
+        if (routeContract.pendingId) return (
+          <div className="flex items-center justify-center py-20 text-slate-500">
+            <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+            Carregando...
+          </div>
+        );
         return selectedContract ? (
           <ContractDetails
             contract={selectedContract}
@@ -3311,6 +3341,21 @@ const AppContent: React.FC = () => {
     toast.error('Não foi possível abrir a aprovação da visita.');
     setCurrentScreen('dashboard');
   });
+  // Cadastros (telas de detalhe): mesmo esquema.
+  const goHomeWithError = (what: string) => () => { toast.error(`Não foi possível abrir ${what}.`); setCurrentScreen('dashboard'); };
+  const routeCompany = useRouteEntity<Company>(selectedCompany, setSelectedCompany, id => dataService.getCompanyById(id), goHomeWithError('a empresa'));
+  const routeContract = useRouteEntity<Contract>(selectedContract, setSelectedContract, id => dataService.getContractById(id), goHomeWithError('o contrato'));
+  const routeMaterial = useRouteEntity<import('./types').Material>(selectedMaterial, setSelectedMaterial, id => dataService.getMaterialById(id), goHomeWithError('o material'));
+  const routeManual = useRouteEntity<import('./types').TechnicalManual>(selectedTechnicalManual, setSelectedTechnicalManual, id => dataService.getTechnicalManualById(id), goHomeWithError('o manual'));
+  // Unidade: a seta de voltar precisa do cliente dela em memória (como no handleUnitSelect).
+  const routeUnit = useRouteEntity<import('./types').Unit>(selectedUnit, setSelectedUnit, async id => {
+    const unit = await dataService.getUnitById(id);
+    if (unit && (!selectedClient || String(selectedClient.id) !== String(unit.clientId))) {
+      const client = (await dataService.getClients()).find(c => String(c.id) === String(unit.clientId));
+      if (client) setSelectedClient(client);
+    }
+    return unit;
+  }, goHomeWithError('a unidade'));
   const routeAsset = useRouteEntity<Asset>(selectedAsset, setSelectedAsset, id => dataService.getAssetById(id), () => {
     toast.error('Não foi possível abrir o ativo.');
     setCurrentScreen('dashboard');
@@ -3322,6 +3367,11 @@ const AppContent: React.FC = () => {
     orderTypeId: selectedOrderTypeId,
     orderId: routeOrder.pendingId ?? (selectedOrder?.id != null ? String(selectedOrder.id) : null),
     approvalVisitId: routeApproval.pendingId ?? (selectedVisitForApproval?.id != null ? String(selectedVisitForApproval.id) : null),
+    companyId: routeCompany.pendingId ?? (selectedCompany?.id != null ? String(selectedCompany.id) : null),
+    contractId: routeContract.pendingId ?? (selectedContract?.id != null ? String(selectedContract.id) : null),
+    unitId: routeUnit.pendingId ?? (selectedUnit?.id != null ? String(selectedUnit.id) : null),
+    materialId: routeMaterial.pendingId ?? (selectedMaterial?.id != null ? String(selectedMaterial.id) : null),
+    manualId: routeManual.pendingId ?? (selectedTechnicalManual?.id != null ? String(selectedTechnicalManual.id) : null),
     assetId: routeAsset.pendingId ?? (selectedAsset?.id != null ? String(selectedAsset.id) : null),
   };
   const applyRouteSelection = (sel: Selection) => {
@@ -3337,6 +3387,11 @@ const AppContent: React.FC = () => {
     if (sel.orderTypeId) setSelectedOrderTypeId(sel.orderTypeId);
     if (sel.orderId) routeOrder.load(sel.orderId);
     if (sel.assetId) routeAsset.load(sel.assetId);
+    if (sel.companyId) routeCompany.load(sel.companyId);
+    if (sel.contractId) routeContract.load(sel.contractId);
+    if (sel.unitId) routeUnit.load(sel.unitId);
+    if (sel.materialId) routeMaterial.load(sel.materialId);
+    if (sel.manualId) routeManual.load(sel.manualId);
     if (sel.approvalVisitId) {
       const id = sel.approvalVisitId;
       // A tela da visita (destino do "voltar" e do aprovar) é a mesma visita.
