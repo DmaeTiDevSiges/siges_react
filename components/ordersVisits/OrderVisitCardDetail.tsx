@@ -1,8 +1,9 @@
 import React from 'react';
 import { Select } from '../ui/Select';
-import { dataService } from '../../services/dataService';
-import { toast } from 'sonner';
-import { OrderVisit, OrderVisitTeam, User } from '../../types';
+import { useVisitTeamAdd } from '../../hooks/useVisitTeamAdd';
+import { useUiVersion } from '../../contexts/UiVersionContext';
+import { OrderVisitCardDetailV2 } from './OrderVisitCardDetailV2';
+import { OrderVisit, OrderVisitTeam } from '../../types';
 import { Card } from '../ui/Card';
 import { UserAvatar } from '../ui/UserAvatar';
 import { formatDateTime } from '../../utils/formatters';
@@ -11,7 +12,7 @@ import { Loading } from '../ui/Loading';
 import { getStatusConfig } from '../../utils/formatters';
 
 
-interface OrderVisitCardDetailProps {
+export interface OrderVisitCardDetailProps {
     visit: OrderVisit;
     team: OrderVisitTeam[];
     onRemoveTeamMember?: (userId: string) => void;
@@ -35,7 +36,8 @@ interface OrderVisitCardDetailProps {
     hideHeaderActions?: boolean;
 }
 
-export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
+/** Visual atual (v1). O exportado `OrderVisitCardDetail` escolhe entre este e o `OrderVisitCardDetailV2`. */
+const OrderVisitCardDetailV1: React.FC<OrderVisitCardDetailProps> = ({
     visit,
     team,
     onRemoveTeamMember,
@@ -61,54 +63,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
     // Determining colors
     const badgeColor = "bg-rose-500"; // Default
 
-    const [availableUsers, setAvailableUsers] = React.useState<User[]>([]);
-    const [selectedUserId, setSelectedUserId] = React.useState<string>('');
-    const [isAdding, setIsAdding] = React.useState(false);
-
-    React.useEffect(() => {
-        if (onAddTeamMember) {
-            loadAvailableUsers();
-        }
-    }, [onAddTeamMember, team]);
-
-    const loadAvailableUsers = async () => {
-        try {
-            const users = await dataService.getUsers();
-            // Filter: 
-            // 1. users.status_id = 2 (Ativo)
-            // 2. users.id <> v_orders_visit.ov_team_leader_id
-            // 3. users.teams.department_id = v_orders.provider_department_id
-            // 4. (Implicit) Not already in team
-            const teamUserIds = new Set(team.map(m => m.userId));
-            const filtered = users.filter(u =>
-                String(u.statusId) === '2' &&
-                String(u.id) !== String(visit.ovTeamLeadId) &&
-                String(u.departmentId) === String(visit.providerDepartmentId) &&
-                !teamUserIds.has(u.id)
-            ).sort((a, b) => (a.nameShort || '').localeCompare(b.nameShort || '', 'pt-BR'));
-
-            setAvailableUsers(filtered);
-        } catch (error) {
-            console.error('Error loading available users:', error);
-        }
-    }
-
-    const handleAddClick = async () => {
-        if (!selectedUserId) {
-            toast.error('Selecione um usuário');
-            return;
-        }
-
-        setIsAdding(true);
-        try {
-            if (onAddTeamMember) {
-                await onAddTeamMember(selectedUserId);
-                setSelectedUserId('');
-            }
-        } finally {
-            setIsAdding(false);
-        }
-    }
+    const { availableUsers, selectedUserId, setSelectedUserId, isAdding, handleAddClick } = useVisitTeamAdd(visit, team, onAddTeamMember);
 
     return (
         <Card
@@ -394,4 +349,10 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
             )}
         </Card>
     );
+};
+
+/** Detalhe da visita: escolhe o desenho pela chave "Visual novo (beta)". */
+export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = (props) => {
+    const { isV2 } = useUiVersion();
+    return isV2 ? <OrderVisitCardDetailV2 {...props} /> : <OrderVisitCardDetailV1 {...props} />;
 };
