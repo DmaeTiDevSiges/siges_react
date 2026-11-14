@@ -1,39 +1,29 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { formatDateInBrazil } from '../../utils/formatters';
-
 import { dataService } from '../../services/dataService';
 import { supabase } from '../../services/core/supabase';
 import { useAppNotices } from '../../hooks/useAppNotices';
 import { useClientScope } from '../../hooks/useClientScope';
 import { systemsScopeOption } from '../../utils/clientScope';
 import { pickActivePeriodsAt } from '../../utils/appNoticePeriod';
-import {
-    noticeAppliesToUnitSystemParent,
-    resolveNoticeSystemParentIds,
-} from '../../utils/appNoticeSystemScope';
-import { User, System, UnitType, OrderType, Priority } from '../../types';
+import { noticeAppliesToUnitSystemParent, resolveNoticeSystemParentIds } from '../../utils/appNoticeSystemScope';
+import { User, System, UnitType } from '../../types';
+import { useAssetModal } from '../../hooks/useAssetModal';
+import { computeMoExtraByUnit, computeMoExtraSummary, computeSectorsStats, computeUnitsRows, computeSectorPercentage, filterByUnitTypes } from '../../utils/unitsAssetsTagsDashboard';
 import { toast } from 'sonner';
 import { Card } from '../../components/ui/Card';
-import { Select } from '../../components/ui/Select';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { IconButton } from '../../components/ui/IconButton';
 import { Modal } from '../../components/ui/Modal';
 import { FilterSelect } from '../../components/ui/FilterSelect';
 import { FilterSelectionContent } from '../../components/ui/FilterSelectionContent';
-import { Textarea } from '../../components/ui/Textarea';
-import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
-import { formatRelativeTime, formatDateTime } from '../../utils/formatters';
-import { AvailabilityHistory } from '../../components/ui/AvailabilityHistory';
 import { useDragToScroll } from '../../hooks/useDragToScroll';
 import { useRecentlyChanged } from '../../hooks/useRecentlyChanged';
 import { AvailabilityExportModal } from './components/AvailabilityExportModal';
+import { AssetDetailModal } from './components/AssetDetailModal';
 import { UnitsAvailabilityMap } from './components/UnitsAvailabilityMap';
-import { RiFileExcel2Fill } from 'react-icons/ri';
-import { CompanyAvatar } from '../../components/ui/CompanyAvatar';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
-import { Loading } from '../../components/ui/Loading';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { CircularGauge } from '../../components/ui/CircularGauge';
 
@@ -163,9 +153,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [rawData, setAllData] = useState<any[]>([]);
     // Linhas visíveis: aplica o filtro de tipo de unidade (units.unit_type_parent_id).
     const allData = useMemo(
-        () => selectedUnitTypeIds.length > 0
-            ? rawData.filter(row => selectedUnitTypeIds.includes(String(row.units?.unit_type_parent_id ?? '')))
-            : rawData,
+        () => filterByUnitTypes(rawData, selectedUnitTypeIds),
         [rawData, selectedUnitTypeIds]
     );
     // Setores alterados pelo realtime: destaque de 1 s (troca de sistema não destaca).
@@ -180,28 +168,8 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState(false);
     const [activeSearchSuggestion, setActiveSearchSuggestion] = useState(-1);
-    const [selectedAssetForModal, setSelectedAssetForModal] = useState<any | null>(null);
-    const [modalData, setModalData] = useState<any | null>(null);
-    const [modalLoading, setModalLoading] = useState(false);
-    const [history7Days, setHistory7Days] = useState<{ date: string; isAvailable: boolean | null }[]>([]);
-    const [historyLoading, setHistoryLoading] = useState(false);
-    const [historyOffset, setHistoryOffset] = useState(0);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-    const [activeOrdersForModal, setActiveOrdersForModal] = useState<any[]>([]);
-    const [currentOrderIndex, setCurrentOrderIndex] = useState(0);
 
-    // Inline SS Creation Form State
-    const [showSSForm, setShowSSForm] = useState(false);
-    const [ssFormStep, setSsFormStep] = useState(1);
-    const [ssFormLoading, setSsFormLoading] = useState(false);
-    const [orderTypes, setOrderTypes] = useState<OrderType[]>([]);
-    const [priorities, setPriorities] = useState<Priority[]>([]);
-    const [ssFormData, setSsFormData] = useState({
-        orderTypeId: '',
-        priorityId: '',
-        requestedServices: '',
-        receiveNotifications: false
-    });
 
     const [viewMode, setViewMode] = useState<'list' | 'map'>(() => {
         if (isFullscreenMapMode) return 'map';
@@ -210,9 +178,6 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
 
     // Accordion state for mobile
     const [expandedUnitId, setExpandedUnitId] = useState<number | null>(null);
-    const [completingOrderId, setCompletingOrderId] = useState<string | number | null>(null);
-    const [ratingOrderId, setRatingOrderId] = useState<string | number | null>(null);
-    const [selectedRating, setSelectedRating] = useState<number>(0);
 
     useEffect(() => {
         const timeout = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
@@ -294,76 +259,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     }, [loadAllNoticeWorkers]);
 
     // Agrupa workers por unitId: soma geral + breakdown por aviso + rateio por empresa
-    const moExtraByUnit = useMemo(() => {
-        const map = new Map<number, {
-            total: number;
-            notices: Array<{
-                noticeId: number;
-                title?: string;
-                color?: string;
-                categoryLabel?: string;
-                total: number;
-                companies: Array<{ name?: string; logoUrl?: string; amount: number }>;
-            }>;
-            companies: Array<{ name?: string; logoUrl?: string; amount: number }>;
-        }>();
-
-        noticeWorkersAll.forEach(w => {
-            const uid = Number(w.unitId);
-            const amount = Number(w.workersExtraAmount) || 0;
-            if (!uid || amount <= 0) return;
-
-            const entry = map.get(uid) ?? { total: 0, notices: [], companies: [] };
-            entry.total += amount;
-
-            // Agrupa por aviso dentro da unidade
-            let noticeEntry = entry.notices.find(n => n.noticeId === w.noticeId);
-            if (!noticeEntry) {
-                noticeEntry = {
-                    noticeId: w.noticeId,
-                    title: w.noticeTitle,
-                    color: w.noticeColor,
-                    categoryLabel: w.noticeCategoryLabel,
-                    total: 0,
-                    companies: []
-                };
-                entry.notices.push(noticeEntry);
-            }
-            noticeEntry.total += amount;
-            noticeEntry.companies.push({
-                name: w.companyName,
-                logoUrl: w.companyLogoUrl,
-                amount
-            });
-
-            // Mantém rateio geral por empresa (compatível com UI atual)
-            entry.companies.push({
-                name: w.companyName,
-                logoUrl: w.companyLogoUrl,
-                amount
-            });
-
-            map.set(uid, entry);
-        });
-
-        // Ordena avisos conforme ordem de activeNotices para manter consistência
-        const noticeOrder = new Map<number, number>();
-        activeNotices?.forEach((n: any, idx: number) => {
-            if (n?.id) noticeOrder.set(Number(n.id), idx);
-        });
-
-        for (const entry of map.values()) {
-            entry.notices.sort((a, b) => {
-                const oa = noticeOrder.get(a.noticeId) ?? 999;
-                const ob = noticeOrder.get(b.noticeId) ?? 999;
-                if (oa !== ob) return oa - ob;
-                return a.noticeId - b.noticeId;
-            });
-            // Opcional: normaliza empresas para evitar duplicados pesados no tooltip
-        }
-
-        return map;
-    }, [noticeWorkersAll, activeNotices]);
+    const moExtraByUnit = useMemo(() => computeMoExtraByUnit(noticeWorkersAll, activeNotices), [noticeWorkersAll, activeNotices]);
 
     // Unidades do sistema exibido — o total de MO Extra do topo reflete apenas
     // as unidades visíveis (e já filtradas pelos sistemas dos avisos).
@@ -373,24 +269,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     );
 
     // Resumo de MO Extra (total + por empresa) das unidades do sistema exibido
-    const moExtraSummary = useMemo(() => {
-        const companiesMap = new Map<string, { name?: string; logoUrl?: string; amount: number }>();
-        let total = 0;
-        noticeWorkersAll.forEach(w => {
-            const amount = Number(w.workersExtraAmount) || 0;
-            if (amount <= 0) return;
-            if (!dashboardUnitIds.has(Number(w.unitId))) return;
-            total += amount;
-            const key = String(w.companyId ?? w.companyName ?? 'unknown');
-            const prev = companiesMap.get(key);
-            if (prev) {
-                prev.amount += amount;
-            } else {
-                companiesMap.set(key, { name: w.companyName, logoUrl: w.companyLogoUrl, amount });
-            }
-        });
-        return { total, companies: Array.from(companiesMap.values()).sort((a, b) => b.amount - a.amount) };
-    }, [noticeWorkersAll, dashboardUnitIds]);
+    const moExtraSummary = useMemo(() => computeMoExtraSummary(noticeWorkersAll, dashboardUnitIds), [noticeWorkersAll, dashboardUnitIds]);
 
     // Active Asset Tag ID based on selectedSectorName
     const activeAssetTagId = useMemo(() => {
@@ -401,68 +280,6 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
     // Drag-to-scroll for the sector cards strip
     const { ref: sectorsScrollRef, dragHandlers: sectorsDragHandlers } = useDragToScroll<HTMLDivElement>();
 
-    useEffect(() => {
-        if (!selectedAssetForModal?.id) {
-            setModalData(null);
-            setHistory7Days([]);
-            setActiveOrdersForModal([]);
-            setHistoryOffset(0);
-            setHistoryOffset(0);
-            setCurrentOrderIndex(0);
-            setRatingOrderId(null);
-            setSelectedRating(0);
-            setRatingOrderId(null);
-            setSelectedRating(0);
-            return;
-        }
-
-        setCurrentOrderIndex(0);
-        const fetchAllInfo = async () => {
-            setModalLoading(true);
-            try {
-                // Fetch basic detail info
-                const detailPromise = dataService.getUnitAssetTagItemById(selectedAssetForModal.id);
-                // Fetch active orders (confirmed link: v_units_assets_tags.id = v_orders.unit_asset_tag_id)
-                const ordersPromise = dataService.getActiveOrdersByAssetTagId(selectedAssetForModal.id);
-
-                const [data, orders] = await Promise.all([detailPromise, ordersPromise]);
-
-                setModalData(data);
-                setActiveOrdersForModal(orders || []);
-            } catch (error) {
-                console.error('Error fetching modal detailed info:', error);
-                setModalData(null);
-                setActiveOrdersForModal([]);
-            } finally {
-                setModalLoading(false);
-            }
-        };
-
-        fetchAllInfo();
-    }, [selectedAssetForModal?.id]);
-
-    useEffect(() => {
-        setRatingOrderId(null);
-        setSelectedRating(0);
-    }, [currentOrderIndex]);
-
-    useEffect(() => {
-        if (!selectedAssetForModal?.id) return;
-
-        const fetchHistoryData = async () => {
-            setHistoryLoading(true);
-            try {
-                const historyData = await dataService.getAssetAvailabilityHistory7Days(selectedAssetForModal.id, historyOffset);
-                setHistory7Days(historyData);
-            } catch (error) {
-                console.error('Error fetching history:', error);
-            } finally {
-                setHistoryLoading(false);
-            }
-        };
-
-        fetchHistoryData();
-    }, [selectedAssetForModal?.id, historyOffset]);
 
 
     useEffect(() => {
@@ -565,331 +382,14 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         }
     };
 
-    // Load order types and priorities for inline SS form
-    useEffect(() => {
-        if (!showSSForm) return;
-        const load = async () => {
-            try {
-                const [types, prios] = await Promise.all([
-                    dataService.getOrderTypes('active'),
-                    dataService.getPriorities('active')
-                ]);
-                setOrderTypes(types);
-                setPriorities(prios);
-            } catch (e) {
-                console.error('Error loading SS form lists', e);
-            }
-        };
-        load();
-    }, [showSSForm]);
-
-    const openSSForm = () => {
-        const defaultDescription = `${modalData?.asset_tag_tag_sub_description || ''}: ${modalData?.last_asset_unavailable_reason_description || ''} ${modalData?.last_comments || ''}`;
-        setSsFormData({ 
-            orderTypeId: '', 
-            priorityId: '', 
-            requestedServices: defaultDescription.trim(), 
-            receiveNotifications: false 
-        });
-        setSsFormStep(1);
-        setShowSSForm(true);
-    };
-
-    const closeSSForm = () => {
-        setShowSSForm(false);
-        setSsFormStep(1);
-    };
-
-    const handleSSFormNext = () => {
-        if (ssFormStep === 1) {
-            if (!ssFormData.orderTypeId) {
-                toast.error('Selecione o Tipo de OS');
-                return;
-            }
-            setSsFormStep(2);
-        } else if (ssFormStep === 2) {
-            // Prioridade não é obrigatória? Pelo código original não parece ser.
-            // Vou permitir seguir sem selecionar se desejar, ou validar se houver regra.
-            setSsFormStep(3);
-        } else if (ssFormStep === 3) {
-            if (!ssFormData.requestedServices) {
-                toast.error('Descreva o problema');
-                return;
-            }
-            setSsFormStep(4);
-        }
-    };
-
-    const handleSSFormSubmit = async () => {
-        if (!modalData) return;
-        if (!ssFormData.orderTypeId || !ssFormData.requestedServices) {
-            toast.error('Preencha os campos obrigatórios');
-            return;
-        }
-
-        setSsFormLoading(true);
-        try {
-            const createdOrder = await dataService.createServiceRequest({
-                clientId: modalData.client_id?.toString(),
-                unitId: modalData.unit_id?.toString(),
-                typeId: ssFormData.orderTypeId,
-                priorityId: ssFormData.priorityId || undefined,
-                unitAssetTagId: modalData.id?.toString(),
-                requestedServices: ssFormData.requestedServices,
-            });
-
-            if (ssFormData.receiveNotifications && createdOrder?.id) {
-                try {
-                    await supabase.from('orders_followers').insert({
-                        o_id: parseInt(createdOrder.id),
-                        user_id: parseInt(currentUser.id)
-                    });
-                } catch (followerErr) {
-                    console.warn('Erro ao salvar seguidor:', followerErr);
-                }
-            }
-
-            toast.success('Solicitação de Serviço criada com sucesso!');
-            closeSSForm();
-
-            await Promise.all([
-                selectedAssetForModal?.id
-                    ? dataService.getActiveOrdersByAssetTagId(selectedAssetForModal.id).then(orders => {
-                        setActiveOrdersForModal(orders || []);
-                        setCurrentOrderIndex(0);
-                    })
-                    : Promise.resolve(),
-                selectedSystemId ? loadDashboardData(selectedSystemId, true) : Promise.resolve()
-            ]);
-        } catch (err) {
-            console.error('Erro ao criar SS:', err);
-            toast.error('Erro ao criar solicitação. Tente novamente.');
-        } finally {
-            setSsFormLoading(false);
-        }
-    };
-
-    const handleCompleteOrder = async (orderId: string | number, rating: number = 0) => {
-        setCompletingOrderId(orderId);
-        try {
-            const success = await dataService.completeServiceOrder(orderId, currentUser.id);
-            if (success) {
-                if (selectedAssetForModal?.id) {
-                    await Promise.all([
-                        dataService.getActiveOrdersByAssetTagId(selectedAssetForModal.id).then(orders => {
-                            setActiveOrdersForModal(orders || []);
-                            setCurrentOrderIndex(0);
-                        }),
-                        selectedSystemId ? loadDashboardData(selectedSystemId, true) : Promise.resolve()
-                    ]);
-                }
-                setRatingOrderId(null);
-                setSelectedRating(0);
-            } else {
-                toast.error('Ocorreu um erro ao concluir o serviço.');
-            }
-        } catch (error) {
-            console.error('Error completing service:', error);
-            toast.error('Erro ao finalizar serviço');
-        } finally {
-            setCompletingOrderId(null);
-        }
-    };
+    const assetModal = useAssetModal(currentUser, selectedSystemId, loadDashboardData);
+    const { setSelectedAssetForModal } = assetModal;
 
     // Aggregate stats by tag_description (Top Cards)
-    const sectorsStats = useMemo(() => {
-        // Collect manual stats regardless of view data (for activity and fallback)
-        const manualStats: Record<string, any> = {};
-        allData.forEach(row => {
-            const sName = row.tag_description || 'Geral';
-            if (!manualStats[sName]) {
-                manualStats[sName] = {
-                    count: 0,
-                    availableCount: 0,
-                    lastReportedAt: null,
-                    latestRow: null,
-                    rateSum: 0,
-                    unitIds: new Set<string>()
-                };
-            }
-            manualStats[sName].count++;
-            manualStats[sName].rateSum += Number(row.last_asset_available_rate) || 0;
-            manualStats[sName].unitIds.add(String(row.unit_id));
-            if (row.last_is_available) manualStats[sName].availableCount++;
-
-            if (row.last_reported_at && (!manualStats[sName].lastReportedAt || new Date(row.last_reported_at) > new Date(manualStats[sName].lastReportedAt))) {
-                manualStats[sName].lastReportedAt = row.last_reported_at;
-                manualStats[sName].latestRow = row;
-            }
-        });
-
-        // Com tipo de unidade filtrado, a view agregada (nível sistema pai) não
-        // reflete o recorte: o % do setor vira a média do % das unidades visíveis.
-        const subRatePct = (man: any) => {
-            const units = man.unitIds?.size || 0;
-            return units > 0 ? Math.max(0, Math.min(100, Math.round((man.rateSum / units) * 100))) : 0;
-        };
-
-        // Use precisely aggregated data from view if available
-        if (sectorsData.length > 0) {
-            return sectorsData
-                .filter(row => selectedUnitTypeIds.length === 0 || manualStats[row.asset_tag_description || 'Geral'])
-                .map(row => {
-                const sName = row.asset_tag_description || 'Geral';
-                const man = manualStats[sName] || { count: 0, availableCount: 0, latestRow: null };
-                const pct = (fraction: number) => selectedUnitTypeIds.length > 0
-                    ? subRatePct(man)
-                    : Math.round((fraction || 0) * 100);
-
-                // If the sector doesn't have any specific visibility set, we fallback to general count availability
-                const hasSpecificVisible = row.flow_rate_is_visible || row.power_is_visible || row.pressure_is_visible;
-
-                return {
-                    id: sName,
-                    name: sName,
-                    flow: {
-                        visible: row.flow_rate_is_visible,
-                        percentage: pct(row.pct_flow_rate_available_fraction),
-                        unit: row.flow_rate_unit || ''
-                    },
-                    power: {
-                        visible: row.power_is_visible,
-                        percentage: pct(row.pct_power_available_fraction),
-                        unit: row.power_unit || ''
-                    },
-                    pressure: {
-                        visible: row.pressure_is_visible,
-                        percentage: pct(row.pct_pressure_available_fraction),
-                        unit: row.pressure_unit || ''
-                    },
-                    general: {
-                        visible: !hasSpecificVisible,
-                        percentage: selectedUnitTypeIds.length > 0
-                            ? subRatePct(man)
-                            : (man.count > 0 ? Math.round((man.availableCount / man.count) * 100) : 0),
-                        unit: ''
-                    },
-                    lastReportedAt: man.latestRow?.last_reported_at,
-                    latestUnit: man.latestRow?.unit_description,
-                    latestSubTag: man.latestRow?.tag_sub_description,
-                    latestUser: man.latestRow?.last_reported_user_name_short || man.latestRow?.last_created_user_name_short,
-                    latestAvatar: man.latestRow?.last_user_avatar_url
-                };
-            }).sort((a, b) => a.name.localeCompare(b.name));
-        }
-
-        // Fallback to manual aggregation if view data is not loaded yet
-        return Object.entries(manualStats).map(([sName, man]: [string, any]) => ({
-            id: sName,
-            name: sName,
-            flow: { visible: true, percentage: Math.round((man.availableCount / man.count) * 100), unit: '' },
-            power: { visible: false, percentage: 0, unit: '' },
-            pressure: { visible: false, percentage: 0, unit: '' },
-            general: { visible: false, percentage: 0, unit: '' },
-            ...man,
-            latestUnit: man.latestRow?.unit_description,
-            latestSubTag: man.latestRow?.tag_sub_description,
-            latestUser: man.latestRow?.last_reported_user_name_short || man.latestRow?.last_created_user_name_short,
-            latestAvatar: man.latestRow?.last_user_avatar_url
-        })).sort((a, b) => a.name.localeCompare(b.name));
-    }, [allData, sectorsData, selectedUnitTypeIds]);
+    const sectorsStats = useMemo(() => computeSectorsStats(allData, sectorsData, selectedUnitTypeIds), [allData, sectorsData, selectedUnitTypeIds]);
 
     // Group units and their specific assets for the active sector name
-    const unitsRows = useMemo(() => {
-        const rows: Record<string, any> = {};
-
-        allData.forEach(row => {
-            const uid = row.unit_id.toString();
-            if (!rows[uid]) {
-                rows[uid] = {
-                    id: uid,
-                    description: row.unit_description,
-                    lastReportedAt: null,
-                    totalRate: 0,
-                    assets: [],
-                    latitude: row.unit_latitude ?? row.latitude ?? row.units?.latitude,
-                    longitude: row.unit_longitude ?? row.longitude ?? row.units?.longitude,
-                    percentage: 0 // Placeholder
-                };
-            }
-
-            const unit = rows[uid];
-
-            // Only add assets if they belong to the selected sector name
-            if ((row.tag_description || 'Geral') === selectedSectorName) {
-                if (row.last_reported_at && (!unit.lastReportedAt || new Date(row.last_reported_at) > new Date(unit.lastReportedAt))) {
-                    unit.lastReportedAt = row.last_reported_at;
-                    unit.lastUser = row.last_reported_user_name_short || row.last_created_user_name_short;
-                    unit.lastAvatar = row.last_user_avatar_url;
-                    unit.lastReportedImage = row.last_reported_image;
-                }
-
-                // Sum the custom available rate for the selected sector
-                unit.totalRate += (Number(row.last_asset_available_rate) || 0);
-
-                // Determine which physical value and unit to display based on visibility flags
-                let displayValue = row.last_flow_rate;
-                let displayUnit = row.flow_rate_unit || '';
-
-                if (row.flow_rate_is_visible) {
-                    displayValue = row.flow_rate_max || row.total_flow_rate_max || row.last_flow_rate || 0;
-                    displayUnit = row.flow_rate_unit || '';
-                } else if (row.power_is_visible) {
-                    displayValue = row.power_max || row.total_power_max || row.last_power || 0;
-                    displayUnit = row.power_unit || '';
-                } else if (row.pressure_is_visible) {
-                    displayValue = row.pressure_max || row.total_pressure_max || row.last_pressure || 0;
-                    displayUnit = row.pressure_unit || '';
-                }
-
-                unit.assets.push({
-                    id: row.id,
-                    unitId: row.unit_id,
-                    assetTagId: row.asset_tag_id,
-                    subId: row.asset_tag_sub_id,
-                    description: row.tag_sub_description || 'Equip.',
-                    isAvailable: row.last_is_available,
-                    isActive: row.is_active ?? true,
-                    value: displayValue,
-                    unit: displayUnit,
-                    reportedAt: row.last_reported_at,
-                    orderId: row.last_o_id,
-                    lastAssetAvailableId: row.last_asset_available_id,
-                    suspendedReason: row.last_asset_unavailable_reason_description,
-                    lastComments: row.last_comments,
-                    reportedByUser: row.last_user_full_name || row.last_user_name,
-                    reportedByAvatar: row.last_user_avatar_url,
-                    reportedImage: row.last_reported_image,
-                    unitDescription: row.unit_description,
-                    sectorName: row.tag_description,
-                    companyLogo: row.last_provider_company_logo,
-                    clientId: row.client_id,
-                    clientName: row.client_name,
-                    opCounter: row.op_counter || 0
-                });
-            }
-        });
-
-        const finalRows = Object.values(rows).map((r: any) => ({
-            ...r,
-            assets: r.assets.sort((a: any, b: any) => a.description.localeCompare(b.description)),
-            percentage: Math.max(0, Math.min(100, Math.round(r.totalRate * 100)))
-        }));
-
-        // Filter by search
-        let filtered = finalRows;
-        if (debouncedSearchQuery.trim()) {
-            const q = debouncedSearchQuery.trim().toLocaleLowerCase('pt-BR');
-            filtered = finalRows.filter(r => r.description.toLocaleLowerCase('pt-BR').includes(q));
-        }
-
-        // Sort
-        if (sortMode === 'disponibilidade') {
-            return filtered.sort((a, b) => a.percentage - b.percentage);
-        } else {
-            return filtered.sort((a, b) => a.description.localeCompare(b.description));
-        }
-    }, [allData, selectedSectorName, sortMode, debouncedSearchQuery]);
+    const unitsRows = useMemo(() => computeUnitsRows(allData, selectedSectorName, sortMode, debouncedSearchQuery), [allData, selectedSectorName, sortMode, debouncedSearchQuery]);
 
     // Unidade pisca junto quando algum setor dela mudou (lista e marcador no mapa).
     const highlightedUnitIds = useMemo(() => {
@@ -946,13 +446,7 @@ export const DashboardUnitsAssetsTags: React.FC<DashboardUnitsAssetsTagsProps> =
         return sectorsStats.find(s => s.name === selectedSectorName) || sectorsStats[0];
     }, [allData, selectedSectorName, sectorsStats]);
 
-    const sectorPercentage = useMemo(() => {
-        if (!systemSummary) return 0;
-        if (systemSummary.flow?.visible) return systemSummary.flow.percentage;
-        if (systemSummary.power?.visible) return systemSummary.power.percentage;
-        if (systemSummary.pressure?.visible) return systemSummary.pressure.percentage;
-        return systemSummary.general?.percentage || 0;
-    }, [systemSummary]);
+    const sectorPercentage = useMemo(() => computeSectorPercentage(systemSummary), [systemSummary]);
 
     const systemOptions = useMemo(() =>
         systems.map(s => ({ value: s.id, label: s.description })),
@@ -1585,400 +1079,7 @@ highlightedIds={recentlyChangedIds}
                 </div>
             )}
 
-            {/* Asset Detail Modal */}
-            <Modal
-                isOpen={!!selectedAssetForModal}
-                onClose={() => {
-                    setSelectedAssetForModal(null);
-                    closeSSForm();
-                }}
-                title="Detalhes da Disponibilidade"
-                maxWidth="sm"
-                fullScreenMobile
-                draggable
-            >
-                {modalLoading ? (
-                    <div className="flex flex-col items-center justify-center p-12 gap-3">
-                        <Loading size="md" text="Carregando dados..." />
-                    </div>
-                ) : modalData ? (
-                    <div className="flex flex-col gap-2 sm:gap-3 p-2 sm:p-3 pb-8 sm:pb-10">
-
-                        {/* Header Info */}
-                        <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
-                            <div className="flex gap-3 sm:gap-4 w-full sm:w-auto">
-                                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-[16px] sm:rounded-[20px] flex items-center justify-center shadow-lg transition-transform shrink-0 ${modalData.isAvailable ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-red-500 text-white shadow-red-500/20'}`}>
-                                    <span className="material-symbols-outlined text-2xl sm:text-3xl [font-variation-settings:'FILL'_1]">
-                                        {modalData.isAvailable ? 'thumb_up' : 'thumb_down'}
-                                    </span>
-                                </div>
-                                <div className="flex flex-col justify-center gap-0.5 min-w-0 flex-1">
-                                    <span className="text-[12px] sm:text-[13px] font-black text-slate-800 dark:text-white uppercase tracking-tight leading-tight truncate">
-                                        {modalData.unit_description}
-                                    </span>
-                                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide truncate">
-                                        {modalData.asset_tag_tag_sub_description}{modalData.asset_tag_item_description ? ` > ${modalData.asset_tag_item_description}` : ''}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-2 sm:gap-3 items-start w-full sm:w-auto">
-                                {modalData.last_provider_company_logo && (
-                                    <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center justify-center p-1.5 sm:p-2 shrink-0">
-                                        <OptimizedImage
-                                            src={modalData.last_provider_company_logo}
-                                            alt="Empresa"
-                                            className="w-full h-full object-contain"
-                                        />
-                                    </div>
-                                )}
-                                <IconButton
-                                    icon="engineering"
-                                    onClick={() => {
-                                        if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
-                                        openSSForm();
-                                    }}
-                                    className={`h-10 w-10 sm:h-11 sm:w-11 transition-all rounded-xl sm:rounded-2xl active:scale-95 shrink-0 ${
-                                        showSSForm
-                                            ? 'bg-primary text-white shadow-md shadow-primary/30'
-                                            : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'
-                                    }`}
-                                    title="Nova Solicitação de Serviço"
-                                />
-                            </div>
-                        </div>
-
-
-
-                        {/* Dedicated Image Section if available */}
-                        {modalData.last_reported_image && (
-                            <div
-                                className="w-full h-40 sm:h-48 rounded-[24px] sm:rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800/50 shadow-sm cursor-pointer hover:opacity-95 transition-all group relative"
-                                onClick={() => setLightboxImage(modalData.last_reported_image)}
-                            >
-                                <OptimizedImage
-                                    src={modalData.last_reported_image}
-                                    alt="Evidência"
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors">
-                                    <span className="material-symbols-outlined text-white text-2xl sm:text-3xl opacity-0 group-hover:opacity-100 transition-opacity">zoom_in</span>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Status Grid */}
-                        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[20px] sm:rounded-[24px] p-3 sm:p-4 space-y-2.5 sm:space-y-3 border border-slate-100 dark:border-slate-800/50">
-                            {!modalData.isAvailable && (
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Motivo</span>
-                                    <span className="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase text-right truncate ml-2">
-                                        {modalData.last_asset_unavailable_reason_description || 'NÃO INFORMADO'}
-                                    </span>
-                                </div>
-                            )}
-                            <div className="flex justify-between items-center">
-                                <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Operação</span>
-                                <span className="text-[11px] sm:text-xs font-black text-slate-800 dark:text-white">
-                                    {modalData.isAvailable ? '1' : '0'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">ID Registro</span>
-                                <span className="text-[9px] sm:text-[10px] font-medium text-slate-400 tabular-nums">
-                                    #{modalData.last_asset_available_id}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Reporter Section */}
-                        <div className="flex items-center justify-between px-1">
-                            <div className="flex items-center gap-2.5 sm:gap-3">
-                                <div className="p-0.5">
-                                    <CompanyAvatar
-                                        src={modalData.last_reported_by_company_logo}
-                                        name="Equipe"
-                                        size="md"
-                                        className="rounded-xl!"
-                                    />
-                                </div>
-                                <div className="flex flex-col min-w-0 flex-1">
-                                    <span className="text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
-                                        {modalData.last_reported_user_name_short || modalData.last_reported_by_name || modalData.last_created_user_name_short || 'Desconhecido'}
-                                    </span>
-                                    <span className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-tight">
-                                        {modalData.last_reported_at ? formatDateTime(modalData.last_reported_at) : 'Sem data'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Inline SS Creation Form */}
-                        {showSSForm && (
-                            <div className="animate-in slide-in-from-top-2 fade-in duration-300">
-                                {/* Step indicator */}
-                                <div className="flex items-center w-full mb-3 px-1 gap-1">
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors shrink-0 ${
-                                        ssFormStep >= 1 ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                                    }`}>1</div>
-                                    <div className={`flex-1 h-0.5 rounded transition-colors ${ssFormStep >= 2 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors shrink-0 ${
-                                        ssFormStep >= 2 ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                                    }`}>2</div>
-                                    <div className={`flex-1 h-0.5 rounded transition-colors ${ssFormStep >= 3 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors shrink-0 ${
-                                        ssFormStep >= 3 ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                                    }`}>3</div>
-                                    <div className={`flex-1 h-0.5 rounded transition-colors ${ssFormStep >= 4 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors shrink-0 ${
-                                        ssFormStep >= 4 ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                                    }`}>4</div>
-                                </div>
-
-                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[20px] p-4 border border-slate-100 dark:border-slate-800 space-y-3">
-                                    {ssFormStep === 1 && (
-                                        <Select
-                                            label="Tipo de OS"
-                                            required
-                                            value={ssFormData.orderTypeId}
-                                            onChange={(e) => setSsFormData(prev => ({ ...prev, orderTypeId: e.target.value }))}
-                                            options={orderTypes.map(t => ({ value: t.id, label: t.description }))}
-                                            placeholder="Selecione o Tipo"
-                                        />
-                                    )}
-
-                                    {ssFormStep === 2 && (
-                                        <Select
-                                            label="Prioridade"
-                                            value={ssFormData.priorityId}
-                                            onChange={(e) => setSsFormData(prev => ({ ...prev, priorityId: e.target.value }))}
-                                            options={priorities.map(p => ({ value: p.id, label: p.description }))}
-                                            placeholder="Selecione a Prioridade"
-                                        />
-                                    )}
-
-                                    {ssFormStep === 3 && (
-                                        <Textarea
-                                            label="Descrição do Problema"
-                                            required
-                                            rows={3}
-                                            value={ssFormData.requestedServices}
-                                            onChange={(e) => setSsFormData(prev => ({ ...prev, requestedServices: e.target.value }))}
-                                            placeholder="Descreva a necessidade com detalhes..."
-                                        />
-                                    )}
-
-                                    {ssFormStep === 4 && (
-                                        <div className="py-1">
-                                            <div className="flex items-center justify-between gap-4">
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-xs font-black text-slate-700 dark:text-slate-200">
-                                                        Receber notificações
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-400 font-medium leading-tight">
-                                                        Acompanhe as atualizações desta solicitação
-                                                    </span>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setSsFormData(prev => ({ ...prev, receiveNotifications: !prev.receiveNotifications }))}
-                                                    className={`relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none shrink-0 ${
-                                                        ssFormData.receiveNotifications ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'
-                                                    }`}
-                                                >
-                                                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-                                                        ssFormData.receiveNotifications ? 'translate-x-6' : 'translate-x-0'
-                                                    }`} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Form Actions */}
-                                    <div className="flex gap-2 pt-1">
-                                        <button
-                                            onClick={ssFormStep === 1 ? closeSSForm : () => setSsFormStep(prev => prev - 1)}
-                                            className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
-                                        >
-                                            {ssFormStep === 1 ? 'Cancelar' : 'Voltar'}
-                                        </button>
-                                        {ssFormStep < 4 ? (
-                                            <button
-                                                onClick={handleSSFormNext}
-                                                disabled={(ssFormStep === 1 && !ssFormData.orderTypeId) || (ssFormStep === 2 && !ssFormData.priorityId) || (ssFormStep === 3 && !ssFormData.requestedServices)}
-                                                className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-white bg-primary hover:bg-primary/90 transition-all shadow-sm shadow-primary/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                                            >
-                                                Próximo
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={handleSSFormSubmit}
-                                                disabled={ssFormLoading}
-                                                className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-white bg-emerald-500 hover:bg-emerald-600 transition-all shadow-sm shadow-emerald-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-                                            >
-                                                {ssFormLoading ? (
-                                                    <Loading size="xs" />
-                                                ) : (
-                                                    <>
-                                                        <span className="material-symbols-outlined text-sm">send</span>
-                                                        Enviar
-                                                    </>
-                                                )}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        {/* Active Order Card */}
-                        {activeOrdersForModal.length > 0 && !showSSForm && (
-                            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 shadow-lg animate-in fade-in zoom-in duration-300 mx-1 relative">
-                                {/* Header Row: Arrow - Title - Arrow */}
-                                <div className="flex items-center justify-between mb-4">
-                                    {activeOrdersForModal.length > 1 ? (
-                                        <button aria-label="OS anterior"
-                                            onClick={() => setCurrentOrderIndex(prev => Math.max(0, prev - 1))}
-                                            disabled={currentOrderIndex === 0}
-                                            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shrink-0 ${currentOrderIndex === 0 ? 'text-slate-200 dark:text-slate-800' : 'text-black bg-amber-200/50 hover:bg-amber-200 active:scale-90 shadow-sm'}`}
-                                        >
-                                            <span className="material-symbols-outlined text-lg">chevron_left</span>
-                                        </button>
-                                    ) : <div className="w-8" />}
-
-                                    <div className="flex flex-col items-center">
-                                        <h4 className="text-[10px] font-black text-amber-800 dark:text-amber-500 uppercase tracking-[0.2em] text-center">
-                                            {activeOrdersForModal.length === 1
-                                                ? 'SOLICITAÇÃO ATIVA'
-                                                : `${currentOrderIndex + 1}/${activeOrdersForModal.length} SOLICITAÇÕES ATIVAS`}
-                                        </h4>
-                                    </div>
-
-                                    {activeOrdersForModal.length > 1 ? (
-                                        <button aria-label="Próxima OS"
-                                            onClick={() => setCurrentOrderIndex(prev => Math.min(activeOrdersForModal.length - 1, prev + 1))}
-                                            disabled={currentOrderIndex === activeOrdersForModal.length - 1}
-                                            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shrink-0 ${currentOrderIndex === activeOrdersForModal.length - 1 ? 'text-slate-200 dark:text-slate-800' : 'text-black bg-amber-200/50 hover:bg-amber-200 active:scale-90 shadow-sm'}`}
-                                        >
-                                            <span className="material-symbols-outlined text-lg">chevron_right</span>
-                                        </button>
-                                    ) : <div className="w-8" />}
-                                </div>
-
-                                {/* Body: SS Info - Left Aligned */}
-                                <div className="flex flex-col items-start px-1">
-                                    {activeOrdersForModal[currentOrderIndex] && (
-                                        <div className="flex flex-col items-start gap-1.5 animate-in fade-in slide-in-from-right-2 duration-300 w-full">
-                                            <div className="flex items-center justify-between gap-2 mb-1 w-full">
-                                                <span className="text-sm font-black text-black bg-amber-600 px-3 py-1.5 rounded-xl shadow-sm whitespace-nowrap">
-                                                    {activeOrdersForModal[currentOrderIndex].order_mask || activeOrdersForModal[currentOrderIndex].id}
-                                                </span>
-                                                <div className="flex flex-col items-end">
-                                                    <span className="text-[10px] font-black text-amber-800/60 dark:text-amber-400/60 uppercase tracking-tighter text-right">
-                                                        {activeOrdersForModal[currentOrderIndex].status_description}
-                                                    </span>
-                                                    {activeOrdersForModal[currentOrderIndex].status_at && (
-                                                        <span className="text-[9px] font-bold text-amber-800/40 dark:text-amber-400/40 text-right">
-                                                            {formatDateInBrazil(activeOrdersForModal[currentOrderIndex].status_at, 'dateTime', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} h
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <p className="text-[13px] font-bold text-slate-700 dark:text-slate-200 mt-1 leading-snug max-w-[280px] text-left">
-                                                {activeOrdersForModal[currentOrderIndex].requested_services || 'Sem descrição'}
-                                            </p>
-
-                                            {ratingOrderId === activeOrdersForModal[currentOrderIndex].id ? (
-                                                <div className="mt-4 flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 w-full">
-                                                    <span className="text-[10px] font-black text-amber-800/60 dark:text-amber-400/60 uppercase tracking-widest">Avalie o Serviço</span>
-                                                    <div className="flex items-center gap-2">
-                                                        {[1, 2, 3, 4, 5].map((star) => (
-                                                            <button aria-label={`Avaliar com ${star} ${star === 1 ? 'estrela' : 'estrelas'}`}
-                                                                key={star}
-                                                                onClick={() => setSelectedRating(prev => prev === star ? 0 : star)}
-                                                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${selectedRating >= star ? 'text-amber-500 scale-110' : 'text-slate-300 dark:text-slate-700 hover:text-amber-200'}`}
-                                                            >
-                                                                <span className={`material-symbols-outlined text-2xl ${selectedRating >= star ? 'fill-1' : ''}`}>
-                                                                    star
-                                                                </span>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                    <div className="flex gap-4 w-full">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setRatingOrderId(null);
-                                                                setSelectedRating(0);
-                                                            }}
-                                                            className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                                        >
-                                                            Voltar
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleCompleteOrder(activeOrdersForModal[currentOrderIndex].id, selectedRating);
-                                                            }}
-                                                            disabled={!!completingOrderId}
-                                                            className="flex-2 py-2.5 bg-amber-600 hover:bg-amber-700 rounded-xl text-[10px] font-black text-black uppercase tracking-widest shadow-lg shadow-amber-600/20 transition-all flex items-center justify-center gap-4 px-4 whitespace-nowrap"
-                                                        >
-                                                            {completingOrderId ? (
-                                                                <Loading size="xs" />
-                                                            ) : (
-                                                                <>
-                                                                    <span className="material-symbols-outlined text-base">
-                                                                        {selectedRating > 0 ? 'star' : 'done'}
-                                                                    </span>
-                                                                    {selectedRating > 0 ? `Confirmar (${selectedRating})` : 'Notificar sem avaliar'}
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedRating(0);
-                                                        setRatingOrderId(activeOrdersForModal[currentOrderIndex].id);
-                                                    }}
-                                                    disabled={!!completingOrderId}
-                                                    className="mt-4 w-full py-2.5 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-500/30 rounded-xl text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest hover:bg-amber-100 dark:hover:bg-amber-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
-                                                >
-                                                    <span className="material-symbols-outlined text-base">checklist</span>
-                                                    Conclusão Serviço
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Availability History with period navigation */}
-                        <AvailabilityHistory
-                            history={history7Days}
-                            loading={historyLoading}
-                            offsetDays={historyOffset}
-                            onOffsetChange={(dir) => {
-                                setHistoryOffset(prev => dir === 'prev' ? prev + 7 : Math.max(0, prev - 7));
-                            }}
-                        />
-                    </div>
-                ) : (
-                    <div className="p-8 text-center text-slate-400 uppercase text-[10px] font-black tracking-widest">
-                        Erro ao carregar detalhes
-                    </div>
-                )}
-            </Modal>
-
-            {lightboxImage && (
-                <PhotoViewer
-                    src={lightboxImage}
-                    onClose={() => setLightboxImage(null)}
-                    alt="Evidência Fotográfica"
-                />
-            )}
+            <AssetDetailModal modal={assetModal} loading={loading} lightboxImage={lightboxImage} setLightboxImage={setLightboxImage} />
 
             {/* Availability Export Modal */}
             {unitForExport && (
