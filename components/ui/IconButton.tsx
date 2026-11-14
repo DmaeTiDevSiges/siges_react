@@ -47,9 +47,17 @@ export const IconButton: React.FC<IconButtonProps> = ({
         lg: "h-12 w-12",
     };
 
+    // Alvo de toque mínimo de 44 px: o `md` desenha 40 px, mas a área clicável sobe a 44 px
+    // com um pseudo-elemento invisível (o desenho continua igual). Só precisa de `relative`
+    // se o botão ainda não for posicionado (senão `relative` brigaria com `absolute`/`fixed`).
+    const positioned = /(^|\s)(absolute|fixed|sticky|relative)(\s|$)/.test(className);
+    const hitArea = size === 'md'
+        ? `${positioned ? '' : 'relative '}after:absolute after:-inset-0.5`
+        : '';
+
     return (
         <button
-            className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`}
+            className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${hitArea} ${className}`}
             style={style}
             {...props}
             aria-label={accessibleName}

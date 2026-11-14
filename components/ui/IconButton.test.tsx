@@ -31,6 +31,30 @@ describe('IconButton — acessibilidade', () => {
         expect(b).toBeDisabled();
     });
 
+    it('alvo de toque: o md (40 px) ganha área clicável de 44 px sem mudar o desenho', () => {
+        render(<IconButton icon="close" ariaLabel="Fechar" size="md" />);
+        const b = screen.getByRole('button', { name: 'Fechar' });
+        expect(b).toHaveClass('h-10', 'w-10', 'after:absolute', 'after:-inset-0.5', 'relative');
+    });
+
+    it('sm (44) e lg (48) já cumprem 44 px: sem área extra', () => {
+        render(<><IconButton icon="close" ariaLabel="A" size="sm" /><IconButton icon="close" ariaLabel="B" size="lg" /></>);
+        for (const name of ['A', 'B']) expect(screen.getByRole('button', { name })).not.toHaveClass('after:absolute');
+    });
+
+    it('botão já posicionado (absolute/fixed/sticky/relative) não recebe "relative" extra', () => {
+        render(<>
+            <IconButton icon="x" ariaLabel="A" className="absolute right-2 top-2" />
+            <IconButton icon="x" ariaLabel="B" className="fixed bottom-2" />
+            <IconButton icon="x" ariaLabel="C" className="sticky top-0" />
+        </>);
+        for (const name of ['A', 'B', 'C']) {
+            const b = screen.getByRole('button', { name });
+            expect(b).toHaveClass('after:absolute');
+            expect(b).not.toHaveClass('relative');
+        }
+    });
+
     it('sem nome acessível não compila (garantia em tempo de tipo)', () => {
         // @ts-expect-error — IconButton exige ariaLabel, aria-label ou title
         const semNome = <IconButton icon="delete" />;
