@@ -40,6 +40,9 @@ import { AssetReportActions, AssetReportActionFlags, hasPrimaryReportAction } fr
 import { AssetReportCopyFromModal } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportCopyFromModal';
 import { isOnline } from '../../../services/offline/offlineConfig';
 import { sortBySectorPositionDescription } from '../../../utils/assetReportSort';
+import {
+    buildProgressSpecs, checkReport, hasMaintenancePlan as planIsChosen, isMovementComplete as destinationIsComplete, isSameMovementDestination,
+} from '../../../utils/assetReportRules';
 import { OrderVisitAssetManualsSection } from './OrderVisitAssetManualsSection';
 import { AssetAlertModal } from '../../Assets/AssetAlertModal';
 import { PhotoViewer } from '../../../components/ui/PhotoViewer';
@@ -516,60 +519,33 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         });
     };
 
-    const isMovementComplete = !!(afterClientId && afterUnitId && afterUnitAssetTagId && afterPriorityId && afterStatusId);
-
-    const validateMovement = (): boolean => {
-        if (!isMoved) return true;
-        const isSameDestination =
-            afterClientId === (asset?.clientId || '') &&
-            afterUnitId === (asset?.beforeUnitId || '') &&
-            afterUnitAssetTagId === (asset?.beforeUnitAssetTagId || '') &&
-            afterPriorityId === asset?.beforePriorityId &&
-            afterStatusId === (asset?.beforeStatusId || '') &&
-            afterLocation === (asset?.beforeLocation || '');
-        if (isSameDestination) {
-            setShowMovementModal(true);
-            return false;
-        }
-        return true;
-    };
+    const movementDestination = { afterClientId, afterUnitId, afterUnitAssetTagId, afterPriorityId, afterStatusId, afterLocation };
+    const isMovementComplete = destinationIsComplete(movementDestination);
 
     // ── Validação e status ───────────────────────────────────────────────────
 
-    const hasMaintenancePlan = !!checklistPlanId && checklistPlanId !== '0';
+    const hasMaintenancePlan = planIsChosen(checklistPlanId);
     const beforeDone = !!initialCondition.trim() && initialImages.length > 0;
     const afterDone = !!finalCondition.trim() && finalImages.length > 0;
 
-    const progressItems: ReportProgressItem[] = [
-        { key: 'before', label: 'Condição antes', done: beforeDone, sectionId: REPORT_SECTION_IDS.before },
-        ...(hasMaintenancePlan ? [{ key: 'checklist', label: `Checklist ${maintenanceProgress}%`, done: maintenanceProgress >= 100, sectionId: REPORT_SECTION_IDS.checklist }] : []),
-        { key: 'activities', label: 'Atividades', done: activities.length > 0, sectionId: REPORT_SECTION_IDS.activities },
-        ...(isMoved ? [{ key: 'movement', label: 'Movimentação', done: isMovementComplete, sectionId: REPORT_SECTION_IDS.movement }] : []),
-        { key: 'after', label: 'Condição depois', done: afterDone, sectionId: REPORT_SECTION_IDS.after },
-    ];
+    const progressItems: ReportProgressItem[] = buildProgressSpecs({
+        beforeDone, afterDone, hasPlan: hasMaintenancePlan, maintenanceProgress,
+        activitiesCount: activities.length, isMoved, movementComplete: isMovementComplete,
+    }).map(({ section, ...item }) => ({ ...item, sectionId: REPORT_SECTION_IDS[section] }));
 
     /** Regras para reportar, revisar e aprovar (mesmas nos três caminhos). */
     const validateReport = (verb: 'reportar' | 'confirmar'): boolean => {
-        if (uploadingCount > 0) {
-            toast.info('Aguarde o envio das fotos terminar');
-            return false;
-        }
-        if (!beforeDone || !afterDone) {
-            toast.error(`Preencha as condições e adicione fotos antes de ${verb}`);
-            return false;
-        }
-        if (activities.length === 0) {
-            toast.error('É necessário selecionar ao menos uma intervenção realizada');
-            return false;
-        }
-        if (isMoved) {
-            if (!isMovementComplete) {
-                toast.error('Preencha todos os campos obrigatórios da movimentação');
-                return false;
-            }
-            if (!validateMovement()) return false;
-        }
-        return true;
+        const check = checkReport({
+            uploadingCount, beforeDone, afterDone, activitiesCount: activities.length,
+            isMoved, movementComplete: isMovementComplete,
+            sameDestination: () => isSameMovementDestination(asset, movementDestination),
+            verb,
+        });
+        if (check.ok) return true;
+        if (check.problem === 'same-destination') setShowMovementModal(true);
+        else if (check.level === 'info') toast.info(check.message ?? '');
+        else toast.error(check.message ?? '');
+        return false;
     };
 
     const handleReportClick = () => {
