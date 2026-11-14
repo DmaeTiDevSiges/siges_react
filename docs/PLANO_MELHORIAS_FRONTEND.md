@@ -79,5 +79,5 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 
 **Falta (em ordem):**
 1. ~58 `<button>` só de ícone sem nome (39 arquivos; os maiores: `OrderVisitCardDetail` 7, `DashboardUnitsPowerElectric` 6, `DashboardOrdersAdminCalendarScreen` 4) → migrar para `IconButton` ou acrescentar `aria-label`; depois uma regra de lint (`jsx-a11y/control-has-associated-label` ou verificação própria) para não voltar.
-3. **Alvo de toque ≥ 44 px — decisão visual pendente:** `IconButton` tem `sm` 44, `md` **40**, `lg` 48; levar o `md` a 44 muda o tamanho de dezenas de botões (ou ampliar só a área clicável, sem mudar o desenho). Combinar antes de mexer.
-4. Centralizar botão/modal/card no design system junto com o redesign (`PLANO_DESIGN_ESTILO_NUBANK.md`).
+2. **Alvo de toque ≥ 44 px — decisão visual pendente:** `IconButton` tem `sm` 44, `md` **40**, `lg` 48; levar o `md` a 44 muda o tamanho de dezenas de botões (ou ampliar só a área clicável, sem mudar o desenho). Combinar antes de mexer.
+3. Centralizar botão/modal/card no design system junto com o redesign (`PLANO_DESIGN_ESTILO_NUBANK.md`).
