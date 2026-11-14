@@ -1133,11 +1133,12 @@ export const ordersService = {
     },
 
     /**
-     * OSs abertas (status fora de 7/8) de uma empresa prestadora — só as colunas
-     * que o download automático offline precisa (unidade, cliente, tipo).
+     * OSs abertas (status fora de 7/8) de uma empresa prestadora em que o
+     * usuário é o líder (orders.team_leader_id) — só as colunas que o download
+     * automático offline precisa (unidade, cliente, tipo).
      * Paginado em 1.000 (max_rows do PostgREST).
      */
-    async getOpenOrdersForOffline(providerCompanyId: string): Promise<Array<{
+    async getOpenOrdersForOffline(providerCompanyId: string, leaderUserId: string): Promise<Array<{
         id: string; unitId: string | null; clientId: string | null; typeId: string | null; updatedAt: string | null;
     }>> {
         const PAGE = 1000;
@@ -1147,6 +1148,7 @@ export const ordersService = {
                 .from('orders')
                 .select('id, unit_id, client_id, type_id, updated_at')
                 .eq('provider_company_id', Number(providerCompanyId))
+                .eq('team_leader_id', Number(leaderUserId))
                 .not('status_id', 'in', '(7,8)')
                 .not('is_deleted', 'is', true)
                 .order('id')

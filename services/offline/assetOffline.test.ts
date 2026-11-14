@@ -76,6 +76,21 @@ describe('associar ativo sem internet', () => {
         expect((await read(store, 'getActiveOrderVisit', ['70'])).ovAssetsAmount).toBe(2);
     });
 
+    it('1º ativo da visita: tipo da OS vem da OS baixada (atividades abrem offline)', async () => {
+        const store = createMemoryStore();
+        setOfflineOpsStore(store);
+        await store.put(OFFLINE_COLLECTIONS.catalog, 'assets:unit:13', UNIT_ASSETS);
+        await put(store, 'getOrderVisitAssets', ['71'], []);
+        await put(store, 'getActiveOrderVisit', ['71'], { id: '71', oId: '44', providerCompanyId: '3' });
+        await put(store, 'getOrderById', ['44'], { id: '44', typeId: '6' });
+
+        const args = await OFFLINE_FLOW_OPS.addAssetToOrderVisit.prepareArgs!(['71', '501', '1']);
+        await OFFLINE_FLOW_OPS.addAssetToOrderVisit.applyLocal(ctxOf(store), args);
+
+        const id = ovaTmpIdOf(args[3]);
+        expect((await read(store, 'getOrderVisitAssetById', [id])).orderTypeId).toBe('6');
+    });
+
     it('remover o ativo temporário anula a inclusão e tudo dele na fila', async () => {
         const store = await seed();
         const outbox = createOutbox(createMemoryOutboxStorage());

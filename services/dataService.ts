@@ -1872,7 +1872,7 @@ export const dataService = {
         return usersService.setTeamLeader.apply(usersService, arguments as any);
     },
 
-    async getOpenOrdersForOffline(providerCompanyId: string): Promise<Array<{ id: string; unitId: string | null; clientId: string | null; typeId: string | null; updatedAt: string | null }>> {
+    async getOpenOrdersForOffline(providerCompanyId: string, leaderUserId: string): Promise<Array<{ id: string; unitId: string | null; clientId: string | null; typeId: string | null; updatedAt: string | null }>> {
         return ordersService.getOpenOrdersForOffline.apply(ordersService, arguments as any);
     },
     async getOpenOrdersByUnit(unitId: string, filters: {

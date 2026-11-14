@@ -20,7 +20,8 @@ import {
  * Sem o técnico tocar em nada, com internet:
  *   1. base: usuários (lista da equipe), materiais da empresa prestadora,
  *      veículos da empresa;
- *   2. todas as OSs abertas da empresa do usuário (status fora de 7/8):
+ *   2. as OSs abertas da empresa em que o usuário é o LÍDER
+ *      (orders.team_leader_id; status fora de 7/8):
  *      cada UNIDADE uma vez só (ativos, setores), clientes (unidades), tipos
  *      de OS (atividades), a própria OS e os planos de manutenção dos tipos de
  *      ativo dessas unidades;
@@ -155,10 +156,10 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
 
     emit({ running: true, phase: 'Verificando OSs abertas', done: 0, total: 0, lastError: undefined });
 
-    // ── 1. OSs abertas + versões do banco → plano incremental ──────────────
+    // ── 1. OSs abertas do líder logado + versões do banco → plano incremental ──
     // Inclusão, alteração ou exclusão num grupo muda a versão dele
     // (fn_offline_change_versions); só esses grupos são baixados de novo.
-    const openOrders = await dataService.getOpenOrdersForOffline(companyId);
+    const openOrders = await dataService.getOpenOrdersForOffline(companyId, userId);
     const unitIdsForVersions = Array.from(new Set(openOrders.map(o => o.unitId).filter((u): u is string => !!u)));
     const orderTypeIdsForVersions = Array.from(new Set(openOrders.map(o => o.typeId).filter((t): t is string => !!t)));
     const remote = await dataService

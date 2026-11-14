@@ -381,6 +381,13 @@ export const OFFLINE_FLOW_OPS: Record<string, OfflineOpSpec> = {
             const sib = (Array.isArray(siblings) ? siblings.find(x => x && !isTmpId(x.id)) : undefined) || {};
             const visit = (await readCached<any>(ctx.store, 'getActiveOrderVisit', [visitId]))?.value || {};
             const companyId = sib.oCompanyId ?? visit.providerCompanyId;
+            // Tipo da OS (para as atividades): de outro ativo da visita ou, no 1º
+            // ativo / visita iniciada offline, da OS baixada pelo download automático.
+            let orderTypeId: string | undefined = sib.orderTypeId ?? visit.orderTypeId;
+            if (!orderTypeId && visit.oId) {
+                const order = (await readCached<any>(ctx.store, 'getOrderById', [str(visit.oId)]))?.value;
+                if (order?.typeId != null) orderTypeId = str(order.typeId);
+            }
 
             // Mesmo formato de visitsService.getOrderVisitAssets / getOrderVisitAssetById.
             const item = {
@@ -427,7 +434,7 @@ export const OFFLINE_FLOW_OPS: Record<string, OfflineOpSpec> = {
                 oTeamLeaderNameShort: sib.oTeamLeaderNameShort,
                 oCompanyId: companyId,
                 oContractId: sib.oContractId ?? (visit.contractId != null ? str(visit.contractId) : undefined),
-                orderTypeId: sib.orderTypeId,
+                orderTypeId,
                 maintenancePlanProgress: 0,
                 hasRecorder: false,
                 beforeRecorder: null,
