@@ -18,7 +18,7 @@ interface DashboardServicesAdminScreenProps {
     onBack?: () => void;
 }
 
-export const DashboardServicesAdminScreen: React.FC<DashboardServicesAdminScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onEdit, onBack }) => {
+export const DashboardServicesAdminScreen: React.FC<DashboardServicesAdminScreenProps> = ({ currentUser, onSelectOrder, onResumeVisit, onEdit }) => {
     // Persistence keys
     const STORAGE_KEYS = {
         TAB: 'dashboard_admin_active_tab',
