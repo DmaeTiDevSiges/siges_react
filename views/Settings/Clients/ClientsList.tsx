@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Client } from '../../../types';
 import { dataService } from '../../../services/dataService';
 import { SearchInput } from '../../../components/ui/SearchInput';
@@ -17,25 +18,12 @@ interface ClientsListProps {
 export const ClientsList: React.FC<ClientsListProps> = ({ onSelect, onAdd }) => {
     const [search, setSearch] = useState(() => localStorage.getItem('clients_search') || '');
     const [filter, setFilter] = useState(() => localStorage.getItem('clients_filter') || 'Todos');
-    const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: clients = [], isPending: loading } = useQuery({
+        queryKey: ['clients'],
+        queryFn: () => dataService.getClients(),
+    });
     const [visibleCount, setVisibleCount] = useState(10);
     const PAGE_SIZE = 10;
-
-    useEffect(() => {
-        const fetchClients = async () => {
-            try {
-                const data = await dataService.getClients();
-                setClients(data);
-            } catch (error) {
-                console.error('Failed to load clients', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchClients();
-    }, []);
 
     const handleSearchChange = (val: string) => {
         setSearch(val);

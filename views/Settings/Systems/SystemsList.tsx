@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { System } from '../../../types';
 import { dataService } from '../../../services/dataService';
 import { SearchInput } from '../../../components/ui/SearchInput';
@@ -16,34 +17,21 @@ interface SystemNode extends System {
 
 export const SystemsList: React.FC<SystemsListProps> = ({ onSelect, onAdd }) => {
     const [search, setSearch] = useState('');
-    const [systems, setSystems] = useState<System[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+    const { data: systems = [], isPending: loading } = useQuery({
+        queryKey: ['systems'],
+        queryFn: () => dataService.getSystems(),
+    });
+    // Tudo começa expandido; só o que o usuário fechar fica aqui.
+    const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
     const [visibleCount, setVisibleCount] = useState(10);
     const PAGE_SIZE = 10;
 
-    useEffect(() => {
-        const fetchSystems = async () => {
-            try {
-                const data = await dataService.getSystems();
-                setSystems(data);
-                // Expand all by default
-                setExpandedNodes(new Set(data.map(s => s.id)));
-            } catch (error) {
-                console.error('Failed to load systems', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchSystems();
-    }, []);
-
     const toggleExpand = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        const newSet = new Set(expandedNodes);
+        const newSet = new Set(collapsedNodes);
         if (newSet.has(id)) newSet.delete(id);
         else newSet.add(id);
-        setExpandedNodes(newSet);
+        setCollapsedNodes(newSet);
     };
 
     const buildTree = (list: System[]): SystemNode[] => {
@@ -74,7 +62,7 @@ export const SystemsList: React.FC<SystemsListProps> = ({ onSelect, onAdd }) => 
     const tree = buildTree(filteredSystems);
 
     const renderNode = (node: SystemNode, level: number = 0) => {
-        const isExpanded = expandedNodes.has(node.id);
+        const isExpanded = !collapsedNodes.has(node.id);
         const hasChildren = node.children.length > 0;
         const indent = level * 24;
 

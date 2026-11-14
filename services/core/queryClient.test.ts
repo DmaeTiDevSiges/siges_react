@@ -1,6 +1,6 @@
 jest.mock('../offline/offlineSync', () => ({ subscribeOfflineSync: jest.fn() }));
 
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { OfflineCacheMissError } from '../offline/readCache';
 import { createQueryClient, invalidateOnSyncEnd, shouldRetryQuery } from './queryClient';
 
@@ -9,6 +9,26 @@ describe('createQueryClient', () => {
         const q = createQueryClient().getDefaultOptions().queries!;
         expect(q.networkMode).toBe('always');
         expect(q.refetchOnWindowFocus).toBe(false);
+    });
+
+    it('descarta o cache ao fechar a tela: reabrir nunca mostra o dado antigo', async () => {
+        const client = createQueryClient();
+        const fetcher = jest.fn().mockResolvedValueOnce(['antigo']).mockResolvedValueOnce(['novo']);
+        const observe = async () => {
+            const observer = new QueryObserver(client, { queryKey: ['companies'], queryFn: fetcher });
+            const unsubscribe = observer.subscribe(() => undefined);
+            await new Promise(r => setTimeout(r, 20));
+            const first = observer.getCurrentResult();
+            return { first, unsubscribe };
+        };
+        const a = await observe();
+        expect(a.first.data).toEqual(['antigo']);
+        a.unsubscribe();
+        await new Promise(r => setTimeout(r, 20));
+        expect(client.getQueryCache().find({ queryKey: ['companies'] })).toBeUndefined();
+        const b = await observe();
+        expect(b.first.data).toEqual(['novo']);
+        b.unsubscribe();
     });
 });
 

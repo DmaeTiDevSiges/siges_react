@@ -15,8 +15,15 @@ import { subscribeOfflineSync } from '../offline/offlineSync';
  *  - `networkMode: 'always'`: por padrão a lib PAUSA consultas sem internet,
  *    mas aqui o `dataService` sabe responder do cache offline — tem que rodar.
  *  - `refetchOnWindowFocus: false`: no celular/Electron o foco muda toda hora.
- *  - `staleTime: 0` (padrão): ao abrir a tela mostra os dados em memória na
- *    hora e rebusca em segundo plano, igual ao comportamento antigo.
+ *  - `gcTime: 0`: o cache só vive ENQUANTO a tela está aberta. Fechou, some;
+ *    abrir de novo mostra "Carregando" e já vem atualizado, como antes da
+ *    migração. Sem isso, depois de salvar/excluir a lista reabriria mostrando
+ *    por um instante o dado antigo (e criar um contrato, por ex., muda a
+ *    contagem exibida na lista de empresas — não dá para amarrar caso a caso).
+ *    Tela que quiser "mostrar o antigo na hora" opta por `gcTime` próprio E
+ *    passa a invalidar suas chaves nas gravações.
+ *    Dentro da tela aberta, o dado se mantém em dia por tempo real
+ *    (`useLiveInvalidation`) e pelo fim da fila offline (`invalidateOnSyncEnd`).
  *  - sem retry quando o dado nunca foi baixado (`OfflineCacheMissError`).
  */
 export const shouldRetryQuery = (failureCount: number, error: unknown): boolean =>
@@ -27,6 +34,7 @@ export const createQueryClient = (): QueryClient =>
         defaultOptions: {
             queries: {
                 networkMode: 'always',
+                gcTime: 0,
                 refetchOnWindowFocus: false,
                 retry: shouldRetryQuery,
             },
