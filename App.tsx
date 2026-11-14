@@ -2924,6 +2924,12 @@ const AppContent: React.FC = () => {
           />
         ) : null;
       case 'order-visit-approve':
+        if (routeApproval.pendingId) return (
+          <div className="flex items-center justify-center py-20 text-slate-500">
+            <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+            Carregando...
+          </div>
+        );
         return (selectedVisitForApproval && selectedOrder) ? (
           <OrderRequestApproveConfirm
             onBack={() => {
@@ -2968,6 +2974,12 @@ const AppContent: React.FC = () => {
         ) : null;
 
       case 'order-visit-evaluation':
+        if (routeApproval.pendingId) return (
+          <div className="flex items-center justify-center py-20 text-slate-500">
+            <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+            Carregando...
+          </div>
+        );
         return selectedVisitForApproval ? (
           <VisitEvaluationPage
             visitId={selectedVisitForApproval.id}
@@ -3285,6 +3297,20 @@ const AppContent: React.FC = () => {
     toast.error('Não foi possível abrir a OS/SS.');
     setCurrentScreen('dashboard');
   });
+  // Aprovação/avaliação: a tela precisa da visita E da OS dela (busca as duas).
+  const routeApproval = useRouteEntity<import('./types').OrderVisit>(selectedVisitForApproval, setSelectedVisitForApproval, async id => {
+    const visit = await dataService.getOrderVisitById(id);
+    if (!visit) return null;
+    if (visit.oId != null && String(selectedOrderRef.current?.id) !== String(visit.oId)) {
+      const order = await dataService.getOrderById(visit.oId);
+      if (!order) return null;
+      setSelectedOrder(order);
+    }
+    return visit;
+  }, () => {
+    toast.error('Não foi possível abrir a aprovação da visita.');
+    setCurrentScreen('dashboard');
+  });
   const routeAsset = useRouteEntity<Asset>(selectedAsset, setSelectedAsset, id => dataService.getAssetById(id), () => {
     toast.error('Não foi possível abrir o ativo.');
     setCurrentScreen('dashboard');
@@ -3295,6 +3321,7 @@ const AppContent: React.FC = () => {
     ovaId: selectedOrderVisitAssetId,
     orderTypeId: selectedOrderTypeId,
     orderId: routeOrder.pendingId ?? (selectedOrder?.id != null ? String(selectedOrder.id) : null),
+    approvalVisitId: routeApproval.pendingId ?? (selectedVisitForApproval?.id != null ? String(selectedVisitForApproval.id) : null),
     assetId: routeAsset.pendingId ?? (selectedAsset?.id != null ? String(selectedAsset.id) : null),
   };
   const applyRouteSelection = (sel: Selection) => {
@@ -3310,6 +3337,12 @@ const AppContent: React.FC = () => {
     if (sel.orderTypeId) setSelectedOrderTypeId(sel.orderTypeId);
     if (sel.orderId) routeOrder.load(sel.orderId);
     if (sel.assetId) routeAsset.load(sel.assetId);
+    if (sel.approvalVisitId) {
+      const id = sel.approvalVisitId;
+      // A tela da visita (destino do "voltar" e do aprovar) é a mesma visita.
+      setSelectedVisit(prev => (prev?.id != null && String(prev.id) === id ? prev : ({ id } as unknown as import('./types').OrderVisit)));
+      routeApproval.load(id);
+    }
   };
   useScreenHistory<Screen>({
     screen: currentScreen,

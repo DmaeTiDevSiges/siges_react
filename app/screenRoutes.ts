@@ -20,6 +20,8 @@ export type Selection = {
     orderTypeId?: string | null;
     /** OS ou SS aberta (order-detail / service-request-detail). */
     orderId?: string | null;
+    /** Visita na aprovação/avaliação (order-visit-approve / order-visit-evaluation). */
+    approvalVisitId?: string | null;
     /** Ativo aberto (asset-details). */
     assetId?: string | null;
 };
@@ -37,6 +39,8 @@ const ROUTES: RouteDef[] = [
     { screen: 'order-visit-asset-activities', pattern: '/visita-ativo/:ovaId/atividades/:orderTypeId', params: ['ovaId', 'orderTypeId'] },
     { screen: 'order-visit-asset-materials', pattern: '/visita-ativo/:ovaId/materiais', params: ['ovaId'] },
     { screen: 'order-visit-asset-report', pattern: '/visita-ativo/:ovaId', params: ['ovaId'] },
+    { screen: 'order-visit-approve', pattern: '/visita/:approvalVisitId/aprovar', params: ['approvalVisitId'] },
+    { screen: 'order-visit-evaluation', pattern: '/visita/:approvalVisitId/avaliar', params: ['approvalVisitId'] },
     { screen: 'order-visit-execute', pattern: '/visita/:visitId', params: ['visitId'] },
     { screen: 'order-detail', pattern: '/os/:orderId', params: ['orderId'] },
     { screen: 'service-request-detail', pattern: '/ss/:orderId', params: ['orderId'] },

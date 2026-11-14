@@ -8,6 +8,12 @@ describe('toPath', () => {
         expect(toPath('order-visit-asset-activities', { ovaId: '900', orderTypeId: '5' })).toBe('/visita-ativo/900/atividades/5');
     });
 
+    it('monta o caminho da aprovação e da avaliação da visita', () => {
+        expect(toPath('order-visit-approve', { approvalVisitId: '12' })).toBe('/visita/12/aprovar');
+        expect(toPath('order-visit-evaluation', { approvalVisitId: '12' })).toBe('/visita/12/avaliar');
+        expect(toPath('order-visit-approve', { visitId: '12' })).toBe('/order-visit-approve');
+    });
+
     it('monta o caminho da OS e da SS', () => {
         expect(toPath('order-detail', { orderId: '77' })).toBe('/os/77');
         expect(toPath('service-request-detail', { orderId: '76' })).toBe('/ss/76');
@@ -32,6 +38,12 @@ describe('fromPath', () => {
         expect(fromPath('/visita-ativo/900/atividades/5')).toEqual({
             screen: 'order-visit-asset-activities', selection: { ovaId: '900', orderTypeId: '5' },
         });
+    });
+
+    it('lê aprovação e avaliação sem confundir com a visita', () => {
+        expect(fromPath('/visita/12/aprovar')).toEqual({ screen: 'order-visit-approve', selection: { approvalVisitId: '12' } });
+        expect(fromPath('/visita/12/avaliar')).toEqual({ screen: 'order-visit-evaluation', selection: { approvalVisitId: '12' } });
+        expect(fromPath('/visita/12')).toEqual({ screen: 'order-visit-execute', selection: { visitId: '12' } });
     });
 
     it('lê OS e SS do caminho', () => {
