@@ -350,7 +350,7 @@ const UnitDetailsContent: React.FC<UnitDetailsProps> = ({
 
                     {(onEdit || onDelete) && (
                         <div className="relative pointer-events-auto">
-                            <button
+                            <button aria-label="Mais opções"
                                 onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
                                 className={`w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md border border-white/20 text-white hover:bg-black/40 transition-all ${showMenu ? 'bg-black/40' : ''}`}
                             >

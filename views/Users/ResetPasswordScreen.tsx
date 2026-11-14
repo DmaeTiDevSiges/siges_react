@@ -227,7 +227,7 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onSucc
                         leftIcon={<span className="material-symbols-outlined text-[22px]">lock</span>}
                         required
                         rightIcon={
-                            <button
+                            <button aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors focus:outline-none"

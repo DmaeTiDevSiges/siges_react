@@ -7,6 +7,7 @@ interface ButtonDeleteProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 export const ButtonDelete: React.FC<ButtonDeleteProps> = ({ className = '', icon = 'remove', ...props }) => {
     return (
         <button
+            aria-label="Remover"
             type="button"
             className={`
                 group

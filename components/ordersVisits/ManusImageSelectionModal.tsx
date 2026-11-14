@@ -70,7 +70,7 @@ export const ManusImageSelectionModal: React.FC<ManusImageSelectionModalProps> =
                         <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Classificação de Imagens</h3>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Visita Manus: {visit.OrderMask}</p>
                     </div>
-                    <button 
+                    <button aria-label="Fechar" 
                         onClick={onCancel}
                         className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
                     >

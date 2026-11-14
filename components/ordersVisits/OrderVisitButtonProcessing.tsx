@@ -31,6 +31,7 @@ export const OrderVisitButtonProcessing: React.FC<OrderVisitButtonProcessingProp
 
     return (
         <button
+            aria-label={visit?.processingDescription || 'Status do processamento'}
             onClick={isEnabled ? onClick : undefined}
             disabled={!isEnabled}
             type="button"

@@ -135,7 +135,7 @@ const DraggableTeamItem: React.FC<DraggableTeamItemProps> = ({
 
                     {/* Expand/Collapse sub-teams */}
                     {team.children.length > 0 ? (
-                        <button
+                        <button aria-label={expandedTeams.has(team.id) ? 'Recolher' : 'Expandir'} aria-expanded={expandedTeams.has(team.id)}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onToggleTeamExpand(team.id);
@@ -939,7 +939,7 @@ export const DepartmentsList: React.FC<DepartmentsListProps> = ({
                         className={`flex flex-1 items-center ${onSelect ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer rounded-2xl' : ''}`}
                     >
                         {hasChildren && (
-                            <button
+                            <button aria-label={isExpanded ? 'Recolher' : 'Expandir'} aria-expanded={isExpanded}
                                 onClick={(e) => toggleExpand(node.id, e)}
                                 className="mr-2 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors shrink-0"
                             >

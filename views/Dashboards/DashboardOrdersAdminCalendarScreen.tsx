@@ -267,13 +267,13 @@ const VisitDetailPanel: React.FC<{
             <div className="rounded-[32px] border border-white/10 bg-slate-950 shadow-2xl overflow-hidden">
                 <div className="relative bg-slate-900 px-5 pb-5 pt-6">
                     <div className="absolute right-4 top-4 flex items-center gap-2">
-                        <button className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-slate-800 transition">
+                        <button aria-label="Exportar PDF" className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-slate-800 transition">
                             <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
                         </button>
-                        <button className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-slate-800 transition">
+                        <button aria-label="Pendentes" className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-slate-800 transition">
                             <span className="material-symbols-outlined text-[18px]">radio_button_unchecked</span>
                         </button>
-                        <button className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-slate-800 transition">
+                        <button aria-label="Concluídas" className="grid h-10 w-10 place-content-center rounded-2xl border border-white/10 bg-slate-800/80 text-white/80 hover:bg-slate-800 transition">
                             <span className="material-symbols-outlined text-[18px]">check_circle</span>
                         </button>
                         <button 
@@ -1239,7 +1239,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                 <div className="flex flex-wrap items-center gap-3">
                     {/* Navigation */}
                     <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 shrink-0">
-                        <button
+                        <button aria-label="Semana anterior"
                             onClick={() => setWeekOffset(w => w - 1)}
                             className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 transition-colors text-slate-500 dark:text-slate-400"
                         >
@@ -1255,7 +1255,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                         >
                             Hoje
                         </button>
-                        <button
+                        <button aria-label="Próxima semana"
                             onClick={() => setWeekOffset(w => w + 1)}
                             className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 transition-colors text-slate-500 dark:text-slate-400"
                         >

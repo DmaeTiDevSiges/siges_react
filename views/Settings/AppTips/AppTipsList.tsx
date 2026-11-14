@@ -220,13 +220,13 @@ export const AppTipsList: React.FC<AppTipsListProps> = ({ onBack }) => {
                                                     {tip.isActive ? 'visibility' : 'visibility_off'}
                                                 </span>
                                             </button>
-                                            <button
+                                            <button aria-label="Editar dica"
                                                 onClick={() => { setEditingTip(tip); setIsFormOpen(true); }}
                                                 className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                             >
                                                 <span className="material-symbols-outlined text-lg text-slate-400">edit</span>
                                             </button>
-                                            <button
+                                            <button aria-label="Excluir dica"
                                                 onClick={() => setDeletingTip(tip)}
                                                 className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                                             >
@@ -264,7 +264,7 @@ export const AppTipsList: React.FC<AppTipsListProps> = ({ onBack }) => {
             </div>
 
             {/* FAB */}
-            <button
+            <button aria-label="Nova dica"
                 onClick={() => { setEditingTip(null); setIsFormOpen(true); }}
                 className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1.5rem)] right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary-dark hover:shadow-primary/40 transition-all active:scale-95 flex items-center justify-center z-50"
             >

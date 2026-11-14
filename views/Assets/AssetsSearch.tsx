@@ -589,7 +589,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
 
             {/* Floating Action Button */}
             {onAdd && canCreate('assets') && (
-                <button
+                <button aria-label="Novo ativo"
                     onClick={onAdd}
                     className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-all z-20"
                 >

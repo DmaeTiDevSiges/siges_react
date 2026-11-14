@@ -592,7 +592,7 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                 <div className="flex items-center gap-3 ml-auto">
                     {/* Month Navigator */}
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1 shadow-sm">
-                        <button
+                        <button aria-label="Mês anterior"
                             onClick={() => navigateRankingMonth(-1)}
                             className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                         >
@@ -601,7 +601,7 @@ export const DashboardAdminContractsEvaluationsRequirements: React.FC<DashboardA
                         <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[130px] text-center">
                             {MONTH_NAMES[rankingMonth - 1]} {rankingYear}
                         </span>
-                        <button
+                        <button aria-label="Próximo mês"
                             onClick={() => navigateRankingMonth(1)}
                             className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                         >

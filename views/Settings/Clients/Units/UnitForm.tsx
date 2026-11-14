@@ -382,7 +382,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                             <div className="relative w-full h-full">
                                 <OptimizedImage src={previewUrl} alt="Preview" className="w-full h-full object-cover" preset="large" />
                                 <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
-                                    <button
+                                    <button aria-label="Alterar foto"
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -392,7 +392,7 @@ export const UnitForm: React.FC<UnitFormProps> = ({
                                     >
                                         <span className="material-symbols-outlined text-[20px]">photo_camera</span>
                                     </button>
-                                    <button
+                                    <button aria-label="Editar foto"
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();

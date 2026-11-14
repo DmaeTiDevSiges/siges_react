@@ -255,7 +255,7 @@ export const LeaderRankingDashboard: React.FC<LeaderRankingDashboardProps> = ({ 
                 {/* Month Navigator + Recalculate Button */}
                 <div className="flex items-center gap-4 flex-1">
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2">
-                        <button
+                        <button aria-label="Mês anterior"
                             onClick={() => navigateMonth(-1)}
                             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                         >
@@ -264,7 +264,7 @@ export const LeaderRankingDashboard: React.FC<LeaderRankingDashboardProps> = ({ 
                         <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[140px] text-center">
                             {MONTH_NAMES[currentMonth - 1]} {currentYear}
                         </span>
-                        <button
+                        <button aria-label="Próximo mês"
                             onClick={() => navigateMonth(1)}
                             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                         >

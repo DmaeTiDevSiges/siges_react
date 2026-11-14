@@ -214,7 +214,7 @@ export const OrderVisitCardDetail: React.FC<OrderVisitCardDetailProps> = ({
                                     className="shadow-sm"
                                 />
                                 {onRemoveTeamMember && !member.isLeader && !visit.isFiled && (
-                                    <button
+                                    <button aria-label="Remover membro da equipe"
                                         onClick={() => onRemoveTeamMember(member.userId)}
                                         className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-md transform hover:scale-110 transition-transform border-2 border-white"
                                     >

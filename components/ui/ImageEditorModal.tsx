@@ -539,11 +539,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
                 {!preventAnnotation && (
                     <div className="flex justify-center">
                         <div className="flex gap-2.5 bg-white/10 p-1.5 rounded-[24px] backdrop-blur-2xl border border-white/10 shadow-2xl">
-                            <ToolButton active={mode === 'pan'} icon="pan_tool" onClick={() => setMode('pan')} />
-                            <ToolButton active={mode === 'pen'} icon="edit" onClick={() => setMode('pen')} />
-                            <ToolButton active={mode === 'arrow'} icon="trending_flat" onClick={() => setMode('arrow')} />
-                            <ToolButton active={mode === 'circle'} icon="radio_button_unchecked" onClick={() => setMode('circle')} />
-                            <ToolButton active={mode === 'text'} icon="text_fields" onClick={() => setMode('text')} />
+                            <ToolButton active={mode === 'pan'} icon="pan_tool" label="Mover" onClick={() => setMode('pan')} />
+                            <ToolButton active={mode === 'pen'} icon="edit" label="Caneta" onClick={() => setMode('pen')} />
+                            <ToolButton active={mode === 'arrow'} icon="trending_flat" label="Seta" onClick={() => setMode('arrow')} />
+                            <ToolButton active={mode === 'circle'} icon="radio_button_unchecked" label="Círculo" onClick={() => setMode('circle')} />
+                            <ToolButton active={mode === 'text'} icon="text_fields" label="Texto" onClick={() => setMode('text')} />
                         </div>
                     </div>
                 )}
@@ -580,8 +580,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
     );
 };
 
-const ToolButton: React.FC<{ active: boolean; icon: string; onClick: () => void }> = ({ active, icon, onClick }) => (
+const ToolButton: React.FC<{ active: boolean; icon: string; label: string; onClick: () => void }> = ({ active, icon, label, onClick }) => (
     <button
+        aria-label={label}
+        aria-pressed={active}
         onClick={onClick}
         className={`w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200 ${active ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110 z-10' : 'text-white/70 hover:bg-white/10 active:scale-95'}`}
     >

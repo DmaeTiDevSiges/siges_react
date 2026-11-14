@@ -916,7 +916,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, lea
                         <span className="text-[10px] text-slate-400 font-medium shrink-0">
                             {filteredVisits.length} visita{filteredVisits.length !== 1 ? 's' : ''}
                         </span>
-                        <button
+                        <button aria-label={!isFooterCollapsed ? 'Recolher rodapé' : 'Expandir rodapé'} aria-expanded={!isFooterCollapsed}
                             onClick={() => setIsFooterCollapsed(prev => !prev)}
                             className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors shrink-0"
                         >

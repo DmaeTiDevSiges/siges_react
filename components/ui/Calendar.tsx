@@ -93,7 +93,7 @@ export const Calendar: React.FC<CalendarProps> = ({ value, onChange, rangeStart,
         <div className={`flex flex-col select-none ${className || ''}`}>
             {/* Header */}
             <div className="flex items-center justify-between mb-4 px-2">
-                <button
+                <button aria-label="Mês anterior"
                     onClick={handlePrevMonth}
                     className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 transition-colors active:scale-90"
                 >
@@ -102,7 +102,7 @@ export const Calendar: React.FC<CalendarProps> = ({ value, onChange, rangeStart,
                 <div className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
                     {monthNames[month]} <span className="text-slate-400 font-normal ml-1">{year}</span>
                 </div>
-                <button
+                <button aria-label="Próximo mês"
                     onClick={handleNextMonth}
                     className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 transition-colors active:scale-90"
                 >

@@ -417,7 +417,7 @@ const OrderRequestViewContent: React.FC<OrderRequestViewProps> = ({
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Close Icon Button - Top Right */}
-                            <button
+                            <button aria-label="Fechar menu"
                                 onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}
                                 className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
                             >
@@ -844,7 +844,7 @@ const OrderRequestViewContent: React.FC<OrderRequestViewProps> = ({
                                                                         <div className="mt-2 rounded-2xl border border-white/5 bg-slate-950 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
                                                                             <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-slate-900">
                                                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Relatório do Ativo</span>
-                                                                                <button
+                                                                                <button aria-label="Remover ativo da seleção"
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation();
                                                                                         setSelectedAssetIds(prev => prev.filter(id => id !== asset.id));

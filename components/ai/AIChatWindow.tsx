@@ -258,7 +258,7 @@ export const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, ass
           <button onClick={handleNewChat} className="p-2 hover:bg-slate-700 rounded-full transition-colors" title="Nova conversa">
             <span className="material-symbols-outlined text-slate-400">add_comment</span>
           </button>
-          <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full transition-colors">
+          <button aria-label="Fechar assistente" onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full transition-colors">
             <span className="material-symbols-outlined text-slate-400">close</span>
           </button>
         </div>
@@ -345,7 +345,7 @@ export const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, ass
             placeholder={currentScreen ? `Pergunte sobre ${pageHelp.label}...` : 'Digite sua mensagem...'}
             className="w-full bg-slate-900 border border-slate-700 rounded-2xl py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-primary transition-colors"
           />
-          <button
+          <button aria-label="Enviar mensagem"
             onClick={() => handleSend()}
             disabled={!input.trim() || isLoading || !sessionId}
             className="absolute right-2 top-1.5 p-2 text-primary disabled:text-slate-600 hover:bg-slate-700 rounded-xl transition-all"

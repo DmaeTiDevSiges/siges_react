@@ -86,7 +86,7 @@ export const CalculatorModal: React.FC<CalculatorModalProps> = ({
                         <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">
                             Calculadora
                         </h3>
-                        <button
+                        <button aria-label="Fechar calculadora"
                             type="button"
                             onClick={onClose}
                             className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white"

@@ -63,7 +63,7 @@ export const TreeFilterSelect: React.FC<{
                     </div>
 
                     {count > 0 && (
-                        <button
+                        <button aria-label="Limpar filtro"
                             onClick={(e) => { e.stopPropagation(); onClear(); }}
                             className="px-3 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors border-l border-slate-100 dark:border-slate-700/50"
                         >

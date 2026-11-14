@@ -88,7 +88,7 @@ export const OrderActionManager: React.FC<OrderActionManagerProps> = ({
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Close Icon Button - Top Right */}
-                        <button
+                        <button aria-label="Fechar menu"
                             onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}
                             className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
                         >

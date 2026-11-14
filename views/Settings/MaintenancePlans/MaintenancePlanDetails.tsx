@@ -112,7 +112,7 @@ export const MaintenancePlanDetails: React.FC<MaintenancePlanDetailsProps> = ({ 
                     
                     {/* Menu Button */}
                     <div className="relative menu-container">
-                        <button 
+                        <button aria-label="Mais opções" 
                             onClick={() => setShowMenu(!showMenu)}
                             className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all active:scale-95"
                         >

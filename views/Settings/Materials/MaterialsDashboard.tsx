@@ -284,7 +284,7 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
                         className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                     />
                     {purchaseCodeFilter && (
-                        <button
+                        <button aria-label="Limpar filtro de código de compra"
                             onClick={() => setPurchaseCodeFilter('')}
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                         >

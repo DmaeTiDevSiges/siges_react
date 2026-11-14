@@ -116,7 +116,7 @@ export const OrderSubTypesList: React.FC<OrderSubTypesListProps> = ({ onSelect, 
                 >
                     <div className="flex items-center gap-1 flex-1 min-w-0">
                         {hasChildren ? (
-                            <button
+                            <button aria-label={isExpanded ? 'Recolher' : 'Expandir'} aria-expanded={isExpanded}
                                 onClick={(e) => toggleExpand(node.id, e)}
                                 className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                             >

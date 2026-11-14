@@ -64,7 +64,7 @@ export const CompanyDetails: React.FC<CompanyDetailsProps> = ({
         {/* Context Menu Button */}
         {(onEdit || onDelete) && (
           <div className="absolute top-4 right-4">
-            <button
+            <button aria-label="Mais opções"
               onClick={() => setShowMenu(!showMenu)}
               className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-500/10 border-2 border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.3)] text-blue-500 hover:bg-blue-500 hover:text-white transition-all duration-300"
             >

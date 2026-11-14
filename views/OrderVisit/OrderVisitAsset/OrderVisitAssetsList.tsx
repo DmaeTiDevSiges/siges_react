@@ -333,7 +333,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                                     <span className="text-sm font-bold truncate text-indigo-600 dark:text-indigo-400">
                                         {selectedUnit.descriptionFull || selectedUnit.description}
                                     </span>
-                                    <button onClick={() => setSelectedUnit(null)} className="text-slate-400 hover:text-red-500">
+                                    <button aria-label="Limpar unidade" onClick={() => setSelectedUnit(null)} className="text-slate-400 hover:text-red-500">
                                         <span className="material-symbols-outlined text-sm">close</span>
                                     </button>
                                 </div>

@@ -112,7 +112,7 @@ const DraggableTeamItem: React.FC<DraggableTeamItemProps> = ({
 
                 {/* Expand/Collapse button for children */}
                 {team.children.length > 0 && (
-                    <button
+                    <button aria-label={expandedTeams.has(team.id) ? 'Recolher' : 'Expandir'} aria-expanded={expandedTeams.has(team.id)}
                         onClick={(e) => {
                             e.stopPropagation();
                             onToggleTeamExpand(team.id);

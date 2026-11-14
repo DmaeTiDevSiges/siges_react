@@ -11,7 +11,7 @@ export const AIAssistantBubble: React.FC<AIAssistantBubbleProps> = ({ currentScr
     return (
         <>
             {/* Bubble Button */}
-            <button
+            <button aria-label="Abrir assistente"
                 onClick={() => setIsOpen(true)}
                 className={`fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 left-6 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 z-9999 ${isOpen ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'}`}
             >

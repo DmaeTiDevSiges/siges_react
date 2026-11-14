@@ -62,7 +62,7 @@ export const AIKnowledgeAdmin: React.FC<{ onBack: () => void }> = ({ onBack }) =
   return (
     <div className="p-4 space-y-6 pb-20 animate-in fade-in slide-in-from-right duration-300">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+        <button aria-label="Voltar" onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
         <div>
@@ -125,7 +125,7 @@ export const AIKnowledgeAdmin: React.FC<{ onBack: () => void }> = ({ onBack }) =
                   <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] uppercase font-bold rounded">
                     {item.source_type}
                   </span>
-                  <button 
+                  <button aria-label="Excluir item" 
                     onClick={() => handleDelete(item.id)}
                     className="p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   >

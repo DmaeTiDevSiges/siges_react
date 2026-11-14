@@ -687,7 +687,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                             className="border-2 border-slate-100 dark:border-white/5 shadow-md h-16 w-16"
                                         />
                                         <div className="absolute -bottom-2 -right-2 flex gap-1">
-                                            <button
+                                            <button aria-label="Alterar foto"
                                                 type="button"
                                                 onClick={() => setIsPhotoSheetOpen(true)}
                                                 className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-blue-600 transition-colors border-2 border-white dark:border-slate-900"
@@ -695,7 +695,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                                 <span className="material-symbols-outlined text-sm font-black">photo_camera</span>
                                             </button>
                                             {imagePreview && (
-                                                <button
+                                                <button aria-label="Editar"
                                                     type="button"
                                                     onClick={() => setIsEditing(true)}
                                                     className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-indigo-600 transition-colors border-2 border-white dark:border-slate-900"
@@ -791,7 +791,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                                 placeholder="Buscar material por descrição ou código..."
                                             />
                                             {materialSearch && (
-                                                <button
+                                                <button aria-label="Limpar material"
                                                     type="button"
                                                     onClick={handleClearMaterial}
                                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"

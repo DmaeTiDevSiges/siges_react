@@ -275,14 +275,14 @@ export const AssetTypeAttributesScreen: React.FC = () => {
                                                 if (e.key === 'Escape') setEditingNamingPattern(false);
                                             }}
                                         />
-                                        <button
+                                        <button aria-label="Salvar padrão de nome"
                                             onClick={handleSaveNamingPattern}
                                             disabled={savingNamingPattern}
                                             className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
                                         >
                                             <span className="material-symbols-outlined text-lg">check</span>
                                         </button>
-                                        <button
+                                        <button aria-label="Cancelar edição do padrão de nome"
                                             onClick={() => setEditingNamingPattern(false)}
                                             className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
                                         >

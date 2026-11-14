@@ -154,7 +154,7 @@ export const ServiceRequestCardListItem: React.FC<ServiceRequestCardListItemProp
                             image
                         </span>
                     )}
-                    <button
+                    <button aria-label={isFollowed ? 'Deixar de seguir' : 'Seguir'} aria-pressed={isFollowed}
                         className={`transition-all active:scale-90 ${isFollowed ? 'text-yellow-400' : 'text-slate-300 hover:text-yellow-400'}`}
                         onClick={(e) => {
                             e.stopPropagation();

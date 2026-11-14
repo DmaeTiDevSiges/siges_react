@@ -355,7 +355,7 @@ const VisitCard: React.FC<VisitCardProps> = ({ visit, onClick, formatDate, getSt
                 </div>
             </div>
             {/* Action Icon */}
-            <button className="text-slate-400 hover:text-yellow-400 transition-colors shrink-0">
+            <button aria-label="Favoritar" className="text-slate-400 hover:text-yellow-400 transition-colors shrink-0">
                 <span className="material-symbols-outlined">star</span>
             </button>
         </div>
@@ -452,7 +452,7 @@ const FilterSelect = React.memo(({ label, value, onClick, onClear, disabled, req
                 </div>
 
                 {count > 0 && (
-                    <button
+                    <button aria-label="Limpar filtro"
                         onClick={(e) => { e.stopPropagation(); onClear(); }}
                         className="px-3 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors border-l border-slate-100 dark:border-slate-700/50"
                     >
@@ -612,10 +612,10 @@ const UnitsPowerElectricTable: React.FC<{ items: any[]; unitsOrders?: Record<str
                     Unidades Operacionais
                 </h3>
                 <div className="flex items-center gap-3">
-                    <button className="w-10 h-10 rounded-xl bg-slate-800/30 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
+                    <button aria-label="Baixar" className="w-10 h-10 rounded-xl bg-slate-800/30 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
                         <span className="material-symbols-outlined text-[20px]">download</span>
                     </button>
-                    <button className="w-10 h-10 rounded-xl bg-slate-800/30 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
+                    <button aria-label="Mais opções" className="w-10 h-10 rounded-xl bg-slate-800/30 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
                         <span className="material-symbols-outlined text-[20px]">more_vert</span>
                     </button>
                 </div>
@@ -721,10 +721,10 @@ const InvoicesTable: React.FC<{ items: any[] }> = ({ items }) => {
                     Notas Fiscais Disponíveis
                 </h3>
                 <div className="flex items-center gap-3">
-                    <button className="w-10 h-10 rounded-xl bg-slate-800/30 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
+                    <button aria-label="Baixar" className="w-10 h-10 rounded-xl bg-slate-800/30 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
                         <span className="material-symbols-outlined text-[20px]">download</span>
                     </button>
-                    <button className="w-10 h-10 rounded-xl bg-slate-800/30 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
+                    <button aria-label="Mais opções" className="w-10 h-10 rounded-xl bg-slate-800/30 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
                         <span className="material-symbols-outlined text-[20px]">more_vert</span>
                     </button>
                 </div>
@@ -770,7 +770,7 @@ const InvoicesTable: React.FC<{ items: any[] }> = ({ items }) => {
                                     <span className="text-sm font-black text-white font-mono tracking-tighter">{invoice.val}</span>
                                 </td>
                                 <td className="px-6 py-5 text-right">
-                                    <button className="w-9 h-9 rounded-xl bg-slate-800/50 flex border border-slate-700 items-center justify-center text-slate-400 hover:text-white hover:border-white/20 transition-all">
+                                    <button aria-label="Baixar" className="w-9 h-9 rounded-xl bg-slate-800/50 flex border border-slate-700 items-center justify-center text-slate-400 hover:text-white hover:border-white/20 transition-all">
                                         <span className="material-symbols-outlined text-[18px]">download</span>
                                     </button>
                                 </td>

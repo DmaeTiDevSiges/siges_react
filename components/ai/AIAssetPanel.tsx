@@ -291,7 +291,7 @@ export const AIAssetPanel: React.FC<AIAssetPanelProps> = ({
             disabled={isAnswering}
             className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 disabled:opacity-50"
           />
-          <button
+          <button aria-label="Enviar"
             type="submit"
             disabled={isAnswering || !customInput.trim()}
             className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

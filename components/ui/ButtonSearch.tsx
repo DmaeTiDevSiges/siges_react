@@ -7,6 +7,7 @@ interface ButtonSearchProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 export const ButtonSearch: React.FC<ButtonSearchProps> = ({ className = '', icon = 'search', ...props }) => {
     return (
         <button
+            aria-label="Buscar"
             type="button"
             className={`
                 group

@@ -79,7 +79,7 @@ export const UnitTypesList: React.FC<UnitTypesListProps> = ({ onSelect, onAdd })
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="flex items-center">
                                 {hasChildren ? (
-                                    <button
+                                    <button aria-label={isExpanded ? 'Recolher' : 'Expandir'} aria-expanded={isExpanded}
                                         onClick={(e) => toggleExpand(node.id, e)}
                                         className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors -ml-2 mr-1"
                                     >

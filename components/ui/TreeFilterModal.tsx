@@ -96,7 +96,7 @@ const TreeFilterRow = React.memo(({
             style={{ paddingLeft: `${8 + indent}px` }}
         >
             {hasChildren ? (
-                <button
+                <button aria-label={expanded ? 'Recolher' : 'Expandir'} aria-expanded={expanded}
                     type="button"
                     onClick={(e) => { e.preventDefault(); onToggleExpand(node.value); }}
                     className="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shrink-0"

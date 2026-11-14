@@ -7,6 +7,7 @@ interface ButtonDraftDisabledProps {
 export const ButtonDraftDisabled: React.FC<ButtonDraftDisabledProps> = ({ className = '' }) => {
     return (
         <button
+            aria-label="Rascunho"
             disabled
             className={`
                 w-[50px] h-[50px] 

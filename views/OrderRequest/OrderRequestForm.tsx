@@ -836,7 +836,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                             <div key={`ss-img-${index}`} className="relative group rounded-[12px] overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-32 shadow-sm cursor-pointer" onClick={() => setExpandedImageUrl(imageUrl || null)}>
                                                 <div className="absolute top-1.5 left-1.5 z-10 bg-orange-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">SS</div>
                                                 <OptimizedImage src={imageUrl || ""} alt={`Evidence SS ${index + 1}`} preset="thumbnail" className="w-full h-full object-cover" />
-                                                <button onClick={(e) => { e.stopPropagation(); removeExistingPhoto(index); }} className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg z-20">
+                                                <button aria-label="Remover foto" onClick={(e) => { e.stopPropagation(); removeExistingPhoto(index); }} className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-lg z-20">
                                                     <span className="material-symbols-outlined text-[18px]">delete</span>
                                                 </button>
                                                 <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-1 px-2 backdrop-blur-[2px]">
@@ -854,7 +854,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                                 <OptimizedImage src={url} alt={`Evidence ${photoNumber}`} className="w-full h-full object-cover" preset="thumbnail" />
 
                                                 <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 z-20">
-                                                    <button
+                                                    <button aria-label="Remover foto"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             removePhoto(index);
@@ -863,7 +863,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                                                     >
                                                         <span className="material-symbols-outlined text-[18px]">delete</span>
                                                     </button>
-                                                    <button
+                                                    <button aria-label="Editar foto"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setEditingImage({ url, index });

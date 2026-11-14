@@ -1836,7 +1836,7 @@ highlightedIds={recentlyChangedIds}
                                 {/* Header Row: Arrow - Title - Arrow */}
                                 <div className="flex items-center justify-between mb-4">
                                     {activeOrdersForModal.length > 1 ? (
-                                        <button
+                                        <button aria-label="OS anterior"
                                             onClick={() => setCurrentOrderIndex(prev => Math.max(0, prev - 1))}
                                             disabled={currentOrderIndex === 0}
                                             className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shrink-0 ${currentOrderIndex === 0 ? 'text-slate-200 dark:text-slate-800' : 'text-black bg-amber-200/50 hover:bg-amber-200 active:scale-90 shadow-sm'}`}
@@ -1854,7 +1854,7 @@ highlightedIds={recentlyChangedIds}
                                     </div>
 
                                     {activeOrdersForModal.length > 1 ? (
-                                        <button
+                                        <button aria-label="Próxima OS"
                                             onClick={() => setCurrentOrderIndex(prev => Math.min(activeOrdersForModal.length - 1, prev + 1))}
                                             disabled={currentOrderIndex === activeOrdersForModal.length - 1}
                                             className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all shrink-0 ${currentOrderIndex === activeOrdersForModal.length - 1 ? 'text-slate-200 dark:text-slate-800' : 'text-black bg-amber-200/50 hover:bg-amber-200 active:scale-90 shadow-sm'}`}
@@ -1892,7 +1892,7 @@ highlightedIds={recentlyChangedIds}
                                                     <span className="text-[10px] font-black text-amber-800/60 dark:text-amber-400/60 uppercase tracking-widest">Avalie o Serviço</span>
                                                     <div className="flex items-center gap-2">
                                                         {[1, 2, 3, 4, 5].map((star) => (
-                                                            <button
+                                                            <button aria-label={`Avaliar com ${star} ${star === 1 ? 'estrela' : 'estrelas'}`}
                                                                 key={star}
                                                                 onClick={() => setSelectedRating(prev => prev === star ? 0 : star)}
                                                                 className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${selectedRating >= star ? 'text-amber-500 scale-110' : 'text-slate-300 dark:text-slate-700 hover:text-amber-200'}`}

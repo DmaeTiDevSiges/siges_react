@@ -245,7 +245,7 @@ export const AIVisitAssistantTab: React.FC<AIVisitAssistantTabProps> = ({ visitI
               disabled:opacity-50 max-h-24"
             style={{ minHeight: '42px' }}
           />
-          <button
+          <button aria-label="Enviar mensagem"
             onClick={() => sendMessage(input)}
             disabled={isLoading || !input.trim()}
             className="shrink-0 w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center

@@ -39,7 +39,7 @@ export const AppTipBanner: React.FC<AppTipBannerProps> = ({ screenKey, userId, u
                             {currentTip.body}
                         </p>
                     </div>
-                    <button
+                    <button aria-label="Expandir dica"
                         onClick={() => setExpanded(true)}
                         className="shrink-0 p-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
                     >

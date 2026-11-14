@@ -1062,7 +1062,7 @@ export const CostsPeriod: React.FC<CostsPeriodProps> = ({ onNavigate, onSelectVi
                                                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                                                                 {expenseForm.id ? 'Editar despesa' : 'Nova despesa'}
                                                             </p>
-                                                            <button
+                                                            <button aria-label="Fechar formulário de despesa"
                                                                 onClick={() => setExpenseForm(null)}
                                                                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                                                             >

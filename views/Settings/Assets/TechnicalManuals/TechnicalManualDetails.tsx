@@ -412,7 +412,7 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                         </div>
                         <div className="relative" ref={menuActionsRef}>
                             {(canEditManual || canDeleteManual) && (
-                            <button
+                            <button aria-label={showMenuActions ? 'Fechar menu' : 'Mais opções'}
                                 onClick={() => setShowMenuActions(!showMenuActions)}
                                 className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 ${showMenuActions
                                     ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-95'
@@ -637,7 +637,7 @@ export const TechnicalManualDetails: React.FC<TechnicalManualDetailsProps> = ({
                                                         <span className="material-symbols-outlined text-slate-500">download</span>
                                                     </a>
                                                     {canDeleteManual && (
-                                                    <button
+                                                    <button aria-label="Excluir arquivo"
                                                         onClick={() => handleDeleteFile(file.id)}
                                                         className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                     >

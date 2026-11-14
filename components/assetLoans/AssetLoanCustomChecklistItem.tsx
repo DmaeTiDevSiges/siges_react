@@ -24,7 +24,7 @@ export const AssetLoanCustomChecklistItem: React.FC<AssetLoanCustomChecklistItem
                 className="flex-1 px-3 py-2 text-xs font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             />
             {!readonly && (
-                <button
+                <button aria-label="Remover item"
                     onClick={onRemove}
                     className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                 >

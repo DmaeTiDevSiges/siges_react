@@ -316,7 +316,7 @@ export const UserToolsView: React.FC<UserToolsViewProps> = ({ companyId }) => {
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{historyModal.toolMaterial}</p>
                                 )}
                             </div>
-                            <button onClick={() => setHistoryModal({ isOpen: false })} className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:opacity-80">
+                            <button aria-label="Fechar histórico" onClick={() => setHistoryModal({ isOpen: false })} className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:opacity-80">
                                 <span className="material-symbols-outlined text-base">close</span>
                             </button>
                         </div>

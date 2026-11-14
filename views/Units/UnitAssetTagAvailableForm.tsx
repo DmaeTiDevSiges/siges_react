@@ -310,7 +310,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                             </div>
 
                             <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1.5 rounded-2xl gap-1.5 shadow-inner">
-                                <button
+                                <button aria-label="Disponível"
                                     onClick={() => {
                                         setIsAvailable(true);
                                         if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
@@ -319,7 +319,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                                 >
                                     <span className={`material-symbols-outlined text-[26px] ${isAvailable === true ? '[font-variation-settings:\'FILL\'_1]' : ''}`}>thumb_up</span>
                                 </button>
-                                <button
+                                <button aria-label="Indisponível"
                                     onClick={() => {
                                         setIsAvailable(false);
                                         if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Light });
@@ -395,13 +395,13 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                                             onClick={() => setIsPreviewOpen(true)}
                                         />
                                         <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 z-10">
-                                            <button
+                                            <button aria-label="Remover imagem"
                                                 onClick={removeImage}
                                                 className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-75 transition-transform"
                                             >
                                                 <span className="material-symbols-outlined text-[16px]">close</span>
                                             </button>
-                                            <button
+                                            <button aria-label="Editar"
                                                 onClick={() => setIsEditing(true)}
                                                 className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-75 transition-transform"
                                             >

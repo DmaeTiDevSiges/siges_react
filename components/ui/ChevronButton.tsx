@@ -26,7 +26,7 @@ export const ChevronButton: React.FC<ChevronButtonProps> = ({
     };
 
     return (
-        <button
+        <button aria-label={isOpen ? 'Recolher' : 'Expandir'} aria-expanded={isOpen}
             onClick={onToggle}
             className={`flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95 ${sizes[size]} ${className}`}
         >

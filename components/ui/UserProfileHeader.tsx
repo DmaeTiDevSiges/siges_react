@@ -182,7 +182,7 @@ const UserProfileHeaderContent: React.FC<UserProfileHeaderProps> = ({
                         )}
 
                         {(currentUser.notificationsAmount || 0) > 0 && (
-                            <button
+                            <button aria-label="Notificações"
                                 onClick={onNotificationsClick}
                                 className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-600 dark:text-slate-300"
                             >

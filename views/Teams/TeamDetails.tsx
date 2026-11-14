@@ -20,7 +20,7 @@ export const TeamDetails: React.FC<TeamDetailsProps> = ({ team, onEdit, onDelete
                 {/* Context Menu Button */}
                 {(onEdit || onDelete) && (
                     <div className="absolute top-4 right-4">
-                        <button
+                        <button aria-label="Mais opções"
                             onClick={() => setShowMenu(!showMenu)}
                             className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
                         >

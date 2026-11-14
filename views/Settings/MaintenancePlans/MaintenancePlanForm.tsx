@@ -797,7 +797,7 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
                                     {selectedActivityForLink ? 'Detalhes da atividade selecionada' : 'Selecione uma atividade para a seção'}
                                 </p>
                             </div>
-                            <button 
+                            <button aria-label="Fechar" 
                                 onClick={() => {
                                     setActivityModalOpen(false);
                                     setSelectedActivityForLink(null);
@@ -924,7 +924,7 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
                                 <h3 className="font-black text-lg text-slate-900 dark:text-white uppercase tracking-tight">Nova Seção</h3>
                                 <p className="text-xs text-slate-500 font-medium tracking-tight">Informe o nome da seção do checklist</p>
                             </div>
-                            <button 
+                            <button aria-label="Fechar" 
                                 type="button"
                                 onClick={() => setSectionModalOpen(false)} 
                                 className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white shadow-sm transition-all border border-slate-100 dark:border-slate-700"

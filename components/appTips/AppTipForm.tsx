@@ -188,7 +188,7 @@ export const AppTipForm: React.FC<AppTipFormProps> = ({ isOpen, onClose, onSave,
                     </label>
                     <div className="flex flex-wrap gap-2">
                         {ICON_OPTIONS.map((ic) => (
-                            <button
+                            <button aria-label={`Escolher ícone ${ic}`}
                                 key={ic}
                                 onClick={() => setIcon(ic)}
                                 className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${

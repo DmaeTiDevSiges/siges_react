@@ -676,7 +676,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                             />
                                             
                                             <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 z-20">
-                                                <button
+                                                <button aria-label="Remover foto"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         removePhoto(index);
@@ -685,7 +685,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                                 >
                                                     <span className="material-symbols-outlined text-[18px]">delete</span>
                                                 </button>
-                                                <button
+                                                <button aria-label="Editar foto"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setEditingImage({ url: photo.url, index });

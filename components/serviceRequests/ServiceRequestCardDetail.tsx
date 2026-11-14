@@ -187,7 +187,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                     )}
 
 
-                    <button
+                    <button aria-label={isFollowed ? 'Deixar de seguir' : 'Seguir'} aria-pressed={isFollowed}
                         className={`transition-all active:scale-90 ${isFollowed ? 'text-yellow-400' : 'text-slate-300 hover:text-yellow-400'}`}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -365,7 +365,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                         >
                             <div className="flex items-center justify-between mb-6">
                                 <div className="w-12 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full" />
-                                <button
+                                <button aria-label="Fechar menu"
                                     onClick={() => setShowMenu(false)}
                                     className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-white/20 transition-colors"
                                 >

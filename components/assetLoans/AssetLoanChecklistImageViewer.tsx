@@ -239,7 +239,7 @@ export const AssetLoanChecklistImageViewer: React.FC<AssetLoanChecklistImageView
                                 }}
                             />
                             {!readonly && canDeleteImages && (
-                                <button
+                                <button aria-label="Remover imagem"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleDeleteImage(image.id);

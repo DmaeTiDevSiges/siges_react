@@ -165,7 +165,7 @@ export const MaterialDetails: React.FC<MaterialDetailsProps> = ({
 
                 {canEditDelete && (
                     <div className="relative shrink-0">
-                        <button
+                        <button aria-label="Mais opções"
                             onClick={() => setShowMenu(!showMenu)}
                             className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
                         >

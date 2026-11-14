@@ -248,7 +248,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
                                         {/* Actions */}
                                         <div className="flex items-center">
-                                            <button
+                                            <button aria-label="Marcar como lida"
                                                 onClick={() => handleRead(notification.id)}
                                                 disabled={loadingId === notification.id}
                                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${loadingId === notification.id

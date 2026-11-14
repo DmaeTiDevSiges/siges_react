@@ -535,7 +535,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         {onBack && (
-                            <button
+                            <button aria-label="Voltar"
                                 onClick={onBack}
                                 className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500"
                             >

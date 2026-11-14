@@ -286,7 +286,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
                                 placeholder="Buscar material por descrição ou código..."
                             />
                             {materialSearch && (
-                                <button
+                                <button aria-label="Limpar material"
                                     type="button"
                                     onClick={handleClearMaterial}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"

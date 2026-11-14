@@ -505,7 +505,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                     {(onEdit || onDuplicate) && (
                         <div className="relative pointer-events-auto">
-                            <button
+                            <button aria-label="Mais opções"
                                 onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
                                 className={`w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md border border-white/20 text-white hover:bg-black/40 transition-all shadow-lg ${showMenu ? 'bg-black/40' : ''}`}
                             >
@@ -558,7 +558,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                     <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
 
                     {/* Expand Indicator */}
-                    <button
+                    <button aria-label={isHeaderExpanded ? 'Recolher cabeçalho' : 'Expandir cabeçalho'} aria-expanded={isHeaderExpanded}
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setIsHeaderExpanded(prev => !prev); }}
                         className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1235,7 +1235,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                     <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{selectedMaterial.description}</p>
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{selectedMaterial.code} — {selectedMaterial.unit}</p>
                                                 </div>
-                                                <button onClick={() => setSelectedMaterial(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                                                <button aria-label="Trocar material" onClick={() => setSelectedMaterial(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                                                     <span className="material-symbols-outlined text-xl">edit</span>
                                                 </button>
                                             </div>

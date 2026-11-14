@@ -191,7 +191,7 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
                     <div className="flex flex-col items-end gap-2">
                         {/* Context Menu Trigger */}
                         <div className="relative">
-                            <button
+                            <button aria-label="Mais opções"
                                 onClick={() => setShowMenu(!showMenu)}
                                 className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-500/10 border-2 border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.3)] text-blue-500 hover:bg-blue-500 hover:text-white transition-all duration-300"
                             >
@@ -378,7 +378,7 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
                                                     </button>
                                                 </div>
                                         </div>
-                                        <button
+                                        <button aria-label="Remover gestor"
                                             onClick={() => handleRemoveManager(manager.managerId)}
                                             className="w-9 h-9 flex items-center justify-center rounded-full border border-red-500/30 text-red-500 hover:bg-red-500/10 hover:border-red-500 transition-all"
                                         >
