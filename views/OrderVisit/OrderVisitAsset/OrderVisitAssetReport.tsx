@@ -26,6 +26,7 @@ import { useOfflineSync } from '../../../hooks/useOfflineSync';
 import { useReportAutosave } from '../../../hooks/useReportAutosave';
 import { useReportPhotos } from '../../../hooks/useReportPhotos';
 import { useReportAlerts } from '../../../hooks/useReportAlerts';
+import { useReportStatusFlow } from '../../../hooks/useReportStatusFlow';
 import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
 import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
 import { OVA_PROCESSING, MAX_REPORT_PHOTOS, REPORT_SECTION_IDS, ReportPhotoSide, ReportSection, parseRecorder } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/assetReportShared';
@@ -114,8 +115,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     }, []);
 
     // Modais
-    const [showRejectionModal, setShowRejectionModal] = useState(false);
-    const [rejectionNotes, setRejectionNotes] = useState('');
     const [showMovementModal, setShowMovementModal] = useState(false);
     const [showUnmoveConfirmModal, setShowUnmoveConfirmModal] = useState(false);
     const [showRemoveModal, setShowRemoveModal] = useState(false);
@@ -123,9 +122,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [showCopyFromModal, setShowCopyFromModal] = useState(false);
     const [copySource, setCopySource] = useState<OrderVisitAssetView | null>(null);
     const [isCopying, setIsCopying] = useState(false);
-    const [showReportConfirmModal, setShowReportConfirmModal] = useState(false);
-    const [showApproveMovedModal, setShowApproveMovedModal] = useState(false);
-    const [showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal] = useState(false);
 
     // Fotos
     const photos = useReportPhotos(assetId, initialAsset);
@@ -522,79 +518,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         return false;
     };
 
-    const handleReportClick = () => {
-        if (!validateReport('reportar')) return;
-        if (hasMaintenancePlan && maintenanceProgress < 100) {
-            setShowIncompletePlanConfirmModal(true);
-            return;
-        }
-        setShowReportConfirmModal(true);
-    };
-
-    const handleConfirmReport = async () => {
-        try {
-            setIsUpdatingStatus(true);
-            // Garante os textos e grava tudo que ainda estiver pendente
-            stage({ before_comments: initialCondition, after_comments: finalCondition });
-            try {
-                await flushSave();
-            } catch {
-                return; // aviso já exibido; continua em rascunho
-            }
-            await completeSelectedAlerts();
-            await dataService.reportedOrderVisitAsset(assetId, currentUserId);
-            await releaseMyLock();
-            setShowReportConfirmModal(false);
-            toast.success('Relatório reportado com sucesso!');
-            advanceAfterAction();
-        } catch (error) {
-            toast.error('Erro ao reportar');
-        } finally {
-            setIsUpdatingStatus(false);
-        }
-    };
-
-    const handleConfirmApproval = async () => {
-        const targetStatus = localEditMode === 'review' ? OVA_PROCESSING.REVIEWED : OVA_PROCESSING.APPROVED;
-        const previousAsset = asset;
-
-        setAsset(prev => prev ? {
-            ...prev,
-            processingId: targetStatus,
-            processingDescription: targetStatus === OVA_PROCESSING.REVIEWED ? 'Revisado' : 'Aprovado'
-        } : prev);
-        setLocalEditMode(null);
-        setShowApproveMovedModal(false);
-        toast.success(`Processamento alterado para ${targetStatus === OVA_PROCESSING.REVIEWED ? 'Revisado' : 'Aprovado'}`);
-
-        try {
-            setIsUpdatingStatus(true);
-            await dataService.updateOrderVisitAssetProcessingStatus(assetId, targetStatus, currentUserId);
-            // Revisado/aprovado: segue para o próximo ativo da visita (no último, volta para a lista)
-            advanceAfterAction();
-        } catch (error) {
-            console.error('Error confirming processing:', error);
-            toast.error('Erro ao confirmar processamento');
-            setAsset(previousAsset);
-        } finally {
-            setIsUpdatingStatus(false);
-        }
-    };
-
-    const handleConfirmEdit = async () => {
-        if (!validateReport('confirmar')) return;
-        try {
-            await flushSave();
-        } catch {
-            return;
-        }
-        if (localEditMode === 'approval' && isMoved) {
-            setShowApproveMovedModal(true);
-            return;
-        }
-        await handleConfirmApproval();
-    };
-
     // ── Desktop: anterior/próximo na lista de ativos da visita (mesma ordem da lista) ──
     const [visitSiblings, setVisitSiblings] = useState<OrderVisitAssetView[]>([]);
     const [isNavigating, setIsNavigating] = useState(false);
@@ -634,6 +557,19 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         }
         (onApproved || onBack)();
     };
+
+    const {
+        showRejectionModal, setShowRejectionModal, rejectionNotes, setRejectionNotes,
+        showReportConfirmModal, setShowReportConfirmModal,
+        showApproveMovedModal, setShowApproveMovedModal,
+        showIncompletePlanConfirmModal, setShowIncompletePlanConfirmModal,
+        handleReportClick, handleConfirmReport, handleConfirmApproval, handleConfirmEdit,
+        handleRevertDraft, handleConfirmRejection,
+    } = useReportStatusFlow({
+        assetId, currentUserId, asset, setAsset, localEditMode, setLocalEditMode, setIsUpdatingStatus,
+        validateReport, hasMaintenancePlan, maintenanceProgress, isMoved, initialCondition, finalCondition,
+        stage, flushSave, completeSelectedAlerts, releaseMyLock, advanceAfterAction, onBack,
+    });
 
     // Aviso "Próximo ativo": aguarda, fecha e abre o ativo seguinte (remonta a tela)
     useEffect(() => {
@@ -687,36 +623,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             toast.error(error instanceof Error && error.message ? error.message : 'Erro ao copiar o relatório.');
         } finally {
             setIsCopying(false);
-        }
-    };
-
-    const handleRevertDraft = async () => {
-        try {
-            setIsUpdatingStatus(true);
-            await dataService.updateOrderVisitAssetProcessingStatus(assetId, OVA_PROCESSING.DRAFT, currentUserId);
-            toast.info('Relatório do ativo revertido para Rascunho');
-        } catch (error) {
-            console.error('Error reverting asset to draft:', error);
-            toast.error('Erro ao retornar para rascunho');
-        } finally {
-            setIsUpdatingStatus(false);
-            onBack();
-        }
-    };
-
-    const handleConfirmRejection = async () => {
-        if (!asset) return;
-        try {
-            setIsUpdatingStatus(true);
-            await dataService.disapproveOrderVisitAsset(assetId, currentUserId, rejectionNotes);
-            setAsset({ ...asset, processingId: OVA_PROCESSING.REJECTED, processingDescription: 'Rejeitado', disapprovedNotes: rejectionNotes });
-            setShowRejectionModal(false);
-            setRejectionNotes('');
-            toast.success('Relatório Rejeitado');
-        } catch (error) {
-            toast.error('Erro ao rejeitar');
-        } finally {
-            setIsUpdatingStatus(false);
         }
     };
 
