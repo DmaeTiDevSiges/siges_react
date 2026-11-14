@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { IconButton } from './IconButton';
 import { Button } from './Button';
 import { imgproxyService } from '../../services/media/imgproxyService';
@@ -33,6 +34,9 @@ type Mode = 'pan' | 'pen' | 'arrow' | 'circle' | 'text';
 export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imageFile, onClose, onSave, preventAnnotation = false }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const dialogRef = useRef<HTMLDivElement>(null);
+    // Foco e Tab dentro do editor; Esc NÃO fecha (descartaria as anotações sem querer — use o X)
+    useDialogA11y(isOpen, onClose, dialogRef, { closeOnEscape: false });
     
     // Image and Transform State
     const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -491,7 +495,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
 
 
     return createPortal(
-        <div className="fixed inset-0 z-9999 bg-black flex flex-col animate-in fade-in duration-300" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Editar imagem" className="fixed inset-0 z-9999 bg-black flex flex-col animate-in fade-in duration-300 outline-none" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
             {/* Toolbar Top - Close, Download and OK */}
             <div className="p-4 bg-linear-to-b from-black to-transparent flex items-center justify-between z-10">
                 <IconButton ariaLabel="Fechar" icon="close" onClick={onClose} variant="soft" size="lg" className="bg-white/10! text-white! rounded-2xl!" />

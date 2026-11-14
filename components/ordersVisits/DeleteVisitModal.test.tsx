@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UiVersionProvider } from '../../contexts/UiVersionContext';
 import { DeleteVisitModal } from './DeleteVisitModal';
@@ -39,5 +39,18 @@ describe('DeleteVisitModal', () => {
         expect(screen.getByText('Excluindo...')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /excluindo/i })).toBeDisabled();
         expect(screen.getByRole('button', { name: /voltar/i })).toBeDisabled();
+    });
+
+    it('é um diálogo nomeado; Esc fecha', () => {
+        const { onClose } = renderModal();
+        expect(screen.getByRole('dialog', { name: 'Excluir visita' })).toBeInTheDocument();
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('enquanto exclui, Esc não fecha', () => {
+        const { onClose } = renderModal({ isLoading: true });
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(onClose).not.toHaveBeenCalled();
     });
 });

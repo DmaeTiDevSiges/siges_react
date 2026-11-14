@@ -27,6 +27,7 @@ import { useReportAlerts } from '../../../hooks/useReportAlerts';
 import { useReportStatusFlow } from '../../../hooks/useReportStatusFlow';
 import { useReportPhotoActions } from '../../../hooks/useReportPhotoActions';
 import { useReportMovement } from '../../../hooks/useReportMovement';
+import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import { useReportAssetNavigation } from '../../../hooks/useReportAssetNavigation';
 import { useReportCopyFrom } from '../../../hooks/useReportCopyFrom';
 import { useReportSwap } from '../../../hooks/useReportSwap';
@@ -343,6 +344,10 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         validateReport, hasMaintenancePlan, maintenanceProgress, isMoved, initialCondition, finalCondition,
         stage, flushSave, completeSelectedAlerts, releaseMyLock, advanceAfterAction, onBack,
     });
+
+    // Janela de rejeição (portal): Esc fecha, foco entra e volta, Tab circula dentro
+    const rejectionDialogRef = useRef<HTMLDivElement>(null);
+    useDialogA11y(showRejectionModal, () => setShowRejectionModal(false), rejectionDialogRef);
 
 
 
@@ -811,7 +816,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             )}
 
             {showRejectionModal && createPortal(
-                <div className="fixed inset-0 z-200 flex items-center justify-center pad-safe-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowRejectionModal(false)}>
+                <div ref={rejectionDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Rejeitar relatório" className="outline-none fixed inset-0 z-200 flex items-center justify-center pad-safe-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowRejectionModal(false)}>
                     <div
                         className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300"
                         onClick={(e) => e.stopPropagation()}

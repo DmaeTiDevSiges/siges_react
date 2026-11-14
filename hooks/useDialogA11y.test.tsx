@@ -59,6 +59,21 @@ describe('Esc', () => {
         expect(onClose).not.toHaveBeenCalled();
     });
 
+    it('closeOnEscape: false consome o Esc (não fecha este nem o de baixo), mas segue com foco e Tab', () => {
+        const closeBottom = jest.fn();
+        const closeTop = jest.fn();
+        const Top: React.FC = () => {
+            const ref = useRef<HTMLDivElement>(null);
+            useDialogA11y(true, closeTop, ref, { closeOnEscape: false });
+            return <div ref={ref} tabIndex={-1} role="dialog" aria-label="editor"><button>x</button></div>;
+        };
+        render(<><Dialog label="baixo" open onClose={closeBottom} /><Top /></>);
+        esc();
+        expect(closeTop).not.toHaveBeenCalled();
+        expect(closeBottom).not.toHaveBeenCalled();
+        expect(screen.getByRole('dialog', { name: 'editor' })).toHaveFocus();
+    });
+
     it('usa o onClose mais recente', () => {
         const first = jest.fn();
         const second = jest.fn();

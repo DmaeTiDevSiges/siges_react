@@ -514,6 +514,17 @@ describe('OrderVisitAssetReport — rascunho, rejeição e remoção', () => {
         expect(screen.getByText('foto escura')).toBeInTheDocument();
     });
 
+    it('a janela de rejeição é um diálogo; Esc fecha e descarta nada', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ processingId: 2 }));
+        mockPerms.view = new Set(['orders_visits_processing_disapprove']);
+        await setup();
+        await click('Rejeitar');
+        expect(screen.getByRole('dialog', { name: 'Rejeitar relatório' })).toBeInTheDocument();
+        await act(async () => { fireEvent.keyDown(document.body, { key: 'Escape' }); });
+        expect(screen.queryByRole('dialog', { name: 'Rejeitar relatório' })).not.toBeInTheDocument();
+        expect(mockData.disapproveOrderVisitAsset).not.toHaveBeenCalled();
+    });
+
     it('remover o ativo da visita: confirma, grava e volta', async () => {
         mockData.getActiveOrderVisit.mockResolvedValue({ ovProcessingId: 1, isFiled: false });
         await setup();

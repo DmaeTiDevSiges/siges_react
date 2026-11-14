@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { IconButton } from './IconButton';
 
@@ -9,6 +10,8 @@ interface BarcodeScannerModalProps {
 }
 
 export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen, onClose, onScan }) => {
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useDialogA11y(isOpen, onClose, dialogRef);
     const [error, setError] = useState<string | null>(null);
     const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
@@ -54,7 +57,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Leitor de código" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 outline-none" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
             <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                     <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Leitor de Código</h3>

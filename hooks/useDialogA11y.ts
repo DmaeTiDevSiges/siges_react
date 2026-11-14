@@ -25,10 +25,15 @@ export const useDialogA11y = (
     open: boolean,
     onClose: () => void,
     containerRef: React.RefObject<HTMLElement | null>,
+    options: { closeOnEscape?: boolean } = {},
 ): void => {
     // Sempre o onClose mais recente, sem re-registrar (mexeria na ordem da pilha).
     const latest = useRef(onClose);
     latest.current = onClose;
+    // `closeOnEscape: false` — telas em que fechar sem querer perde trabalho (ex.: editor de imagem):
+    // o Esc é consumido (não fecha o de baixo) mas não fecha este.
+    const escapeCloses = useRef(options.closeOnEscape !== false);
+    escapeCloses.current = options.closeOnEscape !== false;
 
     useEffect(() => {
         if (!open) return;
@@ -45,7 +50,7 @@ export const useDialogA11y = (
             if (stack[stack.length - 1] !== token || e.defaultPrevented) return;
             if (e.key === 'Escape' && !e.isComposing) {
                 e.preventDefault();
-                latest.current();
+                if (escapeCloses.current) latest.current();
                 return;
             }
             if (e.key === 'Tab' && container) {

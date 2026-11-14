@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from '../ui/Card';
 import { Loading } from '../ui/Loading';
 import { useBackToClose } from '../../hooks/useBackToClose';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 
 interface DeleteVisitModalProps {
@@ -19,11 +20,14 @@ export const DeleteVisitModal: React.FC<DeleteVisitModalProps> = ({
 }) => {
     // Botão voltar do Android fecha (e não troca de tela por baixo)
     useBackToClose(isOpen && !isLoading, onClose);
+    const dialogRef = React.useRef<HTMLDivElement>(null);
+    // Esc fecha (menos enquanto exclui), foco entra e volta, Tab circula dentro
+    useDialogA11y(isOpen && !isLoading, onClose, dialogRef);
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pad-safe-4 animate-in fade-in duration-200" onClick={() => onClose()}>
+        <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Excluir visita" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pad-safe-4 animate-in fade-in duration-200 outline-none" onClick={() => onClose()}>
             <div onClick={e => e.stopPropagation()}>
                 <Card className="w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl rounded-[24px]! overflow-hidden border border-rose-100/50 dark:border-rose-900/20">
                     <div className="relative p-6 pt-10">

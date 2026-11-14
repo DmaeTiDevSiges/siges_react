@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { IconButton } from './IconButton';
 import { OptimizedImage } from './OptimizedImage';
 import { FileUtils } from '../../utils/FileUtils';
@@ -13,6 +14,9 @@ interface PhotoViewerProps {
 }
 
 export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIndex = 0, alt = "Visualizar Imagem", onClose }) => {
+    const dialogRef = useRef<HTMLDivElement>(null);
+    // Esc fecha só este (não o modal que estiver embaixo), foco entra, Tab circula e o foco volta
+    useDialogA11y(true, onClose, dialogRef);
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [scale, setScale] = useState(1);
     const [rotation, setRotation] = useState(0);
@@ -52,7 +56,6 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'ArrowRight') handleNext();
             if (e.key === 'ArrowLeft') handlePrev();
-            if (e.key === 'Escape') onClose();
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
@@ -135,7 +138,12 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
 
     return createPortal(
         <div
-            className="fixed inset-0 z-9999 bg-black/95 flex flex-col items-center justify-center backdrop-blur-md animate-in fade-in duration-300"
+            ref={dialogRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-label={alt}
+            className="fixed inset-0 z-9999 bg-black/95 flex flex-col items-center justify-center backdrop-blur-md animate-in fade-in duration-300 outline-none"
             onClick={(e) => e.stopPropagation()}
         >
             {/* Top Toolbar */}

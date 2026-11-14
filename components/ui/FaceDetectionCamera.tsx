@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import type { FaceDetector } from '@mediapipe/tasks-vision';
 import { IconButton } from './IconButton';
 import { getFaceDetector, detectFacesInVideo } from '../../services/ai/faceDetector';
@@ -15,6 +16,8 @@ interface FaceDetectionCameraProps {
  * Sem detector não há captura (decisão de 08/11/2026: recusar a foto).
  */
 export const FaceDetectionCamera: React.FC<FaceDetectionCameraProps> = ({ onCapture, onCancel }) => {
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useDialogA11y(true, onCancel, dialogRef);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [faceDetector, setFaceDetector] = useState<FaceDetector | null>(null);
@@ -116,7 +119,7 @@ export const FaceDetectionCamera: React.FC<FaceDetectionCameraProps> = ({ onCapt
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-4" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Câmera" className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-4 outline-none" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
             <div className="relative w-full max-w-md aspect-[3/4] rounded-3xl overflow-hidden bg-slate-900 shadow-2xl border-4 border-slate-800">
                 <video
                     ref={videoRef}
