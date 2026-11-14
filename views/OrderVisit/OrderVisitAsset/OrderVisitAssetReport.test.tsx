@@ -26,6 +26,7 @@ const mockData = {
     toggleOrderVisitAssetActivity: jest.fn(),
     removeMaterialFromAsset: jest.fn(),
     getOrderVisitAssets: jest.fn(),
+    updateAssetPhotoFromReport: jest.fn(),
 };
 const mockToast = { info: jest.fn(), error: jest.fn(), success: jest.fn(), warning: jest.fn() };
 const mockAutosave = {
@@ -760,7 +761,7 @@ describe('OrderVisitAssetReport — fotos', () => {
 
 describe('OrderVisitAssetReport — foto de capa', () => {
     beforeEach(() => {
-        mockData.updateAssetPhotoFromReport = jest.fn().mockResolvedValue(undefined);
+        mockData.updateAssetPhotoFromReport.mockResolvedValue(undefined);
         mockData.getOrderVisitAssetById.mockResolvedValue(asset({ oCompanyId: 'CO' }));
     });
 
