@@ -276,7 +276,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                 <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-lg">search</span>
-                                        <input
+                                        <input aria-label="Filtrar opções..."
                                             autoFocus
                                             type="text"
                                             placeholder="Filtrar opções..."

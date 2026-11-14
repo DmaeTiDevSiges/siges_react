@@ -199,7 +199,7 @@ const FilterSelectionContent: React.FC<{
         <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100 text-left">
             <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                <input
+                <input aria-label={`Pesquisar ${label}`}
                     type="text"
                     placeholder={`Pesquisar ${label}...`}
                     value={selectionSearch}
@@ -653,7 +653,7 @@ const UnitsPowerElectricTable: React.FC<{ items: any[]; unitsOrders?: Record<str
                                     </td>
                                     <td className="px-6 py-4 border-r border-slate-800/30 min-w-[200px]">
                                         <div className="relative group/os">
-                                            <select
+                                            <select aria-label="Selecionar OS"
                                                 className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-2 text-[11px] font-black text-white appearance-none cursor-pointer focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all outline-none uppercase tracking-tighter pr-10"
                                                 value={item.selected_os_id || ""}
                                                 onChange={(e) => {
@@ -1618,7 +1618,7 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                         {/* Date Range Inputs */}
                         {/* Date Range Selector Button */}
                         <div className="relative group flex items-center gap-3 bg-white dark:bg-slate-800 p-1.5 pr-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 transition-all shadow-sm hover:shadow-md cursor-pointer">
-                            <input
+                            <input aria-label="Mês inicial"
                                 type="month"
                                 value={dateRange.start ? dateRange.start.substring(0, 7) : ''}
                                 onChange={(e) => {

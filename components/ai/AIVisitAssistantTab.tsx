@@ -230,7 +230,7 @@ export const AIVisitAssistantTab: React.FC<AIVisitAssistantTabProps> = ({ visitI
       {/* Input */}
       <div className="shrink-0 px-4 py-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="flex items-end gap-2">
-          <textarea
+          <textarea aria-label="Pergunte sobre a visita..."
             ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}

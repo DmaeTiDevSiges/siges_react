@@ -70,7 +70,7 @@ export const AssetPriorityForm: React.FC<AssetPriorityFormProps> = ({
                                 style={{ backgroundColor: color }}
                             />
                         ))}
-                        <input
+                        <input aria-label="Cor personalizada"
                             type="color"
                             value={form.color}
                             onChange={(e) => setForm({ ...form, color: e.target.value })}

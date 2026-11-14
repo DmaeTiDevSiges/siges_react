@@ -267,7 +267,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
                     <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">
                         Descrição / Observações
                     </label>
-                    <textarea
+                    <textarea aria-label="Descrição / Observações"
                         className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none h-32"
                         placeholder="Detalhes adicionais do contrato..."
                         value={formData.description}

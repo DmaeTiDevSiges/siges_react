@@ -148,7 +148,7 @@ export const OrderRequestApproveConfirm: React.FC<OrderRequestApproveConfirmProp
                                     {formData.progress}%
                                 </span>
                             </div>
-                            <input
+                            <input aria-label="Progresso"
                                 type="range"
                                 min="0"
                                 max="100"

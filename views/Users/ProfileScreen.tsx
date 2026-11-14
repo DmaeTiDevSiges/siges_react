@@ -1171,7 +1171,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                     (o banco confere: migration 20261120). Os demais só veem a lista. */}
                                                 {canEditTeamAndVehicle && (<>
                                                 <div className="relative mt-4">
-                                                    <input
+                                                    <input aria-label="Buscar usuário para adicionar..."
                                                         type="text"
                                                         value={searchTeamQuery}
                                                         onChange={(e) => setSearchTeamQuery(e.target.value)}

@@ -16,6 +16,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ({ label, error, className = '', leftIcon, rightIcon, id, variant = 'default', ...props }, ref) => {
         const generatedId = React.useId();
         const inputId = id || generatedId;
+        // O erro é lido pelo leitor de tela junto com o campo (aria-describedby) e quando aparece (role="alert").
+        const errorId = error ? `${inputId}-error` : undefined;
 
         if (variant === 'underline') {
             return (
@@ -31,12 +33,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                             ref={ref}
                             id={inputId}
                             aria-invalid={!!error || undefined}
+                            aria-describedby={errorId}
                             className={`block w-full h-14 bg-transparent border-0 px-0 text-[24px] font-semibold text-fg placeholder:text-fg-subtle focus:ring-0 outline-none ${className}`}
                             {...props}
                         />
                         {rightIcon && <span className="text-fg-muted">{rightIcon}</span>}
                     </div>
-                    {error && <span className="text-danger text-caption">{error}</span>}
+                    {error && <span id={errorId} role="alert" className="text-danger text-caption">{error}</span>}
                 </div>
             );
         }
@@ -60,6 +63,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     <input
                         ref={ref}
                         id={inputId}
+                        aria-invalid={!!error || undefined}
+                        aria-describedby={errorId}
                         onFocus={(e) => {
                             if (props.onFocus) props.onFocus(e);
                             const target = e.target;
@@ -89,7 +94,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     )}
                 </div>
                 {error && (
-                    <span className="text-red-500 text-[11px] font-medium ml-1">
+                    <span id={errorId} role="alert" className="text-red-500 text-[11px] font-medium ml-1">
                         {error}
                     </span>
                 )}

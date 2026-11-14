@@ -13,7 +13,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ containerClassName = '
             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-slate-400 dark:text-slate-500 group-focus-within:text-primary transition-colors">
                 <span className="material-symbols-outlined text-[20px]">search</span>
             </div>
-            <input
+            <input aria-label={props.placeholder || 'Buscar'}
                 type="text"
                 className={`
                     block w-full h-12 pl-11 ${props.value && onClear ? 'pr-20' : rightAction ? 'pr-14' : 'pr-4'} 

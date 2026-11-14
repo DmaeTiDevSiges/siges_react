@@ -337,7 +337,7 @@ export const AIChatWindow: React.FC<AIChatWindowProps> = ({ isOpen, onClose, ass
         )}
 
         <div className="relative">
-          <input
+          <input aria-label="Mensagem para o assistente"
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}

@@ -173,7 +173,7 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                             <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
                                 Data/hora de encerramento
                             </label>
-                            <input
+                            <input aria-label="Data/hora de encerramento"
                                 type="datetime-local"
                                 value={endedAtInput}
                                 min={minEndAt}
@@ -244,7 +244,7 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                                     Progresso da OS (%)
                                 </label>
                                 <div className="flex items-center gap-4">
-                                    <input
+                                    <input aria-label="Progresso da OS (%)"
                                         type="range"
                                         min="1"
                                         max="99"

@@ -183,7 +183,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
           <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
             Título *
           </label>
-          <input
+          <input aria-label="Título *"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -197,7 +197,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
           <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
             Mensagem *
           </label>
-          <textarea
+          <textarea aria-label="Mensagem *"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Descreva o aviso..."
@@ -214,7 +214,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
               Categoria *
             </label>
             <div className="relative">
-              <select
+              <select aria-label="Categoria *"
                 value={categoryId}
                 onChange={(e) => setCategoryId(Number(e.target.value))}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all appearance-none"
@@ -239,7 +239,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
               Severidade *
             </label>
             <div className="relative">
-              <select
+              <select aria-label="Severidade *"
                 value={severityId}
                 onChange={(e) => setSeverityId(Number(e.target.value))}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all appearance-none"
@@ -299,7 +299,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Vigência Início *
             </label>
-            <input
+            <input aria-label="Vigência Início *"
               type="datetime-local"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
@@ -311,7 +311,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Vigência Fim *
             </label>
-            <input
+            <input aria-label="Vigência Fim *"
               type="datetime-local"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
@@ -326,7 +326,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Visualização Início *
             </label>
-            <input
+            <input aria-label="Visualização Início *"
               type="datetime-local"
               value={viewStartDate}
               onChange={(e) => setViewStartDate(e.target.value)}
@@ -338,7 +338,7 @@ export const AppNoticeForm: React.FC<AppNoticeFormProps> = ({
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Visualização Fim *
             </label>
-            <input
+            <input aria-label="Visualização Fim *"
               type="datetime-local"
               value={viewEndDate}
               onChange={(e) => setViewEndDate(e.target.value)}

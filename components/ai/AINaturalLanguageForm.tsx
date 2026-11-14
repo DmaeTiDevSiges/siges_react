@@ -103,7 +103,7 @@ export const AINaturalLanguageForm: React.FC<AINaturalLanguageFormProps> = ({
         <div className="px-4 pb-4 space-y-3">
           {/* Input */}
           <div className="relative">
-            <textarea
+            <textarea aria-label="Descreva o pedido"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}

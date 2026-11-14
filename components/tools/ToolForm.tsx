@@ -210,7 +210,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
                     {/* Linha 1: Código */}
                     <div>
                         <label className={labelClass}>Código *</label>
-                        <input
+                        <input aria-label="Código *"
                             type="text"
                             value={code}
                             onChange={(e) => setCode(e.target.value)}
@@ -223,7 +223,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className={labelClass}>Marca *</label>
-                            <input
+                            <input aria-label="Marca *"
                                 type="text"
                                 value={brand}
                                 onChange={(e) => setBrand(e.target.value)}
@@ -233,7 +233,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
                         </div>
                         <div>
                             <label className={labelClass}>Modelo *</label>
-                            <input
+                            <input aria-label="Modelo *"
                                 type="text"
                                 value={model}
                                 onChange={(e) => setModel(e.target.value)}
@@ -247,7 +247,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className={labelClass}>Nr Série *</label>
-                            <input
+                            <input aria-label="Nr Série *"
                                 type="text"
                                 value={serialNumber}
                                 onChange={(e) => setSerialNumber(e.target.value)}
@@ -275,7 +275,7 @@ export const ToolForm: React.FC<ToolFormProps> = ({ tool, onSave, onCancel, onDe
                         <label className={labelClass}>Material Relacionado *</label>
                         <div className="relative">
                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
-                            <input
+                            <input aria-label="Buscar material por descrição ou código..."
                                 type="text"
                                 value={materialSearch}
                                 onChange={(e) => handleMaterialSearchChange(e.target.value)}

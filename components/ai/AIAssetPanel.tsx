@@ -282,7 +282,7 @@ export const AIAssetPanel: React.FC<AIAssetPanelProps> = ({
       {/* Input Livre */}
       {showInput && (
         <form onSubmit={handleCustomSubmit} className="mt-2 flex gap-2">
-          <input
+          <input aria-label="Pergunta ao assistente"
             ref={inputRef}
             type="text"
             value={customInput}

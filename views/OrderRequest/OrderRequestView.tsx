@@ -494,7 +494,7 @@ const OrderRequestViewContent: React.FC<OrderRequestViewProps> = ({
                                             <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
                                                 Data/hora de início
                                             </label>
-                                            <input
+                                            <input aria-label="Data/hora de início"
                                                 type="datetime-local"
                                                 value={startedAtInput}
                                                 max={nowInput}

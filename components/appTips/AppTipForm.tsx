@@ -173,7 +173,7 @@ export const AppTipForm: React.FC<AppTipFormProps> = ({ isOpen, onClose, onSave,
                     <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                         Mensagem
                     </label>
-                    <textarea
+                    <textarea aria-label="Mensagem"
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         rows={3}
@@ -208,7 +208,7 @@ export const AppTipForm: React.FC<AppTipFormProps> = ({ isOpen, onClose, onSave,
                         <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                             Tela Alvo
                         </label>
-                        <select
+                        <select aria-label="Tela Alvo"
                             value={screenTarget}
                             onChange={(e) => setScreenTarget(e.target.value)}
                             className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"

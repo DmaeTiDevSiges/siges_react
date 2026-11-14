@@ -1359,7 +1359,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
                   search
                 </span>
-                <input
+                <input aria-label="Buscar unidade ou OS..."
                   type="text"
                   placeholder="Buscar unidade ou OS..."
                   value={search}

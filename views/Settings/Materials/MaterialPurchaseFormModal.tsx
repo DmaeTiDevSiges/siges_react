@@ -178,7 +178,7 @@ export const MaterialPurchaseFormModal: React.FC<MaterialPurchaseFormModalProps>
                     />
                     <div>
                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Valor Unitário (R$) *</label>
-                        <input
+                        <input aria-label="Valor Unitário (R$) *"
                             type="number"
                             step="0.01"
                             min="0"
@@ -196,7 +196,7 @@ export const MaterialPurchaseFormModal: React.FC<MaterialPurchaseFormModalProps>
 
                 <div>
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Justificativa *</label>
-                    <textarea
+                    <textarea aria-label="Justificativa *"
                         value={justification}
                         onChange={(e) => setJustification(e.target.value)}
                         rows={3}

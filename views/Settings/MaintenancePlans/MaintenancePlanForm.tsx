@@ -871,7 +871,7 @@ export const MaintenancePlanForm: React.FC<MaintenancePlanFormProps> = ({ planId
                                             <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider pl-1">
                                                 Observações Padrão
                                             </label>
-                                            <textarea
+                                            <textarea aria-label="Observações Padrão"
                                                 className="w-full h-32 px-5 py-4 rounded-[20px] rounded-br-[8px] bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-inner resize-none transition-all custom-scrollbar"
                                                 placeholder="Observações que virão preenchidas por padrão no checklist..."
                                                 value={activityCommentsDefault}

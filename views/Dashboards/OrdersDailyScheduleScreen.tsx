@@ -951,7 +951,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                         />
                         <div className="relative w-full sm:w-64">
                             <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
-                            <input
+                            <input aria-label="Buscar OS, unidade, serviço..."
                                 type="search"
                                 value={filter.search}
                                 onChange={e => patchStripFilter(strip, { search: e.target.value })}

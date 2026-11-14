@@ -902,7 +902,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
             >
                 {/* Input text and Send button */}
                 <div className="flex gap-2">
-                    <input
+                    <input aria-label="Escreva uma mensagem..."
                         type="text"
                         value={newMessage}
                         onChange={handleMessageChange}
@@ -968,7 +968,7 @@ export const OrderVisitChatTab: React.FC<OrderVisitChatTabProps> = ({ visitId, o
                     {/* Search Field */}
                     <div className="relative mb-3 shrink-0">
                         <span className="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-lg">search</span>
-                        <input
+                        <input aria-label="Buscar usuário..."
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}

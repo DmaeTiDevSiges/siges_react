@@ -264,7 +264,7 @@ export const AssetLoanChecklistForm: React.FC<AssetLoanChecklistFormProps> = ({
                             ))}
                         </div>
 
-                        <input
+                        <input aria-label="Observações (opcional)"
                             type="text"
                             value={item.notes}
                             onChange={(e) => handleNotesChange(index, e.target.value)}

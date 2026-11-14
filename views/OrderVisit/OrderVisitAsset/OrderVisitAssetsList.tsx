@@ -339,7 +339,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                                 </div>
                             ) : (
                                 <>
-                                    <input
+                                    <input aria-label="Pesquisar unidade..."
                                         type="text"
                                         placeholder="Pesquisar unidade..."
                                         value={unitSearchTerm}
@@ -379,7 +379,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                             </label>
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
-                                    <input
+                                    <input aria-label="Ex: MTR-01"
                                         type="text"
                                         placeholder="Ex: MTR-01"
                                         value={searchCode}

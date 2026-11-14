@@ -1534,7 +1534,7 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                 <div className="flex flex-col gap-4">
                     <div className="relative">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                        <input
+                        <input aria-label={`Pesquisar ${selectionModal.label}`}
                             type="text"
                             placeholder={`Pesquisar ${selectionModal.label}...`}
                             value={selectionSearch}

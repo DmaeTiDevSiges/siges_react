@@ -556,7 +556,7 @@ export const DashboardOrdersVisitsTodayScreen: React.FC<DashboardOrdersVisitsTod
                         {/* Search */}
                         <div className="relative group min-w-[200px] md:min-w-[300px]">
                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">search</span>
-                            <input
+                            <input aria-label="Buscar visita, unidade, líder..."
                                 type="text"
                                 placeholder="Buscar visita, unidade, líder..."
                                 value={searchQuery}

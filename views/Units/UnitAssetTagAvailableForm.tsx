@@ -370,7 +370,7 @@ export const UnitAssetTagAvailableForm: React.FC<UnitAssetTagAvailableFormProps>
                             <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1">
                                 Observações Técnica
                             </h3>
-                            <textarea
+                            <textarea aria-label="Descreva detalhes importantes..."
                                 value={comments}
                                 onChange={(e) => setComments(e.target.value)}
                                 placeholder="Descreva detalhes importantes..."

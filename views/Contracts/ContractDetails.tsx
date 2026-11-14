@@ -38,7 +38,7 @@ const UserSearchRow: React.FC<{
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                <select 
+                <select aria-label="Papel do gestor" 
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                     className="appearance-none px-3 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-primary/20 transition-all pr-8 relative"
@@ -319,7 +319,7 @@ export const ContractDetails: React.FC<ContractDetailsProps> = ({
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                             search
                         </span>
-                        <input
+                        <input aria-label="Buscar usuário para adicionar..."
                             type="text"
                             placeholder="Buscar usuário para adicionar..."
                             value={searchQuery}

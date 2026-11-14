@@ -9,6 +9,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     ({ label, error, className = '', id, ...props }, ref) => {
         const generatedId = React.useId();
         const textareaId = id || generatedId;
+        // O erro é lido junto com o campo (aria-describedby) e anunciado quando aparece (role="alert").
+        const errorId = error ? `${textareaId}-error` : undefined;
 
         return (
             <div className="flex flex-col gap-1.5 w-full">
@@ -23,6 +25,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 <textarea
                     ref={ref}
                     id={textareaId}
+                    aria-invalid={!!error || undefined}
+                    aria-describedby={errorId}
                     onFocus={(e) => {
                         if (props.onFocus) props.onFocus(e);
                         const target = e.target;
@@ -44,7 +48,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     `}
                     {...props}
                 />
-                {error && <span className="text-red-500 text-xs">{error}</span>}
+                {error && <span id={errorId} role="alert" className="text-red-500 text-xs">{error}</span>}
             </div>
         );
     }

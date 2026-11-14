@@ -780,7 +780,7 @@ export const AssetForm: React.FC<AssetFormProps> = ({ initialAsset, isDuplicate,
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Material Relacionado</label>
                                         <div className="relative">
                                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
-                                            <input
+                                            <input aria-label="Buscar material por descrição ou código..."
                                                 type="text"
                                                 value={materialSearch}
                                                 onChange={(e) => handleMaterialSearchChange(e.target.value)}

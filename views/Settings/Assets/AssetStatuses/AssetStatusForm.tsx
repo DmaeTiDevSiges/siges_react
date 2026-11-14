@@ -61,14 +61,14 @@ export const AssetStatusForm: React.FC<AssetStatusFormProps> = ({
                         Cor de Identificação
                     </label>
                     <div className="flex items-center gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[12px] p-3">
-                        <input
+                        <input aria-label="Cor de Identificação"
                             type="color"
                             value={form.color}
                             onChange={(e) => setForm({ ...form, color: e.target.value })}
                             className="w-12 h-12 rounded-lg cursor-pointer bg-transparent border-none appearance-none [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-lg [&::-webkit-color-swatch]:border-none"
                         />
                         <div className="flex-1">
-                            <input
+                            <input aria-label="#000000"
                                 type="text"
                                 value={form.color.toUpperCase()}
                                 onChange={(e) => setForm({ ...form, color: e.target.value })}

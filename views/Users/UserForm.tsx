@@ -164,7 +164,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">E-mail *</label>
                     {emailSuffix ? (
                         <div className="flex items-stretch rounded-xl border border-slate-300 dark:border-slate-600 overflow-hidden focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent transition-all">
-                            <input
+                            <input aria-label="usuario"
                                 type="text"
                                 required
                                 className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none min-w-0"
@@ -178,7 +178,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                             </span>
                         </div>
                     ) : (
-                        <input
+                        <input aria-label="usuario@exemplo.com"
                             type="email"
                             required
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
@@ -194,7 +194,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Senha *</label>
-                        <input
+                        <input aria-label="Senha *"
                             type="password"
                             required
                             minLength={6}
@@ -205,7 +205,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                     </div>
                     <div className="space-y-1">
                         <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Confirmar Senha *</label>
-                        <input
+                        <input aria-label="Confirmar Senha *"
                             type="password"
                             required
                             minLength={6}
@@ -220,7 +220,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Nome Completo *</label>
-                        <input
+                        <input aria-label="Nome Completo *"
                             type="text"
                             required
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
@@ -230,7 +230,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                     </div>
                     <div className="space-y-1">
                         <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Apelido *</label>
-                        <input
+                        <input aria-label="Apelido *"
                             type="text"
                             required
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
@@ -278,7 +278,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                 {/* Mobile */}
                 <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Celular</label>
-                    <input
+                    <input aria-label="Celular"
                         type="text"
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                         value={mobile}
@@ -294,7 +294,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Início do Turno</label>
-                            <input
+                            <input aria-label="Início do Turno"
                                 type="time"
                                 required
                                 className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
@@ -304,7 +304,7 @@ export const UserForm: React.FC<UserFormProps> = ({ companyId, onSave, onCancel 
                         </div>
                         <div className="space-y-1">
                             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Fim do Turno</label>
-                            <input
+                            <input aria-label="Fim do Turno"
                                 type="time"
                                 required
                                 className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"

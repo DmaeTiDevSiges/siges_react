@@ -84,7 +84,7 @@ export const FilterSelectionContent: React.FC<{
         <div className="flex flex-col gap-4 text-slate-800 dark:text-gray-100">
             <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                <input
+                <input aria-label={`Pesquisar ${label}`}
                     type="text"
                     placeholder={`Pesquisar ${label}...`}
                     value={selectionSearch}

@@ -76,7 +76,7 @@ export const AIKnowledgeAdmin: React.FC<{ onBack: () => void }> = ({ onBack }) =
           <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
             Tipo de Documento
           </label>
-          <select 
+          <select aria-label="Tipo de Documento" 
             value={sourceType}
             onChange={(e) => setSourceType(e.target.value)}
             className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm"
@@ -92,7 +92,7 @@ export const AIKnowledgeAdmin: React.FC<{ onBack: () => void }> = ({ onBack }) =
           <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
             Conteúdo (Texto)
           </label>
-          <textarea
+          <textarea aria-label="Conteúdo (Texto)"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Cole aqui o texto do manual ou regra de negócio..."

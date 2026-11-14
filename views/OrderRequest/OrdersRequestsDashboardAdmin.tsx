@@ -1519,7 +1519,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                 )}
                                 <div className="ml-auto flex items-center gap-2 md:hidden shrink-0">
                                     <form onSubmit={handleQuickSearch} className="relative group flex items-center">
-                                        <input
+                                        <input aria-label="Buscar SS/OS"
                                             type="text"
                                             value={quickSearchValue}
                                             onChange={(e) => setQuickSearchValue(e.target.value)}
@@ -2178,7 +2178,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
             {activeTab === 'OS' && (
                 <div className="fixed bottom-[calc(var(--bottom-nav-h,calc(4.5rem+env(safe-area-inset-bottom,0px)))+1rem)] md:bottom-6 right-6 z-50 flex items-center gap-3">
                     <form onSubmit={handleQuickSearch} className="relative group hidden md:flex items-center">
-                        <input
+                        <input aria-label="Buscar SS/OS"
                             type="text"
                             value={quickSearchValue}
                             onChange={(e) => setQuickSearchValue(e.target.value)}

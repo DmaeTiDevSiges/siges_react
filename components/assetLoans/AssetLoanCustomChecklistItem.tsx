@@ -15,7 +15,7 @@ export const AssetLoanCustomChecklistItem: React.FC<AssetLoanCustomChecklistItem
 }) => {
     return (
         <div className="flex items-center gap-2">
-            <input
+            <input aria-label="Descrição do item personalizado"
                 type="text"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}

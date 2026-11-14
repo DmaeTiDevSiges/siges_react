@@ -82,7 +82,7 @@ export const CancelPurchaseModal: React.FC<CancelPurchaseModalProps> = ({ isOpen
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                         Observação adicional (opcional)
                     </label>
-                    <textarea
+                    <textarea aria-label="Observação adicional (opcional)"
                         value={reasonText}
                         onChange={(e) => setReasonText(e.target.value)}
                         rows={3}

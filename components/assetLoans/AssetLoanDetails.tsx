@@ -566,7 +566,7 @@ const LoanDetails: React.FC<AssetLoanDetailsProps> = ({
                         <label className="block text-xs font-bold text-slate-500 mb-1">
                             Nome de quem assina
                         </label>
-                        <input
+                        <input aria-label="Nome de quem assina"
                             type="text"
                             value={signerName}
                             onChange={(e) => setSignerName(e.target.value)}

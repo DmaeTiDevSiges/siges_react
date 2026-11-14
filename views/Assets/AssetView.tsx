@@ -1187,7 +1187,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                         <div className="space-y-4">
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
-                                                <input
+                                                <input aria-label="Buscar material por código ou descrição..."
                                                     type="text"
                                                     placeholder="Buscar material por código ou descrição..."
                                                     value={componentSearch}
@@ -1243,7 +1243,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="col-span-2 sm:col-span-1">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Quantidade</label>
-                                                    <input
+                                                    <input aria-label="Quantidade"
                                                         type="number"
                                                         min="1"
                                                         value={componentForm.amount}
@@ -1253,7 +1253,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                 </div>
                                                 <div className="col-span-2 sm:col-span-1">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Marca / Modelo</label>
-                                                    <input
+                                                    <input aria-label="Marca / Modelo"
                                                         type="text"
                                                         placeholder="Ex: SKF 6309-2Z"
                                                         value={componentForm.brandModel}
@@ -1263,7 +1263,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                 </div>
                                                 <div className="col-span-2 sm:col-span-1">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Serial</label>
-                                                    <input
+                                                    <input aria-label="Serial"
                                                         type="text"
                                                         placeholder="Número de série"
                                                         value={componentForm.serial}
@@ -1273,7 +1273,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                 </div>
                                                 <div className="col-span-2 sm:col-span-1">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Localização</label>
-                                                    <input
+                                                    <input aria-label="Localização"
                                                         type="text"
                                                         placeholder="Ex: Bloco A, Estante 3"
                                                         value={componentForm.location}
@@ -1329,7 +1329,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="col-span-2 sm:col-span-1">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Quantidade</label>
-                                                    <input
+                                                    <input aria-label="Quantidade"
                                                         type="number"
                                                         min="1"
                                                         value={editComponentForm.amount}
@@ -1339,7 +1339,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                 </div>
                                                 <div className="col-span-2 sm:col-span-1">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Marca / Modelo</label>
-                                                    <input
+                                                    <input aria-label="Marca / Modelo"
                                                         type="text"
                                                         placeholder="Ex: SKF 6309-2Z"
                                                         value={editComponentForm.brandModel}
@@ -1349,7 +1349,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                 </div>
                                                 <div className="col-span-2 sm:col-span-1">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Serial</label>
-                                                    <input
+                                                    <input aria-label="Serial"
                                                         type="text"
                                                         placeholder="Número de série"
                                                         value={editComponentForm.serial}
@@ -1359,7 +1359,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                 </div>
                                                 <div className="col-span-2 sm:col-span-1">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Localização</label>
-                                                    <input
+                                                    <input aria-label="Localização"
                                                         type="text"
                                                         placeholder="Ex: Bloco A, Estante 3"
                                                         value={editComponentForm.location}

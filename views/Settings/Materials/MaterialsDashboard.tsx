@@ -276,7 +276,7 @@ export const MaterialsDashboard: React.FC<MaterialsDashboardProps> = ({ onBack, 
             <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-4 space-y-4">
                 <div className="relative group">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">search</span>
-                    <input
+                    <input aria-label="Pesquisar por código da compra ou material (código/descrição)"
                         type="text"
                         value={purchaseCodeFilter}
                         onChange={(e) => setPurchaseCodeFilter(e.target.value)}

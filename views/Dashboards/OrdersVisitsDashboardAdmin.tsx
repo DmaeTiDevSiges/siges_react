@@ -1871,7 +1871,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
                                         search
                                     </span>
-                                    <input
+                                    <input aria-label="Buscar visitas..."
                                         type="text"
                                         placeholder="Buscar visitas..."
                                         value={searchQuery}

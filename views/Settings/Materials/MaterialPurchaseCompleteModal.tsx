@@ -120,7 +120,7 @@ export const MaterialPurchaseCompleteModal: React.FC<MaterialPurchaseCompleteMod
                     />
                     <div>
                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Valor Unitário (R$) *</label>
-                        <input
+                        <input aria-label="Valor Unitário (R$) *"
                             type="number"
                             step="0.01"
                             min="0"

@@ -274,7 +274,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
             <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-4">
                     {isSuperAdmin && (
-                        <select
+                        <select aria-label="Empresa"
                             value={selectedCompanyId}
                             onChange={(e) => setSelectedCompanyId(e.target.value)}
                             className="form-select block w-56 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -285,7 +285,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                             ))}
                         </select>
                     )}
-                    <select
+                    <select aria-label="Perfil"
                         value={selectedProfileId}
                         onChange={(e) => setSelectedProfileId(e.target.value)}
                         className="form-select block w-48 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -417,23 +417,26 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <input type="checkbox" checked={canSearch} onChange={() => handleTogglePermissionSafe(String(route.id), 'search')} className="h-4 w-4 cursor-pointer" />
+                                            <input aria-label={`${route.description}: buscar`} type="checkbox" checked={canSearch} onChange={() => handleTogglePermissionSafe(String(route.id), 'search')} className="h-4 w-4 cursor-pointer" />
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <input type="checkbox" checked={canView} onChange={() => handleTogglePermissionSafe(String(route.id), 'view')} className="h-4 w-4 cursor-pointer" />
+                                            <input aria-label={`${route.description}: mostrar`} type="checkbox" checked={canView} onChange={() => handleTogglePermissionSafe(String(route.id), 'view')} className="h-4 w-4 cursor-pointer" />
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <input type="checkbox" checked={canCreate} onChange={() => handleTogglePermissionSafe(String(route.id), 'create')} className="h-4 w-4 cursor-pointer" />
+                                            <input aria-label={`${route.description}: criar`} type="checkbox" checked={canCreate} onChange={() => handleTogglePermissionSafe(String(route.id), 'create')} className="h-4 w-4 cursor-pointer" />
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <input type="checkbox" checked={canEdit} onChange={() => handleTogglePermissionSafe(String(route.id), 'edit')} className="h-4 w-4 cursor-pointer" />
+                                            <input aria-label={`${route.description}: editar`} type="checkbox" checked={canEdit} onChange={() => handleTogglePermissionSafe(String(route.id), 'edit')} className="h-4 w-4 cursor-pointer" />
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <input type="checkbox" checked={canDelete} onChange={() => handleTogglePermissionSafe(String(route.id), 'delete')} className="h-4 w-4 cursor-pointer" />
+                                            <input aria-label={`${route.description}: excluir`} type="checkbox" checked={canDelete} onChange={() => handleTogglePermissionSafe(String(route.id), 'delete')} className="h-4 w-4 cursor-pointer" />
                                         </td>
                                         {isSuperAdmin && (
                                             <td className="px-6 py-4 text-center">
                                                 <button
+                                                    role="switch"
+                                                    aria-checked={route.isAvailable}
+                                                    aria-label={`Ativar ${route.description}`}
                                                     onClick={() => handleToggleRouteAvailability(route)}
                                                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                                                         route.isAvailable ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
@@ -459,7 +462,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                 <div className="fixed inset-0 pad-safe-4 z-50 flex items-center justify-center bg-black/50">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Novo Perfil</h3>
-                        <input
+                        <input aria-label="Nome do perfil..."
                             type="text"
                             value={newProfileName}
                             onChange={(e) => setNewProfileName(e.target.value)}
@@ -471,7 +474,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-1">
                             Copiar permissões de
                         </label>
-                        <select
+                        <select aria-label="Copiar permissões de"
                             value={newProfileSourceId}
                             onChange={(e) => setNewProfileSourceId(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -508,7 +511,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Copiar de
                         </label>
-                        <select
+                        <select aria-label="Copiar de"
                             value={copySourceId}
                             onChange={(e) => setCopySourceId(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"

@@ -77,7 +77,7 @@ export const ExtraWorkersListItem: React.FC<ExtraWorkersListItemProps> = ({
           <span className="material-symbols-outlined text-[18px]">remove</span>
         </button>
 
-        <input
+        <input aria-label="Quantidade de extras"
           type="number"
           min={0}
           inputMode="numeric"

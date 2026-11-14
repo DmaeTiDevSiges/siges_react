@@ -215,7 +215,7 @@ export const LeaderRankingDashboard: React.FC<LeaderRankingDashboardProps> = ({ 
                 {/* Department Selector */}
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-400 uppercase">Departamento:</span>
-                    <select
+                    <select aria-label="Departamento"
                         value={selectedDept}
                         onChange={(e) => setSelectedDept(e.target.value)}
                         className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"

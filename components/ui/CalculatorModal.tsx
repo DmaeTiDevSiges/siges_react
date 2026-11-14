@@ -96,7 +96,7 @@ export const CalculatorModal: React.FC<CalculatorModalProps> = ({
                     </div>
 
                     <div className="bg-slate-50 dark:bg-black/30 rounded-xl p-3 mb-2">
-                        <input
+                        <input aria-label="0"
                             ref={inputRef}
                             type="text"
                             readOnly

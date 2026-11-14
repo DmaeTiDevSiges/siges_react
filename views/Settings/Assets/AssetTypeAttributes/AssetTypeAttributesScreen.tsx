@@ -263,7 +263,7 @@ export const AssetTypeAttributesScreen: React.FC = () => {
                                 </p>
                                 {editingNamingPattern ? (
                                     <div className="flex items-center gap-2 mt-2">
-                                        <input
+                                        <input aria-label="Ex: {type} {brand} {model}"
                                             type="text"
                                             value={namingPatternValue}
                                             onChange={(e) => setNamingPatternValue(e.target.value)}

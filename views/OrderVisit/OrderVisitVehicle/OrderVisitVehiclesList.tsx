@@ -360,7 +360,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                             search
                         </span>
-                        <input
+                        <input aria-label="Buscar placa ou modelo..."
                             type="text"
                             placeholder="Buscar placa ou modelo..."
                             value={searchTerm}
@@ -495,7 +495,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                     INÍCIO
                                 </label>
                                 <div className="relative">
-                                    <input
+                                    <input aria-label="INÍCIO"
                                         type="number"
                                         inputMode="numeric"
                                         placeholder="0"
@@ -533,7 +533,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                     FIM
                                 </label>
                                 <div className="relative">
-                                    <input
+                                    <input aria-label="FIM"
                                         type="number"
                                         inputMode="numeric"
                                         placeholder="0"
@@ -580,7 +580,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                                                     Competência
                                                 </label>
-                                                <input
+                                                <input aria-label="Competência"
                                                     type="month"
                                                     value={idleMonth}
                                                     onChange={(e) => setIdleMonth(e.target.value)}
@@ -594,7 +594,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                                                     Aluguel (R$)
                                                 </label>
-                                                <input
+                                                <input aria-label="Aluguel (R$)"
                                                     type="number"
                                                     inputMode="decimal"
                                                     placeholder="0,00"
