@@ -6,8 +6,46 @@
 > de paleta no Perfil) · **Piloto em produção desde 13/11** (flag ligada no `.env.production`, chave desligada por padrão) · F2 ✅ (topo "hero"; BottomNav só via CSS) · F3 ✅ (home de cards no `DashboardScreen`:
 > visita em andamento, Hoje, Serviços, Visitas, Abastecimentos; tocar abre a lista atual filtrada, "‹ Início"
 > e voltar do Android retornam) · F4–F6 ⏳.
-> **14/11/2026 — PILOTO APROVADO pelo usuário → F4 liberada** (começa por Visitas, na ordem da seção F4).
-> **F4 em andamento (desde 14/11/2026), item 1 — Visitas.** Método: cada tela ganha a versão v2 AO LADO da atual (o componente escolhe por `useUiVersion().isV2`, como `Card`/`Button`), então a chave continua revertendo tudo; o código v1 só sai na F6. Testes ANTES (visual atual registrado + especificação do novo). Feito: ✅ `OrderVisitCardListItem` (cartão da lista de visitas, usado em 5 telas) → `OrderVisitCardListItemV2` (só tokens; sem caixa alta nem fonte 9–11 px; chips suaves; botão real no número da visita; barra de progresso acessível; PDF segue vermelho e fora do botão). ✅ `OrderVisitCardDetail` (detalhe da visita, usado em `OrderVisitScreen`) → `OrderVisitCardDetailV2`: mesmas informações e regras; só tokens; texto em caixa normal; botões em pílula por tom (principal/perigo/neutro/excluir); número da OS e remover/adicionar membro como botões nomeados; anel de progresso acessível. A lógica de "adicionar membro" virou o hook `useVisitTeamAdd`, comum aos dois visuais. Garantia: teste de EQUIVALÊNCIA — em 48 combinações de props os botões visíveis (e a ordem) são os mesmos nos dois visuais. Pendências conhecidas: `OrderVisitProcessingButton` (selo de processamento) e `Select` (menu de adicionar membro) ainda têm cores fixas — entram em passo próprio. Próximo: lista "Hoje" (`DashboardOrdersVisitsTodayScreen`), execução (`OrderVisitScreen`, com `StepFlow`) e relatório do ativo.
+> **14/11/2026 — PILOTO APROVADO pelo usuário → F4 liberada.**
+>
+> ## ⏸ F4 PAUSADA em 14/11/2026 (a pedido do usuário) — onde parou e como retomar
+>
+> **Decisão que vale agora:** a chave "Visual novo (beta)" no Perfil aparece **somente para `isAdminSuper`**
+> (`contexts/UiVersionContext.tsx`: `available = flag de build && currentUser.isAdminSuper`). Os demais usuários ficam
+> SEMPRE no visual atual — inclusive quem já tinha ligado a chave antes (a preferência guardada não é apagada).
+> `VITE_FEATURE_UI_V2=true` continua no `.env.production`; para esconder de todos basta `false`. 8 testes em
+> `contexts/UiVersionContext.test.tsx`.
+>
+> **Método da F4 (manter ao retomar):** cada tela ganha a versão v2 AO LADO da atual; o componente escolhe por
+> `useUiVersion().isV2` (como `Card`/`Button`), então a chave continua revertendo tudo e o código v1 só sai na F6.
+> Testes ANTES (visual atual registrado + especificação do novo), prova de mutação, `tsc`/`test`/`lint` verdes, um
+> commit por tela. Só tokens (`bg-surface`, `text-fg`, `bg-brand`, `text-caption`…), sem caixa alta, sem fonte < 12 px,
+> sem cor fixa; controles com nome acessível; PDF segue vermelho.
+>
+> **Feito na F4 (item 1 — Visitas):**
+> - ✅ `OrderVisitCardListItem` → `OrderVisitCardListItemV2` (cartão da lista de visitas; usado em 5 telas). Commit `4957b70`.
+> - ✅ `OrderVisitCardDetail` → `OrderVisitCardDetailV2` (detalhe da visita, usado em `OrderVisitScreen`) + hook comum
+>   `hooks/useVisitTeamAdd.ts`. Teste de EQUIVALÊNCIA v1×v2: 48 combinações de props com os mesmos botões, na mesma ordem. Commit `beda7ee`.
+>
+> **Falta (em ordem, a partir daqui):**
+> 1. Lista "Hoje": `views/Dashboards/DashboardOrdersVisitsTodayScreen.tsx` (793 linhas) — ListRow + SectionCard.
+> 2. Execução da visita: `views/OrderVisit/OrderVisitScreen.tsx` (1.039 linhas) — checklist/execução em `StepFlow`.
+> 3. Relatório do ativo: `views/OrderVisit/OrderVisitAsset/OrderVisitAssetReport.tsx` (já dividido em 7 hooks; 105 testes
+>    de caracterização — boa rede de segurança) e as seções em `components/ordersVisits/ordersVisitsAssets/assetReport/`.
+> 4. Componentes compartilhados com cores fixas que aparecem DENTRO das telas já migradas e ficam "fora do estilo" no v2:
+>    `OrderVisitProcessingButton` (selo de processamento), `Select` (menu suspenso), `Loading` (camada de tela cheia com logo),
+>    `StatusBadge`, `UserAvatar`.
+> 5. Depois de Visitas, na ordem do plano (F4): Solicitações de serviço → Ordens/Ativos/Unidades → Almoxarifado/Veículos/
+>    Ferramentas → Dashboards de gestão e Configurações. Depois F5 (dark mode, contraste 4.5:1, movimento, skeletons) e
+>    F6 (trava `scripts/check-design-tokens.js` + remover o v1 e o hook).
+>
+> **O que NÃO foi possível verificar:** a aparência (não há navegador no ambiente de desenvolvimento do assistente). Os
+> testes provam estrutura, tokens e comportamento; o olho do usuário no aparelho (Perfil → "Visual novo (beta)", como
+> super admin) é o que valida o resultado. Se algo destoar, corrigir antes de seguir.
+>
+> **Nota de produto:** o objetivo da F4 é visual (identidade e legibilidade), NÃO desempenho; a lentidão, se existir, é
+> outra frente (medir antes: `App.tsx` com ~190 estados, pacotes grandes no build, listas longas, imagens).
+>
 > D1: mantido o azul SIGES, ajustado para contraste AA — claro `#1a6fd1`, escuro `#3b93f0` com texto escuro;
 > topo usa token `hero`. Chave fica no **Perfil** (Configurações é só admin).
 

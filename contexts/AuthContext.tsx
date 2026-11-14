@@ -157,6 +157,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
  * Hook to use Auth context
  * @throws Error if used outside AuthProvider
  */
+/** Como `useAuth`, mas devolve `undefined` fora do provider (em vez de lançar erro). */
+export const useOptionalAuth = (): AuthContextType | undefined => useContext(AuthContext);
+
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
     if (!context) {

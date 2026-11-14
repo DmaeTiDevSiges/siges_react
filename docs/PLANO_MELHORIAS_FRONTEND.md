@@ -89,6 +89,6 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 
 **Falta (em ordem):**
 1. ~~Alvo de toque~~ — `IconButton` feito (passo 7). **Resta auditar** os ~110 `<button>` comuns que desenham 28–32 px (`w-7 h-7`, `w-8 h-8`, `w-6! h-6!`): para eles o pseudo-elemento de −2 px não basta; precisa de decisão por tela (aumentar o botão ou a área clicável).
-2. Centralizar botão/modal/card no design system junto com o redesign (`PLANO_DESIGN_ESTILO_NUBANK.md`).
+2. Centralizar botão/modal/card no design system junto com o redesign — **F4 do redesign PAUSADA em 14/11/2026** (ver seção "F4 PAUSADA" em `docs/PLANO_DESIGN_ESTILO_NUBANK.md`: onde parou, o que falta e como retomar). Enquanto isso, a chave "Visual novo (beta)" só aparece para `isAdminSuper`.
 3. ~~Select próprio sem ARIA~~ — feito (ver passo 6). `DateInput`/`CurrencyInput`/`DecimalInput` não têm rótulo/erro próprios (dependem de quem os usa).
 4. Ainda não verificado: **contraste de cores** (ex.: `text-slate-400` sobre branco dá ~2,5:1, abaixo dos 4,5:1; precisa de decisão visual e de uma ferramenta tipo axe/Lighthouse no navegador), outros interruptores/toggles feitos de `<div>`/`<button>` sem `role="switch"`, ordem de foco por tela e checagem real com leitor de tela (TalkBack no Android).
