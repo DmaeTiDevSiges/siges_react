@@ -27,6 +27,7 @@ import { useReportAlerts } from '../../../hooks/useReportAlerts';
 import { useReportStatusFlow } from '../../../hooks/useReportStatusFlow';
 import { useReportPhotoActions } from '../../../hooks/useReportPhotoActions';
 import { useReportMovement } from '../../../hooks/useReportMovement';
+import { useReportAssetNavigation } from '../../../hooks/useReportAssetNavigation';
 import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
 import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
 import { OVA_PROCESSING, REPORT_SECTION_IDS, ReportSection, parseRecorder } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/assetReportShared';
@@ -41,7 +42,6 @@ import { AssetReportProgress, AssetReportSaveStatus, ReportProgressItem } from '
 import { AssetReportActions, AssetReportActionFlags, hasPrimaryReportAction } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportActions';
 import { AssetReportCopyFromModal } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportCopyFromModal';
 import { isOnline } from '../../../services/offline/offlineConfig';
-import { sortBySectorPositionDescription } from '../../../utils/assetReportSort';
 import {
     buildProgressSpecs, checkReport, hasMaintenancePlan as planIsChosen, isSameMovementDestination,
 } from '../../../utils/assetReportRules';
@@ -71,9 +71,6 @@ interface OrderVisitAssetReportProps {
     /** Desktop: abre o relatório do ativo anterior/seguinte da visita (setas do painel lateral). */
     onNavigateAsset?: (target: OrderVisitAssetView) => void;
 }
-
-/** Tempo do aviso "Próximo ativo" antes de abrir o ativo seguinte. */
-const ADVANCE_NOTICE_MS = 1800;
 
 const EDITABLE_STATUSES: number[] = [OVA_PROCESSING.DRAFT, OVA_PROCESSING.REJECTED];
 
@@ -332,44 +329,12 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     };
 
     // ── Desktop: anterior/próximo na lista de ativos da visita (mesma ordem da lista) ──
-    const [visitSiblings, setVisitSiblings] = useState<OrderVisitAssetView[]>([]);
-    const [isNavigating, setIsNavigating] = useState(false);
-    /** Ativo para o qual o avanço automático está indo (exibe o aviso "Próximo ativo"). */
-    const [advancingTo, setAdvancingTo] = useState<OrderVisitAssetView | null>(null);
-    const siblingsOvId = asset?.ovId ? String(asset.ovId) : '';
-    useEffect(() => {
-        if (!onNavigateAsset || readOnly || !siblingsOvId) return;
-        let cancelled = false;
-        dataService.getOrderVisitAssets(siblingsOvId)
-            .then(list => {
-                if (cancelled) return;
-                setVisitSiblings(sortBySectorPositionDescription(list, a => ({
-                    tagName: a.beforeTagDescription,
-                    tagSubName: a.beforeTagSubDescription,
-                    description: a.description,
-                    code: a.code,
-                })));
-            })
-            .catch(() => { /* sem lista: as setas só não aparecem */ });
-        return () => { cancelled = true; };
-    }, [siblingsOvId, onNavigateAsset, readOnly]);
+    const {
+        visitSiblings, siblingIndex, prevSibling, nextSibling, isNavigating, advancingTo, advanceAfterAction, goToSibling,
+    } = useReportAssetNavigation({
+        assetId, asset, onNavigateAsset, readOnly, isReadOnly, uploadingCount, flushSave, onApproved, onBack, rootRef,
+    });
 
-    const siblingIndex = visitSiblings.findIndex(a => String(a.id) === String(assetId));
-    const prevSibling = siblingIndex > 0 ? visitSiblings[siblingIndex - 1] : null;
-    const nextSibling = siblingIndex >= 0 && siblingIndex < visitSiblings.length - 1 ? visitSiblings[siblingIndex + 1] : null;
-
-    /**
-     * Depois de reportar, revisar ou aprovar: abre o próximo ativo da visita (mesma ordem da
-     * lista). No último — ou sem a lista/navegação — volta para a lista de ativos da visita.
-     */
-    const advanceAfterAction = () => {
-        if (nextSibling && onNavigateAsset) {
-            // Aviso "Próximo ativo" antes da troca: sem ele o usuário acha que continua no mesmo ativo
-            setAdvancingTo(nextSibling);
-            return;
-        }
-        (onApproved || onBack)();
-    };
 
     const {
         showRejectionModal, setShowRejectionModal, rejectionNotes, setRejectionNotes,
@@ -384,37 +349,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         stage, flushSave, completeSelectedAlerts, releaseMyLock, advanceAfterAction, onBack,
     });
 
-    // Aviso "Próximo ativo": aguarda, fecha e abre o ativo seguinte (remonta a tela)
-    useEffect(() => {
-        if (!advancingTo || !onNavigateAsset) return;
-        const target = advancingTo;
-        const timer = setTimeout(() => {
-            setAdvancingTo(null);
-            window.scrollTo({ top: 0 });
-            rootRef.current?.scrollIntoView({ block: 'start' });
-            onNavigateAsset(target);
-        }, ADVANCE_NOTICE_MS);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [advancingTo]);
 
-    /** Grava o pendente e abre o relatório do outro ativo. */
-    const goToSibling = async (target: OrderVisitAssetView | null) => {
-        if (!target || !onNavigateAsset || isNavigating) return;
-        if (uploadingCount > 0) {
-            toast.info('Aguarde o envio das fotos antes de trocar de ativo.');
-            return;
-        }
-        setIsNavigating(true);
-        try {
-            if (!isReadOnly) await flushSave();
-        } catch {
-            toast.error('Não foi possível salvar as alterações deste ativo. Tente novamente.');
-            setIsNavigating(false);
-            return;
-        }
-        onNavigateAsset(target);
-    };
 
     /** Copia o relatório da origem escolhida para este (em rascunho); fotos não são copiadas. */
     const handleCopyFromConfirm = async () => {
