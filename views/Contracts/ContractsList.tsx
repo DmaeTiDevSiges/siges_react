@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { formatDateInBrazil } from '../../utils/formatters';
 
 import { Contract } from '../../types';
@@ -20,28 +21,13 @@ interface ContractsListProps {
 export const ContractsList: React.FC<ContractsListProps> = ({ companyId, onSelect, onAdd }) => {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('Todos');
-    const [contracts, setContracts] = useState<Contract[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: allContracts = [], isPending: loading } = useQuery({
+        queryKey: ['contracts'],
+        queryFn: () => dataService.getContracts(),
+    });
+    const contracts = companyId ? allContracts.filter(c => c.clientCompanyId === companyId) : allContracts;
     const [visibleCount, setVisibleCount] = useState(10);
     const PAGE_SIZE = 10;
-
-    useEffect(() => {
-        const fetchContracts = async () => {
-            try {
-                let data = await dataService.getContracts();
-                if (companyId) {
-                    data = data.filter(c => c.clientCompanyId === companyId);
-                }
-                setContracts(data);
-            } catch (error) {
-                console.error('Failed to load contracts', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchContracts();
-    }, [companyId]);
 
     const filters = ['Todos', 'Ativos', 'Inativos'];
 

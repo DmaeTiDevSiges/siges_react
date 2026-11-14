@@ -391,6 +391,10 @@ export const dataService = {
 
     getDepartments: (...args: Parameters<typeof usersService.getDepartments>): ReturnType<typeof usersService.getDepartments> => usersService.getDepartments(...args),
 
+    getDepartmentById: (...args: Parameters<typeof usersService.getDepartmentById>): ReturnType<typeof usersService.getDepartmentById> => usersService.getDepartmentById(...args),
+
+    getTeamById: (...args: Parameters<typeof usersService.getTeamById>): ReturnType<typeof usersService.getTeamById> => usersService.getTeamById(...args),
+
     getDepartmentsByCompany: (...args: Parameters<typeof usersService.getDepartmentsByCompany>): ReturnType<typeof usersService.getDepartmentsByCompany> => usersService.getDepartmentsByCompany(...args),
 
     getDepartmentClientsIds: (...args: Parameters<typeof usersService.getDepartmentClientsIds>): ReturnType<typeof usersService.getDepartmentClientsIds> => usersService.getDepartmentClientsIds(...args),
@@ -577,6 +581,8 @@ export const dataService = {
     resetPassword: (...args: Parameters<typeof usersService.resetPassword>): ReturnType<typeof usersService.resetPassword> => usersService.resetPassword(...args),
 
     updatePassword: (...args: Parameters<typeof usersService.updatePassword>): ReturnType<typeof usersService.updatePassword> => usersService.updatePassword(...args),
+
+    getClientById: (...args: Parameters<typeof companiesService.getClientById>): ReturnType<typeof companiesService.getClientById> => companiesService.getClientById(...args),
 
     getClients: (...args: Parameters<typeof companiesService.getClients>): ReturnType<typeof companiesService.getClients> => companiesService.getClients(...args),
 

@@ -126,6 +126,53 @@ export const usersService = {
         })) as Department[];
     },
 
+    async getDepartmentById(id: string): Promise<Department | null> {
+        if (!id) return null;
+        const { data, error } = await supabase
+            .from('cfg_departments')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+        if (error) {
+            console.error('Error fetching department by id:', error);
+            return null;
+        }
+        if (!data) return null;
+        return {
+            id: data.id.toString(),
+            companyId: data.company_id.toString(),
+            name: data.description,
+            code: data.code,
+            status: data.is_available ? 'active' : 'inactive',
+            parentId: data.parent_id?.toString()
+        } as Department;
+    },
+
+    async getTeamById(id: string): Promise<Team | null> {
+        if (!id) return null;
+        const { data, error } = await supabase
+            .from('cfg_teams')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+        if (error) {
+            console.error('Error fetching team by id:', error);
+            return null;
+        }
+        if (!data) return null;
+        return {
+            id: data.id.toString(),
+            departmentId: data.department_id?.toString(),
+            parentId: data.parent_id?.toString(),
+            name: data.description,
+            code: data.code,
+            status: data.is_available ? 'active' : 'inactive',
+            sortOrder: data.sort_order ?? undefined,
+            companyId: data.company_id?.toString(),
+            isEvaluable: data.is_evaluable ?? true
+        } as Team;
+    },
+
     async getDepartmentsByCompany(companyId: string): Promise<Department[]> {
         const { data, error } = await supabase
             .from('cfg_departments')

@@ -7,6 +7,23 @@ import { getBrazilDateInputValue } from '../../utils/formatters';
 import { usersService } from '../users/usersService';
 import { applyTrackerPositions } from '../users/userTrackerService';
 
+const mapClientRow = (item: any): Client => ({
+            id: item.id.toString(),
+            name: item.name,
+            code: item.code,
+            email: item.email,
+            mobile: item.mobile,
+            address: item.address,
+            logoPath: item.img_file_path,
+            logoName: item.img_file_name,
+            status: item.is_available ? 'active' : 'inactive',
+            logoUrl: getPublicImageUrl(item.img_file_path, item.img_file_name, { width: 400, height: 400, resize: 'contain' }) || 'https://via.placeholder.com/150',
+            category: 'Cliente',
+            contractCount: 0,
+            companyId: item.company_id?.toString()
+        }) as Client;
+
+
 export const companiesService = {
     async getCompanies(): Promise<Company[]> {
         const { data: companies, error } = await supabase
@@ -506,6 +523,21 @@ export const companiesService = {
         if (error) throw error;
     },
 
+    async getClientById(id: string): Promise<Client | null> {
+        if (!id) return null;
+        const { data, error } = await supabase
+            .from('clients')
+            .select('*')
+            .eq('id', id)
+            .eq('is_deleted', 'false')
+            .maybeSingle();
+        if (error) {
+            console.error('Error fetching client by id:', error);
+            return null;
+        }
+        return data ? mapClientRow(data) : null;
+    },
+
     async getClients(): Promise<Client[]> {
         const { data, error } = await supabase
             .from('clients')
@@ -517,21 +549,7 @@ export const companiesService = {
             throw error;
         }
 
-        return data.map((item: any) => ({
-            id: item.id.toString(),
-            name: item.name,
-            code: item.code,
-            email: item.email,
-            mobile: item.mobile,
-            address: item.address,
-            logoPath: item.img_file_path,
-            logoName: item.img_file_name,
-            status: item.is_available ? 'active' : 'inactive',
-            logoUrl: getPublicImageUrl(item.img_file_path, item.img_file_name, { width: 400, height: 400, resize: 'contain' }) || 'https://via.placeholder.com/150',
-            category: 'Cliente',
-            contractCount: 0,
-            companyId: item.company_id?.toString()
-        })) as Client[];
+        return data.map(mapClientRow);
     },
 
     async createClient(client: Partial<Client>, onProgress?: (progress: number) => void): Promise<Client> {

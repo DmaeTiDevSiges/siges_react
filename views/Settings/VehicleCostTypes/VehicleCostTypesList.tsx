@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { VehicleCostType } from '../../../types';
 import { dataService } from '../../../services/dataService';
 import { SearchInput } from '../../../components/ui/SearchInput';
@@ -14,30 +15,24 @@ interface VehicleCostTypesListProps {
 }
 
 export const VehicleCostTypesList: React.FC<VehicleCostTypesListProps> = () => {
-    const [types, setTypes] = useState<VehicleCostType[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+    const { data: types = [], isPending: loading, isError, error: loadError } = useQuery({
+        queryKey: ['vehicleCostTypes'],
+        queryFn: () => dataService.getVehicleCostTypes(),
+    });
+    const loadTypes = () => queryClient.invalidateQueries({ queryKey: ['vehicleCostTypes'] });
     const [search, setSearch] = useState('');
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editing, setEditing] = useState<VehicleCostType | null>(null);
     const [deleting, setDeleting] = useState<VehicleCostType | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const loadTypes = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await dataService.getVehicleCostTypes();
-            setTypes(data);
-        } catch (error) {
-            console.error('Error loading vehicle cost types', error);
-            toast.error('Erro ao carregar os tipos de custo');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
-        loadTypes();
-    }, [loadTypes]);
+        if (isError) {
+            console.error('Error loading vehicle cost types', loadError);
+            toast.error('Erro ao carregar os tipos de custo');
+        }
+    }, [isError, loadError]);
 
     const handleSave = async (input: VehicleCostTypeFormInput) => {
         try {

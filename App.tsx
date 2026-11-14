@@ -732,16 +732,19 @@ const AppContent: React.FC = () => {
   };
 
   const handleDepartmentSelect = (department: Department) => {
+    routeDepartment.cancel();
     setSelectedDepartment(department);
     setCurrentScreen('department-details');
   };
 
   const handleTeamSelect = (team: Team) => {
+    routeTeam.cancel();
     setSelectedTeam(team);
     setCurrentScreen('team-details');
   };
 
   const handleClientSelect = (client: Client) => {
+    routeClient.cancel();
     setSelectedClient(client);
     setCurrentScreen('client-details');
   };
@@ -2221,6 +2224,7 @@ const AppContent: React.FC = () => {
     }
 
     if (
+      (currentScreen === 'client-details' && routeClient.pendingId) ||
       (currentScreen === 'unit-details' && routeUnit.pendingId) ||
       (currentScreen === 'material-details' && routeMaterial.pendingId) ||
       (currentScreen === 'technical-manual-details' && routeManual.pendingId)
@@ -2565,6 +2569,12 @@ const AppContent: React.FC = () => {
           />
         ) : null;
       case 'department-details':
+        if (routeDepartment.pendingId) return (
+          <div className="flex items-center justify-center py-20 text-slate-500">
+            <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+            Carregando...
+          </div>
+        );
         return selectedDepartment ? (
           <DepartmentDetails
             department={selectedDepartment}
@@ -2597,6 +2607,12 @@ const AppContent: React.FC = () => {
           />
         );
       case 'team-details':
+        if (routeTeam.pendingId) return (
+          <div className="flex items-center justify-center py-20 text-slate-500">
+            <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+            Carregando...
+          </div>
+        );
         return selectedTeam ? (
           <TeamDetails
             team={selectedTeam}
@@ -3356,6 +3372,29 @@ const AppContent: React.FC = () => {
     }
     return unit;
   }, goHomeWithError('a unidade'));
+  const routeClient = useRouteEntity<Client>(selectedClient, setSelectedClient, id => dataService.getClientById(id), goHomeWithError('o cliente'));
+  // Departamento/equipe: editar e voltar dependem da empresa em memória; carrega junto.
+  const ensureCompanyInMemory = async (companyId?: string | null) => {
+    if (!companyId) return;
+    if (selectedCompany && String(selectedCompany.id) === String(companyId)) return;
+    const company = await dataService.getCompanyById(String(companyId));
+    if (company) setSelectedCompany(company);
+  };
+  const routeDepartment = useRouteEntity<Department>(selectedDepartment, setSelectedDepartment, async id => {
+    const department = await dataService.getDepartmentById(id);
+    if (department) await ensureCompanyInMemory(department.companyId);
+    return department;
+  }, goHomeWithError('o departamento'));
+  const routeTeam = useRouteEntity<Team>(selectedTeam, setSelectedTeam, async id => {
+    const team = await dataService.getTeamById(id);
+    if (!team) return null;
+    let companyId = team.companyId;
+    if (!companyId && team.departmentId) {
+      companyId = (await dataService.getDepartmentById(team.departmentId))?.companyId;
+    }
+    await ensureCompanyInMemory(companyId);
+    return team;
+  }, goHomeWithError('a equipe'));
   const routeAsset = useRouteEntity<Asset>(selectedAsset, setSelectedAsset, id => dataService.getAssetById(id), () => {
     toast.error('Não foi possível abrir o ativo.');
     setCurrentScreen('dashboard');
@@ -3372,6 +3411,9 @@ const AppContent: React.FC = () => {
     unitId: routeUnit.pendingId ?? (selectedUnit?.id != null ? String(selectedUnit.id) : null),
     materialId: routeMaterial.pendingId ?? (selectedMaterial?.id != null ? String(selectedMaterial.id) : null),
     manualId: routeManual.pendingId ?? (selectedTechnicalManual?.id != null ? String(selectedTechnicalManual.id) : null),
+    clientId: routeClient.pendingId ?? (selectedClient?.id != null ? String(selectedClient.id) : null),
+    departmentId: routeDepartment.pendingId ?? (selectedDepartment?.id != null ? String(selectedDepartment.id) : null),
+    teamId: routeTeam.pendingId ?? (selectedTeam?.id != null ? String(selectedTeam.id) : null),
     assetId: routeAsset.pendingId ?? (selectedAsset?.id != null ? String(selectedAsset.id) : null),
   };
   const applyRouteSelection = (sel: Selection) => {
@@ -3392,6 +3434,9 @@ const AppContent: React.FC = () => {
     if (sel.unitId) routeUnit.load(sel.unitId);
     if (sel.materialId) routeMaterial.load(sel.materialId);
     if (sel.manualId) routeManual.load(sel.manualId);
+    if (sel.clientId) routeClient.load(sel.clientId);
+    if (sel.departmentId) routeDepartment.load(sel.departmentId);
+    if (sel.teamId) routeTeam.load(sel.teamId);
     if (sel.approvalVisitId) {
       const id = sel.approvalVisitId;
       // A tela da visita (destino do "voltar" e do aprovar) é a mesma visita.

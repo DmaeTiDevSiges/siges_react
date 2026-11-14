@@ -30,6 +30,9 @@ export type Selection = {
     unitId?: string | null;
     materialId?: string | null;
     manualId?: string | null;
+    clientId?: string | null;
+    departmentId?: string | null;
+    teamId?: string | null;
 };
 
 type SelectionKey = keyof Selection;
@@ -56,6 +59,9 @@ const ROUTES: RouteDef[] = [
     { screen: 'unit-details', pattern: '/unidade/:unitId', params: ['unitId'] },
     { screen: 'material-details', pattern: '/material/:materialId', params: ['materialId'] },
     { screen: 'technical-manual-details', pattern: '/manual/:manualId', params: ['manualId'] },
+    { screen: 'client-details', pattern: '/cliente/:clientId', params: ['clientId'] },
+    { screen: 'department-details', pattern: '/departamento/:departmentId', params: ['departmentId'] },
+    { screen: 'team-details', pattern: '/equipe/:teamId', params: ['teamId'] },
 ];
 
 /** Caminho da tela. Sem rota própria (ou sem os ids dela) cai em `/<tela>`. */

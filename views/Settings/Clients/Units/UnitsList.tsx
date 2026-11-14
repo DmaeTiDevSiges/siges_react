@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Unit, Client } from '../../../../types';
 import { dataService } from '../../../../services/dataService';
 import { SearchInput } from '../../../../components/ui/SearchInput';
@@ -23,26 +24,12 @@ export const UnitsList: React.FC<UnitsListProps> = ({ client, onSelect, onAdd })
     const { canCreate } = usePermissions();
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
-    const [units, setUnits] = useState<Unit[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: units = [], isPending: loading } = useQuery({
+        queryKey: ['units', 'byClient', client.id],
+        queryFn: () => dataService.getUnitsByClient(client.id),
+    });
     const [visibleCount, setVisibleCount] = useState(10);
     const PAGE_SIZE = 10;
-
-    const fetchUnits = async () => {
-        setLoading(true);
-        try {
-            const data = await dataService.getUnitsByClient(client.id);
-            setUnits(data);
-        } catch (error) {
-            console.error('Failed to load units', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchUnits();
-    }, [client.id]);
 
     const filteredUnits = units.filter(u => {
         const matchesSearch = u.description.toLowerCase().includes(search.toLowerCase()) ||
