@@ -103,7 +103,23 @@ jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/Asset
     ),
 }));
 jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportMovementSection', () => ({
-    AssetReportMovementSection: (p: { isMoved: boolean }) => <div data-testid="movement">{String(p.isMoved)}</div>,
+    AssetReportMovementSection: (p: Record<string, any>) => (
+        <div data-testid="movement" data-moved={String(p.isMoved)} data-missing={String(p.showMissing)} data-readonly={String(p.isReadOnly)}
+            data-values={JSON.stringify(p.values)} data-origin={JSON.stringify(p.origin)}>
+            <button onClick={() => p.onToggle(true)}>ligar movimentação</button>
+            <button onClick={() => p.onToggle(false)}>desligar movimentação</button>
+            <button onClick={() => p.onClientChange('C9')}>trocar cliente</button>
+            <button onClick={() => p.onUnitChange('U9')}>trocar unidade</button>
+            <button onClick={() => p.onUnitAssetTagChange({ id: 'T9', description: 'Sala', asset_tag_id: 4, asset_tag_sub_id: 8 })}>escolher setor</button>
+            <button onClick={() => p.onUnitAssetTagChange(null)}>limpar setor</button>
+            <button onClick={() => p.onStatusChange('S9')}>trocar situação</button>
+            <button onClick={() => p.onPriorityChange(3)}>trocar prioridade</button>
+            <button onClick={() => p.onPriorityChange(undefined)}>limpar prioridade</button>
+            <button onClick={() => p.onLocationChange('Sala 9')}>trocar local</button>
+            <button onClick={() => p.onCommentsChange('obs')}>trocar observação</button>
+            <button onClick={() => p.onTextBlur()}>sair do texto</button>
+        </div>
+    ),
 }));
 jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportRecorderSection', () => ({ AssetReportRecorderSection: () => <div /> }));
 jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportAlertsSection', () => ({
@@ -816,5 +832,189 @@ describe('OrderVisitAssetReport — foto de capa', () => {
         await click('usar como capa initial');
         await click('confirmar Usar como Foto de Capa');
         expect(mockData.updateAssetPhotoFromReport).not.toHaveBeenCalled();
+    });
+});
+
+describe('OrderVisitAssetReport — movimentação', () => {
+    const origin = {
+        clientId: 'C1', beforeClientId: 'C1', beforeUnitId: 'U1', beforeUnitAssetTagId: 'T1',
+        beforePriorityId: 2, beforeStatusId: 'S1', beforeLocation: 'Sala 3',
+        beforeClientName: 'Cliente Um', beforeUnitDescription: 'Unidade Um', beforeTagDescription: 'Setor A',
+        beforeTagSubDescription: 'Posição 2', beforeStatusDescription: 'Operando',
+    };
+    const movedTo = { afterClientId: 'C2', afterUnitId: 'U2', afterUnitAssetTagId: 'T2', afterStatusId: 'S2', afterPriorityId: 1, afterLocation: 'Sala 8' };
+    const values = () => JSON.parse(screen.getByTestId('movement').getAttribute('data-values')!);
+    const attr = (name: string) => screen.getByTestId('movement').getAttribute(`data-${name}`);
+
+    it('carga: destino começa como o que foi gravado, ou como a origem (cliente e unidade)', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset(origin));
+        await setup();
+        expect(attr('moved')).toBe('false');
+        expect(values()).toMatchObject({ clientId: 'C1', unitId: 'U1', unitAssetTagId: '', statusId: '', location: '', comments: '' });
+        expect(values().priorityId).toBeUndefined();
+    });
+
+    it('carga: destino gravado tem prioridade sobre a origem', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, ...movedTo, isMoved: true, movedComments: 'mudou' }));
+        await setup();
+        expect(attr('moved')).toBe('true');
+        expect(values()).toEqual({ clientId: 'C2', unitId: 'U2', unitAssetTagId: 'T2', statusId: 'S2', priorityId: 1, location: 'Sala 8', comments: 'mudou' });
+    });
+
+    it('origem exibida: cliente, unidade, setor / posição, situação e local', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset(origin));
+        await setup();
+        expect(JSON.parse(attr('origin')!)).toEqual({
+            clientName: 'Cliente Um', unitDescription: 'Unidade Um', tagDescription: 'Setor A / Posição 2',
+            statusDescription: 'Operando', location: 'Sala 3',
+        });
+    });
+
+    it('ligar: preenche o destino com o que falta da origem (inclusive prioridade 0) e grava só isso', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, beforePriorityId: 0 }));
+        await setup();
+        await click('ligar movimentação');
+        expect(attr('moved')).toBe('true');
+        expect(mockAutosave.saveNow).toHaveBeenCalledWith({
+            is_moved: true, after_unit_asset_tag_id: 'T1', after_priority_id: 0, after_status_id: 'S1', after_location: 'Sala 3',
+        });
+        expect(values()).toMatchObject({ clientId: 'C1', unitId: 'U1', unitAssetTagId: 'T1', statusId: 'S1', priorityId: 0, location: 'Sala 3' });
+    });
+
+    it('ligar com o destino já preenchido: só marca "movido"', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, ...movedTo, isMoved: false }));
+        await setup();
+        await click('ligar movimentação');
+        expect(mockAutosave.saveNow).toHaveBeenCalledWith({ is_moved: true });
+    });
+
+    it('desligar: pede confirmação sem gravar nada; cancelar mantém tudo', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, ...movedTo, isMoved: true }));
+        await setup();
+        await click('desligar movimentação');
+        expect(screen.getByRole('dialog', { name: 'Desligar movimentação' })).toBeInTheDocument();
+        expect(mockAutosave.saveNow).not.toHaveBeenCalled();
+        await click('cancelar Desligar movimentação');
+        expect(screen.queryByRole('dialog', { name: 'Desligar movimentação' })).not.toBeInTheDocument();
+        expect(attr('moved')).toBe('true');
+    });
+
+    it('desligar e confirmar: zera o destino, grava tudo nulo, avisa e fecha a janela', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, ...movedTo, isMoved: true, movedComments: 'x' }));
+        await setup();
+        await click('desligar movimentação');
+        await click('confirmar Desligar movimentação');
+        expect(mockAutosave.saveNow).toHaveBeenCalledWith({
+            is_moved: false, after_client_id: null, after_unit_id: null, after_unit_asset_tag_id: null, after_tag_id: null, after_tag_sub_id: null,
+            after_status_id: null, after_priority_id: null, after_location: null, moved_comments: null,
+        });
+        expect(mockToast.info).toHaveBeenCalledWith('Movimentação desativada e dados de destino resetados');
+        expect(attr('moved')).toBe('false');
+        expect(values()).toEqual({ clientId: '', unitId: '', unitAssetTagId: '', statusId: '', location: '', comments: '' });
+        expect(screen.queryByRole('dialog', { name: 'Desligar movimentação' })).not.toBeInTheDocument();
+    });
+
+    it('trocar cliente: zera unidade e setor (na tela e no banco)', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, ...movedTo, isMoved: true }));
+        await setup();
+        await click('trocar cliente');
+        expect(values()).toMatchObject({ clientId: 'C9', unitId: '', unitAssetTagId: '' });
+        expect(mockAutosave.saveNow).toHaveBeenCalledWith({
+            after_client_id: 'C9', after_unit_id: null, after_unit_asset_tag_id: null, after_tag_id: null, after_tag_sub_id: null,
+        });
+    });
+
+    it('trocar unidade: zera o setor', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, ...movedTo, isMoved: true }));
+        await setup();
+        await click('trocar unidade');
+        expect(values()).toMatchObject({ clientId: 'C2', unitId: 'U9', unitAssetTagId: '' });
+        expect(mockAutosave.saveNow).toHaveBeenCalledWith({ after_unit_id: 'U9', after_unit_asset_tag_id: null, after_tag_id: null, after_tag_sub_id: null });
+    });
+
+    it('escolher setor: grava o vínculo e os ids de tag e subtag como texto; limpar grava nulos', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, ...movedTo, isMoved: true }));
+        await setup();
+        await click('escolher setor');
+        expect(values().unitAssetTagId).toBe('T9');
+        expect(mockAutosave.saveNow).toHaveBeenCalledWith({ after_unit_asset_tag_id: 'T9', after_tag_id: '4', after_tag_sub_id: '8' });
+        await click('limpar setor');
+        expect(values().unitAssetTagId).toBe('');
+        expect(mockAutosave.saveNow).toHaveBeenLastCalledWith({ after_unit_asset_tag_id: null, after_tag_id: null, after_tag_sub_id: null });
+    });
+
+    it('situação, prioridade, local e observação: situação/prioridade gravam na hora; local/observação entram na fila do autosave', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, ...movedTo, isMoved: true }));
+        await setup();
+        await click('trocar situação');
+        expect(mockAutosave.saveNow).toHaveBeenLastCalledWith({ after_status_id: 'S9' });
+        await click('trocar prioridade');
+        expect(mockAutosave.saveNow).toHaveBeenLastCalledWith({ after_priority_id: 3 });
+        await click('limpar prioridade');
+        expect(mockAutosave.saveNow).toHaveBeenLastCalledWith({ after_priority_id: null });
+        await click('trocar local');
+        expect(mockAutosave.queueSave).toHaveBeenLastCalledWith({ after_location: 'Sala 9' });
+        await click('trocar observação');
+        expect(mockAutosave.queueSave).toHaveBeenLastCalledWith({ moved_comments: 'obs' });
+        await click('sair do texto');
+        expect(mockAutosave.flushQuietly).toHaveBeenCalled();
+        expect(values()).toMatchObject({ statusId: 'S9', location: 'Sala 9', comments: 'obs' });
+        expect(values().priorityId).toBeUndefined();
+    });
+
+    it('aviso de campos faltando: só quando movido, incompleto e editável', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, isMoved: true }));
+        await setup();
+        expect(attr('missing')).toBe('true');
+        await click('escolher setor');
+        await click('trocar situação');
+        await click('trocar prioridade');
+        expect(attr('missing')).toBe('false');
+    });
+
+    it('sem movimentação não mostra o aviso; somente leitura também não', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset(origin));
+        const first = await setup();
+        expect(attr('missing')).toBe('false');
+        first.unmount();
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, isMoved: true }));
+        await setup({ readOnly: true });
+        expect(attr('missing')).toBe('false');
+        expect(attr('readonly')).toBe('true');
+    });
+
+    it('progresso: a movimentação entra na lista só quando ligada, e conclui com o destino completo', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset(origin));
+        await setup();
+        expect(screen.getAllByTestId('progress')[0]).not.toHaveTextContent('movement');
+        await click('ligar movimentação');
+        expect(screen.getAllByTestId('progress')[0]).toHaveTextContent('movement:true');
+    });
+
+    it('reportar com movimentação incompleta: avisa os campos e não abre confirmação', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, isMoved: true }));
+        await setup();
+        await click('Reportar');
+        expect(mockToast.error).toHaveBeenCalledWith('Preencha todos os campos obrigatórios da movimentação');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('reportar movimentação para o MESMO lugar: abre o aviso "Atenção" (sem toast)', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({
+            ...origin, isMoved: true, afterClientId: 'C1', afterUnitId: 'U1', afterUnitAssetTagId: 'T1',
+            afterStatusId: 'S1', afterPriorityId: 2, afterLocation: 'Sala 3',
+        }));
+        await setup();
+        await click('Reportar');
+        expect(screen.getByRole('dialog', { name: 'Atenção' })).toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'Confirmar Reporte' })).not.toBeInTheDocument();
+        expect(mockToast.error).not.toHaveBeenCalled();
+    });
+
+    it('reportar movimentação completa e diferente da origem: segue para a confirmação', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ ...origin, ...movedTo, isMoved: true }));
+        await setup();
+        await click('Reportar');
+        expect(screen.getByRole('dialog', { name: 'Confirmar Reporte' })).toBeInTheDocument();
     });
 });
