@@ -28,6 +28,14 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         const [coords, setCoords] = useState({ left: 0, top: 0, width: 0, placement: 'bottom', maxHeight: 256 });
         const containerRef = useRef<HTMLDivElement>(null);
         const dropdownRef = useRef<HTMLDivElement>(null);
+        const triggerRef = useRef<HTMLDivElement>(null);
+        const searchRef = useRef<HTMLInputElement>(null);
+        /** Opção em destaque pelo teclado (índice em `filteredOptions`). */
+        const [activeIndex, setActiveIndex] = useState(0);
+        const labelId = `${selectId}-label`;
+        const listId = `${selectId}-list`;
+        const errorId = error ? `${selectId}-error` : undefined;
+        const optionId = (i: number) => `${selectId}-opt-${i}`;
 
         // Parsing options from children if options prop is not provided
         const options = useMemo(() => {
@@ -54,13 +62,41 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 
         const selectedOption = selectedOptions[0];
 
+        const matchesSearch = (opt: Option, term: string) => {
+            if (opt.value === "") return true; // Keep empty/placeholder option
+            const labelText = typeof opt.label === 'string' ? opt.label : String(opt.label);
+            return labelText.toLowerCase().includes(term.toLowerCase());
+        };
+
         const filteredOptions = useMemo(() =>
-            options.filter(opt => {
-                if (opt.value === "") return true; // Keep empty/placeholder option
-                const labelText = typeof opt.label === 'string' ? opt.label : String(opt.label);
-                return labelText.toLowerCase().includes(search.toLowerCase());
-            }),
+            options.filter(opt => matchesSearch(opt, search)),
             [options, search]);
+
+        const isSelected = (val: string) => multiple
+            ? Array.isArray(value) && value.includes(String(val))
+            : String(val) === String(value);
+
+        const activeIdx = Math.min(activeIndex, Math.max(0, filteredOptions.length - 1));
+
+        /** Abre a lista com a opção escolhida (ou a primeira) em destaque. */
+        const openList = () => {
+            if (disabled) return;
+            setActiveIndex(Math.max(0, options.findIndex(o => isSelected(o.value))));
+            setIsOpen(true);
+        };
+
+        /** Fecha; `returnFocus` devolve o foco ao campo (teclado/escolha), não no clique fora. */
+        const closeList = (returnFocus: boolean) => {
+            setIsOpen(false);
+            setSearch('');
+            if (returnFocus) triggerRef.current?.focus();
+        };
+
+        // Mantém a opção em destaque visível ao navegar pelas setas.
+        useEffect(() => {
+            if (!isOpen) return;
+            document.getElementById(`${selectId}-opt-${activeIdx}`)?.scrollIntoView?.({ block: 'nearest' });
+        }, [isOpen, activeIdx, selectId]);
 
         useEffect(() => {
             const handleClickOutside = (event: MouseEvent) => {
@@ -141,9 +177,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             };
         }, [isOpen]);
 
-        const handleSelect = (val: string, e: React.MouseEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
+        const selectValue = (val: string) => {
             if (onChange) {
                 let newValue: string | string[];
                 if (multiple) {
@@ -164,8 +198,58 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 onChange(event);
             }
             if (!multiple) {
-                setIsOpen(false);
-                setSearch('');
+                closeList(true);
+            } else {
+                searchRef.current?.focus(); // em múltiplo a lista fica aberta: o foco não pode se perder
+            }
+        };
+
+        const handleSelect = (val: string, e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            selectValue(val);
+        };
+
+        /** Texto mostrado no campo (também serve de nome quando não há rótulo). */
+        const hasSelection = selectedOptions.length > 0 && !(selectedOptions.length === 1 && selectedOptions[0].value === "");
+        const displayText = hasSelection
+            ? (multiple ? `${selectedOptions.length} selecionado(s)` : selectedOptions[0].label)
+            : (placeholder || 'Selecione...');
+
+        const onTriggerKeyDown = (e: React.KeyboardEvent) => {
+            if (disabled || e.nativeEvent.isComposing) return;
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!isOpen) openList();
+            }
+            // Esc com a lista fechada não é tratado aqui: segue para quem está por cima (ex.: o modal)
+        };
+
+        const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.nativeEvent.isComposing) return;
+            const last = filteredOptions.length - 1;
+            switch (e.key) {
+                case 'ArrowDown': e.preventDefault(); setActiveIndex(Math.min(last, activeIdx + 1)); break;
+                case 'ArrowUp': e.preventDefault(); setActiveIndex(Math.max(0, activeIdx - 1)); break;
+                case 'Home': e.preventDefault(); setActiveIndex(0); break;
+                case 'End': e.preventDefault(); setActiveIndex(Math.max(0, last)); break;
+                case 'Enter': {
+                    e.preventDefault();
+                    const opt = filteredOptions[activeIdx];
+                    if (opt) selectValue(opt.value);
+                    break;
+                }
+                case 'Escape':
+                    // preventDefault: o modal por baixo vê o Esc como já tratado e não fecha junto
+                    e.preventDefault();
+                    closeList(true);
+                    break;
+                case 'Tab':
+                    // A lista fica no fim da página: deixar o Tab seguir levaria o foco para fora dela
+                    e.preventDefault();
+                    closeList(true);
+                    break;
             }
         };
 
@@ -173,7 +257,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             <div className="flex flex-col gap-1.5 w-full relative" ref={containerRef}>
                 {label && (
                     <label
+                        id={labelId}
                         htmlFor={selectId}
+                        onClick={(e) => { e.preventDefault(); if (!disabled) triggerRef.current?.focus(); }}
                         className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 cursor-pointer"
                     >
                         {label} {props.required && <span className="text-red-500">*</span>}
@@ -190,6 +276,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                         className="sr-only"
                         {...props}
                         tabIndex={-1}
+                        aria-hidden="true"
                         required={props.required}
                     >
                         {options.map(opt => (
@@ -205,18 +292,20 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                         </div>
                     )}
 
-                    {/* Custom Trigger */}
+                    {/* Custom Trigger: a caixa recebe o clique do mouse; o combobox dentro recebe o teclado e o leitor de tela */}
                     <div
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (!disabled) setIsOpen(!isOpen);
+                            if (disabled) return;
+                            if (isOpen) closeList(false); else openList();
                         }}
                         className={`
                             flex items-center w-full h-12 px-4 
                             bg-white dark:bg-[#1e293b] 
                             text-slate-900 dark:text-slate-100
                             border ${isOpen ? 'border-primary ring-2 ring-primary/20 shadow-lg shadow-primary/10' : 'border-slate-200 dark:border-slate-800'}
+                            focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20
                             rounded-xl shadow-sm
                             transition-all duration-200
                             ${disabled
@@ -227,15 +316,32 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                             ${className}
                         `}
                     >
-                        <span className={`block flex-1 text-sm ${selectedOptions.length === 0 || (selectedOptions.length === 1 && selectedOptions[0].value === "") ? 'text-slate-400 dark:text-slate-500 truncate' : 'font-medium whitespace-pre-line'}`}>
-                            {selectedOptions.length > 0 && !(selectedOptions.length === 1 && selectedOptions[0].value === "")
-                                ? (multiple ? `${selectedOptions.length} selecionado(s)` : selectedOptions[0].label)
-                                : (placeholder || 'Selecione...')}
-                        </span>
+                        <div
+                            ref={triggerRef}
+                            role="combobox"
+                            tabIndex={disabled ? -1 : 0}
+                            aria-haspopup="listbox"
+                            aria-expanded={isOpen}
+                            aria-controls={isOpen ? listId : undefined}
+                            aria-labelledby={label ? labelId : undefined}
+                            aria-label={label ? undefined : (typeof displayText === 'string' ? displayText : placeholder || 'Selecione')}
+                            aria-required={props.required || undefined}
+                            aria-invalid={!!error || undefined}
+                            aria-describedby={errorId}
+                            aria-disabled={disabled || undefined}
+                            onKeyDown={onTriggerKeyDown}
+                            className="flex-1 min-w-0 h-full flex items-center outline-none"
+                        >
+                            <span className={`block flex-1 text-sm ${selectedOptions.length === 0 || (selectedOptions.length === 1 && selectedOptions[0].value === "") ? 'text-slate-400 dark:text-slate-500 truncate' : 'font-medium whitespace-pre-line'}`}>
+                                {displayText}
+                            </span>
+                        </div>
 
                         <div className={`ml-2 transition-colors ${disabled ? 'text-slate-400 dark:text-slate-600' : 'text-slate-400 group-focus-within:text-primary'}`}>
                             {clearable && !disabled && value && value !== '' && !(Array.isArray(value) && value.length === 0) && (
                                 <button
+                                    type="button"
+                                    aria-label="Limpar seleção"
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
@@ -245,10 +351,10 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                     }}
                                     className="mr-1 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                                 >
-                                    <span className="material-symbols-outlined text-[16px]">close</span>
+                                    <span className="material-symbols-outlined text-[16px]" aria-hidden="true">close</span>
                                 </button>
                             )}
-                            <span className={`material-symbols-outlined text-xl transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+                            <span className={`material-symbols-outlined text-xl transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">
                                 {disabled ? 'lock' : 'expand_more'}
                             </span>
                         </div>
@@ -275,21 +381,28 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                 {/* Search Field */}
                                 <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
                                     <div className="relative">
-                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-lg">search</span>
+                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-lg" aria-hidden="true">search</span>
                                         <input aria-label="Filtrar opções..."
+                                            ref={searchRef}
                                             autoFocus
                                             type="text"
                                             placeholder="Filtrar opções..."
+                                            aria-controls={listId}
+                                            aria-autocomplete="list"
+                                            aria-activedescendant={filteredOptions[activeIdx] ? optionId(activeIdx) : undefined}
                                             value={search}
                                             onChange={(e) => {
-                                                setSearch(e.target.value);
-                                                if (onSearchChange) onSearchChange(e.target.value);
+                                                const term = e.target.value;
+                                                setSearch(term);
+                                                // destaque: a 1ª opção que casa com o texto (a opção vazia não conta), ou a escolhida
+                                                const found = options.filter(o => matchesSearch(o, term));
+                                                const idx = term ? found.findIndex(o => o.value !== '') : found.findIndex(o => isSelected(o.value));
+                                                setActiveIndex(Math.max(0, idx));
+                                                if (onSearchChange) onSearchChange(term);
                                             }}
                                             className="w-full h-10 pl-9 pr-3 bg-white dark:bg-slate-800 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-slate-900 dark:text-white transition-all"
                                             onClick={(e) => e.stopPropagation()}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Escape') setIsOpen(false);
-                                            }}
+                                            onKeyDown={onSearchKeyDown}
                                             onFocus={(e) => {
                                                 // Natively ensure search input is fully visible if keyboard causes reflow
                                                 setTimeout(() => {
@@ -301,37 +414,47 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                 </div>
 
                                 {/* Options List */}
-                                <div className="flex-1 overflow-y-auto no-scrollbar py-1">
+                                <div
+                                    id={listId}
+                                    role="listbox"
+                                    aria-multiselectable={multiple || undefined}
+                                    aria-labelledby={label ? labelId : undefined}
+                                    aria-label={label ? undefined : (placeholder || 'Opções')}
+                                    className="flex-1 overflow-y-auto no-scrollbar py-1"
+                                >
                                     {filteredOptions.length > 0 ? (
-                                        filteredOptions.map((opt) => (
+                                        filteredOptions.map((opt, i) => (
                                             <div
                                                 key={`${opt.value}-${opt.label}`}
+                                                id={optionId(i)}
+                                                role="option"
+                                                aria-selected={isSelected(opt.value)}
                                                 onClick={(e) => handleSelect(opt.value, e)}
                                                 className={`
                                                     px-4 py-2.5 text-sm cursor-pointer transition-all flex items-center justify-between
-                                                    ${(multiple && Array.isArray(value) && value.includes(String(opt.value))) || (!multiple && String(opt.value) === String(value))
+                                                    ${isSelected(opt.value)
                                                         ? 'bg-primary/10 text-primary font-semibold'
-                                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'}
+                                                        : `text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 ${i === activeIdx ? 'bg-slate-50 dark:bg-slate-800/50' : ''}`}
                                                 `}
                                             >
                                                 <div className="flex items-center gap-3 truncate">
                                                     {multiple && (
                                                         <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${Array.isArray(value) && value.includes(String(opt.value)) ? 'bg-primary border-primary' : 'border-slate-300 dark:border-slate-600'}`}>
                                                             {Array.isArray(value) && value.includes(String(opt.value)) && (
-                                                                <span className="material-symbols-outlined text-white text-[12px] font-bold">check</span>
+                                                                <span className="material-symbols-outlined text-white text-[12px] font-bold" aria-hidden="true">check</span>
                                                             )}
                                                         </div>
                                                     )}
                                                     <span className="whitespace-pre-line">{opt.label}</span>
                                                 </div>
                                                 {!multiple && String(opt.value) === String(value) && (
-                                                    <span className="material-symbols-outlined text-lg">check</span>
+                                                    <span className="material-symbols-outlined text-lg" aria-hidden="true">check</span>
                                                 )}
                                             </div>
                                         ))
                                     ) : (
                                         <div className="px-4 py-10 text-center">
-                                            <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 text-4xl mb-2">search_off</span>
+                                            <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 text-4xl mb-2" aria-hidden="true">search_off</span>
                                             <p className="text-sm text-slate-500 dark:text-slate-400">Nenhum resultado encontrado.</p>
                                         </div>
                                     )}
@@ -343,7 +466,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 </div>
 
                 {error && (
-                    <span className="text-red-500 text-[11px] font-medium ml-1">
+                    <span id={errorId} role="alert" className="text-red-500 text-[11px] font-medium ml-1">
                         {error}
                     </span>
                 )}

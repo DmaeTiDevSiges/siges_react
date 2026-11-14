@@ -7,7 +7,8 @@
  * disparados por um botão) e exemplos dentro de comentários.
  * Corrija com `aria-label="<campo>"` ou use `Input`/`Textarea` (rótulo ligado).
  */
-const CONTROL = /<(input|select|textarea)\b((?:[^>{]|\{[^}]*(?:\{[^}]*\}[^}]*)*\})*?)\/?>/gs;
+import { findTags, lineOf, textOf } from './jsxScan';
+
 const NAMED = /aria-label=|aria-labelledby=|\btitle=/;
 
 export interface UnnamedFormControl { line: number; snippet: string }
@@ -15,25 +16,20 @@ export interface UnnamedFormControl { line: number; snippet: string }
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export const findUnnamedFormControls = (source: string): UnnamedFormControl[] => {
-    const text = source.replace(/\r\n/g, '\n');
+    const text = textOf(source);
     const found: UnnamedFormControl[] = [];
-    for (const m of text.matchAll(CONTROL)) {
-        const [, , attrs] = m;
-        const start = m.index!;
+    for (const tag of findTags(source, ['input', 'select', 'textarea'])) {
+        const { attrs } = tag;
         const type = /type=["']?(\w+)/.exec(attrs)?.[1];
-        if (type === 'hidden') continue;
-        if (NAMED.test(attrs)) continue;
-        if (/className=["']hidden["']/.test(attrs)) continue;
-        const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-        if (/^\s*(\*|\/\/)/.test(text.slice(lineStart, start))) continue;
+        if (type === 'hidden' || NAMED.test(attrs) || /className=["']hidden["']/.test(attrs)) continue;
         const idMatch = /\bid=(?:"([^"]+)"|\{([^}]+)\})/.exec(attrs);
         if (idMatch) {
             const ident = (idMatch[1] ?? idMatch[2]).trim().replace(/^[{`"']+|[}`"']+$/g, '');
             if (new RegExp(`htmlFor=[{"']?[^>]*${escapeRegExp(ident)}`).test(text)) continue;
         }
-        const before = text.slice(0, start);
+        const before = text.slice(0, tag.start);
         if (before.lastIndexOf('<label') > before.lastIndexOf('</label>')) continue;
-        found.push({ line: before.split('\n').length, snippet: text.slice(start, start + 80).replace(/\s+/g, ' ') });
+        found.push({ line: lineOf(source, tag.start), snippet: text.slice(tag.start, tag.start + 80).replace(/\s+/g, ' ') });
     }
     return found;
 };

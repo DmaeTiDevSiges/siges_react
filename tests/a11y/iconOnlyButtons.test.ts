@@ -32,6 +32,23 @@ describe('detector de botão só de ícone sem nome', () => {
         expect(findUnnamedIconButtons(`<button onClick={() => { a(); }}><span className="material-symbols-outlined">{open ? 'a' : 'b'}</span></button>`)).toHaveLength(1);
     });
 
+    it('acha mesmo com função e objetos aninhados no atributo (o caso que a regex antiga perdia)', () => {
+        const src = `<button onClick={(e) => { onChange?.({ target: { value: '', name: p.name }, persist: () => {} }); }} className={\`a ${'${x}'}\`}>\n<span className="material-symbols-outlined">close</span>\n</button>`;
+        expect(findUnnamedIconButtons(src)).toHaveLength(1);
+    });
+
+    it('um ">" dentro de texto ou de arrow function no atributo não corta a tag', () => {
+        const src = `<button onClick={() => a > b ? x() : y()} title="a > b"><span className="material-symbols-outlined">close</span></button>`;
+        expect(findUnnamedIconButtons(src)).toEqual([]);
+        const src2 = `<button onClick={() => a > b ? x() : y()}><span className="material-symbols-outlined">close</span></button>`;
+        expect(findUnnamedIconButtons(src2)).toHaveLength(1);
+    });
+
+    it('ignora exemplos em comentário', () => {
+        expect(findUnnamedIconButtons(`/* <button><span className="material-symbols-outlined">x</span></button> */`)).toEqual([]);
+        expect(findUnnamedIconButtons(`{/* <button><span className="material-symbols-outlined">x</span></button> */}`)).toEqual([]);
+    });
+
     it('botão sem ícone material-symbols é ignorado', () => {
         expect(findUnnamedIconButtons(`<button>OK</button>`)).toEqual([]);
     });

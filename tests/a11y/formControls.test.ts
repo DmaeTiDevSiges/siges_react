@@ -40,6 +40,10 @@ describe('detector de campo de formulário sem nome', () => {
         expect(findUnnamedFormControls(`/**\n * <input name="a" />\n */`)).toEqual([]);
     });
 
+    it('acha campo com onChange que tem objetos aninhados', () => {
+        expect(findUnnamedFormControls(`<input onChange={(e) => set({ a: { b: e.target.value } })} />`)).toHaveLength(1);
+    });
+
     it('id sem <label htmlFor> correspondente continua sem nome', () => {
         expect(findUnnamedFormControls(`<input id="x" />`)).toHaveLength(1);
     });
