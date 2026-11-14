@@ -27,6 +27,8 @@ const mockData = {
     removeMaterialFromAsset: jest.fn(),
     getOrderVisitAssets: jest.fn(),
     updateAssetPhotoFromReport: jest.fn(),
+    changeOrderVisitAsset: jest.fn(),
+    copyOrderVisitAssetReport: jest.fn(),
 };
 const mockToast = { info: jest.fn(), error: jest.fn(), success: jest.fn(), warning: jest.fn() };
 const mockAutosave = {
@@ -98,8 +100,8 @@ jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/Asset
     ),
 }));
 jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportMaterialsSection', () => ({
-    AssetReportMaterialsSection: (p: { materials: { id: string }[]; onRemove: (m: { id: string }) => void }) => (
-        <div>{p.materials.map(m => <button key={m.id} onClick={() => p.onRemove(m)}>remover material {m.id}</button>)}</div>
+    AssetReportMaterialsSection: (p: { id: string; materials: { id: string }[]; onRemove: (m: { id: string }) => void }) => (
+        <div id={p.id}>{p.materials.map(m => <button key={m.id} onClick={() => p.onRemove(m)}>remover material {m.id}</button>)}</div>
     ),
 }));
 jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportMovementSection', () => ({
@@ -133,8 +135,22 @@ jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/Asset
         </div>
     ),
 }));
-jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportSwapPage', () => ({ AssetReportSwapPage: () => null }));
-jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportCopyFromModal', () => ({ AssetReportCopyFromModal: () => null }));
+jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportSwapPage', () => ({
+    AssetReportSwapPage: (p: { currentAssetId: string; initialClientId: string; initialUnitId: string; isSwapping: boolean; onClose: () => void; onConfirm: (a: { id: string }) => void }) => (
+        <div data-testid="swap" data-current={p.currentAssetId} data-client={p.initialClientId} data-unit={p.initialUnitId} data-swapping={String(p.isSwapping)}>
+            <button onClick={() => p.onConfirm({ id: 'NOVO' })}>escolher ativo novo</button>
+            <button onClick={p.onClose}>fechar troca</button>
+        </div>
+    ),
+}));
+jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportCopyFromModal', () => ({
+    AssetReportCopyFromModal: (p: { isOpen: boolean; visitId?: string; currentOvaId: string; onClose: () => void; onSelect: (a: unknown) => void }) => p.isOpen ? (
+        <div data-testid="copyfrom" data-visit={p.visitId} data-ova={p.currentOvaId}>
+            <button onClick={() => p.onSelect({ id: '901', code: 'B-2', description: 'Outra bomba' })}>escolher origem</button>
+            <button onClick={p.onClose}>fechar escolha</button>
+        </div>
+    ) : null,
+}));
 jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportProgress', () => ({
     AssetReportProgress: (p: { items: { key: string; done: boolean }[] }) => (
         <div data-testid="progress">{p.items.map(i => `${i.key}:${i.done}`).join(',')}</div>
@@ -153,6 +169,8 @@ jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/Asset
             {p.localEditMode && <button onClick={p.onCancelEdit}>Cancelar edição</button>}
             {p.showReview && p.canDisapprove && <button onClick={p.onReject}>Rejeitar</button>}
             {p.showRemove && <button onClick={p.onRemove}>Remover ativo</button>}
+            {p.showSwap && <button onClick={p.onSwap}>Trocar ativo</button>}
+            {p.showCopyFrom && <button onClick={p.onCopyFrom}>Copiar de outro ativo</button>}
         </div>
     ),
 }));
@@ -250,6 +268,8 @@ beforeEach(() => {
     mockData.toggleOrderVisitAssetActivity.mockResolvedValue(undefined);
     mockData.removeMaterialFromAsset.mockResolvedValue(undefined);
     mockData.getOrderVisitAssets.mockResolvedValue([]);
+    mockData.changeOrderVisitAsset.mockResolvedValue(undefined);
+    mockData.copyOrderVisitAssetReport.mockResolvedValue({ activities: 3, materials: 2 });
 });
 
 describe('OrderVisitAssetReport — carga', () => {
@@ -1016,5 +1036,301 @@ describe('OrderVisitAssetReport — movimentação', () => {
         await setup();
         await click('Reportar');
         expect(screen.getByRole('dialog', { name: 'Confirmar Reporte' })).toBeInTheDocument();
+    });
+});
+
+describe('OrderVisitAssetReport — trocar ativo', () => {
+    const swappable = () => mockData.getActiveOrderVisit.mockResolvedValue({ ovProcessingId: 2, isFiled: false });
+    const swapButtons = () => screen.queryAllByRole('button', { name: 'Trocar ativo' });
+
+    it('aparece com a visita já reportada (2, 3 ou 4), ativo não movido e visita não arquivada', async () => {
+        swappable();
+        await setup();
+        expect(swapButtons().length).toBeGreaterThan(0);
+    });
+
+    it.each([
+        ['visita ainda em rascunho', () => mockData.getActiveOrderVisit.mockResolvedValue({ ovProcessingId: 1, isFiled: false }), asset()],
+        ['ativo movido', swappable, asset({ isMoved: true })],
+        ['ativo arquivado', swappable, asset({ isFiled: true })],
+    ])('não aparece com %s', async (_name, prepare, data) => {
+        prepare();
+        mockData.getOrderVisitAssetById.mockResolvedValue(data);
+        await setup();
+        expect(swapButtons()).toHaveLength(0);
+    });
+
+    it('abre a página de troca com o ativo, o cliente e a unidade atuais; fechar volta', async () => {
+        swappable();
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ clientId: 'C1', unitId: 'U1' }));
+        await setup();
+        await click('Trocar ativo');
+        const swap = screen.getByTestId('swap');
+        expect(swap).toHaveAttribute('data-current', '55');
+        expect(swap).toHaveAttribute('data-client', 'C1');
+        expect(swap).toHaveAttribute('data-unit', 'U1');
+        await click('fechar troca');
+        expect(screen.queryByTestId('swap')).not.toBeInTheDocument();
+    });
+
+    it('confirmar: troca na visita, avisa, fecha a página e recarrega o relatório', async () => {
+        swappable();
+        await setup();
+        await click('Trocar ativo');
+        await click('escolher ativo novo');
+        expect(mockData.changeOrderVisitAsset).toHaveBeenCalledWith('900', 'NOVO', '7');
+        expect(mockToast.success).toHaveBeenCalledWith('Ativo alterado com sucesso!');
+        expect(screen.queryByTestId('swap')).not.toBeInTheDocument();
+        expect(mockData.getOrderVisitAssetById).toHaveBeenCalledTimes(2);
+    });
+
+    it('falha: mostra o motivo (ou o texto padrão), mantém a página aberta e libera o botão', async () => {
+        swappable();
+        mockData.changeOrderVisitAsset.mockRejectedValueOnce(new Error('ativo já está na visita'));
+        await setup();
+        await click('Trocar ativo');
+        await click('escolher ativo novo');
+        expect(mockToast.error).toHaveBeenCalledWith('ativo já está na visita');
+        expect(screen.getByTestId('swap')).toHaveAttribute('data-swapping', 'false');
+        mockData.changeOrderVisitAsset.mockRejectedValueOnce({});
+        await click('escolher ativo novo');
+        expect(mockToast.error).toHaveBeenLastCalledWith('Erro ao trocar ativo');
+        expect(mockData.getOrderVisitAssetById).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('OrderVisitAssetReport — copiar de outro ativo', () => {
+    const copyButtons = () => screen.queryAllByRole('button', { name: 'Copiar de outro ativo' });
+    const openConfirm = async () => {
+        await click('Copiar de outro ativo');
+        await click('escolher origem');
+    };
+
+    it('só no rascunho editável e sem modo de revisão/aprovação', async () => {
+        await setup();
+        expect(copyButtons().length).toBeGreaterThan(0);
+    });
+
+    it('não aparece em ativo reportado nem em somente leitura', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ processingId: 2 }));
+        const first = await setup();
+        expect(copyButtons()).toHaveLength(0);
+        first.unmount();
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset());
+        mockLock.lock = { status: 'other' };
+        await setup();
+        expect(copyButtons()).toHaveLength(0);
+    });
+
+    it('sem internet: avisa e nem abre a escolha', async () => {
+        mockOnline.value = false;
+        await setup();
+        await click('Copiar de outro ativo');
+        expect(mockToast.error).toHaveBeenCalledWith('Copiar de outro ativo precisa de internet.');
+        expect(screen.queryByTestId('copyfrom')).not.toBeInTheDocument();
+    });
+
+    it('escolha recebe a visita e o ativo atual; escolher a origem pede confirmação com o código', async () => {
+        await setup();
+        await click('Copiar de outro ativo');
+        expect(screen.getByTestId('copyfrom')).toHaveAttribute('data-visit', '33');
+        expect(screen.getByTestId('copyfrom')).toHaveAttribute('data-ova', '900');
+        await click('escolher origem');
+        expect(screen.queryByTestId('copyfrom')).not.toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Copiar relatório' })).toHaveTextContent('B-2 Outra bomba');
+        expect(mockData.copyOrderVisitAssetReport).not.toHaveBeenCalled();
+    });
+
+    it('fechar a escolha não copia nada', async () => {
+        await setup();
+        await click('Copiar de outro ativo');
+        await click('fechar escolha');
+        expect(screen.queryByTestId('copyfrom')).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'Copiar relatório' })).not.toBeInTheDocument();
+    });
+
+    it('confirmar: grava o pendente, copia, avisa com as contagens, fecha e recarrega', async () => {
+        await setup();
+        await openConfirm();
+        await click('confirmar Copiar relatório');
+        expect(mockAutosave.flushSave).toHaveBeenCalled();
+        expect(mockData.copyOrderVisitAssetReport).toHaveBeenCalledWith('900', '901', '7');
+        expect(mockToast.success).toHaveBeenCalledWith('Relatório copiado de B-2: 3 atividade(s) e 2 material(is). Inclua as fotos.');
+        expect(screen.queryByRole('dialog', { name: 'Copiar relatório' })).not.toBeInTheDocument();
+        expect(mockData.getOrderVisitAssetById).toHaveBeenCalledTimes(2);
+    });
+
+    it('falha ao gravar o pendente não impede a cópia', async () => {
+        mockAutosave.flushSave.mockRejectedValue(new Error('x'));
+        await setup();
+        await openConfirm();
+        await click('confirmar Copiar relatório');
+        expect(mockData.copyOrderVisitAssetReport).toHaveBeenCalled();
+    });
+
+    it('perdeu a internet entre escolher e confirmar: avisa e não copia', async () => {
+        await setup();
+        await openConfirm();
+        mockOnline.value = false;
+        await click('confirmar Copiar relatório');
+        expect(mockToast.error).toHaveBeenCalledWith('Copiar de outro ativo precisa de internet.');
+        expect(mockData.copyOrderVisitAssetReport).not.toHaveBeenCalled();
+    });
+
+    it('falha: mostra o motivo (ou o texto padrão) e a confirmação continua aberta', async () => {
+        mockData.copyOrderVisitAssetReport.mockRejectedValueOnce(new Error('origem sem atividades'));
+        await setup();
+        await openConfirm();
+        await click('confirmar Copiar relatório');
+        expect(mockToast.error).toHaveBeenCalledWith('origem sem atividades');
+        expect(screen.getByRole('dialog', { name: 'Copiar relatório' })).toBeInTheDocument();
+        mockData.copyOrderVisitAssetReport.mockRejectedValueOnce({});
+        await click('confirmar Copiar relatório');
+        expect(mockToast.error).toHaveBeenLastCalledWith('Erro ao copiar o relatório.');
+    });
+
+    it('cancelar a confirmação descarta a origem sem copiar', async () => {
+        await setup();
+        await openConfirm();
+        await click('cancelar Copiar relatório');
+        expect(screen.queryByRole('dialog', { name: 'Copiar relatório' })).not.toBeInTheDocument();
+        expect(mockData.copyOrderVisitAssetReport).not.toHaveBeenCalled();
+    });
+});
+
+describe('OrderVisitAssetReport — navegação entre ativos (setas)', () => {
+    const sib = (id: string, code: string) => ({ id, code, description: `desc ${code}`, beforeTagDescription: '', beforeTagSubDescription: '' });
+    const three = () => mockData.getOrderVisitAssets.mockResolvedValue([sib('899', 'A'), sib('900', 'B'), sib('901', 'C')]);
+    const arrows = () => ({ prev: screen.getByRole('button', { name: 'Ativo anterior' }), next: screen.getByRole('button', { name: 'Próximo ativo' }) });
+    const withNav = async (extra: Record<string, unknown> = {}) => {
+        const onNavigateAsset = jest.fn();
+        await setup({ onNavigateAsset, ...extra });
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Ativo anterior' })).toBeInTheDocument());
+        return onNavigateAsset;
+    };
+
+    it('mostra a posição e as setas com o vizinho no título', async () => {
+        three();
+        await withNav();
+        expect(screen.getByText('2 de 3')).toBeInTheDocument();
+        expect(arrows().prev).toHaveAttribute('title', 'Anterior: A · desc A');
+        expect(arrows().next).toHaveAttribute('title', 'Próximo: C · desc C');
+        expect(arrows().prev).toBeEnabled();
+        expect(arrows().next).toBeEnabled();
+    });
+
+    it('no primeiro e no último a seta do lado vazio fica desabilitada', async () => {
+        mockData.getOrderVisitAssets.mockResolvedValue([sib('900', 'A'), sib('901', 'B')]);
+        await withNav();
+        expect(arrows().prev).toBeDisabled();
+        expect(arrows().prev).toHaveAttribute('title', 'Primeiro ativo da visita');
+        expect(arrows().next).toBeEnabled();
+    });
+
+    it('com um só ativo, sem a lista, em somente leitura ou sem onNavigateAsset: não há setas e nem busca a lista', async () => {
+        mockData.getOrderVisitAssets.mockResolvedValue([sib('900', 'A')]);
+        const first = await setup({ onNavigateAsset: jest.fn() });
+        await waitFor(() => expect(mockData.getOrderVisitAssets).toHaveBeenCalled());
+        expect(screen.queryByRole('button', { name: 'Ativo anterior' })).not.toBeInTheDocument();
+        first.unmount();
+
+        mockData.getOrderVisitAssets.mockClear();
+        three();
+        await setup({ readOnly: true, onNavigateAsset: jest.fn() });
+        expect(mockData.getOrderVisitAssets).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: 'Ativo anterior' })).not.toBeInTheDocument();
+    });
+
+    it('lista que não carrega: segue sem as setas, sem avisar', async () => {
+        mockData.getOrderVisitAssets.mockRejectedValue(new Error('x'));
+        await setup({ onNavigateAsset: jest.fn() });
+        await waitFor(() => expect(mockData.getOrderVisitAssets).toHaveBeenCalled());
+        expect(screen.queryByRole('button', { name: 'Ativo anterior' })).not.toBeInTheDocument();
+        expect(mockToast.error).not.toHaveBeenCalled();
+    });
+
+    it('próximo: grava o pendente e abre o ativo seguinte', async () => {
+        three();
+        const onNavigateAsset = await withNav();
+        await act(async () => { fireEvent.click(arrows().next); });
+        expect(mockAutosave.flushSave).toHaveBeenCalled();
+        expect(onNavigateAsset).toHaveBeenCalledWith(expect.objectContaining({ id: '901' }));
+    });
+
+    it('anterior: abre o ativo anterior', async () => {
+        three();
+        const onNavigateAsset = await withNav();
+        await act(async () => { fireEvent.click(arrows().prev); });
+        expect(onNavigateAsset).toHaveBeenCalledWith(expect.objectContaining({ id: '899' }));
+    });
+
+    it('relatório já reportado (somente leitura): navega sem gravar nada', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ processingId: 2 }));
+        three();
+        const onNavigateAsset = await withNav();
+        await act(async () => { fireEvent.click(arrows().next); });
+        expect(mockAutosave.flushSave).not.toHaveBeenCalled();
+        expect(onNavigateAsset).toHaveBeenCalledWith(expect.objectContaining({ id: '901' }));
+    });
+
+    it('fotos ainda subindo: avisa e não troca de ativo', async () => {
+        three();
+        mockPhotos.pendingCount = 1;
+        const onNavigateAsset = await withNav();
+        await act(async () => { fireEvent.click(arrows().next); });
+        expect(mockToast.info).toHaveBeenCalledWith('Aguarde o envio das fotos antes de trocar de ativo.');
+        expect(onNavigateAsset).not.toHaveBeenCalled();
+    });
+
+    it('falha ao gravar: avisa, não troca e libera as setas', async () => {
+        three();
+        mockAutosave.flushSave.mockRejectedValue(new Error('x'));
+        const onNavigateAsset = await withNav();
+        await act(async () => { fireEvent.click(arrows().next); });
+        expect(mockToast.error).toHaveBeenCalledWith('Não foi possível salvar as alterações deste ativo. Tente novamente.');
+        expect(onNavigateAsset).not.toHaveBeenCalled();
+        expect(arrows().next).toBeEnabled();
+    });
+
+    it('depois de abrir o vizinho, as setas ficam travadas ("Abrindo…") para não abrir dois', async () => {
+        three();
+        const onNavigateAsset = await withNav();
+        await act(async () => { fireEvent.click(arrows().next); });
+        expect(screen.getByText('Abrindo…')).toBeInTheDocument();
+        expect(arrows().next).toBeDisabled();
+        await act(async () => { fireEvent.click(arrows().prev); });
+        expect(onNavigateAsset).toHaveBeenCalledTimes(1);
+    });
+
+    it('aviso "Próximo Ativo" mostra o vizinho e a posição dele', async () => {
+        three();
+        const onNavigateAsset = await withNav();
+        jest.useFakeTimers();
+        await click('Reportar');
+        await click('confirmar Confirmar Reporte');
+        expect(screen.getByRole('dialog', { name: 'Próximo Ativo' })).toHaveTextContent('C · desc C (3 de 3)');
+        await act(async () => { jest.advanceTimersByTime(1800); });
+        expect(onNavigateAsset).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('OrderVisitAssetReport — rolagem até a seção (focusSection)', () => {
+    const scroll = () => Element.prototype.scrollIntoView as jest.Mock;
+    beforeEach(() => scroll().mockClear());
+
+    it('depois da carga, centraliza a seção pedida e avisa que tratou', async () => {
+        const onFocusHandled = jest.fn();
+        await setup({ focusSection: 'materials', onFocusHandled });
+        await waitFor(() => expect(onFocusHandled).toHaveBeenCalledTimes(1), { timeout: 2000 });
+        expect(scroll()).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        expect(scroll().mock.instances[0]).toHaveProperty('id', 'ova-report-materials');
+    });
+
+    it('sem seção pedida, não rola nem avisa', async () => {
+        const onFocusHandled = jest.fn();
+        await setup({ onFocusHandled });
+        await act(async () => { await new Promise(r => setTimeout(r, 450)); });
+        expect(scroll()).not.toHaveBeenCalled();
+        expect(onFocusHandled).not.toHaveBeenCalled();
     });
 });
