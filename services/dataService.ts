@@ -154,40 +154,21 @@ const metadataCache = {
 let currentUserPromise: Promise<User | null> | null = null;
 
 export const dataService = {
-    async getAppConfig() {
-        return settingsService.getAppConfig.apply(settingsService, arguments as any);
-    },
-    async getProcessingConfigurations() {
-        return settingsService.getProcessingConfigurations.apply(settingsService, arguments as any);
-    },
+    getAppConfig: (...args: Parameters<typeof settingsService.getAppConfig>): ReturnType<typeof settingsService.getAppConfig> => settingsService.getAppConfig(...args),
+    getProcessingConfigurations: (...args: Parameters<typeof settingsService.getProcessingConfigurations>): ReturnType<typeof settingsService.getProcessingConfigurations> => settingsService.getProcessingConfigurations(...args),
 
-    async getCauseReasons(): Promise<{ id: number; description: string }[]> {
-        return orderConfigService.getOrderCauseReasons.apply(orderConfigService, arguments as any);
-    },
+    getCauseReasons: (...args: Parameters<typeof orderConfigService.getOrderCauseReasons>): ReturnType<typeof orderConfigService.getOrderCauseReasons> => orderConfigService.getOrderCauseReasons(...args),
 
     // Atualização de Heartbeat do usuário
-    async updateLastOnline(userId: string): Promise<void> {
-        return usersService.updateLastOnline.apply(usersService, arguments as any);
-    },
+    updateLastOnline: (...args: Parameters<typeof usersService.updateLastOnline>): ReturnType<typeof usersService.updateLastOnline> => usersService.updateLastOnline(...args),
 
     // Tokens de rastreamento por aparelho (trackerService)
-    async issueTrackerToken(): Promise<string> {
-        return trackerService.issueTrackerToken.apply(trackerService, arguments as any);
-    },
+    issueTrackerToken: (...args: Parameters<typeof trackerService.issueTrackerToken>): ReturnType<typeof trackerService.issueTrackerToken> => trackerService.issueTrackerToken(...args),
 
-    async revokeTrackerToken(): Promise<void> {
-        return trackerService.revokeTrackerToken.apply(trackerService, arguments as any);
-    },
+    revokeTrackerToken: (...args: Parameters<typeof trackerService.revokeTrackerToken>): ReturnType<typeof trackerService.revokeTrackerToken> => trackerService.revokeTrackerToken(...args),
 
     // Atualização de localização do usuário (tracker)
-    async updateUserLocation(
-        userId: string,
-        latitude: number,
-        longitude: number,
-        accuracy: number | null = null
-    ): Promise<void> {
-        return usersService.updateUserLocation.apply(usersService, arguments as any);
-    },
+    updateUserLocation: (...args: Parameters<typeof usersService.updateUserLocation>): ReturnType<typeof usersService.updateUserLocation> => usersService.updateUserLocation(...args),
 
     // Limpar cache de metadados (útil após updates de empresas/usuários/unidades)
     clearMetadataCache() {
@@ -348,282 +329,121 @@ export const dataService = {
         }
     },
 
-      async fileOrderVisit(visitId: string, userId: string): Promise<void> {
-    return visitsService.fileOrderVisit.apply(visitsService, arguments as any);
-  },
+    fileOrderVisit: (...args: Parameters<typeof visitsService.fileOrderVisit>): ReturnType<typeof visitsService.fileOrderVisit> => visitsService.fileOrderVisit(...args),
 
 
-      async deleteOrderVisitSignature(visitId: string, type: 'leader' | 'requester'): Promise<void> {
-    return visitsService.deleteOrderVisitSignature.apply(visitsService, arguments as any);
-  },
+    deleteOrderVisitSignature: (...args: Parameters<typeof visitsService.deleteOrderVisitSignature>): ReturnType<typeof visitsService.deleteOrderVisitSignature> => visitsService.deleteOrderVisitSignature(...args),
 
     // -------------------------------------------------------------------------
     // FINANCIAL APPROVAL
     // -------------------------------------------------------------------------
 
-    async submitVisitCosts(visitId: string, userId: string): Promise<boolean> {
-        return visitsService.submitVisitCosts.apply(visitsService, arguments as any);
-    },
+    submitVisitCosts: (...args: Parameters<typeof visitsService.submitVisitCosts>): ReturnType<typeof visitsService.submitVisitCosts> => visitsService.submitVisitCosts(...args),
 
-    async approveVisitFinancial(visitId: string, userId: string, snapshot?: {
-        total: number;
-        services: number;
-        materials: number;
-        vehicles: number;
-        vehiclePending?: boolean;
-        vehicleEstimated?: number;
-    }): Promise<boolean> {
-        return visitsService.approveVisitFinancial.apply(visitsService, arguments as any);
-    },
+    approveVisitFinancial: (...args: Parameters<typeof visitsService.approveVisitFinancial>): ReturnType<typeof visitsService.approveVisitFinancial> => visitsService.approveVisitFinancial(...args),
 
-    async rejectVisitFinancial(visitId: string, userId: string, reason: string): Promise<boolean> {
-        return visitsService.rejectVisitFinancial.apply(visitsService, arguments as any);
-    },
+    rejectVisitFinancial: (...args: Parameters<typeof visitsService.rejectVisitFinancial>): ReturnType<typeof visitsService.rejectVisitFinancial> => visitsService.rejectVisitFinancial(...args),
 
-    async resetVisitCostsStatus(visitId: string, userId: string): Promise<boolean> {
-        return visitsService.resetVisitCostsStatus.apply(visitsService, arguments as any);
-    },
+    resetVisitCostsStatus: (...args: Parameters<typeof visitsService.resetVisitCostsStatus>): ReturnType<typeof visitsService.resetVisitCostsStatus> => visitsService.resetVisitCostsStatus(...args),
 
-    async getVisitFinancialStatus(visitId: string): Promise<{
-        ov_costs_status: string | null;
-        ov_costs_waiting_at: string | null;
-        ov_costs_approved_at: string | null;
-        ov_costs_rejected_at: string | null;
-        ov_costs_rejection_reason: string | null;
-    } | null> {
-        return visitsService.getVisitFinancialStatus.apply(visitsService, arguments as any);
-    },
+    getVisitFinancialStatus: (...args: Parameters<typeof visitsService.getVisitFinancialStatus>): ReturnType<typeof visitsService.getVisitFinancialStatus> => visitsService.getVisitFinancialStatus(...args),
 
-    async getVisitVehiclePending(visitId: string): Promise<{ pending: boolean; estimated: number }> {
-        return visitsService.getVisitVehiclePending.apply(visitsService, arguments as any);
-    },
+    getVisitVehiclePending: (...args: Parameters<typeof visitsService.getVisitVehiclePending>): ReturnType<typeof visitsService.getVisitVehiclePending> => visitsService.getVisitVehiclePending(...args),
 
     // Private helper for mapping raw database items (v_orders) to Order type
-    _mapOrder(
-        item: any,
-        companyMap?: Map<string, any>,
-        realStatusMap?: Record<string, string>,
-        leaderMap?: Map<string, any>,
-        unitMap?: Map<string, any>
-    ): Order {
-        return ordersService._mapOrder.apply(ordersService, arguments as any);
-    },
+    _mapOrder: (...args: Parameters<typeof ordersService._mapOrder>): ReturnType<typeof ordersService._mapOrder> => ordersService._mapOrder(...args),
 
-    async getContracts(ids?: (string | number)[]): Promise<Contract[]> {
-        return companiesService.getContracts.apply(companiesService, arguments as any);
-    },
+    getContracts: (...args: Parameters<typeof companiesService.getContracts>): ReturnType<typeof companiesService.getContracts> => companiesService.getContracts(...args),
 
-    async getContractById(id: string): Promise<Contract | null> {
-        return companiesService.getContractById.apply(companiesService, arguments as any);
-    },
+    getContractById: (...args: Parameters<typeof companiesService.getContractById>): ReturnType<typeof companiesService.getContractById> => companiesService.getContractById(...args),
 
-    async getContractsByClientDepartmentId(clientDepartmentId: string): Promise<Contract[]> {
-        return companiesService.getContractsByClientDepartmentId.apply(companiesService, arguments as any);
-    },
+    getContractsByClientDepartmentId: (...args: Parameters<typeof companiesService.getContractsByClientDepartmentId>): ReturnType<typeof companiesService.getContractsByClientDepartmentId> => companiesService.getContractsByClientDepartmentId(...args),
 
-    async getContractsByClientId(clientId: string): Promise<Contract[]> {
-        return companiesService.getContractsByClientId.apply(companiesService, arguments as any);
-    },
+    getContractsByClientId: (...args: Parameters<typeof companiesService.getContractsByClientId>): ReturnType<typeof companiesService.getContractsByClientId> => companiesService.getContractsByClientId(...args),
 
-    async getCompanies(): Promise<Company[]> {
-        return companiesService.getCompanies.apply(companiesService, arguments as any);
-    },
+    getCompanies: (...args: Parameters<typeof companiesService.getCompanies>): ReturnType<typeof companiesService.getCompanies> => companiesService.getCompanies(...args),
 
-    async getCompanyById(id: string): Promise<Company | null> {
-        return companiesService.getCompanyById.apply(companiesService, arguments as any);
-    },
+    getCompanyById: (...args: Parameters<typeof companiesService.getCompanyById>): ReturnType<typeof companiesService.getCompanyById> => companiesService.getCompanyById(...args),
 
-    async createCompany(company: Partial<Company>, onProgress?: (progress: number) => void): Promise<Company> {
-        return companiesService.createCompany.apply(companiesService, arguments as any);
-    },
+    createCompany: (...args: Parameters<typeof companiesService.createCompany>): ReturnType<typeof companiesService.createCompany> => companiesService.createCompany(...args),
 
-    async updateCompany(id: string, company: Partial<Company>, onProgress?: (progress: number) => void): Promise<Company> {
-        return companiesService.updateCompany.apply(companiesService, arguments as any);
-    },
+    updateCompany: (...args: Parameters<typeof companiesService.updateCompany>): ReturnType<typeof companiesService.updateCompany> => companiesService.updateCompany(...args),
 
-    async getOrdersVisitsView(filters?: { 
-        startDate?: string; 
-        endDate?: string; 
-        page?: number; 
-        pageSize?: number;
-        contractId?: string | string[];
-        systemParentId?: string | string[];
-        systemId?: string | string[];
-        unitTypeParentId?: string | string[];
-        unitTypeId?: string | string[];
-        unitId?: string | string[];
-        orderObjectId?: string | string[];
-        orderTypeId?: string | string[];
-        orderTypeSubId?: string | string[];
-        assetTagId?: string | string[];
-        assetTagSubId?: string | string[];
-        causeReasonId?: string | string[];
-        orderPlanId?: string | string[];
-        orderTeamId?: string | string[];
-        responsibleTeamId?: string | string[];
-        searchQuery?: string;
-        includeEndedInRange?: boolean;
-        withCount?: boolean;
-        processingSelection?: { isAll: boolean; selection: string[] };
-        sortAscending?: boolean;
-        offset?: number;
-    }) {
-        return dashboardService.getOrdersVisitsView.apply(dashboardService, arguments as any);
-    },
+    getOrdersVisitsView: (...args: Parameters<typeof dashboardService.getOrdersVisitsView>): ReturnType<typeof dashboardService.getOrdersVisitsView> => dashboardService.getOrdersVisitsView(...args),
 
-    async getOrdersVisitsDashboardSummary(params: Parameters<typeof dashboardService.getOrdersVisitsDashboardSummary>[0]) {
-        return dashboardService.getOrdersVisitsDashboardSummary.apply(dashboardService, arguments as any);
-    },
+    getOrdersVisitsDashboardSummary: (...args: Parameters<typeof dashboardService.getOrdersVisitsDashboardSummary>): ReturnType<typeof dashboardService.getOrdersVisitsDashboardSummary> => dashboardService.getOrdersVisitsDashboardSummary(...args),
 
-    async getAuthorizedOrdersFromStatusLogs(
-        orderIds: Array<string | number>
-    ): Promise<Array<{ orderId: string; authorizedAt: string | null }>> {
-        return dashboardService.getAuthorizedOrdersFromStatusLogs.apply(dashboardService, arguments as any);
-    },
+    getAuthorizedOrdersFromStatusLogs: (...args: Parameters<typeof dashboardService.getAuthorizedOrdersFromStatusLogs>): ReturnType<typeof dashboardService.getAuthorizedOrdersFromStatusLogs> => dashboardService.getAuthorizedOrdersFromStatusLogs(...args),
 
-    async getOrdersForCalendar(filters?: {
-        startDate?: string;
-        endDate?: string;
-        contractId?: string | string[];
-        systemParentId?: string | string[];
-        systemId?: string | string[];
-        unitTypeParentId?: string | string[];
-        unitTypeId?: string | string[];
-        unitId?: string | string[];
-        orderObjectId?: string | string[];
-        orderTypeId?: string | string[];
-        orderPlanId?: string | string[];
-        orderTeamId?: string | string[];
-        searchQuery?: string;
-    }): Promise<any[]> {
-        return dashboardService.getOrdersForCalendar.apply(dashboardService, arguments as any);
-    },
+    getOrdersForCalendar: (...args: Parameters<typeof dashboardService.getOrdersForCalendar>): ReturnType<typeof dashboardService.getOrdersForCalendar> => dashboardService.getOrdersForCalendar(...args),
 
-    async deleteCompany(id: string): Promise<void> {
-        return companiesService.deleteCompany.apply(companiesService, arguments as any);
-    },
+    deleteCompany: (...args: Parameters<typeof companiesService.deleteCompany>): ReturnType<typeof companiesService.deleteCompany> => companiesService.deleteCompany(...args),
 
-    async createContract(contract: Partial<Contract>): Promise<Contract> {
-        return companiesService.createContract.apply(companiesService, arguments as any);
-    },
+    createContract: (...args: Parameters<typeof companiesService.createContract>): ReturnType<typeof companiesService.createContract> => companiesService.createContract(...args),
 
-    async updateContract(id: string, contract: Partial<Contract>): Promise<Contract> {
-        return companiesService.updateContract.apply(companiesService, arguments as any);
-    },
+    updateContract: (...args: Parameters<typeof companiesService.updateContract>): ReturnType<typeof companiesService.updateContract> => companiesService.updateContract(...args),
 
-    async deleteContract(id: string): Promise<void> {
-        return companiesService.deleteContract.apply(companiesService, arguments as any);
-    },
+    deleteContract: (...args: Parameters<typeof companiesService.deleteContract>): ReturnType<typeof companiesService.deleteContract> => companiesService.deleteContract(...args),
 
 
 
-    async getUsers(): Promise<User[]> {
-        return usersService.getUsers.apply(usersService, arguments as any);
-    },
+    getUsers: (...args: Parameters<typeof usersService.getUsers>): ReturnType<typeof usersService.getUsers> => usersService.getUsers(...args),
 
-    async getDepartments(): Promise<Department[]> {
-        return usersService.getDepartments.apply(usersService, arguments as any);
-    },
+    getDepartments: (...args: Parameters<typeof usersService.getDepartments>): ReturnType<typeof usersService.getDepartments> => usersService.getDepartments(...args),
 
-    async getDepartmentsByCompany(companyId: string): Promise<Department[]> {
-        return usersService.getDepartmentsByCompany.apply(usersService, arguments as any);
-    },
+    getDepartmentsByCompany: (...args: Parameters<typeof usersService.getDepartmentsByCompany>): ReturnType<typeof usersService.getDepartmentsByCompany> => usersService.getDepartmentsByCompany(...args),
 
-    async getDepartmentClientsIds(departmentId: string): Promise<string[]> {
-        return usersService.getDepartmentClientsIds.apply(usersService, arguments as any);
-    },
+    getDepartmentClientsIds: (...args: Parameters<typeof usersService.getDepartmentClientsIds>): ReturnType<typeof usersService.getDepartmentClientsIds> => usersService.getDepartmentClientsIds(...args),
 
-    async createDepartment(department: Partial<Department>): Promise<Department> {
-        return usersService.createDepartment.apply(usersService, arguments as any);
-    },
+    createDepartment: (...args: Parameters<typeof usersService.createDepartment>): ReturnType<typeof usersService.createDepartment> => usersService.createDepartment(...args),
 
-    async updateDepartment(id: string, department: Partial<Department>): Promise<Department> {
-        return usersService.updateDepartment.apply(usersService, arguments as any);
-    },
+    updateDepartment: (...args: Parameters<typeof usersService.updateDepartment>): ReturnType<typeof usersService.updateDepartment> => usersService.updateDepartment(...args),
 
-    async deleteDepartment(id: string): Promise<void> {
-        return usersService.deleteDepartment.apply(usersService, arguments as any);
-    },
+    deleteDepartment: (...args: Parameters<typeof usersService.deleteDepartment>): ReturnType<typeof usersService.deleteDepartment> => usersService.deleteDepartment(...args),
 
-    async getTeams(companyId?: string, departmentId?: string): Promise<Team[]> {
-        return usersService.getTeams.apply(usersService, arguments as any);
-    },
+    getTeams: (...args: Parameters<typeof usersService.getTeams>): ReturnType<typeof usersService.getTeams> => usersService.getTeams(...args),
 
-    async getTeamsByDepartment(departmentId: string): Promise<Team[]> {
-        return usersService.getTeamsByDepartment.apply(usersService, arguments as any);
-    },
+    getTeamsByDepartment: (...args: Parameters<typeof usersService.getTeamsByDepartment>): ReturnType<typeof usersService.getTeamsByDepartment> => usersService.getTeamsByDepartment(...args),
 
-    async createTeam(team: Partial<Team>): Promise<Team> {
-        return usersService.createTeam.apply(usersService, arguments as any);
-    },
+    createTeam: (...args: Parameters<typeof usersService.createTeam>): ReturnType<typeof usersService.createTeam> => usersService.createTeam(...args),
 
-    async updateTeam(id: string, team: Omit<Partial<Team>, 'parentId'> & { parentId?: string | null }): Promise<Team> {
-        return usersService.updateTeam.apply(usersService, arguments as any);
-    },
+    updateTeam: (...args: Parameters<typeof usersService.updateTeam>): ReturnType<typeof usersService.updateTeam> => usersService.updateTeam(...args),
 
-    async deleteTeam(id: string): Promise<void> {
-        return usersService.deleteTeam.apply(usersService, arguments as any);
-    },
+    deleteTeam: (...args: Parameters<typeof usersService.deleteTeam>): ReturnType<typeof usersService.deleteTeam> => usersService.deleteTeam(...args),
 
-    async updateTeamOrders(updates: { id: string; sortOrder: number }[]): Promise<void> {
-        return usersService.updateTeamOrders.apply(usersService, arguments as any);
-    },
+    updateTeamOrders: (...args: Parameters<typeof usersService.updateTeamOrders>): ReturnType<typeof usersService.updateTeamOrders> => usersService.updateTeamOrders(...args),
 
-    async getActivities(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<Activity[]> {
-        return orderConfigService.getActivities.apply(orderConfigService, arguments as any);
-    },
+    getActivities: (...args: Parameters<typeof orderConfigService.getActivities>): ReturnType<typeof orderConfigService.getActivities> => orderConfigService.getActivities(...args),
 
 
 
-    async createActivity(activity: Partial<Activity>): Promise<Activity> {
-        return orderConfigService.createActivity.apply(orderConfigService, arguments as any);
-    },
+    createActivity: (...args: Parameters<typeof orderConfigService.createActivity>): ReturnType<typeof orderConfigService.createActivity> => orderConfigService.createActivity(...args),
 
-    async updateActivity(id: string, activity: Partial<Activity>): Promise<Activity> {
-        return orderConfigService.updateActivity.apply(orderConfigService, arguments as any);
-    },
+    updateActivity: (...args: Parameters<typeof orderConfigService.updateActivity>): ReturnType<typeof orderConfigService.updateActivity> => orderConfigService.updateActivity(...args),
 
-    async deleteActivity(id: string): Promise<void> {
-        return orderConfigService.deleteActivity.apply(orderConfigService, arguments as any);
-    },
+    deleteActivity: (...args: Parameters<typeof orderConfigService.deleteActivity>): ReturnType<typeof orderConfigService.deleteActivity> => orderConfigService.deleteActivity(...args),
 
     // -------------------------------------------------------------------------
     // PRIORITIES (cfg_orders_priorities)
     // -------------------------------------------------------------------------
-    async getPriorities(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<Priority[]> {
-        return orderConfigService.getPriorities.apply(orderConfigService, arguments as any);
-    },
+    getPriorities: (...args: Parameters<typeof orderConfigService.getPriorities>): ReturnType<typeof orderConfigService.getPriorities> => orderConfigService.getPriorities(...args),
 
-    async createPriority(priority: Partial<Priority>): Promise<Priority> {
-        return orderConfigService.createPriority.apply(orderConfigService, arguments as any);
-    },
+    createPriority: (...args: Parameters<typeof orderConfigService.createPriority>): ReturnType<typeof orderConfigService.createPriority> => orderConfigService.createPriority(...args),
 
-    async updatePriority(id: string, priority: Partial<Priority>): Promise<Priority> {
-        return orderConfigService.updatePriority.apply(orderConfigService, arguments as any);
-    },
+    updatePriority: (...args: Parameters<typeof orderConfigService.updatePriority>): ReturnType<typeof orderConfigService.updatePriority> => orderConfigService.updatePriority(...args),
 
-    async deletePriority(id: string): Promise<void> {
-        return orderConfigService.deletePriority.apply(orderConfigService, arguments as any);
-    },
+    deletePriority: (...args: Parameters<typeof orderConfigService.deletePriority>): ReturnType<typeof orderConfigService.deletePriority> => orderConfigService.deletePriority(...args),
 
     // -------------------------------------------------------------------------
     // ORDER TYPES (cfg_orders_types)
     // -------------------------------------------------------------------------
-    async getOrderTypes(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<OrderType[]> {
-        return orderConfigService.getOrderTypes.apply(orderConfigService, arguments as any);
-    },
+    getOrderTypes: (...args: Parameters<typeof orderConfigService.getOrderTypes>): ReturnType<typeof orderConfigService.getOrderTypes> => orderConfigService.getOrderTypes(...args),
 
-    async createOrderType(orderType: Partial<OrderType>): Promise<OrderType> {
-        return orderConfigService.createOrderType.apply(orderConfigService, arguments as any);
-    },
+    createOrderType: (...args: Parameters<typeof orderConfigService.createOrderType>): ReturnType<typeof orderConfigService.createOrderType> => orderConfigService.createOrderType(...args),
 
-    async updateOrderType(id: string, orderType: Partial<OrderType>): Promise<OrderType> {
-        return orderConfigService.updateOrderType.apply(orderConfigService, arguments as any);
-    },
+    updateOrderType: (...args: Parameters<typeof orderConfigService.updateOrderType>): ReturnType<typeof orderConfigService.updateOrderType> => orderConfigService.updateOrderType(...args),
 
-    async deleteOrderType(id: string): Promise<void> {
-        return orderConfigService.deleteOrderType.apply(orderConfigService, arguments as any);
-    },
+    deleteOrderType: (...args: Parameters<typeof orderConfigService.deleteOrderType>): ReturnType<typeof orderConfigService.deleteOrderType> => orderConfigService.deleteOrderType(...args),
 
     // -------------------------------------------------------------------------
     // ORDER SUB-TYPES (cfg_orders_types_subs)
@@ -631,209 +451,111 @@ export const dataService = {
     // -------------------------------------------------------------------------
     // ASSET ALERTS (assets_alerts)
     // -------------------------------------------------------------------------
-    async getAssetAlerts(assetId: string): Promise<AssetAlert[]> {
-        return assetsService.getAssetAlerts.apply(assetsService, arguments as any);
-    },
-    async getAllAssetAlerts(): Promise<AssetAlert[]> {
-        return assetsService.getAllAssetAlerts.apply(assetsService, arguments as any);
-    },
+    getAssetAlerts: (...args: Parameters<typeof assetsService.getAssetAlerts>): ReturnType<typeof assetsService.getAssetAlerts> => assetsService.getAssetAlerts(...args),
+    getAllAssetAlerts: (...args: Parameters<typeof assetsService.getAllAssetAlerts>): ReturnType<typeof assetsService.getAllAssetAlerts> => assetsService.getAllAssetAlerts(...args),
 
-    async getAllActiveAssetAlerts(): Promise<AssetAlert[]> {
-        return assetsService.getAllActiveAssetAlerts.apply(assetsService, arguments as any);
-    },
+    getAllActiveAssetAlerts: (...args: Parameters<typeof assetsService.getAllActiveAssetAlerts>): ReturnType<typeof assetsService.getAllActiveAssetAlerts> => assetsService.getAllActiveAssetAlerts(...args),
 
-    async createAssetAlert(alert: Partial<AssetAlert>): Promise<AssetAlert> {
-        return assetsService.createAssetAlert.apply(assetsService, arguments as any);
-    },
+    createAssetAlert: (...args: Parameters<typeof assetsService.createAssetAlert>): ReturnType<typeof assetsService.createAssetAlert> => assetsService.createAssetAlert(...args),
 
-    async updateAssetAlert(id: string, alert: Partial<AssetAlert>): Promise<AssetAlert> {
-        return assetsService.updateAssetAlert.apply(assetsService, arguments as any);
-    },
+    updateAssetAlert: (...args: Parameters<typeof assetsService.updateAssetAlert>): ReturnType<typeof assetsService.updateAssetAlert> => assetsService.updateAssetAlert(...args),
 
-    async deleteAssetAlert(id: string): Promise<void> {
-        return assetsService.deleteAssetAlert.apply(assetsService, arguments as any);
-    },
+    deleteAssetAlert: (...args: Parameters<typeof assetsService.deleteAssetAlert>): ReturnType<typeof assetsService.deleteAssetAlert> => assetsService.deleteAssetAlert(...args),
 
-    async getOrderSubTypes(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<OrderSubType[]> {
-        return orderConfigService.getOrderSubTypes.apply(orderConfigService, arguments as any);
-    },
+    getOrderSubTypes: (...args: Parameters<typeof orderConfigService.getOrderSubTypes>): ReturnType<typeof orderConfigService.getOrderSubTypes> => orderConfigService.getOrderSubTypes(...args),
 
-    async getOrderSubTypesByType(typeId: string): Promise<OrderSubType[]> {
-        return orderConfigService.getOrderSubTypesByType.apply(orderConfigService, arguments as any);
-    },
+    getOrderSubTypesByType: (...args: Parameters<typeof orderConfigService.getOrderSubTypesByType>): ReturnType<typeof orderConfigService.getOrderSubTypesByType> => orderConfigService.getOrderSubTypesByType(...args),
 
-    async createOrderSubType(orderSubType: Partial<OrderSubType>): Promise<OrderSubType> {
-        return orderConfigService.createOrderSubType.apply(orderConfigService, arguments as any);
-    },
+    createOrderSubType: (...args: Parameters<typeof orderConfigService.createOrderSubType>): ReturnType<typeof orderConfigService.createOrderSubType> => orderConfigService.createOrderSubType(...args),
 
-    async updateOrderSubType(id: string, orderSubType: Partial<OrderSubType>): Promise<OrderSubType> {
-        return orderConfigService.updateOrderSubType.apply(orderConfigService, arguments as any);
-    },
+    updateOrderSubType: (...args: Parameters<typeof orderConfigService.updateOrderSubType>): ReturnType<typeof orderConfigService.updateOrderSubType> => orderConfigService.updateOrderSubType(...args),
 
-    async deleteOrderSubType(id: string): Promise<void> {
-        return orderConfigService.deleteOrderSubType.apply(orderConfigService, arguments as any);
-    },
+    deleteOrderSubType: (...args: Parameters<typeof orderConfigService.deleteOrderSubType>): ReturnType<typeof orderConfigService.deleteOrderSubType> => orderConfigService.deleteOrderSubType(...args),
 
     // -------------------------------------------------------------------------
     // ORDER PLANS (cfg_orders_plans)
     // -------------------------------------------------------------------------
-    async getOrderPlans(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<OrderPlan[]> {
-        return orderConfigService.getOrderPlans.apply(orderConfigService, arguments as any);
-    },
+    getOrderPlans: (...args: Parameters<typeof orderConfigService.getOrderPlans>): ReturnType<typeof orderConfigService.getOrderPlans> => orderConfigService.getOrderPlans(...args),
 
-    async createOrderPlan(orderPlan: Partial<OrderPlan>): Promise<OrderPlan> {
-        return orderConfigService.createOrderPlan.apply(orderConfigService, arguments as any);
-    },
+    createOrderPlan: (...args: Parameters<typeof orderConfigService.createOrderPlan>): ReturnType<typeof orderConfigService.createOrderPlan> => orderConfigService.createOrderPlan(...args),
 
-    async updateOrderPlan(id: string, orderPlan: Partial<OrderPlan>): Promise<OrderPlan> {
-        return orderConfigService.updateOrderPlan.apply(orderConfigService, arguments as any);
-    },
+    updateOrderPlan: (...args: Parameters<typeof orderConfigService.updateOrderPlan>): ReturnType<typeof orderConfigService.updateOrderPlan> => orderConfigService.updateOrderPlan(...args),
 
-    async deleteOrderPlan(id: string): Promise<void> {
-        return orderConfigService.deleteOrderPlan.apply(orderConfigService, arguments as any);
-    },
+    deleteOrderPlan: (...args: Parameters<typeof orderConfigService.deleteOrderPlan>): ReturnType<typeof orderConfigService.deleteOrderPlan> => orderConfigService.deleteOrderPlan(...args),
 
     // -------------------------------------------------------------------------
     // ORDER OBJECTS (cfg_orders_objects)
     // -------------------------------------------------------------------------
-    async getOrderObjects(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<OrderObject[]> {
-        return orderConfigService.getOrderObjects.apply(orderConfigService, arguments as any);
-    },
+    getOrderObjects: (...args: Parameters<typeof orderConfigService.getOrderObjects>): ReturnType<typeof orderConfigService.getOrderObjects> => orderConfigService.getOrderObjects(...args),
 
-    async createOrderObject(orderObject: Partial<OrderObject>): Promise<OrderObject> {
-        return orderConfigService.createOrderObject.apply(orderConfigService, arguments as any);
-    },
+    createOrderObject: (...args: Parameters<typeof orderConfigService.createOrderObject>): ReturnType<typeof orderConfigService.createOrderObject> => orderConfigService.createOrderObject(...args),
 
-    async updateOrderObject(id: string, orderObject: Partial<OrderObject>): Promise<OrderObject> {
-        return orderConfigService.updateOrderObject.apply(orderConfigService, arguments as any);
-    },
+    updateOrderObject: (...args: Parameters<typeof orderConfigService.updateOrderObject>): ReturnType<typeof orderConfigService.updateOrderObject> => orderConfigService.updateOrderObject(...args),
 
-    async deleteOrderObject(id: string): Promise<void> {
-        return orderConfigService.deleteOrderObject.apply(orderConfigService, arguments as any);
-    },
+    deleteOrderObject: (...args: Parameters<typeof orderConfigService.deleteOrderObject>): ReturnType<typeof orderConfigService.deleteOrderObject> => orderConfigService.deleteOrderObject(...args),
 
-    async linkActivityToOrderType(activityId: string, orderTypeId: string): Promise<void> {
-        return orderConfigService.linkActivityToOrderType.apply(orderConfigService, arguments as any);
-    },
+    linkActivityToOrderType: (...args: Parameters<typeof orderConfigService.linkActivityToOrderType>): ReturnType<typeof orderConfigService.linkActivityToOrderType> => orderConfigService.linkActivityToOrderType(...args),
 
-    async unlinkActivityFromOrderType(activityId: string, orderTypeId: string): Promise<void> {
-        return orderConfigService.unlinkActivityFromOrderType.apply(orderConfigService, arguments as any);
-    },
+    unlinkActivityFromOrderType: (...args: Parameters<typeof orderConfigService.unlinkActivityFromOrderType>): ReturnType<typeof orderConfigService.unlinkActivityFromOrderType> => orderConfigService.unlinkActivityFromOrderType(...args),
 
-    async getUsersByCompany(companyId: string): Promise<User[]> {
-        return usersService.getUsersByCompany.apply(usersService, arguments as any);
-    },
+    getUsersByCompany: (...args: Parameters<typeof usersService.getUsersByCompany>): ReturnType<typeof usersService.getUsersByCompany> => usersService.getUsersByCompany(...args),
 
-    async getUsersByProfile(profileId: string, companyId: string): Promise<User[]> {
-        return usersService.getUsersByProfile.apply(usersService, arguments as any);
-    },
+    getUsersByProfile: (...args: Parameters<typeof usersService.getUsersByProfile>): ReturnType<typeof usersService.getUsersByProfile> => usersService.getUsersByProfile(...args),
 
-    async getTeamsByCompany(companyId: string): Promise<Team[]> {
-        return usersService.getTeamsByCompany.apply(usersService, arguments as any);
-    },
+    getTeamsByCompany: (...args: Parameters<typeof usersService.getTeamsByCompany>): ReturnType<typeof usersService.getTeamsByCompany> => usersService.getTeamsByCompany(...args),
 
-    async getTeamMembers(teamId: string): Promise<User[]> {
-        return usersService.getTeamMembers.apply(usersService, arguments as any);
-    },
+    getTeamMembers: (...args: Parameters<typeof usersService.getTeamMembers>): ReturnType<typeof usersService.getTeamMembers> => usersService.getTeamMembers(...args),
 
-    async searchUsers(query: string, companyId: string, excludeTeamId?: string): Promise<User[]> {
-        return usersService.searchUsers.apply(usersService, arguments as any);
-    },
+    searchUsers: (...args: Parameters<typeof usersService.searchUsers>): ReturnType<typeof usersService.searchUsers> => usersService.searchUsers(...args),
 
-    async searchVehicles(query: string, companyId?: string, limit?: number): Promise<Vehicle[]> {
-        return usersService.searchVehicles.apply(usersService, arguments as any);
-    },
+    searchVehicles: (...args: Parameters<typeof usersService.searchVehicles>): ReturnType<typeof usersService.searchVehicles> => usersService.searchVehicles(...args),
 
-    async getVehicle(id: string): Promise<Vehicle | null> {
-        return usersService.getVehicle.apply(usersService, arguments as any);
-    },
+    getVehicle: (...args: Parameters<typeof usersService.getVehicle>): ReturnType<typeof usersService.getVehicle> => usersService.getVehicle(...args),
 
-    async getVehiclesCompaniesInfo(vehicleIds: string[]): Promise<VehicleCompanyInfo[]> {
-        return usersService.getVehiclesCompaniesInfo.apply(usersService, arguments as any);
-    },
+    getVehiclesCompaniesInfo: (...args: Parameters<typeof usersService.getVehiclesCompaniesInfo>): ReturnType<typeof usersService.getVehiclesCompaniesInfo> => usersService.getVehiclesCompaniesInfo(...args),
 
-    async getVehicles(): Promise<Vehicle[]> {
-        return vehiclesService.getVehicles.apply(vehiclesService, arguments as any);
-    },
+    getVehicles: (...args: Parameters<typeof vehiclesService.getVehicles>): ReturnType<typeof vehiclesService.getVehicles> => vehiclesService.getVehicles(...args),
 
-    async saveVehicle(input: SaveVehicleInput, companyId?: string | null): Promise<Vehicle> {
-        return vehiclesService.saveVehicle.apply(vehiclesService, arguments as any);
-    },
+    saveVehicle: (...args: Parameters<typeof vehiclesService.saveVehicle>): ReturnType<typeof vehiclesService.saveVehicle> => vehiclesService.saveVehicle(...args),
 
-    async deleteVehicle(id: string): Promise<void> {
-        return vehiclesService.deleteVehicle.apply(vehiclesService, arguments as any);
-    },
+    deleteVehicle: (...args: Parameters<typeof vehiclesService.deleteVehicle>): ReturnType<typeof vehiclesService.deleteVehicle> => vehiclesService.deleteVehicle(...args),
 
-    async updateUserVehicle(userId: string, vehicleId: string | null): Promise<void> {
-        return usersService.updateUserVehicle.apply(usersService, arguments as any);
-    },
+    updateUserVehicle: (...args: Parameters<typeof usersService.updateUserVehicle>): ReturnType<typeof usersService.updateUserVehicle> => usersService.updateUserVehicle(...args),
 
-    async addUserToTeam(userId: string, newTeamId: string): Promise<void> {
-        return usersService.addUserToTeam.apply(usersService, arguments as any);
-    },
+    addUserToTeam: (...args: Parameters<typeof usersService.addUserToTeam>): ReturnType<typeof usersService.addUserToTeam> => usersService.addUserToTeam(...args),
 
-    async removeUserFromTeam(userId: string): Promise<void> {
-        return usersService.removeUserFromTeam.apply(usersService, arguments as any);
-    },
+    removeUserFromTeam: (...args: Parameters<typeof usersService.removeUserFromTeam>): ReturnType<typeof usersService.removeUserFromTeam> => usersService.removeUserFromTeam(...args),
 
-    async updateUserTeam(userId: string, teamId: string | null): Promise<void> {
-        return usersService.updateUserTeam.apply(usersService, arguments as any);
-    },
+    updateUserTeam: (...args: Parameters<typeof usersService.updateUserTeam>): ReturnType<typeof usersService.updateUserTeam> => usersService.updateUserTeam(...args),
 
-    async createUser(user: Partial<User>, password: string): Promise<void> {
-        return usersService.createUser.apply(usersService, arguments as any);
-    },
+    createUser: (...args: Parameters<typeof usersService.createUser>): ReturnType<typeof usersService.createUser> => usersService.createUser(...args),
 
     /** Usuário logado com cache de 30 s; { force: true } busca do servidor. */
-    async getCurrentUser(options?: { force?: boolean }): Promise<User | null> {
-        return usersService.getCurrentUser.apply(usersService, arguments as any);
-    },
+    getCurrentUser: (...args: Parameters<typeof usersService.getCurrentUser>): ReturnType<typeof usersService.getCurrentUser> => usersService.getCurrentUser(...args),
 
-    async updateProfile(userUuid: string, user: Partial<User>, onProgress?: (progress: number) => void): Promise<void> {
-        return usersService.updateProfile.apply(usersService, arguments as any);
-    },
+    updateProfile: (...args: Parameters<typeof usersService.updateProfile>): ReturnType<typeof usersService.updateProfile> => usersService.updateProfile(...args),
 
-    async updatePhoneNumber(userUuid: string, mobile: string, phone?: string): Promise<void> {
-        return usersService.updatePhoneNumber.apply(usersService, arguments as any);
-    },
+    updatePhoneNumber: (...args: Parameters<typeof usersService.updatePhoneNumber>): ReturnType<typeof usersService.updatePhoneNumber> => usersService.updatePhoneNumber(...args),
 
-    async getMyPendingAccountDeletion(): Promise<AccountDeletionRequest | null> {
-        return accountDeletionService.getMyPendingAccountDeletion.apply(accountDeletionService, arguments as any);
-    },
+    getMyPendingAccountDeletion: (...args: Parameters<typeof accountDeletionService.getMyPendingAccountDeletion>): ReturnType<typeof accountDeletionService.getMyPendingAccountDeletion> => accountDeletionService.getMyPendingAccountDeletion(...args),
 
-    async requestAccountDeletion(reason?: string): Promise<AccountDeletionRequest> {
-        return accountDeletionService.requestAccountDeletion.apply(accountDeletionService, arguments as any);
-    },
+    requestAccountDeletion: (...args: Parameters<typeof accountDeletionService.requestAccountDeletion>): ReturnType<typeof accountDeletionService.requestAccountDeletion> => accountDeletionService.requestAccountDeletion(...args),
 
-    async cancelAccountDeletion(): Promise<void> {
-        return accountDeletionService.cancelAccountDeletion.apply(accountDeletionService, arguments as any);
-    },
+    cancelAccountDeletion: (...args: Parameters<typeof accountDeletionService.cancelAccountDeletion>): ReturnType<typeof accountDeletionService.cancelAccountDeletion> => accountDeletionService.cancelAccountDeletion(...args),
 
-    async updateUserStatus(userId: string, statusId: number): Promise<string> {
-        return usersService.updateUserStatus.apply(usersService, arguments as any);
-    },
+    updateUserStatus: (...args: Parameters<typeof usersService.updateUserStatus>): ReturnType<typeof usersService.updateUserStatus> => usersService.updateUserStatus(...args),
 
-    async getUserStatuses(): Promise<UserStatus[]> {
-        return usersService.getUserStatuses.apply(usersService, arguments as any);
-    },
+    getUserStatuses: (...args: Parameters<typeof usersService.getUserStatuses>): ReturnType<typeof usersService.getUserStatuses> => usersService.getUserStatuses(...args),
 
-    async updateUserAvailability(userId: string, isAvailable: boolean, ovIdInProgress: string | null | undefined): Promise<void> {
-        return usersService.updateUserAvailability.apply(usersService, arguments as any);
-    },
+    updateUserAvailability: (...args: Parameters<typeof usersService.updateUserAvailability>): ReturnType<typeof usersService.updateUserAvailability> => usersService.updateUserAvailability(...args),
 
 
 
-    async createCompanyProfile(companyId: string, description: string, permissions: Partial<Permission>[]): Promise<string> {
-        return companiesService.createCompanyProfile.apply(companiesService, arguments as any);
-    },
+    createCompanyProfile: (...args: Parameters<typeof companiesService.createCompanyProfile>): ReturnType<typeof companiesService.createCompanyProfile> => companiesService.createCompanyProfile(...args),
 
-    async updateCompanyProfile(profileId: string, description: string, permissions: Partial<Permission>[]): Promise<void> {
-        return companiesService.updateCompanyProfile.apply(companiesService, arguments as any);
-    },
+    updateCompanyProfile: (...args: Parameters<typeof companiesService.updateCompanyProfile>): ReturnType<typeof companiesService.updateCompanyProfile> => companiesService.updateCompanyProfile(...args),
 
-    async deleteCompanyProfile(profileId: string): Promise<void> {
-        return companiesService.deleteCompanyProfile.apply(companiesService, arguments as any);
-    },
+    deleteCompanyProfile: (...args: Parameters<typeof companiesService.deleteCompanyProfile>): ReturnType<typeof companiesService.deleteCompanyProfile> => companiesService.deleteCompanyProfile(...args),
 
     // -------------------------------------------------------------------------
     // ROUTES & PERMISSIONS
@@ -842,49 +564,27 @@ export const dataService = {
 
 
 
-    async signIn(email: string, password: string): Promise<void> {
-        return usersService.signIn.apply(usersService, arguments as any);
-    },
+    signIn: (...args: Parameters<typeof usersService.signIn>): ReturnType<typeof usersService.signIn> => usersService.signIn(...args),
 
-    async impersonateUser(targetUserId: string): Promise<{ email: string; password: string; uuid: string }> {
-        return usersService.impersonateUser.apply(usersService, arguments as any);
-    },
+    impersonateUser: (...args: Parameters<typeof usersService.impersonateUser>): ReturnType<typeof usersService.impersonateUser> => usersService.impersonateUser(...args),
 
-    async exitImpersonation(adminAccessToken: string, adminRefreshToken: string): Promise<void> {
-        return usersService.exitImpersonation.apply(usersService, arguments as any);
-    },
+    exitImpersonation: (...args: Parameters<typeof usersService.exitImpersonation>): ReturnType<typeof usersService.exitImpersonation> => usersService.exitImpersonation(...args),
 
-    subscribeToAuthChanges(callback: (event: string, session: any) => void) {
-        return usersService.subscribeToAuthChanges.apply(usersService, arguments as any);
-    },
+    subscribeToAuthChanges: (...args: Parameters<typeof usersService.subscribeToAuthChanges>): ReturnType<typeof usersService.subscribeToAuthChanges> => usersService.subscribeToAuthChanges(...args),
 
-    async signOut(userUuid?: string, hasActiveVisit?: boolean): Promise<void> {
-        return usersService.signOut.apply(usersService, arguments as any);
-    },
+    signOut: (...args: Parameters<typeof usersService.signOut>): ReturnType<typeof usersService.signOut> => usersService.signOut(...args),
 
-    async resetPassword(email: string): Promise<void> {
-        return usersService.resetPassword.apply(usersService, arguments as any);
-    },
+    resetPassword: (...args: Parameters<typeof usersService.resetPassword>): ReturnType<typeof usersService.resetPassword> => usersService.resetPassword(...args),
 
-    async updatePassword(password: string): Promise<void> {
-        return usersService.updatePassword.apply(usersService, arguments as any);
-    },
+    updatePassword: (...args: Parameters<typeof usersService.updatePassword>): ReturnType<typeof usersService.updatePassword> => usersService.updatePassword(...args),
 
-    async getClients(): Promise<Client[]> {
-        return companiesService.getClients.apply(companiesService, arguments as any);
-    },
+    getClients: (...args: Parameters<typeof companiesService.getClients>): ReturnType<typeof companiesService.getClients> => companiesService.getClients(...args),
 
-    async createClient(client: Partial<Client>, onProgress?: (progress: number) => void): Promise<Client> {
-        return companiesService.createClient.apply(companiesService, arguments as any);
-    },
+    createClient: (...args: Parameters<typeof companiesService.createClient>): ReturnType<typeof companiesService.createClient> => companiesService.createClient(...args),
 
-    async updateClient(id: string, client: Partial<Client>, onProgress?: (progress: number) => void): Promise<Client> {
-        return companiesService.updateClient.apply(companiesService, arguments as any);
-    },
+    updateClient: (...args: Parameters<typeof companiesService.updateClient>): ReturnType<typeof companiesService.updateClient> => companiesService.updateClient(...args),
 
-    async deleteClient(id: string): Promise<void> {
-        return companiesService.deleteClient.apply(companiesService, arguments as any);
-    },
+    deleteClient: (...args: Parameters<typeof companiesService.deleteClient>): ReturnType<typeof companiesService.deleteClient> => companiesService.deleteClient(...args),
 
     // -------------------------------------------------------------------------
     // SYSTEMS (cfg_systems)
@@ -901,125 +601,71 @@ export const dataService = {
     // -------------------------------------------------------------------------
 
 
-    async getUnitsByClient(clientId: string): Promise<Unit[]> {
-        return companiesService.getUnitsByClient.apply(companiesService, arguments as any);
-    },
+    getUnitsByClient: (...args: Parameters<typeof companiesService.getUnitsByClient>): ReturnType<typeof companiesService.getUnitsByClient> => companiesService.getUnitsByClient(...args),
 
-    async searchUnits(
-        search: string = '',
-        limit: number = 50,
-        systemParentIds?: Array<string | number> | null,
-        scopeClientsIds?: Array<string | number> | null
-    ): Promise<Unit[]> {
-        return unitsService.searchUnits.apply(unitsService, arguments as any);
-    },
+    searchUnits: (...args: Parameters<typeof unitsService.searchUnits>): ReturnType<typeof unitsService.searchUnits> => unitsService.searchUnits(...args),
 
-    async searchUnitsByClient(
-        clientId: string,
-        scopeClientsIds?: Array<string | number> | null
-    ): Promise<any[]> {
-        return unitsService.searchUnitsByClient.apply(unitsService, arguments as any);
-    },
+    searchUnitsByClient: (...args: Parameters<typeof unitsService.searchUnitsByClient>): ReturnType<typeof unitsService.searchUnitsByClient> => unitsService.searchUnitsByClient(...args),
 
-    async getUnitById(id: string): Promise<Unit | null> {
-        return unitsService.getUnitById.apply(unitsService, arguments as any);
-    },
+    getUnitById: (...args: Parameters<typeof unitsService.getUnitById>): ReturnType<typeof unitsService.getUnitById> => unitsService.getUnitById(...args),
 
-    async createUnit(unit: Partial<Unit>): Promise<Unit> {
-        return unitsService.createUnit.apply(unitsService, arguments as any);
-    },
+    createUnit: (...args: Parameters<typeof unitsService.createUnit>): ReturnType<typeof unitsService.createUnit> => unitsService.createUnit(...args),
 
-    async updateUnit(id: string, unit: Partial<Unit>): Promise<Unit> {
-        return unitsService.updateUnit.apply(unitsService, arguments as any);
-    },
+    updateUnit: (...args: Parameters<typeof unitsService.updateUnit>): ReturnType<typeof unitsService.updateUnit> => unitsService.updateUnit(...args),
 
-    async deleteUnit(id: string): Promise<void> {
-        return unitsService.deleteUnit.apply(unitsService, arguments as any);
-    },
+    deleteUnit: (...args: Parameters<typeof unitsService.deleteUnit>): ReturnType<typeof unitsService.deleteUnit> => unitsService.deleteUnit(...args),
 
     // Services
-    async getServices(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<Service[]> {
-        return orderConfigService.getServices.apply(orderConfigService, arguments as any);
-    },
+    getServices: (...args: Parameters<typeof orderConfigService.getServices>): ReturnType<typeof orderConfigService.getServices> => orderConfigService.getServices(...args),
 
-    async createService(service: Partial<Service>): Promise<Service> {
-        return orderConfigService.createService.apply(orderConfigService, arguments as any);
-    },
+    createService: (...args: Parameters<typeof orderConfigService.createService>): ReturnType<typeof orderConfigService.createService> => orderConfigService.createService(...args),
 
-    async updateService(id: string, service: Partial<Service>): Promise<Service> {
-        return orderConfigService.updateService.apply(orderConfigService, arguments as any);
-    },
+    updateService: (...args: Parameters<typeof orderConfigService.updateService>): ReturnType<typeof orderConfigService.updateService> => orderConfigService.updateService(...args),
 
     // Orders
     /**
      * Get Active Orders (SS/OS) by unit asset tag ID
      */
-    async getActiveOrdersByAssetTagId(unitAssetTagId: string | number): Promise<any[]> {
-        return ordersService.getActiveOrdersByAssetTagId.apply(ordersService, arguments as any);
-    },
+    getActiveOrdersByAssetTagId: (...args: Parameters<typeof ordersService.getActiveOrdersByAssetTagId>): ReturnType<typeof ordersService.getActiveOrdersByAssetTagId> => ordersService.getActiveOrdersByAssetTagId(...args),
     
     /**
      * Mark a Service Order (SS) as completed (status 8)
      */
-    async completeServiceOrder(orderId: string | number, userId?: string | number, rating: number = 0): Promise<boolean> {
-        return ordersService.completeServiceOrder.apply(ordersService, arguments as any);
-    },
+    completeServiceOrder: (...args: Parameters<typeof ordersService.completeServiceOrder>): ReturnType<typeof ordersService.completeServiceOrder> => ordersService.completeServiceOrder(...args),
 
     /**
      * Cancel Service Request (Order)
      * Sets status_id to 7 (Cancelled) and updates asset tracking fields.
      */
-    async cancelServiceOrder(orderId: string | number, userId: string | number): Promise<boolean> {
-        return ordersService.cancelServiceOrder.apply(ordersService, arguments as any);
-    },
+    cancelServiceOrder: (...args: Parameters<typeof ordersService.cancelServiceOrder>): ReturnType<typeof ordersService.cancelServiceOrder> => ordersService.cancelServiceOrder(...args),
 
     /**
      * Create Service Request (Order)
      * Implements the complete flow from flows/servicesRequests/create-service-request.flow
      */
-    async createServiceRequest(order: Partial<Order>): Promise<Order> {
-        return ordersService.createServiceRequest.apply(ordersService, arguments as any);
-    },
+    createServiceRequest: (...args: Parameters<typeof ordersService.createServiceRequest>): ReturnType<typeof ordersService.createServiceRequest> => ordersService.createServiceRequest(...args),
 
 
 
 
-    async getParentOrder(parentId: string | number): Promise<Order | null> {
-        return ordersService.getParentOrder.apply(ordersService, arguments as any);
-    },
+    getParentOrder: (...args: Parameters<typeof ordersService.getParentOrder>): ReturnType<typeof ordersService.getParentOrder> => ordersService.getParentOrder(...args),
 
-    async getChildOrders(parentId: string | number): Promise<Order[]> {
-        return ordersService.getChildOrders.apply(ordersService, arguments as any);
-    },
+    getChildOrders: (...args: Parameters<typeof ordersService.getChildOrders>): ReturnType<typeof ordersService.getChildOrders> => ordersService.getChildOrders(...args),
 
-    async createOrder(order: Partial<Order>): Promise<Order> {
-        return ordersService.createOrder.apply(ordersService, arguments as any);
-    },
+    createOrder: (...args: Parameters<typeof ordersService.createOrder>): ReturnType<typeof ordersService.createOrder> => ordersService.createOrder(...args),
 
-    async copyImagesFromOrderToOrder(srcCompanyId: string, srcOrderId: string, destCompanyId: string, destOrderId: string, files: string[]): Promise<void> {
-        return ordersService.copyImagesFromOrderToOrder.apply(ordersService, arguments as any);
-    },
+    copyImagesFromOrderToOrder: (...args: Parameters<typeof ordersService.copyImagesFromOrderToOrder>): ReturnType<typeof ordersService.copyImagesFromOrderToOrder> => ordersService.copyImagesFromOrderToOrder(...args),
 
-    async uploadOrderImage(companyId: string, orderId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string; filename: string }> {
-        return ordersService.uploadOrderImage.apply(ordersService, arguments as any);
-    },
+    uploadOrderImage: (...args: Parameters<typeof ordersService.uploadOrderImage>): ReturnType<typeof ordersService.uploadOrderImage> => ordersService.uploadOrderImage(...args),
 
-    async updateOrderImage(orderId: string, path: string, filename: string): Promise<void> {
-        return ordersService.updateOrderImage.apply(ordersService, arguments as any);
-    },
+    updateOrderImage: (...args: Parameters<typeof ordersService.updateOrderImage>): ReturnType<typeof ordersService.updateOrderImage> => ordersService.updateOrderImage(...args),
 
-    async updateOrder(id: string, order: Partial<Order>): Promise<Order> {
-        return ordersService.updateOrder.apply(ordersService, arguments as any);
-    },
+    updateOrder: (...args: Parameters<typeof ordersService.updateOrder>): ReturnType<typeof ordersService.updateOrder> => ordersService.updateOrder(...args),
 
 
-    async updateOrderFiles(orderId: string, filenames: string[]): Promise<void> {
-        return ordersService.updateOrderFiles.apply(ordersService, arguments as any);
-    },
+    updateOrderFiles: (...args: Parameters<typeof ordersService.updateOrderFiles>): ReturnType<typeof ordersService.updateOrderFiles> => ordersService.updateOrderFiles(...args),
 
-    async updateOrderStatus(orderId: string, statusId: number): Promise<void> {
-        return ordersService.updateOrderStatus.apply(ordersService, arguments as any);
-    },
+    updateOrderStatus: (...args: Parameters<typeof ordersService.updateOrderStatus>): ReturnType<typeof ordersService.updateOrderStatus> => ordersService.updateOrderStatus(...args),
 
 
     /**
@@ -1028,112 +674,66 @@ export const dataService = {
      *
      * @param serviceRequestId - ID da SS a ser atualizada
      */
-    async updateServiceRequestStatus(serviceRequestId: string): Promise<void> {
-        return ordersService.updateServiceRequestStatus.apply(ordersService, arguments as any);
-    },
+    updateServiceRequestStatus: (...args: Parameters<typeof ordersService.updateServiceRequestStatus>): ReturnType<typeof ordersService.updateServiceRequestStatus> => ordersService.updateServiceRequestStatus(...args),
 
     // Contract Services
-      async getContractServices(contractId: string): Promise<ContractService[]> {
-    return companiesService.getContractServices.apply(companiesService, arguments as any);
-  },
+    getContractServices: (...args: Parameters<typeof companiesService.getContractServices>): ReturnType<typeof companiesService.getContractServices> => companiesService.getContractServices(...args),
 
 
-      async addContractService(item: Partial<ContractService>): Promise<void> {
-    return companiesService.addContractService.apply(companiesService, arguments as any);
-  },
+    addContractService: (...args: Parameters<typeof companiesService.addContractService>): ReturnType<typeof companiesService.addContractService> => companiesService.addContractService(...args),
 
 
-    async updateContractService(id: string, item: Partial<ContractService>): Promise<void> {
-        return companiesService.updateContractService.apply(companiesService, arguments as any);
-    },
+    updateContractService: (...args: Parameters<typeof companiesService.updateContractService>): ReturnType<typeof companiesService.updateContractService> => companiesService.updateContractService(...args),
 
-    async deleteContractService(id: string): Promise<void> {
-        return companiesService.deleteContractService.apply(companiesService, arguments as any);
-    },
+    deleteContractService: (...args: Parameters<typeof companiesService.deleteContractService>): ReturnType<typeof companiesService.deleteContractService> => companiesService.deleteContractService(...args),
 
     // -------------------------------------------------------------------------
     // CONTRACT MANAGERS (contracts_managers)
     // -------------------------------------------------------------------------
-    async getContractManagers(contractId: string): Promise<ContractManager[]> {
-        return companiesService.getContractManagers.apply(companiesService, arguments as any);
-    },
+    getContractManagers: (...args: Parameters<typeof companiesService.getContractManagers>): ReturnType<typeof companiesService.getContractManagers> => companiesService.getContractManagers(...args),
 
-    async getManagedContracts(userId: string): Promise<Contract[]> {
-        return companiesService.getManagedContracts.apply(companiesService, arguments as any);
-    },
+    getManagedContracts: (...args: Parameters<typeof companiesService.getManagedContracts>): ReturnType<typeof companiesService.getManagedContracts> => companiesService.getManagedContracts(...args),
 
-    async isUserContractManager(userId: string, contractId: string): Promise<boolean> {
-        return companiesService.isUserContractManager.apply(companiesService, arguments as any);
-    },
+    isUserContractManager: (...args: Parameters<typeof companiesService.isUserContractManager>): ReturnType<typeof companiesService.isUserContractManager> => companiesService.isUserContractManager(...args),
 
-    async addContractManager(contractId: string, managerId: string, role: string = 'viewer'): Promise<void> {
-        return companiesService.addContractManager.apply(companiesService, arguments as any);
-    },
+    addContractManager: (...args: Parameters<typeof companiesService.addContractManager>): ReturnType<typeof companiesService.addContractManager> => companiesService.addContractManager(...args),
 
-    async removeContractManager(contractId: string, managerId: string): Promise<void> {
-        return companiesService.removeContractManager.apply(companiesService, arguments as any);
-    },
+    removeContractManager: (...args: Parameters<typeof companiesService.removeContractManager>): ReturnType<typeof companiesService.removeContractManager> => companiesService.removeContractManager(...args),
 
     // -------------------------------------------------------------------------
     // EVALUATION REQUIREMENTS (cfg_evaluation_requirements)
     // -------------------------------------------------------------------------
-    async getEvaluationRequirements(): Promise<any[]> {
-        return evaluationService.getEvaluationRequirements.apply(evaluationService, arguments as any);
-    },
+    getEvaluationRequirements: (...args: Parameters<typeof evaluationService.getEvaluationRequirements>): ReturnType<typeof evaluationService.getEvaluationRequirements> => evaluationService.getEvaluationRequirements(...args),
 
-    async createEvaluationRequirement(data: { description: string; code?: string }): Promise<any> {
-        return evaluationService.createEvaluationRequirement.apply(evaluationService, arguments as any);
-    },
+    createEvaluationRequirement: (...args: Parameters<typeof evaluationService.createEvaluationRequirement>): ReturnType<typeof evaluationService.createEvaluationRequirement> => evaluationService.createEvaluationRequirement(...args),
 
-    async updateEvaluationRequirement(id: string, data: { description?: string; code?: string; isAvailable?: boolean }): Promise<boolean> {
-        return evaluationService.updateEvaluationRequirement.apply(evaluationService, arguments as any);
-    },
+    updateEvaluationRequirement: (...args: Parameters<typeof evaluationService.updateEvaluationRequirement>): ReturnType<typeof evaluationService.updateEvaluationRequirement> => evaluationService.updateEvaluationRequirement(...args),
 
-    async deleteEvaluationRequirement(id: string): Promise<boolean> {
-        return evaluationService.deleteEvaluationRequirement.apply(evaluationService, arguments as any);
-    },
+    deleteEvaluationRequirement: (...args: Parameters<typeof evaluationService.deleteEvaluationRequirement>): ReturnType<typeof evaluationService.deleteEvaluationRequirement> => evaluationService.deleteEvaluationRequirement(...args),
 
     // -------------------------------------------------------------------------
     // CONTRACT EVALUATION REQUIREMENTS (contracts_evaluation_requirements)
     // -------------------------------------------------------------------------
-    async getContractEvaluationRequirements(contractId: string): Promise<any[]> {
-        return evaluationService.getContractEvaluationRequirements.apply(evaluationService, arguments as any);
-    },
+    getContractEvaluationRequirements: (...args: Parameters<typeof evaluationService.getContractEvaluationRequirements>): ReturnType<typeof evaluationService.getContractEvaluationRequirements> => evaluationService.getContractEvaluationRequirements(...args),
 
-    async addEvaluationToContract(contractId: string, evaluationId: string, weight: number): Promise<any> {
-        return evaluationService.addEvaluationToContract.apply(evaluationService, arguments as any);
-    },
+    addEvaluationToContract: (...args: Parameters<typeof evaluationService.addEvaluationToContract>): ReturnType<typeof evaluationService.addEvaluationToContract> => evaluationService.addEvaluationToContract(...args),
 
-    async updateContractEvaluationWeight(id: string, weight: number): Promise<boolean> {
-        return evaluationService.updateContractEvaluationWeight.apply(evaluationService, arguments as any);
-    },
+    updateContractEvaluationWeight: (...args: Parameters<typeof evaluationService.updateContractEvaluationWeight>): ReturnType<typeof evaluationService.updateContractEvaluationWeight> => evaluationService.updateContractEvaluationWeight(...args),
 
-    async removeEvaluationFromContract(id: string): Promise<boolean> {
-        return evaluationService.removeEvaluationFromContract.apply(evaluationService, arguments as any);
-    },
+    removeEvaluationFromContract: (...args: Parameters<typeof evaluationService.removeEvaluationFromContract>): ReturnType<typeof evaluationService.removeEvaluationFromContract> => evaluationService.removeEvaluationFromContract(...args),
 
     // -------------------------------------------------------------------------
     // VISIT EVALUATIONS (orders_visits_evaluations)
     // -------------------------------------------------------------------------
-    async getVisitEvaluations(ovId: string): Promise<any[]> {
-        return evaluationService.getVisitEvaluations.apply(evaluationService, arguments as any);
-    },
+    getVisitEvaluations: (...args: Parameters<typeof evaluationService.getVisitEvaluations>): ReturnType<typeof evaluationService.getVisitEvaluations> => evaluationService.getVisitEvaluations(...args),
 
-    async saveVisitEvaluations(ovId: string, evaluations: { contractEvaluationId: string; wasApplied: boolean; notes?: string }[], userId: string): Promise<boolean> {
-        return evaluationService.saveVisitEvaluations.apply(evaluationService, arguments as any);
-    },
+    saveVisitEvaluations: (...args: Parameters<typeof evaluationService.saveVisitEvaluations>): ReturnType<typeof evaluationService.saveVisitEvaluations> => evaluationService.saveVisitEvaluations(...args),
 
-    async getVisitTotalScore(ovId: string): Promise<number> {
-        return evaluationService.getVisitTotalScore.apply(evaluationService, arguments as any);
-    },
+    getVisitTotalScore: (...args: Parameters<typeof evaluationService.getVisitTotalScore>): ReturnType<typeof evaluationService.getVisitTotalScore> => evaluationService.getVisitTotalScore(...args),
 
-    async deleteVisitEvaluations(ovId: string): Promise<boolean> {
-        return evaluationService.deleteVisitEvaluations.apply(evaluationService, arguments as any);
-    },
+    deleteVisitEvaluations: (...args: Parameters<typeof evaluationService.deleteVisitEvaluations>): ReturnType<typeof evaluationService.deleteVisitEvaluations> => evaluationService.deleteVisitEvaluations(...args),
 
-    async canEvaluateVisit(ovId: string, userId: string): Promise<{ canEvaluate: boolean; reason?: string }> {
-        return evaluationService.canEvaluateVisit.apply(evaluationService, arguments as any);
-    },
+    canEvaluateVisit: (...args: Parameters<typeof evaluationService.canEvaluateVisit>): ReturnType<typeof evaluationService.canEvaluateVisit> => evaluationService.canEvaluateVisit(...args),
 
     // -------------------------------------------------------------------------
     // ASSETS AVAILABILITY NOTIFICATION (WhatsApp)
@@ -1142,9 +742,7 @@ export const dataService = {
      * Grupo de WhatsApp configurado para o sistema (disponibilidade de ativos).
      * null = sistema sem grupo configurado → a mensagem não deve ser enviada.
      */
-    async getSystemWhatsAppGroupId(systemId: string | number): Promise<string | null> {
-        return settingsService.getSystemWhatsAppGroupId.apply(settingsService, arguments as any);
-    },
+    getSystemWhatsAppGroupId: (...args: Parameters<typeof settingsService.getSystemWhatsAppGroupId>): ReturnType<typeof settingsService.getSystemWhatsAppGroupId> => settingsService.getSystemWhatsAppGroupId(...args),
 
     /**
      * Envia a mensagem de disponibilidade dos ativos para o grupo do sistema.
@@ -1153,128 +751,62 @@ export const dataService = {
      * configurado); `systemParentId` é o `v_units.system_parent_id` usado na
      * resolução e `groupId` traz o valor de `systems_whatsapp_group_id`.
      */
-    async sendAssetAvailabilityWhatsAppMessage(params: {
-        message: string;
-        imageUrl?: string;
-        systemParentId?: string | number | null;
-    }): Promise<AvailabilityNotificationResult> {
-        return assetAvailabilityNotificationService.sendAvailabilityMessage.apply(assetAvailabilityNotificationService, arguments as any);
-    },
+    sendAssetAvailabilityWhatsAppMessage: (...args: Parameters<typeof assetAvailabilityNotificationService.sendAvailabilityMessage>): ReturnType<typeof assetAvailabilityNotificationService.sendAvailabilityMessage> => assetAvailabilityNotificationService.sendAvailabilityMessage(...args),
 
-    async getAssets(
-        filter: 'all' | 'active' | 'inactive' = 'all',
-        search: string = '',
-        unitId?: string,
-        unitAssetTagId?: string,
-        scopeClientsIds?: Array<string | number> | null
-    ): Promise<Asset[]> {
-        return assetsService.getAssets.apply(assetsService, arguments as any);
-    },
+    getAssets: (...args: Parameters<typeof assetsService.getAssets>): ReturnType<typeof assetsService.getAssets> => assetsService.getAssets(...args),
 
-    async getFilteredAssets(filters: {
-        systemParentId?: string | string[];
-        systemId?: string | string[];
-        unitTypeParentId?: string | string[];
-        unitTypeId?: string | string[];
-        unitId?: string | string[];
-        scopeClientsIds?: Array<string | number> | null;
-        tagId?: string | string[];
-        tagSubId?: string | string[];
-        typeId?: string | string[];
-        statusId?: string | string[];
-        search?: string;
-    }): Promise<Asset[]> {
-        return assetsService.getFilteredAssets.apply(assetsService, arguments as any);
-    },
+    getFilteredAssets: (...args: Parameters<typeof assetsService.getFilteredAssets>): ReturnType<typeof assetsService.getFilteredAssets> => assetsService.getFilteredAssets(...args),
 
-    async createAsset(asset: Partial<Asset>): Promise<Asset> {
-        return assetsService.createAsset.apply(assetsService, arguments as any);
-    },
+    createAsset: (...args: Parameters<typeof assetsService.createAsset>): ReturnType<typeof assetsService.createAsset> => assetsService.createAsset(...args),
 
-    async updateAsset(id: string, asset: Partial<Asset>): Promise<Asset> {
-        return assetsService.updateAsset.apply(assetsService, arguments as any);
-    },
+    updateAsset: (...args: Parameters<typeof assetsService.updateAsset>): ReturnType<typeof assetsService.updateAsset> => assetsService.updateAsset(...args),
 
-    async uploadAssetImage(assetId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        return assetsService.uploadAssetImage.apply(assetsService, arguments as any);
-    },
+    uploadAssetImage: (...args: Parameters<typeof assetsService.uploadAssetImage>): ReturnType<typeof assetsService.uploadAssetImage> => assetsService.uploadAssetImage(...args),
 
-    async updateAssetPhotoFromReport(assetId: string, companyId: string, sourceFileName: string, sourceFolderPath: string): Promise<void> {
-        return assetsService.updateAssetPhotoFromReport.apply(assetsService, arguments as any);
-    },
+    updateAssetPhotoFromReport: (...args: Parameters<typeof assetsService.updateAssetPhotoFromReport>): ReturnType<typeof assetsService.updateAssetPhotoFromReport> => assetsService.updateAssetPhotoFromReport(...args),
 
-    async getAssetById(id: string): Promise<Asset | null> {
-        return assetsService.getAssetById.apply(assetsService, arguments as any);
-    },
+    getAssetById: (...args: Parameters<typeof assetsService.getAssetById>): ReturnType<typeof assetsService.getAssetById> => assetsService.getAssetById(...args),
 
-    async getAssetHistory(assetId: string, page: number = 0, pageSize: number = 10): Promise<{ data: AssetHistoryItem[], total: number }> {
-        return assetsService.getAssetHistory.apply(assetsService, arguments as any);
-    },
+    getAssetHistory: (...args: Parameters<typeof assetsService.getAssetHistory>): ReturnType<typeof assetsService.getAssetHistory> => assetsService.getAssetHistory(...args),
 
     /**
      * Atividades do ativo em visitas aprovadas (aba "Atividades" do Detalhe do Ativo).
      * O recorte por ano/mês é feito no cliente com `utils/assetActivityMatrix`.
      */
-    async getApprovedAssetActivities(assetId: string): Promise<AssetActivityEntry[]> {
-        return assetsService.getApprovedAssetActivities.apply(assetsService, arguments as any);
-    },
+    getApprovedAssetActivities: (...args: Parameters<typeof assetsService.getApprovedAssetActivities>): ReturnType<typeof assetsService.getApprovedAssetActivities> => assetsService.getApprovedAssetActivities(...args),
 
     // -------------------------------------------------------------------------
     // ASSET TAGS (cfg_assets_tags)
     // -------------------------------------------------------------------------
-    async getAssetTypes(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<AssetType[]> {
-        return assetConfigService.getAssetTypes.apply(assetConfigService, arguments as any);
-    },
+    getAssetTypes: (...args: Parameters<typeof assetConfigService.getAssetTypes>): ReturnType<typeof assetConfigService.getAssetTypes> => assetConfigService.getAssetTypes(...args),
 
-    async createAssetType(assetType: Partial<AssetType>): Promise<AssetType> {
-        return assetConfigService.createAssetType.apply(assetConfigService, arguments as any);
-    },
+    createAssetType: (...args: Parameters<typeof assetConfigService.createAssetType>): ReturnType<typeof assetConfigService.createAssetType> => assetConfigService.createAssetType(...args),
 
-    async updateAssetType(id: string, assetType: Partial<AssetType>): Promise<AssetType> {
-        return assetConfigService.updateAssetType.apply(assetConfigService, arguments as any);
-    },
+    updateAssetType: (...args: Parameters<typeof assetConfigService.updateAssetType>): ReturnType<typeof assetConfigService.updateAssetType> => assetConfigService.updateAssetType(...args),
 
-    async deleteAssetType(id: string): Promise<void> {
-        return assetConfigService.deleteAssetType.apply(assetConfigService, arguments as any);
-    },
+    deleteAssetType: (...args: Parameters<typeof assetConfigService.deleteAssetType>): ReturnType<typeof assetConfigService.deleteAssetType> => assetConfigService.deleteAssetType(...args),
 
     // -------------------------------------------------------------------------
     // ASSET STATUSES (cfg_assets_statuses)
     // -------------------------------------------------------------------------
-    async getAssetStatuses(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<AssetStatus[]> {
-        return assetConfigService.getAssetStatuses.apply(assetConfigService, arguments as any);
-    },
+    getAssetStatuses: (...args: Parameters<typeof assetConfigService.getAssetStatuses>): ReturnType<typeof assetConfigService.getAssetStatuses> => assetConfigService.getAssetStatuses(...args),
 
-    async createAssetStatus(assetStatus: Partial<AssetStatus>): Promise<AssetStatus> {
-        return assetConfigService.createAssetStatus.apply(assetConfigService, arguments as any);
-    },
+    createAssetStatus: (...args: Parameters<typeof assetConfigService.createAssetStatus>): ReturnType<typeof assetConfigService.createAssetStatus> => assetConfigService.createAssetStatus(...args),
 
-    async updateAssetStatus(id: string, assetStatus: Partial<AssetStatus>): Promise<AssetStatus> {
-        return assetConfigService.updateAssetStatus.apply(assetConfigService, arguments as any);
-    },
+    updateAssetStatus: (...args: Parameters<typeof assetConfigService.updateAssetStatus>): ReturnType<typeof assetConfigService.updateAssetStatus> => assetConfigService.updateAssetStatus(...args),
 
-    async deleteAssetStatus(id: string): Promise<void> {
-        return assetConfigService.deleteAssetStatus.apply(assetConfigService, arguments as any);
-    },
+    deleteAssetStatus: (...args: Parameters<typeof assetConfigService.deleteAssetStatus>): ReturnType<typeof assetConfigService.deleteAssetStatus> => assetConfigService.deleteAssetStatus(...args),
 
     // -------------------------------------------------------------------------
     // ASSET PRIORITIES (cfg_assets_priorities)
     // -------------------------------------------------------------------------
-    async getAssetPriorities(filter: 'all' | 'active' | 'inactive' = 'all', search: string = ''): Promise<AssetPriority[]> {
-        return assetConfigService.getAssetPriorities.apply(assetConfigService, arguments as any);
-    },
+    getAssetPriorities: (...args: Parameters<typeof assetConfigService.getAssetPriorities>): ReturnType<typeof assetConfigService.getAssetPriorities> => assetConfigService.getAssetPriorities(...args),
 
-    async createAssetPriority(assetPriority: Partial<AssetPriority>): Promise<AssetPriority> {
-        return assetConfigService.createAssetPriority.apply(assetConfigService, arguments as any);
-    },
+    createAssetPriority: (...args: Parameters<typeof assetConfigService.createAssetPriority>): ReturnType<typeof assetConfigService.createAssetPriority> => assetConfigService.createAssetPriority(...args),
 
-    async updateAssetPriority(id: string, assetPriority: Partial<AssetPriority>): Promise<AssetPriority> {
-        return assetConfigService.updateAssetPriority.apply(assetConfigService, arguments as any);
-    },
+    updateAssetPriority: (...args: Parameters<typeof assetConfigService.updateAssetPriority>): ReturnType<typeof assetConfigService.updateAssetPriority> => assetConfigService.updateAssetPriority(...args),
 
-    async deleteAssetPriority(id: string): Promise<void> {
-        return assetConfigService.deleteAssetPriority.apply(assetConfigService, arguments as any);
-    },
+    deleteAssetPriority: (...args: Parameters<typeof assetConfigService.deleteAssetPriority>): ReturnType<typeof assetConfigService.deleteAssetPriority> => assetConfigService.deleteAssetPriority(...args),
 
     async getAssetTagsByUnit(unitId: string): Promise<AssetTag[]> {
         if (!unitId || unitId === 'null') {
@@ -1307,112 +839,49 @@ export const dataService = {
         return mappedData;
     },
 
-    async getUnitsAssetsByUnit(unitId: string): Promise<AssetTag[]> {
-        return assetTagsService.getUnitsAssetsByUnit.apply(assetTagsService, arguments as any);
-    },
-    async getUniqueSectorsByUnit(unitId: string): Promise<AssetTag[]> {
-        return assetTagsService.getUniqueSectorsByUnit.apply(assetTagsService, arguments as any);
-    },
+    getUnitsAssetsByUnit: (...args: Parameters<typeof assetTagsService.getUnitsAssetsByUnit>): ReturnType<typeof assetTagsService.getUnitsAssetsByUnit> => assetTagsService.getUnitsAssetsByUnit(...args),
+    getUniqueSectorsByUnit: (...args: Parameters<typeof assetTagsService.getUniqueSectorsByUnit>): ReturnType<typeof assetTagsService.getUniqueSectorsByUnit> => assetTagsService.getUniqueSectorsByUnit(...args),
 
-    async getUnitStructureNodes(unitId: string): Promise<import('../types').UnitStructureNode[]> {
-        return assetTagsService.getUnitStructureNodes.apply(assetTagsService, arguments as any);
-    },
-    async updateUnitStructureParent(nodeId: string, parentId: string | null, sortOrder?: number): Promise<void> {
-        return assetTagsService.updateUnitStructureParent.apply(assetTagsService, arguments as any);
-    },
-    async updateUnitStructureOrder(items: Array<{ id: string; sortOrder: number }>): Promise<void> {
-        return assetTagsService.updateUnitStructureOrder.apply(assetTagsService, arguments as any);
-    },
-    async linkUnitStructureNode(unitId: string, nodeId: string, parentId: string): Promise<void> {
-        return assetTagsService.linkUnitStructureNode.apply(assetTagsService, arguments as any);
-    },
-    async unlinkUnitStructureNode(nodeId: string, parentId: string): Promise<void> {
-        return assetTagsService.unlinkUnitStructureNode.apply(assetTagsService, arguments as any);
-    },
-    async getUnitAssetTagCascadeInfo(nodeId: string): Promise<{ underCascade: boolean; cascadeRootName: string | null }> {
-        return assetTagsService.getUnitAssetTagCascadeInfo.apply(assetTagsService, arguments as any);
-    },
+    getUnitStructureNodes: (...args: Parameters<typeof assetTagsService.getUnitStructureNodes>): ReturnType<typeof assetTagsService.getUnitStructureNodes> => assetTagsService.getUnitStructureNodes(...args),
+    updateUnitStructureParent: (...args: Parameters<typeof assetTagsService.updateUnitStructureParent>): ReturnType<typeof assetTagsService.updateUnitStructureParent> => assetTagsService.updateUnitStructureParent(...args),
+    updateUnitStructureOrder: (...args: Parameters<typeof assetTagsService.updateUnitStructureOrder>): ReturnType<typeof assetTagsService.updateUnitStructureOrder> => assetTagsService.updateUnitStructureOrder(...args),
+    linkUnitStructureNode: (...args: Parameters<typeof assetTagsService.linkUnitStructureNode>): ReturnType<typeof assetTagsService.linkUnitStructureNode> => assetTagsService.linkUnitStructureNode(...args),
+    unlinkUnitStructureNode: (...args: Parameters<typeof assetTagsService.unlinkUnitStructureNode>): ReturnType<typeof assetTagsService.unlinkUnitStructureNode> => assetTagsService.unlinkUnitStructureNode(...args),
+    getUnitAssetTagCascadeInfo: (...args: Parameters<typeof assetTagsService.getUnitAssetTagCascadeInfo>): ReturnType<typeof assetTagsService.getUnitAssetTagCascadeInfo> => assetTagsService.getUnitAssetTagCascadeInfo(...args),
 
-    async getAssetTags(status: 'all' | 'active' | 'inactive' = 'all', search?: string): Promise<AssetTag[]> {
-        return assetTagsService.getAssetTags.apply(assetTagsService, arguments as any);
-    },
+    getAssetTags: (...args: Parameters<typeof assetTagsService.getAssetTags>): ReturnType<typeof assetTagsService.getAssetTags> => assetTagsService.getAssetTags(...args),
 
-    async createAssetTag(tag: Omit<AssetTag, 'id'>): Promise<AssetTag> {
-        return assetTagsService.createAssetTag.apply(assetTagsService, arguments as any);
-    },
+    createAssetTag: (...args: Parameters<typeof assetTagsService.createAssetTag>): ReturnType<typeof assetTagsService.createAssetTag> => assetTagsService.createAssetTag(...args),
 
-    async updateAssetTag(id: string, tag: Partial<AssetTag>): Promise<AssetTag> {
-        return assetTagsService.updateAssetTag.apply(assetTagsService, arguments as any);
-    },
+    updateAssetTag: (...args: Parameters<typeof assetTagsService.updateAssetTag>): ReturnType<typeof assetTagsService.updateAssetTag> => assetTagsService.updateAssetTag(...args),
 
-    async deleteAssetTag(id: string): Promise<void> {
-        return assetTagsService.deleteAssetTag.apply(assetTagsService, arguments as any);
-    },
+    deleteAssetTag: (...args: Parameters<typeof assetTagsService.deleteAssetTag>): ReturnType<typeof assetTagsService.deleteAssetTag> => assetTagsService.deleteAssetTag(...args),
 
     // ASSET TAG SUBS (Posições)
-    async getAssetTagSubs(parentId?: string, status: 'all' | 'active' | 'inactive' = 'all', search?: string): Promise<AssetTagSub[]> {
-        return assetTagsService.getAssetTagSubs.apply(assetTagsService, arguments as any);
-    },
+    getAssetTagSubs: (...args: Parameters<typeof assetTagsService.getAssetTagSubs>): ReturnType<typeof assetTagsService.getAssetTagSubs> => assetTagsService.getAssetTagSubs(...args),
 
-    async createAssetTagSub(tagSub: Omit<AssetTagSub, 'id'>): Promise<AssetTagSub> {
-        return assetTagsService.createAssetTagSub.apply(assetTagsService, arguments as any);
-    },
+    createAssetTagSub: (...args: Parameters<typeof assetTagsService.createAssetTagSub>): ReturnType<typeof assetTagsService.createAssetTagSub> => assetTagsService.createAssetTagSub(...args),
 
-    async updateAssetTagSub(id: string, tagSub: Partial<AssetTagSub>): Promise<AssetTagSub> {
-        return assetTagsService.updateAssetTagSub.apply(assetTagsService, arguments as any);
-    },
+    updateAssetTagSub: (...args: Parameters<typeof assetTagsService.updateAssetTagSub>): ReturnType<typeof assetTagsService.updateAssetTagSub> => assetTagsService.updateAssetTagSub(...args),
 
-    async deleteAssetTagSub(id: string): Promise<void> {
-        return assetTagsService.deleteAssetTagSub.apply(assetTagsService, arguments as any);
-    },
+    deleteAssetTagSub: (...args: Parameters<typeof assetTagsService.deleteAssetTagSub>): ReturnType<typeof assetTagsService.deleteAssetTagSub> => assetTagsService.deleteAssetTagSub(...args),
 
     // -------------------------------------------------------------------------
     // UNIT ASSET TAGS (Sectors)
     // -------------------------------------------------------------------------
-    async getUnitAssetTagsItems(unitId: string, assetTagId: string): Promise<Array<Record<string, any> & { underCascade?: boolean; cascadeRootName?: string | null }>> {
-        return assetTagsService.getUnitAssetTagsItems.apply(assetTagsService, arguments as any);
-    },
+    getUnitAssetTagsItems: (...args: Parameters<typeof assetTagsService.getUnitAssetTagsItems>): ReturnType<typeof assetTagsService.getUnitAssetTagsItems> => assetTagsService.getUnitAssetTagsItems(...args),
 
-    async getUnitAssetTagItemById(id: string): Promise<any> {
-        return assetTagsService.getUnitAssetTagItemById.apply(assetTagsService, arguments as any);
-    },
+    getUnitAssetTagItemById: (...args: Parameters<typeof assetTagsService.getUnitAssetTagItemById>): ReturnType<typeof assetTagsService.getUnitAssetTagItemById> => assetTagsService.getUnitAssetTagItemById(...args),
 
-    async updateUnitAssetTagAvailability(id: string, payload: { 
-        isAvailable: boolean, 
-        reasonId?: string, 
-        comments?: string, 
-        reportedById: string,
-        images?: { path: string, filename: string }[],
-        unitId: number,
-        assetTagId: number,
-        assetTagSubId?: number | null,
-        operationRecord?: number | string,
-        reportedLatitude?: number | null,
-        reportedLongitude?: number | null,
-        unitLatitude?: number | null,
-        unitLongitude?: number | null,
-        unitReportedDistance?: number | null,
-        providerCompanyId?: number,
-        isWeb: boolean
-    }): Promise<number> {
-        return assetTagsService.updateUnitAssetTagAvailability.apply(assetTagsService, arguments as any);
-    },
+    updateUnitAssetTagAvailability: (...args: Parameters<typeof assetTagsService.updateUnitAssetTagAvailability>): ReturnType<typeof assetTagsService.updateUnitAssetTagAvailability> => assetTagsService.updateUnitAssetTagAvailability(...args),
 
-    async updateUnitAssetTagImageRefs(unitAssetTagId: number, assetAvailableId: number, path: string, filename: string): Promise<void> {
-        return assetTagsService.updateUnitAssetTagImageRefs.apply(assetTagsService, arguments as any);
-    },
+    updateUnitAssetTagImageRefs: (...args: Parameters<typeof assetTagsService.updateUnitAssetTagImageRefs>): ReturnType<typeof assetTagsService.updateUnitAssetTagImageRefs> => assetTagsService.updateUnitAssetTagImageRefs(...args),
 
-    async uploadAssetAvailableImageAfterInsert(assetAvailableId: number, unitId: number, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        return assetTagsService.uploadAssetAvailableImageAfterInsert.apply(assetTagsService, arguments as any);
-    },
+    uploadAssetAvailableImageAfterInsert: (...args: Parameters<typeof assetTagsService.uploadAssetAvailableImageAfterInsert>): ReturnType<typeof assetTagsService.uploadAssetAvailableImageAfterInsert> => assetTagsService.uploadAssetAvailableImageAfterInsert(...args),
 
-    async getUnitAssetTagAvailabilityHistory(unitAssetTagId: string): Promise<any[]> {
-        return assetTagsService.getUnitAssetTagAvailabilityHistory.apply(assetTagsService, arguments as any);
-    },
+    getUnitAssetTagAvailabilityHistory: (...args: Parameters<typeof assetTagsService.getUnitAssetTagAvailabilityHistory>): ReturnType<typeof assetTagsService.getUnitAssetTagAvailabilityHistory> => assetTagsService.getUnitAssetTagAvailabilityHistory(...args),
 
-    async uploadUnitAssetTagImage(unitAssetTagId: string, file: File, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        return assetTagsService.uploadUnitAssetTagImage.apply(assetTagsService, arguments as any);
-    },
+    uploadUnitAssetTagImage: (...args: Parameters<typeof assetTagsService.uploadUnitAssetTagImage>): ReturnType<typeof assetTagsService.uploadUnitAssetTagImage> => assetTagsService.uploadUnitAssetTagImage(...args),
 
     subscribeToOrdersVisits(callback: (payload: any) => void) {
         const channelName = `orders_visits-changes-${Math.random().toString(36).substring(7)}`;
@@ -1422,203 +891,82 @@ export const dataService = {
             .subscribe();
     },
 
-      async getUnitAssetTags(unitId: string): Promise<any[]> {
-    return assetTagsService.getUnitAssetTags.apply(assetTagsService, arguments as any);
-  },
+    getUnitAssetTags: (...args: Parameters<typeof assetTagsService.getUnitAssetTags>): ReturnType<typeof assetTagsService.getUnitAssetTags> => assetTagsService.getUnitAssetTags(...args),
 
-    async createUnitAssetTag(payload: {
-        unitId: number;
-        assetTagId: number;
-        assetTagSubId?: number | null;
-        assetTagTagSubDescription?: string;
-        operationUnit?: string;
-        assetAvailableRate?: number;
-        flowRateIsVisible?: boolean;
-        flowRateUnit?: string;
-        flowRateMin?: number;
-        flowRateMax?: number;
-        powerIsVisible?: boolean;
-        powerUnit?: string;
-        powerMin?: number;
-        powerMax?: number;
-        pressureIsVisible?: boolean;
-        pressureUnit?: string;
-        pressureMin?: number;
-        pressureMax?: number;
-        voltageIsVisible?: boolean;
-        voltageUnit?: string;
-        voltageMin?: number;
-        voltageMax?: number;
-        amperageIsVisible?: boolean;
-        amperageUnit?: string;
-        amperageMin?: number;
-        amperageMax?: number;
-        createdUserId?: number;
-    }): Promise<any> {
-        return assetTagsService.createUnitAssetTag.apply(assetTagsService, arguments as any);
-    },
+    createUnitAssetTag: (...args: Parameters<typeof assetTagsService.createUnitAssetTag>): ReturnType<typeof assetTagsService.createUnitAssetTag> => assetTagsService.createUnitAssetTag(...args),
 
-    async updateUnitAssetTag(id: number, payload: {
-        unitId?: number;
-        assetTagId?: number;
-        assetTagSubId?: number | null;
-        assetTagTagSubDescription?: string;
-        operationUnit?: string;
-        assetAvailableRate?: number;
-        flowRateIsVisible?: boolean;
-        flowRateUnit?: string;
-        flowRateMin?: number;
-        flowRateMax?: number;
-        powerIsVisible?: boolean;
-        powerUnit?: string;
-        powerMin?: number;
-        powerMax?: number;
-        pressureIsVisible?: boolean;
-        pressureUnit?: string;
-        pressureMin?: number;
-        pressureMax?: number;
-        isActive?: boolean;
-        updatedUserId?: number;
-    }): Promise<any> {
-        return assetTagsService.updateUnitAssetTag.apply(assetTagsService, arguments as any);
-    },
+    updateUnitAssetTag: (...args: Parameters<typeof assetTagsService.updateUnitAssetTag>): ReturnType<typeof assetTagsService.updateUnitAssetTag> => assetTagsService.updateUnitAssetTag(...args),
 
-    async deleteUnitAssetTag(id: number, deletedUserId?: number | null): Promise<void> {
-        return assetTagsService.deleteUnitAssetTag.apply(assetTagsService, arguments as any);
-    },
+    deleteUnitAssetTag: (...args: Parameters<typeof assetTagsService.deleteUnitAssetTag>): ReturnType<typeof assetTagsService.deleteUnitAssetTag> => assetTagsService.deleteUnitAssetTag(...args),
 
     // -------------------------------------------------------------------------
     // ASSET ATTRIBUTES (Dynamic Fields)
     // -------------------------------------------------------------------------
-    async getAssetAttributesByType(assetTypeId: string): Promise<AssetAttribute[]> {
-        return assetAttributesService.getAssetAttributesByType.apply(assetAttributesService, arguments as any);
-    },
+    getAssetAttributesByType: (...args: Parameters<typeof assetAttributesService.getAssetAttributesByType>): ReturnType<typeof assetAttributesService.getAssetAttributesByType> => assetAttributesService.getAssetAttributesByType(...args),
 
-    async getAssetAttributeValues(assetId: string): Promise<Record<string, string>> {
-        return assetAttributesService.getAssetAttributeValues.apply(assetAttributesService, arguments as any);
-    },
+    getAssetAttributeValues: (...args: Parameters<typeof assetAttributesService.getAssetAttributeValues>): ReturnType<typeof assetAttributesService.getAssetAttributeValues> => assetAttributesService.getAssetAttributeValues(...args),
 
-    async saveAssetAttributeValues(assetId: string, values: Record<string, string>): Promise<void> {
-        return assetAttributesService.saveAssetAttributeValues.apply(assetAttributesService, arguments as any);
-    },
+    saveAssetAttributeValues: (...args: Parameters<typeof assetAttributesService.saveAssetAttributeValues>): ReturnType<typeof assetAttributesService.saveAssetAttributeValues> => assetAttributesService.saveAssetAttributeValues(...args),
 
-    async createAssetAttribute(attribute: Partial<AssetAttribute>): Promise<AssetAttribute> {
-        return assetAttributesService.createAssetAttribute.apply(assetAttributesService, arguments as any);
-    },
+    createAssetAttribute: (...args: Parameters<typeof assetAttributesService.createAssetAttribute>): ReturnType<typeof assetAttributesService.createAssetAttribute> => assetAttributesService.createAssetAttribute(...args),
 
-    async updateAssetAttribute(id: string, attribute: Partial<AssetAttribute>): Promise<AssetAttribute> {
-        return assetAttributesService.updateAssetAttribute.apply(assetAttributesService, arguments as any);
-    },
+    updateAssetAttribute: (...args: Parameters<typeof assetAttributesService.updateAssetAttribute>): ReturnType<typeof assetAttributesService.updateAssetAttribute> => assetAttributesService.updateAssetAttribute(...args),
 
-    async deleteAssetAttribute(id: string): Promise<void> {
-        return assetAttributesService.deleteAssetAttribute.apply(assetAttributesService, arguments as any);
-    },
+    deleteAssetAttribute: (...args: Parameters<typeof assetAttributesService.deleteAssetAttribute>): ReturnType<typeof assetAttributesService.deleteAssetAttribute> => assetAttributesService.deleteAssetAttribute(...args),
 
     // -------------------------------------------------------------------------
     // TYPE-ATTRIBUTE CONFIGURATION (cfg_assets_types_attributes)
     // -------------------------------------------------------------------------
-    async getAllAssetAttributes(): Promise<AssetAttribute[]> {
-        return assetAttributesService.getAllAssetAttributes.apply(assetAttributesService, arguments as any);
-    },
+    getAllAssetAttributes: (...args: Parameters<typeof assetAttributesService.getAllAssetAttributes>): ReturnType<typeof assetAttributesService.getAllAssetAttributes> => assetAttributesService.getAllAssetAttributes(...args),
 
-    async getAttributesNotLinkedToType(assetTypeId: string): Promise<AssetAttribute[]> {
-        return assetAttributesService.getAttributesNotLinkedToType.apply(assetAttributesService, arguments as any);
-    },
+    getAttributesNotLinkedToType: (...args: Parameters<typeof assetAttributesService.getAttributesNotLinkedToType>): ReturnType<typeof assetAttributesService.getAttributesNotLinkedToType> => assetAttributesService.getAttributesNotLinkedToType(...args),
 
-    async getTypeAttributeConfigs(assetTypeId: string): Promise<TypeAttributeConfig[]> {
-        return assetAttributesService.getTypeAttributeConfigs.apply(assetAttributesService, arguments as any);
-    },
+    getTypeAttributeConfigs: (...args: Parameters<typeof assetAttributesService.getTypeAttributeConfigs>): ReturnType<typeof assetAttributesService.getTypeAttributeConfigs> => assetAttributesService.getTypeAttributeConfigs(...args),
 
-    async linkAttributeToType(
-        assetTypeId: string,
-        attributeId: string,
-        config: { isRequired?: boolean; orderIndex?: number; colSpan?: number } = {}
-    ): Promise<TypeAttributeConfig> {
-        return assetAttributesService.linkAttributeToType.apply(assetAttributesService, arguments as any);
-    },
+    linkAttributeToType: (...args: Parameters<typeof assetAttributesService.linkAttributeToType>): ReturnType<typeof assetAttributesService.linkAttributeToType> => assetAttributesService.linkAttributeToType(...args),
 
-    async unlinkAttributeFromType(assetTypeId: string, attributeId: string): Promise<void> {
-        return assetAttributesService.unlinkAttributeFromType.apply(assetAttributesService, arguments as any);
-    },
+    unlinkAttributeFromType: (...args: Parameters<typeof assetAttributesService.unlinkAttributeFromType>): ReturnType<typeof assetAttributesService.unlinkAttributeFromType> => assetAttributesService.unlinkAttributeFromType(...args),
 
-    async updateTypeAttributeConfig(
-        assetTypeId: string,
-        junctionId: string,
-        config: { isRequired?: boolean; colSpan?: number }
-    ): Promise<void> {
-        return assetAttributesService.updateTypeAttributeConfig.apply(assetAttributesService, arguments as any);
-    },
+    updateTypeAttributeConfig: (...args: Parameters<typeof assetAttributesService.updateTypeAttributeConfig>): ReturnType<typeof assetAttributesService.updateTypeAttributeConfig> => assetAttributesService.updateTypeAttributeConfig(...args),
 
-    async reorderTypeAttributes(assetTypeId: string, orderedJunctionIds: string[]): Promise<void> {
-        return assetAttributesService.reorderTypeAttributes.apply(assetAttributesService, arguments as any);
-    },
+    reorderTypeAttributes: (...args: Parameters<typeof assetAttributesService.reorderTypeAttributes>): ReturnType<typeof assetAttributesService.reorderTypeAttributes> => assetAttributesService.reorderTypeAttributes(...args),
 
     // -------------------------------------------------------------------------
     // ASSET ATTRIBUTE GROUPS (cfg_assets_attributes_groups)
     // -------------------------------------------------------------------------
-    async getAttributeGroups() {
-        return assetAttributeGroupsService.getGroups.apply(assetAttributeGroupsService, arguments as any);
-    },
+    getAttributeGroups: (...args: Parameters<typeof assetAttributeGroupsService.getGroups>): ReturnType<typeof assetAttributeGroupsService.getGroups> => assetAttributeGroupsService.getGroups(...args),
 
-    async createAttributeGroup(group: string, description?: string) {
-        return assetAttributeGroupsService.createGroup.apply(assetAttributeGroupsService, arguments as any);
-    },
+    createAttributeGroup: (...args: Parameters<typeof assetAttributeGroupsService.createGroup>): ReturnType<typeof assetAttributeGroupsService.createGroup> => assetAttributeGroupsService.createGroup(...args),
 
-    async updateAttributeGroup(id: string, group: string, description?: string) {
-        return assetAttributeGroupsService.updateGroup.apply(assetAttributeGroupsService, arguments as any);
-    },
+    updateAttributeGroup: (...args: Parameters<typeof assetAttributeGroupsService.updateGroup>): ReturnType<typeof assetAttributeGroupsService.updateGroup> => assetAttributeGroupsService.updateGroup(...args),
 
-    async deleteAttributeGroup(id: string) {
-        return assetAttributeGroupsService.deleteGroup.apply(assetAttributeGroupsService, arguments as any);
-    },
+    deleteAttributeGroup: (...args: Parameters<typeof assetAttributeGroupsService.deleteGroup>): ReturnType<typeof assetAttributeGroupsService.deleteGroup> => assetAttributeGroupsService.deleteGroup(...args),
 
-    async getAttributeOptionsByGroup(groupId: string) {
-        return assetAttributeGroupsService.getOptionsByGroup.apply(assetAttributeGroupsService, arguments as any);
-    },
+    getAttributeOptionsByGroup: (...args: Parameters<typeof assetAttributeGroupsService.getOptionsByGroup>): ReturnType<typeof assetAttributeGroupsService.getOptionsByGroup> => assetAttributeGroupsService.getOptionsByGroup(...args),
 
-    async getAttributeOptionsAsSelect(groupId: string) {
-        return assetAttributeGroupsService.getOptionsAsSelect.apply(assetAttributeGroupsService, arguments as any);
-    },
+    getAttributeOptionsAsSelect: (...args: Parameters<typeof assetAttributeGroupsService.getOptionsAsSelect>): ReturnType<typeof assetAttributeGroupsService.getOptionsAsSelect> => assetAttributeGroupsService.getOptionsAsSelect(...args),
 
-    async createAttributeOption(groupId: string, group: string, description?: string) {
-        return assetAttributeGroupsService.createOption.apply(assetAttributeGroupsService, arguments as any);
-    },
+    createAttributeOption: (...args: Parameters<typeof assetAttributeGroupsService.createOption>): ReturnType<typeof assetAttributeGroupsService.createOption> => assetAttributeGroupsService.createOption(...args),
 
-    async updateAttributeOption(id: string, group: string, description?: string) {
-        return assetAttributeGroupsService.updateOption.apply(assetAttributeGroupsService, arguments as any);
-    },
+    updateAttributeOption: (...args: Parameters<typeof assetAttributeGroupsService.updateOption>): ReturnType<typeof assetAttributeGroupsService.updateOption> => assetAttributeGroupsService.updateOption(...args),
 
-    async deleteAttributeOption(id: string) {
-        return assetAttributeGroupsService.deleteOption.apply(assetAttributeGroupsService, arguments as any);
-    },
+    deleteAttributeOption: (...args: Parameters<typeof assetAttributeGroupsService.deleteOption>): ReturnType<typeof assetAttributeGroupsService.deleteOption> => assetAttributeGroupsService.deleteOption(...args),
 
     // -------------------------------------------------------------------------
     // FILE UPLOAD HELPERS
     // -------------------------------------------------------------------------
 
-    async recordProfileFaceCheck(userId: string, verified: boolean, reason: string): Promise<void> {
-        return usersService.recordProfileFaceCheck.apply(usersService, arguments as any);
-    },
+    recordProfileFaceCheck: (...args: Parameters<typeof usersService.recordProfileFaceCheck>): ReturnType<typeof usersService.recordProfileFaceCheck> => usersService.recordProfileFaceCheck(...args),
 
-    async notifyProfilePhotoRejected(targets: { userId: string; message: string }[], fromUserId: string): Promise<number> {
-        return notificationsService.notifyProfilePhotoRejected.apply(notificationsService, arguments as any);
-    },
+    notifyProfilePhotoRejected: (...args: Parameters<typeof notificationsService.notifyProfilePhotoRejected>): ReturnType<typeof notificationsService.notifyProfilePhotoRejected> => notificationsService.notifyProfilePhotoRejected(...args),
 
-    async uploadUserAvatar(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        return usersService.uploadUserAvatar.apply(usersService, arguments as any);
-    },
+    uploadUserAvatar: (...args: Parameters<typeof usersService.uploadUserAvatar>): ReturnType<typeof usersService.uploadUserAvatar> => usersService.uploadUserAvatar(...args),
 
-    async uploadUserSignature(userId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<{ path: string, filename: string }> {
-        return usersService.uploadUserSignature.apply(usersService, arguments as any);
-    },
+    uploadUserSignature: (...args: Parameters<typeof usersService.uploadUserSignature>): ReturnType<typeof usersService.uploadUserSignature> => usersService.uploadUserSignature(...args),
 
-    async updateUserSignature(userUuid: string, signatureImagePath: string, signatureImageName: string): Promise<void> {
-        return usersService.updateUserSignature.apply(usersService, arguments as any);
-    },
+    updateUserSignature: (...args: Parameters<typeof usersService.updateUserSignature>): ReturnType<typeof usersService.updateUserSignature> => usersService.updateUserSignature(...args),
 
-    async deleteUserSignature(userUuid: string): Promise<void> {
-        return usersService.deleteUserSignature.apply(usersService, arguments as any);
-    },
+    deleteUserSignature: (...args: Parameters<typeof usersService.deleteUserSignature>): ReturnType<typeof usersService.deleteUserSignature> => usersService.deleteUserSignature(...args),
 
     getUserSignatureUrl(path: string, name: string): string {
         return this.getPublicImageUrl(path, name, { width: 600, height: 300, resize: 'contain' }) || '';
@@ -1659,34 +1007,20 @@ export const dataService = {
         }
     },
 
-    async getNotificationsCount(authUserId?: string): Promise<number> {
-        return notificationsService.getNotificationsCount.apply(notificationsService, arguments as any);
-    },
+    getNotificationsCount: (...args: Parameters<typeof notificationsService.getNotificationsCount>): ReturnType<typeof notificationsService.getNotificationsCount> => notificationsService.getNotificationsCount(...args),
 
-    async getNotifications(page = 0, pageSize = 20, authUserId?: string): Promise<UserNotification[]> {
-        return notificationsService.getNotifications.apply(notificationsService, arguments as any);
-    },
+    getNotifications: (...args: Parameters<typeof notificationsService.getNotifications>): ReturnType<typeof notificationsService.getNotifications> => notificationsService.getNotifications(...args),
 
-    async markNotificationAsRead(id: string): Promise<void> {
-        return notificationsService.markNotificationAsRead.apply(notificationsService, arguments as any);
-    },
+    markNotificationAsRead: (...args: Parameters<typeof notificationsService.markNotificationAsRead>): ReturnType<typeof notificationsService.markNotificationAsRead> => notificationsService.markNotificationAsRead(...args),
 
-    async deleteNotification(id: string): Promise<void> {
-        return notificationsService.deleteNotification.apply(notificationsService, arguments as any);
-    },
+    deleteNotification: (...args: Parameters<typeof notificationsService.deleteNotification>): ReturnType<typeof notificationsService.deleteNotification> => notificationsService.deleteNotification(...args),
 
-    async deleteVisitChatNotifications(ovId: string): Promise<void> {
-        return notificationsService.deleteVisitChatNotifications.apply(notificationsService, arguments as any);
-    },
+    deleteVisitChatNotifications: (...args: Parameters<typeof notificationsService.deleteVisitChatNotifications>): ReturnType<typeof notificationsService.deleteVisitChatNotifications> => notificationsService.deleteVisitChatNotifications(...args),
 
-    async clearAllNotifications(): Promise<void> {
-        return notificationsService.clearAllNotifications.apply(notificationsService, arguments as any);
-    },
+    clearAllNotifications: (...args: Parameters<typeof notificationsService.clearAllNotifications>): ReturnType<typeof notificationsService.clearAllNotifications> => notificationsService.clearAllNotifications(...args),
 
     /** Lembrete mensal de lançamento de turnos (1×/mês, só admins super). */
-    async ensureMonthlyShiftsReminder(monthKey: string, title: string, body: string): Promise<void> {
-        return notificationsService.ensureMonthlyShiftsReminder.apply(notificationsService, arguments as any);
-    },
+    ensureMonthlyShiftsReminder: (...args: Parameters<typeof notificationsService.ensureMonthlyShiftsReminder>): ReturnType<typeof notificationsService.ensureMonthlyShiftsReminder> => notificationsService.ensureMonthlyShiftsReminder(...args),
 
     subscribeToNotifications(userId: string, onUpdate: (payload: any) => void) {
         return supabase
@@ -1713,41 +1047,23 @@ export const dataService = {
             });
     },
 
-    async getAssetByCode(code: string): Promise<Asset | null> {
-        return assetsService.getAssetByCode.apply(assetsService, arguments as any);
-    },
+    getAssetByCode: (...args: Parameters<typeof assetsService.getAssetByCode>): ReturnType<typeof assetsService.getAssetByCode> => assetsService.getAssetByCode(...args),
 
-    async toggleAssetFollow(assetId: string): Promise<boolean> {
-        return assetsService.toggleAssetFollow.apply(assetsService, arguments as any);
-    },
+    toggleAssetFollow: (...args: Parameters<typeof assetsService.toggleAssetFollow>): ReturnType<typeof assetsService.toggleAssetFollow> => assetsService.toggleAssetFollow(...args),
 
-    async getFollowedAssetIds(): Promise<string[]> {
-        return assetsService.getFollowedAssetIds.apply(assetsService, arguments as any);
-    },
+    getFollowedAssetIds: (...args: Parameters<typeof assetsService.getFollowedAssetIds>): ReturnType<typeof assetsService.getFollowedAssetIds> => assetsService.getFollowedAssetIds(...args),
 
-    async getSystemsParent(scopeClientsIds?: Array<string | number> | null): Promise<System[]> {
-        return settingsService.getSystemsParent.apply(settingsService, arguments as any);
-    },
+    getSystemsParent: (...args: Parameters<typeof settingsService.getSystemsParent>): ReturnType<typeof settingsService.getSystemsParent> => settingsService.getSystemsParent(...args),
 
-    async getSystems(parentId?: string, scopeClientsIds?: Array<string | number> | null): Promise<System[]> {
-        return settingsService.getSystems.apply(settingsService, arguments as any);
-    },
+    getSystems: (...args: Parameters<typeof settingsService.getSystems>): ReturnType<typeof settingsService.getSystems> => settingsService.getSystems(...args),
 
-    async getUnitsAssetsTagsDashboard(systemParentId: string): Promise<any[]> {
-        return assetsService.getUnitsAssetsTagsDashboard.apply(assetsService, arguments as any);
-    },
+    getUnitsAssetsTagsDashboard: (...args: Parameters<typeof assetsService.getUnitsAssetsTagsDashboard>): ReturnType<typeof assetsService.getUnitsAssetsTagsDashboard> => assetsService.getUnitsAssetsTagsDashboard(...args),
 
-    async getSystemsParentAssetsTagsAvailableRate(systemParentId: string): Promise<any[]> {
-        return assetsService.getSystemsParentAssetsTagsAvailableRate.apply(assetsService, arguments as any);
-    },
+    getSystemsParentAssetsTagsAvailableRate: (...args: Parameters<typeof assetsService.getSystemsParentAssetsTagsAvailableRate>): ReturnType<typeof assetsService.getSystemsParentAssetsTagsAvailableRate> => assetsService.getSystemsParentAssetsTagsAvailableRate(...args),
 
-    async getUnitTypesParent(): Promise<UnitType[]> {
-        return settingsService.getUnitTypesParent.apply(settingsService, arguments as any);
-    },
+    getUnitTypesParent: (...args: Parameters<typeof settingsService.getUnitTypesParent>): ReturnType<typeof settingsService.getUnitTypesParent> => settingsService.getUnitTypesParent(...args),
 
-    async getUnitTypes(parentId?: string): Promise<UnitType[]> {
-        return settingsService.getUnitTypes.apply(settingsService, arguments as any);
-    },
+    getUnitTypes: (...args: Parameters<typeof settingsService.getUnitTypes>): ReturnType<typeof settingsService.getUnitTypes> => settingsService.getUnitTypes(...args),
 
     async getUnitsStatuses(): Promise<any[]> {
         const { data, error } = await supabase
@@ -1761,146 +1077,67 @@ export const dataService = {
         return data || [];
     },
 
-    async getUnits(
-        filter: 'all' | 'active' | 'inactive' = 'active',
-        search: string = '',
-        scopeClientsIds?: Array<string | number> | null
-    ): Promise<any[]> {
-        return unitsService.getUnits.apply(unitsService, arguments as any);
-    },
+    getUnits: (...args: Parameters<typeof unitsService.getUnits>): ReturnType<typeof unitsService.getUnits> => unitsService.getUnits(...args),
 
-    async getUnitsForSearch(
-        filter: 'all' | 'active' | 'inactive' = 'active',
-        search: string = '',
-        scopeClientsIds?: Array<string | number> | null
-    ): Promise<any[]> {
-        return unitsService.getUnitsForSearch.apply(unitsService, arguments as any);
-    },
+    getUnitsForSearch: (...args: Parameters<typeof unitsService.getUnitsForSearch>): ReturnType<typeof unitsService.getUnitsForSearch> => unitsService.getUnitsForSearch(...args),
 
-    async getUnitsByIds(ids: string[]): Promise<{ data: any[] | null, error: any }> {
-        return unitsService.getUnitsByIds.apply(unitsService, arguments as any);
-    },
+    getUnitsByIds: (...args: Parameters<typeof unitsService.getUnitsByIds>): ReturnType<typeof unitsService.getUnitsByIds> => unitsService.getUnitsByIds(...args),
 
-    async getFilteredUnits(filters: {
-        systemParentId?: string | string[];
-        systemId?: string | string[];
-        unitTypeParentId?: string | string[];
-        unitTypeId?: string | string[];
-        search?: string;
-    }): Promise<any[]> {
-        return unitsService.getFilteredUnits.apply(unitsService, arguments as any);
-    },
+    getFilteredUnits: (...args: Parameters<typeof unitsService.getFilteredUnits>): ReturnType<typeof unitsService.getFilteredUnits> => unitsService.getFilteredUnits(...args),
 
     /**
      * Get all units with coordinates for client-side proximity filtering.
      * Returns units with latitude/longitude for distance calculation.
      */
-    async getUnitsWithCoordinates(
-        statusFilter?: 'all' | 'active' | 'inactive',
-        scopeClientsIds?: Array<string | number> | null
-    ): Promise<any[]> {
-        return unitsService.getUnitsWithCoordinates.apply(unitsService, arguments as any);
-    },
+    getUnitsWithCoordinates: (...args: Parameters<typeof unitsService.getUnitsWithCoordinates>): ReturnType<typeof unitsService.getUnitsWithCoordinates> => unitsService.getUnitsWithCoordinates(...args),
 
     /**
      * Get nearby units using Supabase RPC (server-side Haversine).
      * Requires the nearby_units() function to be created in the database.
      * Falls back to client-side filtering if RPC is not available.
      */
-    async getNearbyUnits(
-        lat: number,
-        lng: number,
-        radiusMeters: number = 5000,
-        statusFilter: 'all' | 'active' | 'inactive' = 'all'
-    ): Promise<any[]> {
-        return unitsService.getNearbyUnits.apply(unitsService, arguments as any);
-    },
+    getNearbyUnits: (...args: Parameters<typeof unitsService.getNearbyUnits>): ReturnType<typeof unitsService.getNearbyUnits> => unitsService.getNearbyUnits(...args),
 
-    async getSubSystems(systemId?: string): Promise<any[]> {
-        return settingsService.getSubSystems.apply(settingsService, arguments as any);
-    },
+    getSubSystems: (...args: Parameters<typeof settingsService.getSubSystems>): ReturnType<typeof settingsService.getSubSystems> => settingsService.getSubSystems(...args),
 
-    async getAssetsTags(): Promise<any[]> {
-        return assetTagsService.getAssetsTags.apply(assetTagsService, arguments as any);
-    },
+    getAssetsTags: (...args: Parameters<typeof assetTagsService.getAssetsTags>): ReturnType<typeof assetTagsService.getAssetsTags> => assetTagsService.getAssetsTags(...args),
 
 
 
-    async getOrdersObjects(): Promise<any[]> {
-        return orderConfigService.getOrdersObjects.apply(orderConfigService, arguments as any);
-    },
+    getOrdersObjects: (...args: Parameters<typeof orderConfigService.getOrdersObjects>): ReturnType<typeof orderConfigService.getOrdersObjects> => orderConfigService.getOrdersObjects(...args),
 
 
 
-    async getPlans(): Promise<any[]> {
-        return orderConfigService.getPlans.apply(orderConfigService, arguments as any);
-    },
+    getPlans: (...args: Parameters<typeof orderConfigService.getPlans>): ReturnType<typeof orderConfigService.getPlans> => orderConfigService.getPlans(...args),
 
-    async getCancelReasons(): Promise<any[]> {
-        return orderConfigService.getCancelReasons.apply(orderConfigService, arguments as any);
-    },
+    getCancelReasons: (...args: Parameters<typeof orderConfigService.getCancelReasons>): ReturnType<typeof orderConfigService.getCancelReasons> => orderConfigService.getCancelReasons(...args),
 
-    async getSuspendedReasons(): Promise<SuspendedReason[]> {
-        return orderConfigService.getSuspendedReasons.apply(orderConfigService, arguments as any);
-    },
+    getSuspendedReasons: (...args: Parameters<typeof orderConfigService.getSuspendedReasons>): ReturnType<typeof orderConfigService.getSuspendedReasons> => orderConfigService.getSuspendedReasons(...args),
 
-    async getOrderCauseReasons(): Promise<CauseReason[]> {
-        return orderConfigService.getOrderCauseReasons.apply(orderConfigService, arguments as any);
-    },
+    getOrderCauseReasons: (...args: Parameters<typeof orderConfigService.getOrderCauseReasons>): ReturnType<typeof orderConfigService.getOrderCauseReasons> => orderConfigService.getOrderCauseReasons(...args),
 
     // -------------------------------------------------------------------------
     // VEHICLE COST TYPES (cfg_vehicles_costs_types — rateio de aluguel)
     // -------------------------------------------------------------------------
-    async getVehicleCostTypes(): Promise<VehicleCostType[]> {
-        return orderConfigService.getVehicleCostTypes.apply(orderConfigService, arguments as any);
-    },
+    getVehicleCostTypes: (...args: Parameters<typeof orderConfigService.getVehicleCostTypes>): ReturnType<typeof orderConfigService.getVehicleCostTypes> => orderConfigService.getVehicleCostTypes(...args),
 
-    async saveVehicleCostType(input: { id?: string; code: string; description: string; color?: string; isAvailable?: boolean }): Promise<VehicleCostType> {
-        return orderConfigService.saveVehicleCostType.apply(orderConfigService, arguments as any);
-    },
+    saveVehicleCostType: (...args: Parameters<typeof orderConfigService.saveVehicleCostType>): ReturnType<typeof orderConfigService.saveVehicleCostType> => orderConfigService.saveVehicleCostType(...args),
 
-    async deleteVehicleCostType(id: string): Promise<void> {
-        return orderConfigService.deleteVehicleCostType.apply(orderConfigService, arguments as any);
-    },
+    deleteVehicleCostType: (...args: Parameters<typeof orderConfigService.deleteVehicleCostType>): ReturnType<typeof orderConfigService.deleteVehicleCostType> => orderConfigService.deleteVehicleCostType(...args),
 
 
-    async getTeamLeader(teamId: string): Promise<User | null> {
-        return usersService.getTeamLeader.apply(usersService, arguments as any);
-    },
+    getTeamLeader: (...args: Parameters<typeof usersService.getTeamLeader>): ReturnType<typeof usersService.getTeamLeader> => usersService.getTeamLeader(...args),
 
-    async setTeamLeader(userId: string, isLeader: boolean): Promise<void> {
-        return usersService.setTeamLeader.apply(usersService, arguments as any);
-    },
+    setTeamLeader: (...args: Parameters<typeof usersService.setTeamLeader>): ReturnType<typeof usersService.setTeamLeader> => usersService.setTeamLeader(...args),
 
-    async getOpenOrdersForOffline(providerCompanyId: string, leaderUserId: string): Promise<Array<{ id: string; unitId: string | null; clientId: string | null; typeId: string | null; updatedAt: string | null }>> {
-        return ordersService.getOpenOrdersForOffline.apply(ordersService, arguments as any);
-    },
-    async getOpenOrdersByUnit(unitId: string, filters: {
-        orderObjectId?: string | string[];
-        orderTypeId?: string | string[];
-        orderTypeSubId?: string | string[];
-        contractId?: string | string[];
-        planId?: string | string[];
-        teamId?: string | string[];
-    }): Promise<any[]> {
-        return ordersService.getOpenOrdersByUnit.apply(ordersService, arguments as any);
-    },
+    getOpenOrdersForOffline: (...args: Parameters<typeof ordersService.getOpenOrdersForOffline>): ReturnType<typeof ordersService.getOpenOrdersForOffline> => ordersService.getOpenOrdersForOffline(...args),
+    getOpenOrdersByUnit: (...args: Parameters<typeof ordersService.getOpenOrdersByUnit>): ReturnType<typeof ordersService.getOpenOrdersByUnit> => ordersService.getOpenOrdersByUnit(...args),
 
-    async getOrderByMask(mask: string): Promise<Order | null> {
-        return ordersService.getOrderByMask.apply(ordersService, arguments as any);
-    },
+    getOrderByMask: (...args: Parameters<typeof ordersService.getOrderByMask>): ReturnType<typeof ordersService.getOrderByMask> => ordersService.getOrderByMask(...args),
 
-    async getOrdersFilters(filters?: OrderFilters & { page?: number; pageSize?: number; viewName?: string; skipCount?: boolean }): Promise<{ data: Order[]; hasMore: boolean; total: number }> {
-        return ordersService.getOrdersFilters.apply(ordersService, arguments as any);
-    },
+    getOrdersFilters: (...args: Parameters<typeof ordersService.getOrdersFilters>): ReturnType<typeof ordersService.getOrdersFilters> => ordersService.getOrdersFilters(...args),
 
-    async getOrdersVisitsAssetsWithProvider(filters?: {
-        assetId?: string;
-        orderId?: string;
-        ovId?: string;
-    }): Promise<any[]> {
-        return ordersService.getOrdersVisitsAssetsWithProvider.apply(ordersService, arguments as any);
-    },
+    getOrdersVisitsAssetsWithProvider: (...args: Parameters<typeof ordersService.getOrdersVisitsAssetsWithProvider>): ReturnType<typeof ordersService.getOrdersVisitsAssetsWithProvider> => ordersService.getOrdersVisitsAssetsWithProvider(...args),
 
      /** Mudanças em public.orders. Passe `{ orderId }` para ouvir uma OS só (filtro no servidor). */
      subscribeToOrders: (callback: (payload: any) => void, options: { orderId?: string } = {}) => {
@@ -2007,204 +1244,63 @@ export const dataService = {
          } as any;
      },
 
-    async getOrderById(id: string | number): Promise<Order | null> {
-        return ordersService.getOrderById.apply(ordersService, arguments as any);
-    },
+    getOrderById: (...args: Parameters<typeof ordersService.getOrderById>): ReturnType<typeof ordersService.getOrderById> => ordersService.getOrderById(...args),
 
-    async getFollowedOrderIds(userId: string): Promise<string[]> {
-        return ordersService.getFollowedOrderIds.apply(ordersService, arguments as any);
-    },
+    getFollowedOrderIds: (...args: Parameters<typeof ordersService.getFollowedOrderIds>): ReturnType<typeof ordersService.getFollowedOrderIds> => ordersService.getFollowedOrderIds(...args),
 
-    async toggleOrderFollow(orderId: string, userId: string): Promise<boolean> {
-        return ordersService.toggleOrderFollow.apply(ordersService, arguments as any);
-    },
+    toggleOrderFollow: (...args: Parameters<typeof ordersService.toggleOrderFollow>): ReturnType<typeof ordersService.toggleOrderFollow> => ordersService.toggleOrderFollow(...args),
 
-     async getDashboardStats(
-         filters?: OrderFilters,
-         ssFiltersOverride?: OrderFilters,
-         osFiltersOverride?: OrderFilters,
-         viewName?: string,
-         startDate?: string,
-         endDate?: string,
-         skipSs?: boolean
-     ): Promise<{
-         ssCounts: { today: number; yesterday: number; sevenDays: number; fifteenDays: number; between16And30: number; moreThan30: number };
-         osCounts: Record<number, number>;
-         ssSectorCounts?: Array<{ id: string, label: string, count: number }>;
-         osSectorCounts?: Array<{ id: string, label: string, count: number }>;
-     }> {
-         return ordersService.getDashboardStats.apply(ordersService, arguments as any);
-     },
+    getDashboardStats: (...args: Parameters<typeof ordersService.getDashboardStats>): ReturnType<typeof ordersService.getDashboardStats> => ordersService.getDashboardStats(...args),
 
     // ---------------------------------------------------------------------
     // OCIOSIDADE / TURNOS DAS EQUIPES (aba OCIOSIDADE)
     // ---------------------------------------------------------------------
 
     /** Ociosidade + turnos por equipe no mês (escopo: departamento do usuário). */
-    async getTeamShiftsStats(
-        companyId: string | undefined,
-        departmentId: string | undefined,
-        year: number,
-        month: number,
-        months?: number
-    ): Promise<TeamShiftsMonthly[]> {
-        return dashboardService.getTeamShiftsStats.apply(dashboardService, arguments as any);
-    },
+    getTeamShiftsStats: (...args: Parameters<typeof dashboardService.getTeamShiftsStats>): ReturnType<typeof dashboardService.getTeamShiftsStats> => dashboardService.getTeamShiftsStats(...args),
 
     /** Lançamentos manuais de turnos do mês de competência. */
-    async getTeamShiftsRecords(referenceMonth: string): Promise<TeamShiftsRecord[]> {
-        return teamShiftsRecordsService.getTeamShiftsRecords.apply(teamShiftsRecordsService, arguments as any);
-    },
+    getTeamShiftsRecords: (...args: Parameters<typeof teamShiftsRecordsService.getTeamShiftsRecords>): ReturnType<typeof teamShiftsRecordsService.getTeamShiftsRecords> => teamShiftsRecordsService.getTeamShiftsRecords(...args),
 
     /** Marca turnos normais e extras por equipe e dia útil da competência. */
-    async getTeamShiftsCalendar(referenceMonth: string, departmentId: string): Promise<TeamShiftsCalendarEntry[]> {
-        return teamShiftsRecordsService.getTeamShiftsCalendar.apply(teamShiftsRecordsService, arguments as any);
-    },
+    getTeamShiftsCalendar: (...args: Parameters<typeof teamShiftsRecordsService.getTeamShiftsCalendar>): ReturnType<typeof teamShiftsRecordsService.getTeamShiftsCalendar> => teamShiftsRecordsService.getTeamShiftsCalendar(...args),
 
     /** Salva o calendário diário e sincroniza os totais mensais atomicamente. */
-    async saveTeamShiftsCalendar(
-        referenceMonth: string,
-        departmentId: string,
-        entries: TeamShiftsCalendarEntry[]
-    ): Promise<void> {
-        return teamShiftsRecordsService.saveTeamShiftsCalendar.apply(teamShiftsRecordsService, arguments as any);
-    },
+    saveTeamShiftsCalendar: (...args: Parameters<typeof teamShiftsRecordsService.saveTeamShiftsCalendar>): ReturnType<typeof teamShiftsRecordsService.saveTeamShiftsCalendar> => teamShiftsRecordsService.saveTeamShiftsCalendar(...args),
 
     /** Salva o lançamento do mês em lote (remove lançamentos zerados; erro se fechado). */
-    async saveTeamShiftsRecords(
-        referenceMonth: string,
-        departmentId: string,
-        records: TeamShiftsSaveEntry[],
-        userId: string
-    ): Promise<void> {
-        return teamShiftsRecordsService.saveTeamShiftsRecords.apply(teamShiftsRecordsService, arguments as any);
-    },
+    saveTeamShiftsRecords: (...args: Parameters<typeof teamShiftsRecordsService.saveTeamShiftsRecords>): ReturnType<typeof teamShiftsRecordsService.saveTeamShiftsRecords> => teamShiftsRecordsService.saveTeamShiftsRecords(...args),
 
     /** Fechamento de competência do mês (null = aberto). */
-    async getTeamShiftsMonthLock(referenceMonth: string, departmentId: string): Promise<TeamShiftsMonthLock | null> {
-        return teamShiftsRecordsService.getMonthLock.apply(teamShiftsRecordsService, arguments as any);
-    },
+    getTeamShiftsMonthLock: (...args: Parameters<typeof teamShiftsRecordsService.getMonthLock>): ReturnType<typeof teamShiftsRecordsService.getMonthLock> => teamShiftsRecordsService.getMonthLock(...args),
 
     /** Fecha a competência do mês (idempotente). */
-    async lockTeamShiftsMonth(referenceMonth: string, departmentId: string, userId: string): Promise<void> {
-        return teamShiftsRecordsService.lockMonth.apply(teamShiftsRecordsService, arguments as any);
-    },
+    lockTeamShiftsMonth: (...args: Parameters<typeof teamShiftsRecordsService.lockMonth>): ReturnType<typeof teamShiftsRecordsService.lockMonth> => teamShiftsRecordsService.lockMonth(...args),
 
     /** Reabre a competência removendo o registro de fechamento. */
-    async unlockTeamShiftsMonth(referenceMonth: string, departmentId: string): Promise<void> {
-        return teamShiftsRecordsService.unlockMonth.apply(teamShiftsRecordsService, arguments as any);
-    },
+    unlockTeamShiftsMonth: (...args: Parameters<typeof teamShiftsRecordsService.unlockMonth>): ReturnType<typeof teamShiftsRecordsService.unlockMonth> => teamShiftsRecordsService.unlockMonth(...args),
 
-    async getUnscheduledSS(filters?: OrderFilters & { viewName?: string; startDate?: string; endDate?: string }): Promise<Order[]> {
-        return ordersService.getUnscheduledSS.apply(ordersService, arguments as any);
-    },
+    getUnscheduledSS: (...args: Parameters<typeof ordersService.getUnscheduledSS>): ReturnType<typeof ordersService.getUnscheduledSS> => ordersService.getUnscheduledSS(...args),
 
-    async getOpenSS(filters?: OrderFilters & { viewName?: string; startDate?: string; endDate?: string }): Promise<Order[]> {
-        return ordersService.getOpenSS.apply(ordersService, arguments as any);
-    },
+    getOpenSS: (...args: Parameters<typeof ordersService.getOpenSS>): ReturnType<typeof ordersService.getOpenSS> => ordersService.getOpenSS(...args),
 
-    async getOpenOS(filters?: OrderFilters & { viewName?: string }): Promise<Order[]> {
-        return ordersService.getOpenOS.apply(ordersService, arguments as any);
-    },
+    getOpenOS: (...args: Parameters<typeof ordersService.getOpenOS>): ReturnType<typeof ordersService.getOpenOS> => ordersService.getOpenOS(...args),
 
-    async getCompletedOS(filters?: {
-        startDate?: string;
-        endDate?: string;
-        page?: number;
-        pageSize?: number;
-        search?: string;
-        systemParentId?: string | string[];
-        systemId?: string | string[];
-        unitTypeParentId?: string | string[];
-        unitTypeId?: string | string[];
-        unitId?: string | string[];
-        assetTagId?: string | string[];
-        assetTagSubId?: string | string[];
-        orderObjectId?: string | string[];
-        orderTypeId?: string | string[];
-        orderTypeSubId?: string | string[];
-        contractId?: string | string[];
-        orderPlanId?: string | string[];
-        orderTeamId?: string | string[];
-        responsibleTeamId?: string | string[];
-        priorityId?: string | string[];
-        providerCompanyId?: string | string[];
-        causeReasonId?: string | string[];
-        viewName?: string;
-    }): Promise<{ data: Order[]; total: number }> {
-        return ordersService.getCompletedOS.apply(ordersService, arguments as any);
-    },
+    getCompletedOS: (...args: Parameters<typeof ordersService.getCompletedOS>): ReturnType<typeof ordersService.getCompletedOS> => ordersService.getCompletedOS(...args),
 
-    async getCompletedOSCounts(filters?: Parameters<typeof ordersService.getCompletedOSCounts>[0]): Promise<Record<'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth', number> | null> {
-        return ordersService.getCompletedOSCounts.apply(ordersService, arguments as any);
-    },
+    getCompletedOSCounts: (...args: Parameters<typeof ordersService.getCompletedOSCounts>): ReturnType<typeof ordersService.getCompletedOSCounts> => ordersService.getCompletedOSCounts(...args),
 
-    async getCompletedSS(filters?: {
-        startDate?: string;
-        endDate?: string;
-        page?: number;
-        pageSize?: number;
-        search?: string;
-        systemParentId?: string | string[];
-        systemId?: string | string[];
-        unitTypeParentId?: string | string[];
-        unitTypeId?: string | string[];
-        unitId?: string | string[];
-        assetTagId?: string | string[];
-        assetTagSubId?: string | string[];
-        orderObjectId?: string | string[];
-        orderTypeId?: string | string[];
-        orderTypeSubId?: string | string[];
-        contractId?: string | string[];
-        orderPlanId?: string | string[];
-        orderTeamId?: string | string[];
-        priorityId?: string | string[];
-        viewName?: string;
-    }): Promise<{ data: Order[]; total: number }> {
-        return ordersService.getCompletedSS.apply(ordersService, arguments as any);
-    },
+    getCompletedSS: (...args: Parameters<typeof ordersService.getCompletedSS>): ReturnType<typeof ordersService.getCompletedSS> => ordersService.getCompletedSS(...args),
 
-    async getCanceledSS(filters?: {
-        startDate?: string;
-        endDate?: string;
-        page?: number;
-        pageSize?: number;
-        search?: string;
-        systemParentId?: string | string[];
-        systemId?: string | string[];
-        unitTypeParentId?: string | string[];
-        unitTypeId?: string | string[];
-        unitId?: string | string[];
-        assetTagId?: string | string[];
-        assetTagSubId?: string | string[];
-        orderObjectId?: string | string[];
-        orderTypeId?: string | string[];
-        orderTypeSubId?: string | string[];
-        contractId?: string | string[];
-        orderPlanId?: string | string[];
-        orderTeamId?: string | string[];
-        priorityId?: string | string[];
-        providerCompanyId?: string | string[];
-        viewName?: string;
-    }): Promise<{ data: Order[]; total: number }> {
-        return ordersService.getCanceledSS.apply(ordersService, arguments as any);
-    },
+    getCanceledSS: (...args: Parameters<typeof ordersService.getCanceledSS>): ReturnType<typeof ordersService.getCanceledSS> => ordersService.getCanceledSS(...args),
 
-    async updateSystem(id: string, data: Partial<System>): Promise<void> {
-        return settingsService.updateSystem.apply(settingsService, arguments as any);
-    },
+    updateSystem: (...args: Parameters<typeof settingsService.updateSystem>): ReturnType<typeof settingsService.updateSystem> => settingsService.updateSystem(...args),
 
-    async createSystem(data: Partial<System>): Promise<void> {
-        return settingsService.createSystem.apply(settingsService, arguments as any);
-    },
+    createSystem: (...args: Parameters<typeof settingsService.createSystem>): ReturnType<typeof settingsService.createSystem> => settingsService.createSystem(...args),
 
-    async updateUnitType(id: string, data: Partial<UnitType>): Promise<void> {
-        return settingsService.updateUnitType.apply(settingsService, arguments as any);
-    },
+    updateUnitType: (...args: Parameters<typeof settingsService.updateUnitType>): ReturnType<typeof settingsService.updateUnitType> => settingsService.updateUnitType(...args),
 
-    async createUnitType(data: Partial<UnitType>): Promise<void> {
-        return settingsService.createUnitType.apply(settingsService, arguments as any);
-    },
+    createUnitType: (...args: Parameters<typeof settingsService.createUnitType>): ReturnType<typeof settingsService.createUnitType> => settingsService.createUnitType(...args),
 
     /**
      * Mudanças em public.users. ATENÇÃO: o rastreamento atualiza a posição de
@@ -2263,423 +1359,213 @@ export const dataService = {
         };
     },
 
-    async getOrdersByTeam(teamId: string): Promise<Order[]> {
-        return ordersService.getOrdersByTeam.apply(ordersService, arguments as any);
-    },
+    getOrdersByTeam: (...args: Parameters<typeof ordersService.getOrdersByTeam>): ReturnType<typeof ordersService.getOrdersByTeam> => ordersService.getOrdersByTeam(...args),
 
-    async getOrdersByLeader(leaderId: string): Promise<Order[]> {
-        return ordersService.getOrdersByLeader.apply(ordersService, arguments as any);
-    },
+    getOrdersByLeader: (...args: Parameters<typeof ordersService.getOrdersByLeader>): ReturnType<typeof ordersService.getOrdersByLeader> => ordersService.getOrdersByLeader(...args),
 
-    async hasActiveVisits(orderId: string): Promise<boolean> {
-        return ordersService.hasActiveVisits.apply(ordersService, arguments as any);
-    },
+    hasActiveVisits: (...args: Parameters<typeof ordersService.hasActiveVisits>): ReturnType<typeof ordersService.hasActiveVisits> => ordersService.hasActiveVisits(...args),
 
-    async getAvailableTeamMembers(teamId: string): Promise<User[]> {
-        return ordersService.getAvailableTeamMembers.apply(ordersService, arguments as any);
-    },
+    getAvailableTeamMembers: (...args: Parameters<typeof ordersService.getAvailableTeamMembers>): ReturnType<typeof ordersService.getAvailableTeamMembers> => ordersService.getAvailableTeamMembers(...args),
 
-    async getActiveUsers(): Promise<User[]> {
-        return usersService.getActiveUsers.apply(usersService, arguments as any);
-    },
+    getActiveUsers: (...args: Parameters<typeof usersService.getActiveUsers>): ReturnType<typeof usersService.getActiveUsers> => usersService.getActiveUsers(...args),
 
-    async authorizeOrder(orderId: string, teamId: string, planId?: string, teamLeaderId?: string, expectedStatusId?: number): Promise<void> {
-        return ordersService.authorizeOrder.apply(ordersService, arguments as any);
-    },
+    authorizeOrder: (...args: Parameters<typeof ordersService.authorizeOrder>): ReturnType<typeof ordersService.authorizeOrder> => ordersService.authorizeOrder(...args),
 
     // ── Programação Diária (services/orders/dailyScheduleService.ts) ──────────
-    async getDailyScheduleBoard(params: { contractId: string; providerDepartmentId: string; date: string; readOnly: boolean; fresh?: boolean }): Promise<DailyScheduleBoard> {
-        return dailyScheduleService.getBoard.apply(dailyScheduleService, arguments as any);
-    },
+    getDailyScheduleBoard: (...args: Parameters<typeof dailyScheduleService.getBoard>): ReturnType<typeof dailyScheduleService.getBoard> => dailyScheduleService.getBoard(...args),
 
-    async saveDailySchedule(contractId: string, date: string, items: DailyScheduleItemInput[]): Promise<void> {
-        return dailyScheduleService.saveSchedule.apply(dailyScheduleService, arguments as any);
-    },
+    saveDailySchedule: (...args: Parameters<typeof dailyScheduleService.saveSchedule>): ReturnType<typeof dailyScheduleService.saveSchedule> => dailyScheduleService.saveSchedule(...args),
 
-    async getMyDaySchedule(date?: string): Promise<MyDayScheduleItem[]> {
-        return dailyScheduleService.getMyDaySchedule.apply(dailyScheduleService, arguments as any);
-    },
+    getMyDaySchedule: (...args: Parameters<typeof dailyScheduleService.getMyDaySchedule>): ReturnType<typeof dailyScheduleService.getMyDaySchedule> => dailyScheduleService.getMyDaySchedule(...args),
 
-    async saveOrderPriorities(contractId: string, date: string, orderIds: string[]): Promise<void> {
-        return dailyScheduleService.savePriorities.apply(dailyScheduleService, arguments as any);
-    },
+    saveOrderPriorities: (...args: Parameters<typeof dailyScheduleService.savePriorities>): ReturnType<typeof dailyScheduleService.savePriorities> => dailyScheduleService.savePriorities(...args),
 
-    async logDailyScheduleMove(log: DailyScheduleMoveLog): Promise<void> {
-        return dailyScheduleService.logMove.apply(dailyScheduleService, arguments as any);
-    },
+    logDailyScheduleMove: (...args: Parameters<typeof dailyScheduleService.logMove>): ReturnType<typeof dailyScheduleService.logMove> => dailyScheduleService.logMove(...args),
 
-    async authorizeOrderToScheduleTeam(orderId: string, team: DailyScheduleTeam, planId?: string): Promise<void> {
-        return dailyScheduleService.authorizeToTeam.apply(dailyScheduleService, arguments as any);
-    },
+    authorizeOrderToScheduleTeam: (...args: Parameters<typeof dailyScheduleService.authorizeToTeam>): ReturnType<typeof dailyScheduleService.authorizeToTeam> => dailyScheduleService.authorizeToTeam(...args),
 
-    async moveAuthorizedOrderToScheduleTeam(orderId: string, team: DailyScheduleTeam): Promise<void> {
-        return dailyScheduleService.moveAuthorizedToTeam.apply(dailyScheduleService, arguments as any);
-    },
+    moveAuthorizedOrderToScheduleTeam: (...args: Parameters<typeof dailyScheduleService.moveAuthorizedToTeam>): ReturnType<typeof dailyScheduleService.moveAuthorizedToTeam> => dailyScheduleService.moveAuthorizedToTeam(...args),
 
-    async hasActiveChildOrders(parentOrderId: string | number): Promise<boolean> {
-        return ordersService.hasActiveChildOrders.apply(ordersService, arguments as any);
-    },
+    hasActiveChildOrders: (...args: Parameters<typeof ordersService.hasActiveChildOrders>): ReturnType<typeof ordersService.hasActiveChildOrders> => ordersService.hasActiveChildOrders(...args),
 
-    async cancelOrder(orderId: string, reasonId: string, userId: string, teamId: string, comments?: string): Promise<void> {
-        return ordersService.cancelOrder.apply(ordersService, arguments as any);
-    },
+    cancelOrder: (...args: Parameters<typeof ordersService.cancelOrder>): ReturnType<typeof ordersService.cancelOrder> => ordersService.cancelOrder(...args),
 
 
-      async scheduleOrder(orderId: string, date: string): Promise<void> {
-    return ordersService.scheduleOrder.apply(ordersService, arguments as any);
-  },
+    scheduleOrder: (...args: Parameters<typeof ordersService.scheduleOrder>): ReturnType<typeof ordersService.scheduleOrder> => ordersService.scheduleOrder(...args),
 
 
-      async updateOrderTeam(orderId: string, teamId: string, teamLeaderId?: string): Promise<void> {
-    return ordersService.updateOrderTeam.apply(ordersService, arguments as any);
-  },
+    updateOrderTeam: (...args: Parameters<typeof ordersService.updateOrderTeam>): ReturnType<typeof ordersService.updateOrderTeam> => ordersService.updateOrderTeam(...args),
 
 
-    async getLeadersByCompany(companyId: string): Promise<User[]> {
-        return companiesService.getLeadersByCompany.apply(companiesService, arguments as any);
-    },
+    getLeadersByCompany: (...args: Parameters<typeof companiesService.getLeadersByCompany>): ReturnType<typeof companiesService.getLeadersByCompany> => companiesService.getLeadersByCompany(...args),
 
-    async getTodayVisitsByCompany(companyId: string): Promise<OrderVisit[]> {
-        return companiesService.getTodayVisitsByCompany.apply(companiesService, arguments as any);
-    },
+    getTodayVisitsByCompany: (...args: Parameters<typeof companiesService.getTodayVisitsByCompany>): ReturnType<typeof companiesService.getTodayVisitsByCompany> => companiesService.getTodayVisitsByCompany(...args),
 
-    async getVisitsByTeam(teamId: string): Promise<OrderVisit[]> {
-        return visitsService.getVisitsByTeam.apply(visitsService, arguments as any);
-    },
+    getVisitsByTeam: (...args: Parameters<typeof visitsService.getVisitsByTeam>): ReturnType<typeof visitsService.getVisitsByTeam> => visitsService.getVisitsByTeam(...args),
 
-    async getVisitsByLeader(leaderId: string): Promise<OrderVisit[]> {
-        return visitsService.getVisitsByLeader.apply(visitsService, arguments as any);
-    },
+    getVisitsByLeader: (...args: Parameters<typeof visitsService.getVisitsByLeader>): ReturnType<typeof visitsService.getVisitsByLeader> => visitsService.getVisitsByLeader(...args),
 
-    async getVisitsByChatCreator(userId: string): Promise<OrderVisit[]> {
-        return visitsService.getVisitsByChatCreator.apply(visitsService, arguments as any);
-    },
+    getVisitsByChatCreator: (...args: Parameters<typeof visitsService.getVisitsByChatCreator>): ReturnType<typeof visitsService.getVisitsByChatCreator> => visitsService.getVisitsByChatCreator(...args),
 
-    async getOpenChatVisitsForUser(userId: string): Promise<OrderVisit[]> {
-        return visitsService.getOpenChatVisitsForUser.apply(visitsService, arguments as any);
-    },
+    getOpenChatVisitsForUser: (...args: Parameters<typeof visitsService.getOpenChatVisitsForUser>): ReturnType<typeof visitsService.getOpenChatVisitsForUser> => visitsService.getOpenChatVisitsForUser(...args),
 
-    async startOrderVisit(order: Pick<Order, 'id' | 'parentId'>, currentUser: Pick<User, 'id'>, startedAt?: string, options?: { offlineUuid?: string; clientStartedAt?: string; vehicleOfflineUuid?: string; clientUuid?: string; vehicleClientUuid?: string }): Promise<void> {
-        return visitsService.startOrderVisit.apply(visitsService, arguments as any);
-    },
-    async getReassignPreview(visitId: string | number, targetOrderId: string | number): Promise<{
-        assetsAmount: number;
-        servicesAmount: number;
-        targetHasOpenVisit: boolean;
-        visitMask?: string;
-        startedAt?: string | null;
-        sourceOrderId?: string;
-    }> {
-        return visitsService.getReassignPreview.apply(visitsService, arguments as any);
-    },
-    async reassignOrderVisit(
-        visitId: string | number,
-        targetOrderId: string | number,
-        currentUser: User
-    ): Promise<{ newMask: string; restoredStatusId: number; sourceOrderId: string }> {
-        return visitsService.reassignOrderVisit.apply(visitsService, arguments as any);
-    },
+    startOrderVisit: (...args: Parameters<typeof visitsService.startOrderVisit>): ReturnType<typeof visitsService.startOrderVisit> => visitsService.startOrderVisit(...args),
+    getReassignPreview: (...args: Parameters<typeof visitsService.getReassignPreview>): ReturnType<typeof visitsService.getReassignPreview> => visitsService.getReassignPreview(...args),
+    reassignOrderVisit: (...args: Parameters<typeof visitsService.reassignOrderVisit>): ReturnType<typeof visitsService.reassignOrderVisit> => visitsService.reassignOrderVisit(...args),
 
-    async getActiveOrderVisit(id: string): Promise<OrderVisit | null> {
-        return visitsService.getActiveOrderVisit.apply(visitsService, arguments as any);
-    },
+    getActiveOrderVisit: (...args: Parameters<typeof visitsService.getActiveOrderVisit>): ReturnType<typeof visitsService.getActiveOrderVisit> => visitsService.getActiveOrderVisit(...args),
 
-    async getOfflineChangeVersions(companyId: string, unitIds: string[], assetTypeIds: string[], orderTypeIds: string[]): Promise<OfflineChangeVersions> {
-        return offlineVersionsService.getOfflineChangeVersions.apply(offlineVersionsService, arguments as any);
-    },
-    async getOpenVisitIdsByUser(userId: string): Promise<string[]> {
-        return visitsService.getOpenVisitIdsByUser.apply(visitsService, arguments as any);
-    },
-    async getOrderVisitTeam(visitId: string): Promise<OrderVisitTeam[]> {
-        return visitsService.getOrderVisitTeam.apply(visitsService, arguments as any);
-    },
+    getOfflineChangeVersions: (...args: Parameters<typeof offlineVersionsService.getOfflineChangeVersions>): ReturnType<typeof offlineVersionsService.getOfflineChangeVersions> => offlineVersionsService.getOfflineChangeVersions(...args),
+    getOpenVisitIdsByUser: (...args: Parameters<typeof visitsService.getOpenVisitIdsByUser>): ReturnType<typeof visitsService.getOpenVisitIdsByUser> => visitsService.getOpenVisitIdsByUser(...args),
+    getOrderVisitTeam: (...args: Parameters<typeof visitsService.getOrderVisitTeam>): ReturnType<typeof visitsService.getOrderVisitTeam> => visitsService.getOrderVisitTeam(...args),
 
-    async getOrdersVisitsTeamsBulk(visitIds: string[]): Promise<Record<string, OrderVisitTeam[]>> {
-        return visitsService.getOrdersVisitsTeamsBulk.apply(visitsService, arguments as any);
-    },
+    getOrdersVisitsTeamsBulk: (...args: Parameters<typeof visitsService.getOrdersVisitsTeamsBulk>): ReturnType<typeof visitsService.getOrdersVisitsTeamsBulk> => visitsService.getOrdersVisitsTeamsBulk(...args),
 
-    async getProviderCompanyByOvAssetId(ovAssetId: string): Promise<string | null> {
-        return companiesService.getProviderCompanyByOvAssetId.apply(companiesService, arguments as any);
-    },
+    getProviderCompanyByOvAssetId: (...args: Parameters<typeof companiesService.getProviderCompanyByOvAssetId>): ReturnType<typeof companiesService.getProviderCompanyByOvAssetId> => companiesService.getProviderCompanyByOvAssetId(...args),
 
-    async removeTeamMember(visitId: string, userId: string): Promise<void> {
-        return visitsService.removeTeamMember.apply(visitsService, arguments as any);
-    },
+    removeTeamMember: (...args: Parameters<typeof visitsService.removeTeamMember>): ReturnType<typeof visitsService.removeTeamMember> => visitsService.removeTeamMember(...args),
 
-    async addTeamMember(visitId: string, userId: string, options?: { idempotent?: boolean }): Promise<void> {
-        return visitsService.addTeamMember.apply(visitsService, arguments as any);
-    },
+    addTeamMember: (...args: Parameters<typeof visitsService.addTeamMember>): ReturnType<typeof visitsService.addTeamMember> => visitsService.addTeamMember(...args),
 
-    async getVisitsByOrderId(orderId: string | number): Promise<OrderVisit[]> {
-        return visitsService.getVisitsByOrderId.apply(visitsService, arguments as any);
-    },
+    getVisitsByOrderId: (...args: Parameters<typeof visitsService.getVisitsByOrderId>): ReturnType<typeof visitsService.getVisitsByOrderId> => visitsService.getVisitsByOrderId(...args),
 
-async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]> {
-        return visitsService.getVisitsByParentOrderId.apply(visitsService, arguments as any);
-    },
+    getVisitsByParentOrderId: (...args: Parameters<typeof visitsService.getVisitsByParentOrderId>): ReturnType<typeof visitsService.getVisitsByParentOrderId> => visitsService.getVisitsByParentOrderId(...args),
 
-    async getVisitsByContractId(contractId: string): Promise<OrderVisit[]> {
-        return visitsService.getVisitsByContractId.apply(visitsService, arguments as any);
-    },
+    getVisitsByContractId: (...args: Parameters<typeof visitsService.getVisitsByContractId>): ReturnType<typeof visitsService.getVisitsByContractId> => visitsService.getVisitsByContractId(...args),
 
 
-    async getAssetsUnavailableReasons(): Promise<{ id: number, description: string }[]> {
-        return assetTagsService.getAssetsUnavailableReasons.apply(assetTagsService, arguments as any);
-    },
+    getAssetsUnavailableReasons: (...args: Parameters<typeof assetTagsService.getAssetsUnavailableReasons>): ReturnType<typeof assetTagsService.getAssetsUnavailableReasons> => assetTagsService.getAssetsUnavailableReasons(...args),
 
     // -------------------------------------------------------------------------
     // ORDER VISIT
     // -------------------------------------------------------------------------
-    async getOrderVisitById(visitId: string): Promise<OrderVisit | null> {
-        return visitsService.getOrderVisitById.apply(visitsService, arguments as any);
-    },
+    getOrderVisitById: (...args: Parameters<typeof visitsService.getOrderVisitById>): ReturnType<typeof visitsService.getOrderVisitById> => visitsService.getOrderVisitById(...args),
 
     // -------------------------------------------------------------------------
     // ORDER VISIT VEHICLES (orders_visits_vehicles)
     // -------------------------------------------------------------------------
-    async getOrderVisitVehicles(visitId: string): Promise<OrderVisitVehicle[]> {
-        return visitsService.getOrderVisitVehicles.apply(visitsService, arguments as any);
-    },
+    getOrderVisitVehicles: (...args: Parameters<typeof visitsService.getOrderVisitVehicles>): ReturnType<typeof visitsService.getOrderVisitVehicles> => visitsService.getOrderVisitVehicles(...args),
 
-    async addVehicleToOrderVisit(visitId: string, vehicleId: string, userId: string, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
-        return visitsService.addVehicleToOrderVisit.apply(visitsService, arguments as any);
-    },
+    addVehicleToOrderVisit: (...args: Parameters<typeof visitsService.addVehicleToOrderVisit>): ReturnType<typeof visitsService.addVehicleToOrderVisit> => visitsService.addVehicleToOrderVisit(...args),
 
     /**
      * Registra a ociosidade do veículo parado (contrato só-aluguel) na
      * visita, com competência explícita (YYYY-MM ou YYYY-MM-DD).
      */
-    async addIdleToOrderVisit(visitId: string, vehicleId: string, userId: string, monthlyValue: number, referenceMonth: string): Promise<void> {
-        return visitsService.addIdleToOrderVisit.apply(visitsService, arguments as any);
-    },
+    addIdleToOrderVisit: (...args: Parameters<typeof visitsService.addIdleToOrderVisit>): ReturnType<typeof visitsService.addIdleToOrderVisit> => visitsService.addIdleToOrderVisit(...args),
     // -------------------------------------------------------------------------
     // VEHICLE RENTAL APPORTIONMENT (rateio de aluguel veicular)
     // -------------------------------------------------------------------------
-    async getRentalContracts(vehicleId?: string): Promise<VehicleRentalContract[]> {
-        return vehicleRentalService.getContracts.apply(vehicleRentalService, arguments as any);
-    },
+    getRentalContracts: (...args: Parameters<typeof vehicleRentalService.getContracts>): ReturnType<typeof vehicleRentalService.getContracts> => vehicleRentalService.getContracts(...args),
 
-    async saveRentalContract(input: SaveVehicleRentalContractInput): Promise<VehicleRentalContract> {
-        return vehicleRentalService.saveContract.apply(vehicleRentalService, arguments as any);
-    },
+    saveRentalContract: (...args: Parameters<typeof vehicleRentalService.saveContract>): ReturnType<typeof vehicleRentalService.saveContract> => vehicleRentalService.saveContract(...args),
 
-    async deleteRentalContract(contractId: string): Promise<void> {
-        return vehicleRentalService.deleteContract.apply(vehicleRentalService, arguments as any);
-    },
+    deleteRentalContract: (...args: Parameters<typeof vehicleRentalService.deleteContract>): ReturnType<typeof vehicleRentalService.deleteContract> => vehicleRentalService.deleteContract(...args),
 
-    async getRentalExpenses(vehicleId: string, referenceMonth: string): Promise<VehicleMonthlyExpense[]> {
-        return vehicleRentalService.getExpenses.apply(vehicleRentalService, arguments as any);
-    },
+    getRentalExpenses: (...args: Parameters<typeof vehicleRentalService.getExpenses>): ReturnType<typeof vehicleRentalService.getExpenses> => vehicleRentalService.getExpenses(...args),
 
-    async saveRentalExpense(input: SaveVehicleMonthlyExpenseInput): Promise<VehicleMonthlyExpense> {
-        return vehicleRentalService.saveExpense.apply(vehicleRentalService, arguments as any);
-    },
+    saveRentalExpense: (...args: Parameters<typeof vehicleRentalService.saveExpense>): ReturnType<typeof vehicleRentalService.saveExpense> => vehicleRentalService.saveExpense(...args),
 
-    async deleteRentalExpense(expenseId: string): Promise<void> {
-        return vehicleRentalService.deleteExpense.apply(vehicleRentalService, arguments as any);
-    },
+    deleteRentalExpense: (...args: Parameters<typeof vehicleRentalService.deleteExpense>): ReturnType<typeof vehicleRentalService.deleteExpense> => vehicleRentalService.deleteExpense(...args),
 
-    async getFuelExpensesByUser(userId: string): Promise<VehicleMonthlyExpense[]> {
-        return vehicleRentalService.getFuelExpensesByUser.apply(vehicleRentalService, arguments as any);
-    },
+    getFuelExpensesByUser: (...args: Parameters<typeof vehicleRentalService.getFuelExpensesByUser>): ReturnType<typeof vehicleRentalService.getFuelExpensesByUser> => vehicleRentalService.getFuelExpensesByUser(...args),
 
-    async getMaxVehicleOdometer(vehicleId: string, excludeVisitId?: string): Promise<number | null> {
-        return vehicleRentalService.getMaxVehicleOdometer.apply(vehicleRentalService, arguments as any);
-    },
+    getMaxVehicleOdometer: (...args: Parameters<typeof vehicleRentalService.getMaxVehicleOdometer>): ReturnType<typeof vehicleRentalService.getMaxVehicleOdometer> => vehicleRentalService.getMaxVehicleOdometer(...args),
 
     /**
      * Km final do ÚLTIMO LANÇAMENTO anterior do mesmo veículo, excluindo o
      * registro atual (`v_orders_visits_vehicles.id`).
      */
-    async getPreviousVehicleOdometer(vehicleId: string, excludeRowId?: string): Promise<number | null> {
-        return vehicleRentalService.getPreviousVehicleOdometer.apply(vehicleRentalService, arguments as any);
-    },
+    getPreviousVehicleOdometer: (...args: Parameters<typeof vehicleRentalService.getPreviousVehicleOdometer>): ReturnType<typeof vehicleRentalService.getPreviousVehicleOdometer> => vehicleRentalService.getPreviousVehicleOdometer(...args),
 
-    async uploadFuelExpenseImages(
-        vehicleId: string,
-        companyId: string | undefined | null,
-        images: FuelExpenseImages,
-        onProgress?: (progress: number) => void
-    ): Promise<FuelExpenseImageRefs> {
-        return vehicleRentalService.uploadFuelExpenseImages.apply(vehicleRentalService, arguments as any);
-    },
+    uploadFuelExpenseImages: (...args: Parameters<typeof vehicleRentalService.uploadFuelExpenseImages>): ReturnType<typeof vehicleRentalService.uploadFuelExpenseImages> => vehicleRentalService.uploadFuelExpenseImages(...args),
 
-    async getRentalContractInfo(vehicleId: string, referenceMonth: string): Promise<VehicleRentalContractInfo | null> {
-        return vehicleRentalService.getContractInfo.apply(vehicleRentalService, arguments as any);
-    },
+    getRentalContractInfo: (...args: Parameters<typeof vehicleRentalService.getContractInfo>): ReturnType<typeof vehicleRentalService.getContractInfo> => vehicleRentalService.getContractInfo(...args),
 
-    async getRentalSummary(referenceMonth: string): Promise<VehicleRentalSummaryRow[]> {
-        return vehicleRentalService.getSummary.apply(vehicleRentalService, arguments as any);
-    },
+    getRentalSummary: (...args: Parameters<typeof vehicleRentalService.getSummary>): ReturnType<typeof vehicleRentalService.getSummary> => vehicleRentalService.getSummary(...args),
 
-    async getRentalDetail(vehicleId: string, referenceMonth: string): Promise<VehicleRentalDetailRow[]> {
-        return vehicleRentalService.getDetail.apply(vehicleRentalService, arguments as any);
-    },
+    getRentalDetail: (...args: Parameters<typeof vehicleRentalService.getDetail>): ReturnType<typeof vehicleRentalService.getDetail> => vehicleRentalService.getDetail(...args),
 
-    async simulateRentalPeriod(vehicleId: string, referenceMonth: string): Promise<VehicleRentalDetailRow[]> {
-        return vehicleRentalService.simulatePeriod.apply(vehicleRentalService, arguments as any);
-    },
+    simulateRentalPeriod: (...args: Parameters<typeof vehicleRentalService.simulatePeriod>): ReturnType<typeof vehicleRentalService.simulatePeriod> => vehicleRentalService.simulatePeriod(...args),
 
-    async getCompetenceVisitsCostsSummary(vehicleId: string, referenceMonth: string): Promise<{
-        totalVisits: number;
-        byStatus: Record<string, { count: number; totalValue: number }>;
-    }> {
-        return vehicleRentalService.getCompetenceVisitsCostsSummary.apply(vehicleRentalService, arguments as any);
-    },
+    getCompetenceVisitsCostsSummary: (...args: Parameters<typeof vehicleRentalService.getCompetenceVisitsCostsSummary>): ReturnType<typeof vehicleRentalService.getCompetenceVisitsCostsSummary> => vehicleRentalService.getCompetenceVisitsCostsSummary(...args),
 
-    async getRentalUtilization(vehicleId: string, referenceMonth: string): Promise<VehicleUtilizationRow[]> {
-        return vehicleRentalService.getUtilization.apply(vehicleRentalService, arguments as any);
-    },
+    getRentalUtilization: (...args: Parameters<typeof vehicleRentalService.getUtilization>): ReturnType<typeof vehicleRentalService.getUtilization> => vehicleRentalService.getUtilization(...args),
 
-    async getRentalPeriods(referenceMonth: string): Promise<VehicleRentalPeriod[]> {
-        return vehicleRentalService.getPeriods.apply(vehicleRentalService, arguments as any);
-    },
+    getRentalPeriods: (...args: Parameters<typeof vehicleRentalService.getPeriods>): ReturnType<typeof vehicleRentalService.getPeriods> => vehicleRentalService.getPeriods(...args),
 
-    async calculateRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
-        return vehicleRentalService.calculatePeriod.apply(vehicleRentalService, arguments as any);
-    },
+    calculateRentalPeriod: (...args: Parameters<typeof vehicleRentalService.calculatePeriod>): ReturnType<typeof vehicleRentalService.calculatePeriod> => vehicleRentalService.calculatePeriod(...args),
 
-    async allocateRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
-        return vehicleRentalService.allocatePeriod.apply(vehicleRentalService, arguments as any);
-    },
+    allocateRentalPeriod: (...args: Parameters<typeof vehicleRentalService.allocatePeriod>): ReturnType<typeof vehicleRentalService.allocatePeriod> => vehicleRentalService.allocatePeriod(...args),
 
-    async closeRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
-        return vehicleRentalService.closePeriod.apply(vehicleRentalService, arguments as any);
-    },
+    closeRentalPeriod: (...args: Parameters<typeof vehicleRentalService.closePeriod>): ReturnType<typeof vehicleRentalService.closePeriod> => vehicleRentalService.closePeriod(...args),
 
-    async reopenRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
-        return vehicleRentalService.reopenPeriod.apply(vehicleRentalService, arguments as any);
-    },
+    reopenRentalPeriod: (...args: Parameters<typeof vehicleRentalService.reopenPeriod>): ReturnType<typeof vehicleRentalService.reopenPeriod> => vehicleRentalService.reopenPeriod(...args),
 
-    async revertRentalPeriod(vehicleId: string, referenceMonth: string, userId?: string): Promise<VehicleRentalPeriod> {
-        return vehicleRentalService.revertPeriod.apply(vehicleRentalService, arguments as any);
-    },
+    revertRentalPeriod: (...args: Parameters<typeof vehicleRentalService.revertPeriod>): ReturnType<typeof vehicleRentalService.revertPeriod> => vehicleRentalService.revertPeriod(...args),
 
     // -------------------------------------------------------------------------
     // VEHICLE RATE CONTRACTS (contratos de R$/km — custo operacional por Km)
     // -------------------------------------------------------------------------
-    async getRateContracts(vehicleId?: string): Promise<VehicleRateContract[]> {
-        return vehicleRateService.getContracts.apply(vehicleRateService, arguments as any);
-    },
+    getRateContracts: (...args: Parameters<typeof vehicleRateService.getContracts>): ReturnType<typeof vehicleRateService.getContracts> => vehicleRateService.getContracts(...args),
 
-    async saveRateContract(input: SaveVehicleRateContractInput): Promise<VehicleRateContract> {
-        return vehicleRateService.saveContract.apply(vehicleRateService, arguments as any);
-    },
+    saveRateContract: (...args: Parameters<typeof vehicleRateService.saveContract>): ReturnType<typeof vehicleRateService.saveContract> => vehicleRateService.saveContract(...args),
 
-    async deleteRateContract(contractId: string): Promise<void> {
-        return vehicleRateService.deleteContract.apply(vehicleRateService, arguments as any);
-    },
+    deleteRateContract: (...args: Parameters<typeof vehicleRateService.deleteContract>): ReturnType<typeof vehicleRateService.deleteContract> => vehicleRateService.deleteContract(...args),
 
-    async getRateContractInfo(vehicleId: string, onDate: string): Promise<VehicleRateContractInfo | null> {
-        return vehicleRateService.getContractInfo.apply(vehicleRateService, arguments as any);
-    },
+    getRateContractInfo: (...args: Parameters<typeof vehicleRateService.getContractInfo>): ReturnType<typeof vehicleRateService.getContractInfo> => vehicleRateService.getContractInfo(...args),
 
-    async getRateContractRatesForMonth(vehicleIds: string[], monthStart: string, monthEnd: string): Promise<Record<string, number>> {
-        return vehicleRateService.getContractRatesForMonth.apply(vehicleRateService, arguments as any);
-    },
+    getRateContractRatesForMonth: (...args: Parameters<typeof vehicleRateService.getContractRatesForMonth>): ReturnType<typeof vehicleRateService.getContractRatesForMonth> => vehicleRateService.getContractRatesForMonth(...args),
 
     // -------------------------------------------------------------------------
     // ORDER VISIT ASSETS (orders_visits_assets)
     // -------------------------------------------------------------------------
-    async getOrderVisitAssets(visitId: string): Promise<OrderVisitAssetView[]> {
-        return visitsService.getOrderVisitAssets.apply(visitsService, arguments as any);
-    },
+    getOrderVisitAssets: (...args: Parameters<typeof visitsService.getOrderVisitAssets>): ReturnType<typeof visitsService.getOrderVisitAssets> => visitsService.getOrderVisitAssets(...args),
 
-    async getMovedAssetsByUnitAssetTagId(unitAssetTagId: string): Promise<OrderVisitAssetView[]> {
-        return visitsService.getMovedAssetsByUnitAssetTagId.apply(visitsService, arguments as any);
-    },
+    getMovedAssetsByUnitAssetTagId: (...args: Parameters<typeof visitsService.getMovedAssetsByUnitAssetTagId>): ReturnType<typeof visitsService.getMovedAssetsByUnitAssetTagId> => visitsService.getMovedAssetsByUnitAssetTagId(...args),
 
     // Modo offline: trava do relatório do ativo (visitsService)
-    async lockOrderVisitAsset(ovaId: string): Promise<OrderVisitAssetLockResult> {
-        return visitsService.lockOrderVisitAsset.apply(visitsService, arguments as any);
-    },
+    lockOrderVisitAsset: (...args: Parameters<typeof visitsService.lockOrderVisitAsset>): ReturnType<typeof visitsService.lockOrderVisitAsset> => visitsService.lockOrderVisitAsset(...args),
 
-    async unlockOrderVisitAsset(ovaId: string, force?: boolean): Promise<OrderVisitAssetUnlockResult> {
-        return visitsService.unlockOrderVisitAsset.apply(visitsService, arguments as any);
-    },
+    unlockOrderVisitAsset: (...args: Parameters<typeof visitsService.unlockOrderVisitAsset>): ReturnType<typeof visitsService.unlockOrderVisitAsset> => visitsService.unlockOrderVisitAsset(...args),
 
-    async getOrderVisitAssetsLocks(visitId: string): Promise<OrderVisitAssetsLocks> {
-        return visitsService.getOrderVisitAssetsLocks.apply(visitsService, arguments as any);
-    },
+    getOrderVisitAssetsLocks: (...args: Parameters<typeof visitsService.getOrderVisitAssetsLocks>): ReturnType<typeof visitsService.getOrderVisitAssetsLocks> => visitsService.getOrderVisitAssetsLocks(...args),
 
-    async getOrderVisitAssetById(id: string): Promise<OrderVisitAssetView | null> {
-        return visitsService.getOrderVisitAssetById.apply(visitsService, arguments as any);
-    },
+    getOrderVisitAssetById: (...args: Parameters<typeof visitsService.getOrderVisitAssetById>): ReturnType<typeof visitsService.getOrderVisitAssetById> => visitsService.getOrderVisitAssetById(...args),
 
-    async copyOrderVisitAssetReport(targetOvaId: string, sourceOvaId: string, userId: string): Promise<{ activities: number; materials: number }> {
-        return visitsService.copyOrderVisitAssetReport.apply(visitsService, arguments as any);
-    },
+    copyOrderVisitAssetReport: (...args: Parameters<typeof visitsService.copyOrderVisitAssetReport>): ReturnType<typeof visitsService.copyOrderVisitAssetReport> => visitsService.copyOrderVisitAssetReport(...args),
 
-    async updateOrderVisitAsset(id: string, updates: Partial<{
-        before_comments: string;
-        after_comments: string;
-        has_recorder: boolean;
-        before_recorder: number | null;
-        after_recorder: number | null;
-        is_moved: boolean;
-        after_status_id: string;
-        after_unit_id: string;
-        after_tag_id: string;
-        after_tag_sub_id: string;
-        after_priority_id: number;
-        moved_comments: string;
-        after_unit_asset_tag_id: string;
-        after_client_id: string;
-    }>): Promise<void> {
-        return visitsService.updateOrderVisitAsset.apply(visitsService, arguments as any);
-    },
+    updateOrderVisitAsset: (...args: Parameters<typeof visitsService.updateOrderVisitAsset>): ReturnType<typeof visitsService.updateOrderVisitAsset> => visitsService.updateOrderVisitAsset(...args),
 
-    async reportedOrderVisitAsset(id: string, userId: string, options?: { reportedAt?: string }): Promise<void> {
-        return visitsService.reportedOrderVisitAsset.apply(visitsService, arguments as any);
-    },
+    reportedOrderVisitAsset: (...args: Parameters<typeof visitsService.reportedOrderVisitAsset>): ReturnType<typeof visitsService.reportedOrderVisitAsset> => visitsService.reportedOrderVisitAsset(...args),
 
-    async disapproveOrderVisitAsset(id: string, userId: string, notes: string): Promise<void> {
-        return visitsService.disapproveOrderVisitAsset.apply(visitsService, arguments as any);
-    },
+    disapproveOrderVisitAsset: (...args: Parameters<typeof visitsService.disapproveOrderVisitAsset>): ReturnType<typeof visitsService.disapproveOrderVisitAsset> => visitsService.disapproveOrderVisitAsset(...args),
 
-    async updateOrderVisitAssetProcessingStatus(id: string, processingId: number, userId: string): Promise<void> {
-        return visitsService.updateOrderVisitAssetProcessingStatus.apply(visitsService, arguments as any);
-    },
+    updateOrderVisitAssetProcessingStatus: (...args: Parameters<typeof visitsService.updateOrderVisitAssetProcessingStatus>): ReturnType<typeof visitsService.updateOrderVisitAssetProcessingStatus> => visitsService.updateOrderVisitAssetProcessingStatus(...args),
 
-    async uploadOrderVisitAssetPhoto(ovAssetId: string, file: File, type: 'before' | 'after', onProgress?: ((progress: number) => void) | null, options?: { fileName?: string }): Promise<{ path: string, filename: string }> {
-        return visitsService.uploadOrderVisitAssetPhoto.apply(visitsService, arguments as any);
-    },
+    uploadOrderVisitAssetPhoto: (...args: Parameters<typeof visitsService.uploadOrderVisitAssetPhoto>): ReturnType<typeof visitsService.uploadOrderVisitAssetPhoto> => visitsService.uploadOrderVisitAssetPhoto(...args),
 
-    async removeOrderVisitAssetPhoto(ovAssetId: string, type: 'before' | 'after', fileName: string): Promise<void> {
-        return visitsService.removeOrderVisitAssetPhoto.apply(visitsService, arguments as any);
-    },
+    removeOrderVisitAssetPhoto: (...args: Parameters<typeof visitsService.removeOrderVisitAssetPhoto>): ReturnType<typeof visitsService.removeOrderVisitAssetPhoto> => visitsService.removeOrderVisitAssetPhoto(...args),
 
 
-    async getOrderVisitIdByAssetId(assetId: string): Promise<string | null> {
-        return visitsService.getOrderVisitIdByAssetId.apply(visitsService, arguments as any);
-    },
+    getOrderVisitIdByAssetId: (...args: Parameters<typeof visitsService.getOrderVisitIdByAssetId>): ReturnType<typeof visitsService.getOrderVisitIdByAssetId> => visitsService.getOrderVisitIdByAssetId(...args),
 
     /**
      * Sincroniza todos os contadores de ativos na visita
      * @param visitId ID da visita
      */
-    async syncOrderVisitAssetsProcessing(visitId: string): Promise<void> {
-        return visitsService.syncOrderVisitAssetsProcessing.apply(visitsService, arguments as any);
-    },
+    syncOrderVisitAssetsProcessing: (...args: Parameters<typeof visitsService.syncOrderVisitAssetsProcessing>): ReturnType<typeof visitsService.syncOrderVisitAssetsProcessing> => visitsService.syncOrderVisitAssetsProcessing(...args),
 
     /**
      * @deprecated Use syncOrderVisitAssetsProcessing instead
      */
-    async updateVisitAssetsAmount(visitId: string): Promise<void> {
-        return visitsService.updateVisitAssetsAmount.apply(visitsService, arguments as any);
-    },
+    updateVisitAssetsAmount: (...args: Parameters<typeof visitsService.updateVisitAssetsAmount>): ReturnType<typeof visitsService.updateVisitAssetsAmount> => visitsService.updateVisitAssetsAmount(...args),
 
-    async addAssetToOrderVisit(visitId: string, assetId: string, userId: string, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
-        return visitsService.addAssetToOrderVisit.apply(visitsService, arguments as any);
-    },
+    addAssetToOrderVisit: (...args: Parameters<typeof visitsService.addAssetToOrderVisit>): ReturnType<typeof visitsService.addAssetToOrderVisit> => visitsService.addAssetToOrderVisit(...args),
 
-    async removeAssetFromOrderVisit(ovaId: string): Promise<void> {
-        return visitsService.removeAssetFromOrderVisit.apply(visitsService, arguments as any);
-    },
+    removeAssetFromOrderVisit: (...args: Parameters<typeof visitsService.removeAssetFromOrderVisit>): ReturnType<typeof visitsService.removeAssetFromOrderVisit> => visitsService.removeAssetFromOrderVisit(...args),
 
-    async removeVehicleFromOrderVisit(visitVehicleId: string): Promise<void> {
-        return visitsService.removeVehicleFromOrderVisit.apply(visitsService, arguments as any);
-    },
+    removeVehicleFromOrderVisit: (...args: Parameters<typeof visitsService.removeVehicleFromOrderVisit>): ReturnType<typeof visitsService.removeVehicleFromOrderVisit> => visitsService.removeVehicleFromOrderVisit(...args),
 
     /**
      * Troca o ativo de um registro de reporte de visita.
@@ -2689,302 +1575,154 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
      * @param newAssetId ID do novo ativo
      * @param userId ID do usuário logado
      */
-    async changeOrderVisitAsset(ovaId: string, newAssetId: string, userId: string): Promise<void> {
-        return visitsService.changeOrderVisitAsset.apply(visitsService, arguments as any);
-    },
+    changeOrderVisitAsset: (...args: Parameters<typeof visitsService.changeOrderVisitAsset>): ReturnType<typeof visitsService.changeOrderVisitAsset> => visitsService.changeOrderVisitAsset(...args),
 
-    async updateVehicleKm(visitVehicleId: string, kmInitial?: number | null, kmFinal?: number | null): Promise<void> {
-        return visitsService.updateVehicleKm.apply(visitsService, arguments as any);
-    },
+    updateVehicleKm: (...args: Parameters<typeof visitsService.updateVehicleKm>): ReturnType<typeof visitsService.updateVehicleKm> => visitsService.updateVehicleKm(...args),
 
     // -------------------------------------------------------------------------
     // ORDER VISIT SERVICES (orders_visits_services)
     // -------------------------------------------------------------------------
-    async getOrderVisitServices(visitId: string): Promise<OrderVisitService[]> {
-        return visitsService.getOrderVisitServices.apply(visitsService, arguments as any);
-    },
+    getOrderVisitServices: (...args: Parameters<typeof visitsService.getOrderVisitServices>): ReturnType<typeof visitsService.getOrderVisitServices> => visitsService.getOrderVisitServices(...args),
 
-    async addServiceToOrderVisit(visitId: string, contractServiceId: string, userId: string, amount: number = 1, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
-        return visitsService.addServiceToOrderVisit.apply(visitsService, arguments as any);
-    },
+    addServiceToOrderVisit: (...args: Parameters<typeof visitsService.addServiceToOrderVisit>): ReturnType<typeof visitsService.addServiceToOrderVisit> => visitsService.addServiceToOrderVisit(...args),
 
-    async removeServiceFromOrderVisit(ovServiceId: string): Promise<void> {
-        return visitsService.removeServiceFromOrderVisit.apply(visitsService, arguments as any);
-    },
+    removeServiceFromOrderVisit: (...args: Parameters<typeof visitsService.removeServiceFromOrderVisit>): ReturnType<typeof visitsService.removeServiceFromOrderVisit> => visitsService.removeServiceFromOrderVisit(...args),
 
-    async updateOrderVisitService(ovServiceId: string, updates: { amount?: number; discount?: number; valueUnit?: number }): Promise<void> {
-        return visitsService.updateOrderVisitService.apply(visitsService, arguments as any);
-    },
+    updateOrderVisitService: (...args: Parameters<typeof visitsService.updateOrderVisitService>): ReturnType<typeof visitsService.updateOrderVisitService> => visitsService.updateOrderVisitService(...args),
 
     // -------------------------------------------------------------------------
     // ORDER VISIT ASSET ACTIVITIES (orders_visits_assets_activities)
     // -------------------------------------------------------------------------
-    async getActivitiesByOrderType(orderTypeId: string): Promise<Activity[]> {
-        return visitsService.getActivitiesByOrderType.apply(visitsService, arguments as any);
-    },
+    getActivitiesByOrderType: (...args: Parameters<typeof visitsService.getActivitiesByOrderType>): ReturnType<typeof visitsService.getActivitiesByOrderType> => visitsService.getActivitiesByOrderType(...args),
 
-    async getOrderVisitAssetActivities(ovAssetId: string): Promise<OrderVisitAssetActivity[]> {
-        return visitsService.getOrderVisitAssetActivities.apply(visitsService, arguments as any);
-    },
+    getOrderVisitAssetActivities: (...args: Parameters<typeof visitsService.getOrderVisitAssetActivities>): ReturnType<typeof visitsService.getOrderVisitAssetActivities> => visitsService.getOrderVisitAssetActivities(...args),
 
-    async toggleOrderVisitAssetActivity(ovAssetId: string, activityId: string, userId: string, isSelected: boolean): Promise<void> {
-        return visitsService.toggleOrderVisitAssetActivity.apply(visitsService, arguments as any);
-    },
+    toggleOrderVisitAssetActivity: (...args: Parameters<typeof visitsService.toggleOrderVisitAssetActivity>): ReturnType<typeof visitsService.toggleOrderVisitAssetActivity> => visitsService.toggleOrderVisitAssetActivity(...args),
 
-    async getOrderVisitAssetsActivitiesByVisit(visitId: string): Promise<OrderVisitAssetActivity[]> {
-        return visitsService.getOrderVisitAssetsActivitiesByVisit.apply(visitsService, arguments as any);
-    },
+    getOrderVisitAssetsActivitiesByVisit: (...args: Parameters<typeof visitsService.getOrderVisitAssetsActivitiesByVisit>): ReturnType<typeof visitsService.getOrderVisitAssetsActivitiesByVisit> => visitsService.getOrderVisitAssetsActivitiesByVisit(...args),
 
-    async getOrderVisitAssetsMaterialsByVisit(visitId: string): Promise<OrderVisitAssetMaterial[]> {
-        return visitsService.getOrderVisitAssetsMaterialsByVisit.apply(visitsService, arguments as any);
-    },
+    getOrderVisitAssetsMaterialsByVisit: (...args: Parameters<typeof visitsService.getOrderVisitAssetsMaterialsByVisit>): ReturnType<typeof visitsService.getOrderVisitAssetsMaterialsByVisit> => visitsService.getOrderVisitAssetsMaterialsByVisit(...args),
 
     // -------------------------------------------------------------------------
     // ORDER VISIT ASSET MATERIALS (orders_visits_assets_materials)
     // -------------------------------------------------------------------------
-    async getAvailableMaterials(search: string = '', page: number = 0, pageSize: number = 20, providerCompanyId?: string): Promise<Material[]> {
-        return materialsService.getAvailableMaterials.apply(materialsService, arguments as any);
-    },
+    getAvailableMaterials: (...args: Parameters<typeof materialsService.getAvailableMaterials>): ReturnType<typeof materialsService.getAvailableMaterials> => materialsService.getAvailableMaterials(...args),
 
-    async getMaterials(filter: number | 'all' = 'all', search: string = '', companyId?: string, page: number = 1, pageSize: number = 50): Promise<{ materials: Material[]; total: number }> {
-        return materialsService.getMaterials.apply(materialsService, arguments as any);
-    },
+    getMaterials: (...args: Parameters<typeof materialsService.getMaterials>): ReturnType<typeof materialsService.getMaterials> => materialsService.getMaterials(...args),
 
-    async checkMaterialCodeExists(code: string, excludeId?: string): Promise<boolean> {
-        return materialsService.checkMaterialCodeExists.apply(materialsService, arguments as any);
-    },
+    checkMaterialCodeExists: (...args: Parameters<typeof materialsService.checkMaterialCodeExists>): ReturnType<typeof materialsService.checkMaterialCodeExists> => materialsService.checkMaterialCodeExists(...args),
 
-    async createMaterial(material: Partial<Material>): Promise<Material> {
-        return materialsService.createMaterial.apply(materialsService, arguments as any);
-    },
+    createMaterial: (...args: Parameters<typeof materialsService.createMaterial>): ReturnType<typeof materialsService.createMaterial> => materialsService.createMaterial(...args),
 
     // -------------------------------------------------------------------------
     // MATERIALS IMPORT (CSV/XLSX)
     // -------------------------------------------------------------------------
-    async parseMaterialsCsv(file: File): Promise<MaterialsParseResult> {
-        return materialsImportService.parseMaterialsCsv.apply(materialsImportService, arguments as any);
-    },
+    parseMaterialsCsv: (...args: Parameters<typeof materialsImportService.parseMaterialsCsv>): ReturnType<typeof materialsImportService.parseMaterialsCsv> => materialsImportService.parseMaterialsCsv(...args),
 
-    async getExistingMaterialCodes(codes: string[], companyId?: string, providerCompanyId?: string): Promise<Set<string>> {
-        return materialsImportService.getExistingCodes.apply(materialsImportService, arguments as any);
-    },
+    getExistingMaterialCodes: (...args: Parameters<typeof materialsImportService.getExistingCodes>): ReturnType<typeof materialsImportService.getExistingCodes> => materialsImportService.getExistingCodes(...args),
 
     /** Mapa code → id dos almoxarifados da empresa do usuário logado (necessário para importar). */
-    async getMaterialImportWarehouseMap(userCompanyId?: string): Promise<Map<string, string>> {
-        return materialsImportService.loadWarehouseCodeMap.apply(materialsImportService, arguments as any);
-    },
+    getMaterialImportWarehouseMap: (...args: Parameters<typeof materialsImportService.loadWarehouseCodeMap>): ReturnType<typeof materialsImportService.loadWarehouseCodeMap> => materialsImportService.loadWarehouseCodeMap(...args),
 
-    validateMaterialsRows(rows: MaterialsImportRow[], ctx: MaterialsValidationContext): MaterialsValidationResult {
-        return materialsImportService.validateMaterialsRows.apply(materialsImportService, arguments as any);
-    },
+    validateMaterialsRows: (...args: Parameters<typeof materialsImportService.validateMaterialsRows>): ReturnType<typeof materialsImportService.validateMaterialsRows> => materialsImportService.validateMaterialsRows(...args),
 
-    async importMaterials(rows: MaterialsImportRow[], warehouseByCode: Map<string, string>, onProgress?: MaterialsImportProgress): Promise<MaterialsImportResult> {
-        return materialsImportService.importMaterials.apply(materialsImportService, arguments as any);
-    },
+    importMaterials: (...args: Parameters<typeof materialsImportService.importMaterials>): ReturnType<typeof materialsImportService.importMaterials> => materialsImportService.importMaterials(...args),
 
-    async getWarehouses(companyId?: string): Promise<{ id: string; code: string; description: string; address?: string }[]> {
-        return warehouseService.getWarehouses.apply(warehouseService, arguments as any);
-    },
+    getWarehouses: (...args: Parameters<typeof warehouseService.getWarehouses>): ReturnType<typeof warehouseService.getWarehouses> => warehouseService.getWarehouses(...args),
 
-    async getMaterialsStatuses(): Promise<{ id: number; code: string; description: string }[]> {
-        return materialsService.getMaterialsStatuses.apply(materialsService, arguments as any);
-    },
+    getMaterialsStatuses: (...args: Parameters<typeof materialsService.getMaterialsStatuses>): ReturnType<typeof materialsService.getMaterialsStatuses> => materialsService.getMaterialsStatuses(...args),
 
-    async getMaterialsTypes(): Promise<{ id: number; code: string; description: string }[]> {
-        return materialsService.getMaterialsTypes.apply(materialsService, arguments as any);
-    },
+    getMaterialsTypes: (...args: Parameters<typeof materialsService.getMaterialsTypes>): ReturnType<typeof materialsService.getMaterialsTypes> => materialsService.getMaterialsTypes(...args),
 
-    async getMaterialById(id: string): Promise<Material | null> {
-        return materialsService.getMaterialById.apply(materialsService, arguments as any);
-    },
+    getMaterialById: (...args: Parameters<typeof materialsService.getMaterialById>): ReturnType<typeof materialsService.getMaterialById> => materialsService.getMaterialById(...args),
 
-    async getWarehouseMaterials(materialId: string): Promise<{ warehouse_id: string; warehouse_code: string; warehouse_description: string; warehouse_address?: string; quantity: number; min_stock: number; cost_avg: number }[]> {
-        return warehouseService.getWarehouseMaterials.apply(warehouseService, arguments as any);
-    },
+    getWarehouseMaterials: (...args: Parameters<typeof warehouseService.getWarehouseMaterials>): ReturnType<typeof warehouseService.getWarehouseMaterials> => warehouseService.getWarehouseMaterials(...args),
 
-    async getWarehouseMaterialsByIds(materialIds: string[]): Promise<Record<string, { warehouse_id: string; warehouse_code: string; warehouse_description: string; warehouse_address?: string; quantity: number; min_stock: number; cost_avg: number }[]>> {
-        return warehouseService.getWarehouseMaterialsByIds.apply(warehouseService, arguments as any);
-    },
+    getWarehouseMaterialsByIds: (...args: Parameters<typeof warehouseService.getWarehouseMaterialsByIds>): ReturnType<typeof warehouseService.getWarehouseMaterialsByIds> => warehouseService.getWarehouseMaterialsByIds(...args),
 
-    async createWarehouseMaterial(data: { warehouseId: string; materialId: string; quantity: number; minStock: number; priceUnit?: number }): Promise<void> {
-        return warehouseService.createWarehouseMaterial.apply(warehouseService, arguments as any);
-    },
+    createWarehouseMaterial: (...args: Parameters<typeof warehouseService.createWarehouseMaterial>): ReturnType<typeof warehouseService.createWarehouseMaterial> => warehouseService.createWarehouseMaterial(...args),
 
-    async updateWarehouseMaterial(warehouseId: string, materialId: string, data: { quantity?: number; minStock?: number; costAvg?: number }): Promise<void> {
-        return warehouseService.updateWarehouseMaterial.apply(warehouseService, arguments as any);
-    },
+    updateWarehouseMaterial: (...args: Parameters<typeof warehouseService.updateWarehouseMaterial>): ReturnType<typeof warehouseService.updateWarehouseMaterial> => warehouseService.updateWarehouseMaterial(...args),
 
-    async updateMaterial(id: string, material: Partial<Material>): Promise<Material> {
-        return materialsService.updateMaterial.apply(materialsService, arguments as any);
-    },
+    updateMaterial: (...args: Parameters<typeof materialsService.updateMaterial>): ReturnType<typeof materialsService.updateMaterial> => materialsService.updateMaterial(...args),
 
-    async getOrderVisitAssetMaterials(ovAssetId: string): Promise<OrderVisitAssetMaterial[]> {
-        return materialsService.getOrderVisitAssetMaterials.apply(materialsService, arguments as any);
-    },
+    getOrderVisitAssetMaterials: (...args: Parameters<typeof materialsService.getOrderVisitAssetMaterials>): ReturnType<typeof materialsService.getOrderVisitAssetMaterials> => materialsService.getOrderVisitAssetMaterials(...args),
 
-    async addMaterialToAsset(ovAssetId: string, materialId: string, amount: number, valueUnit: number, userId: string, options?: { offlineUuid?: string; /** fila de APK anterior */ clientUuid?: string }): Promise<void> {
-        return materialsService.addMaterialToAsset.apply(materialsService, arguments as any);
-    },
+    addMaterialToAsset: (...args: Parameters<typeof materialsService.addMaterialToAsset>): ReturnType<typeof materialsService.addMaterialToAsset> => materialsService.addMaterialToAsset(...args),
 
-    async updateMaterialInAsset(id: string, updates: { amount?: number, discount?: number, valueUnit?: number }): Promise<void> {
-        return materialsService.updateMaterialInAsset.apply(materialsService, arguments as any);
-    },
+    updateMaterialInAsset: (...args: Parameters<typeof materialsService.updateMaterialInAsset>): ReturnType<typeof materialsService.updateMaterialInAsset> => materialsService.updateMaterialInAsset(...args),
 
-    async removeMaterialFromAsset(id: string, userId: string): Promise<void> {
-        return materialsService.removeMaterialFromAsset.apply(materialsService, arguments as any);
-    },
+    removeMaterialFromAsset: (...args: Parameters<typeof materialsService.removeMaterialFromAsset>): ReturnType<typeof materialsService.removeMaterialFromAsset> => materialsService.removeMaterialFromAsset(...args),
 
     // -------------------------------------------------------------------------
     // ASSET COMPONENTS (assets_materials)
     // -------------------------------------------------------------------------
-    async getAssetComponents(assetId: string): Promise<AssetMaterial[]> {
-        return materialsService.getAssetComponents.apply(materialsService, arguments as any);
-    },
+    getAssetComponents: (...args: Parameters<typeof materialsService.getAssetComponents>): ReturnType<typeof materialsService.getAssetComponents> => materialsService.getAssetComponents(...args),
 
-    async addComponentToAsset(
-        assetId: string,
-        materialId: string,
-        amount?: number,
-        brandModel?: string,
-        isOriginal?: boolean,
-        location?: string,
-        serial?: string
-    ): Promise<void> {
-        return materialsService.addComponentToAsset.apply(materialsService, arguments as any);
-    },
+    addComponentToAsset: (...args: Parameters<typeof materialsService.addComponentToAsset>): ReturnType<typeof materialsService.addComponentToAsset> => materialsService.addComponentToAsset(...args),
 
-    async removeComponentFromAsset(componentId: string): Promise<void> {
-        return materialsService.removeComponentFromAsset.apply(materialsService, arguments as any);
-    },
+    removeComponentFromAsset: (...args: Parameters<typeof materialsService.removeComponentFromAsset>): ReturnType<typeof materialsService.removeComponentFromAsset> => materialsService.removeComponentFromAsset(...args),
 
-    async updateAssetComponent(
-        componentId: string,
-        updates: {
-            amount?: number;
-            brandModel?: string;
-            serial?: string;
-            isOriginal?: boolean;
-            location?: string;
-        }
-    ): Promise<void> {
-        return materialsService.updateAssetComponent.apply(materialsService, arguments as any);
-    },
+    updateAssetComponent: (...args: Parameters<typeof materialsService.updateAssetComponent>): ReturnType<typeof materialsService.updateAssetComponent> => materialsService.updateAssetComponent(...args),
 
     // PERMISSIONS MANAGEMENT
-    async getCompanyProfiles(companyId: string): Promise<Profile[]> {
-        return companiesService.getCompanyProfiles.apply(companiesService, arguments as any);
-    },
+    getCompanyProfiles: (...args: Parameters<typeof companiesService.getCompanyProfiles>): ReturnType<typeof companiesService.getCompanyProfiles> => companiesService.getCompanyProfiles(...args),
 
-    async getAllProfiles(): Promise<Profile[]> {
-        return companiesService.getAllProfiles.apply(companiesService, arguments as any);
-    },
+    getAllProfiles: (...args: Parameters<typeof companiesService.getAllProfiles>): ReturnType<typeof companiesService.getAllProfiles> => companiesService.getAllProfiles(...args),
 
-    async getAllRoutes(): Promise<Route[]> {
-        return orderConfigService.getAllRoutes.apply(orderConfigService, arguments as any);
-    },
+    getAllRoutes: (...args: Parameters<typeof orderConfigService.getAllRoutes>): ReturnType<typeof orderConfigService.getAllRoutes> => orderConfigService.getAllRoutes(...args),
 
-    async getAllRoutesForCompanyAdmin(): Promise<Route[]> {
-        return orderConfigService.getAllRoutesForCompanyAdmin.apply(orderConfigService, arguments as any);
-    },
+    getAllRoutesForCompanyAdmin: (...args: Parameters<typeof orderConfigService.getAllRoutesForCompanyAdmin>): ReturnType<typeof orderConfigService.getAllRoutesForCompanyAdmin> => orderConfigService.getAllRoutesForCompanyAdmin(...args),
 
-    async getAllRoutesAdmin(): Promise<Route[]> {
-        return orderConfigService.getAllRoutesAdmin.apply(orderConfigService, arguments as any);
-    },
+    getAllRoutesAdmin: (...args: Parameters<typeof orderConfigService.getAllRoutesAdmin>): ReturnType<typeof orderConfigService.getAllRoutesAdmin> => orderConfigService.getAllRoutesAdmin(...args),
 
-    async updateRouteAvailability(routeId: string, isAvailable: boolean): Promise<void> {
-        return orderConfigService.updateRouteAvailability.apply(orderConfigService, arguments as any);
-    },
+    updateRouteAvailability: (...args: Parameters<typeof orderConfigService.updateRouteAvailability>): ReturnType<typeof orderConfigService.updateRouteAvailability> => orderConfigService.updateRouteAvailability(...args),
 
-    async createRoute(route: Partial<Route>): Promise<void> {
-        return orderConfigService.createRoute.apply(orderConfigService, arguments as any);
-    },
+    createRoute: (...args: Parameters<typeof orderConfigService.createRoute>): ReturnType<typeof orderConfigService.createRoute> => orderConfigService.createRoute(...args),
 
-    async updateRoute(id: string, route: Partial<Route>): Promise<void> {
-        return orderConfigService.updateRoute.apply(orderConfigService, arguments as any);
-    },
+    updateRoute: (...args: Parameters<typeof orderConfigService.updateRoute>): ReturnType<typeof orderConfigService.updateRoute> => orderConfigService.updateRoute(...args),
 
-    async deleteRoute(id: string): Promise<void> {
-        return orderConfigService.deleteRoute.apply(orderConfigService, arguments as any);
-    },
+    deleteRoute: (...args: Parameters<typeof orderConfigService.deleteRoute>): ReturnType<typeof orderConfigService.deleteRoute> => orderConfigService.deleteRoute(...args),
 
-    async getUserPermissions(userId: string): Promise<Permission[]> {
-        return usersService.getUserPermissions.apply(usersService, arguments as any);
-    },
+    getUserPermissions: (...args: Parameters<typeof usersService.getUserPermissions>): ReturnType<typeof usersService.getUserPermissions> => usersService.getUserPermissions(...args),
 
-    async getProfilePermissions(profileId: string): Promise<Permission[]> {
-        return usersService.getProfilePermissions.apply(usersService, arguments as any);
-    },
+    getProfilePermissions: (...args: Parameters<typeof usersService.getProfilePermissions>): ReturnType<typeof usersService.getProfilePermissions> => usersService.getProfilePermissions(...args),
 
-    async updateProfilePermissions(profileId: string, permissions: any[]): Promise<void> {
-        return usersService.updateProfilePermissions.apply(usersService, arguments as any);
-    },
+    updateProfilePermissions: (...args: Parameters<typeof usersService.updateProfilePermissions>): ReturnType<typeof usersService.updateProfilePermissions> => usersService.updateProfilePermissions(...args),
 
-    async copyProfilePermissions(sourceProfileId: string, targetProfileId: string): Promise<Permission[]> {
-        return usersService.copyProfilePermissions.apply(usersService, arguments as any);
-    },
+    copyProfilePermissions: (...args: Parameters<typeof usersService.copyProfilePermissions>): ReturnType<typeof usersService.copyProfilePermissions> => usersService.copyProfilePermissions(...args),
 
     // -------------------------------------------------------------------------
     // ORDER VISITS - CLOSE
     // -------------------------------------------------------------------------
-    async closeOrderVisit(
-        visitId: string,
-        orderId: string,
-        statusId: number,
-        statusDescription: string, // Passed from UI for notification
-        suspendedReasonId: string | null,
-        causeReasonId: number,
-        progress: number,
-        user: User,
-        endedAt?: string,
-        options?: { clientOpId?: string; clientEndedAt?: string }
-    ): Promise<void> {
-        return visitsService.closeOrderVisit.apply(visitsService, arguments as any);
-    },
+    closeOrderVisit: (...args: Parameters<typeof visitsService.closeOrderVisit>): ReturnType<typeof visitsService.closeOrderVisit> => visitsService.closeOrderVisit(...args),
 
     /**
      * Exclusão completa (soft delete) de uma visita técnica e de todos os filhos.
      * Guards: visita encerrada, não arquivada/aprovada e sem ativos avaliados.
      * Plano: docs/plano-exclusao-visita-is-deleted.md
      */
-    async deleteOrderVisit(visitId: string | number, currentUser: User): Promise<{ filesFailed: number }> {
-        return visitsService.deleteOrderVisit.apply(visitsService, arguments as any);
-    },
+    deleteOrderVisit: (...args: Parameters<typeof visitsService.deleteOrderVisit>): ReturnType<typeof visitsService.deleteOrderVisit> => visitsService.deleteOrderVisit(...args),
 
-    async getOrdersVisitsServicesMerged(ovIds: string[]): Promise<any[]> {
-        return visitsService.getOrdersVisitsServicesMerged.apply(visitsService, arguments as any);
-    },
+    getOrdersVisitsServicesMerged: (...args: Parameters<typeof visitsService.getOrdersVisitsServicesMerged>): ReturnType<typeof visitsService.getOrdersVisitsServicesMerged> => visitsService.getOrdersVisitsServicesMerged(...args),
 
-    async getOrdersVisitsMaterialsMerged(ovIds: string[]): Promise<any[]> {
-        return visitsService.getOrdersVisitsMaterialsMerged.apply(visitsService, arguments as any);
-    },
+    getOrdersVisitsMaterialsMerged: (...args: Parameters<typeof visitsService.getOrdersVisitsMaterialsMerged>): ReturnType<typeof visitsService.getOrdersVisitsMaterialsMerged> => visitsService.getOrdersVisitsMaterialsMerged(...args),
 
-    async getOrdersVisitsVehiclesMerged(ovIds: string[]): Promise<any[]> {
-        return visitsService.getOrdersVisitsVehiclesMerged.apply(visitsService, arguments as any);
-    },
+    getOrdersVisitsVehiclesMerged: (...args: Parameters<typeof visitsService.getOrdersVisitsVehiclesMerged>): ReturnType<typeof visitsService.getOrdersVisitsVehiclesMerged> => visitsService.getOrdersVisitsVehiclesMerged(...args),
 
-    async getOrdersVisitsAssetsMovedMerged(ovIds: string[]): Promise<any[]> {
-        return visitsService.getOrdersVisitsAssetsMovedMerged.apply(visitsService, arguments as any);
-    },
+    getOrdersVisitsAssetsMovedMerged: (...args: Parameters<typeof visitsService.getOrdersVisitsAssetsMovedMerged>): ReturnType<typeof visitsService.getOrdersVisitsAssetsMovedMerged> => visitsService.getOrdersVisitsAssetsMovedMerged(...args),
 
     /**
      * Busca o histórico completo de uma Solicitação de Serviço (SS).
      * Compila criação da OS, visitas e todas as intervenções realizadas.
      */
-      async getServiceOrderHistory(orderId: string | number): Promise<ServiceHistoryItem[]> {
-    return ordersService.getServiceOrderHistory.apply(ordersService, arguments as any);
-  },
+    getServiceOrderHistory: (...args: Parameters<typeof ordersService.getServiceOrderHistory>): ReturnType<typeof ordersService.getServiceOrderHistory> => ordersService.getServiceOrderHistory(...args),
 
-    async getOrderStatusHistory(orderId: string | number): Promise<OrderStatusLogItem[]> {
-        return ordersService.getOrderStatusHistory.apply(ordersService, arguments as any);
-    },
+    getOrderStatusHistory: (...args: Parameters<typeof ordersService.getOrderStatusHistory>): ReturnType<typeof ordersService.getOrderStatusHistory> => ordersService.getOrderStatusHistory(...args),
 
-    async getMaintenancePlansByOrderId(orderId: string | number): Promise<Array<{ id: string; code: string | null; description: string }>> {
-        return ordersService.getMaintenancePlansByOrderId.apply(ordersService, arguments as any);
-    },
+    getMaintenancePlansByOrderId: (...args: Parameters<typeof ordersService.getMaintenancePlansByOrderId>): ReturnType<typeof ordersService.getMaintenancePlansByOrderId> => ordersService.getMaintenancePlansByOrderId(...args),
 
-    async getOrderIdsByMaintenancePlanIds(planIds: string | string[]): Promise<string[]> {
-        return ordersService.getOrderIdsByMaintenancePlanIds.apply(ordersService, arguments as any);
-    },
+    getOrderIdsByMaintenancePlanIds: (...args: Parameters<typeof ordersService.getOrderIdsByMaintenancePlanIds>): ReturnType<typeof ordersService.getOrderIdsByMaintenancePlanIds> => ordersService.getOrderIdsByMaintenancePlanIds(...args),
 
     /**
      * Reporta uma visita, alterando o processing_id de 1 (Rascunho) para 2 (Reportada)
@@ -2993,9 +1731,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
      * @returns Promise<void>
      * @throws Error se a visita não estiver em rascunho ou se houver ativos não reportados
      */
-    async reportOrderVisit(visitId: string, userId: string, options?: { reportedAt?: string; idempotent?: boolean }): Promise<void> {
-        return visitsService.reportOrderVisit.apply(visitsService, arguments as any);
-    },
+    reportOrderVisit: (...args: Parameters<typeof visitsService.reportOrderVisit>): ReturnType<typeof visitsService.reportOrderVisit> => visitsService.reportOrderVisit(...args),
 
     /**
      * Marca uma visita como REVISADA (3), validando que TODOS os seus ativos já estão REVISADOS.
@@ -3003,31 +1739,19 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
      * @param visitId ID da visita
      * @param userId ID do usuário que está marcando como revisada
      */
-    async markOrderVisitAsRevised(visitId: string, userId: string): Promise<void> {
-        return visitsService.markOrderVisitAsRevised.apply(visitsService, arguments as any);
-    },
+    markOrderVisitAsRevised: (...args: Parameters<typeof visitsService.markOrderVisitAsRevised>): ReturnType<typeof visitsService.markOrderVisitAsRevised> => visitsService.markOrderVisitAsRevised(...args),
 
-    async updateOrderVisitProcessing(visitId: string, processingId: number, userId: string, extraData?: { statusId: number; progress: number; suspendedReasonId?: number | null; causeReasonId?: number | null }): Promise<void> {
-        return visitsService.updateOrderVisitProcessing.apply(visitsService, arguments as any);
-    },
+    updateOrderVisitProcessing: (...args: Parameters<typeof visitsService.updateOrderVisitProcessing>): ReturnType<typeof visitsService.updateOrderVisitProcessing> => visitsService.updateOrderVisitProcessing(...args),
 
-    async disapproveOrderVisit(visitId: string, userId: string): Promise<void> {
-        return visitsService.disapproveOrderVisit.apply(visitsService, arguments as any);
-    },
+    disapproveOrderVisit: (...args: Parameters<typeof visitsService.disapproveOrderVisit>): ReturnType<typeof visitsService.disapproveOrderVisit> => visitsService.disapproveOrderVisit(...args),
 
-    async checkMovedAssetsForVisit(visitId: string): Promise<number> {
-        return visitsService.checkMovedAssetsForVisit.apply(visitsService, arguments as any);
-    },
+    checkMovedAssetsForVisit: (...args: Parameters<typeof visitsService.checkMovedAssetsForVisit>): ReturnType<typeof visitsService.checkMovedAssetsForVisit> => visitsService.checkMovedAssetsForVisit(...args),
 
-    async reverseOrderVisitApproval(visitId: string): Promise<void> {
-        return visitsService.reverseOrderVisitApproval.apply(visitsService, arguments as any);
-    },
+    reverseOrderVisitApproval: (...args: Parameters<typeof visitsService.reverseOrderVisitApproval>): ReturnType<typeof visitsService.reverseOrderVisitApproval> => visitsService.reverseOrderVisitApproval(...args),
 
     // ─── Location Tracker ────────────────────────────────────────────────────
 
-    async getUserTrackerInterval(userId: string): Promise<number | null> {
-        return usersService.getUserTrackerInterval.apply(usersService, arguments as any);
-    },
+    getUserTrackerInterval: (...args: Parameters<typeof usersService.getUserTrackerInterval>): ReturnType<typeof usersService.getUserTrackerInterval> => usersService.getUserTrackerInterval(...args),
 
 
 
@@ -3035,110 +1759,53 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
     // PREVENTIVE MAINTENANCE PLANS
     // -------------------------------------------------------------------------
 
-    async getMaintenancePlans(assetTypeId?: string): Promise<MaintenancePlan[]> {
-        return maintenancePlansService.getMaintenancePlans.apply(maintenancePlansService, arguments as any);
-    },
+    getMaintenancePlans: (...args: Parameters<typeof maintenancePlansService.getMaintenancePlans>): ReturnType<typeof maintenancePlansService.getMaintenancePlans> => maintenancePlansService.getMaintenancePlans(...args),
 
-    async getMaintenancePlanById(id: string): Promise<MaintenancePlan | null> {
-        return maintenancePlansService.getMaintenancePlanById.apply(maintenancePlansService, arguments as any);
-    },
+    getMaintenancePlanById: (...args: Parameters<typeof maintenancePlansService.getMaintenancePlanById>): ReturnType<typeof maintenancePlansService.getMaintenancePlanById> => maintenancePlansService.getMaintenancePlanById(...args),
 
-    async createMaintenancePlan(plan: Partial<MaintenancePlan>, userId: string): Promise<MaintenancePlan> {
-        return maintenancePlansService.createMaintenancePlan.apply(maintenancePlansService, arguments as any);
-    },
+    createMaintenancePlan: (...args: Parameters<typeof maintenancePlansService.createMaintenancePlan>): ReturnType<typeof maintenancePlansService.createMaintenancePlan> => maintenancePlansService.createMaintenancePlan(...args),
 
-    async updateMaintenancePlan(id: string, plan: Partial<MaintenancePlan>, userId: string): Promise<MaintenancePlan> {
-        return maintenancePlansService.updateMaintenancePlan.apply(maintenancePlansService, arguments as any);
-    },
+    updateMaintenancePlan: (...args: Parameters<typeof maintenancePlansService.updateMaintenancePlan>): ReturnType<typeof maintenancePlansService.updateMaintenancePlan> => maintenancePlansService.updateMaintenancePlan(...args),
 
-    async duplicateMaintenancePlan(planId: string, userId: string): Promise<string> {
-        return maintenancePlansService.duplicateMaintenancePlan.apply(maintenancePlansService, arguments as any);
-    },
+    duplicateMaintenancePlan: (...args: Parameters<typeof maintenancePlansService.duplicateMaintenancePlan>): ReturnType<typeof maintenancePlansService.duplicateMaintenancePlan> => maintenancePlansService.duplicateMaintenancePlan(...args),
 
-    async getMaintenancePlanSections(planId: string): Promise<MaintenancePlanSection[]> {
-        return maintenancePlansService.getMaintenancePlanSections.apply(maintenancePlansService, arguments as any);
-    },
+    getMaintenancePlanSections: (...args: Parameters<typeof maintenancePlansService.getMaintenancePlanSections>): ReturnType<typeof maintenancePlansService.getMaintenancePlanSections> => maintenancePlansService.getMaintenancePlanSections(...args),
 
-    async createMaintenancePlanSection(section: Partial<MaintenancePlanSection>, userId: string): Promise<MaintenancePlanSection> {
-        return maintenancePlansService.createMaintenancePlanSection.apply(maintenancePlansService, arguments as any);
-    },
+    createMaintenancePlanSection: (...args: Parameters<typeof maintenancePlansService.createMaintenancePlanSection>): ReturnType<typeof maintenancePlansService.createMaintenancePlanSection> => maintenancePlansService.createMaintenancePlanSection(...args),
 
-    async updateMaintenancePlanSection(id: string, section: Partial<MaintenancePlanSection>, userId: string): Promise<MaintenancePlanSection> {
-        return maintenancePlansService.updateMaintenancePlanSection.apply(maintenancePlansService, arguments as any);
-    },
+    updateMaintenancePlanSection: (...args: Parameters<typeof maintenancePlansService.updateMaintenancePlanSection>): ReturnType<typeof maintenancePlansService.updateMaintenancePlanSection> => maintenancePlansService.updateMaintenancePlanSection(...args),
 
-    async getMaintenancePlanSectionActivities(sectionId: string): Promise<MaintenancePlanSectionActivity[]> {
-        return maintenancePlansService.getMaintenancePlanSectionActivities.apply(maintenancePlansService, arguments as any);
-    },
+    getMaintenancePlanSectionActivities: (...args: Parameters<typeof maintenancePlansService.getMaintenancePlanSectionActivities>): ReturnType<typeof maintenancePlansService.getMaintenancePlanSectionActivities> => maintenancePlansService.getMaintenancePlanSectionActivities(...args),
 
-    async createMaintenancePlanSectionActivity(sectionId: string, activityId: string, userId: string, orderIndex?: number, description?: string, commentsDefault?: string): Promise<MaintenancePlanSectionActivity> {
-        return maintenancePlansService.createMaintenancePlanSectionActivity.apply(maintenancePlansService, arguments as any);
-    },
+    createMaintenancePlanSectionActivity: (...args: Parameters<typeof maintenancePlansService.createMaintenancePlanSectionActivity>): ReturnType<typeof maintenancePlansService.createMaintenancePlanSectionActivity> => maintenancePlansService.createMaintenancePlanSectionActivity(...args),
 
-    async updateMaintenancePlanSectionActivity(id: string, payload: Partial<MaintenancePlanSectionActivity>, userId: string): Promise<void> {
-        return maintenancePlansService.updateMaintenancePlanSectionActivity.apply(maintenancePlansService, arguments as any);
-    },
+    updateMaintenancePlanSectionActivity: (...args: Parameters<typeof maintenancePlansService.updateMaintenancePlanSectionActivity>): ReturnType<typeof maintenancePlansService.updateMaintenancePlanSectionActivity> => maintenancePlansService.updateMaintenancePlanSectionActivity(...args),
 
-    async removeMaintenancePlanSectionActivity(sectionActivityId: string, userId: string): Promise<void> {
-        return maintenancePlansService.removeMaintenancePlanSectionActivity.apply(maintenancePlansService, arguments as any);
-    },
+    removeMaintenancePlanSectionActivity: (...args: Parameters<typeof maintenancePlansService.removeMaintenancePlanSectionActivity>): ReturnType<typeof maintenancePlansService.removeMaintenancePlanSectionActivity> => maintenancePlansService.removeMaintenancePlanSectionActivity(...args),
 
     // To load checklist for an asset visit (fetch all activities filled out with maintenance_plan_id)
-    async getMaintenanceChecklistItemsByVisit(ovAssetId: string): Promise<OrderVisitAssetActivity[]> {
-        return maintenancePlansService.getMaintenanceChecklistItemsByVisit.apply(maintenancePlansService, arguments as any);
-    },
+    getMaintenanceChecklistItemsByVisit: (...args: Parameters<typeof maintenancePlansService.getMaintenanceChecklistItemsByVisit>): ReturnType<typeof maintenancePlansService.getMaintenanceChecklistItemsByVisit> => maintenancePlansService.getMaintenanceChecklistItemsByVisit(...args),
 
-    async getMaintenanceChecklistItems(ovAssetId: string, planId: string): Promise<OrderVisitAssetActivity[]> {
-        return maintenancePlansService.getMaintenanceChecklistItems.apply(maintenancePlansService, arguments as any);
-    },
+    getMaintenanceChecklistItems: (...args: Parameters<typeof maintenancePlansService.getMaintenanceChecklistItems>): ReturnType<typeof maintenancePlansService.getMaintenanceChecklistItems> => maintenancePlansService.getMaintenanceChecklistItems(...args),
 
     // To load checklist history for an asset across all visits
-    async getGlobalMaintenanceChecklistItems(assetId: string, planId: string, currentOvaId?: string): Promise<OrderVisitAssetActivity[]> {
-        return maintenancePlansService.getGlobalMaintenanceChecklistItems.apply(maintenancePlansService, arguments as any);
-    },
+    getGlobalMaintenanceChecklistItems: (...args: Parameters<typeof maintenancePlansService.getGlobalMaintenanceChecklistItems>): ReturnType<typeof maintenancePlansService.getGlobalMaintenanceChecklistItems> => maintenancePlansService.getGlobalMaintenanceChecklistItems(...args),
 
-    async updateOrderVisitAssetPlan(ovAssetId: string, planId: string): Promise<void> {
-        return maintenancePlansService.updateOrderVisitAssetPlan.apply(maintenancePlansService, arguments as any);
-    },
+    updateOrderVisitAssetPlan: (...args: Parameters<typeof maintenancePlansService.updateOrderVisitAssetPlan>): ReturnType<typeof maintenancePlansService.updateOrderVisitAssetPlan> => maintenancePlansService.updateOrderVisitAssetPlan(...args),
 
-    async updateOrderVisitAssetProgress(ovAssetId: string, progress: number): Promise<void> {
-        return maintenancePlansService.updateOrderVisitAssetProgress.apply(maintenancePlansService, arguments as any);
-    },
+    updateOrderVisitAssetProgress: (...args: Parameters<typeof maintenancePlansService.updateOrderVisitAssetProgress>): ReturnType<typeof maintenancePlansService.updateOrderVisitAssetProgress> => maintenancePlansService.updateOrderVisitAssetProgress(...args),
 
-    async upsertMaintenanceChecklistItem(
-        ovAssetId: string, 
-        planId: string, 
-        activityId: string, 
-        userId: string, 
-        updates: { 
-            status?: 'OK' | 'NOK' | 'NA' | null, 
-            comments?: string, 
-            imgFilePath?: string, 
-            imgFilesNames?: any 
-        }
-    ): Promise<OrderVisitAssetActivity | null> {
-        return maintenancePlansService.upsertMaintenanceChecklistItem.apply(maintenancePlansService, arguments as any);
-    },
+    upsertMaintenanceChecklistItem: (...args: Parameters<typeof maintenancePlansService.upsertMaintenanceChecklistItem>): ReturnType<typeof maintenancePlansService.upsertMaintenanceChecklistItem> => maintenancePlansService.upsertMaintenanceChecklistItem(...args),
 
-    async deleteMaintenanceChecklistItem(ovAssetId: string, planId: string, activityId: string): Promise<void> {
-        return maintenancePlansService.deleteMaintenanceChecklistItem.apply(maintenancePlansService, arguments as any);
-    },
+    deleteMaintenanceChecklistItem: (...args: Parameters<typeof maintenancePlansService.deleteMaintenanceChecklistItem>): ReturnType<typeof maintenancePlansService.deleteMaintenanceChecklistItem> => maintenancePlansService.deleteMaintenanceChecklistItem(...args),
 
-    async uploadChecklistImage(ovAssetId: string, activityId: string, file: File, companyId?: string, assetId?: string, onProgress?: ((progress: number) => void) | null, options?: { fileName?: string }): Promise<{ path: string; filename: string }> {
-        return maintenancePlansService.uploadChecklistImage.apply(maintenancePlansService, arguments as any);
-    },
+    uploadChecklistImage: (...args: Parameters<typeof maintenancePlansService.uploadChecklistImage>): ReturnType<typeof maintenancePlansService.uploadChecklistImage> => maintenancePlansService.uploadChecklistImage(...args),
 
-    async removeChecklistImage(ovAssetId: string, planId: string, activityId: string, fileName: string, userId: string): Promise<OrderVisitAssetActivity | null> {
-        return maintenancePlansService.removeChecklistImage.apply(maintenancePlansService, arguments as any);
-    },
+    removeChecklistImage: (...args: Parameters<typeof maintenancePlansService.removeChecklistImage>): ReturnType<typeof maintenancePlansService.removeChecklistImage> => maintenancePlansService.removeChecklistImage(...args),
 
-    async getAssetAvailabilityHistory7Days(unitAssetTagId: string, offsetDays: number = 0): Promise<{ date: string; isAvailable: boolean | null }[]> {
-        return visitsService.getAssetAvailabilityHistory7Days.apply(visitsService, arguments as any);
-    },
+    getAssetAvailabilityHistory7Days: (...args: Parameters<typeof visitsService.getAssetAvailabilityHistory7Days>): ReturnType<typeof visitsService.getAssetAvailabilityHistory7Days> => visitsService.getAssetAvailabilityHistory7Days(...args),
 
-    async getAssetAvailabilityForExport(unitId: string, startDate: string, endDate: string, assetTagId?: string, assetTagSubId?: string): Promise<any[]> {
-        return assetsService.getAssetAvailabilityForExport.apply(assetsService, arguments as any);
-    },
+    getAssetAvailabilityForExport: (...args: Parameters<typeof assetsService.getAssetAvailabilityForExport>): ReturnType<typeof assetsService.getAssetAvailabilityForExport> => assetsService.getAssetAvailabilityForExport(...args),
 
     // ==========================================
     // MANUS INTEGRATION METHODS
@@ -3147,532 +1814,259 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
     /**
      * Verifica se um contrato usa integração com Manus
      */
-    async checkContractUsesManus(contractId: string): Promise<boolean> {
-        return companiesService.checkContractUsesManus.apply(companiesService, arguments as any);
-    },
+    checkContractUsesManus: (...args: Parameters<typeof companiesService.checkContractUsesManus>): ReturnType<typeof companiesService.checkContractUsesManus> => companiesService.checkContractUsesManus(...args),
 
     /**
      * Busca dados de uma visita no sistema Manus
      */
-    async getManusVisitData(visitId: string): Promise<any | null> {
-        return visitsService.getManusVisitData.apply(visitsService, arguments as any);
-    },
+    getManusVisitData: (...args: Parameters<typeof visitsService.getManusVisitData>): ReturnType<typeof visitsService.getManusVisitData> => visitsService.getManusVisitData(...args),
 
     /**
      * Envia dados de uma visita para o Manus
      */
-    async sendVisitToManus(visitId: string, visitData: any): Promise<boolean> {
-        return visitsService.sendVisitToManus.apply(visitsService, arguments as any);
-    },
+    sendVisitToManus: (...args: Parameters<typeof visitsService.sendVisitToManus>): ReturnType<typeof visitsService.sendVisitToManus> => visitsService.sendVisitToManus(...args),
 
     /**
      * Atualiza status de sincronização com Manus
      */
-    async updateManusSyncStatus(visitId: string, status: string, message?: string): Promise<boolean> {
-        return visitsService.updateManusSyncStatus.apply(visitsService, arguments as any);
-    },
+    updateManusSyncStatus: (...args: Parameters<typeof visitsService.updateManusSyncStatus>): ReturnType<typeof visitsService.updateManusSyncStatus> => visitsService.updateManusSyncStatus(...args),
 
-    async getVisitChatMessages(visitId: string): Promise<OrderVisitChatMessage[]> {
-        return visitChatService.getVisitChatMessages.apply(visitChatService, arguments as any);
-    },
+    getVisitChatMessages: (...args: Parameters<typeof visitChatService.getVisitChatMessages>): ReturnType<typeof visitChatService.getVisitChatMessages> => visitChatService.getVisitChatMessages(...args),
 
-    async sendVisitChatMessage(messageData: Partial<OrderVisitChatMessage> & { activeUserIds?: string[] }): Promise<OrderVisitChatMessage | null> {
-        return visitChatService.sendVisitChatMessage.apply(visitChatService, arguments as any);
-    },
+    sendVisitChatMessage: (...args: Parameters<typeof visitChatService.sendVisitChatMessage>): ReturnType<typeof visitChatService.sendVisitChatMessage> => visitChatService.sendVisitChatMessage(...args),
 
-    async toggleResolveChatAction(messageId: string, isResolved: boolean): Promise<void> {
-        return visitChatService.toggleResolveChatAction.apply(visitChatService, arguments as any);
-    },
+    toggleResolveChatAction: (...args: Parameters<typeof visitChatService.toggleResolveChatAction>): ReturnType<typeof visitChatService.toggleResolveChatAction> => visitChatService.toggleResolveChatAction(...args),
 
-    async getVisitChatParticipants(visitId: string): Promise<OrderVisitChatParticipant[]> {
-        return visitChatService.getVisitChatParticipants.apply(visitChatService, arguments as any);
-    },
+    getVisitChatParticipants: (...args: Parameters<typeof visitChatService.getVisitChatParticipants>): ReturnType<typeof visitChatService.getVisitChatParticipants> => visitChatService.getVisitChatParticipants(...args),
 
-    async addVisitChatParticipant(visitId: string, userId: string): Promise<void> {
-        return visitChatService.addVisitChatParticipant.apply(visitChatService, arguments as any);
-    },
+    addVisitChatParticipant: (...args: Parameters<typeof visitChatService.addVisitChatParticipant>): ReturnType<typeof visitChatService.addVisitChatParticipant> => visitChatService.addVisitChatParticipant(...args),
 
-    async removeVisitChatParticipant(visitId: string, userId: string): Promise<void> {
-        return visitChatService.removeVisitChatParticipant.apply(visitChatService, arguments as any);
-    },
+    removeVisitChatParticipant: (...args: Parameters<typeof visitChatService.removeVisitChatParticipant>): ReturnType<typeof visitChatService.removeVisitChatParticipant> => visitChatService.removeVisitChatParticipant(...args),
 
-    async sendChatNotifications(
-        visitId: string,
-        message: string,
-        senderId: string,
-        type: 'action' | 'info' | 'normal',
-        activeUserIds: string[] = []
-    ): Promise<void> {
-        return visitChatService.sendChatNotifications.apply(visitChatService, arguments as any);
-    },
+    sendChatNotifications: (...args: Parameters<typeof visitChatService.sendChatNotifications>): ReturnType<typeof visitChatService.sendChatNotifications> => visitChatService.sendChatNotifications(...args),
 
-    async markVisitChatMessagesAsRead(messageIds: string[], userId: string): Promise<void> {
-        return visitChatService.markVisitChatMessagesAsRead.apply(visitChatService, arguments as any);
-    },
+    markVisitChatMessagesAsRead: (...args: Parameters<typeof visitChatService.markVisitChatMessagesAsRead>): ReturnType<typeof visitChatService.markVisitChatMessagesAsRead> => visitChatService.markVisitChatMessagesAsRead(...args),
 
-    async getVisitChatStatus(visitId: string): Promise<{ chatStatus: string; chatCreatedUserId: string | null; chatClosedAt: string | null; chatClosedUserId: string | null }> {
-        return visitChatService.getVisitChatStatus.apply(visitChatService, arguments as any);
-    },
+    getVisitChatStatus: (...args: Parameters<typeof visitChatService.getVisitChatStatus>): ReturnType<typeof visitChatService.getVisitChatStatus> => visitChatService.getVisitChatStatus(...args),
 
-    async closeVisitChat(visitId: string, userId: string): Promise<void> {
-        return visitChatService.closeVisitChat.apply(visitChatService, arguments as any);
-    },
+    closeVisitChat: (...args: Parameters<typeof visitChatService.closeVisitChat>): ReturnType<typeof visitChatService.closeVisitChat> => visitChatService.closeVisitChat(...args),
 
-    async reopenVisitChat(visitId: string, userId: string): Promise<void> {
-        return visitChatService.reopenVisitChat.apply(visitChatService, arguments as any);
-    },
+    reopenVisitChat: (...args: Parameters<typeof visitChatService.reopenVisitChat>): ReturnType<typeof visitChatService.reopenVisitChat> => visitChatService.reopenVisitChat(...args),
 
     // -------------------------------------------------------------------------
     // MATERIAL PURCHASES (materials_purchases)
     // -------------------------------------------------------------------------
 
-    async createMaterialPurchase(data: { materialId: string; purchaseTypeId?: string; warehouseId?: string; quantity: number; unitPrice: number; justification: string; code?: string }): Promise<any> {
-        return purchasesService.createMaterialPurchase.apply(purchasesService, arguments as any);
-    },
+    createMaterialPurchase: (...args: Parameters<typeof purchasesService.createMaterialPurchase>): ReturnType<typeof purchasesService.createMaterialPurchase> => purchasesService.createMaterialPurchase(...args),
 
-      async getMaterialPurchases(materialId: string): Promise<any[]> {
-    return purchasesService.getMaterialPurchases.apply(purchasesService, arguments as any);
-  },
+    getMaterialPurchases: (...args: Parameters<typeof purchasesService.getMaterialPurchases>): ReturnType<typeof purchasesService.getMaterialPurchases> => purchasesService.getMaterialPurchases(...args),
 
 
-    async getMaterialPurchasesDashboard(): Promise<{ pending: number; authorized: number; completed: number; cancelled: number; pending_value: number; authorized_value: number }> {
-        return purchasesService.getMaterialPurchasesDashboard.apply(purchasesService, arguments as any);
-    },
+    getMaterialPurchasesDashboard: (...args: Parameters<typeof purchasesService.getMaterialPurchasesDashboard>): ReturnType<typeof purchasesService.getMaterialPurchasesDashboard> => purchasesService.getMaterialPurchasesDashboard(...args),
 
-      async getMaterialPurchasesAll(): Promise<any[]> {
-    return purchasesService.getMaterialPurchasesAll.apply(purchasesService, arguments as any);
-  },
+    getMaterialPurchasesAll: (...args: Parameters<typeof purchasesService.getMaterialPurchasesAll>): ReturnType<typeof purchasesService.getMaterialPurchasesAll> => purchasesService.getMaterialPurchasesAll(...args),
 
 
-    async getActivePurchasesMaterialIds(): Promise<Record<number, { hasPending: boolean; hasAuthorized: boolean }>> {
-        return purchasesService.getActivePurchasesMaterialIds.apply(purchasesService, arguments as any);
-    },
+    getActivePurchasesMaterialIds: (...args: Parameters<typeof purchasesService.getActivePurchasesMaterialIds>): ReturnType<typeof purchasesService.getActivePurchasesMaterialIds> => purchasesService.getActivePurchasesMaterialIds(...args),
 
-    async authorizeMaterialPurchase(id: string, data: { code: string; purchaseTypeId: string; warehouseId: string; quantity: number; unitPrice: number; justification: string }): Promise<void> {
-        return purchasesService.authorizeMaterialPurchase.apply(purchasesService, arguments as any);
-    },
+    authorizeMaterialPurchase: (...args: Parameters<typeof purchasesService.authorizeMaterialPurchase>): ReturnType<typeof purchasesService.authorizeMaterialPurchase> => purchasesService.authorizeMaterialPurchase(...args),
 
-    async getPurchaseCancelReasons(): Promise<{ id: number; description: string; is_available: boolean }[]> {
-        return purchasesService.getCancelReasons.apply(purchasesService, arguments as any);
-    },
+    getPurchaseCancelReasons: (...args: Parameters<typeof purchasesService.getCancelReasons>): ReturnType<typeof purchasesService.getCancelReasons> => purchasesService.getCancelReasons(...args),
 
-    async cancelMaterialPurchase(id: string, cancelReasonId: number, cancelReasonText?: string): Promise<void> {
-        return purchasesService.cancelMaterialPurchase.apply(purchasesService, arguments as any);
-    },
+    cancelMaterialPurchase: (...args: Parameters<typeof purchasesService.cancelMaterialPurchase>): ReturnType<typeof purchasesService.cancelMaterialPurchase> => purchasesService.cancelMaterialPurchase(...args),
 
 
-      async completeMaterialPurchase(id: string): Promise<void> {
-    return purchasesService.completeMaterialPurchase.apply(purchasesService, arguments as any);
-  },
+    completeMaterialPurchase: (...args: Parameters<typeof purchasesService.completeMaterialPurchase>): ReturnType<typeof purchasesService.completeMaterialPurchase> => purchasesService.completeMaterialPurchase(...args),
 
 
-    async getMaterialsBelowMinStock(): Promise<{
-        material_id: number;
-        material_code: string;
-        material_description: string;
-        material_unit: string;
-        warehouse_id: string;
-        warehouse_description: string;
-        quantity: number;
-        min_stock: number;
-        cost_avg: number;
-        deficit: number;
-        deficit_value: number;
-    }[]> {
-        return materialsService.getMaterialsBelowMinStock.apply(materialsService, arguments as any);
-    },
+    getMaterialsBelowMinStock: (...args: Parameters<typeof materialsService.getMaterialsBelowMinStock>): ReturnType<typeof materialsService.getMaterialsBelowMinStock> => materialsService.getMaterialsBelowMinStock(...args),
 
-    async getMaterialsStockSummary(): Promise<{
-        total_stock_value: number;
-        total_materials: number;
-        materials_without_stock: number;
-        materials_below_min: number;
-    }> {
-        return materialsService.getMaterialsStockSummary.apply(materialsService, arguments as any);
-    },
+    getMaterialsStockSummary: (...args: Parameters<typeof materialsService.getMaterialsStockSummary>): ReturnType<typeof materialsService.getMaterialsStockSummary> => materialsService.getMaterialsStockSummary(...args),
 
-    async getRecentPurchases(limit = 5): Promise<any[]> {
-        return purchasesService.getRecentPurchases.apply(purchasesService, arguments as any);
-    },
+    getRecentPurchases: (...args: Parameters<typeof purchasesService.getRecentPurchases>): ReturnType<typeof purchasesService.getRecentPurchases> => purchasesService.getRecentPurchases(...args),
 
     // -------------------------------------------------------------------------
     // TECHNICAL MANUALS (Documentos Técnicos)
     // -------------------------------------------------------------------------
-    async getTechnicalManuals(
-        filter: 'all' | 'active' | 'inactive' = 'all',
-        search: string = '',
-        assetTypeId?: string
-    ): Promise<TechnicalManual[]> {
-        return technicalManualsService.getTechnicalManuals.apply(technicalManualsService, arguments as any);
-    },
+    getTechnicalManuals: (...args: Parameters<typeof technicalManualsService.getTechnicalManuals>): ReturnType<typeof technicalManualsService.getTechnicalManuals> => technicalManualsService.getTechnicalManuals(...args),
 
-    async getTechnicalManualsByAssetId(assetId: string): Promise<TechnicalManual[]> {
-        return technicalManualsService.getTechnicalManualsByAssetId.apply(technicalManualsService, arguments as any);
-    },
+    getTechnicalManualsByAssetId: (...args: Parameters<typeof technicalManualsService.getTechnicalManualsByAssetId>): ReturnType<typeof technicalManualsService.getTechnicalManualsByAssetId> => technicalManualsService.getTechnicalManualsByAssetId(...args),
 
-    async getTechnicalManualById(id: string): Promise<TechnicalManual | null> {
-        return technicalManualsService.getTechnicalManualById.apply(technicalManualsService, arguments as any);
-    },
+    getTechnicalManualById: (...args: Parameters<typeof technicalManualsService.getTechnicalManualById>): ReturnType<typeof technicalManualsService.getTechnicalManualById> => technicalManualsService.getTechnicalManualById(...args),
 
-    async createTechnicalManual(tm: Partial<TechnicalManual>): Promise<TechnicalManual> {
-        return technicalManualsService.createTechnicalManual.apply(technicalManualsService, arguments as any);
-    },
+    createTechnicalManual: (...args: Parameters<typeof technicalManualsService.createTechnicalManual>): ReturnType<typeof technicalManualsService.createTechnicalManual> => technicalManualsService.createTechnicalManual(...args),
 
-    async updateTechnicalManual(id: string, tm: Partial<TechnicalManual>): Promise<TechnicalManual> {
-        return technicalManualsService.updateTechnicalManual.apply(technicalManualsService, arguments as any);
-    },
+    updateTechnicalManual: (...args: Parameters<typeof technicalManualsService.updateTechnicalManual>): ReturnType<typeof technicalManualsService.updateTechnicalManual> => technicalManualsService.updateTechnicalManual(...args),
 
-    async deleteTechnicalManual(id: string): Promise<void> {
-        return technicalManualsService.deleteTechnicalManual.apply(technicalManualsService, arguments as any);
-    },
+    deleteTechnicalManual: (...args: Parameters<typeof technicalManualsService.deleteTechnicalManual>): ReturnType<typeof technicalManualsService.deleteTechnicalManual> => technicalManualsService.deleteTechnicalManual(...args),
 
-    async getTechnicalManualCategories(): Promise<TechnicalManualCategory[]> {
-        return technicalManualsService.getTechnicalManualCategories.apply(technicalManualsService, arguments as any);
-    },
+    getTechnicalManualCategories: (...args: Parameters<typeof technicalManualsService.getTechnicalManualCategories>): ReturnType<typeof technicalManualsService.getTechnicalManualCategories> => technicalManualsService.getTechnicalManualCategories(...args),
 
-    async createTechnicalManualCategory(tmCategory: Partial<TechnicalManualCategory>): Promise<TechnicalManualCategory> {
-        return technicalManualsService.createTechnicalManualCategory.apply(technicalManualsService, arguments as any);
-    },
+    createTechnicalManualCategory: (...args: Parameters<typeof technicalManualsService.createTechnicalManualCategory>): ReturnType<typeof technicalManualsService.createTechnicalManualCategory> => technicalManualsService.createTechnicalManualCategory(...args),
 
-    async getTechnicalManualFiles(tmId: string): Promise<TechnicalManualFile[]> {
-        return technicalManualsService.getTechnicalManualFiles.apply(technicalManualsService, arguments as any);
-    },
+    getTechnicalManualFiles: (...args: Parameters<typeof technicalManualsService.getTechnicalManualFiles>): ReturnType<typeof technicalManualsService.getTechnicalManualFiles> => technicalManualsService.getTechnicalManualFiles(...args),
 
-    async uploadTechnicalManualFile(tmId: string, file: File, companyId?: string, tmCategoryId?: string, onProgress?: (progress: number) => void): Promise<TechnicalManualFile> {
-        return technicalManualsService.uploadTechnicalManualFile.apply(technicalManualsService, arguments as any);
-    },
+    uploadTechnicalManualFile: (...args: Parameters<typeof technicalManualsService.uploadTechnicalManualFile>): ReturnType<typeof technicalManualsService.uploadTechnicalManualFile> => technicalManualsService.uploadTechnicalManualFile(...args),
 
-    async deleteTechnicalManualFile(fileId: string): Promise<void> {
-        return technicalManualsService.deleteTechnicalManualFile.apply(technicalManualsService, arguments as any);
-    },
+    deleteTechnicalManualFile: (...args: Parameters<typeof technicalManualsService.deleteTechnicalManualFile>): ReturnType<typeof technicalManualsService.deleteTechnicalManualFile> => technicalManualsService.deleteTechnicalManualFile(...args),
 
-    async getAssociatedAssets(tmId: string): Promise<TechnicalManualAsset[]> {
-        return technicalManualsService.getAssociatedAssets.apply(technicalManualsService, arguments as any);
-    },
+    getAssociatedAssets: (...args: Parameters<typeof technicalManualsService.getAssociatedAssets>): ReturnType<typeof technicalManualsService.getAssociatedAssets> => technicalManualsService.getAssociatedAssets(...args),
 
-    async associateAsset(tmId: string, assetId: string): Promise<void> {
-        return technicalManualsService.associateAsset.apply(technicalManualsService, arguments as any);
-    },
+    associateAsset: (...args: Parameters<typeof technicalManualsService.associateAsset>): ReturnType<typeof technicalManualsService.associateAsset> => technicalManualsService.associateAsset(...args),
 
-    async dissociateAsset(tmId: string, assetId: string): Promise<void> {
-        return technicalManualsService.dissociateAsset.apply(technicalManualsService, arguments as any);
-    },
+    dissociateAsset: (...args: Parameters<typeof technicalManualsService.dissociateAsset>): ReturnType<typeof technicalManualsService.dissociateAsset> => technicalManualsService.dissociateAsset(...args),
 
-    async getAssetsByTypeForAssociation(assetTypeId: string, search?: string, excludeTmId?: string, clientId?: string, unitId?: string): Promise<{ id: string; code: string; description: string; tagDescription?: string; tagSubDescription?: string; statusDescription?: string }[]> {
-        return technicalManualsService.getAssetsByTypeForAssociation.apply(technicalManualsService, arguments as any);
-    },
+    getAssetsByTypeForAssociation: (...args: Parameters<typeof technicalManualsService.getAssetsByTypeForAssociation>): ReturnType<typeof technicalManualsService.getAssetsByTypeForAssociation> => technicalManualsService.getAssetsByTypeForAssociation(...args),
 
-    async getManualsWithFilesForAssets(assetIds: string[]): Promise<(TechnicalManual & { files: TechnicalManualFile[] })[]> {
-        return technicalManualsService.getManualsWithFilesForAssets.apply(technicalManualsService, arguments as any);
-    },
+    getManualsWithFilesForAssets: (...args: Parameters<typeof technicalManualsService.getManualsWithFilesForAssets>): ReturnType<typeof technicalManualsService.getManualsWithFilesForAssets> => technicalManualsService.getManualsWithFilesForAssets(...args),
 
-    async getOpenAlertsBySectorAndType(unitAssetTagId: string, orderTypeId: string): Promise<AssetAlert[]> {
-        return assetsService.getOpenAlertsBySectorAndType.apply(assetsService, arguments as any);
-    },
+    getOpenAlertsBySectorAndType: (...args: Parameters<typeof assetsService.getOpenAlertsBySectorAndType>): ReturnType<typeof assetsService.getOpenAlertsBySectorAndType> => assetsService.getOpenAlertsBySectorAndType(...args),
 
-    async linkAlertsToOrder(orderId: string, alertIds: string[]): Promise<void> {
-        return ordersService.linkAlertsToOrder.apply(ordersService, arguments as any);
-    },
+    linkAlertsToOrder: (...args: Parameters<typeof ordersService.linkAlertsToOrder>): ReturnType<typeof ordersService.linkAlertsToOrder> => ordersService.linkAlertsToOrder(...args),
 
-    async unlinkAlertFromOrder(orderId: string, alertId: string): Promise<void> {
-        return ordersService.unlinkAlertFromOrder.apply(ordersService, arguments as any);
-    },
+    unlinkAlertFromOrder: (...args: Parameters<typeof ordersService.unlinkAlertFromOrder>): ReturnType<typeof ordersService.unlinkAlertFromOrder> => ordersService.unlinkAlertFromOrder(...args),
 
-    async getAlertsByOrderId(orderId: string): Promise<string[]> {
-        return ordersService.getAlertsByOrderId.apply(ordersService, arguments as any);
-    },
+    getAlertsByOrderId: (...args: Parameters<typeof ordersService.getAlertsByOrderId>): ReturnType<typeof ordersService.getAlertsByOrderId> => ordersService.getAlertsByOrderId(...args),
 
-    async getAlertDetailsByOrderId(orderId: string): Promise<AssetAlert[]> {
-        return ordersService.getAlertDetailsByOrderId.apply(ordersService, arguments as any);
-    },
+    getAlertDetailsByOrderId: (...args: Parameters<typeof ordersService.getAlertDetailsByOrderId>): ReturnType<typeof ordersService.getAlertDetailsByOrderId> => ordersService.getAlertDetailsByOrderId(...args),
 
     // -------------------------------------------------------------------------
     // SYSTEM NOTICES (Avisos do Sistema)
     // -------------------------------------------------------------------------
-    async getActiveNotices(unitId?: string, systemCode?: string): Promise<SystemNotice[]> {
-        return appNoticesService.getActiveNotices.apply(appNoticesService, arguments as any);
-    },
+    getActiveNotices: (...args: Parameters<typeof appNoticesService.getActiveNotices>): ReturnType<typeof appNoticesService.getActiveNotices> => appNoticesService.getActiveNotices(...args),
 
-    async listNotices(filters?: NoticeFilters): Promise<{ notices: SystemNotice[]; total: number }> {
-        return appNoticesService.listNotices.apply(appNoticesService, arguments as any);
-    },
+    listNotices: (...args: Parameters<typeof appNoticesService.listNotices>): ReturnType<typeof appNoticesService.listNotices> => appNoticesService.listNotices(...args),
 
-    async getNoticeById(id: number): Promise<SystemNotice | null> {
-        return appNoticesService.getNoticeById.apply(appNoticesService, arguments as any);
-    },
+    getNoticeById: (...args: Parameters<typeof appNoticesService.getNoticeById>): ReturnType<typeof appNoticesService.getNoticeById> => appNoticesService.getNoticeById(...args),
 
-    async createNotice(input: CreateSystemNoticeInput): Promise<SystemNotice> {
-        return appNoticesService.createNotice.apply(appNoticesService, arguments as any);
-    },
+    createNotice: (...args: Parameters<typeof appNoticesService.createNotice>): ReturnType<typeof appNoticesService.createNotice> => appNoticesService.createNotice(...args),
 
-    async updateNotice(id: number, data: Partial<SystemNotice>): Promise<SystemNotice> {
-        return appNoticesService.updateNotice.apply(appNoticesService, arguments as any);
-    },
+    updateNotice: (...args: Parameters<typeof appNoticesService.updateNotice>): ReturnType<typeof appNoticesService.updateNotice> => appNoticesService.updateNotice(...args),
 
-    async deleteNotice(id: number): Promise<void> {
-        return appNoticesService.deleteNotice.apply(appNoticesService, arguments as any);
-    },
+    deleteNotice: (...args: Parameters<typeof appNoticesService.deleteNotice>): ReturnType<typeof appNoticesService.deleteNotice> => appNoticesService.deleteNotice(...args),
 
-    async toggleNoticeActive(id: number, isActive: boolean): Promise<void> {
-        return appNoticesService.toggleNoticeActive.apply(appNoticesService, arguments as any);
-    },
+    toggleNoticeActive: (...args: Parameters<typeof appNoticesService.toggleNoticeActive>): ReturnType<typeof appNoticesService.toggleNoticeActive> => appNoticesService.toggleNoticeActive(...args),
 
-    async incrementViewCount(id: number): Promise<number> {
-        return appNoticesService.incrementViewCount.apply(appNoticesService, arguments as any);
-    },
+    incrementViewCount: (...args: Parameters<typeof appNoticesService.incrementViewCount>): ReturnType<typeof appNoticesService.incrementViewCount> => appNoticesService.incrementViewCount(...args),
 
     // -------------------------------------------------------------------------
     // NOTICE WORKERS (Trabalhadores Extras por Aviso)
     // -------------------------------------------------------------------------
-    async getNoticeWorkers(
-        noticeId: number,
-        companyId?: string | number | null,
-        periodId?: number | null
-    ): Promise<NoticeWorker[]> {
-        return appNoticesWorkersService.getWorkersByNotice.apply(appNoticesWorkersService, arguments as any);
-    },
+    getNoticeWorkers: (...args: Parameters<typeof appNoticesWorkersService.getWorkersByNotice>): ReturnType<typeof appNoticesWorkersService.getWorkersByNotice> => appNoticesWorkersService.getWorkersByNotice(...args),
 
-    async getNoticeWorkerPeriods(noticeId: number): Promise<NoticeWorkerPeriod[]> {
-        return appNoticesWorkersService.getPeriodsByNotice.apply(appNoticesWorkersService, arguments as any);
-    },
+    getNoticeWorkerPeriods: (...args: Parameters<typeof appNoticesWorkersService.getPeriodsByNotice>): ReturnType<typeof appNoticesWorkersService.getPeriodsByNotice> => appNoticesWorkersService.getPeriodsByNotice(...args),
 
-    async getNoticeWorkerPeriodForDate(noticeId: number, dateISO: string): Promise<NoticeWorkerPeriod | null> {
-        return appNoticesWorkersService.getPeriodForDate.apply(appNoticesWorkersService, arguments as any);
-    },
+    getNoticeWorkerPeriodForDate: (...args: Parameters<typeof appNoticesWorkersService.getPeriodForDate>): ReturnType<typeof appNoticesWorkersService.getPeriodForDate> => appNoticesWorkersService.getPeriodForDate(...args),
 
-    async getNoticeWorkerCurrentPeriod(noticeId: number): Promise<NoticeWorkerPeriod | null> {
-        return appNoticesWorkersService.getCurrentPeriod.apply(appNoticesWorkersService, arguments as any);
-    },
+    getNoticeWorkerCurrentPeriod: (...args: Parameters<typeof appNoticesWorkersService.getCurrentPeriod>): ReturnType<typeof appNoticesWorkersService.getCurrentPeriod> => appNoticesWorkersService.getCurrentPeriod(...args),
 
     /**
      * Cria um TURNO (escala) explícito no aviso — permite várias escalas no
      * mesmo dia. Erros tipados: PERIODO_INVALIDO, PERIODO_FORA_DA_JANELA,
      * PERIODO_SOBREPOSTO, NOTICE_NOT_FOUND.
      */
-    async createNoticeWorkerPeriod(params: {
-        noticeId: number;
-        startDate: string;
-        endDate: string;
-        userId?: number | null;
-    }): Promise<NoticeWorkerPeriod> {
-        return appNoticesWorkersService.createPeriod.apply(appNoticesWorkersService, arguments as any);
-    },
+    createNoticeWorkerPeriod: (...args: Parameters<typeof appNoticesWorkersService.createPeriod>): ReturnType<typeof appNoticesWorkersService.createPeriod> => appNoticesWorkersService.createPeriod(...args),
 
-    async getNoticeWorkersForDate(
-        noticeId: number,
-        dateISO: string,
-        companyId?: string | number | null
-    ): Promise<NoticeWorker[]> {
-        return appNoticesWorkersService.getWorkersForDate.apply(appNoticesWorkersService, arguments as any);
-    },
+    getNoticeWorkersForDate: (...args: Parameters<typeof appNoticesWorkersService.getWorkersForDate>): ReturnType<typeof appNoticesWorkersService.getWorkersForDate> => appNoticesWorkersService.getWorkersForDate(...args),
 
-    async setNoticeWorkers(params: {
-        noticeId: number;
-        companyId: string | number;
-        unitId: string | number;
-        amount: number;
-        userId?: number | null;
-        periodId?: number;
-    }): Promise<void> {
-        return appNoticesWorkersService.setWorkers.apply(appNoticesWorkersService, arguments as any);
-    },
+    setNoticeWorkers: (...args: Parameters<typeof appNoticesWorkersService.setWorkers>): ReturnType<typeof appNoticesWorkersService.setWorkers> => appNoticesWorkersService.setWorkers(...args),
 
-    async getNoticeWorkersSummaryByNotices(
-        noticeIds: Array<number | string>,
-        options?: NoticeWorkersSummaryOptions
-    ): Promise<NoticeWorkersSummaryItem[]> {
-        return appNoticesWorkersService.getWorkersSummaryByNotices.apply(appNoticesWorkersService, arguments as any);
-    },
+    getNoticeWorkersSummaryByNotices: (...args: Parameters<typeof appNoticesWorkersService.getWorkersSummaryByNotices>): ReturnType<typeof appNoticesWorkersService.getWorkersSummaryByNotices> => appNoticesWorkersService.getWorkersSummaryByNotices(...args),
 
     // -------------------------------------------------------------------------
     // APP TIPS (Dicas do App)
     // -------------------------------------------------------------------------
-    async getActiveTipsForScreen(
-        screenKey: string,
-        userId: number,
-        userCompanyId?: number | null,
-        userDepartmentId?: number | null,
-        userProfileId?: number | null,
-    ): Promise<AppTip[]> {
-        return appTipsService.getActiveTipsForScreen.apply(appTipsService, arguments as any);
-    },
+    getActiveTipsForScreen: (...args: Parameters<typeof appTipsService.getActiveTipsForScreen>): ReturnType<typeof appTipsService.getActiveTipsForScreen> => appTipsService.getActiveTipsForScreen(...args),
 
-    async getUndismissedTipsCount(
-        userId: number,
-        userCompanyId?: number | null,
-        userDepartmentId?: number | null,
-        userProfileId?: number | null,
-    ): Promise<number> {
-        return appTipsService.getUndismissedCount.apply(appTipsService, arguments as any);
-    },
+    getUndismissedTipsCount: (...args: Parameters<typeof appTipsService.getUndismissedCount>): ReturnType<typeof appTipsService.getUndismissedCount> => appTipsService.getUndismissedCount(...args),
 
-    async dismissAppTip(tipId: number, userId: number): Promise<void> {
-        return appTipsService.dismissTip.apply(appTipsService, arguments as any);
-    },
+    dismissAppTip: (...args: Parameters<typeof appTipsService.dismissTip>): ReturnType<typeof appTipsService.dismissTip> => appTipsService.dismissTip(...args),
 
-    async resetAppTipDismissals(tipId: number): Promise<void> {
-        return appTipsService.resetDismissals.apply(appTipsService, arguments as any);
-    },
+    resetAppTipDismissals: (...args: Parameters<typeof appTipsService.resetDismissals>): ReturnType<typeof appTipsService.resetDismissals> => appTipsService.resetDismissals(...args),
 
-    async listAppTips(filters?: AppTipFilters): Promise<{ tips: AppTip[]; total: number }> {
-        return appTipsService.listTips.apply(appTipsService, arguments as any);
-    },
+    listAppTips: (...args: Parameters<typeof appTipsService.listTips>): ReturnType<typeof appTipsService.listTips> => appTipsService.listTips(...args),
 
-    async getAppTipById(id: string): Promise<AppTip | null> {
-        return appTipsService.getTipById.apply(appTipsService, arguments as any);
-    },
+    getAppTipById: (...args: Parameters<typeof appTipsService.getTipById>): ReturnType<typeof appTipsService.getTipById> => appTipsService.getTipById(...args),
 
-    async createAppTip(input: CreateAppTipInput): Promise<AppTip> {
-        return appTipsService.createTip.apply(appTipsService, arguments as any);
-    },
+    createAppTip: (...args: Parameters<typeof appTipsService.createTip>): ReturnType<typeof appTipsService.createTip> => appTipsService.createTip(...args),
 
-    async updateAppTip(id: string, data: Partial<CreateAppTipInput & { isActive: boolean }>): Promise<AppTip> {
-        return appTipsService.updateTip.apply(appTipsService, arguments as any);
-    },
+    updateAppTip: (...args: Parameters<typeof appTipsService.updateTip>): ReturnType<typeof appTipsService.updateTip> => appTipsService.updateTip(...args),
 
-    async deleteAppTip(id: string): Promise<void> {
-        return appTipsService.deleteTip.apply(appTipsService, arguments as any);
-    },
+    deleteAppTip: (...args: Parameters<typeof appTipsService.deleteTip>): ReturnType<typeof appTipsService.deleteTip> => appTipsService.deleteTip(...args),
 
-    async toggleAppTipActive(id: string, isActive: boolean): Promise<void> {
-        return appTipsService.toggleTipActive.apply(appTipsService, arguments as any);
-    },
+    toggleAppTipActive: (...args: Parameters<typeof appTipsService.toggleTipActive>): ReturnType<typeof appTipsService.toggleTipActive> => appTipsService.toggleTipActive(...args),
 
     // -------------------------------------------------------------------------
     // AUDIT LOG (Auditoria de banco de dados)
     // -------------------------------------------------------------------------
-    async listAuditLogs(filters?: AuditLogFilters): Promise<{ logs: AuditLogItem[]; total: number }> {
-        return auditService.listLogs.apply(auditService, arguments as any);
-    },
+    listAuditLogs: (...args: Parameters<typeof auditService.listLogs>): ReturnType<typeof auditService.listLogs> => auditService.listLogs(...args),
 
-    async getAuditLogById(id: number): Promise<AuditLogItem | null> {
-        return auditService.getLogById.apply(auditService, arguments as any);
-    },
+    getAuditLogById: (...args: Parameters<typeof auditService.getLogById>): ReturnType<typeof auditService.getLogById> => auditService.getLogById(...args),
 
-    async listAuditedTableConfig(): Promise<AuditTableConfig[]> {
-        return auditService.listTableConfig.apply(auditService, arguments as any);
-    },
+    listAuditedTableConfig: (...args: Parameters<typeof auditService.listTableConfig>): ReturnType<typeof auditService.listTableConfig> => auditService.listTableConfig(...args),
 
-    async updateAuditedTableConfig(changes: AuditTableConfigChange[]): Promise<void> {
-        return auditService.updateTableConfig.apply(auditService, arguments as any);
-    },
+    updateAuditedTableConfig: (...args: Parameters<typeof auditService.updateTableConfig>): ReturnType<typeof auditService.updateTableConfig> => auditService.updateTableConfig(...args),
 
     // -------------------------------------------------------------------------
     // GAMIFICATION (Sistema de Gamificação de Líderes)
     // -------------------------------------------------------------------------
-    async getVisitScores(filters?: { leaderId?: string; departmentId?: string; year?: number; month?: number }): Promise<OrderVisitScore[]> {
-        return gamificationService.getVisitScores.apply(gamificationService, arguments as any);
-    },
+    getVisitScores: (...args: Parameters<typeof gamificationService.getVisitScores>): ReturnType<typeof gamificationService.getVisitScores> => gamificationService.getVisitScores(...args),
 
-    async getLeaderRanking(departmentId: string, year: number, month: number): Promise<LeaderRankingEntry[]> {
-        return gamificationService.getLeaderRanking.apply(gamificationService, arguments as any);
-    },
+    getLeaderRanking: (...args: Parameters<typeof gamificationService.getLeaderRanking>): ReturnType<typeof gamificationService.getLeaderRanking> => gamificationService.getLeaderRanking(...args),
 
-    async getLeaderHistory(leaderId: string, months?: number): Promise<LeaderMonthlyScore[]> {
-        return gamificationService.getLeaderHistory.apply(gamificationService, arguments as any);
-    },
+    getLeaderHistory: (...args: Parameters<typeof gamificationService.getLeaderHistory>): ReturnType<typeof gamificationService.getLeaderHistory> => gamificationService.getLeaderHistory(...args),
 
-    async getLeaderVisitHistory(leaderId: string, year: number, month: number): Promise<LeaderScoreHistory[]> {
-        return gamificationService.getLeaderVisitHistory.apply(gamificationService, arguments as any);
-    },
+    getLeaderVisitHistory: (...args: Parameters<typeof gamificationService.getLeaderVisitHistory>): ReturnType<typeof gamificationService.getLeaderVisitHistory> => gamificationService.getLeaderVisitHistory(...args),
 
-    async getLeaderBadges(leaderId: string): Promise<LeaderScoreBadge[]> {
-        return gamificationService.getLeaderBadges.apply(gamificationService, arguments as any);
-    },
+    getLeaderBadges: (...args: Parameters<typeof gamificationService.getLeaderBadges>): ReturnType<typeof gamificationService.getLeaderBadges> => gamificationService.getLeaderBadges(...args),
 
-    async getDepartmentSummary(departmentId: string, year: number, month: number): Promise<any> {
-        return gamificationService.getDepartmentSummary.apply(gamificationService, arguments as any);
-    },
+    getDepartmentSummary: (...args: Parameters<typeof gamificationService.getDepartmentSummary>): ReturnType<typeof gamificationService.getDepartmentSummary> => gamificationService.getDepartmentSummary(...args),
 
-    async getTeamRanking(departmentId: string, year: number, month: number): Promise<TeamRankingEntry[]> {
-        return gamificationService.getTeamRanking.apply(gamificationService, arguments as any);
-    },
+    getTeamRanking: (...args: Parameters<typeof gamificationService.getTeamRanking>): ReturnType<typeof gamificationService.getTeamRanking> => gamificationService.getTeamRanking(...args),
 
-    async getTeamSummary(departmentId: string, year: number, month: number): Promise<any> {
-        return gamificationService.getTeamSummary.apply(gamificationService, arguments as any);
-    },
+    getTeamSummary: (...args: Parameters<typeof gamificationService.getTeamSummary>): ReturnType<typeof gamificationService.getTeamSummary> => gamificationService.getTeamSummary(...args),
 
-    async recalculateLeaderScore(leaderId: string, year: number, month: number): Promise<boolean> {
-        return gamificationService.recalculateLeaderScore.apply(gamificationService, arguments as any);
-    },
+    recalculateLeaderScore: (...args: Parameters<typeof gamificationService.recalculateLeaderScore>): ReturnType<typeof gamificationService.recalculateLeaderScore> => gamificationService.recalculateLeaderScore(...args),
 
-    async recalculateDepartmentScores(departmentId: string, year: number, month: number): Promise<boolean> {
-        return gamificationService.recalculateDepartmentScores.apply(gamificationService, arguments as any);
-    },
+    recalculateDepartmentScores: (...args: Parameters<typeof gamificationService.recalculateDepartmentScores>): ReturnType<typeof gamificationService.recalculateDepartmentScores> => gamificationService.recalculateDepartmentScores(...args),
 
-    async recalculateAllScores(year: number, month: number): Promise<boolean> {
-        return gamificationService.recalculateAllScores.apply(gamificationService, arguments as any);
-    },
+    recalculateAllScores: (...args: Parameters<typeof gamificationService.recalculateAllScores>): ReturnType<typeof gamificationService.recalculateAllScores> => gamificationService.recalculateAllScores(...args),
 
-    async checkAndGrantBadges(leaderId: string, year: number, month: number): Promise<LeaderScoreBadge[]> {
-        return gamificationService.checkAndGrantBadges.apply(gamificationService, arguments as any);
-    },
+    checkAndGrantBadges: (...args: Parameters<typeof gamificationService.checkAndGrantBadges>): ReturnType<typeof gamificationService.checkAndGrantBadges> => gamificationService.checkAndGrantBadges(...args),
 
-    async getDepartmentsWithLeaders(): Promise<{ departmentId: string; departmentName: string; leaderCount: number }[]> {
-        return gamificationService.getDepartmentsWithLeaders.apply(gamificationService, arguments as any);
-    },
+    getDepartmentsWithLeaders: (...args: Parameters<typeof gamificationService.getDepartmentsWithLeaders>): ReturnType<typeof gamificationService.getDepartmentsWithLeaders> => gamificationService.getDepartmentsWithLeaders(...args),
 
     // ===== ASSET LOANS =====
 
-    async getAssetLoansByAssetId(assetId: string): Promise<AssetLoan[]> {
-        return assetLoansService.getLoansByAssetId.apply(assetLoansService, arguments as any);
-    },
+    getAssetLoansByAssetId: (...args: Parameters<typeof assetLoansService.getLoansByAssetId>): ReturnType<typeof assetLoansService.getLoansByAssetId> => assetLoansService.getLoansByAssetId(...args),
 
-    async getAssetLoanById(id: string): Promise<AssetLoan> {
-        return assetLoansService.getLoanById.apply(assetLoansService, arguments as any);
-    },
+    getAssetLoanById: (...args: Parameters<typeof assetLoansService.getLoanById>): ReturnType<typeof assetLoansService.getLoanById> => assetLoansService.getLoanById(...args),
 
-    async createAssetLoan(input: CreateAssetLoanInput, userId?: string): Promise<AssetLoan> {
-        return assetLoansService.createLoan.apply(assetLoansService, arguments as any);
-    },
+    createAssetLoan: (...args: Parameters<typeof assetLoansService.createLoan>): ReturnType<typeof assetLoansService.createLoan> => assetLoansService.createLoan(...args),
 
-    async concludeAssetInspection(id: string): Promise<void> {
-        return assetLoansService.concludeInspection.apply(assetLoansService, arguments as any);
-    },
+    concludeAssetInspection: (...args: Parameters<typeof assetLoansService.concludeInspection>): ReturnType<typeof assetLoansService.concludeInspection> => assetLoansService.concludeInspection(...args),
 
-    async updateAssetLoan(id: string, input: UpdateAssetLoanInput): Promise<AssetLoan> {
-        return assetLoansService.updateLoan.apply(assetLoansService, arguments as any);
-    },
+    updateAssetLoan: (...args: Parameters<typeof assetLoansService.updateLoan>): ReturnType<typeof assetLoansService.updateLoan> => assetLoansService.updateLoan(...args),
 
-    async activateAssetLoan(id: string, userId: string): Promise<void> {
-        return assetLoansService.activateLoan.apply(assetLoansService, arguments as any);
-    },
+    activateAssetLoan: (...args: Parameters<typeof assetLoansService.activateLoan>): ReturnType<typeof assetLoansService.activateLoan> => assetLoansService.activateLoan(...args),
 
-    async returnAssetLoan(id: string, userId: string): Promise<void> {
-        return assetLoansService.returnLoan.apply(assetLoansService, arguments as any);
-    },
+    returnAssetLoan: (...args: Parameters<typeof assetLoansService.returnLoan>): ReturnType<typeof assetLoansService.returnLoan> => assetLoansService.returnLoan(...args),
 
-    async deleteAssetLoan(id: string, userId: string): Promise<void> {
-        return assetLoansService.deleteLoan.apply(assetLoansService, arguments as any);
-    },
+    deleteAssetLoan: (...args: Parameters<typeof assetLoansService.deleteLoan>): ReturnType<typeof assetLoansService.deleteLoan> => assetLoansService.deleteLoan(...args),
 
-    async getAssetLoanChecklists(loanId: string, phase: AssetLoanChecklistPhase): Promise<AssetLoanChecklist[]> {
-        return assetLoansService.getChecklists.apply(assetLoansService, arguments as any);
-    },
+    getAssetLoanChecklists: (...args: Parameters<typeof assetLoansService.getChecklists>): ReturnType<typeof assetLoansService.getChecklists> => assetLoansService.getChecklists(...args),
 
-    async saveAssetLoanChecklist(loanId: string, phase: string, items: SaveChecklistItemInput[], userId: string): Promise<{ id: number; checklistTypeId: string | null; customItemDescription?: string }[]> {
-        return assetLoansService.saveChecklist.apply(assetLoansService, arguments as any);
-    },
+    saveAssetLoanChecklist: (...args: Parameters<typeof assetLoansService.saveChecklist>): ReturnType<typeof assetLoansService.saveChecklist> => assetLoansService.saveChecklist(...args),
 
-    async updateAssetLoanChecklistItem(checklistId: number, status: string, notes: string, userId: string): Promise<void> {
-        return assetLoansService.updateChecklistItem.apply(assetLoansService, arguments as any);
-    },
+    updateAssetLoanChecklistItem: (...args: Parameters<typeof assetLoansService.updateChecklistItem>): ReturnType<typeof assetLoansService.updateChecklistItem> => assetLoansService.updateChecklistItem(...args),
 
-    async isAssetLoanChecklistComplete(loanId: string, phase: AssetLoanChecklistPhase): Promise<boolean> {
-        return assetLoansService.isChecklistComplete.apply(assetLoansService, arguments as any);
-    },
+    isAssetLoanChecklistComplete: (...args: Parameters<typeof assetLoansService.isChecklistComplete>): ReturnType<typeof assetLoansService.isChecklistComplete> => assetLoansService.isChecklistComplete(...args),
 
-    async getAssetLoanChecklistItemsCount(loanId: string, phase: AssetLoanChecklistPhase): Promise<{ total: number; filled: number }> {
-        return assetLoansService.getChecklistItemsCount.apply(assetLoansService, arguments as any);
-    },
+    getAssetLoanChecklistItemsCount: (...args: Parameters<typeof assetLoansService.getChecklistItemsCount>): ReturnType<typeof assetLoansService.getChecklistItemsCount> => assetLoansService.getChecklistItemsCount(...args),
 
-    async getAssetLoanChecklistImages(checklistId: string): Promise<AssetLoanChecklistImage[]> {
-        return assetLoansService.getChecklistImages.apply(assetLoansService, arguments as any);
-    },
+    getAssetLoanChecklistImages: (...args: Parameters<typeof assetLoansService.getChecklistImages>): ReturnType<typeof assetLoansService.getChecklistImages> => assetLoansService.getChecklistImages(...args),
 
-    async uploadAssetLoanChecklistImage(checklistId: string, imageUrl: string, imageType: string, userId: string): Promise<AssetLoanChecklistImage> {
-        return assetLoansService.uploadChecklistImage.apply(assetLoansService, arguments as any);
-    },
+    uploadAssetLoanChecklistImage: (...args: Parameters<typeof assetLoansService.uploadChecklistImage>): ReturnType<typeof assetLoansService.uploadChecklistImage> => assetLoansService.uploadChecklistImage(...args),
 
     async uploadAssetLoanChecklistImageFromPending(checklistDbId: number, file: File, userId: string, loanId: string): Promise<AssetLoanChecklistImage> {
         const fileName = `companies/1/assets_loans/${loanId}/checklist_${checklistDbId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
@@ -3682,138 +2076,74 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
         return assetLoansService.uploadChecklistImage(checklistDbId.toString(), result.publicUrl, 'photo', userId);
     },
 
-    async deleteAssetLoanChecklistImage(id: string): Promise<void> {
-        return assetLoansService.deleteChecklistImage.apply(assetLoansService, arguments as any);
-    },
+    deleteAssetLoanChecklistImage: (...args: Parameters<typeof assetLoansService.deleteChecklistImage>): ReturnType<typeof assetLoansService.deleteChecklistImage> => assetLoansService.deleteChecklistImage(...args),
 
-    async getOverdueAssetLoans(): Promise<AssetLoan[]> {
-        return assetLoansService.getOverdueLoans.apply(assetLoansService, arguments as any);
-    },
+    getOverdueAssetLoans: (...args: Parameters<typeof assetLoansService.getOverdueLoans>): ReturnType<typeof assetLoansService.getOverdueLoans> => assetLoansService.getOverdueLoans(...args),
 
-    async getActiveAssetLoansCount(): Promise<number> {
-        return assetLoansService.getActiveLoansCount.apply(assetLoansService, arguments as any);
-    },
+    getActiveAssetLoansCount: (...args: Parameters<typeof assetLoansService.getActiveLoansCount>): ReturnType<typeof assetLoansService.getActiveLoansCount> => assetLoansService.getActiveLoansCount(...args),
 
-    async saveAssetLoanSignature(loanId: string, type: 'delivery' | 'return', base64: string, signerName: string): Promise<void> {
-        return assetLoansService.saveLoanSignature.apply(assetLoansService, arguments as any);
-    },
+    saveAssetLoanSignature: (...args: Parameters<typeof assetLoansService.saveLoanSignature>): ReturnType<typeof assetLoansService.saveLoanSignature> => assetLoansService.saveLoanSignature(...args),
 
-    async deleteAssetLoanSignature(loanId: string, type: 'delivery' | 'return'): Promise<void> {
-        return assetLoansService.deleteLoanSignature.apply(assetLoansService, arguments as any);
-    },
+    deleteAssetLoanSignature: (...args: Parameters<typeof assetLoansService.deleteLoanSignature>): ReturnType<typeof assetLoansService.deleteLoanSignature> => assetLoansService.deleteLoanSignature(...args),
 
     // ===== CHECKLIST TYPES (N:N associations) =====
 
-    async getChecklistTypes(): Promise<AssetLoanChecklistType[]> {
-        return assetsTypesChecklistService.getChecklistTypes.apply(assetsTypesChecklistService, arguments as any);
-    },
+    getChecklistTypes: (...args: Parameters<typeof assetsTypesChecklistService.getChecklistTypes>): ReturnType<typeof assetsTypesChecklistService.getChecklistTypes> => assetsTypesChecklistService.getChecklistTypes(...args),
 
-    async getChecklistTypesByAssetType(assetTypeId: string): Promise<AssetLoanChecklistType[]> {
-        return assetsTypesChecklistService.getChecklistTypesByAssetType.apply(assetsTypesChecklistService, arguments as any);
-    },
+    getChecklistTypesByAssetType: (...args: Parameters<typeof assetsTypesChecklistService.getChecklistTypesByAssetType>): ReturnType<typeof assetsTypesChecklistService.getChecklistTypesByAssetType> => assetsTypesChecklistService.getChecklistTypesByAssetType(...args),
 
-    async getChecklistTypeById(id: string): Promise<AssetLoanChecklistType> {
-        return assetsTypesChecklistService.getChecklistTypeById.apply(assetsTypesChecklistService, arguments as any);
-    },
+    getChecklistTypeById: (...args: Parameters<typeof assetsTypesChecklistService.getChecklistTypeById>): ReturnType<typeof assetsTypesChecklistService.getChecklistTypeById> => assetsTypesChecklistService.getChecklistTypeById(...args),
 
-    async createChecklistTypeAssociation(assetTypeId: string, checklistId: string): Promise<AssetLoanChecklistType> {
-        return assetsTypesChecklistService.createChecklistType.apply(assetsTypesChecklistService, arguments as any);
-    },
+    createChecklistTypeAssociation: (...args: Parameters<typeof assetsTypesChecklistService.createChecklistType>): ReturnType<typeof assetsTypesChecklistService.createChecklistType> => assetsTypesChecklistService.createChecklistType(...args),
 
-    async deleteChecklistType(id: string): Promise<void> {
-        return assetsTypesChecklistService.deleteChecklistType.apply(assetsTypesChecklistService, arguments as any);
-    },
+    deleteChecklistType: (...args: Parameters<typeof assetsTypesChecklistService.deleteChecklistType>): ReturnType<typeof assetsTypesChecklistService.deleteChecklistType> => assetsTypesChecklistService.deleteChecklistType(...args),
 
     // ===== LOANS CHECKLISTS (generic catalog) =====
 
-    async getLoansChecklists(): Promise<LoansChecklist[]> {
-        return loansChecklistService.getChecklists.apply(loansChecklistService, arguments as any);
-    },
+    getLoansChecklists: (...args: Parameters<typeof loansChecklistService.getChecklists>): ReturnType<typeof loansChecklistService.getChecklists> => loansChecklistService.getChecklists(...args),
 
-    async getLoansChecklistById(id: string): Promise<LoansChecklist> {
-        return loansChecklistService.getChecklistById.apply(loansChecklistService, arguments as any);
-    },
+    getLoansChecklistById: (...args: Parameters<typeof loansChecklistService.getChecklistById>): ReturnType<typeof loansChecklistService.getChecklistById> => loansChecklistService.getChecklistById(...args),
 
-    async createLoansChecklist(input: CreateLoansChecklistInput): Promise<LoansChecklist> {
-        return loansChecklistService.createChecklist.apply(loansChecklistService, arguments as any);
-    },
+    createLoansChecklist: (...args: Parameters<typeof loansChecklistService.createChecklist>): ReturnType<typeof loansChecklistService.createChecklist> => loansChecklistService.createChecklist(...args),
 
-    async updateLoansChecklist(id: string, input: UpdateLoansChecklistInput): Promise<LoansChecklist> {
-        return loansChecklistService.updateChecklist.apply(loansChecklistService, arguments as any);
-    },
+    updateLoansChecklist: (...args: Parameters<typeof loansChecklistService.updateChecklist>): ReturnType<typeof loansChecklistService.updateChecklist> => loansChecklistService.updateChecklist(...args),
 
-    async deleteLoansChecklist(id: string): Promise<void> {
-        return loansChecklistService.deleteChecklist.apply(loansChecklistService, arguments as any);
-    },
+    deleteLoansChecklist: (...args: Parameters<typeof loansChecklistService.deleteChecklist>): ReturnType<typeof loansChecklistService.deleteChecklist> => loansChecklistService.deleteChecklist(...args),
 
-    async getLoansChecklistAssetTypes(checklistId: string): Promise<string[]> {
-        return loansChecklistService.getChecklistAssetTypes.apply(loansChecklistService, arguments as any);
-    },
+    getLoansChecklistAssetTypes: (...args: Parameters<typeof loansChecklistService.getChecklistAssetTypes>): ReturnType<typeof loansChecklistService.getChecklistAssetTypes> => loansChecklistService.getChecklistAssetTypes(...args),
 
-    async setLoansChecklistAssetTypes(checklistId: string, assetTypeIds: string[]): Promise<void> {
-        return loansChecklistService.setChecklistAssetTypes.apply(loansChecklistService, arguments as any);
-    },
+    setLoansChecklistAssetTypes: (...args: Parameters<typeof loansChecklistService.setChecklistAssetTypes>): ReturnType<typeof loansChecklistService.setChecklistAssetTypes> => loansChecklistService.setChecklistAssetTypes(...args),
 
-    async isLoansChecklistInUse(checklistId: string): Promise<boolean> {
-        return loansChecklistService.isChecklistInUse.apply(loansChecklistService, arguments as any);
-    },
+    isLoansChecklistInUse: (...args: Parameters<typeof loansChecklistService.isChecklistInUse>): ReturnType<typeof loansChecklistService.isChecklistInUse> => loansChecklistService.isChecklistInUse(...args),
 
-    async reorderChecklistTypes(assetTypeId: string, orderedIds: string[]): Promise<void> {
-        return assetsTypesChecklistService.reorderChecklistTypes.apply(assetsTypesChecklistService, arguments as any);
-    },
+    reorderChecklistTypes: (...args: Parameters<typeof assetsTypesChecklistService.reorderChecklistTypes>): ReturnType<typeof assetsTypesChecklistService.reorderChecklistTypes> => assetsTypesChecklistService.reorderChecklistTypes(...args),
 
-    async getAvailableChecklistsForAssetType(assetTypeId: string): Promise<{ id: string; description: string }[]> {
-        return assetsTypesChecklistService.getAvailableChecklistsForAssetType.apply(assetsTypesChecklistService, arguments as any);
-    },
+    getAvailableChecklistsForAssetType: (...args: Parameters<typeof assetsTypesChecklistService.getAvailableChecklistsForAssetType>): ReturnType<typeof assetsTypesChecklistService.getAvailableChecklistsForAssetType> => assetsTypesChecklistService.getAvailableChecklistsForAssetType(...args),
 
-    async addChecklistsToAssetType(assetTypeId: string, checklistIds: string[]): Promise<void> {
-        return assetsTypesChecklistService.addChecklistsToAssetType.apply(assetsTypesChecklistService, arguments as any);
-    },
+    addChecklistsToAssetType: (...args: Parameters<typeof assetsTypesChecklistService.addChecklistsToAssetType>): ReturnType<typeof assetsTypesChecklistService.addChecklistsToAssetType> => assetsTypesChecklistService.addChecklistsToAssetType(...args),
 
     // ── Integrações de disponibilidade de ativos (assetsAvailableIntegrationsService) ──
-    async getAssetsAvailableIntegrations(): Promise<AssetsAvailableIntegration[]> {
-        return assetsAvailableIntegrationsService.getAssetsAvailableIntegrations.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    getAssetsAvailableIntegrations: (...args: Parameters<typeof assetsAvailableIntegrationsService.getAssetsAvailableIntegrations>): ReturnType<typeof assetsAvailableIntegrationsService.getAssetsAvailableIntegrations> => assetsAvailableIntegrationsService.getAssetsAvailableIntegrations(...args),
 
-    async createAssetsAvailableIntegration(input: AssetsAvailableIntegrationInput): Promise<AssetsAvailableIntegration> {
-        return assetsAvailableIntegrationsService.createAssetsAvailableIntegration.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    createAssetsAvailableIntegration: (...args: Parameters<typeof assetsAvailableIntegrationsService.createAssetsAvailableIntegration>): ReturnType<typeof assetsAvailableIntegrationsService.createAssetsAvailableIntegration> => assetsAvailableIntegrationsService.createAssetsAvailableIntegration(...args),
 
-    async updateAssetsAvailableIntegration(id: number, input: AssetsAvailableIntegrationInput): Promise<AssetsAvailableIntegration> {
-        return assetsAvailableIntegrationsService.updateAssetsAvailableIntegration.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    updateAssetsAvailableIntegration: (...args: Parameters<typeof assetsAvailableIntegrationsService.updateAssetsAvailableIntegration>): ReturnType<typeof assetsAvailableIntegrationsService.updateAssetsAvailableIntegration> => assetsAvailableIntegrationsService.updateAssetsAvailableIntegration(...args),
 
-    async deleteAssetsAvailableIntegration(id: number): Promise<void> {
-        return assetsAvailableIntegrationsService.deleteAssetsAvailableIntegration.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    deleteAssetsAvailableIntegration: (...args: Parameters<typeof assetsAvailableIntegrationsService.deleteAssetsAvailableIntegration>): ReturnType<typeof assetsAvailableIntegrationsService.deleteAssetsAvailableIntegration> => assetsAvailableIntegrationsService.deleteAssetsAvailableIntegration(...args),
 
-    async getAssetsAvailableIntegrationMappings(integrationId: number): Promise<AssetsAvailableIntegrationMapping[]> {
-        return assetsAvailableIntegrationsService.getAssetsAvailableIntegrationMappings.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    getAssetsAvailableIntegrationMappings: (...args: Parameters<typeof assetsAvailableIntegrationsService.getAssetsAvailableIntegrationMappings>): ReturnType<typeof assetsAvailableIntegrationsService.getAssetsAvailableIntegrationMappings> => assetsAvailableIntegrationsService.getAssetsAvailableIntegrationMappings(...args),
 
-    async createAssetsAvailableIntegrationMapping(input: { integrationId: number; externalId: string; unitAssetTagId: number; isActive: boolean }): Promise<void> {
-        return assetsAvailableIntegrationsService.createAssetsAvailableIntegrationMapping.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    createAssetsAvailableIntegrationMapping: (...args: Parameters<typeof assetsAvailableIntegrationsService.createAssetsAvailableIntegrationMapping>): ReturnType<typeof assetsAvailableIntegrationsService.createAssetsAvailableIntegrationMapping> => assetsAvailableIntegrationsService.createAssetsAvailableIntegrationMapping(...args),
 
-    async updateAssetsAvailableIntegrationMapping(id: number, changes: { isActive: boolean }): Promise<void> {
-        return assetsAvailableIntegrationsService.updateAssetsAvailableIntegrationMapping.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    updateAssetsAvailableIntegrationMapping: (...args: Parameters<typeof assetsAvailableIntegrationsService.updateAssetsAvailableIntegrationMapping>): ReturnType<typeof assetsAvailableIntegrationsService.updateAssetsAvailableIntegrationMapping> => assetsAvailableIntegrationsService.updateAssetsAvailableIntegrationMapping(...args),
 
-    async deleteAssetsAvailableIntegrationMapping(id: number): Promise<void> {
-        return assetsAvailableIntegrationsService.deleteAssetsAvailableIntegrationMapping.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    deleteAssetsAvailableIntegrationMapping: (...args: Parameters<typeof assetsAvailableIntegrationsService.deleteAssetsAvailableIntegrationMapping>): ReturnType<typeof assetsAvailableIntegrationsService.deleteAssetsAvailableIntegrationMapping> => assetsAvailableIntegrationsService.deleteAssetsAvailableIntegrationMapping(...args),
 
-    async getAssetsAvailableIntegrationLogs(integrationId: number, limit?: number): Promise<AssetsAvailableIntegrationLog[]> {
-        return assetsAvailableIntegrationsService.getAssetsAvailableIntegrationLogs.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    getAssetsAvailableIntegrationLogs: (...args: Parameters<typeof assetsAvailableIntegrationsService.getAssetsAvailableIntegrationLogs>): ReturnType<typeof assetsAvailableIntegrationsService.getAssetsAvailableIntegrationLogs> => assetsAvailableIntegrationsService.getAssetsAvailableIntegrationLogs(...args),
 
-    async searchUnitAssetTagsForMapping(term: string): Promise<UnitAssetTagOption[]> {
-        return assetsAvailableIntegrationsService.searchUnitAssetTagsForMapping.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    searchUnitAssetTagsForMapping: (...args: Parameters<typeof assetsAvailableIntegrationsService.searchUnitAssetTagsForMapping>): ReturnType<typeof assetsAvailableIntegrationsService.searchUnitAssetTagsForMapping> => assetsAvailableIntegrationsService.searchUnitAssetTagsForMapping(...args),
 
-    async runAssetsAvailableIntegration(integrationId: number, mode: AssetsAvailableIntegrationRunMode): Promise<AssetsAvailableIntegrationRunResult> {
-        return assetsAvailableIntegrationsService.runAssetsAvailableIntegration.apply(assetsAvailableIntegrationsService, arguments as any);
-    },
+    runAssetsAvailableIntegration: (...args: Parameters<typeof assetsAvailableIntegrationsService.runAssetsAvailableIntegration>): ReturnType<typeof assetsAvailableIntegrationsService.runAssetsAvailableIntegration> => assetsAvailableIntegrationsService.runAssetsAvailableIntegration(...args),
 };
 
 // Modo offline (F1): cache de leitura e bloqueio de gravações offline nos
