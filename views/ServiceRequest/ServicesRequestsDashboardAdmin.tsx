@@ -34,13 +34,16 @@ import { Modal } from '../../components/ui/Modal';
 import { Calendar } from '../../components/ui/Calendar';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 
+// Online: renderização preguiçosa dos cartões fora da tela (a página de período não usa).
+const CARD_CONTENT_VISIBILITY = { contentVisibility: 'auto', containIntrinsicSize: '0 420px' } as const;
+
 // Sessão do app: busca automática só na primeira entrada; retornos usam cache + realtime.
 let ssDashboardSessionLoaded = false;
 // Última carga deste dashboard — comparado com o carimbo de invalidação
 // (ex: cancelamento feito na tela de detalhe) para forçar refetch no retorno.
 let ssDashboardLastLoadedAt = 0;
 
-interface ServicesRequestsDashboardAdminProps {
+export interface ServicesRequestsDashboardAdminProps {
     currentUser: User | null;
     onSelectOrder?: (order: Order) => void;
     onSelectVisit?: (visit: OrderVisit) => void;
@@ -55,9 +58,16 @@ interface ServicesRequestsDashboardAdminProps {
     providerCompanyId?: string;
     /** Tela de destino do lado "Online" do switch Online x Período (ex.: 'services-history'). */
     onlineScreenKey?: string;
+    /**
+     * 'online' (padrão): período de 6 meses, cache em localStorage e carga só na 1ª entrada da sessão.
+     * 'period': mês atual, sem cache próprio, busca em toda montagem e rebusca ao mudar o período
+     * (ver ServicesRequestsPeriodDashboardAdmin e PLANO_MELHORIAS_FRONTEND.md, etapa 4).
+     */
+    mode?: 'online' | 'period';
 }
 
-export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS', onFilterBarRef, onMobileFilterCountChange, providerCompanyId, onlineScreenKey = 'ss-dashboard' }) => {
+export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardAdminProps> = ({ currentUser, onSelectOrder, onSelectVisit, onTrackUsers, onCreateServiceRequest, onNavigate, onEdit, activeTab = 'OS', onFilterBarRef, onMobileFilterCountChange, providerCompanyId, onlineScreenKey = 'ss-dashboard', mode = 'online' }) => {
+    const isPeriod = mode === 'period';
 
     // We removed the internal activeTab state and the header tabs. activeTab is now controlled by props.
     const isProviderMode = !!providerCompanyId;
@@ -96,7 +106,9 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     const [quickSearchValue, setQuickSearchValue] = useState('');
     const [isSearchingQuickly, setIsSearchingQuickly] = useState(false);
     // Data Cache (Persisted)
+    // Na página de período a lista NÃO usa o cache da Online: a query muda com o range.
     const [recentRequests, setRecentRequests] = useState<Order[]>(() => {
+        if (isPeriod) return [];
         try {
             const saved = localStorage.getItem('cachedRecentRequests_v4');
             return saved ? JSON.parse(saved) : [];
@@ -104,6 +116,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     });
 
     const [isLoading, setIsLoading] = useState(() => {
+        if (isPeriod) return true;
         // Only start loading if we have no cache to show
         const saved = localStorage.getItem('cachedRecentRequests_v4');
         return !(saved && JSON.parse(saved).length > 0);
@@ -189,22 +202,43 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         };
     }, []);
 
+    const dateKeys = isPeriod
+        ? { start: 'ss_period_dashboard_date_start', end: 'ss_period_dashboard_date_end' }
+        : { start: 'ss_dashboard_date_start', end: 'ss_dashboard_date_end' };
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
-        const savedStart = localStorage.getItem('ss_dashboard_date_start');
-        const savedEnd = localStorage.getItem('ss_dashboard_date_end');
+        const savedStart = localStorage.getItem(dateKeys.start);
+        const savedEnd = localStorage.getItem(dateKeys.end);
         if (savedStart && savedEnd) {
             return { start: savedStart, end: savedEnd };
         }
         const now = new Date();
-        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+        // Online: 6 meses para trás; Período: mês atual.
+        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - (isPeriod ? 0 : 6), 1);
         const firstDay = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
         const lastDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
         return { start: firstDay, end: lastDay };
     });
 
     useEffect(() => {
-        localStorage.setItem('ss_dashboard_date_start', dateRange.start);
-        localStorage.setItem('ss_dashboard_date_end', dateRange.end);
+        localStorage.setItem(dateKeys.start, dateRange.start);
+        localStorage.setItem(dateKeys.end, dateRange.end);
+    }, [dateRange]);
+
+    // Página de período: rebusca quando o período do card muda (a 1ª render já busca no mount).
+    const dateRangeChangedRef = React.useRef(false);
+    useEffect(() => {
+        if (!isPeriod) return;
+        if (!dateRangeChangedRef.current) {
+            dateRangeChangedRef.current = true;
+            return;
+        }
+        setCurrentPage(0);
+        setHasMore(true);
+        setIsFiltering(true);
+        // Usa o callback do closure: o ref é atualizado por um efeito declarado
+        // depois deste, então ainda estaria defasado aqui.
+        fetchData(false, true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dateRange]);
 
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
@@ -258,9 +292,11 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     // Pagination state for infinite scroll
     const [currentPage, setCurrentPage] = useState(() => {
+        if (isPeriod) return 0;
         return Number(localStorage.getItem('cachedCurrentPage_v2')) || 0;
     });
     const [hasMore, setHasMore] = useState(() => {
+        if (isPeriod) return true;
         const saved = localStorage.getItem('cachedHasMore_v2');
         return saved ? saved === 'true' : true;
     });
@@ -270,6 +306,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
     const [modalVisitTeam, setModalVisitTeam] = useState<OrderVisitTeam[]>([]);
     const [loadingLeaderId, setLoadingLeaderId] = useState<string | null>(null);
     const [totalOrders, setTotalOrders] = useState(() => {
+        if (isPeriod) return 0;
         return Number(localStorage.getItem('cachedTotalOrders_v2')) || 0;
     });
 
@@ -405,8 +442,9 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         localStorage.setItem('hasAppliedOrdersFilters', String(hasAppliedFilters));
     }, [hasAppliedFilters]);
 
-    // Persist Data State (Moved here to ensure all state vars are declared)
+    // Persist Data State (Moved here to ensure all state vars are declared) — só na página Online.
     useEffect(() => {
+        if (isPeriod) return;
         return scheduleIdleTask(() => {
             try {
                 localStorage.setItem('cachedRecentRequests_v4', JSON.stringify(recentRequests));
@@ -429,6 +467,21 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             }
         });
     }, [recentRequests, currentPage, hasMore, totalOrders, unscheduledSS, openOS, osAssetTagId, completedOS, canceledOS, teams, users, filterOptions, unitSubTypes, orderSubTypes, assetTagSubs]);
+
+    // Página de período: só a metadata compartilhada; os caches de OS/SS são exclusivos da Online.
+    useEffect(() => {
+        if (!isPeriod) return;
+        try {
+            localStorage.setItem('cachedTeams', JSON.stringify(teams));
+            localStorage.setItem('cachedUsers', JSON.stringify(users));
+            localStorage.setItem('cachedFilterOptions', JSON.stringify(filterOptions));
+            localStorage.setItem('cachedUnitSubTypes', JSON.stringify(unitSubTypes));
+            localStorage.setItem('cachedOrderSubTypes', JSON.stringify(orderSubTypes));
+            localStorage.setItem('cachedAssetTagSubs', JSON.stringify(assetTagSubs));
+        } catch (e) {
+            console.error('💾 Dashboard: Erro ao salvar cache no localStorage', e);
+        }
+    }, [teams, users, filterOptions, unitSubTypes, orderSubTypes, assetTagSubs]);
 
     const [isPendingCompleted, startCompletedTransition] = useTransition();
 
@@ -657,11 +710,11 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     // Client-side filter for the unscheduled SS carousel by selected sector (assetTagId)
     const systemFilteredUnscheduledSS = React.useMemo(
-        () => filterOrdersBySystem(unscheduledSS, appliedFilters, {
+        () => filterOrdersBySystem(unscheduledSS, appliedFilters, isPeriod ? undefined : {
             allowedSystemParentIds: scopedSystemOptions.map((system: any) => system.id),
             allowedClientIds: clientIds,
         }),
-        [unscheduledSS, appliedFilters.systemParentId, appliedFilters.systemId, scopedSystemOptions, clientIds]
+        [unscheduledSS, appliedFilters.systemParentId, appliedFilters.systemId, scopedSystemOptions, clientIds, isPeriod]
     );
     const displayedUnscheduledSS = React.useMemo(() => {
         const activeAssetTagIds = ssAssetTagId.length > 0
@@ -853,6 +906,8 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             period: statusIdFromOverride ? undefined : (periodFromOverride ?? undefined),
             assetTagId: statusIdFromOverride ? undefined : ssAssetTagFromOverride,
             ...(providerCompanyId ? { providerCompanyId } : {}),
+            // Página de período: lista principal limitada ao range do card.
+            ...(isPeriod ? { dateFrom: dateRange.start, dateTo: dateRange.end } : {}),
         };
         delete ordersListFilters.osAssetTagId;
         delete ordersListFilters.orderObjectId;
@@ -1152,7 +1207,13 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         });
 
         // Initial load only on first entry of the app session; returns use cache + realtime
-        if (shouldInitialLoad) {
+        if (isPeriod) {
+            // Busca sempre: a query depende do range e não há cache próprio.
+            // As flags de sessão (ssDashboardSessionLoaded) ficam com a página Online.
+            setIsFiltering(true);
+            fetchDataRef.current(false, false);
+            setIsLoading(false);
+        } else if (shouldInitialLoad) {
             ssDashboardSessionLoaded = true;
             ssDashboardLastLoadedAt = Date.now();
             setIsFiltering(true);
@@ -1339,7 +1400,10 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                             {/* Filters Row */}
                             <div className="flex items-center gap-2 pb-2">
                                 {/* Modo de pesquisa: botão único que alterna entre em aberto e período */}
-                                <SearchModeToggle mode="online" onToggle={() => onNavigate?.('ss-dashboard-period')} />
+                                <SearchModeToggle
+                                    mode={isPeriod ? 'period' : 'online'}
+                                    onToggle={() => onNavigate?.(isPeriod ? onlineScreenKey : 'ss-dashboard-period')}
+                                />
                                 <div className="ml-auto flex items-center gap-2 md:hidden shrink-0">
                                     <form onSubmit={handleQuickSearch} className="relative group flex items-center">
                                         <input aria-label="Buscar SS/OS"
@@ -1641,7 +1705,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         onTouchStart={unscheduledSSScroll.onTouchStart}
                                         onClickCapture={unscheduledSSScroll.onClickCapture}>
                                         {displayedUnscheduledSS.map((ss) => (
-                                            <div key={ss.id} className="min-w-[352px] max-w-[352px] shrink-0 h-auto" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 420px' }}>
+                                            <div key={ss.id} className="min-w-[352px] max-w-[352px] shrink-0 h-auto" style={isPeriod ? undefined : CARD_CONTENT_VISIBILITY}>
                                                 <ServiceRequestCardListItem
                                                     order={ss}
                                                     onClick={() => onSelectOrder?.(ss)}
@@ -1795,7 +1859,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                         onClickCapture={openOSCarouselScroll.onClickCapture}
                                     >
                                         {displayedOpenOS.map((os) => (
-                                            <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 420px' }}>
+                                            <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]" style={isPeriod ? undefined : CARD_CONTENT_VISIBILITY}>
                                                 <ServiceRequestCardListItem
                                                     order={os}
                                                     onClick={() => onSelectOrder?.(os)}
@@ -1888,7 +1952,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                             onClickCapture={completedOSCardsScroll.onClickCapture}
                                         >
                                             {displayedCompletedOS.map((os) => (
-                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 420px' }}>
+                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]" style={isPeriod ? undefined : CARD_CONTENT_VISIBILITY}>
                                                     <ServiceRequestCardListItem
                                                         order={os}
                                                         onClick={() => onSelectOrder?.(os)}
@@ -1980,7 +2044,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                             onClickCapture={canceledOSCardsScroll.onClickCapture}
                                         >
                                             {displayedCanceledOS.map((os) => (
-                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 420px' }}>
+                                                <div key={os.id} className="min-w-[352px] max-w-[352px] shrink-0 h-[420px]" style={isPeriod ? undefined : CARD_CONTENT_VISIBILITY}>
                                                     <ServiceRequestCardListItem
                                                         order={os}
                                                         onClick={() => onSelectOrder?.(os)}
