@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLiveInvalidation } from '../../hooks/useLiveInvalidation';
 import { formatDateInBrazil } from '../../utils/formatters';
 
 import { User, Order, OrderVisit } from '../../types';
@@ -24,6 +26,45 @@ import { SectionCard } from '../../components/ui/SectionCard';
 import { HiddenValue } from '../../components/ui/HiddenValue';
 
 type DashboardTab = 'services' | 'visits' | 'fuel';
+
+type LeaderDashboardData = {
+    orders: Order[];
+    visits: OrderVisit[];
+    openChatVisits: OrderVisit[];
+    schedule: MyDayScheduleItem[];
+    extraOrders: Order[];
+    gamification: { position: number; positionChange?: number } | null;
+};
+
+// Referências estáveis: evitam recalcular os useMemo a cada render enquanto não há dados.
+const EMPTY_ORDERS: Order[] = [];
+const EMPTY_VISITS: OrderVisit[] = [];
+const EMPTY_SCHEDULE: MyDayScheduleItem[] = [];
+const EMPTY_FUEL: VehicleMonthlyExpense[] = [];
+
+/** Posição da equipe no ranking do mês anterior (e variação sobre o período anterior), se a equipe é avaliável. */
+const loadTeamGamification = async (user: User): Promise<LeaderDashboardData['gamification']> => {
+    if (!(user.teamIsEvaluable && user.departmentId && user.teamId)) return null;
+    const now = new Date();
+    const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+    const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+    const previousPeriod = new Date(prevYear, prevMonth - 2, 1);
+    const previousPeriodYear = previousPeriod.getFullYear();
+    const previousPeriodMonth = previousPeriod.getMonth() + 1;
+
+    const [teamRanking, previousTeamRanking] = await Promise.all([
+        dataService.getTeamRanking(user.departmentId, prevYear, prevMonth),
+        dataService.getTeamRanking(user.departmentId, previousPeriodYear, previousPeriodMonth),
+    ]);
+    const myTeam = teamRanking.find(t => t.teamId === user.teamId);
+    const previousMyTeam = previousTeamRanking.find(t => t.teamId === user.teamId);
+    if (!myTeam) return null;
+    return {
+        position: myTeam.position,
+        positionChange: previousMyTeam ? previousMyTeam.position - myTeam.position : undefined,
+    };
+};
 
 const DashboardCardsSkeleton: React.FC<{ count: number }> = ({ count }) => (
     <div className="py-3" aria-hidden="true">
@@ -94,15 +135,60 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         return (saved === 'services' || saved === 'visits' || saved === 'fuel') ? saved as DashboardTab : initialTab;
     });
 
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [visits, setVisits] = useState<OrderVisit[]>([]);
-    const [openChatVisits, setOpenChatVisits] = useState<OrderVisit[]>([]);
+    const queryClient = useQueryClient();
+    const userId = currentUser?.id;
+    // Uma consulta só para o painel inteiro (OS, visitas, chats, programação do dia,
+    // OS extras e ranking): se alguma falha, nada é atualizado — igual a antes.
+    const dashboardKey = ['leaderDashboard', userId, currentUser?.teamId, currentUser?.departmentId, currentUser?.teamIsEvaluable];
+    const { data: dashboard, isLoading } = useQuery({
+        queryKey: dashboardKey,
+        queryFn: async (): Promise<LeaderDashboardData> => {
+            const id = userId!.toString();
+            const [teamOrders, teamVisits, userChatVisits, daySchedule] = await Promise.all([
+                dataService.getOrdersByLeader(id),
+                dataService.getVisitsByLeader(id),
+                dataService.getOpenChatVisitsForUser(id),
+                dataService.getMyDaySchedule().catch((err) => {
+                    console.error('Error fetching daily schedule:', err);
+                    return [] as MyDayScheduleItem[];
+                }),
+            ]);
+            // OS programada para a equipe mas com outro líder: busca à parte.
+            const leaderOrderIds = new Set(teamOrders.map(o => o.id.toString()));
+            const missingIds = daySchedule.map(i => i.orderId).filter(oid => !leaderOrderIds.has(oid));
+            const extraOrders = missingIds.length > 0
+                ? (await Promise.all(missingIds.map(oid => dataService.getOrderById(oid).catch(() => null))))
+                    .filter((o): o is Order => !!o)
+                : [];
+            return {
+                orders: teamOrders,
+                visits: teamVisits,
+                openChatVisits: userChatVisits,
+                schedule: daySchedule,
+                extraOrders,
+                // Ranking é acessório: se falhar, OS e visitas aparecem e o ranking fica como estava.
+                gamification: await loadTeamGamification(currentUser!).catch(err => {
+                    console.error('Error fetching team ranking:', err);
+                    return queryClient.getQueryData<LeaderDashboardData>(dashboardKey)?.gamification ?? null;
+                }),
+            };
+        },
+        enabled: !!userId,
+    });
+    const orders = dashboard?.orders ?? EMPTY_ORDERS;
+    const visits = dashboard?.visits ?? EMPTY_VISITS;
+    const openChatVisits = dashboard?.openChatVisits ?? EMPTY_VISITS;
     /** Programação diária de hoje da equipe (sequência) + OSs programadas que não são do líder. */
-    const [myDaySchedule, setMyDaySchedule] = useState<MyDayScheduleItem[]>([]);
-    const [scheduledExtraOrders, setScheduledExtraOrders] = useState<Order[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [fuelExpenses, setFuelExpenses] = useState<VehicleMonthlyExpense[]>([]);
-    const [fuelLoading, setFuelLoading] = useState(false);
+    const myDaySchedule = dashboard?.schedule ?? EMPTY_SCHEDULE;
+    const scheduledExtraOrders = dashboard?.extraOrders ?? EMPTY_ORDERS;
+    const teamGamification = dashboard?.gamification ?? null;
+
+    // Abastecimentos do usuário (card "no mês" e aba "Abastecimentos"): consulta à parte.
+    const { data: fuelExpenses = EMPTY_FUEL, isLoading: fuelLoading, refetch: refetchFuel } = useQuery({
+        queryKey: ['fuel', 'byUser', userId],
+        queryFn: () => dataService.getFuelExpensesByUser(userId!.toString()),
+        enabled: !!userId && fuelTabAvailable,
+    });
     const [showFuelForm, setShowFuelForm] = useState(false);
 
     const [selectedService, setSelectedService] = useState<string>(() => {
@@ -112,11 +198,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     const [selectedVisitStatus, setSelectedVisitStatus] = useState<string>(() => {
         return localStorage.getItem(STORAGE_KEYS.VISIT_STATUS) || 'rascunho';
     });
-
-    const [teamGamification, setTeamGamification] = useState<{
-        position: number;
-        positionChange?: number;
-    } | null>(null);
 
     // Sync internal state if initialTab changes (optional, but good for forcing)
     useEffect(() => {
@@ -152,130 +233,27 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         localStorage.setItem(STORAGE_KEYS.VISIT_STATUS, status);
     };
 
-    const loadDashboardData = useCallback(async (showLoading: boolean) => {
-        if (!currentUser?.id) {
-            setIsLoading(false);
-            return;
-        }
-
-        if (showLoading) setIsLoading(true);
-        try {
-            const fuelPromise = fuelTabAvailable
-                ? dataService.getFuelExpensesByUser(currentUser.id.toString())
-                : Promise.resolve([]);
-
-            const [teamOrders, teamVisits, userChatVisits, fuelData, daySchedule] = await Promise.all([
-                dataService.getOrdersByLeader(currentUser.id.toString()),
-                dataService.getVisitsByLeader(currentUser.id.toString()),
-                dataService.getOpenChatVisitsForUser(currentUser.id.toString()),
-                fuelPromise,
-                dataService.getMyDaySchedule().catch((err) => {
-                    console.error('Error fetching daily schedule:', err);
-                    return [] as MyDayScheduleItem[];
-                })
-            ]);
-            // OS programada para a equipe mas com outro líder: busca à parte.
-            const leaderOrderIds = new Set(teamOrders.map(o => o.id.toString()));
-            const missingIds = daySchedule.map(i => i.orderId).filter(id => !leaderOrderIds.has(id));
-            const extraOrders = missingIds.length > 0
-                ? (await Promise.all(missingIds.map(id => dataService.getOrderById(id).catch(() => null))))
-                    .filter((o): o is Order => !!o)
-                : [];
-            setMyDaySchedule(daySchedule);
-            setScheduledExtraOrders(extraOrders);
-            setOrders(teamOrders);
-            setVisits(teamVisits);
-            setOpenChatVisits(userChatVisits);
-            if (fuelTabAvailable && fuelData) {
-                setFuelExpenses(fuelData);
-            }
-
-            // Fetch team gamification data (previous month) if team is evaluable
-            if (currentUser.teamIsEvaluable && currentUser.departmentId && currentUser.teamId) {
-                const now = new Date();
-                const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
-                const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-
-                const previousPeriod = new Date(prevYear, prevMonth - 2, 1);
-                const previousPeriodYear = previousPeriod.getFullYear();
-                const previousPeriodMonth = previousPeriod.getMonth() + 1;
-
-                const [teamRanking, previousTeamRanking] = await Promise.all([
-                    dataService.getTeamRanking(currentUser.departmentId, prevYear, prevMonth),
-                    dataService.getTeamRanking(currentUser.departmentId, previousPeriodYear, previousPeriodMonth),
-                ]);
-                const myTeam = teamRanking.find(t => t.teamId === currentUser.teamId);
-                const previousMyTeam = previousTeamRanking.find(t => t.teamId === currentUser.teamId);
-                if (myTeam) {
-                    setTeamGamification({
-                        position: myTeam.position,
-                        positionChange: previousMyTeam
-                            ? previousMyTeam.position - myTeam.position
-                            : undefined,
-                    });
-                } else {
-                    setTeamGamification(null);
-                }
-            } else {
-                setTeamGamification(null);
-            }
-        } catch (error) {
-            console.error('Error fetching dashboard orders:', error);
-        } finally {
-            if (showLoading) setIsLoading(false);
-        }
-    }, [currentUser?.id, currentUser?.teamId, currentUser?.departmentId, currentUser?.teamIsEvaluable, fuelTabAvailable]);
-
+    // Ao abrir a aba "Abastecimentos", confere se há lançamento novo.
     useEffect(() => {
-        loadDashboardData(true);
-    }, [loadDashboardData]);
-
-    // Histórico de abastecimentos do usuário (aba "Abastecimentos")
-    const loadFuelExpenses = useCallback(async (showLoading = false) => {
-        if (!currentUser?.id) return;
-        if (showLoading) setFuelLoading(true);
-        try {
-            const data = await dataService.getFuelExpensesByUser(currentUser.id.toString());
-            setFuelExpenses(data);
-        } catch (error) {
-            console.error('Error fetching fuel expenses:', error);
-        } finally {
-            if (showLoading) setFuelLoading(false);
-        }
-    }, [currentUser?.id]);
-
-    useEffect(() => {
-        if (activeTab === 'fuel' && fuelTabAvailable) {
-            loadFuelExpenses(fuelExpenses.length === 0);
-        }
-    }, [activeTab, fuelTabAvailable, loadFuelExpenses, fuelExpenses.length]);
+        if (activeTab === 'fuel' && fuelTabAvailable) void refetchFuel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, fuelTabAvailable]);
 
     /** Fecha o form inline (cancelar/sucesso) e atualiza a lista da aba. */
     const closeFuelForm = useCallback(() => {
         setShowFuelForm(false);
-        loadFuelExpenses(false);
-    }, [loadFuelExpenses]);
+        void queryClient.invalidateQueries({ queryKey: ['fuel'] });
+    }, [queryClient]);
 
-    // Escuta evento global de refresh (ex: vindo de uma notificação em tempo real)
-    useEffect(() => {
-        const handleRefresh = () => loadDashboardData(false);
-        window.addEventListener('refresh_dashboard', handleRefresh);
-
-        // Realtime updates — refresh silencioso para não piscar a UI
-        const orderSub = dataService.subscribeToOrders(() => {
-            loadDashboardData(false);
-        });
-        const visitSub = dataService.subscribeToVisits(() => {
-            loadDashboardData(false);
-        });
-
-        return () => {
-            window.removeEventListener('refresh_dashboard', handleRefresh);
-            // Supabase RealtimeChannel NÃO tem .unsubscribe() — usar removeChannel()
-            if (orderSub) supabase.removeChannel(orderSub);
-            if (visitSub) supabase.removeChannel(visitSub);
-        };
-    }, [loadDashboardData]);
+    // Atualização em tempo real (OS/visitas) e evento global de refresh (ex.: notificação):
+    // rebusca em silêncio, sem voltar ao esqueleto de carregamento.
+    useLiveInvalidation({
+        keys: [['leaderDashboard'], ['fuel']],
+        subscribe: [dataService.subscribeToOrders, dataService.subscribeToVisits],
+        event: 'refresh_dashboard',
+        // Supabase RealtimeChannel NÃO tem .unsubscribe() — usar removeChannel()
+        release: channel => { if (channel) supabase.removeChannel(channel as Parameters<typeof supabase.removeChannel>[0]); },
+    });
 
     /** orderId → posição na sequência de hoje. */
     const scheduledPosition = useMemo(
@@ -465,7 +443,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                                     order={order}
                                                     currentUser={currentUser}
                                                     onClick={() => onSelectOrder?.(order)}
-                                                    onSuccess={() => loadDashboardData(false)}
+                                                    onSuccess={() => { void queryClient.invalidateQueries({ queryKey: ['leaderDashboard'] }); }}
                                                     onEdit={onEdit}
                                                 />
                                             </div>

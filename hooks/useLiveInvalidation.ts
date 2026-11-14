@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 
 type Subscription = { unsubscribe: () => void };
-type Subscribe = (callback: () => void) => Subscription;
+type Subscribe = (callback: () => void) => unknown;
 
 interface Options {
     /** Chaves (por prefixo) que ficam velhas quando algo muda: ex. [['orders'], ['visits']]. */
@@ -12,6 +12,8 @@ interface Options {
     /** Evento do `window` que também pede atualização (ex.: 'refresh_dashboard'). */
     event?: string;
     enabled?: boolean;
+    /** Como encerrar uma assinatura. Padrão: `.unsubscribe()`; canais do Supabase: `supabase.removeChannel`. */
+    release?: (subscription: unknown) => void;
 }
 
 /**
@@ -20,10 +22,12 @@ interface Options {
  * invalida as chaves; as consultas ativas rebuscam em segundo plano, sem
  * piscar o "carregando" (que fica só para a primeira busca).
  */
-export const useLiveInvalidation = ({ keys, subscribe = [], event, enabled = true }: Options): void => {
+const unsubscribeDefault = (subscription: unknown) => (subscription as Subscription | null | undefined)?.unsubscribe?.();
+
+export const useLiveInvalidation = ({ keys, subscribe = [], event, enabled = true, release = unsubscribeDefault }: Options): void => {
     const client = useQueryClient();
-    const latest = useRef({ keys, subscribe });
-    latest.current = { keys, subscribe };
+    const latest = useRef({ keys, subscribe, release });
+    latest.current = { keys, subscribe, release };
 
     useEffect(() => {
         if (!enabled) return;
@@ -32,7 +36,7 @@ export const useLiveInvalidation = ({ keys, subscribe = [], event, enabled = tru
         if (event) window.addEventListener(event, refresh);
         return () => {
             if (event) window.removeEventListener(event, refresh);
-            subs.forEach(s => s.unsubscribe());
+            subs.forEach(s => latest.current.release(s));
         };
     }, [client, enabled, event]);
 };

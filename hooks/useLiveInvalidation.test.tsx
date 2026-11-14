@@ -36,6 +36,14 @@ describe('useLiveInvalidation', () => {
         expect(spy).toHaveBeenCalledTimes(1);
     });
 
+    it('usa o release informado para encerrar a assinatura (canais do Supabase)', () => {
+        const channel = { name: 'canal' };
+        const release = jest.fn();
+        const { unmount } = setup({ keys: [['orders']], subscribe: [() => channel], release });
+        unmount();
+        expect(release).toHaveBeenCalledWith(channel);
+    });
+
     it('desligado (enabled: false) não assina nada', () => {
         const sub = jest.fn(() => ({ unsubscribe: jest.fn() }));
         setup({ keys: [['orders']], subscribe: [sub], event: 'x', enabled: false });

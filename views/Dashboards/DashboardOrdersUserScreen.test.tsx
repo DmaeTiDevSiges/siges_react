@@ -21,6 +21,7 @@ let visitsCb: () => void = () => undefined;
 const ordersChannel = { name: 'orders-channel' };
 const visitsChannel = { name: 'visits-channel' };
 const removeChannel = jest.fn();
+let fuelEnabled = false;
 
 jest.mock('../../services/dataService', () => ({
     dataService: {
@@ -37,10 +38,10 @@ jest.mock('../../services/dataService', () => ({
 }));
 jest.mock('../../services/core/supabase', () => ({ supabase: { removeChannel: (...a: unknown[]) => removeChannel(...a) } }));
 jest.mock('../../services/offline/offlineSync', () => ({ subscribeOfflineSync: jest.fn() }));
-jest.mock('../../features', () => ({ isVehicleRentalEnabled: () => false }));
+jest.mock('../../features', () => ({ isVehicleRentalEnabled: () => fuelEnabled }));
 jest.mock('../../utils/backButton', () => ({ registerBackHandler: () => () => undefined }));
 jest.mock('../../contexts/PermissionsContext', () => ({
-    usePermissions: () => ({ canCreate: () => true, canView: () => false, loading: false }),
+    usePermissions: () => ({ canCreate: () => true, canView: () => fuelEnabled, loading: false }),
 }));
 jest.mock('../../contexts/UiVersionContext', () => ({ useUiVersion: () => ({ isV2: false }) }));
 jest.mock('../Vehicles/FuelExpenseScreen', () => ({ FuelExpenseScreen: () => null }));
@@ -89,6 +90,7 @@ beforeEach(() => {
     mockData.getTeamRanking.mockResolvedValue([]);
     mockData.getFuelExpensesByUser.mockResolvedValue([]);
     localStorage.clear();
+    fuelEnabled = false;
 });
 
 describe('DashboardOrdersUserScreen — dados do painel do líder', () => {
@@ -164,6 +166,14 @@ describe('DashboardOrdersUserScreen — ranking da equipe (cabeçalho do app)', 
         await waitFor(() => expect(onGamificationChange).toHaveBeenCalledWith({ position: 3, positionChange: undefined }));
     });
 
+    it('falha só no ranking: OS e visitas aparecem normalmente', async () => {
+        mockData.getOrdersByLeader.mockResolvedValue([{ id: '1', statusId: 3 }]);
+        mockData.getTeamRanking.mockRejectedValue(new Error('ranking fora do ar'));
+        const { onGamificationChange } = renderScreen(evaluable);
+        expect(await screen.findByText('OS 1')).toBeInTheDocument();
+        expect(onGamificationChange).toHaveBeenLastCalledWith(null);
+    });
+
     it('equipe não avaliável: não busca ranking e informa null', async () => {
         const { onGamificationChange } = renderScreen(leader);
         await screen.findByTestId('svc');
@@ -202,5 +212,23 @@ describe('DashboardOrdersUserScreen — tempo real e atualização', () => {
         expect(removeChannel).toHaveBeenCalledWith(ordersChannel);
         expect(removeChannel).toHaveBeenCalledWith(visitsChannel);
         expect(removeChannel).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('DashboardOrdersUserScreen — abastecimentos', () => {
+    it('sem a funcionalidade de locação/abastecimento: não busca abastecimentos', async () => {
+        renderScreen();
+        await screen.findByTestId('svc');
+        await waitFor(() => expect(mockData.getOrdersByLeader).toHaveBeenCalled());
+        expect(mockData.getFuelExpensesByUser).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: 'Abastecimentos' })).not.toBeInTheDocument();
+    });
+
+    it('com a funcionalidade: busca pelo id do usuário e mostra a aba', async () => {
+        fuelEnabled = true;
+        mockData.getFuelExpensesByUser.mockResolvedValue([{ id: 'f1', value: 100, createdAt: new Date().toISOString() }]);
+        renderScreen();
+        await waitFor(() => expect(mockData.getFuelExpensesByUser).toHaveBeenCalledWith('7'));
+        expect(await screen.findByText('Abastecimentos')).toBeInTheDocument();
     });
 });
