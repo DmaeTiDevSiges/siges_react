@@ -2946,7 +2946,7 @@ async getVisitsByParentOrderId(parentId: string | number): Promise<OrderVisit[]>
      * Guards: visita encerrada, não arquivada/aprovada e sem ativos avaliados.
      * Plano: docs/plano-exclusao-visita-is-deleted.md
      */
-    async deleteOrderVisit(visitId: string | number, currentUser: User): Promise<void> {
+    async deleteOrderVisit(visitId: string | number, currentUser: User): Promise<{ filesFailed: number }> {
         return visitsService.deleteOrderVisit.apply(visitsService, arguments as any);
     },
 

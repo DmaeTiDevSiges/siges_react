@@ -592,8 +592,14 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
 
         try {
             setIsDeleting(true);
-            await dataService.deleteOrderVisit(visit.id, currentUser);
+            const { filesFailed } = await dataService.deleteOrderVisit(visit.id, currentUser);
             toast.success('Visita excluída com sucesso!');
+            if (filesFailed > 0) {
+                toast.warning(
+                    `${filesFailed === 1 ? '1 arquivo não pôde' : `${filesFailed} arquivos não puderam`} ser apagado do armazenamento. A visita foi excluída; avise o suporte para limpar os arquivos.`,
+                    { duration: 10000 },
+                );
+            }
             setIsDeleteModalOpen(false);
             window.dispatchEvent(new Event('refresh_dashboard'));
             onBack();

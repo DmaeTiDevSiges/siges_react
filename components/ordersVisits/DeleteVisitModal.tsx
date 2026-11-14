@@ -40,7 +40,7 @@ export const DeleteVisitModal: React.FC<DeleteVisitModalProps> = ({
                             <p className="text-slate-500 dark:text-slate-400 font-bold text-sm max-w-[300px]">
                                 A visita, a equipe, o chat e os ativos/serviços em rascunho serão
                                 <span className="text-rose-500"> EXCLUÍDOS </span>
-                                e não aparecerão mais em nenhuma tela. Arquivos (fotos e relatório) serão mantidos.
+                                e não aparecerão mais em nenhuma tela. As fotos (ativos e checklist) e as assinaturas também serão APAGADAS e não poderão ser recuperadas.
                             </p>
 
                             <div className="w-full h-px bg-slate-100 dark:bg-slate-800 my-8" />

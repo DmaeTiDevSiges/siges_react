@@ -4971,10 +4971,15 @@ export const visitsService = {
      * Marca is_deleted=true na visita e em todas as tabelas filhas
      * (assets, services, vehicles, activities, materials, teams, chat,
      * participants, reads, evaluations). Guards: visita encerrada, não
-     * arquivada/aprovada e sem ativos avaliados. Não toca em orders/users/storage.
+     * arquivada/aprovada e sem ativos avaliados. Não toca em orders/users.
+     * Depois de marcar o banco, apaga do R2 os arquivos da visita: fotos
+     * antes/depois dos ativos, fotos de checklist e assinaturas (originais +
+     * variantes thumb/medium). Falha ao apagar arquivo NÃO desfaz a exclusão: a
+     * visita já está excluída e o arquivo órfão não aparece em nenhuma tela; o
+     * retorno informa quantos arquivos ficaram (filesFailed) para a tela avisar.
      * Plano: docs/plano-exclusao-visita-is-deleted.md
      */
-    async deleteOrderVisit(visitId: string | number, currentUser: User): Promise<void> {
+    async deleteOrderVisit(visitId: string | number, currentUser: User): Promise<{ filesFailed: number }> {
         const ovId = Number(visitId);
 
         const { data: visit, error: visitError } = await supabase
@@ -5063,6 +5068,92 @@ export const visitsService = {
                 throw result.error;
             }
         }
-    }
+
+        // Banco marcado: agora libera o armazenamento (melhor esforço).
+        // Devolve quantos arquivos NÃO foram apagados para a tela avisar o usuário.
+        let filesFailed = 0;
+        try {
+            const paths = await visitsService.collectVisitFilePaths(ovId, assetIds);
+            const outcomes = await Promise.allSettled(paths.map(path => r2Service.deleteFile(path)));
+            filesFailed = outcomes.filter(o => o.status === 'rejected').length;
+            if (filesFailed > 0) console.warn(`[visitsService] Visita excluída, mas ${filesFailed} arquivo(s) não foram apagados do R2.`);
+        } catch (e) {
+            // Não deu nem para listar os arquivos: o total é desconhecido (conta como 1 falha).
+            filesFailed = 1;
+            console.warn('[visitsService] Visita excluída, mas não foi possível listar/apagar os arquivos do R2:', e);
+        }
+        return { filesFailed };
+    },
+
+    /**
+     * Caminhos no R2 de todos os arquivos de uma visita (originais e variantes
+     * thumb/medium das fotos; assinaturas não têm variantes). Só o que a visita
+     * gravou: nomes têm data e sufixo aleatório, então não são de outro registro.
+     */
+    async collectVisitFilePaths(ovId: number, assetIds: Array<number | string>): Promise<string[]> {
+        const { addVariantToPath } = await import('../media/imageUtils');
+        const paths = new Set<string>();
+
+        // Lista de nomes pode vir como array, JSON em texto ou array com JSON dentro.
+        const toNames = (value: unknown): string[] => {
+            const out: string[] = [];
+            const walk = (v: unknown) => {
+                if (Array.isArray(v)) return v.forEach(walk);
+                if (typeof v !== 'string' || !v.trim()) return;
+                const t = v.trim();
+                if (t.startsWith('[')) {
+                    try { return walk(JSON.parse(t)); } catch { /* nome comum */ }
+                }
+                out.push(t);
+            };
+            walk(value);
+            return out;
+        };
+        const addPhotos = (folder: unknown, names: unknown) => {
+            const dir = typeof folder === 'string' ? folder.replace(/\/+$/, '') : '';
+            if (!dir) return;
+            for (const name of toNames(names)) {
+                const full = `${dir}/${name}`.replace(/\/+/g, '/');
+                paths.add(full);
+                paths.add(addVariantToPath(full, 'thumb'));
+                paths.add(addVariantToPath(full, 'medium'));
+            }
+        };
+
+        const [visitRes, assetsRes, checklistRes] = await Promise.all([
+            supabase
+                .from('orders_visits')
+                .select('ov_signature_leader_path, ov_signature_leader_name, ov_signature_requester_path, ov_signature_requester_name')
+                .eq('id', ovId)
+                .maybeSingle(),
+            supabase
+                .from('orders_visits_assets')
+                .select('before_img_file_path, before_img_files_names, after_img_file_path, after_img_files_names')
+                .eq('ov_id', ovId),
+            assetIds.length > 0
+                ? supabase
+                    .from('orders_visits_assets_activities')
+                    .select('img_file_path, img_files_names')
+                    .in('ova_id', assetIds)
+                : Promise.resolve({ data: [] as any[], error: null }),
+        ]);
+        if (visitRes.error) throw visitRes.error;
+        if (assetsRes.error) throw assetsRes.error;
+        if (checklistRes.error) throw checklistRes.error;
+
+        const visit: any = visitRes.data || {};
+        for (const kind of ['leader', 'requester'] as const) {
+            const folder = visit[`ov_signature_${kind}_path`];
+            const name = visit[`ov_signature_${kind}_name`];
+            if (folder && name) paths.add(`${String(folder).replace(/\/+$/, '')}/${name}`.replace(/\/+/g, '/'));
+        }
+        for (const a of assetsRes.data || []) {
+            addPhotos(a.before_img_file_path, a.before_img_files_names);
+            addPhotos(a.after_img_file_path, a.after_img_files_names);
+        }
+        for (const c of (checklistRes.data as any[]) || []) addPhotos(c.img_file_path, c.img_files_names);
+
+        return Array.from(paths);
+    },
 
 };

@@ -40,7 +40,7 @@ Sem restrição de perfil (qualquer usuário autenticado — RLS "Universal Acce
 **Decisão D1 — visita aberta nunca é excluída** (diferente do reassign): não há efeitos em
 `orders`/`users` porque `closeOrderVisit` já encerrou a visita e liberou a equipe antes da exclusão.
 
-**Decisão D2 — arquivos mantidos**: fotos de ativos e relatório PDF permanecem no storage
+**Decisão D2 (revista em 13/11/2026) — arquivos APAGADOS**: ao excluir, o app remove do R2 as fotos antes/depois dos ativos, as fotos de checklist e as assinaturas (originais + variantes thumb/medium), em melhor esforço depois do soft delete. Não há PDF de relatório gravado no storage (é gerado na hora).
 (irreversível apenas nas flags; arquivos são preservados).
 
 ## 4. Escopo do soft delete (tabelas afetadas)
@@ -105,7 +105,7 @@ Arquivo: `services/orders/visitsService.ts` (padrão de `toolsService.deleteTool
    - assets/services/vehicles/teams/chat/participants/evaluations (`.eq('ov_id')`)
    - activities/materials (`.in('ova_id', assetIds)`)
    - chat_reads (`.in('chat_id', chatIds)`)
-5. **Não** toca em `orders`, `users` nem storage.
+5. **Não** toca em `orders` nem `users`; apaga do R2 só os arquivos da própria visita (ver D2).
 
 > ⚠️ **Nota de atomicidade:** updates em paralelo **não** são transacionais (sem RPC). Risco aceito
 > e declarado: falha no meio pode deixar filhos parcialmente marcados — a visita excluída some da
