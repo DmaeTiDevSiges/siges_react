@@ -603,7 +603,7 @@ const AppropriationSection: React.FC<AppropriationSectionProps> = ({
 /**
  * Operational Units Table Section Component
  */
-const UnitsPowerElectricTable: React.FC<{ items: any[]; unitsOrders?: Record<string, any[]> }> = ({ items, unitsOrders = {} }) => {
+const UnitsPowerElectricTable: React.FC<{ items: any[]; unitsOrders?: Record<string, any[]> }> = React.memo(({ items, unitsOrders = {} }) => {
     return (
         <div className="w-full bg-[#0a0f1e] dark:bg-[#0a0f1e] rounded-[24px] overflow-hidden border border-slate-800 shadow-2xl">
             {/* Table Header */}
@@ -710,7 +710,7 @@ const UnitsPowerElectricTable: React.FC<{ items: any[]; unitsOrders?: Record<str
             </div>
         </div>
     );
-};
+});
 
 const InvoicesTable: React.FC<{ items: any[] }> = ({ items }) => {
     return (
@@ -1684,12 +1684,10 @@ export const DashboardUnitsPowerElectric: React.FC<DashboardUnitsPowerElectricPr
                 {/* Tables Grid Section */}
                 <div className="flex flex-col gap-8">
                     {/* Operational Units Table */}
-                    {useMemo(() => (
-                        <UnitsPowerElectricTable
-                            items={filteredUnits}
-                            unitsOrders={unitsOrders}
-                        />
-                    ), [filteredUnits, unitsOrders])}
+                    <UnitsPowerElectricTable
+                        items={filteredUnits}
+                        unitsOrders={unitsOrders}
+                    />
 
                     {/* Invoices Table */}
                     <InvoicesTable items={[]} />

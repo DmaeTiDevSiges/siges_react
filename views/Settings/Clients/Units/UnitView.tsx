@@ -79,7 +79,7 @@ const CircularGauge: React.FC<{ percentage: number; size?: number; strokeWidth?:
     );
 };
 
-export const UnitDetails: React.FC<UnitDetailsProps> = ({
+const UnitDetailsContent: React.FC<UnitDetailsProps> = ({
     unit,
     onBack,
     onEdit,
@@ -206,26 +206,6 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
         onSelectAsset?.(asset);
     };
 
-    if (!canView('units')) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-background-light dark:bg-background-dark">
-                <div className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-4">
-                    <span className="material-symbols-outlined text-red-500 text-[40px]">lock</span>
-                </div>
-                <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-2">Acesso Negado</h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs mb-6">
-                    Você não tem permissão para visualizar os detalhes desta unidade.
-                    Entre em contato com o administrador se acreditar que isso é um erro.
-                </p>
-                <button
-                    onClick={onBack}
-                    className="px-6 py-2 bg-primary text-white rounded-full font-bold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
-                >
-                    Voltar
-                </button>
-            </div>
-        );
-    }
 
     const loadSectors = React.useCallback(async () => {
         if (unit?.id) {
@@ -904,4 +884,32 @@ export const UnitDetails: React.FC<UnitDetailsProps> = ({
             </div>
         </div>
     );
+};
+
+/** Acesso negado fica fora do conteúdo: assim os hooks do conteúdo nunca são pulados por um return antecipado. */
+const UnitDetailsAccessDenied: React.FC<{ onBack?: () => void }> = ({ onBack }) => (
+        <>
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-background-light dark:bg-background-dark">
+                <div className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-4">
+                    <span className="material-symbols-outlined text-red-500 text-[40px]">lock</span>
+                </div>
+                <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-2">Acesso Negado</h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs mb-6">
+                    Você não tem permissão para visualizar os detalhes desta unidade.
+                    Entre em contato com o administrador se acreditar que isso é um erro.
+                </p>
+                <button
+                    onClick={onBack}
+                    className="px-6 py-2 bg-primary text-white rounded-full font-bold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+                >
+                    Voltar
+                </button>
+            </div>
+        </>
+);
+
+export const UnitDetails: React.FC<React.ComponentProps<typeof UnitDetailsContent>> = (props) => {
+    const { canView } = usePermissions();
+    if (!canView('units')) return <UnitDetailsAccessDenied onBack={props.onBack} />;
+    return <UnitDetailsContent {...props} />;
 };

@@ -14,13 +14,12 @@ interface UserProfileHeaderProps {
 
 type UserStatus = 'available' | 'unavailable' | 'busy';
 
-export const UserProfileHeader: React.FC<UserProfileHeaderProps> = ({
+const UserProfileHeaderContent: React.FC<UserProfileHeaderProps> = ({
     currentUser,
     onProfileClick,
     onNotificationsClick,
     onStatusChange
 }) => {
-    if (!currentUser) return null;
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [companyLogo, setCompanyLogo] = useState<string | null>(null);
@@ -250,3 +249,7 @@ export const UserProfileHeader: React.FC<UserProfileHeaderProps> = ({
         </>
     );
 };
+
+/** Sem usuário não renderiza nada; fica fora do conteúdo para os hooks dele nunca serem pulados. */
+export const UserProfileHeader: React.FC<UserProfileHeaderProps> = (props) =>
+    props.currentUser ? <UserProfileHeaderContent {...props} /> : null;

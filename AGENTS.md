@@ -38,6 +38,7 @@ docs/                 docs de produto/fluxo, manual e docs/agents/ (guias para a
 4. Imports relativos (`./`, `../`) no app; o alias `@/` só nos testes Jest.
 5. Raiz do repo: só bootstrap, configs e docs (`README.md`, `AGENTS.md`). Arquivo novo vai para a pasta de domínio.
 6. Mover arquivo exige reescrever todos os imports e rodar `npx tsc --noEmit` + `npm test`.
+7. Testes: `*.test.ts` = serviços (Jest/node); `*.test.tsx` = telas/componentes (Testing Library, `npm run test:ui`). `npm run lint:eslint` não pode ter **erros** (hooks fora de ordem é erro). Plano de melhorias: [docs/PLANO_MELHORIAS_FRONTEND.md](docs/PLANO_MELHORIAS_FRONTEND.md).
 
 Árvore detalhada, lista de arquivos permitidos na raiz e histórico: [docs/agents/estrutura-pastas.md](docs/agents/estrutura-pastas.md).
 
