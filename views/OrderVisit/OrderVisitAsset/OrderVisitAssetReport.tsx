@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { dataService } from '../../../services/dataService';
-import { Asset, AssetAlert, OrderVisit, OrderVisitAssetActivity, OrderVisitAssetMaterial, OrderVisitAssetView } from '../../../types';
+import { Asset, OrderVisit, OrderVisitAssetActivity, OrderVisitAssetMaterial, OrderVisitAssetView } from '../../../types';
 import { CAMERA_PHOTO_LIMITS } from '../../../utils/cameraOptions';
 import { usePermissions } from '../../../contexts/PermissionsContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -25,6 +25,7 @@ import { useAssetLock } from '../../../hooks/useAssetLock';
 import { useOfflineSync } from '../../../hooks/useOfflineSync';
 import { useReportAutosave } from '../../../hooks/useReportAutosave';
 import { useReportPhotos } from '../../../hooks/useReportPhotos';
+import { useReportAlerts } from '../../../hooks/useReportAlerts';
 import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
 import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
 import { OVA_PROCESSING, MAX_REPORT_PHOTOS, REPORT_SECTION_IDS, ReportPhotoSide, ReportSection, parseRecorder } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/assetReportShared';
@@ -144,11 +145,11 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [materialToDelete, setMaterialToDelete] = useState<OrderVisitAssetMaterial | null>(null);
 
     // Alertas
-    const [reportAssetAlerts, setReportAssetAlerts] = useState<AssetAlert[]>([]);
-    const [completedAlertIds, setCompletedAlertIds] = useState<string[]>([]);
-    const [updatingAlertId, setUpdatingAlertId] = useState<string | null>(null);
-    const [isAddingAlert, setIsAddingAlert] = useState(false);
-    const [alertInitialDescription, setAlertInitialDescription] = useState('');
+    const {
+        alerts: reportAssetAlerts, completedAlertIds, updatingAlertId,
+        isAddingAlert, setIsAddingAlert, alertInitialDescription, setAlertInitialDescription,
+        toggleCompletedAlert, completeSelectedAlerts, refreshAlerts,
+    } = useReportAlerts(asset, currentUserId);
 
     // Registrador
     const [hasRecorder, setHasRecorder] = useState(initialAsset?.hasRecorder ?? true);
@@ -303,33 +304,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         if (assetId) loadPageData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assetId]);
-
-    useEffect(() => {
-        let isMounted = true;
-        const load = async () => {
-            if (!asset?.assetId) {
-                setReportAssetAlerts([]);
-                setCompletedAlertIds([]);
-                return;
-            }
-            try {
-                const ovaId = asset.id;
-                const alerts = await dataService.getAssetAlerts(asset.assetId);
-                const visible = alerts.filter(a => !a.isDeleted && (!a.isDone || a.ovaId === ovaId));
-                if (!isMounted) return;
-                setReportAssetAlerts(visible);
-                setCompletedAlertIds(visible.filter(a => a.isDone && a.ovaId === ovaId).map(a => a.id));
-            } catch (error) {
-                console.error('Error loading asset alerts:', error);
-                if (isMounted) {
-                    setReportAssetAlerts([]);
-                    setCompletedAlertIds([]);
-                }
-            }
-        };
-        load();
-        return () => { isMounted = false; };
-    }, [asset?.assetId]);
 
     // ── Fotos ────────────────────────────────────────────────────────────────
 
@@ -744,61 +718,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         } finally {
             setIsUpdatingStatus(false);
         }
-    };
-
-    // ── Alertas ──────────────────────────────────────────────────────────────
-
-    const toggleCompletedAlert = async (alertId: string) => {
-        if (!asset?.id) return;
-        const alert = reportAssetAlerts.find(item => item.id === alertId);
-        if (!alert) return;
-        const shouldComplete = !completedAlertIds.includes(alertId);
-        const apply = (complete: boolean) => {
-            setCompletedAlertIds(prev => complete ? [...prev, alertId] : prev.filter(id => id !== alertId));
-            setReportAssetAlerts(prev => prev.map(item =>
-                item.id === alertId ? { ...item, isDone: complete, ovaId: complete ? asset.id : null } : item
-            ));
-        };
-
-        apply(shouldComplete);
-        try {
-            setUpdatingAlertId(alertId);
-            await dataService.updateAssetAlert(alertId, {
-                isDone: shouldComplete,
-                updatedUserId: currentUserId,
-                ovaId: shouldComplete ? asset.id : null
-            });
-        } catch (error) {
-            console.error('Error updating alert status:', error);
-            toast.error('Erro ao atualizar status do alerta.');
-            apply(!shouldComplete);
-        } finally {
-            setUpdatingAlertId(null);
-        }
-    };
-
-    const completeSelectedAlerts = async () => {
-        const ovaId = asset?.id;
-        const updates = reportAssetAlerts
-            .filter(alert => completedAlertIds.includes(alert.id) !== (alert.isDone && alert.ovaId === ovaId))
-            .map(alert => {
-                const shouldComplete = completedAlertIds.includes(alert.id);
-                return dataService.updateAssetAlert(alert.id, {
-                    isDone: shouldComplete,
-                    updatedUserId: currentUserId,
-                    ovaId: shouldComplete ? ovaId : null
-                });
-            });
-        if (updates.length === 0) return;
-        await Promise.all(updates);
-        setReportAssetAlerts(prev => prev.filter(alert => completedAlertIds.includes(alert.id)));
-    };
-
-    const refreshAlerts = async () => {
-        if (!asset?.assetId) return;
-        setIsAddingAlert(false);
-        const alerts = await dataService.getAssetAlerts(asset.assetId);
-        setReportAssetAlerts(alerts.filter(a => !a.isDeleted && (!a.isDone || a.ovaId === asset.id)));
     };
 
     // ── Atividades, materiais, ativo ─────────────────────────────────────────
