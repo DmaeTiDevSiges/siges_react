@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Company } from '../../../types';
 import { dataService } from '../../../services/dataService';
 import { SearchInput } from '../../../components/ui/SearchInput';
@@ -26,25 +27,12 @@ export const CompaniesList: React.FC<CompaniesListProps> = ({ onSelect, onAdd })
     setFilter(val);
     localStorage.setItem('companies_filter', val);
   };
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: companies = [], isPending: loading } = useQuery({
+    queryKey: ['companies'],
+    queryFn: () => dataService.getCompanies(),
+  });
   const [visibleCount, setVisibleCount] = useState(10);
   const PAGE_SIZE = 10;
-
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        const data = await dataService.getCompanies();
-        setCompanies(data);
-      } catch (error) {
-        console.error('Failed to load companies', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCompanies();
-  }, []);
 
   const filters = ['Todos', 'Ativos', 'Pendentes', 'Expirados'];
 

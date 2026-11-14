@@ -20,3 +20,11 @@ jest.mock('@capacitor/preferences', () => {
 // jsdom não implementa estes:
 window.scrollTo = jest.fn() as any;
 Element.prototype.scrollIntoView = jest.fn();
+// "Carregar mais" (LoadMore) observa o fim da lista; no jsdom não há rolagem real.
+class IntersectionObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() { return []; }
+}
+(globalThis as any).IntersectionObserver = IntersectionObserverStub;

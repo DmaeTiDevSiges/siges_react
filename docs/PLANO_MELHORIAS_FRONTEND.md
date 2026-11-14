@@ -48,8 +48,14 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 9. Aprovação: na visita, abrir a aprovação, recarregar (F5) → reabre a aprovação (com a OS certa); colar `#/visita/<id>/aprovar` ou `/avaliar` funciona; voltar leva à visita.
 10. Cadastros: abrir uma empresa/contrato/unidade/material/manual, recarregar (F5) → reabre o mesmo; na unidade, a seta de voltar leva à lista de unidades do cliente (não quebra).
 
-## Etapa 2 — Camada de dados (TanStack Query) (PENDENTE)
-`QueryClientProvider` por cima do `dataService`; migrar telas de leitura uma a uma (começando por listas). O `readCache` offline continua por baixo (fonte de `initialData`). Invalidar por chave após cada operação da fila offline. Meta: sumir os `useEffect` + `loading/error` manuais.
+## Etapa 2 — Camada de dados (TanStack Query) (EM ANDAMENTO)
+**Base feita em 14/11/2026** (`@tanstack/react-query` 5.105.3, versão fixa):
+- `services/core/queryClient.ts`: `QueryClient` único + `QueryClientProvider` em `index.tsx`. O `readCache` offline continua DENTRO do `dataService` (rede primeiro → cache como reserva): o `queryFn` só chama `dataService.getX(...)` e herda o offline. Por isso `networkMode: 'always'` — o padrão da lib PAUSA consultas sem internet e quebraria o modo offline. Também: `refetchOnWindowFocus: false`; 1 retry, nenhum para `OfflineCacheMissError`; `staleTime` 0 (abre mostrando o que está em memória e rebusca em segundo plano, como antes).
+- Fila offline termina de enviar (`syncing` true→false) → `invalidateOnSyncEnd` invalida tudo; consultas ativas rebuscam.
+- Logout (`AuthContext`) → `queryClient.clear()`: dados em memória são do usuário que saiu e não podem aparecer para o próximo no mesmo aparelho. **Ao criar outro caminho de logout/troca de usuário, limpar também.**
+- Piloto: `CompaniesList` (`useQuery(['companies'])`, sem `useEffect`/`loading` manual). Teste: `CompaniesList.test.tsx`; `tests/setupUi.ts` ganhou stub de `IntersectionObserver`.
+- **Padrão para migrar uma lista:** `const { data = [], isPending } = useQuery({ queryKey: ['<recurso>', ...filtros], queryFn: () => dataService.getX(...) })`; chave começa pelo recurso (`['companies']`, `['orders', filtros]`) para invalidar por prefixo. Erro vira lista vazia como antes (não há toast novo).
+- **Falta:** invalidar por chave após salvar/excluir (hoje a lista rebusca ao abrir a tela, o que cobre o caso comum); migrar as demais listas (137 telas usam `useEffect`; começar pelas de cadastro e pelas de OS/visitas); mutações (`useMutation`) quando houver ganho; devtools só em dev, se quiser.
 
 ## Etapa 4 — Telas gigantes e `any` (PENDENTE)
 `OrderVisitAssetReport` (1.483 linhas) → hooks `useAssetReport`, `useVisitActions` + seções. `OrderVisitScreen` (1.039). Gerar tipos do Supabase (`supabase gen types`) e trocar `any` nas respostas. Meta: `no-explicit-any` abaixo de 1.500 avisos.

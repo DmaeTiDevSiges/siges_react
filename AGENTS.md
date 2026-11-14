@@ -40,6 +40,7 @@ docs/                 docs de produto/fluxo, manual e docs/agents/ (guias para a
 6. Mover arquivo exige reescrever todos os imports e rodar `npx tsc --noEmit` + `npm test`.
 7. Testes: `*.test.ts` = serviços (Jest/node); `*.test.tsx` = telas/componentes (Testing Library, `npm run test:ui`). `npm run lint:eslint` não pode ter **erros** (hooks fora de ordem é erro). Plano de melhorias: [docs/PLANO_MELHORIAS_FRONTEND.md](docs/PLANO_MELHORIAS_FRONTEND.md).
 8. Botão voltar do Android: nunca `CapApp.addListener('backButton')` em componente; use `useBackToClose(open, onClose)` (modal/painel) ou `registerBackHandler` (`utils/backButton.ts`). Tela nova que exige seleção em memória entra no `canEnterScreen` do `App.tsx`; tela que abre por id deve ganhar rota em `app/screenRoutes.ts` (ver plano, etapa 1b).
+9. Leitura de dados em tela nova: `useQuery` (TanStack Query) com `queryFn: () => dataService.getX(...)`, chave começando pelo recurso (`['companies']`); não escrever `useEffect` + `loading`/`error` à mão. Não mudar `networkMode: 'always'` (o offline mora no `dataService`). Novo caminho de logout/troca de usuário: chamar `queryClient.clear()`. Detalhes: `docs/PLANO_MELHORIAS_FRONTEND.md` (etapa 2).
 
 Árvore detalhada, lista de arquivos permitidos na raiz e histórico: [docs/agents/estrutura-pastas.md](docs/agents/estrutura-pastas.md).
 

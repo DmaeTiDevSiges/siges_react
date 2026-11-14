@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import { User } from '../types';
 import { dataService } from '../services/dataService';
 import { confirmLogoutWithOfflineQueue } from '../services/offline/offlineLogoutGuard';
+import { queryClient } from '../services/core/queryClient';
 
 interface AuthContextType {
     currentUser: User | null;
@@ -58,6 +59,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     clearTimeout(signedOutTimerRef.current);
                 }
                 signedOutTimerRef.current = setTimeout(() => {
+                    // Dados em memória são do usuário que saiu: não podem aparecer para o próximo.
+                    queryClient.clear();
                     setCurrentUser(null);
                     signedOutTimerRef.current = null;
                 }, 2000);
@@ -97,6 +100,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             const hasActiveVisit = currentUser?.isOvInProgress || (currentUser?.ovIdInProgress && Number(currentUser.ovIdInProgress) > 0);
             await dataService.signOut(currentUser?.uuid, hasActiveVisit);
+            queryClient.clear();
             setCurrentUser(null);
         } catch (error) {
             console.error('Logout error:', error);
