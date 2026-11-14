@@ -46,7 +46,13 @@ jest.mock('../../../services/dataService', () => ({
     dataService: new Proxy({}, { get: (_t, name: string) => (...a: unknown[]) => (mockData as Record<string, jest.Mock>)[name](...a) }),
 }));
 jest.mock('sonner', () => ({ toast: { info: (...a: unknown[]) => mockToast.info(...a), error: (...a: unknown[]) => mockToast.error(...a), success: (...a: unknown[]) => mockToast.success(...a), warning: (...a: unknown[]) => mockToast.warning(...a) } }));
-jest.mock('@capacitor/camera', () => ({ Camera: { getPhoto: jest.fn() }, CameraResultType: {}, CameraSource: {} }));
+const mockCamera = { getPhoto: jest.fn(), pickImages: jest.fn() };
+const mockFs = { readFile: jest.fn() };
+jest.mock('@capacitor/camera', () => ({
+    Camera: { getPhoto: (...a: unknown[]) => mockCamera.getPhoto(...a), pickImages: (...a: unknown[]) => mockCamera.pickImages(...a) },
+    CameraResultType: { Uri: 'uri' }, CameraSource: { Camera: 'CAMERA' },
+}));
+jest.mock('@capacitor/filesystem', () => ({ Filesystem: { readFile: (...a: unknown[]) => mockFs.readFile(...a) } }));
 jest.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false } }));
 jest.mock('../../../services/offline/offlineConfig', () => ({ isOnline: () => mockOnline.value }));
 jest.mock('../../../services/offline/offlineSync', () => ({ subscribeOfflineSync: jest.fn() }));
@@ -71,8 +77,16 @@ jest.mock('../../../components/ordersVisits/ordersVisitsAssets/MaintenanceCheckl
     ),
 }));
 jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportConditionSection', () => ({
-    AssetReportConditionSection: (p: { side: string; value: string; isReadOnly: boolean }) => (
-        <div data-testid={`cond-${p.side}`} data-readonly={String(p.isReadOnly)}>{p.value}</div>
+    AssetReportConditionSection: (p: Record<string, any>) => (
+        <div data-testid={`cond-${p.side}`} data-readonly={String(p.isReadOnly)} data-cover={String(p.canUseAsCover)}>
+            {p.value}
+            <button onClick={() => p.onAdd(p.side)}>adicionar foto {p.side}</button>
+            <button onClick={() => p.onEdit(p.side, 0)}>editar foto {p.side}</button>
+            <button onClick={() => p.onEdit(p.side, 9)}>editar foto inexistente {p.side}</button>
+            <button onClick={() => p.onUseAsCover(`https://x.test/storage/v1/object/public/bucket/companies/CO/assets/55/${p.side}.jpg?t=1`)}>usar como capa {p.side}</button>
+            <button onClick={() => p.onView(p.photos[0]?.url)}>ver foto {p.side}</button>
+            {p.onFileDrop && <button onClick={() => p.onFileDrop(p.side, new File(['x'], 'solto.png', { type: 'image/png' }))}>soltar arquivo {p.side}</button>}
+        </div>
     ),
 }));
 jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportActivitiesSection', () => ({
@@ -126,10 +140,11 @@ jest.mock('../../../components/ordersVisits/ordersVisitsAssets/assetReport/Asset
     ),
 }));
 jest.mock('../../../components/ui/Modal', () => ({
-    Modal: (p: { isOpen: boolean; title: unknown; onConfirm?: () => void; message?: string }) => p.isOpen ? (
+    Modal: (p: { isOpen: boolean; title: unknown; onConfirm?: () => void; onClose: () => void; message?: string }) => p.isOpen ? (
         <div role="dialog" aria-label={String(p.title)}>
             <span>{p.message}</span>
             <button onClick={p.onConfirm}>confirmar {String(p.title)}</button>
+            <button onClick={p.onClose}>cancelar {String(p.title)}</button>
         </div>
     ) : null,
 }));
@@ -140,9 +155,30 @@ jest.mock('../../../components/ui/ConfirmDeleteModal', () => ({
 }));
 jest.mock('./OrderVisitAssetManualsSection', () => ({ OrderVisitAssetManualsSection: () => null }));
 jest.mock('../../Assets/AssetAlertModal', () => ({ AssetAlertModal: () => null }));
-jest.mock('../../../components/ui/PhotoViewer', () => ({ PhotoViewer: () => null }));
-jest.mock('../../../components/ui/ImageUploadSheet', () => ({ ImageUploadSheet: () => null }));
-jest.mock('../../../components/ui/ImageEditorModal', () => ({ ImageEditorModal: () => null }));
+jest.mock('../../../components/ui/PhotoViewer', () => ({
+    PhotoViewer: (p: { src: string; images: string[]; initialIndex: number; onClose: () => void }) => (
+        <div data-testid="viewer" data-src={p.src} data-images={p.images.join('|')} data-index={p.initialIndex}>
+            <button onClick={p.onClose}>fechar visualizador</button>
+        </div>
+    ),
+}));
+jest.mock('../../../components/ui/ImageUploadSheet', () => ({
+    ImageUploadSheet: (p: { onTakeCamera: () => void; onSelectGallery: () => void; onClose: () => void }) => (
+        <div data-testid="sheet">
+            <button onClick={p.onTakeCamera}>tirar foto</button>
+            <button onClick={p.onSelectGallery}>escolher da galeria</button>
+            <button onClick={p.onClose}>fechar folha</button>
+        </div>
+    ),
+}));
+jest.mock('../../../components/ui/ImageEditorModal', () => ({
+    ImageEditorModal: (p: { imageFile: File | string; onSave: (f: File) => void; onClose: () => void }) => (
+        <div data-testid="editor" data-src={typeof p.imageFile === 'string' ? p.imageFile : `${p.imageFile.name}|${p.imageFile.type}`}>
+            <button onClick={() => p.onSave(new File(['e'], 'editada.jpg', { type: 'image/jpeg' }))}>salvar edição da foto</button>
+            <button onClick={p.onClose}>fechar editor</button>
+        </div>
+    ),
+}));
 
 import { OrderVisitAssetReport } from './OrderVisitAssetReport';
 
@@ -176,6 +212,9 @@ beforeEach(() => {
     mockPhotos.initialPhotos = [{ url: 'antes.jpg' }];
     mockPhotos.finalPhotos = [{ url: 'depois.jpg' }];
     mockPhotos.pendingCount = 0;
+    mockPhotos.reset.mockReset(); mockPhotos.savePhoto.mockReset(); mockPhotos.removePhoto.mockReset();
+    mockCamera.getPhoto.mockReset(); mockCamera.pickImages.mockReset(); mockFs.readFile.mockReset();
+    (global as any).fetch = jest.fn().mockResolvedValue({ blob: async () => new Blob(['img'], { type: 'image/jpeg' }) });
     mockPerms.view = new Set();
     mockOnline.value = true;
     mockData.getOrderVisitAssetById.mockResolvedValue(asset());
@@ -567,5 +606,214 @@ describe('OrderVisitAssetReport — próximo ativo', () => {
         await click('confirmar Confirmar Reporte');
         expect(onBack).toHaveBeenCalledTimes(1);
         expect(onNavigateAsset).not.toHaveBeenCalled();
+    });
+});
+
+describe('OrderVisitAssetReport — fotos', () => {
+    const editorSrc = () => screen.getByTestId('editor').getAttribute('data-src');
+
+    it('tirar foto: abre o editor com o arquivo da câmera (nome por lado, tipo da imagem)', async () => {
+        mockCamera.getPhoto.mockResolvedValue({ webPath: 'blob:abc', format: 'jpeg' });
+        await setup();
+        await click('adicionar foto initial');
+        expect(screen.getByTestId('sheet')).toBeInTheDocument();
+        await click('tirar foto');
+        expect(editorSrc()).toMatch(/^report_initial_\d+\.jpeg\|image\/jpeg$/);
+        expect(mockCamera.getPhoto).toHaveBeenCalledWith(expect.objectContaining({ quality: 80, allowEditing: false }));
+    });
+
+    it('câmera sem imagem ou cancelada: nada abre e nada é avisado', async () => {
+        await setup();
+        mockCamera.getPhoto.mockResolvedValueOnce({ format: 'jpeg' });
+        await click('adicionar foto final');
+        await click('tirar foto');
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+        mockCamera.getPhoto.mockRejectedValueOnce(new Error('cancelado'));
+        await click('tirar foto');
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+        expect(mockToast.error).not.toHaveBeenCalled();
+    });
+
+    it('galeria: abre o editor com a foto escolhida', async () => {
+        mockCamera.pickImages.mockResolvedValue({ photos: [{ webPath: 'blob:g', format: 'png' }] });
+        await setup();
+        await click('adicionar foto final');
+        await click('escolher da galeria');
+        expect(editorSrc()).toMatch(/^report_final_\d+\.png\|image\/jpeg$/);
+        expect(mockCamera.pickImages).toHaveBeenCalledWith({ quality: 80, limit: 1 });
+    });
+
+    it('galeria sem seleção: nada abre', async () => {
+        mockCamera.pickImages.mockResolvedValue({ photos: [] });
+        await setup();
+        await click('adicionar foto initial');
+        await click('escolher da galeria');
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+    });
+
+    it('galeria: se o endereço não abre, lê o arquivo pelo caminho (Android) e abre o editor', async () => {
+        (global as any).fetch = jest.fn()
+            .mockRejectedValueOnce(new Error('bloqueado'))
+            .mockResolvedValueOnce({ blob: async () => new Blob(['b'], { type: 'image/jpeg' }) });
+        mockFs.readFile.mockResolvedValue({ data: 'QUJD' });
+        mockCamera.pickImages.mockResolvedValue({ photos: [{ webPath: 'content://x', path: '/storage/x.jpg', format: 'jpeg' }] });
+        await setup();
+        await click('adicionar foto initial');
+        await click('escolher da galeria');
+        expect(mockFs.readFile).toHaveBeenCalledWith({ path: '/storage/x.jpg' });
+        expect((global as any).fetch).toHaveBeenLastCalledWith('data:image/jpeg;base64,QUJD');
+        expect(editorSrc()).toMatch(/^report_initial_\d+\.jpeg/);
+    });
+
+    it('galeria: se não abre e não há caminho, desiste sem avisar', async () => {
+        (global as any).fetch = jest.fn().mockRejectedValue(new Error('bloqueado'));
+        mockCamera.pickImages.mockResolvedValue({ photos: [{ webPath: 'x', format: 'jpeg' }] });
+        await setup();
+        await click('adicionar foto initial');
+        await click('escolher da galeria');
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+        expect(mockFs.readFile).not.toHaveBeenCalled();
+    });
+
+    it('limite de 3 fotos por lado: avisa e não abre câmera nem galeria', async () => {
+        mockPhotos.initialPhotos = [{ url: 'a' }, { url: 'b' }, { url: 'c' }];
+        await setup();
+        await click('adicionar foto initial');
+        await click('tirar foto');
+        await click('escolher da galeria');
+        expect(mockToast.error).toHaveBeenCalledWith('Máximo de 3 fotos permitido');
+        expect(mockCamera.getPhoto).not.toHaveBeenCalled();
+        expect(mockCamera.pickImages).not.toHaveBeenCalled();
+        // o outro lado (1 foto) continua livre
+        mockToast.error.mockClear();
+        mockCamera.getPhoto.mockResolvedValue({ webPath: 'blob:z', format: 'jpeg' });
+        await click('adicionar foto final');
+        await click('tirar foto');
+        expect(mockToast.error).not.toHaveBeenCalled();
+    });
+
+    it('arrastar arquivo (web): abre o editor com o próprio arquivo', async () => {
+        await setup();
+        await click('soltar arquivo final');
+        expect(editorSrc()).toBe('solto.png|image/png');
+    });
+
+    it('arrastar arquivo no limite de fotos: avisa e não abre o editor', async () => {
+        mockPhotos.finalPhotos = [{ url: 'a' }, { url: 'b' }, { url: 'c' }];
+        await setup();
+        await click('soltar arquivo final');
+        expect(mockToast.error).toHaveBeenCalledWith('Máximo de 3 fotos permitido');
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+    });
+
+    it('editar foto existente: abre o editor com a URL; foto ainda subindo pede para aguardar', async () => {
+        await setup();
+        await click('editar foto initial');
+        expect(editorSrc()).toBe('antes.jpg');
+        await click('fechar editor');
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+
+        mockPhotos.initialPhotos = [{ url: 'antes.jpg', pending: true } as never];
+        await click('editar foto initial');
+        expect(mockToast.info).toHaveBeenCalledWith('Aguarde o envio desta foto terminar');
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+    });
+
+    it('editar foto que não existe: ignora', async () => {
+        await setup();
+        await click('editar foto inexistente initial');
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+        expect(mockToast.info).not.toHaveBeenCalled();
+    });
+
+    it('salvar a edição: entrega ao hook de fotos (lado, posição ou null para nova) e fecha o editor', async () => {
+        await setup();
+        await click('editar foto final');
+        await click('salvar edição da foto');
+        expect(mockPhotos.savePhoto).toHaveBeenCalledWith('final', 0, expect.any(File));
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+
+        mockCamera.getPhoto.mockResolvedValue({ webPath: 'blob:n', format: 'jpeg' });
+        await click('adicionar foto initial');
+        await click('tirar foto');
+        await click('salvar edição da foto');
+        expect(mockPhotos.savePhoto).toHaveBeenLastCalledWith('initial', null, expect.any(File));
+    });
+
+    it('ver foto: o visualizador recebe todas as fotos (antes + depois) e a posição da escolhida', async () => {
+        await setup();
+        await click('ver foto final');
+        const viewer = screen.getByTestId('viewer');
+        expect(viewer).toHaveAttribute('data-images', 'antes.jpg|depois.jpg');
+        expect(viewer).toHaveAttribute('data-index', '1');
+        await click('fechar visualizador');
+        expect(screen.queryByTestId('viewer')).not.toBeInTheDocument();
+    });
+
+    it('fechar a folha de envio', async () => {
+        await setup();
+        await click('adicionar foto initial');
+        await click('fechar folha');
+        expect(screen.queryByTestId('sheet')).not.toBeInTheDocument();
+    });
+});
+
+describe('OrderVisitAssetReport — foto de capa', () => {
+    beforeEach(() => {
+        mockData.updateAssetPhotoFromReport = jest.fn().mockResolvedValue(undefined);
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ oCompanyId: 'CO' }));
+    });
+
+    it('só gestor do contrato/super admin e visita não arquivada podem usar como capa', async () => {
+        await setup();
+        expect(screen.getByTestId('cond-initial')).toHaveAttribute('data-cover', 'false');
+    });
+
+    it('gestor (role manager) com visita aberta: pode usar como capa', async () => {
+        mockData.isUserContractManager.mockResolvedValue(true);
+        mockData.getContractManagers.mockResolvedValue([{ managerId: '7', role: 'Manager' }]);
+        await setup();
+        expect(screen.getByTestId('cond-initial')).toHaveAttribute('data-cover', 'true');
+    });
+
+    it('gestor só leitor (viewer) não pode', async () => {
+        mockData.getContractManagers.mockResolvedValue([{ managerId: '7', role: 'viewer' }]);
+        await setup();
+        expect(screen.getByTestId('cond-initial')).toHaveAttribute('data-cover', 'false');
+    });
+
+    it('confirmar: manda ativo, empresa, nome do arquivo e pasta de origem', async () => {
+        await setup();
+        await click('usar como capa initial');
+        expect(screen.getByRole('dialog', { name: 'Usar como Foto de Capa' })).toBeInTheDocument();
+        await click('confirmar Usar como Foto de Capa');
+        expect(mockData.updateAssetPhotoFromReport).toHaveBeenCalledWith('55', 'CO', 'initial.jpg', 'companies/CO/assets/55');
+        expect(mockToast.success).toHaveBeenCalledWith('Foto do ativo atualizada com sucesso!');
+        expect(screen.queryByRole('dialog', { name: 'Usar como Foto de Capa' })).not.toBeInTheDocument();
+    });
+
+    it('falha: avisa e a janela continua aberta', async () => {
+        mockData.updateAssetPhotoFromReport.mockRejectedValue(new Error('x'));
+        await setup();
+        await click('usar como capa final');
+        await click('confirmar Usar como Foto de Capa');
+        expect(mockToast.error).toHaveBeenCalledWith('Erro ao atualizar foto do ativo');
+        expect(screen.getByRole('dialog', { name: 'Usar como Foto de Capa' })).toBeInTheDocument();
+    });
+
+    it('cancelar fecha a janela sem gravar', async () => {
+        await setup();
+        await click('usar como capa initial');
+        await click('cancelar Usar como Foto de Capa');
+        expect(screen.queryByRole('dialog', { name: 'Usar como Foto de Capa' })).not.toBeInTheDocument();
+        expect(mockData.updateAssetPhotoFromReport).not.toHaveBeenCalled();
+    });
+
+    it('ativo sem empresa carregada: confirmar não faz nada', async () => {
+        mockData.getOrderVisitAssetById.mockResolvedValue(asset({ oCompanyId: undefined }));
+        await setup();
+        await click('usar como capa initial');
+        await click('confirmar Usar como Foto de Capa');
+        expect(mockData.updateAssetPhotoFromReport).not.toHaveBeenCalled();
     });
 });
