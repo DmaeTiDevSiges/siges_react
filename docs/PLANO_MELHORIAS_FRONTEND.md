@@ -23,7 +23,13 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 - Testes: `hooks/useScreenHistory.test.tsx`, `utils/backButton.test.ts`, `app/screenBack.test.ts`, `components/ui/Modal.test.tsx`. Jest `ui` agora transforma `react-router` (ESM) via `tests/tsJestImportMeta.cjs` (traduz `import.meta`).
 - NÃO verificado em aparelho/emulador (só Jest + build do Vite): roteiro no fim deste bloco.
 
-**Fase 1b — PENDENTE:** migrar fluxo a fluxo para rotas com parâmetros (`/visita/:visitId`, `/visita/:visitId/ativo/:ovaId`…), tirando os `selected*` de `useState` do `App.tsx` e usando as telas lazy de `app/routes.tsx`. Ordem sugerida: visita → OS → ativos → demais. Depois: deep link (`siges://…`) e atualizar para recarregar a página sem perder a tela. Cuidados: `setOfflineAutoSyncActive` (só no "Meu Painel") e `offlineLogoutGuard` leem a tela atual — passar a ler a rota.
+**Fase 1b — em andamento (fluxo da visita feito em 13/11/2026):**
+- `app/screenRoutes.ts`: rotas com parâmetros — `#/visita/:visitId`, `#/visita-ativo/:ovaId`, `#/visita-ativo/:ovaId/atividades/:orderTypeId`, `#/visita-ativo/:ovaId/materiais`. `toPath`/`fromPath` (com `matchPath`/`generatePath`; ids com ":" de ativo criado offline funcionam).
+- `useScreenHistory` agora trabalha com **caminhos** (tela + ids): trocar de ativo na mesma tela vira entrada nova; voltar/avançar, recarregar (F5) e link aberto leem a seleção **da URL** (`applySelection`), sem passar por `canEnter`. Link aberto antes do login só é seguido depois de logar (o hash fica intacto enquanto deslogado).
+- No `App.tsx`: `routeSelection` (de onde vêm os ids) e `applyRouteSelection` (como a URL volta para a memória). `leaveAssetReport()` descobre a visita pelo ativo quando o relatório foi aberto por link/recarregamento (senão a tela da visita ficava em branco).
+- **Para migrar outra tela:** incluir em `ROUTES` (`screenRoutes.ts`, mais específicas primeiro), incluir o id em `Selection`, ligar em `routeSelection`/`applyRouteSelection` e conferir o que acontece ao recarregar nela (a tela busca tudo pelo id? o "voltar" depende de estado em memória?).
+- **Ainda em memória (não vão para a URL):** aba da visita (`visitActiveTab`), `assetReportBackScreen`, `lastVisitSource`, `selectedVisitForApproval` (aprovar/avaliar visita), `selectedOrder`.
+- **Próximas na fila:** OS (`order-detail`, `service-request-detail`), ativos (`asset-details`), aprovação/avaliação da visita, depois cadastros (empresa, cliente, unidade…).
 **Outras telas com overlay próprio** (`fixed inset-0` sem usar `Modal`) ainda não tratam o voltar do Android: migrar para `Modal` ou `useBackToClose`.
 
 **Roteiro de teste manual (Android):**
@@ -32,7 +38,8 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 3. No "Meu Painel": voltar sai do app.
 4. Relatório do ativo → atividades → voltar físico volta ao relatório.
 5. Recuperar senha pelo e-mail: link abre o app/site na tela de nova senha (o `#` do Supabase não pode ser perdido).
-6. Web/Electron: botão voltar do navegador percorre as telas; recarregar (F5) abre no painel (o estado ainda não vai na URL).
+6. Web/Electron: botão voltar do navegador percorre as telas; recarregar (F5) dentro de uma visita/ativo reabre a mesma tela (fluxo da visita já na URL); nas demais telas ainda abre no painel.
+7. Abrir `#/visita-ativo/<id>` colado no navegador (logado): abre o relatório do ativo; voltar leva à visita (não à tela em branco).
 
 ## Etapa 2 — Camada de dados (TanStack Query) (PENDENTE)
 `QueryClientProvider` por cima do `dataService`; migrar telas de leitura uma a uma (começando por listas). O `readCache` offline continua por baixo (fonte de `initialData`). Invalidar por chave após cada operação da fila offline. Meta: sumir os `useEffect` + `loading/error` manuais.

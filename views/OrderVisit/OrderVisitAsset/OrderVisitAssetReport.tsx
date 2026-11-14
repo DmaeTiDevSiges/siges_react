@@ -67,6 +67,9 @@ interface OrderVisitAssetReportProps {
     onNavigateAsset?: (target: OrderVisitAssetView) => void;
 }
 
+/** Tempo do aviso "Próximo ativo" antes de abrir o ativo seguinte. */
+const ADVANCE_NOTICE_MS = 1800;
+
 const EDITABLE_STATUSES: number[] = [OVA_PROCESSING.DRAFT, OVA_PROCESSING.REJECTED];
 
 export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ assetId, onBack, onManageActivities, onManageMaterials, onViewAsset, readOnly, initialAsset, initialVisit, onApproved, focusSection, onFocusHandled, onNavigateAsset }) => {
@@ -591,6 +594,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
             await completeSelectedAlerts();
             await dataService.reportedOrderVisitAsset(assetId, currentUserId);
             await releaseMyLock();
+            setShowReportConfirmModal(false);
             toast.success('Relatório reportado com sucesso!');
             advanceAfterAction();
         } catch (error) {
@@ -644,6 +648,8 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     // ── Desktop: anterior/próximo na lista de ativos da visita (mesma ordem da lista) ──
     const [visitSiblings, setVisitSiblings] = useState<OrderVisitAssetView[]>([]);
     const [isNavigating, setIsNavigating] = useState(false);
+    /** Ativo para o qual o avanço automático está indo (exibe o aviso "Próximo ativo"). */
+    const [advancingTo, setAdvancingTo] = useState<OrderVisitAssetView | null>(null);
     const siblingsOvId = asset?.ovId ? String(asset.ovId) : '';
     useEffect(() => {
         if (!onNavigateAsset || readOnly || !siblingsOvId) return;
@@ -672,11 +678,26 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
      */
     const advanceAfterAction = () => {
         if (nextSibling && onNavigateAsset) {
-            onNavigateAsset(nextSibling);
+            // Aviso "Próximo ativo" antes da troca: sem ele o usuário acha que continua no mesmo ativo
+            setAdvancingTo(nextSibling);
             return;
         }
         (onApproved || onBack)();
     };
+
+    // Aviso "Próximo ativo": aguarda, fecha e abre o ativo seguinte (remonta a tela)
+    useEffect(() => {
+        if (!advancingTo || !onNavigateAsset) return;
+        const target = advancingTo;
+        const timer = setTimeout(() => {
+            setAdvancingTo(null);
+            window.scrollTo({ top: 0 });
+            rootRef.current?.scrollIntoView({ block: 'start' });
+            onNavigateAsset(target);
+        }, ADVANCE_NOTICE_MS);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [advancingTo]);
 
     /** Grava o pendente e abre o relatório do outro ativo. */
     const goToSibling = async (target: OrderVisitAssetView | null) => {
@@ -1446,6 +1467,16 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
                 confirmLoading={isUpdatingStatus}
                 confirmLoadingLabel="REPORTANDO..."
                 cancelLabel="Cancelar"
+            />
+
+            {/* Após reportar/revisar/aprovar: aviso sem interação; fecha sozinho e abre o próximo ativo */}
+            <Modal
+                isOpen={!!advancingTo}
+                onClose={() => { /* sem interação: fecha sozinho */ }}
+                title="Próximo Ativo"
+                message={`${advancingTo?.code || ''}${advancingTo?.description ? ` · ${advancingTo.description}` : ''}${siblingIndex >= 0 && visitSiblings.length > 0 ? ` (${siblingIndex + 2} de ${visitSiblings.length})` : ''}`}
+                type="info"
+                hideCancelButton
             />
         </div>
     );

@@ -19,6 +19,7 @@ import { dataService } from './services/dataService';
 import { getCachedCurrentUser } from './services/offline/offlineAuth';
 import { PendingOpsPanel } from './components/offline/PendingOpsPanel';
 import { hasHeaderBack } from './app/screenBack';
+import { fromPath, toPath, type Selection } from './app/screenRoutes';
 import { useScreenHistory } from './hooks/useScreenHistory';
 import { prefetchVisitOffline, runOfflineAutoSync, setOfflineAutoSyncActive, setOfflineAutoSyncUser } from './services/offline/offlineAutoSync';
 import { refreshOfflineGate, subscribeOfflineGate } from './services/offline/offlineGate';
@@ -558,6 +559,21 @@ const AppContent: React.FC = () => {
   };
   const [selectedVisit, setSelectedVisit] = useState<import('./types').OrderVisit | null>(null);
   const [selectedVisitForApproval, setSelectedVisitForApproval] = useState<import('./types').OrderVisit | null>(null);
+
+  // Sai do relatório do ativo. Se ele foi aberto por link/recarregamento, o App não sabe qual é a
+  // visita (só o ativo): descobre pelo ativo antes de voltar, senão a tela da visita ficaria em branco.
+  const leaveAssetReport = async () => {
+    const target = assetReportBackScreen;
+    if (target === 'order-visit-execute' && !(selectedVisit?.id || currentUser?.ovIdInProgress)) {
+      let ovId: string | undefined = selectedVisitForAssetReport?.id || selectedOrderVisitAsset?.ovId;
+      if (!ovId && selectedOrderVisitAssetId) {
+        try { ovId = (await dataService.getOrderVisitAssetById(selectedOrderVisitAssetId))?.ovId; } catch { /* sem rede: cai no painel */ }
+      }
+      if (!ovId) { setCurrentScreen('dashboard'); return; }
+      setSelectedVisit({ id: String(ovId) } as unknown as import('./types').OrderVisit);
+    }
+    setCurrentScreen(target);
+  };
   const [departments, setDepartments] = useState<Department[]>([]);
   const [unitsListRefreshKey, setUnitsListRefreshKey] = useState(0);
   const [visitRefreshKey, setVisitRefreshKey] = useState(0);
@@ -1562,7 +1578,7 @@ const AppContent: React.FC = () => {
       setSelectedVisit(null);
       setCurrentScreen(lastVisitSource);
     } else if (currentScreen === 'order-visit-asset-report') {
-      setCurrentScreen(assetReportBackScreen);
+      leaveAssetReport();
     } else if (currentScreen === 'order-visit-asset-activities' || currentScreen === 'order-visit-asset-materials') {
       setCurrentScreen('order-visit-asset-report');
     } else if (currentScreen === 'order-visit-approve') {
@@ -2961,7 +2977,7 @@ const AppContent: React.FC = () => {
             } : undefined}
             initialAsset={selectedOrderVisitAsset || undefined}
             initialVisit={selectedVisitForAssetReport || undefined}
-            onBack={() => setCurrentScreen(assetReportBackScreen)}
+            onBack={leaveAssetReport}
             focusSection={assetReportFocus}
             onFocusHandled={() => setAssetReportFocus(null)}
             onApproved={() => {
@@ -2971,7 +2987,7 @@ const AppContent: React.FC = () => {
                 setVisitActiveTab('assets');
                 setVisitRefreshKey(k => k + 1);
               }
-              setCurrentScreen(assetReportBackScreen);
+              leaveAssetReport();
             }}
             onManageActivities={(orderTypeId) => {
               setSelectedOrderTypeId(orderTypeId);
@@ -3243,9 +3259,36 @@ const AppContent: React.FC = () => {
       default: return true;
     }
   };
+  // Etapa 1b: ids do fluxo da visita vão para a URL (app/screenRoutes.ts) e voltam dela.
+  const routeSelection: Selection = {
+    visitId: (selectedVisit?.id || currentUser?.ovIdInProgress?.toString()) ?? null,
+    ovaId: selectedOrderVisitAssetId,
+    orderTypeId: selectedOrderTypeId,
+  };
+  const applyRouteSelection = (sel: Selection) => {
+    if (sel.visitId) {
+      setSelectedVisit(prev => (prev?.id != null && String(prev.id) === sel.visitId ? prev : ({ id: sel.visitId } as unknown as import('./types').OrderVisit)));
+    }
+    if (sel.ovaId) {
+      // Objetos "de arranque" (initialAsset/initialVisit) são de outro ativo: descarta.
+      setSelectedOrderVisitAsset(prev => (prev != null && String(prev.id) === sel.ovaId ? prev : null));
+      setSelectedVisitForAssetReport(prev => (selectedOrderVisitAssetId === sel.ovaId ? prev : null));
+      setSelectedOrderVisitAssetId(sel.ovaId);
+    }
+    if (sel.orderTypeId) setSelectedOrderTypeId(sel.orderTypeId);
+  };
   useScreenHistory<Screen>({
     screen: currentScreen,
     setScreen: setCurrentScreen,
+    selection: routeSelection,
+    applySelection: applyRouteSelection,
+    routing: {
+      toPath: (screen, sel) => toPath(screen, sel),
+      fromPath: pathname => {
+        const route = fromPath(pathname);
+        return route ? { screen: route.screen as Screen, selection: route.selection } : null;
+      },
+    },
     enabled: !!currentUser && !authLoading && authScreen !== 'reset-password'
       && new URLSearchParams(window.location.search).get('fullscreenMap') !== 'true',
     homeScreen: 'dashboard',
