@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from '../ui/Card';
 import { Loading } from '../ui/Loading';
+import { useBackToClose } from '../../hooks/useBackToClose';
 
 
 interface DeleteVisitModalProps {
@@ -16,6 +17,9 @@ export const DeleteVisitModal: React.FC<DeleteVisitModalProps> = ({
     onConfirm,
     isLoading = false
 }) => {
+    // Botão voltar do Android fecha (e não troca de tela por baixo)
+    useBackToClose(isOpen && !isLoading, onClose);
+
     if (!isOpen) return null;
 
     return (

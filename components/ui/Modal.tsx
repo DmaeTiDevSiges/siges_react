@@ -4,6 +4,7 @@ import { IconButton } from './IconButton';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Loading } from './Loading';
+import { useBackToClose } from '../../hooks/useBackToClose';
 
 
 // Safe haptic trigger (no-op on web)
@@ -57,6 +58,9 @@ export const Modal: React.FC<ModalProps> = ({
     hideCancelButton = false,
     className,
 }) => {
+    // Botão voltar do Android fecha o modal (em vez de trocar de tela por baixo dele)
+    useBackToClose(isOpen, onClose);
+
     // Body scroll lock
     useEffect(() => {
         if (isOpen) {

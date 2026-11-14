@@ -18,6 +18,8 @@ import { LocationDisclosureModal } from './components/permissions/LocationDisclo
 import { dataService } from './services/dataService';
 import { getCachedCurrentUser } from './services/offline/offlineAuth';
 import { PendingOpsPanel } from './components/offline/PendingOpsPanel';
+import { hasHeaderBack } from './app/screenBack';
+import { useScreenHistory } from './hooks/useScreenHistory';
 import { prefetchVisitOffline, runOfflineAutoSync, setOfflineAutoSyncActive, setOfflineAutoSyncUser } from './services/offline/offlineAutoSync';
 import { refreshOfflineGate, subscribeOfflineGate } from './services/offline/offlineGate';
 import { usePermissions } from './contexts/PermissionsContext';
@@ -3220,6 +3222,42 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Histórico de telas (#/tela) + botão voltar do Android. Só com usuário logado:
+  // antes disso o "#" pode trazer o token de recuperação de senha do Supabase.
+  const canEnterScreen = (s: Screen): boolean => {
+    switch (s as string) {
+      case 'company-details': case 'company-edit': case 'department-form': return !!selectedCompany;
+      case 'department-details': return !!selectedDepartment;
+      case 'team-details': return !!selectedTeam;
+      case 'team-edit': return !!selectedTeam && !!selectedCompany;
+      case 'contract-details': case 'contract-edit': return !!selectedContract;
+      case 'asset-details': case 'asset-edit': return !!selectedAsset;
+      case 'asset-clone-wizard': return !!cloneSourceAsset;
+      case 'service-request-detail': case 'order-detail': return !!selectedOrder;
+      case 'order-visit-execute': return !!(selectedVisit?.id || currentUser?.ovIdInProgress);
+      case 'order-visit-approve': return !!(selectedVisitForApproval && selectedOrder);
+      case 'order-visit-evaluation': return !!selectedVisitForApproval;
+      case 'order-visit-asset-report': case 'order-visit-asset-materials': return !!selectedOrderVisitAssetId;
+      case 'order-visit-asset-activities': return !!(selectedOrderVisitAssetId && selectedOrderTypeId);
+      case 'users-tracker': return !!selectedCompanyForTracker;
+      default: return true;
+    }
+  };
+  useScreenHistory<Screen>({
+    screen: currentScreen,
+    setScreen: setCurrentScreen,
+    enabled: !!currentUser && !authLoading && authScreen !== 'reset-password'
+      && new URLSearchParams(window.location.search).get('fullscreenMap') !== 'true',
+    homeScreen: 'dashboard',
+    canEnter: canEnterScreen,
+    // Mesmo voltar da seta do cabeçalho; telas sem seta (abas, "Voltar" no rodapé) caem no histórico.
+    logicalBack: () => {
+      if (!hasHeaderBack(currentScreen)) return false;
+      handleBack();
+      return true;
+    },
+  });
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen bg-background-light dark:bg-background-dark items-center justify-center">
@@ -3406,44 +3444,7 @@ const AppContent: React.FC = () => {
           ) : (
             <Layout
               title={getTitle()}
-              showBackButton={
-                (currentScreen as string) !== 'dashboard' &&
-                // Atividades/materiais do ativo: o "Voltar" fica na barra do rodapé
-                (currentScreen as string) !== 'order-visit-asset-activities' &&
-                (currentScreen as string) !== 'order-visit-asset-materials' &&
-                (currentScreen as string) !== 'ss-dashboard' &&
-                (currentScreen as string) !== 'ss-dashboard-period' &&
-                (currentScreen as string) !== 'orders-dashboard' &&
-                (currentScreen as string) !== 'orders-dashboard-period' &&
-                (currentScreen as string) !== 'visits-dashboard' &&
-                (currentScreen as string) !== 'dashboard-units-power-electric' &&
-                (currentScreen as string) !== 'dashboard-units-assets-tags' &&
-                (currentScreen as string) !== 'dashboard-orders-admin-calendar' &&
-                (currentScreen as string) !== 'dashboard-contracts-evaluations' &&
-                (currentScreen as string) !== 'team-shifts' &&
-                (currentScreen as string) !== 'leader-ranking' &&
-                (currentScreen as string) !== 'services-history' &&
-                (currentScreen as string) !== 'companies' &&
-                (currentScreen as string) !== 'units-search' &&
-                (currentScreen as string) !== 'assets-search' &&
-                (currentScreen as string) !== 'technical-manuals' &&
-                (currentScreen as string) !== 'settings' &&
-                (currentScreen as string) !== 'profile-permissions' &&
-                (currentScreen as string) !== 'notifications' &&
-                (currentScreen as string) !== 'tools' &&
-                (currentScreen as string) !== 'materials-search' &&
-                (currentScreen as string) !== 'materials-dashboard' &&
-                (currentScreen as string) !== 'material-form' &&
-                (currentScreen as string) !== 'material-edit' &&
-                (currentScreen as string) !== 'app-notices' &&
-                (currentScreen as string) !== 'extra-workers' &&
-                (currentScreen as string) !== 'rental-apportionment' &&
-                (currentScreen as string) !== 'rental-contracts' &&
-                (currentScreen as string) !== 'rate-contracts' &&
-                (currentScreen as string) !== 'vehicles' &&
-                (currentScreen as string) !== 'grant-dashboard' &&
-                (currentScreen as string) !== 'orders-daily-schedule'
-              }
+              showBackButton={hasHeaderBack(currentScreen)}
               onBackClick={handleBack}
               currentUser={currentUser}
               showUserHeader={currentScreen !== 'settings'}

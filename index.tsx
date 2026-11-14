@@ -2,6 +2,7 @@
 import './utils/consoleControl';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { HashRouter } from 'react-router';
 import App from './App';
 import './index.css';
 import './global.css';
@@ -24,10 +25,13 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <UiVersionProvider>
-        <App />
-      </UiVersionProvider>
-    </AuthProvider>
+    {/* Hash (#/tela): igual no Android (Capacitor), Electron e web, sem depender do servidor. */}
+    <HashRouter>
+      <AuthProvider>
+        <UiVersionProvider>
+          <App />
+        </UiVersionProvider>
+      </AuthProvider>
+    </HashRouter>
   </React.StrictMode>
 );

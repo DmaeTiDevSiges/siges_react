@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useBackToClose } from '../../hooks/useBackToClose';
 import { IconButton } from './IconButton';
 
 interface BottomSheetProps {
@@ -25,6 +26,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
     const [translateY, setTranslateY] = useState(0);
     const dragStartY = useRef<number | null>(null);
     const isDragging = useRef(false);
+
+    useBackToClose(isOpen, onClose);
 
     useEffect(() => {
         if (isOpen) {

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Capacitor } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
+import { registerBackHandler } from '../../utils/backButton';
 import type { OutboxOp } from '../../services/offline/outbox';
 import {
     discardOfflineOp,
@@ -94,14 +93,8 @@ export const PendingOpsPanel: React.FC = () => {
 
     // Botão "voltar" do Android fecha o painel (sem ele, o padrão sai do app).
     useEffect(() => {
-        if (!open || !Capacitor.isNativePlatform()) return;
-        let remove: (() => void) | undefined;
-        CapApp.addListener('backButton', () => setOpen(false))
-            .then(h => {
-                remove = () => h.remove();
-            })
-            .catch(() => undefined);
-        return () => remove?.();
+        if (!open) return;
+        return registerBackHandler(() => { setOpen(false); });
     }, [open]);
 
     const groups = useMemo(() => groupByVisit(ops), [ops]);

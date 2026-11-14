@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
+import { registerBackHandler } from '../../utils/backButton';
 
 /**
  * Fluxo guiado "uma pergunta por tela" (visual novo / v2).
@@ -71,12 +70,7 @@ export const StepFlow: React.FC<StepFlowProps> = ({
 
     // Botão voltar do Android = voltar um passo.
     useEffect(() => {
-        if (!Capacitor.isNativePlatform()) return;
-        let remove: (() => void) | undefined;
-        CapApp.addListener('backButton', goBack)
-            .then(h => { remove = () => h.remove(); })
-            .catch(() => undefined);
-        return () => remove?.();
+        return registerBackHandler(() => { goBack(); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [index]);
 

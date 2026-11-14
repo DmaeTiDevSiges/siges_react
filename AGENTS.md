@@ -39,6 +39,7 @@ docs/                 docs de produto/fluxo, manual e docs/agents/ (guias para a
 5. Raiz do repo: só bootstrap, configs e docs (`README.md`, `AGENTS.md`). Arquivo novo vai para a pasta de domínio.
 6. Mover arquivo exige reescrever todos os imports e rodar `npx tsc --noEmit` + `npm test`.
 7. Testes: `*.test.ts` = serviços (Jest/node); `*.test.tsx` = telas/componentes (Testing Library, `npm run test:ui`). `npm run lint:eslint` não pode ter **erros** (hooks fora de ordem é erro). Plano de melhorias: [docs/PLANO_MELHORIAS_FRONTEND.md](docs/PLANO_MELHORIAS_FRONTEND.md).
+8. Botão voltar do Android: nunca `CapApp.addListener('backButton')` em componente; use `useBackToClose(open, onClose)` (modal/painel) ou `registerBackHandler` (`utils/backButton.ts`). Tela nova que exige seleção em memória entra no `canEnterScreen` do `App.tsx`.
 
 Árvore detalhada, lista de arquivos permitidos na raiz e histórico: [docs/agents/estrutura-pastas.md](docs/agents/estrutura-pastas.md).
 

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
+import { registerBackHandler } from '../../utils/backButton';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -34,12 +33,8 @@ export const DesignKitScreen: React.FC<{ onClose: () => void }> = ({ onClose }) 
 
     // Botão voltar do Android fecha a vitrine (o StepFlow trata o próprio voltar).
     useEffect(() => {
-        if (showFlow || !Capacitor.isNativePlatform()) return;
-        let remove: (() => void) | undefined;
-        CapApp.addListener('backButton', onClose)
-            .then(h => { remove = () => h.remove(); })
-            .catch(() => undefined);
-        return () => remove?.();
+        if (showFlow) return;
+        return registerBackHandler(() => { onClose(); });
     }, [showFlow, onClose]);
 
     const shortcuts = [

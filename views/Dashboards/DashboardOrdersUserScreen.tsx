@@ -19,8 +19,7 @@ import type { VehicleMonthlyExpense } from '../../services/orders/vehicleRentalS
 import type { MyDayScheduleItem } from '../../services/orders/dailyScheduleService';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useUiVersion } from '../../contexts/UiVersionContext';
-import { Capacitor } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
+import { registerBackHandler } from '../../utils/backButton';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { HiddenValue } from '../../components/ui/HiddenValue';
 
@@ -381,12 +380,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
 
     // Botão "voltar" do Android: da lista volta aos cards (sem isso, sai do app).
     useEffect(() => {
-        if (!isV2 || v2View !== 'list' || !Capacitor.isNativePlatform()) return;
-        let remove: (() => void) | undefined;
-        CapApp.addListener('backButton', () => setV2View('home'))
-            .then(h => { remove = () => h.remove(); })
-            .catch(() => undefined);
-        return () => remove?.();
+        if (!isV2 || v2View !== 'list') return;
+        return registerBackHandler(() => { setV2View('home'); });
     }, [isV2, v2View]);
 
     // Desligar a chave com a lista aberta não deve prender ninguém nela.
