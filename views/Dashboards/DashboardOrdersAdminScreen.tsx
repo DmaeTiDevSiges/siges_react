@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { User, Order, OrderVisit } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLiveInvalidation } from '../../hooks/useLiveInvalidation';
+import { User, Order } from '../../types';
 import { UserServicesPanel } from '../../components/ui/UserServicesPanel';
 import { UserVisitsPanel } from '../../components/ui/UserVisitsPanel';
 import { dataService } from '../../services/dataService';
@@ -28,9 +30,26 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         return (saved === 'services' || saved === 'visits') ? saved : 'services';
     });
 
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [visits, setVisits] = useState<OrderVisit[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const teamId = currentUser?.teamId;
+    const queryClient = useQueryClient();
+    const { data: orders = [], isLoading: ordersLoading } = useQuery({
+        queryKey: ['orders', 'byTeam', teamId],
+        queryFn: () => dataService.getOrdersByTeam(teamId!),
+        enabled: !!teamId,
+    });
+    const { data: visits = [], isLoading: visitsLoading } = useQuery({
+        queryKey: ['visits', 'byTeam', teamId],
+        queryFn: () => dataService.getVisitsByTeam(teamId!),
+        enabled: !!teamId,
+    });
+    // "Sincronizando..." só na primeira busca; mudanças em tempo real rebuscam sem piscar.
+    const isLoading = ordersLoading || visitsLoading;
+    useLiveInvalidation({
+        keys: [['orders'], ['visits']],
+        subscribe: [dataService.subscribeToOrders, dataService.subscribeToVisits],
+        event: 'refresh_dashboard',
+        enabled: !!teamId,
+    });
 
     const [selectedService, setSelectedService] = useState<string>(() => {
         return localStorage.getItem(STORAGE_KEYS.SERVICE) || 'autorizados';
@@ -54,48 +73,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
         setSelectedVisitStatus(status);
         localStorage.setItem(STORAGE_KEYS.VISIT_STATUS, status);
     };
-
-    const fetchOrders = useCallback(async () => {
-        if (!currentUser?.teamId) {
-            setIsLoading(false);
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            const [teamOrders, teamVisits] = await Promise.all([
-                dataService.getOrdersByTeam(currentUser.teamId),
-                dataService.getVisitsByTeam(currentUser.teamId)
-            ]);
-            setOrders(teamOrders);
-            setVisits(teamVisits);
-        } catch (error) {
-            console.error('Error fetching dashboard orders:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [currentUser?.teamId]);
-
-     useEffect(() => {
-         fetchOrders();
- 
-         const handleRefresh = () => fetchOrders();
-         window.addEventListener('refresh_dashboard', handleRefresh);
- 
-         // Realtime updates
-         const orderSub = dataService.subscribeToOrders(() => {
-             fetchOrders();
-         });
-         const visitSub = dataService.subscribeToVisits(() => {
-             fetchOrders();
-         });
- 
-         return () => {
-             window.removeEventListener('refresh_dashboard', handleRefresh);
-             orderSub.unsubscribe();
-             visitSub.unsubscribe();
-         };
-     }, [fetchOrders]);
 
     // Grouping logic based on status IDs 3, 4 and 6
     const stats = useMemo(() => {
@@ -186,7 +163,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                             order={order}
                                             currentUser={currentUser}
                                             onClick={() => onSelectOrder?.(order)}
-                                            onSuccess={fetchOrders}
+                                            onSuccess={() => { void queryClient.invalidateQueries({ queryKey: ['orders'] }); void queryClient.invalidateQueries({ queryKey: ['visits'] }); }}
                                             onEdit={onEdit}
                                         />
                                     ))}
