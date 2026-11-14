@@ -18,6 +18,8 @@ export type Selection = {
     visitId?: string | null;
     ovaId?: string | null;
     orderTypeId?: string | null;
+    /** OS ou SS aberta (order-detail / service-request-detail). */
+    orderId?: string | null;
 };
 
 type SelectionKey = keyof Selection;
@@ -34,6 +36,8 @@ const ROUTES: RouteDef[] = [
     { screen: 'order-visit-asset-materials', pattern: '/visita-ativo/:ovaId/materiais', params: ['ovaId'] },
     { screen: 'order-visit-asset-report', pattern: '/visita-ativo/:ovaId', params: ['ovaId'] },
     { screen: 'order-visit-execute', pattern: '/visita/:visitId', params: ['visitId'] },
+    { screen: 'order-detail', pattern: '/os/:orderId', params: ['orderId'] },
+    { screen: 'service-request-detail', pattern: '/ss/:orderId', params: ['orderId'] },
 ];
 
 /** Caminho da tela. Sem rota própria (ou sem os ids dela) cai em `/<tela>`. */

@@ -8,8 +8,16 @@ describe('toPath', () => {
         expect(toPath('order-visit-asset-activities', { ovaId: '900', orderTypeId: '5' })).toBe('/visita-ativo/900/atividades/5');
     });
 
+    it('monta o caminho da OS e da SS', () => {
+        expect(toPath('order-detail', { orderId: '77' })).toBe('/os/77');
+        expect(toPath('service-request-detail', { orderId: '76' })).toBe('/ss/76');
+        // o id de OS de outra tela não vaza para a visita
+        expect(toPath('order-visit-execute', { visitId: '12', orderId: '77' })).toBe('/visita/12');
+    });
+
     it('tela sem rota própria, ou sem os ids dela, cai em /<tela>', () => {
         expect(toPath('order-detail', { visitId: '12' })).toBe('/order-detail');
+        expect(toPath('service-request-detail', {})).toBe('/service-request-detail');
         expect(toPath('order-visit-execute', {})).toBe('/order-visit-execute');
         expect(toPath('order-visit-asset-activities', { ovaId: '900' })).toBe('/order-visit-asset-activities');
     });
@@ -23,6 +31,12 @@ describe('fromPath', () => {
         expect(fromPath('/visita-ativo/900/atividades/5')).toEqual({
             screen: 'order-visit-asset-activities', selection: { ovaId: '900', orderTypeId: '5' },
         });
+    });
+
+    it('lê OS e SS do caminho', () => {
+        expect(fromPath('/os/77')).toEqual({ screen: 'order-detail', selection: { orderId: '77' } });
+        expect(fromPath('/ss/76')).toEqual({ screen: 'service-request-detail', selection: { orderId: '76' } });
+        expect(fromPath('/os')).toBeNull();
     });
 
     it('não confunde caminhos parecidos nem rotas antigas', () => {

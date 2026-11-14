@@ -582,6 +582,9 @@ const AppContent: React.FC = () => {
   });
 
   const selectedOrderRef = React.useRef<Order | null>(null);
+  // OS/SS pedida pela URL (voltar/avançar, F5, link) ainda sendo buscada pelo id.
+  const [routeOrderId, setRouteOrderId] = useState<string | null>(null);
+  const routeOrderReq = React.useRef<string | null>(null);
   const currentUserRef = React.useRef<User | null>(null);
   const loadUserRef = React.useRef<(() => Promise<void>) | null>(null);
   const selectedVisitRef = React.useRef<import('./types').OrderVisit | null>(null);
@@ -1218,6 +1221,8 @@ const AppContent: React.FC = () => {
   };
 
   const handleOrderSelect = (order: Order) => {
+    routeOrderReq.current = null;
+    setRouteOrderId(null);
     setSelectedOrder(order);
     const isOS = order.type === 'OS' || (order.parentId && Number(order.parentId) > 0);
 
@@ -2724,6 +2729,12 @@ const AppContent: React.FC = () => {
           />
         );
       case 'service-request-detail':
+        if (routeOrderId) return (
+          <div className="flex items-center justify-center py-20 text-slate-500">
+            <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+            Carregando...
+          </div>
+        );
         return selectedOrder ? (
           <ServiceRequestDetail
             order={selectedOrder}
@@ -2763,6 +2774,12 @@ const AppContent: React.FC = () => {
           />
         );
       case 'order-detail':
+        if (routeOrderId) return (
+          <div className="flex items-center justify-center py-20 text-slate-500">
+            <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+            Carregando...
+          </div>
+        );
         return selectedOrder ? (
           <OrderRequestView
             order={selectedOrder}
@@ -3259,11 +3276,36 @@ const AppContent: React.FC = () => {
       default: return true;
     }
   };
+  // OS/SS vinda da URL: a memória pode ter outra (ou nenhuma); busca pelo id.
+  const loadRouteOrder = (orderId: string) => {
+    if (selectedOrderRef.current?.id != null && String(selectedOrderRef.current.id) === orderId) {
+      routeOrderReq.current = null;
+      setRouteOrderId(null);
+      return;
+    }
+    routeOrderReq.current = orderId;
+    setRouteOrderId(orderId);
+    const fail = () => {
+      if (routeOrderReq.current !== orderId) return;
+      routeOrderReq.current = null;
+      setRouteOrderId(null);
+      toast.error('Não foi possível abrir a OS/SS.');
+      setCurrentScreen('dashboard');
+    };
+    dataService.getOrderById(orderId).then(order => {
+      if (routeOrderReq.current !== orderId) return;
+      if (!order) { fail(); return; }
+      routeOrderReq.current = null;
+      setSelectedOrder(order);
+      setRouteOrderId(null);
+    }).catch(fail);
+  };
   // Etapa 1b: ids do fluxo da visita vão para a URL (app/screenRoutes.ts) e voltam dela.
   const routeSelection: Selection = {
     visitId: (selectedVisit?.id || currentUser?.ovIdInProgress?.toString()) ?? null,
     ovaId: selectedOrderVisitAssetId,
     orderTypeId: selectedOrderTypeId,
+    orderId: routeOrderId ?? (selectedOrder?.id != null ? String(selectedOrder.id) : null),
   };
   const applyRouteSelection = (sel: Selection) => {
     if (sel.visitId) {
@@ -3276,6 +3318,7 @@ const AppContent: React.FC = () => {
       setSelectedOrderVisitAssetId(sel.ovaId);
     }
     if (sel.orderTypeId) setSelectedOrderTypeId(sel.orderTypeId);
+    if (sel.orderId) loadRouteOrder(sel.orderId);
   };
   useScreenHistory<Screen>({
     screen: currentScreen,
