@@ -26,13 +26,14 @@ import { useReportPhotos } from '../../../hooks/useReportPhotos';
 import { useReportAlerts } from '../../../hooks/useReportAlerts';
 import { useReportStatusFlow } from '../../../hooks/useReportStatusFlow';
 import { useReportPhotoActions } from '../../../hooks/useReportPhotoActions';
+import { useReportMovement } from '../../../hooks/useReportMovement';
 import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
 import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
 import { OVA_PROCESSING, REPORT_SECTION_IDS, ReportSection, parseRecorder } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/assetReportShared';
 import { AssetReportConditionSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportConditionSection';
 import { AssetReportActivitiesSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportActivitiesSection';
 import { AssetReportMaterialsSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportMaterialsSection';
-import { AssetReportMovementSection, UnitAssetTagOption } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportMovementSection';
+import { AssetReportMovementSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportMovementSection';
 import { AssetReportRecorderSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportRecorderSection';
 import { AssetReportAlertsSection } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportAlertsSection';
 import { AssetReportSwapPage } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportSwapPage';
@@ -42,7 +43,7 @@ import { AssetReportCopyFromModal } from '../../../components/ordersVisits/order
 import { isOnline } from '../../../services/offline/offlineConfig';
 import { sortBySectorPositionDescription } from '../../../utils/assetReportSort';
 import {
-    buildProgressSpecs, checkReport, hasMaintenancePlan as planIsChosen, isMovementComplete as destinationIsComplete, isSameMovementDestination,
+    buildProgressSpecs, checkReport, hasMaintenancePlan as planIsChosen, isSameMovementDestination,
 } from '../../../utils/assetReportRules';
 import { OrderVisitAssetManualsSection } from './OrderVisitAssetManualsSection';
 import { AssetAlertModal } from '../../Assets/AssetAlertModal';
@@ -115,7 +116,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
     // Modais
     const [showMovementModal, setShowMovementModal] = useState(false);
-    const [showUnmoveConfirmModal, setShowUnmoveConfirmModal] = useState(false);
     const [showRemoveModal, setShowRemoveModal] = useState(false);
     /** Copiar de outro ativo: escolha da origem e confirmação. */
     const [showCopyFromModal, setShowCopyFromModal] = useState(false);
@@ -156,20 +156,21 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [isSwapping, setIsSwapping] = useState(false);
 
     // Movimentação
-    const [isMoved, setIsMoved] = useState(initialAsset?.isMoved || false);
-    const [afterClientId, setAfterClientId] = useState('');
-    const [afterUnitId, setAfterUnitId] = useState('');
-    const [afterUnitAssetTagId, setAfterUnitAssetTagId] = useState('');
-    const [afterStatusId, setAfterStatusId] = useState('');
-    const [afterPriorityId, setAfterPriorityId] = useState<number | undefined>(undefined);
-    const [afterLocation, setAfterLocation] = useState('');
-    const [movedComments, setMovedComments] = useState(initialAsset?.movedComments || '');
 
     // Barra fixa do celular some enquanto digita (o teclado ocupa a tela)
     const [isTyping, setIsTyping] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
     const { saveState, queueSave, saveNow, stage, flushSave, flushQuietly } = useReportAutosave(assetId);
+
+    const {
+        showUnmoveConfirmModal, setShowUnmoveConfirmModal,
+        isMoved, setIsMoved, afterClientId, setAfterClientId, afterUnitId, setAfterUnitId,
+        afterUnitAssetTagId, setAfterUnitAssetTagId, afterStatusId, setAfterStatusId,
+        afterPriorityId, setAfterPriorityId, afterLocation, setAfterLocation, movedComments, setMovedComments,
+        clearMovement, handleToggleMoved, handleAfterClientChange, handleAfterUnitChange, handleUnitAssetTagChange,
+        movementDestination, isMovementComplete,
+    } = useReportMovement(asset, initialAsset, saveNow);
 
     const processingId = Number(asset?.processingId || OVA_PROCESSING.DRAFT);
     const canRemoveItems = !readOnly && !!asset && processingId !== OVA_PROCESSING.APPROVED;
@@ -302,95 +303,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
     // ── Fotos ────────────────────────────────────────────────────────────────
 
-    const clearMovement = async () => {
-        setShowUnmoveConfirmModal(false);
-        setIsMoved(false);
-        setAfterClientId('');
-        setAfterUnitId('');
-        setAfterUnitAssetTagId('');
-        setAfterStatusId('');
-        setAfterPriorityId(undefined);
-        setAfterLocation('');
-        setMovedComments('');
-        await saveNow({
-            is_moved: false,
-            after_client_id: null,
-            after_unit_id: null,
-            after_unit_asset_tag_id: null,
-            after_tag_id: null,
-            after_tag_sub_id: null,
-            after_status_id: null,
-            after_priority_id: null,
-            after_location: null,
-            moved_comments: null
-        });
-        toast.info('Movimentação desativada e dados de destino resetados');
-    };
 
-    const handleToggleMoved = async (val: boolean) => {
-        if (!val) {
-            setShowUnmoveConfirmModal(true);
-            return;
-        }
-        setIsMoved(true);
-        const updates: Record<string, unknown> = { is_moved: true };
-        if (!afterClientId && asset?.clientId) {
-            setAfterClientId(asset.clientId);
-            updates.after_client_id = asset.clientId;
-        }
-        if (!afterUnitId && asset?.beforeUnitId) {
-            setAfterUnitId(asset.beforeUnitId);
-            updates.after_unit_id = asset.beforeUnitId;
-        }
-        if (!afterUnitAssetTagId && asset?.beforeUnitAssetTagId) {
-            setAfterUnitAssetTagId(asset.beforeUnitAssetTagId);
-            updates.after_unit_asset_tag_id = asset.beforeUnitAssetTagId;
-        }
-        if (afterPriorityId === undefined && asset?.beforePriorityId !== undefined) {
-            setAfterPriorityId(asset.beforePriorityId);
-            updates.after_priority_id = asset.beforePriorityId;
-        }
-        if (!afterStatusId && asset?.beforeStatusId) {
-            setAfterStatusId(asset.beforeStatusId);
-            updates.after_status_id = asset.beforeStatusId;
-        }
-        if (!afterLocation && asset?.beforeLocation) {
-            setAfterLocation(asset.beforeLocation);
-            updates.after_location = asset.beforeLocation;
-        }
-        await saveNow(updates);
-    };
-
-    const handleAfterClientChange = (clientId: string) => {
-        setAfterClientId(clientId);
-        setAfterUnitId('');
-        setAfterUnitAssetTagId('');
-        saveNow({
-            after_client_id: clientId,
-            after_unit_id: null,
-            after_unit_asset_tag_id: null,
-            after_tag_id: null,
-            after_tag_sub_id: null
-        });
-    };
-
-    const handleAfterUnitChange = (unitId: string) => {
-        setAfterUnitId(unitId);
-        setAfterUnitAssetTagId('');
-        saveNow({ after_unit_id: unitId, after_unit_asset_tag_id: null, after_tag_id: null, after_tag_sub_id: null });
-    };
-
-    const handleUnitAssetTagChange = (tag: UnitAssetTagOption | null) => {
-        setAfterUnitAssetTagId(tag?.id || '');
-        saveNow({
-            after_unit_asset_tag_id: tag?.id || null,
-            after_tag_id: tag?.asset_tag_id?.toString() || null,
-            after_tag_sub_id: tag?.asset_tag_sub_id?.toString() || null
-        });
-    };
-
-    const movementDestination = { afterClientId, afterUnitId, afterUnitAssetTagId, afterPriorityId, afterStatusId, afterLocation };
-    const isMovementComplete = destinationIsComplete(movementDestination);
 
     // ── Validação e status ───────────────────────────────────────────────────
 
