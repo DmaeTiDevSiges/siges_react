@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLiveInvalidation } from '../../hooks/useLiveInvalidation';
 import { User } from '../../types';
 import { dataService } from '../../services/dataService';
 import { toast } from 'sonner';
@@ -23,8 +25,19 @@ export const UsersList: React.FC<UsersListProps> = ({ companyId, onAddUser, onSe
         setSearch(val);
         localStorage.setItem('users_search', val);
     };
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+    const usersKey = ['users', 'byCompany', companyId] as const;
+    const { data: users = [], isPending: loading } = useQuery({
+        queryKey: usersKey,
+        queryFn: () => dataService.getUsersByCompany(companyId),
+        enabled: !!companyId,
+    });
+    // Tempo real: qualquer mudança em usuários rebusca (traz também os campos derivados).
+    useLiveInvalidation({
+        keys: [['users']],
+        subscribe: [dataService.subscribeToUsersThrottled],
+        enabled: !!companyId,
+    });
     const [visibleCount, setVisibleCount] = useState(10);
     const PAGE_SIZE = 10;
 
@@ -53,31 +66,6 @@ export const UsersList: React.FC<UsersListProps> = ({ companyId, onAddUser, onSe
     });
 
 
-    useEffect(() => {
-        const fetchUsers = async () => {
-            if (!companyId) return;
-            try {
-                const data = await dataService.getUsersByCompany(companyId);
-                setUsers(data);
-            } catch (error) {
-                console.error('Failed to load users', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchUsers();
-
-        // Subscribe to real-time updates for THIS company's users
-        const subscription = dataService.subscribeToUsersThrottled(() => {
-            // We could be more surgical, but re-fetching ensures we get all derived data
-            fetchUsers();
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, [companyId]);
-
     const filteredUsers = users.filter(u => {
         const matchesSearch = (u.nameFull?.toLowerCase() || '').includes(search.toLowerCase()) ||
             (u.email?.toLowerCase() || '').includes(search.toLowerCase()) ||
@@ -99,7 +87,7 @@ export const UsersList: React.FC<UsersListProps> = ({ companyId, onAddUser, onSe
 
         try {
             const newStatusName = await dataService.updateUserStatus(user.id, nextStatusId);
-            setUsers(prev => prev.map(u =>
+            queryClient.setQueryData<User[]>(usersKey, prev => (prev ?? []).map(u =>
                 u.id === user.id ? { ...u, statusName: newStatusName, statusId: nextStatusId } : u
             ));
         } catch (error) {

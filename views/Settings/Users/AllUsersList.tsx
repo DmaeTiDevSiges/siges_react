@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLiveInvalidation } from '../../../hooks/useLiveInvalidation';
 import { User } from '../../../types';
 import { dataService } from '../../../services/dataService';
 import { supabase } from '../../../services/core/supabase';
@@ -27,8 +29,15 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
         setSearch(val);
         localStorage.setItem('users_search', val);
     };
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+    const { data: users = [], isPending: loading } = useQuery({
+        queryKey: ['users', 'all'],
+        queryFn: () => dataService.getUsers(),
+    });
+    const setUsers = (updater: (prev: User[]) => User[]) =>
+        queryClient.setQueryData<User[]>(['users', 'all'], prev => updater(prev ?? []));
+    // Tempo real: qualquer mudança em usuários rebusca (traz também os campos derivados).
+    useLiveInvalidation({ keys: [['users']], subscribe: [dataService.subscribeToUsersThrottled] });
     const [visibleCount, setVisibleCount] = useState(10);
     const PAGE_SIZE = 10;
 
@@ -68,30 +77,6 @@ export const AllUsersList: React.FC<AllUsersListProps> = ({ onAddUser, onSelectU
     const isSuperAdmin = currentUser?.isAdminSuper === true;
     const isAdmin = currentUser?.isAdmin === true;
     const [isPhotoReviewOpen, setIsPhotoReviewOpen] = useState(false);
-
-    useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                const data = await dataService.getUsers();
-                setUsers(data);
-            } catch (error) {
-                console.error('Failed to load users', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchUsers();
-
-        // Subscribe to real-time updates for THIS company's users
-        const subscription = dataService.subscribeToUsersThrottled(() => {
-            // We could be more surgical, but re-fetching ensures we get all derived data
-            fetchUsers();
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, []);
 
     const companyUsers = (!isSuperAdmin && isAdmin && currentUser?.companyId)
         ? users.filter(u => u.companyId === currentUser.companyId)
