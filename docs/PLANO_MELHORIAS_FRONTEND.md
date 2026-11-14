@@ -23,14 +23,14 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 - Testes: `hooks/useScreenHistory.test.tsx`, `utils/backButton.test.ts`, `app/screenBack.test.ts`, `components/ui/Modal.test.tsx`. Jest `ui` agora transforma `react-router` (ESM) via `tests/tsJestImportMeta.cjs` (traduz `import.meta`).
 - NÃO verificado em aparelho/emulador (só Jest + build do Vite): roteiro no fim deste bloco.
 
-**Fase 1b — em andamento (fluxo da visita e OS/SS feitos em 13/11/2026):**
+**Fase 1b — em andamento (fluxo da visita, OS/SS e ativo feitos em 13/11/2026):**
 - `app/screenRoutes.ts`: rotas com parâmetros — `#/visita/:visitId`, `#/visita-ativo/:ovaId`, `#/visita-ativo/:ovaId/atividades/:orderTypeId`, `#/visita-ativo/:ovaId/materiais`. `toPath`/`fromPath` (com `matchPath`/`generatePath`; ids com ":" de ativo criado offline funcionam).
 - `useScreenHistory` agora trabalha com **caminhos** (tela + ids): trocar de ativo na mesma tela vira entrada nova; voltar/avançar, recarregar (F5) e link aberto leem a seleção **da URL** (`applySelection`), sem passar por `canEnter`. Link aberto antes do login só é seguido depois de logar (o hash fica intacto enquanto deslogado).
 - No `App.tsx`: `routeSelection` (de onde vêm os ids) e `applyRouteSelection` (como a URL volta para a memória). `leaveAssetReport()` descobre a visita pelo ativo quando o relatório foi aberto por link/recarregamento (senão a tela da visita ficava em branco).
-- **OS/SS:** `#/os/:orderId` (`order-detail`) e `#/ss/:orderId` (`service-request-detail`). A tela não busca sozinha, então o `App.tsx` faz isso: `loadRouteOrder` busca a OS/SS por `dataService.getOrderById` quando a URL traz um id diferente do `selectedOrder`; enquanto isso, `routeOrderId` mostra "Carregando..." e segura o id na URL; se não achar (ou estiver offline) avisa e cai no painel. `handleOrderSelect` cancela uma busca pendente. A aba da OS/SS e o `lastOrderSource` seguem em memória (após F5, o voltar da OS vai para o painel de OS).
-- **Para migrar outra tela:** incluir em `ROUTES` (`screenRoutes.ts`, mais específicas primeiro), incluir o id em `Selection`, ligar em `routeSelection`/`applyRouteSelection` e conferir o que acontece ao recarregar nela (a tela busca tudo pelo id? o "voltar" depende de estado em memória?).
+- **OS/SS e ativo:** `#/os/:orderId` (`order-detail`), `#/ss/:orderId` (`service-request-detail`) e `#/ativo/:assetId` (`asset-details`). Essas telas recebem o objeto pronto e não buscam sozinhas, então o `App.tsx` usa `hooks/useRouteEntity.ts`: quando a URL traz um id diferente do que está em memória, busca (`getOrderById`/`getAssetById`); enquanto isso, `pendingId` mostra "Carregando..." e segura o id na URL; se não achar (ou estiver offline, ou for ativo `tmp:` ainda não enviado) avisa e cai no painel. `handleOrderSelect`/`handleAssetSelect` chamam `cancel()` para descartar busca atrasada. A aba da OS/SS, `lastOrderSource` e `lastAssetSource` seguem em memória (após F5, o voltar cai na origem padrão: painel de OS / busca de ativos).
+- **Para migrar outra tela:** incluir em `ROUTES` (`screenRoutes.ts`, mais específicas primeiro), incluir o id em `Selection`, ligar em `routeSelection`/`applyRouteSelection` (se a tela não buscar sozinha pelo id, usar `useRouteEntity`) e conferir o que acontece ao recarregar nela (a tela busca tudo pelo id? o "voltar" depende de estado em memória?).
 - **Ainda em memória (não vão para a URL):** aba da visita (`visitActiveTab`), `assetReportBackScreen`, `lastVisitSource`, `selectedVisitForApproval` (aprovar/avaliar visita), aba da OS/SS (`orderDetailActiveTab`/`ssDetailActiveTab`), `lastOrderSource`.
-- **Próximas na fila:** ativos (`asset-details`), aprovação/avaliação da visita, depois cadastros (empresa, cliente, unidade…).
+- **Próximas na fila:** aprovação/avaliação da visita, depois cadastros (empresa, cliente, unidade…).
 **Outras telas com overlay próprio** (`fixed inset-0` sem usar `Modal`) ainda não tratam o voltar do Android: migrar para `Modal` ou `useBackToClose`.
 
 **Roteiro de teste manual (Android):**
@@ -41,7 +41,7 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 5. Recuperar senha pelo e-mail: link abre o app/site na tela de nova senha (o `#` do Supabase não pode ser perdido).
 6. Web/Electron: botão voltar do navegador percorre as telas; recarregar (F5) dentro de uma visita/ativo reabre a mesma tela (fluxo da visita já na URL); nas demais telas ainda abre no painel.
 7. Abrir `#/visita-ativo/<id>` colado no navegador (logado): abre o relatório do ativo; voltar leva à visita (não à tela em branco).
-8. OS/SS: abrir uma OS, recarregar (F5) → reabre a mesma OS; colar `#/os/<id>` ou `#/ss/<id>` no navegador abre a OS/SS; id inexistente avisa e cai no painel.
+8. OS/SS/ativo: abrir uma OS (ou ativo), recarregar (F5) → reabre a mesma; colar `#/os/<id>`, `#/ss/<id>` ou `#/ativo/<id>` no navegador abre a tela; id inexistente avisa e cai no painel.
 
 ## Etapa 2 — Camada de dados (TanStack Query) (PENDENTE)
 `QueryClientProvider` por cima do `dataService`; migrar telas de leitura uma a uma (começando por listas). O `readCache` offline continua por baixo (fonte de `initialData`). Invalidar por chave após cada operação da fila offline. Meta: sumir os `useEffect` + `loading/error` manuais.

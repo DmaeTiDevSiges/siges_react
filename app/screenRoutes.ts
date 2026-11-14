@@ -20,6 +20,8 @@ export type Selection = {
     orderTypeId?: string | null;
     /** OS ou SS aberta (order-detail / service-request-detail). */
     orderId?: string | null;
+    /** Ativo aberto (asset-details). */
+    assetId?: string | null;
 };
 
 type SelectionKey = keyof Selection;
@@ -38,6 +40,7 @@ const ROUTES: RouteDef[] = [
     { screen: 'order-visit-execute', pattern: '/visita/:visitId', params: ['visitId'] },
     { screen: 'order-detail', pattern: '/os/:orderId', params: ['orderId'] },
     { screen: 'service-request-detail', pattern: '/ss/:orderId', params: ['orderId'] },
+    { screen: 'asset-details', pattern: '/ativo/:assetId', params: ['assetId'] },
 ];
 
 /** Caminho da tela. Sem rota própria (ou sem os ids dela) cai em `/<tela>`. */

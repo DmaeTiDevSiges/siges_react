@@ -11,6 +11,7 @@ describe('toPath', () => {
     it('monta o caminho da OS e da SS', () => {
         expect(toPath('order-detail', { orderId: '77' })).toBe('/os/77');
         expect(toPath('service-request-detail', { orderId: '76' })).toBe('/ss/76');
+        expect(toPath('asset-details', { assetId: 'tmp:9' })).toBe('/ativo/tmp:9');
         // o id de OS de outra tela não vaza para a visita
         expect(toPath('order-visit-execute', { visitId: '12', orderId: '77' })).toBe('/visita/12');
     });
@@ -37,6 +38,7 @@ describe('fromPath', () => {
         expect(fromPath('/os/77')).toEqual({ screen: 'order-detail', selection: { orderId: '77' } });
         expect(fromPath('/ss/76')).toEqual({ screen: 'service-request-detail', selection: { orderId: '76' } });
         expect(fromPath('/os')).toBeNull();
+        expect(fromPath('/ativo/tmp:9')).toEqual({ screen: 'asset-details', selection: { assetId: 'tmp:9' } });
     });
 
     it('não confunde caminhos parecidos nem rotas antigas', () => {
