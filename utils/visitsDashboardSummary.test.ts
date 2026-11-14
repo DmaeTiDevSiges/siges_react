@@ -57,3 +57,47 @@ describe('visitsDashboardSummary', () => {
         expect(n.appropriationIds).toEqual(['7', '8']);
     });
 });
+
+import { computeFinancialTotals, computeVisitsInsights, INSIGHT_COLORS } from './visitsDashboardSummary';
+
+describe('computeVisitsInsights', () => {
+    const summary = {
+        composition: [{ label: 'Serviços', value: 60 }, { label: 'Materiais', value: 40 }],
+        trend: [{ day: '2026-11-03', count: 2 }, { day: '2026-11-04', count: 5 }],
+        units: [1, 2, 3, 4].map(n => ({ label: `U${n}`, value: n })),
+    };
+
+    it('atribui cores em rodízio e soma a composição', () => {
+        const r = computeVisitsInsights(summary, []);
+        expect(r.composition.map(c => c.color)).toEqual([INSIGHT_COLORS[0], INSIGHT_COLORS[1]]);
+        expect(r.totalComposition).toBe(100);
+    });
+
+    it('rótulo da tendência vira dia/mês', () => {
+        expect(computeVisitsInsights(summary, []).trend).toEqual([{ label: '03/11', value: 2 }, { label: '04/11', value: 5 }]);
+    });
+
+    it('units traz só as 3 primeiras; allUnits todas', () => {
+        const r = computeVisitsInsights(summary, []);
+        expect(r.units).toHaveLength(3);
+        expect(r.allUnits).toHaveLength(4);
+    });
+
+    it('movimentações agrupam por tipo (N/A sem tipo) e ordenam do maior para o menor', () => {
+        const r = computeVisitsInsights(summary, [
+            { assetTypeDescription: 'Bomba' }, { assetTypeDescription: 'Motor' }, { assetTypeDescription: 'Motor' }, {}, { assetTypeDescription: null },
+        ]);
+        expect(r.movements.map(m => [m.label, m.value])).toEqual([['Motor', 2], ['N/A', 2], ['Bomba', 1]].sort((a, b) => (b[1] as number) - (a[1] as number)));
+        expect(r.movements.every(m => typeof m.color === 'string')).toBe(true);
+    });
+});
+
+describe('computeFinancialTotals', () => {
+    it('soma value_total por grupo, ignorando vazios', () => {
+        expect(computeFinancialTotals({
+            services: [{ value_total: 10 }, { value_total: null }, {}],
+            materials: [{ value_total: 5.5 }],
+            vehicles: [],
+        })).toEqual({ services: 10, materials: 5.5, vehicles: 0 });
+    });
+});

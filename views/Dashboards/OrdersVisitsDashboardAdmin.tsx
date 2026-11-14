@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { formatDateInBrazil } from '../../utils/formatters';
-
 import { dataService } from '../../services/dataService';
 import { OrderVisit, User, OrderFilters, OrderVisitTeam } from '../../types';
 import { Modal } from '../../components/ui/Modal';
@@ -8,31 +7,30 @@ import { AssetMovementListItem } from '../../components/assets/AssetMovementList
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 import { toast } from 'sonner';
 import { Loading } from '../../components/ui/Loading';
-import { Skeleton } from '../../components/ui/Skeleton';
 import { formatCurrency } from '../../utils/formatters';
 import { Calendar } from '../../components/ui/Calendar';
 import { VisitsListPDFButton } from '../../components/reports/VisitsListPDFButton';
 import { VisitsListExcelButton } from '../../components/reports/VisitsListExcelButton';
 import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components/ui/FilterBarResponsive';
-import { BatchVisitReportPDFButton } from '../../components/reports/BatchVisitReportPDFButton';
 import { ExcelExportUtils } from '../../utils/ExcelExportUtils';
 import { FileUtils } from '../../utils/FileUtils';
 import { getLogoBase64 } from '../../utils/PdfImageUtils';
-import { AssetsListDocument } from '../../components/reports/AssetsListDocument';
 import { AssetMovementsDocument } from '../../components/reports/AssetMovementsDocument';
 import { pdf } from '@react-pdf/renderer';
 import { RiFileExcel2Fill } from 'react-icons/ri';
 import { PDFButton } from '../../components/ui/PDFButton';
+import { useMovedAssetsExport } from '../../hooks/useMovedAssetsExport';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { useClientScope } from '../../hooks/useClientScope';
 import { systemsScopeOption } from '../../utils/clientScope';
-import {
-    computeVisitsSummary,
-    EMPTY_VISITS_SUMMARY,
-    matchesProcessingSelection,
-    toProcessingSelection,
-    VisitsDashboardSummary,
-} from '../../utils/visitsDashboardSummary';
+import { computeFinancialTotals, computeVisitsInsights, computeVisitsSummary, EMPTY_VISITS_SUMMARY, matchesProcessingSelection, toProcessingSelection, VisitsDashboardSummary } from '../../utils/visitsDashboardSummary';
+import { OrderVisitExtended } from '../../components/dashboards/ordersVisitsAdmin/visitTypes';
+import { VisitsDashboardSkeleton } from '../../components/dashboards/ordersVisitsAdmin/VisitsDashboardSkeleton';
+import { mapVisitRow } from '../../components/dashboards/ordersVisitsAdmin/mapVisitRow';
+import { StatCard } from '../../components/dashboards/ordersVisitsAdmin/StatCard';
+import { AppropriationSection } from '../../components/dashboards/ordersVisitsAdmin/AppropriationSection';
+import { InsightsDoughnut, InsightsBar, InsightsTrend, InsightsMovementsBar } from '../../components/dashboards/ordersVisitsAdmin/InsightsCharts';
+
 
 interface OrdersVisitsDashboardAdminProps {
     currentUser: User;
@@ -68,550 +66,13 @@ const clearProviderVisitFilters = (filters: OrderFilters): OrderFilters => ({
     orderPlanId: [],
 });
 
-interface VisitStats {
-    avaliacao: number;
-    autorizadas: number;
-    agendadas: number;
-    execucao: number;
-    suspensas: number;
-}
-
-const VisitsDashboardSkeleton: React.FC = () => (
-    <div className="flex flex-col h-full bg-background-light dark:bg-background-dark" role="status" aria-label="Carregando painel de visitas">
-        <div className="shrink-0 border-b border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#0f172a]">
-            <div className="flex flex-wrap items-center gap-3">
-                <Skeleton variant="rectangular" width="min(100%, 520px)" height={48} />
-                <Skeleton variant="rectangular" width={180} height={48} />
-                <Skeleton variant="circular" width={44} height={44} className="ml-auto" />
-            </div>
-            <div className="mt-3">
-                <Skeleton variant="rectangular" width={220} height={44} />
-            </div>
-        </div>
-        <div className="flex-1 overflow-hidden p-4">
-            <div className="mb-5 flex gap-4 overflow-hidden py-2">
-                {[0, 1, 2, 3].map(card => (
-                    <div
-                        key={card}
-                        className="h-[110px] min-w-[160px] rounded-2xl border border-slate-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/40"
-                    >
-                        <div className="flex items-start justify-between">
-                            <Skeleton variant="rectangular" width={36} height={36} />
-                            <Skeleton variant="text" width={38} height={22} />
-                        </div>
-                        <Skeleton variant="text" width="70%" className="mt-4" />
-                    </div>
-                ))}
-            </div>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                {[0, 1, 2, 3, 4, 5].map(card => (
-                    <div
-                        key={card}
-                        className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/40"
-                    >
-                        <div className="flex items-center justify-between gap-3">
-                            <Skeleton variant="text" width="45%" />
-                            <Skeleton variant="rectangular" width={70} height={28} />
-                        </div>
-                        <Skeleton variant="text" width="72%" className="mt-4" />
-                        <Skeleton variant="text" width="54%" className="mt-2" />
-                        <div className="mt-5 flex gap-2">
-                            <Skeleton variant="rectangular" width={72} height={24} />
-                            <Skeleton variant="rectangular" width={88} height={24} />
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    </div>
-);
-
-// Extend OrderVisit type locally to include filter fields if they are missing in the main type
-interface OrderVisitExtended extends OrderVisit {
-    systemId?: string;
-    systemParentId?: string;
-    unitTypeId?: string;
-    unitTypeParentId?: string;
-    orderObjectId?: string;
-    orderTypeId?: string;
-    orderTypeSubId?: string;
-    contractId?: string;
-    planId?: string;
-    teamId?: string;
-    parentId?: number | null;
-    o_plan_description?: string;
-    // Extra fields for visits list PDF
-    typeCode?: string;
-    typeSubCode?: string;
-    sectorDescription?: string;
-}
 
 
 
-interface StatCardProps {
-    icon: string;
-    label: string;
-    count: number;
-    totalValue?: number;
-    color: string;
-    active?: boolean;
-    onClick?: () => void;
-    styleColor?: string;
-    visits?: OrderVisitExtended[];
-    /** Busca as visitas do card só no clique do PDF (lista paginada no servidor). */
-    loadVisits?: () => Promise<OrderVisitExtended[]>;
-}
 
-const AnimatedCount: React.FC<{ value: number; active?: boolean; color?: string }> = ({ value, active, color }) => {
-    const [displayValue, setDisplayValue] = useState(value);
-    const [isAnimating, setIsAnimating] = useState(false);
 
-    useEffect(() => {
-        if (value !== displayValue) {
-            setIsAnimating(true);
-            const timer = setTimeout(() => {
-                setDisplayValue(value);
-                setIsAnimating(false);
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [value, displayValue]);
 
-    return (
-        <span
-            className={`text-base font-black transition-all duration-300 ${isAnimating ? 'scale-125 text-primary brightness-150' : 'scale-100'} ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`}
-            style={!isAnimating && color && !active ? { color } : undefined}
-        >
-            {displayValue}
-        </span>
-    );
-};
 
-// Linha de v_orders_visits → OrderVisitExtended (lista, exportações).
-const mapVisitRow = (row: any): OrderVisitExtended => ({
-        id: row.id.toString(),
-        oId: row.o_id?.toString(),
-        ovMask: row.ov_mask,
-        ovStatusId: row.ov_status_id,
-        ovProcessingId: row.ov_processing_id,
-        ovCreatedAt: row.ov_created_at || row.o_requested_at,
-        ovCreatedUserId: row.ov_created_user_id?.toString(),
-        ovTeamLeadId: row.ov_team_leader_id?.toString(),
-        ovStartedAt: row.ov_started_at,
-        ovEndedAt: row.ov_ended_at,
-        unitDescription: row.o_unit_description,
-        systemDescription: row.o_system_description,
-        clientName: row.client_name || row.o_client_name,
-        teamLeaderName: row.ov_team_leader_name_short,
-        statusDescription: row.ov_status_description,
-        processingDescription: row.ov_processing_description,
-        ovOStatusId: row.ov_o_status_id,
-        ovOStatusDescription: row.ov_o_status_description,
-        ovOSuspendedReasonDescription: row.ov_o_suspended_reason_description,
-        unitId: row.o_unit_id?.toString(),
-        orderMask: row.o_mask,
-        teamCode: row.o_team_code,
-        requestedServices: row.o_requested_services,
-        progress: row.ov_o_progress ? Math.round(parseFloat(row.ov_o_progress) * 100) : 0,
-        ovDurationHours: row.ov_duration_hours ? parseFloat(row.ov_duration_hours) : 0,
-
-        servicesValue: row.ov_services_value ? parseFloat(row.ov_services_value) : 0,
-        materialsValue: row.ov_materials_value ? parseFloat(row.ov_materials_value) : 0,
-        vehiclesValue: row.ov_vehicles_value ? parseFloat(row.ov_vehicles_value) : 0,
-        totalValue: row.ov_total_value ? parseFloat(row.ov_total_value) : 0,
-
-        systemId: row.o_system_id?.toString(),
-        systemParentId: row.o_system_parent_id?.toString(),
-        unitTypeId: row.o_unit_type_id?.toString(),
-        unitTypeParentId: row.o_unit_type_parent_id?.toString(),
-        orderObjectId: row.o_object_id?.toString(),
-        orderTypeId: row.o_type_id?.toString(),
-        orderTypeSubId: row.o_type_sub_id?.toString(),
-        contractId: row.o_contract_id?.toString(),
-        planId: row.o_plan_id?.toString(),
-        teamId: row.o_team_id?.toString(),
-        companyId: row.o_provider_company_id?.toString(),
-        parentId: row.o_parent_id ? Number(row.o_parent_id) : null,
-        o_plan_description: row.o_plan_description || row.plan_description,
-        planDescription: row.o_plan_description || row.plan_description,
-        priorityId: row.o_priority_id?.toString(),
-        priorityCode: row.o_priority_code,
-        priorityColor: row.o_priority_color,
-        ovAssetsAmount: row.ov_assets_amount,
-        ovAssetsReportedAmount: row.ov_assets_reported_amount,
-        ovAssetsDraftAmount: row.ov_assets_draft_amount,
-        ovAssetsRevisedAmount: row.ov_assets_revised_amount,
-        ovAssetsDisapprovedAmount: row.ov_assets_disapproved_amount,
-        ovAssetsApprovedNoFiledAmount: row.ov_assets_approved_no_filed_amount,
-        ovAssetsApprovedFiledAmount: row.ov_assets_approved_filed_amount,
-        typeCode: row.o_type_code || row.type_code,
-        typeSubCode: row.o_type_sub_code || row.type_sub_code,
-        sectorDescription: row.o_asset_tag_description || row.asset_tag_description || row.o_system_description,
-        assetTagDescription: row.o_asset_tag_description || row.asset_tag_description,
-        ovCostsStatus: row.ov_costs_status,
-        assetTagSubDescription: row.o_asset_tag_sub_description || row.asset_tag_sub_description,
-        contractDescription: row.o_contract_description || row.contract_description,
-    });
-
-const StatCard: React.FC<StatCardProps> = ({ icon, label, count, totalValue, color, active, onClick, styleColor, visits, loadVisits }) => {
-    const getIconBgStyle = () => {
-        if (styleColor) return { backgroundColor: `${styleColor} 1A` };
-        return undefined;
-    };
-
-    const iconBgClass = !styleColor ? (color.includes('text-') ? color.replace('text-', 'bg-') + '/10' : 'bg-slate-900/50') : '';
-
-    return (
-        <div
-            onClick={onClick}
-            className={`backdrop-blur-sm p-4 rounded-[16px] border shadow-sm transition-all cursor-pointer group w-max min-w-[160px] lg:min-w-[180px] min-h-[110px] shrink-0 flex flex-col justify-between ${active
-                ? 'bg-primary/5 border-primary ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900'
-                : 'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-white/5 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md'
-                }`}
-        >
-            <div className="flex justify-between items-start gap-5">
-                <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${iconBgClass}`}
-                    style={getIconBgStyle()}
-                >
-                    <span
-                        className={`material-symbols-outlined text-[20px] ${!styleColor ? color : ''}`}
-                        style={styleColor ? { color: styleColor } : undefined}
-                    >
-                        {icon}
-                    </span>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                    {totalValue !== undefined && (
-                        <span className={`text-base font-black transition-all duration-300 ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`} style={color && !active ? { color } : undefined}>
-                            {formatCurrency(totalValue)}
-                        </span>
-                    )}
-                    {(loadVisits ? count > 0 : !!visits && visits.length > 0) && (
-                        <BatchVisitReportPDFButton 
-                            visits={visits} 
-                            loadVisits={loadVisits}
-                            count={loadVisits ? count : undefined}
-                            filename={`relatorios-${label.toLowerCase().replace(/\s+/g, '-')}`}
-                        />
-                    )}
-                </div>
-            </div>
-            <div className="flex justify-between items-center gap-5 mt-4">
-                <p className={`text-[13px] font-bold ${active ? 'text-primary' : 'text-slate-500 dark:text-slate-300'}`}>{label}</p>
-                <AnimatedCount value={count} active={active} color={styleColor} />
-            </div>
-        </div>
-    );
-};
-
-const AppropriationTable: React.FC<{ items: any[] }> = ({ items }) => {
-    if (!items.length) {
-        return (
-            <div className="p-12 text-center flex flex-col items-center gap-3">
-                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
-                    <span className="material-symbols-outlined text-slate-400 dark:text-slate-600 text-3xl">inbox</span>
-                </div>
-                <div>
-                    <p className="text-slate-900 dark:text-white text-sm font-black uppercase tracking-widest">Sem Registros</p>
-                    <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-tighter mt-1">Apropriação não disponível para estes filtros</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="overflow-x-auto no-scrollbar min-w-full">
-            <table className="w-full border-collapse">
-                <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800/50">
-                        <th className="px-5 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Código</th>
-                        <th className="px-5 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-widest">Descrição</th>
-                        <th className="px-5 py-4 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest">Unid</th>
-                        <th className="px-5 py-4 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest">Vlr Unit</th>
-                        <th className="px-5 py-4 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest">A/D</th>
-                        <th className="px-5 py-4 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest">Qtd</th>
-                        <th className="px-5 py-4 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest">Vlr Total</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/30">
-                    {items.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-primary/5 transition-colors group">
-                            <td className="px-5 py-3.5">
-                                <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-black text-primary border border-slate-200 dark:border-slate-700/50">{item.code}</span>
-                            </td>
-                            <td className="px-5 py-3.5">
-                                <p className="text-[12px] font-bold text-slate-600 dark:text-slate-200 group-hover:text-primary dark:group-hover:text-white transition-colors line-clamp-1">{item.description}</p>
-                            </td>
-                            <td className="px-5 py-3.5 text-center">
-                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">{item.unit || item.material_unit || '-'}</span>
-                            </td>
-                            <td className="px-5 py-3.5 text-right">
-                                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 font-mono">{formatCurrency(item.value_unit || 0)}</span>
-                            </td>
-                            <td className="px-5 py-3.5 text-center">
-                                <span className={`text-[10px] font-black ${item.discount < 1 ? 'text-red-500 dark:text-red-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                                    {item.discount?.toFixed(3) || '1.000'}
-                                </span>
-                            </td>
-                            <td className="px-5 py-3.5 text-center">
-                                <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-[11px] font-black text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/50">
-                                    {item.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00'}
-                                </span>
-                            </td>
-                            <td className="px-5 py-3.5 text-right">
-                                <span className="text-[14px] font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">{formatCurrency(item.value_total || 0)}</span>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-};
-
-interface AppropriationSectionProps {
-    title: string;
-    icon: string;
-    items: any[];
-    isExpanded: boolean;
-    onToggle: () => void;
-    total: number;
-    loading?: boolean;
-}
-
-const AppropriationSection: React.FC<AppropriationSectionProps> = ({
-    title,
-    icon,
-    items,
-    isExpanded,
-    onToggle,
-    total,
-    loading
-}) => {
-    return (
-        <div className="flex flex-col bg-white dark:bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden shadow-sm dark:shadow-none transition-all duration-300">
-            <div
-                onClick={onToggle}
-                className={`flex items-center justify-between p-4 cursor-pointer transition-all duration-300 hover:bg-slate-50 dark:hover:bg-white/5 active:scale-[0.99] group ${isExpanded ? 'bg-primary/10 dark:bg-primary/20 border-b border-primary/20' : 'bg-transparent'
-                    }`}
-            >
-                <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isExpanded ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:text-primary'}`}>
-                        <span className="material-symbols-outlined text-[20px]">{icon}</span>
-                    </div>
-                    <div>
-                        <h3 className="text-[13px] font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none mb-1">{title}</h3>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter">Resumo Consolidado</span>
-                            <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                            <span className="text-[9px] font-bold text-primary">{items.length} itens</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-5">
-                    {loading && (
-                        <div className="flex items-center mr-2">
-                            <Loading size="xs" />
-                        </div>
-                    )}
-                    <div className="flex flex-col items-end">
-                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none mb-1">Total {title}</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[16px] font-black text-slate-900 dark:text-white font-mono tracking-tighter">
-                                {formatCurrency(total)}
-                            </span>
-                        </div>
-                    </div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isExpanded ? 'bg-primary/10 dark:bg-primary/20 text-primary rotate-180' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
-                        <span className="material-symbols-outlined text-[20px]">expand_more</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className={`transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                <div className="p-0 border-t border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-900/40">
-                    <AppropriationTable items={items} />
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const InsightsDoughnut: React.FC<{ data: { label: string, value: number, color: string }[] }> = ({ data }) => {
-    const total = data.reduce((acc, d) => acc + d.value, 0);
-    let cumulativePercent = 0;
-
-    const getCoordinatesForPercent = (percent: number) => {
-        const x = Math.cos(2 * Math.PI * percent);
-        const y = Math.sin(2 * Math.PI * percent);
-        return [x, y];
-    };
-
-    return (
-        <div className="relative flex items-center justify-center">
-            <svg viewBox="-1 -1 2 2" className="w-32 h-32 -rotate-90 transform group-hover:scale-105 transition-transform duration-500">
-                {data.map((slice, i) => {
-                    if (total === 0) return null;
-                    const percent = slice.value / total;
-                    const [startX, startY] = getCoordinatesForPercent(cumulativePercent);
-                    cumulativePercent += percent;
-                    const [endX, endY] = getCoordinatesForPercent(cumulativePercent);
-                    const largeArcFlag = percent > 0.5 ? 1 : 0;
-                    const pathData = [
-                        `M ${startX} ${startY}`,
-                        `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`,
-                        `L 0 0`,
-                    ].join(' ');
-                    return <path key={i} d={pathData} fill={slice.color} className="opacity-80 hover:opacity-100 transition-opacity cursor-help" />;
-                })}
-                <circle cx="0" cy="0" r="0.75" fill="currentColor" className="text-white dark:text-slate-800" />
-            </svg>
-            <div className="absolute flex flex-col items-center">
-                <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-0.5">Total</span>
-                <span className="text-sm font-black text-slate-900 dark:text-white">{formatCurrency(total).split(',')[0]}</span>
-            </div>
-        </div>
-    );
-};
-
-const InsightsBar: React.FC<{ data: { label: string, value: number }[] }> = ({ data }) => {
-    const maxValue = Math.max(...data.map(d => d.value), 1);
-    return (
-        <div className="flex flex-col gap-3 w-full">
-            {data.slice(0, 5).map((item, i) => (
-                <div key={i} className="flex flex-col gap-1.5 group/bar">
-                    <div className="flex justify-between items-end">
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase truncate pr-4">{item.label}</span>
-                        <span className="text-[10px] font-black text-slate-400 font-mono italic">{formatCurrency(item.value)}</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 dark:bg-slate-800/50 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-primary rounded-full transition-all duration-1000"
-                            style={{ width: `${(item.value / maxValue) * 100}%` }}
-                        />
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-const InsightsTrend: React.FC<{ data: { label: string, value: number }[] }> = ({ data }) => {
-    const maxVal = Math.max(...data.map(d => d.value), 1);
-    if (data.length === 0) return null;
-
-    const width = 300;
-    const height = 100;
-    const paddingX = 12;
-    const paddingY = 22;
-
-    const chartWidth = width - (paddingX * 2);
-    const chartHeight = height - paddingY;
-
-    const stepX = chartWidth / (data.length - 1 || 1);
-    const points = data.map((d, i) => `${paddingX + (i * stepX)},${height - (d.value / maxVal) * chartHeight}`).join(' ');
-
-    const areaPath = `M ${paddingX},${height} L ${points} L ${width - paddingX},${height} Z`;
-    const linePath = `M ${points}`;
-
-    return (
-        <div className="w-full flex flex-col gap-2">
-            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-24 overflow-visible">
-                <defs>
-                    <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
-                    </linearGradient>
-                </defs>
-
-                <path d={areaPath} fill="url(#trendGradient)" className="transition-all duration-700" />
-
-                <path
-                    d={linePath}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    className="text-primary transition-all duration-700"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
-
-                {data.map((d, i) => {
-                    const x = paddingX + (i * stepX);
-                    const y = height - (d.value / maxVal) * chartHeight;
-
-                    return (
-                        <g key={i} className="group/point">
-                            <text
-                                x={x}
-                                y={y - 10}
-                                textAnchor="middle"
-                                className="text-[10px] font-black fill-slate-900 dark:fill-white select-none pointer-events-none transition-all duration-300 group-hover/point:scale-125"
-                                stroke="currentColor"
-                                strokeWidth="3"
-                                style={{ stroke: 'white', paintOrder: 'stroke', strokeOpacity: 0.9 }}
-                            >
-                                {d.value}
-                            </text>
-
-                            <circle
-                                cx={x}
-                                cy={y}
-                                r={i === data.length - 1 ? 4.5 : 2.5}
-                                className="fill-primary transition-all duration-300 group-hover/point:r-5"
-                            />
-                        </g>
-                    );
-                })}
-            </svg>
-            <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest pt-1 px-1 border-t border-slate-100 dark:border-slate-800/50">
-                <span>{data[0]?.label}</span>
-                <span>{data[Math.floor(data.length / 2)]?.label}</span>
-                <span>{data[data.length - 1]?.label}</span>
-            </div>
-        </div>
-    );
-};
-
-const InsightsMovementsBar: React.FC<{ data: { label: string; value: number; color: string }[] }> = ({ data }) => {
-    const maxValue = Math.max(...data.map(d => d.value), 1);
-    if (data.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full gap-2 py-4">
-                <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 text-3xl">moving</span>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Sem movimentações</p>
-            </div>
-        );
-    }
-    return (
-        <div className="flex flex-col gap-2.5 w-full">
-            {data.slice(0, 5).map((item, i) => (
-                <div key={i} className="flex flex-col gap-1 group/bar">
-                    <div className="flex justify-between items-end">
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase truncate pr-2 max-w-[70%]">{item.label}</span>
-                        <span className="text-[10px] font-black text-slate-400 font-mono">{item.value} ativo{item.value !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 dark:bg-slate-800/50 rounded-full overflow-hidden">
-                        <div
-                            className="h-full rounded-full transition-all duration-1000"
-                            style={{
-                                width: `${(item.value / maxValue) * 100}%`,
-                                backgroundColor: item.color
-                            }}
-                        />
-                    </div>
-                </div>
-            ))}
-            {data.length > 5 && (
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center pt-1">
-                    +{data.length - 5} tipo{data.length - 5 !== 1 ? 's' : ''} adicionais
-                </p>
-            )}
-        </div>
-    );
-};
 
 export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProps> = ({ 
     currentUser, 
@@ -773,80 +234,6 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
     const [isMovementsModalOpen, setIsMovementsModalOpen] = useState(false);
     const [visitFilterCount, setVisitFilterCount] = useState(0);
 
-    const [isExportingExcel, setIsExportingExcel] = useState(false);
-    const [isExportingPDF, setIsExportingPDF] = useState(false);
-
-    const handleExportExcel = async () => {
-        try {
-            const movedAssets = (appropriationData as any)?.movedAssets || [];
-            if (movedAssets.length === 0) {
-                toast.error('Nenhuma movimentação para exportar.');
-                return;
-            }
-            setIsExportingExcel(true);
-            const toastId = toast.loading('Gerando Excel de Movimentações...');
-            const reportRows = movedAssets.map((a: any) => ({
-                code: a.code || '',
-                description: a.description || '',
-                beforeClientUnit: `${a.beforeClientName || ''} - ${a.beforeUnitDescription || ''}`,
-                beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
-                beforeStatus: a.beforeStatusDescription || '',
-                beforeDate: a.beforeStatusAt ? formatDateInBrazil(a.beforeStatusAt, 'date', 'pt-BR') : '',
-                afterClientUnit: `${a.afterClientName || ''} - ${a.afterUnitDescription || ''}`,
-                afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
-                afterStatus: a.afterStatusDescription || '',
-                afterDate: a.afterStatusAt ? formatDateInBrazil(a.afterStatusAt, 'date', 'pt-BR') : '',
-                comments: a.movedComments || ''
-            }));
-            const mapping = {
-                code: 'Código', description: 'Descrição',
-                beforeClientUnit: 'Origem (Cliente - Unidade)', beforeSector: 'Origem (Setor > Posição)',
-                beforeStatus: 'Origem (Situação)', beforeDate: 'Origem (Data)',
-                afterClientUnit: 'Destino (Cliente - Unidade)', afterSector: 'Destino (Setor > Posição)',
-                afterStatus: 'Destino (Situação)', afterDate: 'Destino (Data)', comments: 'Observações'
-            };
-            const formattedData = ExcelExportUtils.formatDataForExport(reportRows, mapping);
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            await ExcelExportUtils.exportToExcel(formattedData, `movimentacoes_ativos_${timestamp}`, 'Movimentações');
-            toast.success('Excel exportado com sucesso!', { id: toastId });
-        } catch (error) {
-            console.error('Erro ao exportar Excel:', error);
-            toast.error('Ocorreu um erro ao exportar o Excel.');
-        } finally { setIsExportingExcel(false); }
-    };
-
-    const handleExportPDF = async () => {
-        try {
-            const movedAssets = (appropriationData as any)?.movedAssets || [];
-            if (movedAssets.length === 0) {
-                toast.error('Nenhuma movimentação para exportar.');
-                return;
-            }
-            setIsExportingPDF(true);
-            const toastId = toast.loading('Gerando PDF de Movimentações...');
-            const reportRows = movedAssets.map((a: any) => ({
-                code: a.code || '', description: a.description || '',
-                beforeClientName: a.beforeClientName || '', beforeUnitDescription: a.beforeUnitDescription || '',
-                beforeSector: `${a.beforeTagDescription || ''}${a.beforeTagSubDescription ? ' > ' + a.beforeTagSubDescription : ''}`,
-                beforeStatus: a.beforeStatusDescription || '',
-                beforeDate: a.beforeStatusAt ? formatDateInBrazil(a.beforeStatusAt, 'date', 'pt-BR') : '',
-                afterClientName: a.afterClientName || '', afterUnitDescription: a.afterUnitDescription || '',
-                afterSector: `${a.afterTagDescription || ''}${a.afterTagSubDescription ? ' > ' + a.afterTagSubDescription : ''}`,
-                afterStatus: a.afterStatusDescription || '',
-                afterDate: a.afterStatusAt ? formatDateInBrazil(a.afterStatusAt, 'date', 'pt-BR') : ''
-            }));
-            const logoBase64 = await getLogoBase64();
-            const doc = <AssetMovementsDocument assets={reportRows} logoBase64={logoBase64} generatedAt={formatDateInBrazil(new Date(), 'dateTime', 'pt-BR')} />;
-            const blob = await pdf(doc).toBlob();
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            await FileUtils.downloadFile(blob, `movimentacoes_ativos_${timestamp}.pdf`);
-            toast.success('PDF gerado com sucesso!', { id: toastId });
-        } catch (error) {
-            console.error('Erro ao gerar PDF:', error);
-            toast.error('Ocorreu um erro ao gerar o PDF.');
-        } finally { setIsExportingPDF(false); }
-    };
-
     useEffect(() => {
         if (isDateModalOpen) {
             setTempDateRange(dateRange);
@@ -908,6 +295,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         vehicles: [],
         movedAssets: []
     });
+    const { handleExportExcel, handleExportPDF, isExportingExcel, isExportingPDF } = useMovedAssetsExport(appropriationData.movedAssets);
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         services: false,
         materials: false,
@@ -1411,41 +799,17 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
         summary.stages,
     ]), [summary]);
 
-    const financialTotals = useMemo(() => {
-        return {
-            services: appropriationData.services.reduce((acc, i) => acc + (i.value_total || 0), 0),
-            materials: appropriationData.materials.reduce((acc, i) => acc + (i.value_total || 0), 0),
-            vehicles: appropriationData.vehicles.reduce((acc, i) => acc + (i.value_total || 0), 0)
-        };
-    }, [appropriationData.services, appropriationData.materials, appropriationData.vehicles]);
+    const financialTotals = useMemo(
+        () => computeFinancialTotals(appropriationData),
+        [appropriationData.services, appropriationData.materials, appropriationData.vehicles]
+    );
 
     const totalSumValue = financialTotals.services + financialTotals.materials + financialTotals.vehicles;
 
-    const insightData = useMemo(() => {
-        const colors = ['#3b82f6', '#10b981', '#6366f1', '#f59e0b', '#64748b', '#f43f5e', '#ec4899', '#8b5cf6'];
-        const composition = summary.composition.map((c, i) => ({ ...c, color: colors[i % colors.length] }));
-        const totalComposition = composition.reduce((acc, c) => acc + c.value, 0);
-        const trend = summary.trend.map(t => ({
-            label: t.day.split('-').slice(1).reverse().join('/'),
-            value: t.count,
-        }));
-        const allUnits = summary.units;
-
-        const movementMap = new Map();
-        appropriationData.movedAssets.forEach(a => {
-            const type = a.assetTypeDescription || 'N/A';
-            movementMap.set(type, (movementMap.get(type) || 0) + 1);
-        });
-        const movements = Array.from(movementMap.entries())
-            .map(([label, value], i) => ({
-                label,
-                value,
-                color: colors[i % colors.length]
-            }))
-            .sort((a, b) => b.value - a.value);
-
-        return { composition, trend, units: allUnits.slice(0, 3), allUnits, movements, totalComposition };
-    }, [summary, appropriationData.movedAssets]);
+    const insightData = useMemo(
+        () => computeVisitsInsights(summary, appropriationData.movedAssets),
+        [summary, appropriationData.movedAssets]
+    );
 
     // Linhas já carregadas (páginas do servidor).
     const displayedVisits = visits;

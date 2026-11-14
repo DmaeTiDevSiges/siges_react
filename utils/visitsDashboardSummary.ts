@@ -158,3 +158,49 @@ export function normalizeVisitsSummary(raw: any): VisitsDashboardSummary {
         appropriationIds: (raw?.appropriationIds || []).map((id: any) => String(id)),
     };
 }
+
+export const INSIGHT_COLORS = ['#3b82f6', '#10b981', '#6366f1', '#f59e0b', '#64748b', '#f43f5e', '#ec4899', '#8b5cf6'];
+
+export interface VisitsInsights {
+    composition: { label: string; value: number; color: string }[];
+    trend: { label: string; value: number }[];
+    /** As 3 maiores unidades (cartão resumido). */
+    units: { label: string; value: number }[];
+    allUnits: { label: string; value: number }[];
+    movements: { label: string; value: number; color: string }[];
+    totalComposition: number;
+}
+
+/** Dados dos gráficos do painel: composição de custo, tendência por dia, unidades e movimentações de ativos. */
+export function computeVisitsInsights(
+    summary: Pick<VisitsDashboardSummary, 'composition' | 'trend' | 'units'>,
+    movedAssets: { assetTypeDescription?: string | null }[],
+): VisitsInsights {
+    const composition = summary.composition.map((c, i) => ({ ...c, color: INSIGHT_COLORS[i % INSIGHT_COLORS.length] }));
+    const totalComposition = composition.reduce((acc, c) => acc + c.value, 0);
+    const trend = summary.trend.map(t => ({
+        label: t.day.split('-').slice(1).reverse().join('/'),
+        value: t.count,
+    }));
+
+    const movementMap = new Map<string, number>();
+    movedAssets.forEach(a => {
+        const type = a.assetTypeDescription || 'N/A';
+        movementMap.set(type, (movementMap.get(type) || 0) + 1);
+    });
+    const movements = Array.from(movementMap.entries())
+        .map(([label, value], i) => ({ label, value, color: INSIGHT_COLORS[i % INSIGHT_COLORS.length] }))
+        .sort((a, b) => b.value - a.value);
+
+    return { composition, trend, units: summary.units.slice(0, 3), allUnits: summary.units, movements, totalComposition };
+}
+
+/** Soma `value_total` das apropriações de serviços, materiais e veículos. */
+export function computeFinancialTotals(data: {
+    services: { value_total?: number | null }[];
+    materials: { value_total?: number | null }[];
+    vehicles: { value_total?: number | null }[];
+}) {
+    const sum = (items: { value_total?: number | null }[]) => items.reduce((acc, i) => acc + (i.value_total || 0), 0);
+    return { services: sum(data.services), materials: sum(data.materials), vehicles: sum(data.vehicles) };
+}
