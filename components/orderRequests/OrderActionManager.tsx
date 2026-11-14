@@ -6,6 +6,7 @@ import { AuthorizeOrderModal } from './modals/AuthorizeOrderModal';
 import { ScheduleOrderModal } from './modals/ScheduleOrderModal';
 import { CancelOrderModal } from './modals/CancelOrderModal';
 import { UpdateTeamModal } from './modals/UpdateTeamModal';
+import { DialogShell } from '../ui/DialogShell';
 
 interface OrderActionManagerProps {
     order: Order;
@@ -79,7 +80,7 @@ export const OrderActionManager: React.FC<OrderActionManagerProps> = ({
 
             {/* Bottom Sheet Menu */}
             {showMenu && createPortal(
-                <div className="fixed inset-0 z-100 flex items-end justify-center" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}>
+                <DialogShell label="Ações da OS" onClose={() => setShowMenu(false)} className="fixed inset-0 z-100 flex items-end justify-center" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}>
                     {/* Backdrop */}
                     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-300" />
 
@@ -130,7 +131,7 @@ export const OrderActionManager: React.FC<OrderActionManagerProps> = ({
                             })}
                         </div>
                     </div>
-                </div>,
+                </DialogShell>,
                 document.body
             )}
 

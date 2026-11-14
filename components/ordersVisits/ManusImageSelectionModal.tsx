@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ManusVisit, ManusReport, ManusImage } from '../../types/manus';
 import { OptimizedImage } from '../ui/OptimizedImage';
+import { DialogShell } from '../ui/DialogShell';
 
 interface ImageClassification {
     reportIndex: number;
@@ -57,7 +58,7 @@ export const ManusImageSelectionModal: React.FC<ManusImageSelectionModalProps> =
     };
 
     return (
-        <div className="fixed inset-0 z-300 flex items-center justify-center pad-safe-4" onClick={onCancel}>
+        <DialogShell label="Selecionar imagens" onClose={onCancel} className="fixed inset-0 z-300 flex items-center justify-center pad-safe-4" onClick={onCancel}>
             <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" />
             
             <div 
@@ -179,6 +180,6 @@ export const ManusImageSelectionModal: React.FC<ManusImageSelectionModalProps> =
                     </button>
                 </div>
             </div>
-        </div>
+        </DialogShell>
     );
 };

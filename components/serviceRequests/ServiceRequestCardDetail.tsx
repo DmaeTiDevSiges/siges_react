@@ -14,6 +14,7 @@ import { getPriorityColor, getStatusConfig, getTextColorForBg } from '../../util
 import { Modal } from '../ui/Modal';
 import { CancelOrderModal } from '../orderRequests/modals/CancelOrderModal';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { DialogShell } from '../ui/DialogShell';
 
 interface ServiceRequestCardDetailProps {
     order: Order;
@@ -357,7 +358,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
             {/* Unified Bottom Sheet Menu for SS */}
             {
                 showMenu && createPortal(
-                    <div className="fixed inset-0 z-100 flex items-end justify-center" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}>
+                    <DialogShell label="Ações da solicitação" onClose={() => setShowMenu(false)} className="fixed inset-0 z-100 flex items-end justify-center" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}>
                         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-300" />
                         <div
                             className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
@@ -439,7 +440,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                                 )}
                             </div>
                         </div>
-                    </div>,
+                    </DialogShell>,
                     document.body
                 )
             }

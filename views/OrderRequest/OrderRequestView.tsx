@@ -30,6 +30,7 @@ import { OrderVisitAssetView } from '../../types';
 import { AIContextualBar } from '../../components/ai/AIContextualBar';
 import { TransferVisitModal } from '../../components/ordersVisits/TransferVisitModal';
 import { toast } from 'sonner';
+import { DialogShell } from '../../components/ui/DialogShell';
 
 
 interface OrderRequestViewProps {
@@ -410,7 +411,7 @@ const OrderRequestViewContent: React.FC<OrderRequestViewProps> = ({
 
                 {/* Bottom Sheet Menu */}
                 {showMenu && createPortal(
-                    <div className="fixed inset-0 z-100 flex items-end justify-center" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}>
+                    <DialogShell label="Ações da OS" onClose={() => setShowMenu(false)} className="fixed inset-0 z-100 flex items-end justify-center" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }}>
                         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-300" />
                         <div
                             className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] shadow-2xl animate-in slide-in-from-bottom duration-300 pointer-events-auto"
@@ -458,7 +459,7 @@ const OrderRequestViewContent: React.FC<OrderRequestViewProps> = ({
                                 </button>
                             </div>
                         </div>
-                    </div>,
+                    </DialogShell>,
                     document.body
                 )}
 
@@ -469,7 +470,7 @@ const OrderRequestViewContent: React.FC<OrderRequestViewProps> = ({
 
                     {/* Start Visit Confirmation Modal */}
                     {showConfirmVisit && createPortal(
-                        <div className="fixed inset-0 z-200 flex items-center justify-center pad-safe-6" onClick={() => setShowConfirmVisit(false)}>
+                        <DialogShell label="Iniciar visita" onClose={() => setShowConfirmVisit(false)} className="fixed inset-0 z-200 flex items-center justify-center pad-safe-6" onClick={() => setShowConfirmVisit(false)}>
                             <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" />
                             <div
                                 className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300"
@@ -549,7 +550,7 @@ const OrderRequestViewContent: React.FC<OrderRequestViewProps> = ({
                                     </button>
                                 </div>
                             </div>
-                        </div>,
+                        </DialogShell>,
                         document.body
                     )}
 

@@ -12,6 +12,7 @@ import { PhotoViewer } from '../../components/ui/PhotoViewer';
 import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 import { OrderAlertCard } from './OrderAlertCard';
+import { DialogShell } from '../../components/ui/DialogShell';
 
 export interface OrderRequestFormProps {
     onBack: () => void;
@@ -921,7 +922,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
             )}
 
             {isPhotoActionOpen && (
-                <div className="fixed inset-0 z-150 bg-black/60 flex items-end justify-center animate-in fade-in" onClick={() => setIsPhotoActionOpen(false)}>
+                <DialogShell label="Anexar evidência" onClose={() => setIsPhotoActionOpen(false)} className="fixed inset-0 z-150 bg-black/60 flex items-end justify-center animate-in fade-in" onClick={() => setIsPhotoActionOpen(false)}>
                     <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-[24px] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] animate-in slide-in-from-bottom" onClick={e => e.stopPropagation()}>
                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 px-2">Anexar evidência</h3>
                         <div className="space-y-1">
@@ -942,7 +943,7 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                         </div>
                         <Button variant="ghost" className="w-full mt-4" onClick={() => setIsPhotoActionOpen(false)}>Cancelar</Button>
                     </div>
-                </div>
+                </DialogShell>
             )}
 
             {editingImage && (

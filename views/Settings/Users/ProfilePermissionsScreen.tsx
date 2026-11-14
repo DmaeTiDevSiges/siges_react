@@ -6,6 +6,7 @@ import { Button } from '../../../components/ui/Button';
 import { SearchInput } from '../../../components/ui/SearchInput';
 import { UserAvatar } from '../../../components/ui/UserAvatar';
 import { toast } from 'sonner';
+import { DialogShell } from '../../../components/ui/DialogShell';
 
 interface ProfilePermissionsScreenProps {
     currentUser?: User | null;
@@ -459,7 +460,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
 
             {/* Modal: Novo Perfil */}
             {showNewProfileModal && (
-                <div className="fixed inset-0 pad-safe-4 z-50 flex items-center justify-center bg-black/50">
+                <DialogShell label="Novo perfil" onClose={() => { setShowNewProfileModal(false); setNewProfileName(''); setNewProfileSourceId(''); }} className="fixed inset-0 pad-safe-4 z-50 flex items-center justify-center bg-black/50">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Novo Perfil</h3>
                         <input aria-label="Nome do perfil..."
@@ -500,12 +501,12 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                             </Button>
                         </div>
                     </div>
-                </div>
+                </DialogShell>
             )}
 
             {/* Modal: Copiar permissões de outro perfil */}
             {showCopyModal && (
-                <div className="fixed inset-0 pad-safe-4 z-50 flex items-center justify-center bg-black/50">
+                <DialogShell label="Copiar permissões" onClose={() => { setShowCopyModal(false); setCopySourceId(''); }} className="fixed inset-0 pad-safe-4 z-50 flex items-center justify-center bg-black/50">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Copiar Permissões</h3>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -543,7 +544,7 @@ export const ProfilePermissionsScreen: React.FC<ProfilePermissionsScreenProps> =
                             </Button>
                         </div>
                     </div>
-                </div>
+                </DialogShell>
             )}
         </div>
     );

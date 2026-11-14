@@ -10,6 +10,7 @@ import { Select } from '../../../ui/Select';
 import { Loading } from '../../../ui/Loading';
 import { OrderVisitAssetCardListItem } from '../OrderVisitAssetCardListItem';
 import { reportLabelClass } from './assetReportShared';
+import { DialogShell } from '../../../ui/DialogShell';
 
 type Option = { value: string; label: string };
 
@@ -86,7 +87,7 @@ export const AssetReportSwapPage: React.FC<Props> = ({ currentAssetId, initialCl
     };
 
     return (
-        <div className="fixed inset-0 z-150 bg-slate-100 dark:bg-slate-950 animate-in slide-in-from-right duration-300 overflow-y-auto sheet-safe-bottom">
+        <DialogShell label="Trocar ativo" onClose={onClose} closeOnEscape={false} className="fixed inset-0 z-150 bg-slate-100 dark:bg-slate-950 animate-in slide-in-from-right duration-300 overflow-y-auto sheet-safe-bottom">
             <div className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-100 dark:border-slate-800 p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
                 <div className="max-w-2xl mx-auto flex items-center gap-4">
                     <button
@@ -193,6 +194,6 @@ export const AssetReportSwapPage: React.FC<Props> = ({ currentAssetId, initialCl
                     </div>
                 )}
             </div>
-        </div>
+        </DialogShell>
     );
 };
