@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useBackToClose } from '../../hooks/useBackToClose';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { IconButton } from './IconButton';
 
 interface BottomSheetProps {
@@ -28,6 +29,10 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
     const isDragging = useRef(false);
 
     useBackToClose(isOpen, onClose);
+
+    // Esc fecha (só o de cima), foco entra na folha, Tab circula dentro e o foco volta a quem abriu
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useDialogA11y(isOpen, onClose, dialogRef);
 
     useEffect(() => {
         if (isOpen) {
@@ -72,7 +77,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
     if (!isOpen && !isAnimating) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-9999 flex items-end justify-center" role="dialog" aria-modal="true">
+        <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-9999 flex items-end justify-center outline-none" role="dialog" aria-modal="true">
             {/* Backdrop */}
             <div
                 className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${

@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Loading } from './Loading';
 import { useBackToClose } from '../../hooks/useBackToClose';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 
 // Safe haptic trigger (no-op on web)
@@ -60,6 +61,10 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
     // Botão voltar do Android fecha o modal (em vez de trocar de tela por baixo dele)
     useBackToClose(isOpen, onClose);
+
+    // Esc fecha (só o de cima), foco entra no diálogo, Tab circula dentro e o foco volta a quem abriu
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useDialogA11y(isOpen, onClose, dialogRef);
 
     // Body scroll lock
     useEffect(() => {
@@ -218,7 +223,9 @@ export const Modal: React.FC<ModalProps> = ({
 
     return createPortal(
         <div
-            className="fixed inset-0 flex items-center justify-center pad-safe-4"
+            ref={dialogRef}
+            tabIndex={-1}
+            className="fixed inset-0 flex items-center justify-center pad-safe-4 outline-none"
             style={{ zIndex: 9999 }}
             role="dialog"
             aria-modal="true"
