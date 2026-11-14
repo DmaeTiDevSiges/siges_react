@@ -4,6 +4,8 @@ import { Card } from '../ui/Card';
 import { formatDateTime, formatCurrency, getStatusConfig } from '../../utils/formatters';
 import { OrderVisitProcessingButton } from './OrderVisitProcessingButton';
 import { VisitReportPDFButton } from '../reports/VisitReportPDFButton';
+import { useUiVersion } from '../../contexts/UiVersionContext';
+import { OrderVisitCardListItemV2 } from './OrderVisitCardListItemV2';
 
 interface OrderVisitCardListItemProps {
     visit: OrderVisit;
@@ -11,6 +13,9 @@ interface OrderVisitCardListItemProps {
 }
 
 export const OrderVisitCardListItem: React.FC<OrderVisitCardListItemProps> = ({ visit, onClick }) => {
+    const { isV2 } = useUiVersion();
+    if (isV2) return <OrderVisitCardListItemV2 visit={visit} onClick={onClick} />;
+
     return (
         <Card
             id={`visit-item-${visit.id}`}

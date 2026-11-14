@@ -7,6 +7,7 @@
 > visita em andamento, Hoje, Serviços, Visitas, Abastecimentos; tocar abre a lista atual filtrada, "‹ Início"
 > e voltar do Android retornam) · F4–F6 ⏳.
 > **14/11/2026 — PILOTO APROVADO pelo usuário → F4 liberada** (começa por Visitas, na ordem da seção F4).
+> **F4 em andamento (desde 14/11/2026), item 1 — Visitas.** Método: cada tela ganha a versão v2 AO LADO da atual (o componente escolhe por `useUiVersion().isV2`, como `Card`/`Button`), então a chave continua revertendo tudo; o código v1 só sai na F6. Testes ANTES (visual atual registrado + especificação do novo). Feito: ✅ `OrderVisitCardListItem` (cartão da lista de visitas, usado em 5 telas) → `OrderVisitCardListItemV2` (só tokens; sem caixa alta nem fonte 9–11 px; chips suaves; botão real no número da visita; barra de progresso acessível; PDF segue vermelho e fora do botão). Próximo: detalhe da visita (`OrderVisitCardDetail`), lista "Hoje" (`DashboardOrdersVisitsTodayScreen`), execução (`OrderVisitScreen`, com `StepFlow`) e relatório do ativo.
 > D1: mantido o azul SIGES, ajustado para contraste AA — claro `#1a6fd1`, escuro `#3b93f0` com texto escuro;
 > topo usa token `hero`. Chave fica no **Perfil** (Configurações é só admin).
 
