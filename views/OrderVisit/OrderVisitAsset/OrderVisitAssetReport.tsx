@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
 import { dataService } from '../../../services/dataService';
-import { Asset, OrderVisit, OrderVisitAssetActivity, OrderVisitAssetMaterial, OrderVisitAssetView } from '../../../types';
+import { OrderVisit, OrderVisitAssetActivity, OrderVisitAssetMaterial, OrderVisitAssetView } from '../../../types';
 import { usePermissions } from '../../../contexts/PermissionsContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAssetLock } from '../../../hooks/useAssetLock';
@@ -28,6 +28,8 @@ import { useReportStatusFlow } from '../../../hooks/useReportStatusFlow';
 import { useReportPhotoActions } from '../../../hooks/useReportPhotoActions';
 import { useReportMovement } from '../../../hooks/useReportMovement';
 import { useReportAssetNavigation } from '../../../hooks/useReportAssetNavigation';
+import { useReportCopyFrom } from '../../../hooks/useReportCopyFrom';
+import { useReportSwap } from '../../../hooks/useReportSwap';
 import { OrderVisitAssetCardDetail } from '../../../components/ordersVisits/ordersVisitsAssets/OrderVisitAssetCardDetail';
 import { MaintenanceChecklistView } from '../../../components/ordersVisits/ordersVisitsAssets/MaintenanceChecklistView';
 import { OVA_PROCESSING, REPORT_SECTION_IDS, ReportSection, parseRecorder } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/assetReportShared';
@@ -41,7 +43,6 @@ import { AssetReportSwapPage } from '../../../components/ordersVisits/ordersVisi
 import { AssetReportProgress, AssetReportSaveStatus, ReportProgressItem } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportProgress';
 import { AssetReportActions, AssetReportActionFlags, hasPrimaryReportAction } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportActions';
 import { AssetReportCopyFromModal } from '../../../components/ordersVisits/ordersVisitsAssets/assetReport/AssetReportCopyFromModal';
-import { isOnline } from '../../../services/offline/offlineConfig';
 import {
     buildProgressSpecs, checkReport, hasMaintenancePlan as planIsChosen, isSameMovementDestination,
 } from '../../../utils/assetReportRules';
@@ -114,10 +115,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     // Modais
     const [showMovementModal, setShowMovementModal] = useState(false);
     const [showRemoveModal, setShowRemoveModal] = useState(false);
-    /** Copiar de outro ativo: escolha da origem e confirmação. */
-    const [showCopyFromModal, setShowCopyFromModal] = useState(false);
-    const [copySource, setCopySource] = useState<OrderVisitAssetView | null>(null);
-    const [isCopying, setIsCopying] = useState(false);
 
     // Fotos
     const photos = useReportPhotos(assetId, initialAsset);
@@ -149,8 +146,6 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
     const [afterRecorder, setAfterRecorder] = useState<string>(initialAsset?.afterRecorder != null ? String(initialAsset.afterRecorder) : '');
 
     // Troca de ativo
-    const [showSwapPage, setShowSwapPage] = useState(false);
-    const [isSwapping, setIsSwapping] = useState(false);
 
     // Movimentação
 
@@ -351,28 +346,9 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
 
 
 
-    /** Copia o relatório da origem escolhida para este (em rascunho); fotos não são copiadas. */
-    const handleCopyFromConfirm = async () => {
-        if (!copySource || !asset) return;
-        if (!isOnline()) {
-            toast.error('Copiar de outro ativo precisa de internet.');
-            return;
-        }
-        setIsCopying(true);
-        try {
-            // Grava o que estiver pendente antes, para o autosave não sobrescrever a cópia depois.
-            await flushSave().catch(() => undefined);
-            const result = await dataService.copyOrderVisitAssetReport(String(asset.id), String(copySource.id), currentUserId);
-            toast.success(`Relatório copiado de ${copySource.code || 'outro ativo'}: ${result.activities} atividade(s) e ${result.materials} material(is). Inclua as fotos.`);
-            setCopySource(null);
-            await loadPageData();
-        } catch (error) {
-            console.error('Erro ao copiar relatório:', error);
-            toast.error(error instanceof Error && error.message ? error.message : 'Erro ao copiar o relatório.');
-        } finally {
-            setIsCopying(false);
-        }
-    };
+    const {
+        showCopyFromModal, setShowCopyFromModal, copySource, setCopySource, isCopying, openCopyFrom, handleCopyFromConfirm,
+    } = useReportCopyFrom(asset, currentUserId, flushSave, loadPageData);
 
     // ── Atividades, materiais, ativo ─────────────────────────────────────────
 
@@ -430,20 +406,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         }
     };
 
-    const handleSwapAsset = async (newAsset: Asset) => {
-        try {
-            setIsSwapping(true);
-            await dataService.changeOrderVisitAsset(assetId, newAsset.id, currentUserId);
-            toast.success('Ativo alterado com sucesso!');
-            setShowSwapPage(false);
-            loadPageData();
-        } catch (error: any) {
-            console.error('Error swapping asset:', error);
-            toast.error(error.message || 'Erro ao trocar ativo');
-        } finally {
-            setIsSwapping(false);
-        }
-    };
+    const { showSwapPage, setShowSwapPage, isSwapping, handleSwapAsset } = useReportSwap(assetId, currentUserId, loadPageData);
 
     // ── Render ───────────────────────────────────────────────────────────────
 
@@ -484,10 +447,7 @@ export const OrderVisitAssetReport: React.FC<OrderVisitAssetReportProps> = ({ as
         onConfirmEdit: handleConfirmEdit,
         onSwap: () => setShowSwapPage(true),
         onRemove: () => setShowRemoveModal(true),
-        onCopyFrom: () => {
-            if (!isOnline()) { toast.error('Copiar de outro ativo precisa de internet.'); return; }
-            setShowCopyFromModal(true);
-        },
+        onCopyFrom: openCopyFrom,
     };
     const showMobileBar = !readOnly && hasPrimaryReportAction(actionFlags, localEditMode);
     const showProgress = !isReadOnly;
