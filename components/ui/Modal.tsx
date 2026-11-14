@@ -275,7 +275,7 @@ export const Modal: React.FC<ModalProps> = ({
                                             title
                                         )}
                                     </h3>
-                                    <IconButton
+                                    <IconButton ariaLabel="Fechar"
                                         icon="close"
                                         onClick={onClose}
                                         variant="ghost"

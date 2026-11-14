@@ -387,7 +387,7 @@ export const OrderVisitAssetsList: React.FC<OrderVisitAssetsListProps> = ({
                                         className="w-full px-4 py-3 pr-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     />
                                     <div className="absolute inset-y-0 right-1 flex items-center">
-                                        <IconButton
+                                        <IconButton ariaLabel="Ler código de barras"
                                             icon="barcode_scanner"
                                             size="sm"
                                             variant="ghost"

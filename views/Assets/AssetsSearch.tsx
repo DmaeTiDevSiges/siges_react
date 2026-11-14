@@ -475,7 +475,7 @@ export const AssetsSearch: React.FC<AssetsSearchProps> = ({ currentUser, onSelec
                                 // Não dispara busca automática ao limpar
                             }}
                             rightAction={
-                                <IconButton
+                                <IconButton ariaLabel="Ler código de barras"
                                     icon="barcode_scanner"
                                     size="sm"
                                     variant="ghost"

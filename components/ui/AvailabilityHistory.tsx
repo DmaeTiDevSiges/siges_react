@@ -30,7 +30,7 @@ export const AvailabilityHistory: React.FC<AvailabilityHistoryProps> = ({
         <div className="mt-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 transition-all duration-300">
             <div className="flex items-center justify-between mb-4">
                 {onOffsetChange ? (
-                    <IconButton 
+                    <IconButton ariaLabel="Período anterior" 
                         icon="chevron_left" 
                         variant="ghost" 
                         size="sm" 
@@ -46,7 +46,7 @@ export const AvailabilityHistory: React.FC<AvailabilityHistoryProps> = ({
                 </h4>
 
                 {onOffsetChange ? (
-                    <IconButton 
+                    <IconButton ariaLabel="Próximo período" 
                         icon="chevron_right" 
                         variant="ghost" 
                         size="sm" 

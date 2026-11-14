@@ -292,7 +292,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
                         </div>
                         {canCreate('orders_requests_create') && (
                             <div className="relative">
-                                <IconButton
+                                <IconButton ariaLabel="Mais opções"
                                     icon="more_vert"
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -341,7 +341,7 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
 
                     {canCreate('orders_requests_create') && (
                         <div className="relative">
-                            <IconButton
+                            <IconButton ariaLabel="Mais opções"
                                 icon="more_vert"
                                 onClick={(e) => {
                                     e.stopPropagation();

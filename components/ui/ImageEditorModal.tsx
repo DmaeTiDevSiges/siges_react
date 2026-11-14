@@ -494,10 +494,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
         <div className="fixed inset-0 z-9999 bg-black flex flex-col animate-in fade-in duration-300" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
             {/* Toolbar Top - Close, Download and OK */}
             <div className="p-4 bg-linear-to-b from-black to-transparent flex items-center justify-between z-10">
-                <IconButton icon="close" onClick={onClose} variant="soft" size="lg" className="bg-white/10! text-white! rounded-2xl!" />
+                <IconButton ariaLabel="Fechar" icon="close" onClick={onClose} variant="soft" size="lg" className="bg-white/10! text-white! rounded-2xl!" />
                 
                 <div className="flex gap-3 items-center">
-                    <IconButton 
+                    <IconButton ariaLabel="Baixar" 
                         icon="download" 
                         onClick={handleDownload} 
                         disabled={isSaving}
@@ -557,9 +557,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, imag
                     )}
                     
                     <div className="flex gap-4">
-                        <IconButton icon="rotate_right" onClick={rotateImage} variant="soft" size="md" className="bg-white/10! text-white! rounded-xl!" />
+                        <IconButton ariaLabel="Girar" icon="rotate_right" onClick={rotateImage} variant="soft" size="md" className="bg-white/10! text-white! rounded-xl!" />
                         {!preventAnnotation && (
-                            <IconButton icon="undo" onClick={handleUndo} disabled={objects.length === 0} variant="soft" size="md" className="bg-white/10! text-white! rounded-xl!" />
+                            <IconButton ariaLabel="Desfazer" icon="undo" onClick={handleUndo} disabled={objects.length === 0} variant="soft" size="md" className="bg-white/10! text-white! rounded-xl!" />
                         )}
                     </div>
                 </div>

@@ -54,7 +54,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
             leftIcon={<span className="text-sm font-bold opacity-50">R$</span>}
             rightIcon={
                 value && !disabled ? (
-                    <IconButton
+                    <IconButton ariaLabel="Limpar valor"
                         icon="close"
                         size="sm"
                         variant="ghost"

@@ -152,13 +152,13 @@ export const LoansChecklistsList: React.FC<LoansChecklistsListProps> = ({ onSele
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <IconButton
+                                            <IconButton ariaLabel="Editar checklist"
                                                 icon="edit"
                                                 onClick={() => onSelect(item)}
                                                 size="sm"
                                             />
                                             <div title={isInUse ? 'Vinculado a empréstimo(s)' : ''}>
-                                                <IconButton
+                                                <IconButton ariaLabel="Excluir checklist"
                                                     icon="delete"
                                                     onClick={() => handleDelete(item.id)}
                                                     size="sm"

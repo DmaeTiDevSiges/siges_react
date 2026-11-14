@@ -58,7 +58,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
             <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                     <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Leitor de Código</h3>
-                    <IconButton icon="close" onClick={onClose} variant="ghost" />
+                    <IconButton ariaLabel="Fechar" icon="close" onClick={onClose} variant="ghost" />
                 </div>
 
                 <div className="p-6">

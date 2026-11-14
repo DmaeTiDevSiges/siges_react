@@ -163,12 +163,12 @@ export const EvaluationRequirementsList: React.FC = () => {
                                     status={item.isAvailable ? 'active' : 'inactive'}
                                     size="sm"
                                 />
-                                <IconButton
+                                <IconButton ariaLabel="Editar requisito"
                                     icon="edit"
                                     size="sm"
                                     onClick={() => handleEdit(item)}
                                 />
-                                <IconButton
+                                <IconButton ariaLabel="Excluir requisito"
                                     icon="delete"
                                     variant="danger"
                                     size="sm"

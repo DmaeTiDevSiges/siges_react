@@ -236,8 +236,8 @@ export const AssetAttributesBrandsScreen: React.FC = () => {
                                 </div>
                                 {editingGroup?.id !== group.id && (
                                     <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                                        <IconButton icon="edit" variant="ghost" className="text-slate-400! w-6! h-6!" onClick={() => { setEditingGroup(group); setEditGroupName(group.group); setEditGroupDesc(group.description || ''); }} />
-                                        <IconButton icon="delete" variant="ghost" className="text-slate-400! hover:text-red-500! w-6! h-6!" onClick={() => setRemoveTarget({ type: 'group', id: group.id })} />
+                                        <IconButton ariaLabel="Editar grupo" icon="edit" variant="ghost" className="text-slate-400! w-6! h-6!" onClick={() => { setEditingGroup(group); setEditGroupName(group.group); setEditGroupDesc(group.description || ''); }} />
+                                        <IconButton ariaLabel="Excluir grupo" icon="delete" variant="ghost" className="text-slate-400! hover:text-red-500! w-6! h-6!" onClick={() => setRemoveTarget({ type: 'group', id: group.id })} />
                                     </div>
                                 )}
                             </div>
@@ -305,13 +305,13 @@ export const AssetAttributesBrandsScreen: React.FC = () => {
                                             </div>
                                             {editingOption?.id !== option.id && (
                                                 <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                                                    <IconButton
+                                                    <IconButton ariaLabel="Editar opção"
                                                         icon="edit"
                                                         variant="ghost"
                                                         className="text-slate-400! w-6! h-6!"
                                                         onClick={() => { setEditingOption(option); setEditOptionName(option.group); setEditOptionDesc(option.description || ''); }}
                                                     />
-                                                    <IconButton
+                                                    <IconButton ariaLabel="Excluir opção"
                                                         icon="delete"
                                                         variant="ghost"
                                                         className="text-slate-400! hover:text-red-500!"

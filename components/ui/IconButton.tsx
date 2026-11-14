@@ -1,12 +1,22 @@
 import React from 'react';
 
-interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+/**
+ * Botão só de ícone. O NOME ACESSÍVEL É OBRIGATÓRIO (o ícone sozinho não diz nada
+ * a quem usa leitor de tela): passe `ariaLabel` (preferido), `aria-label` ou
+ * `title`. Descreva a ação ("Excluir requisito"), não o desenho ("lixeira").
+ */
+type AccessibleName =
+    | { ariaLabel: string }
+    | { 'aria-label': string }
+    | { title: string };
+
+type IconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & AccessibleName & {
     icon: string;
     variant?: 'ghost' | 'soft' | 'primary' | 'danger' | 'outline';
     color?: string;
     size?: 'sm' | 'md' | 'lg';
     ariaLabel?: string;
-}
+};
 
 export const IconButton: React.FC<IconButtonProps> = ({
     icon,
@@ -28,6 +38,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
     };
 
     const style = color ? { borderColor: color, color: color } : {};
+    // Nome acessível: ariaLabel > aria-label > title.
+    const accessibleName = ariaLabel ?? props['aria-label'] ?? props.title;
 
     const sizes = {
         sm: "h-11 w-11",
@@ -39,10 +51,11 @@ export const IconButton: React.FC<IconButtonProps> = ({
         <button
             className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`}
             style={style}
-            aria-label={ariaLabel}
             {...props}
+            aria-label={accessibleName}
         >
-            <span className="material-symbols-outlined text-[20px]">{icon}</span>
+            {/* O texto do ícone ("delete", "close"...) não pode ser lido em voz alta */}
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">{icon}</span>
         </button>
     );
 };

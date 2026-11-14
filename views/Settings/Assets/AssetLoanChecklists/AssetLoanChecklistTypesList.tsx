@@ -82,12 +82,12 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, onSelect, onDelete })
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                <IconButton
+                <IconButton ariaLabel="Editar tipo de checklist"
                     icon="edit"
                     onClick={() => onSelect(item)}
                     size="sm"
                 />
-                <IconButton
+                <IconButton ariaLabel="Excluir tipo de checklist"
                     icon="delete"
                     onClick={() => onDelete(item.id)}
                     size="sm"

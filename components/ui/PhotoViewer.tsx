@@ -141,7 +141,7 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
             {/* Top Toolbar */}
             <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-50 bg-linear-to-b from-black/80 to-transparent" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                 <div className="flex items-center gap-2">
-                    <IconButton
+                    <IconButton ariaLabel="Fechar"
                         icon="close"
                         onClick={onClose}
                         variant="soft"
@@ -161,13 +161,13 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
                 </div>
 
                 <div className="flex items-center gap-2 md:gap-3 bg-white/5 backdrop-blur-xl p-1.5 rounded-full border border-white/10 shadow-2xl">
-                    <IconButton icon="download" onClick={handleDownload} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
+                    <IconButton ariaLabel="Baixar" icon="download" onClick={handleDownload} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
                     <div className="w-px h-4 bg-white/10 my-auto mx-1" />
-                    <IconButton icon="rotate_right" onClick={handleRotate} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
+                    <IconButton ariaLabel="Girar" icon="rotate_right" onClick={handleRotate} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
                     <div className="w-px h-4 bg-white/10 my-auto mx-1" />
-                    <IconButton icon="zoom_in" onClick={handleZoomIn} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
-                    <IconButton icon="zoom_out" onClick={handleZoomOut} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
-                    <IconButton icon="restart_alt" onClick={handleReset} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
+                    <IconButton ariaLabel="Aumentar zoom" icon="zoom_in" onClick={handleZoomIn} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
+                    <IconButton ariaLabel="Diminuir zoom" icon="zoom_out" onClick={handleZoomOut} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
+                    <IconButton ariaLabel="Redefinir" icon="restart_alt" onClick={handleReset} size="sm" variant="soft" className="bg-white/10! text-white! hover:bg-white/20!" />
                 </div>
             </div>
 
@@ -176,7 +176,7 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
                 <>
                     {currentIndex > 0 && (
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 z-50 hidden md:block">
-                            <IconButton
+                            <IconButton ariaLabel="Foto anterior"
                                 icon="chevron_left"
                                 onClick={handlePrev}
                                 className="bg-black/50 hover:bg-black/70 text-white w-12 h-12 rounded-full border border-white/10 backdrop-blur-md transition-all hover:scale-110"
@@ -185,7 +185,7 @@ export const PhotoViewer: React.FC<PhotoViewerProps> = ({ src, images, initialIn
                     )}
                     {currentIndex < (images!.length - 1) && (
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 hidden md:block">
-                            <IconButton
+                            <IconButton ariaLabel="Próxima foto"
                                 icon="chevron_right"
                                 onClick={handleNext}
                                 className="bg-black/50 hover:bg-black/70 text-white w-12 h-12 rounded-full border border-white/10 backdrop-blur-md transition-all hover:scale-110"

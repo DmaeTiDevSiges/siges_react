@@ -160,7 +160,7 @@ export const FaceDetectionCamera: React.FC<FaceDetectionCameraProps> = ({ onCapt
                 {/* Top Actions & Feedback */}
                 <div className="absolute top-0 inset-x-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start pointer-events-none">
                     <div className="pointer-events-auto">
-                        <IconButton
+                        <IconButton ariaLabel="Fechar"
                             icon="close"
                             variant="ghost"
                             style={{ color: 'white' }}

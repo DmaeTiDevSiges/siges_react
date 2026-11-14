@@ -70,5 +70,13 @@ Hoje: `App.tsx` ~3.700 linhas, ~190 `useState`, `switch (currentScreen)`.
 - **Próximos:** (a) tipos do Supabase (`supabase gen types`) para trocar `any` nas respostas dos serviços (`visitsService` 116, `ordersService` 114, `assetsService` 55); (b) `any` em `FilterBarResponsive` (68) e nas telas de dashboard; (c) `OrderVisitAssetReport` (1.483 linhas) → hooks `useAssetReport`, `useVisitActions` + seções, **com testes de caracterização antes** (mesmo método do painel do líder); (d) `OrderVisitScreen` (1.039).
 - **Passo 2 feito (14/11/2026): cópia morta apagada** — `DashboardOrdersAdminScreen.tsx` (e o teste dela) não era importada por ninguém; `onBack`, que a tela de serviços recebia e nunca usava, saiu da desestruturação. O manual (`docs/manual/09-dashboard-relatorios.md`, seção 3.1) ainda cita o nome antigo com uma descrição que não corresponde à tela: revisar o texto.
 
-## Etapa 5 — Acessibilidade e design system (PENDENTE)
-`IconButton` obrigatório com `aria-label` nos botões só de ícone (254 arquivos usam `material-symbols-outlined`); foco e `Esc` nos modais; alvo de toque ≥ 44 px; centralizar botão/modal/card no design system junto com o redesign (`PLANO_DESIGN_ESTILO_NUBANK.md`).
+## Etapa 5 — Acessibilidade e design system (EM ANDAMENTO)
+**Medido em 14/11/2026 (antes):** `IconButton` 77 usos, **46 sem nome acessível**; ~58 `<button>` só de ícone sem nome, em 39 arquivos; `Modal` já tinha `role="dialog"`, `aria-modal` e `aria-label`, mas **não fecha com `Esc` e não gerencia o foco**.
+
+**Passo 1 feito (14/11/2026) — `IconButton` com nome obrigatório:** o tipo agora exige `ariaLabel`, `aria-label` ou `title` (um uso sem nome **não compila**; `IconButton.test.tsx` garante com `@ts-expect-error`); precedência `ariaLabel > aria-label > title`; o texto do ícone ("delete", "close"…) ganhou `aria-hidden` para não ser lido em voz alta. Os 46 usos sem nome receberam rótulos que descrevem a ação ("Excluir requisito", "Foto anterior", "Limpar valor", "Fechar detalhes da unidade"…). Mudança invisível: nenhum layout alterado.
+
+**Falta (em ordem):**
+1. `Modal`: `Esc` fecha só o de cima (reusar a pilha de `utils/backButton`, que já resolve modais aninhados) e foco — entrar no diálogo ao abrir, manter o `Tab` dentro e devolver o foco a quem abriu.
+2. ~58 `<button>` só de ícone sem nome (39 arquivos; os maiores: `OrderVisitCardDetail` 7, `DashboardUnitsPowerElectric` 6, `DashboardOrdersAdminCalendarScreen` 4) → migrar para `IconButton` ou acrescentar `aria-label`; depois uma regra de lint (`jsx-a11y/control-has-associated-label` ou verificação própria) para não voltar.
+3. **Alvo de toque ≥ 44 px — decisão visual pendente:** `IconButton` tem `sm` 44, `md` **40**, `lg` 48; levar o `md` a 44 muda o tamanho de dezenas de botões (ou ampliar só a área clicável, sem mudar o desenho). Combinar antes de mexer.
+4. Centralizar botão/modal/card no design system junto com o redesign (`PLANO_DESIGN_ESTILO_NUBANK.md`).

@@ -1042,7 +1042,7 @@ highlightedUnitIds={highlightedUnitIds}
                                                     className="bg-slate-100/80 dark:bg-slate-700/80 text-primary hover:bg-slate-200 transition-colors"
                                                     title="Exportar"
                                                 />
-                                                <IconButton
+                                                <IconButton ariaLabel="Fechar detalhes da unidade"
                                                     icon="close"
                                                     size="md"
                                                     onClick={() => setSelectedUnitIdFromMap(null)}
@@ -1559,7 +1559,7 @@ highlightedUnitIds={highlightedUnitIds}
                                                                         className="bg-slate-100/50 dark:bg-slate-700/50 text-primary hover:bg-slate-200 transition-colors"
                                                                         title="Exportar"
                                                                     />
-                                                                    <IconButton
+                                                                    <IconButton ariaLabel="Fechar detalhes da unidade"
                                                                         icon="close"
                                                                         size="sm"
                                                                         onClick={() => setSelectedUnitIdFromMap(null)}

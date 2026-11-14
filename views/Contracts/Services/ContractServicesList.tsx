@@ -258,7 +258,7 @@ export const ContractServicesList: React.FC<ContractServicesListProps> = ({ cont
                                     #{editingService.serviceCode || 'SEM CÓDIGO'}
                                 </span>
                             </div>
-                            <IconButton
+                            <IconButton ariaLabel="Excluir serviço"
                                 icon="delete"
                                 variant="danger"
                                 size="lg"

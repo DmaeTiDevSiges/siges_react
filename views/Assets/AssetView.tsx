@@ -1460,7 +1460,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                  </div>
                                                  <div className="flex flex-col items-center gap-1">
                                                      {canEdit('assets_materials_create_edit_delete') && (
-                                                         <IconButton
+                                                         <IconButton ariaLabel="Editar componente"
                                                              icon="edit"
                                                              variant="ghost"
                                                              className="text-slate-400! hover:text-primary!"
@@ -1468,7 +1468,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                                          />
                                                      )}
                                                      {canDelete('assets_materials_create_edit_delete') && (
-                                                         <IconButton
+                                                         <IconButton ariaLabel="Remover componente"
                                                              icon="delete"
                                                              variant="ghost"
                                                              className="text-slate-400! hover:text-red-500!"

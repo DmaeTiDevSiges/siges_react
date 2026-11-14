@@ -126,7 +126,7 @@ export const EvaluationRequirementsScreen: React.FC<EvaluationRequirementsScreen
             {/* Header */}
             <div className="sticky top-0 z-20 bg-white dark:bg-card-dark border-b border-slate-100 dark:border-slate-800 px-4 py-3">
                 <div className="flex items-center gap-3">
-                    <IconButton
+                    <IconButton ariaLabel="Voltar"
                         icon="arrow_back"
                         onClick={onBack}
                         className="text-slate-600 dark:text-slate-300"
@@ -230,12 +230,12 @@ export const EvaluationRequirementsScreen: React.FC<EvaluationRequirementsScreen
                                             status={item.isAvailable ? 'active' : 'inactive'}
                                             size="sm"
                                         />
-                                        <IconButton
+                                        <IconButton ariaLabel="Editar requisito"
                                             icon="edit"
                                             size="sm"
                                             onClick={() => handleEdit(item)}
                                         />
-                                        <IconButton
+                                        <IconButton ariaLabel="Excluir requisito"
                                             icon="delete"
                                             variant="danger"
                                             size="sm"

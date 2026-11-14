@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center px-4 py-2.5 justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
                 {showBackButton && (
-                    <IconButton
+                    <IconButton ariaLabel="Voltar"
                         icon="arrow_back"
                         onClick={onBackClick}
                         variant="ghost"
@@ -176,7 +176,7 @@ export const Header: React.FC<HeaderProps> = ({
                 />
 
                 {onMenuClick && (
-                    <IconButton
+                    <IconButton ariaLabel="Abrir menu"
                         icon="menu"
                         onClick={onMenuClick}
                         className="text-slate-900 dark:text-white"

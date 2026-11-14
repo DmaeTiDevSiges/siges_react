@@ -180,7 +180,7 @@ export const AssetAlertListItem = memo<AssetAlertListItemProps>(({
                         {!alert.isDone && (onEdit || onDelete) && (
                             <div className="flex items-center gap-0.5 shrink-0 ml-1.5">
                                 {onEdit && (
-                                    <IconButton 
+                                    <IconButton ariaLabel="Editar alerta" 
                                         icon="edit" 
                                         size="sm" 
                                         onClick={handleEditClick}
@@ -188,7 +188,7 @@ export const AssetAlertListItem = memo<AssetAlertListItemProps>(({
                                     />
                                 )}
                                 {onDelete && (
-                                    <IconButton 
+                                    <IconButton ariaLabel="Excluir alerta" 
                                         icon="delete" 
                                         size="sm" 
                                         onClick={handleDeleteClick}

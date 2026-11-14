@@ -66,7 +66,7 @@ export const DecimalInput: React.FC<DecimalInputProps> = ({
             rightIcon={
                 <div className="flex items-center gap-2">
                     {value && !disabled && (
-                        <IconButton
+                        <IconButton ariaLabel="Limpar valor"
                             icon="close"
                             size="sm"
                             variant="ghost"

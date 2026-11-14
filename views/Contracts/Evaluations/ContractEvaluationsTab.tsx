@@ -270,7 +270,7 @@ export const ContractEvaluationsTab: React.FC<ContractEvaluationsTabProps> = ({ 
                                     </span>
                                 )}
                             </div>
-                            <IconButton
+                            <IconButton ariaLabel="Excluir requisito"
                                 icon="delete"
                                 variant="danger"
                                 size="lg"
