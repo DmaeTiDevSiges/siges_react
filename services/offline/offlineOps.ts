@@ -49,6 +49,8 @@ export interface OfflineOpSpec {
     afterSync?: (args: any[], helpers: { unlockOva: (ovaId: string) => Promise<void> }) => Promise<void>;
     /** Online deu certo: não mexe no cache (a leitura seguinte traz o servidor). */
     skipLocalOnOnline?: boolean;
+    /** Online deu certo: grava no aparelho só o que a rede perdida deixaria desatualizado (ex.: perfil). */
+    afterOnline?: (ctx: OfflineOpContext, args: any[], result: any) => Promise<void>;
 }
 
 export const str = (v: unknown) => (v === undefined || v === null ? '' : String(v));

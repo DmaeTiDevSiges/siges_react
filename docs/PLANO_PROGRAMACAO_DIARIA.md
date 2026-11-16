@@ -121,6 +121,25 @@ coluna **não** gera log.
 `fn_orders_daily_schedule_my_day` devolve a sequência do dia da equipe do usuário logado
 (`SECURITY DEFINER`; o líder não precisa de permissão na rota).
 
+### 2.9 Mensagem para o grupo de WhatsApp (16/11/2026)
+
+Botão verde só com o ícone (`FaWhatsapp` de `react-icons/fa`, quadrado 32×32), logo à direita do botão de PDF. Abre o modal "Mensagem para o
+WhatsApp" com o texto da programação do dia, **editável**, e o botão **Copiar mensagem** (o usuário
+cola na conversa do WhatsApp). **Decisão (16/11/2026): não haverá envio direto nem agendado ao
+grupo**, só copiar e colar; por isso não há grupo configurado, n8n nem migration.
+
+- Usa os mesmos dados do PDF (`reportTeams`, `reportEmptyTeams`, `reportPriorities`): respeita o filtro EQ.RESPONSAVEL e o filtro da faixa de prioridade.
+- Formato (sintaxe do WhatsApp, `*negrito*` e `_itálico_`):
+  1. Cabeçalho com dia e contrato.
+  2. Uma seção por equipe com OS (código, nome e líder), na ordem de execução: `n. OS 1234 · Unidade / Setor / Posição` e o serviço solicitado em itálico, cortado em 90 caracteres.
+  3. Linha "Sem OS programadas" com as equipes vazias.
+  4. "Prioridade de atendimento (sem equipe)": só as prioritárias ainda sem equipe; as já programadas aparecem na coluna da equipe.
+  5. Total de OS programadas e de equipes.
+- A faixa ABERTAS não entra na mensagem.
+- O botão fica ativo em qualquer dia (inclusive passado, como o PDF), desabilitado só enquanto o quadro carrega.
+- Cópia: `navigator.clipboard`, com `execCommand('copy')` como alternativa (WebView/HTTP).
+- Teste: `services/orders/dailyScheduleMessage.test.ts` (**ainda não executado**: o Jest do ambiente de desenvolvimento falhou com `testRunner ... jest-circus/runner not found`; a saída foi conferida com `tsx`. Rodar `npm test` na máquina do usuário).
+
 ---
 
 ## 3. Banco
@@ -162,6 +181,8 @@ a RPC sozinho; se a RPC sumir (DOWN), volta para as consultas diretas.
 | `components/orderRequests/dailySchedule/ScheduleOrderCard.tsx` | Cartão; `isScheduleLocked` (em execução) e `scheduleTeamRule` (para qual equipe pode ir) |
 | `components/orderRequests/dailySchedule/ScheduleOrderActionsModal.tsx` | Menu ⋮ (alternativa ao arraste no celular): priorizar, devolver, subir/descer, inserir na equipe |
 | `components/orderRequests/dailySchedule/ScheduleTeamColumn.tsx` | Coluna da equipe |
+| `services/orders/dailyScheduleMessage.ts` | `buildDailyScheduleMessage`: texto do WhatsApp (função pura) — ver 2.9 |
+| `components/orderRequests/dailySchedule/ScheduleWhatsAppModal.tsx` | Modal com o texto editável e botão Copiar |
 | `components/dashboards/DashboardTabs.tsx` | Aba "Programação", à esquerda de "Visitas" |
 | `components/ui/FilterSelect.tsx` | `autoWidth`: filtro Contrato cresce com o nome |
 | `index.css` | Animação `animate-execution-pulse` |

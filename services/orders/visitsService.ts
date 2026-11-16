@@ -418,7 +418,7 @@ export const visitsService = {
             clientUuid?: string;
             vehicleClientUuid?: string;
         }
-    ): Promise<void> {
+    ): Promise<{ visitId?: string } | void> {
         const payload: { order_id: number; user_id: number; started_at?: string } = {
             order_id: Number(order.id),
             user_id: Number(currentUser.id)
@@ -478,6 +478,8 @@ export const visitsService = {
         if (order.parentId) {
             await ordersService.updateServiceRequestStatus(order.parentId.toString());
         }
+
+        return { visitId: result.visit_id !== undefined ? String(result.visit_id) : undefined };
     },
 
     // -------------------------------------------------------------------------

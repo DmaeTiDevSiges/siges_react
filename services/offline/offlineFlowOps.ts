@@ -2,7 +2,7 @@ import { getBrazilNaiveTimestamp, getBrazilTimestamp } from '../../utils/dateUti
 import { OFFLINE_COLLECTIONS } from './store/offlineStore';
 import { offlineUuidOf, vehicleOfflineUuidOf } from './offlineUuid';
 import { cacheKey, findInCachedReads, patchCachedRead, patchCachedReadsOf, readCached, registerReadKey } from './readCache';
-import { getOfflineOpsStore, patchOva, sameId, str, visitOfListItem, type OfflineOpSpec } from './offlineOps';
+import { getOfflineOpsStore, patchOva, sameId, str, visitOfListItem, type OfflineOpContext, type OfflineOpSpec } from './offlineOps';
 
 /**
  * F4 — inclusões e fluxo que podem ser feitos SEM internet.
@@ -179,12 +179,47 @@ const buildLocalVisit = (visitId: string, order: any, user: any, startedAt: stri
     ovAssetsRevisedAmount: 0,
 });
 
+/**
+ * Cards de OS e de visitas (listas em cache): a OS passa a "Em Andamento" e a visita
+ * aparece na lista do líder — para o técnico ver tudo atualizado mesmo sem internet.
+ */
+const patchStartedVisitCards = async (ctx: OfflineOpContext, order: any, user: any, visit: any | undefined) => {
+    const orderId = str(order.id);
+    const inProgress = (o: any) => (sameId(o?.id, orderId) ? { ...o, statusId: 5, statusDescription: 'Em Andamento' } : undefined);
+    await patchCachedRead<any>(ctx.store, 'getOrderById', [orderId], o => (o ? { ...o, statusId: 5, statusDescription: 'Em Andamento' } : undefined));
+    await patchCachedReadsOf<any[]>(ctx.store, 'getOrdersByLeader', list =>
+        Array.isArray(list) && list.some(o => sameId(o?.id, orderId)) ? list.map(o => inProgress(o) || o) : undefined);
+    if (visit) {
+        await patchCachedReadsOf<any[]>(ctx.store, 'getVisitsByLeader', (list, args) =>
+            Array.isArray(list) && sameId(args[0], user.id) && !list.some(v => sameId(v?.id, visit.id)) ? [visit, ...list] : undefined);
+    }
+};
+
 export const OFFLINE_FLOW_OPS: Record<string, OfflineOpSpec> = {
     // startOrderVisit(order, currentUser, startedAt?, options?) — Iniciar visita (etapa 3)
     startOrderVisit: {
         visitId: a => (offlineUuidOf(a[3]) ? visitTmpIdOf(a[3]) : undefined),
         entityKey: a => `visit:${visitTmpIdOf(a[3])}:start`,
         skipLocalOnOnline: true,
+        // Início online deu certo: o perfil guardado já passa a "em atendimento". Sem isso, se a
+        // rede cair antes da recarga do usuário, o fallback offline devolveria o perfil antigo.
+        afterOnline: async (ctx, a, result) => {
+            const [order, user] = [a[0] || {}, a[1] || {}];
+            if (!user.uuid) return;
+            const profile = await ctx.store.get<any>(OFFLINE_COLLECTIONS.profile, str(user.uuid)).catch(() => null);
+            if (!profile) return;
+            const visitId = result?.visitId ? str(result.visitId) : undefined;
+            await patchStartedVisitCards(ctx, order, user, visitId
+                ? { ...buildLocalVisit(visitId, order, user, a[2] || getBrazilNaiveTimestamp()), ovMask: `${order.orderMask || 'OS'} · em andamento` }
+                : undefined).catch(() => undefined);
+            await ctx.store.put(OFFLINE_COLLECTIONS.profile, str(user.uuid), {
+                ...profile,
+                isAvailable: false,
+                isOvInProgress: true,
+                oIdInProgress: str(order.id),
+                ...(visitId ? { ovIdInProgress: visitId } : {}),
+            });
+        },
         prepareArgs: async a => {
             const [order, user, startedAt] = [a[0] || {}, a[1] || {}, a[2]];
             // Mesmas regras da tela (OrderRequestView.canStartVisit) e da v3.
@@ -249,7 +284,7 @@ export const OFFLINE_FLOW_OPS: Record<string, OfflineOpSpec> = {
             }
             await putRead(ctx, 'getOrderVisitVehicles', [visitId], vehicles);
             // OS em andamento.
-            await patchCachedRead<any>(ctx.store, 'getOrderById', [str(order.id)], o => (o ? { ...o, statusId: 5 } : undefined));
+            await patchStartedVisitCards(ctx, order, user, visit);
             // Perfil guardado: técnico "em visita" (reabrir o app offline cai na visita).
             if (user.uuid) {
                 const profile = await ctx.store.get<any>(OFFLINE_COLLECTIONS.profile, str(user.uuid)).catch(() => null);

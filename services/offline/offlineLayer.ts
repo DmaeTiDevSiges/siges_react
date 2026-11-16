@@ -427,6 +427,7 @@ export const installOfflineLayer = (target: Record<string, any>): void => {
                         if (networkFailureCount() === before) {
                             // Mantém o cache igual ao servidor (se cair a rede logo depois).
                             if (!spec.skipLocalOnOnline) spec.applyLocal(opContext(), args).catch(() => undefined);
+                            else spec.afterOnline?.(opContext(), args, result).catch(() => undefined);
                             return result;
                         }
                         // O serviço "engoliu" uma falha de rede: reenviar pela fila (idempotente).

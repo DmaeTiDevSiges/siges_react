@@ -52,6 +52,9 @@ import { OPEN_ID_PREFIX, PRIORITY_ID_PREFIX, PriorityOrderCard, ScheduleOrderCar
 import { ScheduleTeamColumn } from '../../components/orderRequests/dailySchedule/ScheduleTeamColumn';
 import { ScheduleAuthorizeModal } from '../../components/orderRequests/dailySchedule/ScheduleAuthorizeModal';
 import { ScheduleOrderActionsModal, type ScheduleActionTarget } from '../../components/orderRequests/dailySchedule/ScheduleOrderActionsModal';
+import { ScheduleWhatsAppModal } from '../../components/orderRequests/dailySchedule/ScheduleWhatsAppModal';
+import { FaWhatsapp } from 'react-icons/fa';
+import { buildDailyScheduleMessage } from '../../services/orders/dailyScheduleMessage';
 
 const PRIORITY = 'priority';
 const OPEN = 'open';
@@ -283,6 +286,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     });
     const [calendarOpen, setCalendarOpen] = useState(false);
     const [contractModalOpen, setContractModalOpen] = useState(false);
+    const [whatsAppOpen, setWhatsAppOpen] = useState(false);
     /** Filtro EQ.RESPONSAVEL: vazio = todas as equipes. Salvo por contrato. */
     const [teamFilter, setTeamFilter] = useState<string[]>(() => loadFilters(contractId).team);
     /** Filtros das faixas ABERTAS / PRIORIDADE: vazio = todos. Unidade/setor salvos por contrato. */
@@ -1070,6 +1074,16 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                         priorities={reportPriorities}
                         disabled={!board || loading}
                     />
+                    <button
+                        type="button"
+                        onClick={() => setWhatsAppOpen(true)}
+                        disabled={!board || loading}
+                        className="flex items-center justify-center w-8 h-8 shrink-0 rounded-[8px] font-bold bg-[#25D366]/10 dark:bg-[#25D366]/20 border border-[#25D366]/40 text-[#1ea952] hover:bg-[#25D366]/20 active:scale-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Mensagem para o WhatsApp"
+                        aria-label="Mensagem para o WhatsApp"
+                    >
+                        <FaWhatsapp className="text-[14px]" />
+                    </button>
                     {date !== today && (
                         <button
                             type="button"
@@ -1229,6 +1243,18 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     />
                 )}
             </Modal>
+
+            <ScheduleWhatsAppModal
+                isOpen={whatsAppOpen}
+                onClose={() => setWhatsAppOpen(false)}
+                message={whatsAppOpen ? buildDailyScheduleMessage({
+                    contractLabel: contract ? (contract.description || contractLabel(contract)) : '',
+                    dateLabel,
+                    teams: reportTeams,
+                    emptyTeams: reportEmptyTeams,
+                    priorities: reportPriorities,
+                }) : ''}
+            />
 
             <ScheduleAuthorizeModal
                 order={pendingAuth?.order || null}
