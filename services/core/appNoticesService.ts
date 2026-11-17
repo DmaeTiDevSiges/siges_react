@@ -56,8 +56,10 @@ export const appNoticesService = {
       query = query.contains('dashboards', [dashboard]);
     }
 
+    // Ordem de vigência: o que começa mais cedo primeiro.
     query = query
-      .order('severity_id', { ascending: true })
+      .order('start_date', { ascending: true })
+      .order('end_date', { ascending: true })
       .order('created_at', { ascending: false });
 
     const { data, error } = await query;
@@ -99,7 +101,10 @@ export const appNoticesService = {
     const from = page * pageSize;
     const to = from + pageSize - 1;
 
+    // Ordem de vigência: o que começa mais cedo primeiro.
     query = query
+      .order('start_date', { ascending: true })
+      .order('end_date', { ascending: true })
       .order('created_at', { ascending: false })
       .range(from, to);
 
