@@ -282,6 +282,23 @@ Obs.: o servidor muda a OS já ao iniciar (Em Andamento) e ao encerrar (`flow_or
 depois da sincronização o painel passa a mostrar o dado do servidor. Visita iniciada **com**
 internet e relatada offline parte do card já sem a OS (o servidor a tirou ao iniciar). Testes em `offlineFlowOps.test.ts` ("Meu Painel…"). Falta validar no aparelho.
 
+**Abastecimento de combustível offline (17/11/2026)** — Meu Painel › Abastecimentos
+(`services/offline/offlineFuelOps.ts`, testes em `offlineFuelOps.test.ts`):
+- **Comprovante** (`uploadFuelExpenseImages`): comprimido e salvo no aparelho já com o nome final;
+  o passo devolve o caminho que o R2 terá. Reenviar sobrescreve o mesmo arquivo (`options.fileName`).
+- **Despesa** (`saveRentalExpense`): só o **lançamento novo de combustível** vai para a fila, com
+  `offline_uuid` (migration **20261201**; sem ela, um reenvio pode duplicar). Editar/excluir e a
+  importação em lote continuam só online. Com internet nada muda (`CostsPeriod` e importação
+  chamam o serviço direto).
+- As duas operações usam a mesma chave (`fuel:<arquivo>`): a despesa espera o upload.
+- A lista do mês (`getFuelExpensesByUser(userId, 'YYYY-MM')`, filtro por `created_at` em
+  São Paulo) recebe o lançamento na hora; sem cache do mês, a lista nasce só com ele. Offline a
+  aba mostra só o mês atual. O preparo automático baixa tipos de custo e a lista do mês atual.
+- Leitura do comprovante por IA: sem internet o preenchimento é manual (aviso na tela). A trava
+  de competência e a base do odômetro offline viram conferências vazias; o servidor valida no envio.
+- Falta: aplicar a 20261201 e validar no aparelho (lançar em modo avião → reconectar → conferir
+  1 linha no banco e a imagem no R2).
+
 ### Diferenças do plano original
 
 | Plano | Implementado | Por quê |

@@ -59,6 +59,7 @@ export const ScheduleWhatsAppModal: React.FC<Props> = ({ isOpen, onClose, messag
                     Revise ou ajuste o texto, copie e cole no grupo.
                 </p>
                 <textarea
+                    aria-label="Mensagem para o WhatsApp"
                     value={text}
                     onChange={e => setText(e.target.value)}
                     rows={16}
