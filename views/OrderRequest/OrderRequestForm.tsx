@@ -13,6 +13,7 @@ import { ImageEditorModal } from '../../components/ui/ImageEditorModal';
 import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCardDetail';
 import { OrderAlertCard } from './OrderAlertCard';
 import { DialogShell } from '../../components/ui/DialogShell';
+import { hasActiveChildOrder } from './orderRequestPrefill';
 
 export interface OrderRequestFormProps {
     onBack: () => void;
@@ -36,6 +37,8 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
     const capturedParentIdRef = useRef<number | undefined>(
         !isEdit && initialData?.id ? parseInt(initialData.id) : undefined
     );
+    // Gerar OS a partir da SS: "Serviços a realizar" só é herdado se a SS ainda não tem OS ativa.
+    const isCreateFromSS = !isEdit && !!capturedParentIdRef.current;
 
     // State
     const [step, setStep] = useState(1);
@@ -66,7 +69,8 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
         contractId: initialData?.contractId ? String(initialData.contractId) : '',
         teamId: initialData?.teamId ? String(initialData.teamId) : '',
         priorityId: initialData?.priorityId ? String(initialData.priorityId) : '',
-        requestedServices: initialData?.requestedServices || '',
+        // Da SS: preenchido em loadLists, depois de saber se já há OS (evita mostrar e apagar).
+        requestedServices: isCreateFromSS ? '' : (initialData?.requestedServices || ''),
     });
     const planWasEdited = useRef(false);
 
@@ -95,14 +99,19 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                     }
                 }
 
-                const [clientsList, typesList, prioritiesList, objectsList, plansList, teamsList] = await Promise.all([
+                const [clientsList, typesList, prioritiesList, objectsList, plansList, teamsList, siblingOrders] = await Promise.all([
                     dataService.getClients(),
                     dataService.getOrderTypes('active'),
                     dataService.getPriorities('active'),
                     dataService.getOrderObjects('active'),
                     dataService.getOrderPlans('active'),
                     dataService.getTeams(),
+                    // Falhou a consulta: segue como antes (herda o texto da SS).
+                    isCreateFromSS
+                        ? dataService.getChildOrders(capturedParentIdRef.current!).catch(() => [])
+                        : Promise.resolve([]),
                 ]);
+                const skipRequestedServices = isCreateFromSS && hasActiveChildOrder(siblingOrders);
 
                 setClients(clientsList.filter(c => c.status === 'active' && (!c.companyId || c.companyId === '0')));
                 setOrderTypes(typesList);
@@ -127,7 +136,9 @@ export const OrderRequestForm = forwardRef<OrderRequestFormRef, OrderRequestForm
                         contractId: currentInitialData.contractId ? String(currentInitialData.contractId) : prev.contractId,
                         teamId: currentInitialData.teamId ? String(currentInitialData.teamId) : prev.teamId,
                         priorityId: currentInitialData.priorityId ? String(currentInitialData.priorityId) : prev.priorityId,
-                        requestedServices: currentInitialData.requestedServices || prev.requestedServices
+                        requestedServices: skipRequestedServices
+                            ? prev.requestedServices
+                            : currentInitialData.requestedServices || prev.requestedServices
                     }));
 
                     if (currentInitialData.clientId) {
