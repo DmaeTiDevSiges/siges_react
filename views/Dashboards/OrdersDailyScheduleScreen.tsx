@@ -36,7 +36,7 @@ import { toast } from 'sonner';
 import type { Contract, Order, User } from '../../types';
 import { dataService } from '../../services/dataService';
 import type { DailyScheduleBoard, DailyScheduleItemInput, DailyScheduleMoveLog, DailyScheduleOrder, DailyScheduleTeam } from '../../services/orders/dailyScheduleService';
-import { DAILY_SCHEDULE_STATUS, ORDER_STATUS_CONFLICT } from '../../services/orders/dailyScheduleService';
+import { DAILY_SCHEDULE_STATUS, ORDER_STATUS_CONFLICT, ownScheduleColumnId } from '../../services/orders/dailyScheduleService';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 import { formatDateInBrazil, getBrazilDateInputValue } from '../../utils/formatters';
@@ -81,7 +81,7 @@ const byRequestedAt = (a: DailyScheduleOrder, b: DailyScheduleOrder) =>
     String(a.requestedAt || '').localeCompare(String(b.requestedAt || ''));
 /** Equipe responsável e líder gravados na OS ao ir para a coluna da equipe (espelha v_orders). */
 const teamFields = (team: DailyScheduleTeam): Partial<DailyScheduleOrder> => ({
-    teamId: team.id,
+    teamId: team.teamId,
     teamLeaderId: team.leaderId,
     teamCode: team.code,
     teamDescription: team.name,
@@ -159,9 +159,9 @@ const contractLabel = (c: Contract) => [c.code, c.description].filter(Boolean).j
 
 const errorMessage = (err: any) => err?.message || 'Erro inesperado';
 
-/** Itens a gravar: todas as colunas, na ordem exibida. */
+/** Itens a gravar: todas as colunas (líderes), na ordem exibida, com a equipe de cada uma. */
 const toItems = (board: DailyScheduleBoard): DailyScheduleItemInput[] =>
-    board.teams.flatMap(team => (board.columns[team.id] || []).map(order => ({ orderId: order.id, teamId: team.id })));
+    board.teams.flatMap(team => (board.columns[team.id] || []).map(order => ({ orderId: order.id, teamId: team.teamId })));
 
 const isContainerId = (id: string | number) => String(id) === PRIORITY || String(id) === OPEN || String(id).startsWith('team:');
 
@@ -498,6 +498,13 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     };
 
     // ── Operações do quadro ───────────────────────────────────────────────────
+    /** scheduleTeamRule traduzida para coluna: equipe definida → só a coluna do líder da OS. */
+    const columnRule = (order: DailyScheduleOrder): 'any' | string | null => {
+        const rule = scheduleTeamRule(order);
+        if (rule == null || rule === 'any') return rule;
+        return (board && ownScheduleColumnId(order, board.teams)) || null;
+    };
+
     /** Card arrastado: id 'p:<id>' = faixa de prioridades; senão, coluna onde está. */
     const locate = (dndId: string): { order: DailyScheduleOrder; container: string } | null => {
         if (!board) return null;
@@ -573,7 +580,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         setBoard(next);
         scheduleSave(next);
         schedulePrioritySave(priorities);
-        logMove(order, { action: 'unassign_team', fromTeamId });
+        logMove(order, { action: 'unassign_team', fromTeamId: board.teams.find(t => t.id === fromTeamId)?.teamId ?? fromTeamId });
         if (strip === OPEN && wasPrioritized) logMove(order, { action: 'unprioritize' });
         if (strip === PRIORITY && !wasPrioritized) logMove(order, { action: 'prioritize', toPosition: priorities.indexOf(order) + 1 });
         toast.success(`OS ${order.orderMask} voltou para ${strip === PRIORITY ? "OS's PRIORIDADE DE ATENDIMENTO" : "OS's ABERTAS"}`);
@@ -646,7 +653,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         setBoard(next);
         try {
             await dataService.moveAuthorizedOrderToScheduleTeam(order.id, team);
-            logMove(order, { action: 'change_team', fromTeamId, toTeamId: team.id, toPosition: index + 1 });
+            logMove(order, { action: 'change_team', fromTeamId, toTeamId: team.teamId, toPosition: index + 1 });
             toast.success(`OS ${order.orderMask} movida para ${team.code} (líder ${team.leaderName})`);
             scheduleSave(next);
         } catch (err) {
@@ -661,7 +668,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         const next = placeInTeam(board, order, team, index);
         setBoard(next);
         scheduleSave(next);
-        logMove(order, { action: 'assign_team', toTeamId: team.id, toPosition: index + 1 });
+        logMove(order, { action: 'assign_team', toTeamId: team.teamId, toPosition: index + 1 });
         toast.success(`OS ${order.orderMask} programada para ${team.code}`);
     };
 
@@ -671,7 +678,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         setAuthSaving(true);
         try {
             await dataService.authorizeOrderToScheduleTeam(order.id, team, planId);
-            logMove(order, { action: 'authorize_team', toTeamId: team.id, toPosition: index + 1 });
+            logMove(order, { action: 'authorize_team', toTeamId: team.teamId, toPosition: index + 1 });
             const authorized: DailyScheduleOrder = {
                 ...order,
                 statusId: DAILY_SCHEDULE_STATUS.AUTHORIZED,
@@ -740,19 +747,19 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                 toast.info(`A OS ${order.orderMask} já está programada para a equipe ${placedCode} neste dia.`);
                 return;
             }
-            const rule = scheduleTeamRule(order);
+            const rule = columnRule(order);
             if (rule === 'any' && order.statusId === DAILY_SCHEDULE_STATUS.EVALUATION) {
                 // Em Avaliação: autoriza para a equipe escolhida (mesmo já tendo outra informada).
                 setPendingAuth({ order, team, index });
             } else if (rule === 'any') {
-                // Autorizada: mesma equipe só entra na coluna; outra equipe troca equipe e líder na OS.
-                if (order.teamId === team.id) placeInOwnTeam(order, team, index);
+                // Autorizada: mesmo líder/equipe só entra na coluna; outro líder troca equipe e líder na OS.
+                if (order.teamId === team.teamId && order.teamLeaderId === team.leaderId) placeInOwnTeam(order, team, index);
                 else void moveAuthorized(order, team, index);
             } else if (rule === team.id) {
                 placeInOwnTeam(order, team, index);
             } else if (rule) {
-                const ownCode = board.teams.find(t => t.id === rule)?.code;
-                toast.error(`A OS ${order.orderMask} já tem equipe definida e só pode ir para ${ownCode ? `a equipe ${ownCode}` : 'a própria equipe'}.`);
+                const own = board.teams.find(t => t.id === rule);
+                toast.error(`A OS ${order.orderMask} já tem equipe definida e só pode ir para ${own ? `o líder ${own.leaderName} (${own.code})` : 'a própria equipe'}.`);
             } else {
                 toast.error('Só OSs Em Avaliação (qualquer equipe) ou com equipe já definida (só a própria equipe) vão para uma equipe.');
             }
@@ -815,7 +822,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         if (active.container === PRIORITY) {
             const placed = placedTeamOf(active.order.id);
             if (placed) return canChangeTeam(active.order) && placed !== teamId;
-            const rule = scheduleTeamRule(active.order);
+            const rule = columnRule(active.order);
             return rule === 'any' || rule === teamId;
         }
         return active.container === teamId || canChangeTeam(active.order);
@@ -1169,11 +1176,11 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                         {!isPast && renderStrip(OPEN)}
                         {(!isPast || board.priorities.length > 0) && renderStrip(PRIORITY)}
 
-                        {/* Colunas por equipe */}
+                        {/* Um card por líder (com a equipe dele) */}
                         <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-extrabold text-slate-900 dark:text-white">Equipes</h3>
+                            <h3 className="font-extrabold text-slate-900 dark:text-white">Líderes</h3>
                             <span className="text-xs font-bold text-slate-400">
-                                {activeTeamFilter.length > 0 ? `${visibleTeams.length} de ${board.teams.length}` : board.teams.length} equipes · {totalScheduled} OSs no dia
+                                {activeTeamFilter.length > 0 ? `${visibleTeams.length} de ${board.teams.length}` : board.teams.length} líderes · {totalScheduled} OSs no dia
                             </span>
                         </div>
                         {board.teams.length === 0 ? (

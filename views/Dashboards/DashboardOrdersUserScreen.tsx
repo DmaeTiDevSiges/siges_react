@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useContext } from 'react';
+import { NetworkContext } from '../../contexts/NetworkContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLiveInvalidation } from '../../hooks/useLiveInvalidation';
 import { formatDateInBrazil } from '../../utils/formatters';
@@ -14,7 +15,7 @@ import { OrderCardDetail } from '../../components/orderRequests/OrderRequestCard
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabsBar } from '../../components/ui/TabsBar';
 import { AIContextualBar } from '../../components/ai/AIContextualBar';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, getBrazilDateInputValue } from '../../utils/formatters';
 import { isVehicleRentalEnabled } from '../../features';
 import { FuelExpenseScreen } from '../Vehicles/FuelExpenseScreen';
 import type { VehicleMonthlyExpense } from '../../services/orders/vehicleRentalService';
@@ -148,7 +149,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                 dataService.getOrdersByLeader(id),
                 dataService.getVisitsByLeader(id),
                 dataService.getOpenChatVisitsForUser(id),
-                dataService.getMyDaySchedule().catch((err) => {
+                // Data explícita: a chave do cache offline muda por dia (não mostra a programação de ontem).
+                dataService.getMyDaySchedule(getBrazilDateInputValue()).catch((err) => {
                     console.error('Error fetching daily schedule:', err);
                     return [] as MyDayScheduleItem[];
                 }),
@@ -183,12 +185,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     const scheduledExtraOrders = dashboard?.extraOrders ?? EMPTY_ORDERS;
     const teamGamification = dashboard?.gamification ?? null;
 
-    // Abastecimentos do usuário (card "no mês" e aba "Abastecimentos"): consulta à parte.
-    const { data: fuelExpenses = EMPTY_FUEL, isLoading: fuelLoading, refetch: refetchFuel } = useQuery({
-        queryKey: ['fuel', 'byUser', userId],
-        queryFn: () => dataService.getFuelExpensesByUser(userId!.toString()),
+    // Abastecimentos do usuário: card "no mês" (mês atual) e aba "Abastecimentos" (mês escolhido).
+    // Quando o mês escolhido é o atual, as duas consultas têm a mesma chave (uma busca só).
+    const currentFuelMonth = getBrazilDateInputValue().slice(0, 7);
+    const [fuelMonth, setFuelMonth] = useState<string>(currentFuelMonth);
+    // Sem internet só o mês atual está no aparelho: o filtro fica travado nele (sem provider = online).
+    const isOffline = useContext(NetworkContext)?.isConnected === false;
+    useEffect(() => {
+        if (isOffline) setFuelMonth(currentFuelMonth);
+    }, [isOffline, currentFuelMonth]);
+    const fuelQueryFor = (month: string) => ({
+        queryKey: ['fuel', 'byUser', userId, month],
+        queryFn: () => dataService.getFuelExpensesByUser(userId!.toString(), month),
         enabled: !!userId && fuelTabAvailable,
     });
+    const { data: fuelCurrentExpenses = EMPTY_FUEL } = useQuery(fuelQueryFor(currentFuelMonth));
+    const { data: fuelExpenses = EMPTY_FUEL, isLoading: fuelLoading, refetch: refetchFuel } = useQuery(fuelQueryFor(fuelMonth));
     const [showFuelForm, setShowFuelForm] = useState(false);
 
     const [selectedService, setSelectedService] = useState<string>(() => {
@@ -343,18 +355,31 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const { fuelMonthTotal, fuelMonthCount } = useMemo(() => {
-        const now = new Date();
-        const month = fuelExpenses.filter(f => {
-            if (!f.createdAt) return false;
-            const d = new Date(f.createdAt);
-            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-        });
-        return {
-            fuelMonthTotal: month.reduce((sum, f) => sum + (Number(f.value) || 0), 0),
-            fuelMonthCount: month.length,
-        };
-    }, [fuelExpenses]);
+    // A consulta já vem filtrada pelo mês atual (fuso de São Paulo).
+    const { fuelMonthTotal, fuelMonthCount } = useMemo(() => ({
+        fuelMonthTotal: fuelCurrentExpenses.reduce((sum, f) => sum + (Number(f.value) || 0), 0),
+        fuelMonthCount: fuelCurrentExpenses.length,
+    }), [fuelCurrentExpenses]);
+
+    // Busca por placa ou descrição (veículo ou lançamento), sem acento/caixa e sem o hífen da placa.
+    const [fuelSearch, setFuelSearch] = useState('');
+    const fuelVisible = useMemo(() => {
+        const norm = (s?: string | null) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[\s-]+/g, '');
+        const term = norm(fuelSearch);
+        if (!term) return fuelExpenses;
+        return fuelExpenses.filter(f => [f.vehiclePlates, f.vehicleDescription, f.description].some(v => norm(v).includes(term)));
+    }, [fuelExpenses, fuelSearch]);
+    const fuelSelectedTotal = useMemo(
+        () => fuelVisible.reduce((sum, f) => sum + (Number(f.value) || 0), 0),
+        [fuelVisible],
+    );
+    const shiftFuelMonth = (delta: number) => {
+        const [y, m] = fuelMonth.split('-').map(Number);
+        const d = new Date(y, m - 1 + delta, 1);
+        const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (next <= currentFuelMonth) setFuelMonth(next);
+    };
+    const fuelMonthLabel = formatDateInBrazil(`${fuelMonth}-15T12:00:00`, 'date', 'pt-BR', { month: 'long', year: 'numeric' });
 
     // Botão "voltar" do Android: da lista volta aos cards (sem isso, sai do app).
     useEffect(() => {
@@ -462,9 +487,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                     </div>
                 ) : activeTab === 'visits' ? (
                     <div className="flex flex-col h-full bg-background-light dark:bg-background-dark">
-                        {isLoading ? (
-                            <DashboardCardsSkeleton count={5} />
-                        ) : isInProgress && (
+                        {/* A visita em andamento vem do usuário (já em memória): não espera a consulta do painel. */}
+                        {isInProgress && (
                             <div className="px-4 pt-4 pb-2">
                                 <div className="bg-red-500 rounded-[16px] p-4 shadow-lg shadow-red-500/20 text-white relative overflow-hidden group cursor-pointer" onClick={() => onResumeVisit?.(currentUser?.ovIdInProgress?.toString() || '')}>
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
@@ -483,6 +507,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                 </div>
                             </div>
                         )}
+
+                        {isLoading && <DashboardCardsSkeleton count={5} />}
 
                         {!isLoading && (
                             <UserVisitsPanel
@@ -555,12 +581,71 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                         ) : (
                             <>
                                 <div className="flex-1 px-4 pt-4 overflow-y-auto no-scrollbar pb-20">
+                            {/* Filtro mensal */}
+                            <div className="flex items-center justify-between gap-2 mb-3 h-[44px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-1 shadow-sm">
+                                <button
+                                    type="button"
+                                    onClick={() => shiftFuelMonth(-1)}
+                                    disabled={isOffline}
+                                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none"
+                                    title={isOffline ? 'Sem internet: só o mês atual' : 'Mês anterior'}
+                                    aria-label="Mês anterior"
+                                >
+                                    <span className="material-symbols-outlined text-slate-400 text-lg">chevron_left</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFuelMonth(currentFuelMonth)}
+                                    disabled={fuelMonth === currentFuelMonth}
+                                    className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white capitalize disabled:cursor-default"
+                                    title={fuelMonth === currentFuelMonth ? 'Mês atual' : 'Voltar ao mês atual'}
+                                >
+                                    <span className="material-symbols-outlined text-primary text-lg">calendar_month</span>
+                                    {fuelMonthLabel}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => shiftFuelMonth(1)}
+                                    disabled={fuelMonth >= currentFuelMonth}
+                                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none"
+                                    title="Próximo mês"
+                                    aria-label="Próximo mês"
+                                >
+                                    <span className="material-symbols-outlined text-slate-400 text-lg">chevron_right</span>
+                                </button>
+                            </div>
+
+                            {/* Busca por placa ou descrição */}
+                            <div className="relative mb-3">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">search</span>
+                                <input
+                                    type="search"
+                                    value={fuelSearch}
+                                    onChange={e => setFuelSearch(e.target.value)}
+                                    placeholder="Buscar por placa ou descrição"
+                                    aria-label="Buscar abastecimento por placa ou descrição"
+                                    className="w-full h-[44px] pl-10 pr-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                                />
+                                {fuelSearch && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFuelSearch('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-600"
+                                        title="Limpar busca"
+                                        aria-label="Limpar busca"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">close</span>
+                                    </button>
+                                )}
+                            </div>
+
                             <div className="flex items-center justify-between mb-4 px-1">
                                 <h2 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-widest opacity-60">
                                     Meus Abastecimentos
                                 </h2>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                    {fuelExpenses.length} {fuelExpenses.length === 1 ? 'Registro' : 'Registros'}
+                                    {fuelVisible.length} {fuelVisible.length === 1 ? 'Registro' : 'Registros'}
+                                    {fuelVisible.length > 0 && <> · <HiddenValue>{formatCurrency(fuelSelectedTotal)}</HiddenValue></>}
                                 </span>
                             </div>
 
@@ -568,9 +653,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                 <div role="status" aria-label="Carregando abastecimentos">
                                     <DashboardListSkeleton />
                                 </div>
-                            ) : fuelExpenses.length > 0 ? (
+                            ) : fuelVisible.length > 0 ? (
                                 <div className="flex flex-col gap-3 pb-4">
-                                    {fuelExpenses.map(item => (
+                                    {fuelVisible.map(item => (
                                         <div
                                             key={item.id}
                                             className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-4"
@@ -617,7 +702,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ currentUser, o
                                     <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 text-slate-300 dark:text-slate-600">
                                         <span className="material-symbols-outlined text-4xl">local_gas_station</span>
                                     </div>
-                                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Nenhum abastecimento registrado.</p>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                                        {fuelSearch.trim()
+                                            ? 'Nenhum abastecimento encontrado para a busca.'
+                                            : fuelMonth === currentFuelMonth ? 'Nenhum abastecimento registrado neste mês.' : 'Nenhum abastecimento registrado em ' + fuelMonthLabel + '.'}
+                                    </p>
                                 </div>
                             )}
                                 </div>

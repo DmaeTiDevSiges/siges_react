@@ -2,6 +2,7 @@
 // (dev/supabase/migrations/20261008_create_vehicle_rental_rateio.sql)
 import { supabase } from '../core/supabase';
 import { r2Service } from '../media/r2Service';
+import { findIdByOfflineUuid, insertWithOfflineUuid } from '../core/offlineUuidInsert';
 
 export type VehicleRentalPeriodStatus = 'OPEN' | 'CALCULATED' | 'ALLOCATED' | 'CLOSED';
 
@@ -153,6 +154,11 @@ export interface SaveVehicleMonthlyExpenseInput {
     userId?: string;
     /** Data do abastecimento importado; grava-se em created_at para preservar o histórico. */
     createdAt?: string;
+    /**
+     * Modo offline: UUID gerado no aparelho (offline_uuid, migration 20261201). Reenviar o
+     * mesmo lançamento não duplica — o índice UNIQUE recusa e conta como já enviado.
+     */
+    offlineUuid?: string;
 }
 
 /** A imagem obrigatória do lançamento de combustível (comprovante) */
@@ -405,6 +411,35 @@ export const vehicleRentalService = {
             payload.invoice_img_name = input.invoiceImgName ?? null;
         }
 
+        // Modo offline: inserção idempotente (offline_uuid). Reenvio da fila = já gravado = sucesso.
+        if (input.offlineUuid && !input.id) {
+            const createdAt = input.createdAt ?? new Date().toISOString();
+            try {
+                await insertWithOfflineUuid(
+                    'vehicles_monthly_expenses',
+                    { ...payload, created_user_id: input.userId ? parseInt(input.userId, 10) : null, created_at: createdAt },
+                    input.offlineUuid,
+                );
+            } catch (error: any) {
+                console.error('Error saving monthly expense (offline):', error);
+                throw new Error(error?.message || 'Erro ao salvar a despesa do mês.');
+            }
+            const id = await findIdByOfflineUuid('vehicles_monthly_expenses', input.offlineUuid).catch(() => null);
+            return {
+                id: id ?? '',
+                vehicleId: input.vehicleId,
+                referenceMonth: monthStart(input.referenceMonth),
+                costTypeId: input.costTypeId,
+                value: input.value,
+                description: input.description ?? null,
+                odometer: input.odometer ?? null,
+                fuelQuantity: input.fuelQuantity ?? null,
+                invoiceImgPath: input.invoiceImgPath ?? null,
+                invoiceImgName: input.invoiceImgName ?? null,
+                createdAt,
+            };
+        }
+
         const query = input.id
             ? supabase
                 .from('vehicles_monthly_expenses')
@@ -447,14 +482,21 @@ export const vehicleRentalService = {
      * "Abastecimentos" do Meu Painel). Filtra pelo par odometer/litros
      * (só o lançamento de combustível os preenche) e traz veículo.
      */
-    async getFuelExpensesByUser(userId: string): Promise<VehicleMonthlyExpense[]> {
-        const { data, error } = await supabase
+    async getFuelExpensesByUser(userId: string, month?: string): Promise<VehicleMonthlyExpense[]> {
+        let query = supabase
             .from('vehicles_monthly_expenses')
             .select('*, cfg_vehicles_costs_types!inner(code, description, color), vehicles!inner(description, plates)')
             .eq('created_user_id', parseInt(userId, 10))
-            .not('odometer', 'is', null)
+            .not('odometer', 'is', null);
+        // Filtro mensal ('YYYY-MM'): pelo dia do abastecimento (created_at), no fuso de São Paulo.
+        if (month && /^\d{4}-\d{2}$/.test(month)) {
+            const [y, m] = month.split('-').map(Number);
+            const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+            query = query.gte('created_at', `${month}-01T00:00:00-03:00`).lt('created_at', `${next}-01T00:00:00-03:00`);
+        }
+        const { data, error } = await query
             .order('created_at', { ascending: false })
-            .limit(100);
+            .limit(month ? 500 : 100);
 
         if (error) {
             console.error('Error fetching fuel expenses by user:', error);
@@ -544,16 +586,20 @@ export const vehicleRentalService = {
     async uploadFuelExpenseImages(
         vehicleId: string,
         companyId: string | undefined | null,
-        images: FuelExpenseImages,
-        onProgress?: (progress: number) => void
+        // File direto: vindo da fila offline (o arquivo salvo no aparelho é o 1º nível do argumento).
+        images: FuelExpenseImages | File,
+        onProgress?: ((progress: number) => void) | null,
+        // Modo offline: o nome vem definido do aparelho — reenviar sobrescreve o mesmo arquivo no R2.
+        options?: { fileName?: string }
     ): Promise<FuelExpenseImageRefs> {
         const ts = Date.now();
         const rand = Math.random().toString(36).slice(2, 8);
         const folder = `companies/${companyId || 1}/vehicles/${vehicleId}/fuel`;
-        const path = `${folder}/${ts}_${rand}_invoice.webp`;
+        const path = `${folder}/${options?.fileName || `${ts}_${rand}_invoice.webp`}`;
+        const invoice = images instanceof Blob ? (images as File) : images.invoice;
 
         try {
-            const res = await r2Service.uploadImageWithVariants(images.invoice, path, (p) => {
+            const res = await r2Service.uploadImageWithVariants(invoice, path, (p) => {
                 onProgress?.(Math.round(p));
             });
             onProgress?.(100);

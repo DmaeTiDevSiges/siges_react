@@ -172,6 +172,66 @@ describe('Relatar ativo / Relatar visita / Encerrar', () => {
         expect(await store.get(OFFLINE_COLLECTIONS.profile, 'uuid-1')).toMatchObject({ isOvInProgress: false, isAvailable: true });
         expect(OFFLINE_FLOW_OPS.closeOrderVisit.barrier).toBe('visit');
     });
+
+    /**
+     * Meu Painel. Cenário do usuário: Autorizadas 1, Suspensas 1, Agendadas 1 (OS 100 é a da visita,
+     * na situação `origin`). Iniciar a visita já tira a OS 100 dos cards (Em Andamento = 5), como o servidor.
+     */
+    const painelSetup = async (origin: 3 | 6, closeAs: number) => {
+        const store = createMemoryStore();
+        setOfflineOpsStore(store);
+        await put(store, 'getActiveOrderVisit', ['500'], { id: '500', oId: '100', ovStatusId: 1, ovProcessingId: 1 });
+        await put(store, 'getVisitsByLeader', ['1'], [{ id: '500', oId: '100', ovStatusId: 1, ovProcessingId: 1 }]);
+        const others = origin === 3
+            ? [{ id: '102', statusId: 6 }, { id: '103', statusId: 4 }]
+            : [{ id: '101', statusId: 3 }, { id: '103', statusId: 4 }];
+        await put(store, 'getOrdersByLeader', ['1'], [{ id: '100', statusId: 5, statusDescription: 'Em Andamento' }, ...others]);
+        const args = await OFFLINE_FLOW_OPS.closeOrderVisit.prepareArgs!(['500', '100', closeAs, 'Situação', null, 1, 50, { id: '1' }]);
+        await OFFLINE_FLOW_OPS.closeOrderVisit.applyLocal(ctxOf(store), args);
+        return store;
+    };
+    /** Contadores como o Meu Painel calcula (Autorizadas 3, Agendadas 4, Suspensas 6). */
+    const cards = async (store: Store) => {
+        const orders: any[] = await read(store, 'getOrdersByLeader', ['1']);
+        const count = (status: number) => orders.filter(o => o.statusId === status).length;
+        return { autorizadas: count(3), suspensas: count(6), agendadas: count(4) };
+    };
+    const report = (store: Store) => OFFLINE_FLOW_OPS.reportOrderVisit.applyLocal(ctxOf(store), ['500', '1', { reportedAt: 'x' }]);
+
+    it('Meu Painel: encerrar mantém a visita em rascunho e não muda nenhum card', async () => {
+        const store = await painelSetup(3, 6);
+        expect(await read(store, 'getVisitsByLeader', ['1'])).toEqual([
+            expect.objectContaining({ id: '500', ovStatusId: 2, ovProcessingId: 1, ovOStatusId: 6 }),
+        ]);
+        // Autorizada iniciada: Autorizadas já caiu para 0 no início; encerrar não mexe.
+        expect(await cards(store)).toEqual({ autorizadas: 0, suspensas: 1, agendadas: 1 });
+    });
+
+    it('Meu Painel: OS Autorizada reportada como Suspensa → Suspensas +1 (Autorizadas 1→0, Suspensas 1→2)', async () => {
+        const store = await painelSetup(3, 6);
+        await report(store);
+        expect(await read(store, 'getVisitsByLeader', ['1'])).toEqual([expect.objectContaining({ id: '500', ovProcessingId: 2 })]);
+        expect(await cards(store)).toEqual({ autorizadas: 0, suspensas: 2, agendadas: 1 });
+    });
+
+    it('Meu Painel: OS Suspensa reportada como Suspensa → volta ao que era (Suspensas 1→1)', async () => {
+        const store = await painelSetup(6, 6);
+        expect(await cards(store)).toEqual({ autorizadas: 1, suspensas: 0, agendadas: 1 }); // caiu ao iniciar
+        await report(store);
+        expect(await cards(store)).toEqual({ autorizadas: 1, suspensas: 1, agendadas: 1 });
+    });
+
+    it('Meu Painel: reportada como Concluída → a OS fica fora do card em que estava (−1)', async () => {
+        const fromAuthorized = await painelSetup(3, 8);
+        await report(fromAuthorized);
+        expect(await cards(fromAuthorized)).toEqual({ autorizadas: 0, suspensas: 1, agendadas: 1 });
+
+        const fromSuspended = await painelSetup(6, 8);
+        await report(fromSuspended);
+        expect(await cards(fromSuspended)).toEqual({ autorizadas: 1, suspensas: 0, agendadas: 1 });
+        expect((await read(fromSuspended, 'getOrdersByLeader', ['1'])).find((o: any) => o.id === '100'))
+            .toMatchObject({ statusId: 8, statusDescription: 'Situação' });
+    });
 });
 
 describe('barreiras no envio', () => {

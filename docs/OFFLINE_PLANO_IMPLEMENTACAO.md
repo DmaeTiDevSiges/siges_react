@@ -258,6 +258,30 @@ sem duplicata, mesmo com queda no meio. Assinatura offline aparece no relatório
 | Relatar visita | Valida com o cache (mesma regra do serviço) antes de enfileirar; **espera** todas as da visita; reenvio idempotente (`options.idempotent`) |
 | Encerrar visita | Valida Km no aparelho; `flow_order_visit_close_v4` com `p_client_op_id` + `p_client_ended_at` (hora do toque); **espera** todas as da visita; `SG409` → conflito; perfil guardado deixa de estar "em visita" |
 
+**Meu Painel offline — causa raiz (16/11/2026):** `getOrdersByLeader`, `getVisitsByLeader`,
+`getOpenChatVisitsForUser`, `getMyDaySchedule` e `getTeamRanking` **não estavam em
+`OFFLINE_READ_METHODS`**: offline tentavam a rede, devolviam `[]` e o painel só saía do esqueleto
+depois de todas falharem (visita vermelha "Em Andamento" demorava; cards zerados; os ajustes
+abaixo não tinham cache para alterar). Agora estão no cache (fallback vazio quando nunca abertas
+com internet), `getMyDaySchedule` recebe a data de hoje (chave por dia) e o card vermelho da aba
+Visitas não espera mais a consulta do painel. **Pré-requisito:** abrir o Meu Painel ao menos uma
+vez com internet para gravar o cache.
+
+**Meu Painel (cards Serviços e Visitas) — correção de 16/11/2026:** os cards contam em cima das
+listas em cache `getOrdersByLeader` e `getVisitsByLeader`, mas offline só "Iniciar visita" as
+atualizava. Agora `patchVisit` (relatar ativo, relatar visita, encerrar, incluir/remover ativo)
+também altera a visita dentro de `getVisitsByLeader`. **Regra do usuário:** encerrar deixa a visita em
+rascunho e **não** muda a OS nos cards; guarda só a situação escolhida (`ovOStatusId`). **Iniciar
+visita sem internet** também não tira a OS do card (continua na situação de antes da visita). Ao
+**Relatar visita**, a OS passa para a situação escolhida em `getOrdersByLeader`:
+- de **Autorizada** para **Suspensa** → Suspensas **+1** (e Autorizadas −1, a OS troca de card);
+- de **Suspensa** para **Suspensa** → nenhum contador muda;
+- **Concluída** → −1 no card da situação de origem (Autorizadas, Agendadas ou Suspensas).
+
+Obs.: o servidor muda a OS já ao iniciar (Em Andamento) e ao encerrar (`flow_order_visit_close_v4`);
+depois da sincronização o painel passa a mostrar o dado do servidor. Visita iniciada **com**
+internet e relatada offline parte do card já sem a OS (o servidor a tirou ao iniciar). Testes em `offlineFlowOps.test.ts` ("Meu Painel…"). Falta validar no aparelho.
+
 ### Diferenças do plano original
 
 | Plano | Implementado | Por quê |

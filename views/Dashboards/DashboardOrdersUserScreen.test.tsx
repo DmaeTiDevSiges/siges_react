@@ -228,7 +228,8 @@ describe('DashboardOrdersUserScreen — abastecimentos', () => {
         fuelEnabled = true;
         mockData.getFuelExpensesByUser.mockResolvedValue([{ id: 'f1', value: 100, createdAt: new Date().toISOString() }]);
         renderScreen();
-        await waitFor(() => expect(mockData.getFuelExpensesByUser).toHaveBeenCalledWith('7'));
+        // Filtro mensal: a busca leva o mês ('YYYY-MM'); no início é o mês atual.
+        await waitFor(() => expect(mockData.getFuelExpensesByUser).toHaveBeenCalledWith('7', expect.stringMatching(/^\d{4}-\d{2}$/)));
         expect(await screen.findByText('Abastecimentos')).toBeInTheDocument();
     });
 });

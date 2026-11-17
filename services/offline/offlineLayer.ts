@@ -9,6 +9,7 @@ import { replaceDeep } from './syncEngine';
 import { findIdByOfflineUuid } from '../core/offlineUuidInsert';
 import { searchAssetsOffline, searchMaterialsOffline, searchUnitsOffline, searchVehiclesOffline } from './offlineCatalog';
 import { OFFLINE_FILE_OPS } from './offlineFileOps';
+import { OFFLINE_FUEL_OPS } from './offlineFuelOps';
 import { deleteOfflineFile, initOfflineFiles, isOfflineFileRef } from './offlineFiles';
 import {
     getOfflineSyncState,
@@ -83,6 +84,18 @@ export const OFFLINE_READ_METHODS = [
     'getOrderVisitVehicles',
     'getPreviousVehicleOdometer',
     'getRentalContracts',
+    // Meu Painel (cards Serviços/Visitas, visita em andamento): sem cache, offline cada uma tentava a
+    // rede e a tela esperava todas falharem antes de mostrar a visita em destaque.
+    'getOrdersByLeader',
+    'getVisitsByLeader',
+    'getOpenChatVisitsForUser',
+    'getMyDaySchedule',
+    'getTeamRanking',
+    // Abastecimento de combustível (Meu Painel › Abastecimentos e o lançamento).
+    'getFuelExpensesByUser',
+    'getVehicleCostTypes',
+    'getRentalPeriods',
+    'getMaxVehicleOdometer',
 ] as const;
 
 /** Grupos B–F — gravações da visita (B vai para a fila; C–F, ver acima). */
@@ -124,6 +137,9 @@ export const OFFLINE_WRITE_METHODS = [
     'reportOrderVisit',
     'closeOrderVisit',
     'startOrderVisit', // etapa 3: iniciar visita sem internet
+    // Abastecimento de combustível sem internet (comprovante + despesa, na fila).
+    'uploadFuelExpenseImages',
+    'saveRentalExpense',
     // F — só online
     'disapproveOrderVisitAsset',
     'disapproveOrderVisit',
@@ -145,6 +161,17 @@ const OPTIONAL_READ_FALLBACKS: Record<string, () => unknown> = {
     getRentalContracts: () => [],
     // Alertas são informativos: ativo sem alertas baixados segue sem eles.
     getAssetAlerts: () => [],
+    // Meu Painel sem cache ainda (nunca aberto com internet): painel vazio, sem aviso de erro.
+    getOrdersByLeader: () => [],
+    getVisitsByLeader: () => [],
+    getOpenChatVisitsForUser: () => [],
+    getMyDaySchedule: () => [],
+    getTeamRanking: () => [],
+    // Abastecimento sem cache: lista vazia; competência travada e base do odômetro são só
+    // conferências amigáveis (o servidor valida no envio) e não impedem o lançamento offline.
+    getFuelExpensesByUser: () => [],
+    getRentalPeriods: () => [],
+    getMaxVehicleOdometer: () => null,
 };
 
 /**
@@ -315,6 +342,7 @@ export const installOfflineLayer = (target: Record<string, any>): void => {
     setOfflineOpsStore(getOfflineStore());
     registerOfflineOps(OFFLINE_FILE_OPS);
     registerOfflineOps(OFFLINE_FLOW_OPS);
+    registerOfflineOps(OFFLINE_FUEL_OPS);
 
     // F4: busca de materiais sem internet → catálogo baixado no preparo.
     const originalSearch = target.getAvailableMaterials as AnyFn | undefined;

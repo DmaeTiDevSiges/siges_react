@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { DailyScheduleOrder, DailyScheduleTeam } from '../../../services/orders/dailyScheduleService';
-import { DAILY_SCHEDULE_STATUS } from '../../../services/orders/dailyScheduleService';
+import { DAILY_SCHEDULE_STATUS, ownScheduleColumnId } from '../../../services/orders/dailyScheduleService';
 import { canChangeTeam, canReturnFromTeam, scheduleTeamRule } from './ScheduleOrderCard';
 
 export interface ScheduleActionTarget {
@@ -46,7 +46,7 @@ export const ScheduleOrderActionsModal: React.FC<ScheduleOrderActionsModalProps>
         ? (movesBetweenTeams ? teams.filter(t => t.id !== currentTeamId) : [])
         : (placedTeamId && !movesBetweenTeams) || rule == null
             ? []
-            : (rule === 'any' ? teams : teams.filter(t => t.id === rule)).filter(t => t.id !== currentTeamId);
+            : (rule === 'any' ? teams : teams.filter(t => t.id === ownScheduleColumnId(target!.order, teams))).filter(t => t.id !== currentTeamId);
 
     const teamSectionTitle = authorizes ? 'Autorizar para a equipe' : movesBetweenTeams ? 'Mover para a equipe' : 'Inserir na equipe';
     let teamNotice: { icon: string; text: string } | null = null;
@@ -167,9 +167,9 @@ export const ScheduleOrderActionsModal: React.FC<ScheduleOrderActionsModalProps>
                                 targetTeams.map(team => (
                                     <ActionItem
                                         key={team.id}
-                                        icon="groups"
-                                        label={team.code}
-                                        description={`Líder: ${team.leaderName}`}
+                                        icon="person"
+                                        label={team.leaderName}
+                                        description={`Equipe: ${team.code}`}
                                         variant={authorizes ? 'primary' : 'default'}
                                         onClick={() => onMoveToTeam(team)}
                                     />

@@ -2,6 +2,8 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { dataService } from '../dataService';
 import { networkService } from '../core/networkService';
+import { isVehicleRentalEnabled } from '../../features';
+import { getBrazilDateInputValue } from '../../utils/formatters';
 import { getOfflineStore, isOfflineSupported, isOnline } from './offlineConfig';
 import { OFFLINE_COLLECTIONS } from './store/offlineStore';
 import { prepareFieldPackage } from './fieldPackageService';
@@ -229,6 +231,14 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
             saved.orders[orderId] = ref?.updatedAt ?? '';
         }),
     );
+    // Abastecimento (silencioso, sem barra): tipos de custo e a lista do mês atual, para o lançamento
+    // e a aba Abastecimentos do Meu Painel funcionarem sem internet. Só offline mostra o mês atual.
+    if (forceVisits && isVehicleRentalEnabled()) {
+        await Promise.allSettled([
+            dataService.getVehicleCostTypes(),
+            dataService.getFuelExpensesByUser(userId, getBrazilDateInputValue().slice(0, 7)),
+        ]);
+    }
     addTotal(tasks.length);
     failed += await runTasks(tasks, 4, tick);
 

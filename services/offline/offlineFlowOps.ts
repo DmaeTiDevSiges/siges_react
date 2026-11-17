@@ -51,7 +51,7 @@ export const materialsCatalogKey = (providerId: unknown) => `materials:${str(pro
 /** Cadastro de veículos da empresa baixado no preparo (offline: busca local). */
 export const vehiclesCatalogKey = (companyId: unknown) => `vehicles:${str(companyId)}`;
 
-const findCatalogVehicle = async (store: Parameters<typeof patchCachedRead>[0], vehicleId: unknown) => {
+export const findCatalogVehicle = async (store: Parameters<typeof patchCachedRead>[0], vehicleId: unknown) => {
     try {
         for (const key of await store.keys(OFFLINE_COLLECTIONS.catalog)) {
             if (!key.startsWith('vehicles:')) continue;
@@ -108,6 +108,17 @@ const patchVisit = async (store: Parameters<typeof patchCachedRead>[0], ovId: st
     for (const method of ['getActiveOrderVisit', 'getOrderVisitById']) {
         await patchCachedRead<any>(store, method, [ovId], v => (v ? mutate(v) : undefined));
     }
+    // Meu Painel (cards Visitas): conta em cima da lista do líder, que também precisa refletir a mudança.
+    await patchCachedReadsOf<any[]>(store, 'getVisitsByLeader', list =>
+        Array.isArray(list) && list.some(v => sameId(v?.id, ovId)) ? list.map(v => (sameId(v?.id, ovId) ? mutate(v) : v)) : undefined);
+};
+
+const ORDER_STATUS_LABEL: Record<number, string> = { 3: 'Autorizada', 4: 'Agendada', 6: 'Suspensa', 8: 'Concluída' };
+
+/** Meu Painel (cards Serviços): status da OS nas listas do líder em cache. */
+const patchOrderInLeaderLists = async (store: Parameters<typeof patchCachedRead>[0], orderId: string, mutate: (o: any) => any) => {
+    await patchCachedReadsOf<any[]>(store, 'getOrdersByLeader', list =>
+        Array.isArray(list) && list.some(o => sameId(o?.id, orderId)) ? list.map(o => (sameId(o?.id, orderId) ? mutate(o) : o)) : undefined);
 };
 
 /** Remove de uma lista por id; undefined = não mudou. */
@@ -187,6 +198,7 @@ const patchStartedVisitCards = async (ctx: OfflineOpContext, order: any, user: a
     const orderId = str(order.id);
     const inProgress = (o: any) => (sameId(o?.id, orderId) ? { ...o, statusId: 5, statusDescription: 'Em Andamento' } : undefined);
     await patchCachedRead<any>(ctx.store, 'getOrderById', [orderId], o => (o ? { ...o, statusId: 5, statusDescription: 'Em Andamento' } : undefined));
+    // Igual ao servidor: ao iniciar, a OS sai do card da situação anterior (Em Andamento não tem card).
     await patchCachedReadsOf<any[]>(ctx.store, 'getOrdersByLeader', list =>
         Array.isArray(list) && list.some(o => sameId(o?.id, orderId)) ? list.map(o => inProgress(o) || o) : undefined);
     if (visit) {
@@ -670,7 +682,17 @@ export const OFFLINE_FLOW_OPS: Record<string, OfflineOpSpec> = {
         },
         applyLocal: async (ctx, a) => {
             const [visitId, userId, opts] = [str(a[0]), str(a[1]), a[2] || {}];
+            // Situação da OS escolhida ao encerrar (Suspensa/Concluída/…): só vale nos cards ao relatar.
+            const visit = (await readCached<any>(ctx.store, 'getActiveOrderVisit', [visitId]))?.value;
             await patchVisit(ctx.store, visitId, v => ({ ...v, ovProcessingId: 2, reportedUserId: userId, reportedAt: opts.reportedAt }));
+            const orderStatusId = Number(visit?.ovOStatusId);
+            if (visit?.oId && Number(visit?.ovStatusId) === 2 && orderStatusId) {
+                await patchOrderInLeaderLists(ctx.store, str(visit.oId), o => ({
+                    ...o,
+                    statusId: orderStatusId,
+                    statusDescription: visit.ovOStatusDescription ?? ORDER_STATUS_LABEL[orderStatusId] ?? o.statusDescription,
+                }));
+            }
         },
     },
 
@@ -693,6 +715,8 @@ export const OFFLINE_FLOW_OPS: Record<string, OfflineOpSpec> = {
                 ...v,
                 ovStatusId: 2,
                 ovOStatusId: statusId,
+                // Guardada para o "Relatar visita": é nela que a OS muda de situação nos cards do Meu Painel.
+                ovOStatusDescription: a[3],
                 ovEndedAt: endedAt || opts.clientEndedAt,
             }));
             // Perfil guardado: o técnico deixa de estar "em visita" (reabrir o app offline).

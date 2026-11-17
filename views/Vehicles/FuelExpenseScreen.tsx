@@ -3,6 +3,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { CAMERA_PHOTO_LIMITS } from '../../utils/cameraOptions';
 import { Vehicle, VehicleCostType, User } from '../../types';
 import { dataService } from '../../services/dataService';
+import { networkService } from '../../services/core/networkService';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { AccessDenied } from '../../components/permissions/AccessDenied';
@@ -350,6 +351,11 @@ export const FuelExpenseScreen: React.FC<FuelExpenseScreenProps> = ({
     };
 
     const runExtraction = async (file: File) => {
+        // A leitura do comprovante usa IA na nuvem: sem internet, o preenchimento é manual.
+        if (!networkService.getStatus().isConnected) {
+            toast.info('Sem internet: preencha os dados do abastecimento manualmente.');
+            return;
+        }
         setIsExtracting(true);
         try {
             const data = await fuelReceiptService.extractFuelReceipt(file);

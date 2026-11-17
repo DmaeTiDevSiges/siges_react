@@ -41,6 +41,9 @@ export const OP_LABELS: Record<string, string> = {
     removeTeamMember: 'Remover membro da equipe',
     addAssetToOrderVisit: 'Incluir ativo na visita',
     removeAssetFromOrderVisit: 'Remover ativo da visita',
+    // Abastecimento
+    uploadFuelExpenseImages: 'Enviar comprovante do abastecimento',
+    saveRentalExpense: 'Registrar abastecimento',
     // Visita
     startOrderVisit: 'Iniciar visita',
     reportOrderVisit: 'Relatar visita',

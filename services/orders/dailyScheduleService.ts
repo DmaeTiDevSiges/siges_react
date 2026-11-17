@@ -50,16 +50,37 @@ export interface DailyScheduleOrder {
     requestedAt?: string;
 }
 
+/**
+ * Coluna do quadro: um LÍDER com a equipe dele. Equipe com mais de um líder vira várias
+ * colunas (a equipe se repete); a programação continua gravada por equipe (`teamId`).
+ */
 export interface DailyScheduleTeam {
+    /** Chave da coluna: `<teamId>:<leaderId>` (histórico sem líder: `<teamId>:`). */
     id: string;
+    /** cfg_teams.id — o que vai para orders.team_id e para a sequência gravada. */
+    teamId: string;
     code: string;
     name: string;
-    /** Equipe-mãe (cfg_teams.parent_id) — só quando ela também está no quadro. */
+    /** Coluna da equipe-mãe (cfg_teams.parent_id) — só quando ela também está no quadro. */
     parentId?: string;
     leaderId: string;
     leaderName: string;
     leaderAvatarUrl?: string;
 }
+
+export const scheduleColumnId = (teamId: string, leaderId?: string) => `${teamId}:${leaderId || ''}`;
+
+/**
+ * Coluna "da própria OS": a do líder gravado na OS; sem ela no quadro, a 1ª coluna da equipe.
+ */
+export const ownScheduleColumnId = (
+    order: Pick<DailyScheduleOrder, 'teamId' | 'teamLeaderId'>,
+    columns: DailyScheduleTeam[],
+): string | undefined => {
+    if (!order.teamId) return undefined;
+    const sameTeam = columns.filter(c => c.teamId === order.teamId);
+    return (sameTeam.find(c => c.leaderId && c.leaderId === order.teamLeaderId) || sameTeam[0])?.id;
+};
 
 export interface DailyScheduleBoard {
     /** false → migration 20261110 ainda não aplicada (sem registro da sequência/prioridade). */
@@ -201,29 +222,39 @@ export const dailyScheduleService = {
             .order('name_short');
         if (leadersError) throw leadersError;
 
-        const leaderByTeam = new Map<string, any>();
+        // Todos os líderes ativos de cada equipe (já em ordem de nome).
+        const leadersByTeam = new Map<string, any[]>();
         for (const leader of leaders || []) {
             const key = leader.team_id?.toString();
-            if (key && !leaderByTeam.has(key)) leaderByTeam.set(key, leader);
+            if (!key) continue;
+            leadersByTeam.set(key, [...(leadersByTeam.get(key) || []), leader]);
         }
 
-        const withLeader = teams.filter((t: any) => leaderByTeam.has(t.id.toString()));
-        const visibleIds = new Set(withLeader.map((t: any) => t.id.toString()));
-        return withLeader
-            .map((t: any) => {
-                const leader = leaderByTeam.get(t.id.toString());
+        // Coluna da equipe-mãe = a do 1º líder dela (o filtro em árvore aponta para ela).
+        const firstColumnOfTeam = new Map<string, string>();
+        for (const [teamId, list] of leadersByTeam) firstColumnOfTeam.set(teamId, scheduleColumnId(teamId, list[0].id.toString()));
+
+        // Um card por líder, na ordem das equipes (a equipe se repete quando tem mais de um líder).
+        return teams.flatMap((t: any) => {
+            const teamId = t.id.toString();
+            const parentColumn = t.parent_id ? firstColumnOfTeam.get(t.parent_id.toString()) : undefined;
+            return (leadersByTeam.get(teamId) || []).map((leader: any): DailyScheduleTeam => {
+                const leaderId = leader.id.toString();
+                const id = scheduleColumnId(teamId, leaderId);
                 return {
-                    id: t.id.toString(),
+                    id,
+                    teamId,
                     code: t.code,
                     name: t.description,
-                    parentId: t.parent_id && visibleIds.has(t.parent_id.toString()) ? t.parent_id.toString() : undefined,
-                    leaderId: leader.id.toString(),
+                    parentId: parentColumn && parentColumn !== id ? parentColumn : undefined,
+                    leaderId,
                     leaderName: leader.name_short || leader.name_full || 'Líder',
                     leaderAvatarUrl: leader.img_file_name
                         ? getPublicImageUrl(leader.img_file_path, leader.img_file_name, { width: 100, height: 100, resize: 'cover' })
                         : undefined,
                 };
             });
+        });
     },
 
     /**
@@ -357,21 +388,22 @@ export const dailyScheduleService = {
             this.getTeamsWithLeaders(providerDepartmentId, fresh),
             this.loadBoardData(contractId, date, readOnly, fresh),
         ]);
-        // Cópia: o histórico acrescenta equipes sem líder e não pode sujar o cache.
+        // Cópia: o histórico acrescenta colunas sem líder e não pode sujar o cache.
         const teams = [...cachedTeams];
         const { supported, updatedAt, savedItems, savedPriorities, prioritiesInheritedFrom } = raw;
 
-        // Sem a migration 20261129 a RPC não traz equipe/líder: completa pelas equipes do quadro
-        // (mesma equipe; o líder da OS normalmente é o líder atual da equipe).
-        const teamById = new Map<string, DailyScheduleTeam>(cachedTeams.map(t => [t.id, t]));
+        // Sem a migration 20261129 a RPC não traz equipe/líder: completa pelas colunas do quadro
+        // (mesma equipe; o líder da OS normalmente é um dos líderes atuais da equipe).
         for (const order of raw.orders) {
-            const team = order.teamId ? teamById.get(order.teamId) : undefined;
-            if (!team) continue;
+            if (!order.teamId) continue;
+            const sameTeam = cachedTeams.filter(t => t.teamId === order.teamId);
+            if (sameTeam.length === 0) continue;
             if (!order.teamCode) {
-                order.teamCode = team.code;
-                order.teamDescription = order.teamDescription || team.name;
+                order.teamCode = sameTeam[0].code;
+                order.teamDescription = order.teamDescription || sameTeam[0].name;
             }
-            if (!order.teamLeaderName && order.teamLeaderId === team.leaderId) order.teamLeaderName = team.leaderName;
+            const leader = sameTeam.find(t => t.leaderId === order.teamLeaderId);
+            if (!order.teamLeaderName && leader) order.teamLeaderName = leader.leaderName;
         }
 
         const priorityByOrder = new Map<string, number>(savedPriorities.map(p => [p.order_id.toString(), p.position]));
@@ -386,12 +418,16 @@ export const dailyScheduleService = {
 
         const columns: Record<string, DailyScheduleOrder[]> = {};
         teams.forEach(t => { columns[t.id] = []; });
+        /** Coluna do item gravado (por equipe): a do líder da OS; senão, a 1ª da equipe. */
+        const columnOf = (order: DailyScheduleOrder, teamId: string) =>
+            ownScheduleColumnId({ teamId, teamLeaderId: order.teamLeaderId }, teams);
 
         if (readOnly) {
             // Dia passado: exatamente o que foi registrado (OSs podem já estar concluídas).
             const orderMap = new Map<string, DailyScheduleOrder>(raw.orders.map(o => [o.id, o]));
             // Histórico: equipe que recebeu OS no dia aparece mesmo sem líder hoje / desativada.
-            const missingTeamIds = [...new Set<string>(savedItems.map(i => i.team_id.toString()))].filter(id => !columns[id]);
+            const missingTeamIds = [...new Set<string>(savedItems.map(i => i.team_id.toString()))]
+                .filter(id => !teams.some(t => t.teamId === id));
             if (missingTeamIds.length > 0) {
                 const { data: oldTeams, error: oldTeamsError } = await supabase
                     .from('cfg_teams')
@@ -399,8 +435,9 @@ export const dailyScheduleService = {
                     .in('id', missingTeamIds);
                 if (oldTeamsError) throw oldTeamsError;
                 for (const t of oldTeams || []) {
-                    const id = t.id.toString();
-                    teams.push({ id, code: t.code, name: t.description, leaderId: '', leaderName: 'Sem líder atual' });
+                    const teamId = t.id.toString();
+                    const id = scheduleColumnId(teamId);
+                    teams.push({ id, teamId, code: t.code, name: t.description, leaderId: '', leaderName: 'Sem líder atual' });
                     columns[id] = [];
                 }
             }
@@ -408,9 +445,9 @@ export const dailyScheduleService = {
                 .sort((a, b) => a.position - b.position)
                 .forEach(item => {
                     const order = orderMap.get(item.order_id.toString());
-                    const teamKey = item.team_id.toString();
-                    if (!order || !columns[teamKey]) return;
-                    columns[teamKey].push(order);
+                    const columnId = order && columnOf(order, item.team_id.toString());
+                    if (!order || !columnId || !columns[columnId]) return;
+                    columns[columnId].push(order);
                 });
             const priorities = [...savedPriorities]
                 .sort((a, b) => a.position - b.position)
@@ -443,20 +480,24 @@ export const dailyScheduleService = {
             .forEach(item => {
                 const order = orderById.get(item.order_id.toString());
                 const teamKey = item.team_id.toString();
-                if (!order || !columns[teamKey]) return;
-                if (order.teamId !== teamKey || !placeable.has(order.statusId)) return;
-                columns[teamKey].push(order);
+                if (!order || order.teamId !== teamKey || !placeable.has(order.statusId)) return;
+                const columnId = columnOf(order, teamKey);
+                if (!columnId || !columns[columnId]) return;
+                columns[columnId].push(order);
             });
 
-        // Em execução: sempre na coluna da própria equipe, mesmo sem ter sido inserida no dia
+        // Em execução: sempre na coluna do próprio líder/equipe, mesmo sem ter sido inserida no dia
         // (exceção às colunas limpas). As que não estão na sequência salva entram no topo.
-        const executing = orders
-            .filter(o => isExecution(o) && o.teamId && columns[o.teamId])
-            .sort(byRequestedAt);
-        for (const teamId of Object.keys(columns)) {
-            const missing = executing.filter(o => o.teamId === teamId && !columns[teamId].some(c => c.id === o.id));
-            if (missing.length > 0) columns[teamId] = [...missing, ...columns[teamId]];
-        }
+        const placed = new Set(Object.values(columns).flat().map(o => o.id));
+        const missingByColumn = new Map<string, DailyScheduleOrder[]>();
+        orders
+            .filter(o => isExecution(o) && !placed.has(o.id))
+            .sort(byRequestedAt)
+            .forEach(o => {
+                const columnId = ownScheduleColumnId(o, teams);
+                if (columnId && columns[columnId]) missingByColumn.set(columnId, [...(missingByColumn.get(columnId) || []), o]);
+            });
+        for (const [columnId, missing] of missingByColumn) columns[columnId] = [...missing, ...columns[columnId]];
 
         return { supported, teams, priorities, openOrders, prioritiesInheritedFrom, columns, updatedAt };
     },
@@ -520,14 +561,14 @@ export const dailyScheduleService = {
 
     /** Avaliação → Autorizada para a equipe/líder da coluna. Falha se a OS já saiu de Avaliação. */
     async authorizeToTeam(orderId: string, team: DailyScheduleTeam, planId?: string): Promise<void> {
-        await ordersService.authorizeOrder(orderId, team.id, planId, team.leaderId, DAILY_SCHEDULE_STATUS.EVALUATION);
+        await ordersService.authorizeOrder(orderId, team.teamId, planId, team.leaderId, DAILY_SCHEDULE_STATUS.EVALUATION);
     },
 
     /** Troca de equipe — só permitida enquanto a OS está Autorizada. */
     async moveAuthorizedToTeam(orderId: string, team: DailyScheduleTeam): Promise<void> {
         const { data, error } = await supabase
             .from('orders')
-            .update({ team_id: Number(team.id), team_leader_id: Number(team.leaderId) })
+            .update({ team_id: Number(team.teamId), team_leader_id: Number(team.leaderId) })
             .eq('id', Number(orderId))
             .eq('status_id', DAILY_SCHEDULE_STATUS.AUTHORIZED)
             .select('id');
