@@ -1224,6 +1224,7 @@ export const GrantDashboardScreen: React.FC<GrantDashboardScreenProps> = ({
               assetTagSubOptions={assetTagSubs}
               orderSubTypes={orderSubTypes}
               showMaintenancePlanFilter
+              requireContract
               onActiveFiltersChange={(count) => {
                 setOsFilterCount(count);
                 onMobileFilterCountChange?.(count);

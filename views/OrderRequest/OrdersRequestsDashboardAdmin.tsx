@@ -1563,6 +1563,7 @@ export const OrdersRequestsDashboardAdmin: React.FC<OrdersRequestsDashboardAdmin
                                     assetTagSubOptions={assetTagSubs}
                                     orderSubTypes={orderSubTypes}
                                     hiddenFilters={isProviderMode ? PROVIDER_HIDDEN_FILTERS : []}
+                                    requireContract
                                     onActiveFiltersChange={(count) => { setOsFilterCount(count); onMobileFilterCountChange?.('OS', count); }}
                                     onApply={() => {
                                         const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];

@@ -1612,7 +1612,9 @@ export const DashboardOrdersAdminCalendarScreen: React.FC<DashboardOrdersAdminCa
                             onClick={() => {
                                 const allOptionsSelected = selectionModal.options.length > 0
                                     && selectionModal.options.every((option: any) => selectionModal.currentValue.includes(option.value));
-                                handleModalConfirm(allOptionsSelected ? [] : selectionModal.currentValue);
+                                // Contrato é obrigatório (handleApplyFilters exige length > 0): mantém a lista completa.
+                                const keepFull = selectionModal.filterKey === 'contractId';
+                                handleModalConfirm(allOptionsSelected && !keepFull ? [] : selectionModal.currentValue);
                             }}
                             className="flex-1 py-3 bg-primary text-white rounded-xl font-bold font-['Inter'] shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 text-sm cursor-pointer"
                         >
