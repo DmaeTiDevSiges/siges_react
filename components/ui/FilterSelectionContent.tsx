@@ -49,7 +49,12 @@ export const FilterSelectionContent: React.FC<{
      * confirmar volta para "todos" — parece que a seleção não funciona.
      */
     explicit?: boolean;
-}> = ({ label, options, initialValue, onConfirm, single = false, explicit = false }) => {
+    /**
+     * Quando true, marcar todas as opções confirma a lista completa em vez de `[]`
+     * ("nada = todos"). Necessário em filtros obrigatórios, que validam `length > 0`.
+     */
+    keepFullSelection?: boolean;
+}> = ({ label, options, initialValue, onConfirm, single = false, explicit = false, keepFullSelection = false }) => {
     const [selectionSearch, setSelectionSearch] = useState('');
     const [currentValue, setCurrentValue] = useState<string[]>(() =>
         single ? initialValue.slice(0, 1) : explicit ? initialValue : getFilterSelectionValue(options, initialValue));
@@ -139,7 +144,7 @@ export const FilterSelectionContent: React.FC<{
             {!single && <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                     onClick={() => {
-                        onConfirm(explicit ? currentValue : allOptionsSelected ? [] : currentValue);
+                        onConfirm(explicit || keepFullSelection ? currentValue : allOptionsSelected ? [] : currentValue);
                     }}
                     className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all active:scale-95"
                 >

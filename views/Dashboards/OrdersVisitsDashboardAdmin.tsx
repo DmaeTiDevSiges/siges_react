@@ -969,6 +969,7 @@ export const OrdersVisitsDashboardAdmin: React.FC<OrdersVisitsDashboardAdminProp
                                 assetTagSubOptions={assetTagSubOptions}
                                 orderSubTypes={orderSubTypes}
                                 hiddenFilters={hiddenVisitFilters}
+                                requireContract
                                 onActiveFiltersChange={(count) => { setVisitFilterCount(count); onActiveFiltersChange?.(count); }}
                                 onApply={() => {
                                     const selectedContracts = Array.isArray(advancedFilters.contractId) ? advancedFilters.contractId : [];

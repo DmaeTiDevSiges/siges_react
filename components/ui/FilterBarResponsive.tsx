@@ -28,6 +28,8 @@ interface FilterBarResponsiveProps {
     children?: React.ReactNode;
     hiddenFilters?: string[];
     showMaintenancePlanFilter?: boolean;
+    /** Contrato obrigatório: marcar todos mantém todos os ids em `contractId` (não vira `[]`). */
+    requireContract?: boolean;
 }
 
 export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterBarResponsiveProps>(({
@@ -47,6 +49,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
     children,
     hiddenFilters = [],
     showMaintenancePlanFilter = false,
+    requireContract = false,
 }, ref) => {
     const isDesktop = useMediaQuery('(min-width: 768px)');
     const filtersScroll = useDraggableScroll();
@@ -154,7 +157,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                 {children}
 
                 <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
-                    <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} />
+                    <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} keepFullSelection={requireContract && selectionModal.filterKey === 'contractId'} />
                 </Modal>
             </div>
         );
@@ -203,7 +206,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
             </Modal>
 
             <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
-                <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} />
+                <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} keepFullSelection={requireContract && selectionModal.filterKey === 'contractId'} />
             </Modal>
         </>
     );
