@@ -15,6 +15,7 @@
  *   • dias passados são somente leitura (mostram o que foi programado).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     DndContext,
     DragOverlay,
@@ -1211,9 +1212,14 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                         )}
                     </div>
 
-                    <DragOverlay>
-                        {active ? <div className="w-[280px]"><ScheduleOrderCardView order={active.order} isOverlay showTeam={active.container === PRIORITY || active.container === OPEN} /></div> : null}
-                    </DragOverlay>
+                    {/* No body: o overlay é position:fixed e um ancestral com transform/filter (animações
+                        e fundos com blur do layout) o deslocaria para longe do mouse. */}
+                    {createPortal(
+                        <DragOverlay zIndex={1000}>
+                            {active ? <div className="w-[280px]"><ScheduleOrderCardView order={active.order} isOverlay showTeam={active.container === PRIORITY || active.container === OPEN} /></div> : null}
+                        </DragOverlay>,
+                        document.body,
+                    )}
                 </DndContext>
             ) : null}
 
