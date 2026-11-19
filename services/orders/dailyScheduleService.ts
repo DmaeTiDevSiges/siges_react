@@ -13,6 +13,7 @@
 // A ordem do dia fica em orders_daily_schedules(_items) — migration 20261110.
 import { supabase } from '../core/supabase';
 import { getPublicImageUrl } from '../media/imageUtils';
+import { getBrazilDateInputValue } from '../../utils/formatters';
 import { ordersService } from './ordersService';
 import { sortColumnsByLeaderName } from './dailyScheduleSort';
 
@@ -426,7 +427,11 @@ export const dailyScheduleService = {
 
         if (readOnly) {
             // Dia passado: exatamente o que foi registrado (OSs podem já estar concluídas).
-            const orderMap = new Map<string, DailyScheduleOrder>(raw.orders.map(o => [o.id, o]));
+            // OS em execução está acontecendo agora: não aparece em dias passados.
+            const orderMap = new Map<string, DailyScheduleOrder>(
+                raw.orders
+                    .filter(o => o.statusId !== DAILY_SCHEDULE_STATUS.EXECUTION || date === getBrazilDateInputValue())
+                    .map(o => [o.id, o]));
             // Histórico: equipe que recebeu OS no dia aparece mesmo sem líder hoje / desativada.
             const missingTeamIds = [...new Set<string>(savedItems.map(i => i.team_id.toString()))]
                 .filter(id => !teams.some(t => t.teamId === id));
@@ -459,9 +464,12 @@ export const dailyScheduleService = {
         }
 
         // OSs Em Avaliação ficam fora da programação (nem ABERTAS nem PRIORIDADE).
-        const orders = raw.orders.filter(o => o.statusId !== DAILY_SCHEDULE_STATUS.EVALUATION);
-        // OS em execução só aparece na coluna da equipe (fora de ABERTAS e de PRIORIDADE).
+        // OS em execução só aparece na coluna da equipe (fora de ABERTAS e de PRIORIDADE) e
+        // apenas no dia em que está acontecendo (hoje); em dias futuros não aparece em lugar algum.
         const isExecution = (o: DailyScheduleOrder) => o.statusId === DAILY_SCHEDULE_STATUS.EXECUTION;
+        const isToday = date === getBrazilDateInputValue();
+        const orders = raw.orders.filter(o =>
+            o.statusId !== DAILY_SCHEDULE_STATUS.EVALUATION && (isToday || !isExecution(o)));
         const stripOrders = orders.filter(o => !isExecution(o));
         // Prioritárias = só as registradas (ou herdadas); o resto fica em ABERTAS.
         const priorities = stripOrders.filter(o => priorityByOrder.has(o.id)).sort(byPriority);
