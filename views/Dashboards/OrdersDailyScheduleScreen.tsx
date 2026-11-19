@@ -37,6 +37,7 @@ import { toast } from 'sonner';
 import type { Contract, Order, User } from '../../types';
 import { dataService } from '../../services/dataService';
 import type { DailyScheduleBoard, DailyScheduleItemInput, DailyScheduleMoveLog, DailyScheduleOrder, DailyScheduleTeam } from '../../services/orders/dailyScheduleService';
+import { sortTeamsByScheduledLoad } from '../../services/orders/dailyScheduleTeamOrder';
 import { DAILY_SCHEDULE_STATUS, ORDER_STATUS_CONFLICT, ownScheduleColumnId } from '../../services/orders/dailyScheduleService';
 import { usePermissions } from '../../contexts/PermissionsContext';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
@@ -885,7 +886,10 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     // Filtro salvo pode citar equipe que saiu do contrato: só valem as que estão no quadro
     // (nenhuma válida = todas, para o quadro não abrir vazio).
     const activeTeamFilter = board ? teamFilter.filter(id => board.teams.some(t => t.id === id)) : teamFilter;
-    const visibleTeams = (board?.teams || []).filter(t => activeTeamFilter.length === 0 || activeTeamFilter.includes(t.id));
+    // Com OS programada primeiro, depois os sem OS; cada grupo em ordem alfabética do líder.
+    const visibleTeams = board
+        ? sortTeamsByScheduledLoad(board.teams, board.columns).filter(t => activeTeamFilter.length === 0 || activeTeamFilter.includes(t.id))
+        : [];
 
     const totalScheduled = board ? Object.values(board.columns).reduce((acc, list) => acc + list.length, 0) : 0;
 
