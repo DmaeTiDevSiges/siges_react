@@ -410,6 +410,7 @@ export const ordersService = {
             type_id: parseInt(order.typeId),
             priority_id: order.priorityId ? parseInt(order.priorityId) : null,
             requested_services: order.requestedServices,
+            requested_services_doc: order.requestedServicesDoc?.trim() || null,
 
             system_parent_id: unitData?.system_parent_id || null,
             system_id: unitData?.system_id || null,
@@ -476,6 +477,7 @@ export const ordersService = {
                 typeCode: orderTypeData?.code,
                 typeDescription: orderTypeData?.description,
                 requestedServices: dbData.requested_services,
+                requestedServicesDoc: dbData.requested_services_doc,
                 priorityId: dbData.priority_id?.toString(),
                 priorityDescription: priorityData?.description,
                 requesterName: dbData.requester_name,
@@ -686,6 +688,7 @@ export const ordersService = {
         if (order.contractId !== undefined) dbData.contract_id = order.contractId ? parseInt(order.contractId) : null;
         if (order.planId !== undefined) dbData.plan_id = order.planId ? parseInt(order.planId) : null;
         if (order.requestedServices !== undefined) dbData.requested_services = order.requestedServices;
+        if (order.requestedServicesDoc !== undefined) dbData.requested_services_doc = order.requestedServicesDoc?.trim() || null;
         if (order.clientId !== undefined) dbData.client_id = order.clientId ? parseInt(order.clientId) : null;
         if (order.unitId !== undefined) {
             const newUnitId = order.unitId ? parseInt(order.unitId) : null;
@@ -840,6 +843,7 @@ export const ordersService = {
             requesterPhone: data.requester_phone,
             requestedAt: data.requested_at,
             requestedServices: data.requested_services,
+            requestedServicesDoc: data.requested_services_doc,
             statusId: data.status_id ? Number(data.status_id) : undefined,
             statusAt: data.status_at,
             statusDescription: data.status_description,
@@ -930,6 +934,7 @@ export const ordersService = {
                     canceledTeamCode: row.canceled_team_code,
                     canceledUserNameShort: row.canceled_user_name_short,
                     requestedServices: row.requested_services,
+                    requestedServicesDoc: row.requested_services_doc,
                     requesterName: row.requester_name,
                     requesterTeamCode: row.requester_team_code,
                     requesterPhone: row.requester_phone,
@@ -1016,6 +1021,7 @@ export const ordersService = {
             assetTagId: item.asset_tag_id?.toString(),
             assetTagSubId: item.asset_tag_sub_id?.toString(),
             requestedServices: item.requested_services,
+            requestedServicesDoc: item.requested_services_doc,
             requestedAt: item.requested_at,
             date: item.requested_at,
             createdAt: item.created_at,
@@ -1322,9 +1328,13 @@ export const ordersService = {
                 }
             }
 
+            if (filters.requestedServicesDoc?.trim()) {
+                query = query.ilike('requested_services_doc', `%${filters.requestedServicesDoc.trim()}%`);
+            }
+
             if (filters.search) {
                 const s = `%${filters.search}%`;
-                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}, requested_services_doc.ilike.${s}`);
             }
 
             if (filters.activeFilter === 'SS') {
@@ -1942,9 +1952,13 @@ export const ordersService = {
             applyFilter('provider_company_id', filters.providerCompanyId);
             applyFilter('cause_reason_id', filters.causeReasonId);
 
+            if (filters.requestedServicesDoc?.trim()) {
+                query = query.ilike('requested_services_doc', `%${filters.requestedServicesDoc.trim()}%`);
+            }
+
             if (filters.search) {
                 const s = `%${filters.search}%`;
-                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}, requested_services_doc.ilike.${s}`);
             }
         }
 
@@ -1975,6 +1989,7 @@ export const ordersService = {
                 unitDescription: item.unit_description,
                 title: item.unit_description,
                 requestedServices: item.requested_services,
+                requestedServicesDoc: item.requested_services_doc,
                 requestedAt: item.requested_at,
                 createdAt: item.created_at,
                 statusAt: item.status_at,
@@ -2092,9 +2107,13 @@ export const ordersService = {
             applyFilter('provider_company_id', filters.providerCompanyId);
             applyFilter('cause_reason_id', filters.causeReasonId);
 
+            if (filters.requestedServicesDoc?.trim()) {
+                query = query.ilike('requested_services_doc', `%${filters.requestedServicesDoc.trim()}%`);
+            }
+
             if (filters.search) {
                 const s = `%${filters.search}%`;
-                query = query.or(`order_mask.ilike.${s},unit_description.ilike.${s},unit_description_full.ilike.${s},type_description.ilike.${s},requested_services.ilike.${s}`);
+                query = query.or(`order_mask.ilike.${s},unit_description.ilike.${s},unit_description_full.ilike.${s},type_description.ilike.${s},requested_services.ilike.${s}, requested_services_doc.ilike.${s}`);
             }
         }
 
@@ -2130,6 +2149,7 @@ export const ordersService = {
                 unitDescription: item.unit_description,
                 title: item.unit_description,
                 requestedServices: item.requested_services,
+                requestedServicesDoc: item.requested_services_doc,
                 requestedAt: item.requested_at,
                 createdAt: item.created_at,
                 statusAt: item.status_at,
@@ -2234,9 +2254,13 @@ export const ordersService = {
             applyFilter('provider_company_id', filters.providerCompanyId);
             applyFilter('cause_reason_id', filters.causeReasonId);
 
+            if (filters.requestedServicesDoc?.trim()) {
+                query = query.ilike('requested_services_doc', `%${filters.requestedServicesDoc.trim()}%`);
+            }
+
             if (filters.search) {
                 const s = `%${filters.search}%`;
-                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}, requested_services_doc.ilike.${s}`);
             }
         }
 
@@ -2337,7 +2361,8 @@ export const ordersService = {
                 unitLatitude: item.unit_latitude,
                 unitLongitude: item.unit_longitude,
                 parentId: item.parent_id,
-                requestedServices: item.requested_services
+                requestedServices: item.requested_services,
+                requestedServicesDoc: item.requested_services_doc
             } as Order;
         });
     },
@@ -2389,6 +2414,7 @@ export const ordersService = {
                 requesterPhone: row.requester_phone,
                 requestedAt: row.requested_at,
                 requestedServices: row.requested_services,
+                requestedServicesDoc: row.requested_services_doc,
                 totalValue: row.total_value,
                 systemId: row.system_id,
                 unitLatitude: row.unit_latitude,
@@ -2469,6 +2495,7 @@ export const ordersService = {
                 requesterPhone: row.requester_phone,
                 requestedAt: row.requested_at,
                 requestedServices: row.requested_services,
+                requestedServicesDoc: row.requested_services_doc,
                 totalValue: row.total_value,
                 systemId: row.system_id,
                 unitLatitude: row.unit_latitude,
@@ -2576,6 +2603,7 @@ export const ordersService = {
     },
 
     async getCompletedOS(filters?: {
+        requestedServicesDoc?: string;
         startDate?: string;
         endDate?: string;
         page?: number;
@@ -2658,9 +2686,13 @@ export const ordersService = {
             applyFilter('provider_company_id', filters.providerCompanyId);
             applyFilter('cause_reason_id', filters.causeReasonId);
 
+            if (filters.requestedServicesDoc?.trim()) {
+                query = query.ilike('requested_services_doc', `%${filters.requestedServicesDoc.trim()}%`);
+            }
+
             if (filters.search) {
                 const s = `%${filters.search}%`;
-                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}, requested_services_doc.ilike.${s}`);
             }
         }
 
@@ -2704,6 +2736,7 @@ export const ordersService = {
                 unitDescription: item.unit_description,
                 title: item.unit_description,
                 requestedServices: item.requested_services,
+                requestedServicesDoc: item.requested_services_doc,
                 requestedAt: item.requested_at,
                 createdAt: item.created_at,
                 statusAt: item.status_at,
@@ -2765,6 +2798,7 @@ export const ordersService = {
     },
 
     async getCompletedSS(filters?: {
+        requestedServicesDoc?: string;
         startDate?: string;
         endDate?: string;
         page?: number;
@@ -2843,9 +2877,13 @@ export const ordersService = {
             applyFilter('provider_company_id', filters.providerCompanyId);
             applyFilter('cause_reason_id', filters.causeReasonId);
 
+            if (filters.requestedServicesDoc?.trim()) {
+                query = query.ilike('requested_services_doc', `%${filters.requestedServicesDoc.trim()}%`);
+            }
+
             if (filters.search) {
                 const s = `%${filters.search}%`;
-                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}, requested_services_doc.ilike.${s}`);
             }
         }
 
@@ -2889,6 +2927,7 @@ export const ordersService = {
                 unitDescription: item.unit_description,
                 title: item.unit_description,
                 requestedServices: item.requested_services,
+                requestedServicesDoc: item.requested_services_doc,
                 requestedAt: item.requested_at,
                 createdAt: item.created_at,
                 statusAt: item.status_at,
@@ -2955,6 +2994,7 @@ export const ordersService = {
     },
 
     async getCanceledSS(filters?: {
+        requestedServicesDoc?: string;
         startDate?: string;
         endDate?: string;
         page?: number;
@@ -3036,9 +3076,13 @@ export const ordersService = {
             applyFilter('provider_company_id', filters.providerCompanyId);
             applyFilter('cause_reason_id', filters.causeReasonId);
 
+            if (filters.requestedServicesDoc?.trim()) {
+                query = query.ilike('requested_services_doc', `%${filters.requestedServicesDoc.trim()}%`);
+            }
+
             if (filters.search) {
                 const s = `%${filters.search}%`;
-                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}`);
+                query = query.or(`order_mask.ilike.${s}, unit_description.ilike.${s}, unit_description_full.ilike.${s}, type_description.ilike.${s}, requested_services.ilike.${s}, requested_services_doc.ilike.${s}`);
             }
         }
 
@@ -3082,6 +3126,7 @@ export const ordersService = {
                 unitDescription: item.unit_description,
                 title: item.unit_description,
                 requestedServices: item.requested_services,
+                requestedServicesDoc: item.requested_services_doc,
                 requestedAt: item.requested_at,
                 createdAt: item.created_at,
                 statusAt: item.status_at,

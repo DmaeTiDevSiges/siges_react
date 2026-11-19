@@ -201,6 +201,11 @@ export const OrderCardDetail: React.FC<OrderCardDetailProps> = ({ order: req, cu
             <div className="relative">
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-1 leading-tight whitespace-pre-line flex-1 pr-6">{req.requestedServices}</p>
             </div>
+            {req.requestedServicesDoc && (
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 truncate" title={req.requestedServicesDoc}>
+                    <span className="font-semibold">Documento:</span> {req.requestedServicesDoc}
+                </p>
+            )}
 
             {/* Image Gallery */}
             {imageUrls.length > 0 && (

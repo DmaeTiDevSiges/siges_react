@@ -77,7 +77,10 @@ export const OrdersListDocument = ({ orders, logoBase64 }: { orders: any[]; logo
                                     </Text>
                                 ) : null}
                             </View>
-                            <View style={[styles.tableCol, { width: '30%' }]}><Text style={styles.tableCell}>{order.requestedServices || '-'}</Text></View>
+                            <View style={[styles.tableCol, { width: '30%' }]}>
+                                <Text style={styles.tableCell}>{order.requestedServices || '-'}</Text>
+                                {order.requestedServicesDoc ? <Text style={styles.tableCellSub}>{`Documento: ${order.requestedServicesDoc}`}</Text> : null}
+                            </View>
                             <View style={[styles.tableCol, { width: '15%' }]}>
                                 <Text style={styles.tableCell}>{order.requesterName || order.requesterNameShort || '-'}</Text>
                                 <Text style={styles.tableCellSub}>{order.requesterTeamCode || '-'}</Text>

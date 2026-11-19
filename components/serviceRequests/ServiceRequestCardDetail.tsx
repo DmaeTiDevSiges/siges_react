@@ -235,6 +235,11 @@ export const ServiceRequestCardDetail: React.FC<ServiceRequestCardDetailProps> =
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 leading-tight line-clamp-3">
                 {req.requestedServices || 'Sem descrição'}
             </p>
+            {req.requestedServicesDoc && (
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 truncate" title={req.requestedServicesDoc}>
+                    <span className="font-semibold">Documento:</span> {req.requestedServicesDoc}
+                </p>
+            )}
             {/* Image Gallery */}
             {
                 imageUrls.length > 0 && (

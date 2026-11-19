@@ -56,6 +56,7 @@ export const RequestsExcelExportButton = ({
                 unitAssetTagDescription: 'Setor',
                 unitAssetTagSubDescription: 'Sub-setor',
                 requestedServices: 'Serviços Solicitados',
+                requestedServicesDoc: 'Documento',
                 requesterName: 'Solicitante',
                 requesterTeamCode: 'Equipe Solicitante',
                 requesterPhone: 'Fone Solicitante',

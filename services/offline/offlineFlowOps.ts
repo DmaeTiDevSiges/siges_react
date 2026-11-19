@@ -171,6 +171,7 @@ const buildLocalVisit = (visitId: string, order: any, user: any, startedAt: stri
     assetTagDescription: order.assetTagDescription,
     assetTagSubDescription: order.assetTagSubDescription,
     requestedServices: order.requestedServices,
+    requestedServicesDoc: order.requestedServicesDoc,
     contractId: order.contractId,
     companyId: order.companyId,
     providerCompanyId: order.providerCompanyId,

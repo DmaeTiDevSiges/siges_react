@@ -415,6 +415,7 @@ const ServiceRequestDetailContent: React.FC<ServiceRequestDetailProps> = ({
                                 typeId: order.typeId,
                                 priorityId: order.priorityId?.toString(),
                                 requestedServices: order.requestedServices,
+                                requestedServicesDoc: order.requestedServicesDoc,
                             };
                             onCloneSS(clonedData);
                         }

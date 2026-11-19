@@ -502,6 +502,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                     orderTeamId: appliedFilters.orderTeamId,
                     assetTagId: appliedFilters.assetTagId,
                     assetTagSubId: appliedFilters.assetTagSubId,
+                    requestedServicesDoc: appliedFilters.requestedServicesDoc,
                     ...(providerCompanyId ? { providerCompanyId } : {}),
                     viewName: 'v_orders_parent',
                 });
@@ -541,6 +542,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                     orderTeamId: appliedFilters.orderTeamId,
                     assetTagId: appliedFilters.assetTagId,
                     assetTagSubId: appliedFilters.assetTagSubId,
+                    requestedServicesDoc: appliedFilters.requestedServicesDoc,
                     ...(providerCompanyId ? { providerCompanyId } : {}),
                     viewName: 'v_orders_parent',
                 });
@@ -769,6 +771,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             orderTypeSubId: appliedFilters.orderTypeSubId,
             assetTagId: appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
+            requestedServicesDoc: appliedFilters.requestedServicesDoc,
             period: selectedPeriod || appliedFilters.period,
         };
     }, [appliedFilters, selectedPeriod]);
@@ -790,6 +793,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             statusId: selectedStatusId ?? undefined,
             assetTagId: osAssetTagId.length > 0 ? osAssetTagId : appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
+            requestedServicesDoc: appliedFilters.requestedServicesDoc,
         };
     }, [appliedFilters, selectedStatusId, osAssetTagId]);
 
@@ -807,6 +811,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             statusId: 8,
             assetTagId: appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
+            requestedServicesDoc: appliedFilters.requestedServicesDoc,
             startDate: dateRange.start,
             endDate: dateRange.end,
         };
@@ -851,6 +856,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
             statusId: 7,
             assetTagId: appliedFilters.assetTagId,
             assetTagSubId: appliedFilters.assetTagSubId,
+            requestedServicesDoc: appliedFilters.requestedServicesDoc,
             startDate: dateRange.start,
             endDate: dateRange.end,
         };
@@ -944,6 +950,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 assetTagId: ordersListFilters.assetTagId,
                 assetTagSubId: ordersListFilters.assetTagSubId,
                 period: periodFromOverride ?? undefined,
+                requestedServicesDoc: ordersListFilters.requestedServicesDoc,
                 search: searchQuery || undefined,
             };
 
@@ -965,6 +972,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 priorityId: ordersListFilters.priorityId,
                 statusId: statusIdFromOverride ?? undefined,
                 assetTagId: ordersListFilters.assetTagId,
+                requestedServicesDoc: ordersListFilters.requestedServicesDoc,
                 search: searchQuery || undefined,
             };
 
@@ -1452,6 +1460,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                                     orderSubTypes={orderSubTypes}
                                     onActiveFiltersChange={(count) => { setOsFilterCount(count); onMobileFilterCountChange?.('OS', count); }}
                                     hiddenFilters={['orderObjectId', 'contractId', 'orderPlanId', 'responsibleTeamId']}
+                                    showDocumentFilter
                                     onApply={() => {
                                         const selectedContracts = Array.isArray(advancedOrdersFilters.contractId) ? advancedOrdersFilters.contractId : [];
                                         const newFilters = { ...advancedOrdersFilters };

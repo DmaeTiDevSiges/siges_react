@@ -4,6 +4,7 @@ import { dataService } from '../../services/dataService';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
+import { Input } from '../../components/ui/Input';
 import { toast } from 'sonner';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { CAMERA_PHOTO_LIMITS } from '../../utils/cameraOptions';
@@ -38,7 +39,8 @@ const getInitialFormData = (initialData?: InitialOrderData) => ({
     unitAssetTagId: toFormValue(initialData?.unitAssetTagId ?? initialData?.unit_asset_tag_id),
     orderTypeId: toFormValue(initialData?.typeId ?? initialData?.type_id ?? initialData?.orderTypeId ?? initialData?.order_type_id),
     priorityId: toFormValue(initialData?.priorityId ?? initialData?.priority_id),
-    requestedServices: toFormValue(initialData?.requestedServices ?? initialData?.requested_services)
+    requestedServices: toFormValue(initialData?.requestedServices ?? initialData?.requested_services),
+    requestedServicesDoc: toFormValue(initialData?.requestedServicesDoc ?? initialData?.requested_services_doc)
 });
 
 const withSelectedOption = (
@@ -265,6 +267,7 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                 priorityId: formData.priorityId || undefined,
                 unitAssetTagId: formData.unitAssetTagId || undefined,
                 requestedServices: formData.requestedServices,
+                requestedServicesDoc: formData.requestedServicesDoc.trim() || undefined,
             };
 
             let savedOrder: Order;
@@ -615,6 +618,13 @@ export const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onBack, 
                                         onChange={e => setFormData(prev => ({ ...prev, requestedServices: e.target.value }))}
                                         placeholder="Ex.: Realizar vistoria, GMB01: Painel nao liga ..."
                                         error={formData.requestedServices.length > 0 && formData.requestedServices.trim().length < 10 ? "Mínimo de 10 caracteres" : ""}
+                                    />
+                                    <Input
+                                        label="Documento"
+                                        value={formData.requestedServicesDoc}
+                                        onChange={e => { const value = e.target.value; setFormData(prev => ({ ...prev, requestedServicesDoc: value })); }}
+                                        placeholder="Ex.: Processo nº 00000.000000/2026-00 (opcional)"
+                                        maxLength={120}
                                     />
                                 </div>
 

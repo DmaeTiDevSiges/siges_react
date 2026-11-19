@@ -925,6 +925,8 @@ export interface Order {
 
   // Details
   requestedServices?: string; // Description
+  /** Documento externo / processo administrativo que originou a SS (herdado pelas OS filhas). */
+  requestedServicesDoc?: string;
 
   // Values
   totalValue?: number;
@@ -1424,6 +1426,8 @@ export interface OrderFilters {
   causeReasonId?: string | string[];
   /** Filtro por Plano de Manutenção Preventiva associado à OS. */
   maintenancePlanId?: string | string[];
+  /** Filtro por Documento (orders.requested_services_doc), busca parcial. */
+  requestedServicesDoc?: string;
 }
 
 export interface OrderVisitChatMessage {

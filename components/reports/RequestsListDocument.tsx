@@ -77,7 +77,10 @@ export const RequestsListDocument = ({ requests, logoBase64 }: { requests: any[]
                                     </Text>
                                 ) : null}
                             </View>
-                            <View style={[styles.tableCol, { width: '30%' }]}><Text style={styles.tableCell}>{req.requestedServices || '-'}</Text></View>
+                            <View style={[styles.tableCol, { width: '30%' }]}>
+                                <Text style={styles.tableCell}>{req.requestedServices || '-'}</Text>
+                                {req.requestedServicesDoc ? <Text style={styles.tableCellSub}>{`Documento: ${req.requestedServicesDoc}`}</Text> : null}
+                            </View>
                             <View style={[styles.tableCol, { width: '15%' }]}>
                                 <Text style={styles.tableCell}>{req.requesterName || req.requesterNameShort || '-'}</Text>
                                 <Text style={styles.tableCellSub}>{req.requesterTeamCode || '-'}</Text>

@@ -105,6 +105,11 @@ export const OrderRequestCardListItem: React.FC<OrderRequestCardListItemProps> =
                     <p className="text-sm text-slate-600 dark:text-slate-400 leading-tight whitespace-pre-line pr-6">{req.requestedServices}</p>
                     <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 absolute -right-2 top-0.5">chevron_right</span>
                 </div>
+                {req.requestedServicesDoc && (
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 truncate" title={req.requestedServicesDoc}>
+                        <span className="font-semibold">Documento:</span> {req.requestedServicesDoc}
+                    </p>
+                )}
 
                 {/* Image Gallery */}
                 {imageUrls.length > 0 && (

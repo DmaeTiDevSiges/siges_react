@@ -28,6 +28,8 @@ interface FilterBarResponsiveProps {
     children?: React.ReactNode;
     hiddenFilters?: string[];
     showMaintenancePlanFilter?: boolean;
+    /** Exibe o filtro de texto "Documento" (orders.requested_services_doc). */
+    showDocumentFilter?: boolean;
     /** Contrato obrigatório: marcar todos mantém todos os ids em `contractId` (não vira `[]`). */
     requireContract?: boolean;
 }
@@ -49,6 +51,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
     children,
     hiddenFilters = [],
     showMaintenancePlanFilter = false,
+    showDocumentFilter = false,
     requireContract = false,
 }, ref) => {
     const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -100,7 +103,8 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
             'unitId', 'assetTagId', 'assetTagSubId', 'orderObjectId',
             'orderTypeId', 'orderTypeSubId', 'contractId', 'orderPlanId', 'orderTeamId',
             'causeReasonId', 'responsibleTeamId',
-            ...(showMaintenancePlanFilter ? ['maintenancePlanId'] : [])
+            ...(showMaintenancePlanFilter ? ['maintenancePlanId'] : []),
+            ...(showDocumentFilter ? ['requestedServicesDoc'] : [])
         ];
         return keys.reduce((count, key) => {
             if (hiddenFilters.includes(key)) return count;
@@ -109,7 +113,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
             if (val) return count + 1;
             return count;
         }, 0);
-    }, [advancedFilters, hiddenFilters, showMaintenancePlanFilter]);
+    }, [advancedFilters, hiddenFilters, showMaintenancePlanFilter, showDocumentFilter]);
 
     const openMobileFilter = useCallback((key: string, label: string, options: { value: string; label: string }[]) => {
         openSelectionModal(key, label, options);
@@ -154,6 +158,18 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                 <TreeFilterSelect label="EQ.SOLICITANTE" value={advancedFilters.orderTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: [] }))} hidden={hiddenFilters.includes('orderTeamId')} />
                 <TreeFilterSelect label="EQ.RESPONSAVEL" value={advancedFilters.responsibleTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: [] }))} hidden={hiddenFilters.includes('responsibleTeamId')} />
 
+                {showDocumentFilter && (
+                    <input
+                        type="text"
+                        aria-label="Filtrar por Documento"
+                        placeholder="DOCUMENTO"
+                        value={advancedFilters.requestedServicesDoc || ''}
+                        onChange={(e) => { const value = e.target.value; setAdvancedFilters((prev: any) => ({ ...prev, requestedServicesDoc: value })); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') onApply?.(); }}
+                        className="shrink-0 w-36 h-8 px-3 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                )}
+
                 {children}
 
                 <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
@@ -191,6 +207,17 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                     {showMaintenancePlanFilter && <FilterSelect variant="vertical" label="PMP" value={advancedFilters.maintenancePlanId || []} onClick={() => openMobileFilter('maintenancePlanId', 'PMP', filterSelectOptions.maintenancePlans.map((opt: any) => ({ value: String(opt.id), label: opt.description })))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, maintenancePlanId: [] }))} />}
                 <TreeFilterSelect label="EQ.SOLICITANTE" value={advancedFilters.orderTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: [] }))} hidden={hiddenFilters.includes('orderTeamId')} />
                 <TreeFilterSelect label="EQ.RESPONSAVEL" value={advancedFilters.responsibleTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: [] }))} hidden={hiddenFilters.includes('responsibleTeamId')} />
+
+                    {showDocumentFilter && (
+                        <input
+                            type="text"
+                            aria-label="Filtrar por Documento"
+                            placeholder="DOCUMENTO"
+                            value={advancedFilters.requestedServicesDoc || ''}
+                            onChange={(e) => { const value = e.target.value; setAdvancedFilters((prev: any) => ({ ...prev, requestedServicesDoc: value })); }}
+                            className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                    )}
 
                     {onApply && (
                         <button
