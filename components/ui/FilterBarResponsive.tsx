@@ -3,6 +3,7 @@ import { FilterSelect } from './FilterSelect';
 import { TreeFilterSelect } from './TreeFilterSelect';
 import { FilterSelectionContent } from './FilterSelectionContent';
 import { Modal } from './Modal';
+import { Input } from './Input';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useDraggableScroll } from '../../hooks/useDraggableScroll';
 
@@ -97,6 +98,35 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
         setSelectionModal(prev => ({ ...prev, isOpen: false }));
     }, [selectionModal.filterKey, setAdvancedFilters, handleSystemChange, handleParentUnitTypeChange, handleOrderTypeChange, handleSectorChange]);
 
+    const [documentModal, setDocumentModal] = useState<{ isOpen: boolean; draft: string }>({ isOpen: false, draft: '' });
+    const openDocumentModal = useCallback(() => {
+        setDocumentModal({ isOpen: true, draft: advancedFilters.requestedServicesDoc || '' });
+    }, [advancedFilters.requestedServicesDoc]);
+    const confirmDocumentModal = useCallback(() => {
+        const value = documentModal.draft.trim();
+        setAdvancedFilters((prev: any) => ({ ...prev, requestedServicesDoc: value }));
+        setDocumentModal(prev => ({ ...prev, isOpen: false }));
+    }, [documentModal.draft, setAdvancedFilters]);
+
+    const documentModalElement = showDocumentFilter ? (
+        <Modal isOpen={documentModal.isOpen} onClose={() => setDocumentModal(prev => ({ ...prev, isOpen: false }))} title="Filtrar por Documento" maxWidth="md">
+            <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); confirmDocumentModal(); }}>
+                <Input
+                    label="Documento"
+                    autoFocus
+                    value={documentModal.draft}
+                    onChange={(e) => { const value = e.target.value; setDocumentModal(prev => ({ ...prev, draft: value })); }}
+                    placeholder="Ex.: número do processo"
+                    maxLength={120}
+                />
+                <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" onClick={() => setDocumentModal(prev => ({ ...prev, draft: '' }))} className="flex-1 py-3 rounded-xl font-bold text-sm uppercase text-slate-500 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95">Limpar</button>
+                    <button type="submit" className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm uppercase hover:brightness-110 transition-all active:scale-95">Confirmar</button>
+                </div>
+            </form>
+        </Modal>
+    ) : null;
+
     const totalActiveFilters = useMemo(() => {
         const keys = [
             'systemParentId', 'systemId', 'unitTypeParentId', 'unitTypeId',
@@ -158,20 +188,11 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                 <TreeFilterSelect label="EQ.SOLICITANTE" value={advancedFilters.orderTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: [] }))} hidden={hiddenFilters.includes('orderTeamId')} />
                 <TreeFilterSelect label="EQ.RESPONSAVEL" value={advancedFilters.responsibleTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: [] }))} hidden={hiddenFilters.includes('responsibleTeamId')} />
 
-                {showDocumentFilter && (
-                    <input
-                        type="text"
-                        aria-label="Filtrar por Documento"
-                        placeholder="DOCUMENTO"
-                        value={advancedFilters.requestedServicesDoc || ''}
-                        onChange={(e) => { const value = e.target.value; setAdvancedFilters((prev: any) => ({ ...prev, requestedServicesDoc: value })); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') onApply?.(); }}
-                        className="shrink-0 w-36 h-8 px-3 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                )}
+                {showDocumentFilter && <FilterSelect label="DOCUMENTO" value={advancedFilters.requestedServicesDoc || ''} onClick={openDocumentModal} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, requestedServicesDoc: '' }))} />}
 
                 {children}
 
+                {documentModalElement}
                 <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
                     <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} keepFullSelection={requireContract && selectionModal.filterKey === 'contractId'} />
                 </Modal>
@@ -208,16 +229,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                 <TreeFilterSelect label="EQ.SOLICITANTE" value={advancedFilters.orderTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, orderTeamId: [] }))} hidden={hiddenFilters.includes('orderTeamId')} />
                 <TreeFilterSelect label="EQ.RESPONSAVEL" value={advancedFilters.responsibleTeamId || []} options={filterSelectOptions.teams.map((opt: any) => ({ value: String(opt.id), label: opt.name || opt.description, parentId: opt.parentId }))} onChange={(vals) => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: vals }))} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, responsibleTeamId: [] }))} hidden={hiddenFilters.includes('responsibleTeamId')} />
 
-                    {showDocumentFilter && (
-                        <input
-                            type="text"
-                            aria-label="Filtrar por Documento"
-                            placeholder="DOCUMENTO"
-                            value={advancedFilters.requestedServicesDoc || ''}
-                            onChange={(e) => { const value = e.target.value; setAdvancedFilters((prev: any) => ({ ...prev, requestedServicesDoc: value })); }}
-                            className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
-                    )}
+                    {showDocumentFilter && <FilterSelect variant="vertical" label="DOCUMENTO" value={advancedFilters.requestedServicesDoc || ''} onClick={openDocumentModal} onClear={() => setAdvancedFilters((prev: any) => ({ ...prev, requestedServicesDoc: '' }))} />}
 
                     {onApply && (
                         <button
@@ -232,6 +244,7 @@ export const FilterBarResponsive = forwardRef<FilterBarResponsiveHandle, FilterB
                 {children}
             </Modal>
 
+            {documentModalElement}
             <Modal isOpen={selectionModal.isOpen} onClose={() => setSelectionModal(prev => ({ ...prev, isOpen: false }))} title={`Filtrar por ${selectionModal.label}`} maxWidth="md">
                 <FilterSelectionContent label={selectionModal.label} options={selectionModal.options} initialValue={selectionModal.currentValue} onConfirm={handleModalConfirm} keepFullSelection={requireContract && selectionModal.filterKey === 'contractId'} />
             </Modal>
